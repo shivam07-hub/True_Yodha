@@ -38,15 +38,17 @@
    read as a click the platform had not heard.
 
    The stamp only claims "pressed". Anything that then goes and does work still
-   owes its own busy state — a stamp is not a progress report.
+   owes its own busy state — a stamp is not a progress report. A control that IS
+   working is skipped: it already stamped on the press that started the work,
+   and stamping again would claim a second press was heard.
 
    Deliberately the same 1px as the primitive, so a control that already stamps
    is unchanged rather than doubled. Unlayered on purpose: it must reach the
    bespoke classes, and any control that sets its own `transform` still wins. */
 @media (prefers-reduced-motion: no-preference) {
-  button:not(:disabled):not([aria-disabled="true"]):active,
+  button:not(:disabled):not([aria-disabled="true"]):not([aria-busy="true"]):active,
   summary:active,
-  [role="button"]:not([aria-disabled="true"]):active,
+  [role="button"]:not([aria-disabled="true"]):not([aria-busy="true"]):active,
   a.tm-control-focus:active,
   a.tm-link:active,
   .tm-card-interactive:active {

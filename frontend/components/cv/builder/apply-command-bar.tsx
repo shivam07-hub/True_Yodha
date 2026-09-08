@@ -78,9 +78,9 @@ export function ApplyCommandBar({
 
   const primaryLabel =
     state.phase === "draft" && isSaving
-      ? "Saving..."
+      ? "Saving…"
       : state.phase === "opened" && isMarkingApplied
-        ? "Saving..."
+        ? "Saving…"
         : state.primaryLabel
 
   const primaryButton = state.phase === "applied" ? (

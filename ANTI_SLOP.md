@@ -162,6 +162,62 @@ and be sure that is what happened before you touch a test.
 
 ---
 
+## THE FOUR BEATS OF A CLICK — 2026-09-08
+
+A control that says nothing when pressed is the same defect as a control that
+lies: the reader cannot tell "heard you" from "broken". The counts that opened
+this: **407 `:hover` rules against 15 `:active`**, `<Button>` in 59 files
+against a raw `<button>` in 218, and `<Button loading>` used **4 times out of
+181**. The primitives were right and unused.
+
+Every click answers in four beats. Skipping one is the drift.
+
+| Beat | When | What it must do | Where it lives |
+|---|---|---|---|
+| **Heard** | 0ms, always | 1px stamp | `app/globals.css` — global, nothing to adopt |
+| **Working** | 0ms → settled | label swaps to the verb in progress, dots beside it, `aria-busy`, keeps focus and colour, refuses the second click | `<Button loading>` |
+| **Slow** | past the threshold | one honest line, scoped to what is slow. Never a global banner, never a guessed ETA, never a fake bar | `useIsSlow` + `SectionGate` |
+| **Settled** | done | the result in place, or the error **beside the control** with a retry | `SectionError` |
+
+**Busy is not disabled.** `disabled` drops a control out of the tab order
+mid-action — a keyboard user loses their place — and paints it with the
+UNAVAILABLE styling, so working and broken look identical. The primitive used
+to do exactly this, and it also replaced the label with three dots: the word
+for what was happening vanished at the moment it was needed, and the button
+resized while the reader looked at it. Both fixed; the label stays.
+
+**Two thresholds, both in `components/loading/use-is-slow.ts`.**
+`SECTION_SLOW_MS` 6000 for a page region (grill-locked, dashboard-loading
+Q1/Q5). `ACTION_SLOW_MS` 1200 for something the reader clicked — they are
+watching the control they just pressed. Under it a reassurance flickers and
+reads as jank; over it, silence reads as broken.
+
+**Busy labels are one string.** The verb in progress, one ellipsis character:
+`Save → Saving…`, `Book the call → Booking…`. `Saving…` and `Saving...` had
+both shipped, seventeen of one and five of the other.
+
+### The gate
+
+Four counters in `npm run check:ui-drift`, same ratchet as everything above:
+
+| Metric | At 2026-09-08 | Means |
+|---|---|---|
+| `mutationWithoutBusyState` | **0** | a `useMutation` that renders no Working state — and never delegates one via `mutateAsync` or `onMutate` |
+| `busyLabelThreeDots` | **0** | `Saving...` instead of `Saving…` |
+| `disabledOnPending` | 41 | `disabled={x.isPending}` — should be `<Button loading>` |
+| `rawButtonElement` | 485 | a `<button>` re-rolling press, busy, disabled and focus by hand |
+
+The first two start at zero, so they are walls. The other two are long-tail and
+only ever fall.
+
+**A ratchet needs a way to say "this instance is correct", or it gets satisfied
+by contorting the code instead.** `// drift-ok(metricName): why` exempts one
+instance, written where the reader of that line needs it. Settings' autosave
+carries the first one: its Working state starts on the EDIT, so `isPending`
+would begin 800ms late and read as a lost keystroke.
+
+---
+
 ## KEEPING THIS FILE TRUE
 
 Counts above are **2026-08-20**. They are evidence, not a scoreboard — when you

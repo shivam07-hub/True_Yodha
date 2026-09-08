@@ -17,7 +17,18 @@ import { useEffect, useState } from "react"
  * The timer resets whenever `loading` flips back to false, so a fast refetch
  * never inherits a stale "slow" flag.
  */
-export function useIsSlow(loading: boolean, afterMs = 6000): boolean {
+/** A page REGION painting. Grill-locked (dashboard-loading Q1/Q5): sections
+ *  normally paint well under this, so crossing it means genuinely slow. */
+export const SECTION_SLOW_MS = 6000
+
+/** An ACTION the user started with a click. Far shorter than a section's: they
+ *  are watching the control they just pressed, and they know how long their own
+ *  click should take. Under this a reassurance flickers and reads as jank; over
+ *  it, silence reads as broken. One number, in one place — the alternative is
+ *  every component picking its own by feel. */
+export const ACTION_SLOW_MS = 1200
+
+export function useIsSlow(loading: boolean, afterMs = SECTION_SLOW_MS): boolean {
   const [slow, setSlow] = useState(false)
 
   useEffect(() => {

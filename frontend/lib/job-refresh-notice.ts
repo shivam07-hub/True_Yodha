@@ -27,7 +27,7 @@ export function deriveRefreshNotice({
   outcomeKind,
 }: DeriveRefreshNoticeInput): { msg: string; kind: RefreshNoticeKind } | null {
   if (state === "computing" || state === "charging" || state === "queued") {
-    return { msg: progressLabel ?? (state === "queued" ? "Waiting to start" : "Refreshing..."), kind: "info" }
+    return { msg: progressLabel ?? (state === "queued" ? "Waiting to start" : "Refreshing…"), kind: "info" }
   }
 
   if (state === "done") {

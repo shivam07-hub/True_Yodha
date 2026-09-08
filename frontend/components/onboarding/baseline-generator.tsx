@@ -94,7 +94,7 @@ export function BaselineGenerator({ token, state, onApproved, onCancel }: Props)
       {error && <p role="alert" className="mt-3 text-sm text-[var(--tm-danger)]">{error}</p>}
       <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
         <Button variant="outline" onClick={() => { setReviewing(false); go(5) }}>Back to answers</Button>
-        <Button size="lg" disabled={busy || draft.trim().length < 80} onClick={() => void approve()}>{busy ? "Approving..." : "Approve baseline"}</Button>
+        <Button size="lg" disabled={busy || draft.trim().length < 80} onClick={() => void approve()}>{busy ? "Approving…" : "Approve baseline"}</Button>
       </div>
     </section>
   )
@@ -118,7 +118,7 @@ export function BaselineGenerator({ token, state, onApproved, onCancel }: Props)
       {error && <p role="alert" className="mt-3 text-sm text-[var(--tm-danger)]">{error}</p>}
       <div className="mt-6 flex items-center justify-between gap-3">
         <Button variant="ghost" onClick={() => step > 1 ? go(step - 1) : onCancel()}><ArrowLeft className="size-4" />Back</Button>
-        <Button size="lg" disabled={busy} onClick={() => void continueQuestion()}>{busy ? "Saving..." : step === 5 ? "Review baseline" : "Continue"}<ArrowRight className="size-4" /></Button>
+        <Button size="lg" disabled={busy} onClick={() => void continueQuestion()}>{busy ? "Saving…" : step === 5 ? "Review baseline" : "Continue"}<ArrowRight className="size-4" /></Button>
       </div>
     </section>
   )
