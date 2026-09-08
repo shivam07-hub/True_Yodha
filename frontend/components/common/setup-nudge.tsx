@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import { users } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import "./setup-nudge.css"
+import Link from "next/link"
 
 interface SetupNudgeProps {
   token: string | null
@@ -72,7 +73,7 @@ export function SetupNudge({ token, className, style }: SetupNudgeProps) {
         <b>{copy.head}</b>
         <span>{copy.sub}</span>
       </div>
-      <a href="/onboarding" className="tm-setup-nudge-go">{copy.cta}</a>
+      <Link href="/onboarding" className="tm-setup-nudge-go">{copy.cta}</Link>
     </div>
   )
 }

@@ -347,7 +347,7 @@ function HiddenView({ token, snack }: { token: string; snack: (s: { msg: string 
               <div style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{row.job_title}</div>
               <div style={{ fontSize: 11.5, color: "var(--mm-faint)" }}>{co}</div>
             </div>
-            <button onClick={() => restore.mutate(row.job_id)} className="mm-press-sm" style={{ height: 30, padding: "0 12px", borderRadius: 99, border: "1px solid rgba(255,255,255,0.09)", background: "transparent", color: "var(--mm-text)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Restore</button>
+            <button onClick={() => restore.mutate(row.job_id)} disabled={restore.isPending} className="mm-press-sm" style={{ height: 30, padding: "0 12px", borderRadius: 99, border: "1px solid rgba(255,255,255,0.09)", background: "transparent", color: "var(--mm-text)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Restore</button>
           </div>
         )
       })}

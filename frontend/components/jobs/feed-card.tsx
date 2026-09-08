@@ -8,6 +8,7 @@ import { ageLabel, experienceLabel, type FeedCardData, type FitView } from "@/li
 import { verdictLabel } from "@/lib/jobs/match-verdict"
 import { CompanyLink, companyHref } from "@/components/companies/company-link"
 import "./feed-card.css"
+import Link from "next/link"
 
 const MODE_LABEL: Record<string, string> = { onsite: "On-site", hybrid: "Hybrid", remote: "Remote" }
 const CAREER_BAND_LABEL: Record<string, string> = {
@@ -84,9 +85,9 @@ export function FitIndicator({ fit, size = 40 }: { fit: FitView; size?: number }
       return <span className="fc-fitpill">no overlap yet</span>
     case "nudge":
       return (
-        <a href="/onboarding" onClick={(e) => e.stopPropagation()} className="fc-fitpill fc-fitpill-nudge">
+        <Link href="/onboarding" onClick={(e) => e.stopPropagation()} className="fc-fitpill fc-fitpill-nudge">
           Upload CV →
-        </a>
+        </Link>
       )
   }
 }

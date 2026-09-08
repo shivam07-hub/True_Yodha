@@ -19,6 +19,7 @@ import { formatDate } from "@/lib/format"
 import { loadRazorpay } from "@/lib/razorpay"
 import { AuditIntakeForm } from "./audit-intake-form"
 import "./audit-room.css"
+import { Button } from "@/components/ui/button"
 
 interface RazorpayConstructor {
   new (options: Record<string, unknown>): { open: () => void }
@@ -146,9 +147,9 @@ function Offer({
           will say so.
         </p>
       ) : (
-        <button type="button" className="tm-btn-primary awr-cta" onClick={onBuy}>
+        <Button type="button" className="awr-cta" onClick={onBuy}>
           Book the call
-        </button>
+        </Button>
       )}
       {error ? <p className="awr-error" role="alert">{error}</p> : null}
     </section>

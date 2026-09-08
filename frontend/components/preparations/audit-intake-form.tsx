@@ -10,6 +10,7 @@
 
 import { useState } from "react"
 import type { AuditIntake } from "@/lib/api"
+import { Button } from "@/components/ui/button"
 
 const FIELDS: { name: keyof AuditIntake; label: string; hint: string }[] = [
   {
@@ -96,9 +97,9 @@ export function AuditIntakeForm({
 
         {error ? <p className="awr-error" role="alert">{error}</p> : null}
 
-        <button type="submit" className="tm-btn-primary awr-cta" disabled={pending}>
+        <Button type="submit" className="awr-cta" disabled={pending}>
           {pending ? "Sending" : "Send it in"}
-        </button>
+        </Button>
       </form>
     </section>
   )

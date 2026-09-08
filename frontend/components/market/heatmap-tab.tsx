@@ -136,8 +136,20 @@ export function HeatmapTab({
   })
   const saveMutation = useMutation({
     mutationFn: (jobId: string) => jobs.saveJob(token!, jobId),
-    onSuccess: (_data, jobId) => {
+    // Mark it saved on the CLICK, not on the answer. The row's only state was
+    // `savedJobIds`, filled on success, so the button sat unchanged for the
+    // whole round trip — no acknowledgement, and clickable again meanwhile.
+    onMutate: (jobId) => {
       setManualSaved((prev) => new Set(Array.from(prev).concat(jobId)))
+    },
+    onError: (_error, jobId) => {
+      setManualSaved((prev) => {
+        const next = new Set(prev)
+        next.delete(jobId)
+        return next
+      })
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["applications"] })
     },
   })

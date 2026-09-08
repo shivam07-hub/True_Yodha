@@ -29,6 +29,32 @@
   outline-offset: 3px;
 }
 
+/* ── Press ─────────────────────────────────────────────────────────────────
+   Every control answers the press, not just the hover. The <Button> primitive
+   has done this since Phase 1 (CTA spec §2: press translates +1px), but the
+   app is mostly bespoke controls — 407 `:hover` rules against 15 `:active`
+   ones when this was written. So the whole app told you where the cursor was
+   and said nothing when you clicked, and any action that then took a moment
+   read as a click the platform had not heard.
+
+   The stamp only claims "pressed". Anything that then goes and does work still
+   owes its own busy state — a stamp is not a progress report.
+
+   Deliberately the same 1px as the primitive, so a control that already stamps
+   is unchanged rather than doubled. Unlayered on purpose: it must reach the
+   bespoke classes, and any control that sets its own `transform` still wins. */
+@media (prefers-reduced-motion: no-preference) {
+  button:not(:disabled):not([aria-disabled="true"]):active,
+  summary:active,
+  [role="button"]:not([aria-disabled="true"]):active,
+  a.tm-control-focus:active,
+  a.tm-link:active,
+  .tm-card-interactive:active {
+    transform: translateY(1px);
+    transition-duration: var(--tm-dur-fast);
+  }
+}
+
 /* Reversible negative intent: Skip, Hide, Not interested, Remove, Dismiss.
    Neutral at rest so it cannot be mistaken for destructive Delete; rose on
    hover/focus so it is the semantic counterweight to a positive Save action.
