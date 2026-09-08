@@ -340,6 +340,11 @@ function HiddenView({ token, snack }: { token: string; snack: (s: { msg: string 
       <div style={{ fontSize: 12, color: "var(--mm-faint)", padding: "2px 2px 4px" }}>Hidden roles stay out of your feed. Restore any time.</div>
       {list.map(row => {
         const co = row.company_name ?? "—"
+        // Scope the pending flag to THIS row. One mutation object is shared by
+        // the whole list, so an unscoped `restore.isPending` greyed out Restore
+        // on every other row while one was in flight. The desktop twin of this
+        // list already scopes on `restore.variables`.
+        const restoring = restore.isPending && restore.variables === row.job_id
         return (
           <div key={row.job_id} style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--mm-card)", border: "1px solid var(--mm-hair)", borderRadius: 14, padding: "12px 14px" }}>
             <div style={{ width: 34, height: 34, borderRadius: 10, background: "var(--mm-raise-1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "var(--mm-text-3)", flex: "none" }}>{co.slice(0, 1).toUpperCase()}</div>
@@ -347,7 +352,7 @@ function HiddenView({ token, snack }: { token: string; snack: (s: { msg: string 
               <div style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{row.job_title}</div>
               <div style={{ fontSize: 11.5, color: "var(--mm-faint)" }}>{co}</div>
             </div>
-            <button onClick={() => restore.mutate(row.job_id)} disabled={restore.isPending} className="mm-press-sm" style={{ height: 30, padding: "0 12px", borderRadius: 99, border: "1px solid rgba(255,255,255,0.09)", background: "transparent", color: "var(--mm-text)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Restore</button>
+            <button onClick={() => restore.mutate(row.job_id)} disabled={restoring} aria-busy={restoring || undefined} className="mm-press-sm" style={{ height: 30, padding: "0 12px", borderRadius: 99, border: "1px solid rgba(255,255,255,0.09)", background: "transparent", color: "var(--mm-text)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{restoring ? "Restoring…" : "Restore"}</button>
           </div>
         )
       })}
