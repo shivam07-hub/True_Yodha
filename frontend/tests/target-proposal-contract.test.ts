@@ -29,21 +29,41 @@ test("the screen proposes the top CV-ranked family instead of opening blank", ()
 })
 
 test("it proposes only when the CV evidence carries it", () => {
+  assert.match(confirm, /if \(mayPropose\(top\)\) setSelected/, "the proposal is not gated — that is guessing")
   assert.match(
     confirm,
-    /top\.matched_skill_count >= ROLE_SUGGESTION_MIN_SKILLS/,
-    "the proposal is not gated on match strength — that is guessing",
-  )
-  assert.match(
-    confirm,
-    /const ROLE_SUGGESTION_MIN_SKILLS = \d+/,
-    "the floor must be a named constant, not a literal in the condition",
+    /function mayPropose\(role: RoleFamily\): boolean/,
+    "the gate must be a named predicate, not a condition inlined in the effect",
   )
 })
 
-test("the floor carries the measurement that justifies it", () => {
+test("a residual bucket is offered, never asserted", () => {
+  // "Business Operations" is where a job lands when its skills are generic. It
+  // ranked #1 for 41.3% of users and was auto-ticked for 150 of 156 of them,
+  // rendered as "Branch Manager-BRANCH BANKING-Branch Head". Myro cannot defend
+  // one as somebody's direction, so it may list one and must never pre-select it.
+  assert.match(confirm, /if \(role\.is_catch_all\) return false/, "a catch-all can still be proposed")
+})
+
+test("the gate reads the skills the screen actually shows", () => {
+  // The old gate was `matched_skill_count >= 3` — skills appearing ANYWHERE in
+  // the family. That count is a function of family size, which is the bug the
+  // ranking migration removed; leaving it in the gate keeps the bug.
+  assert.match(confirm, /role\.top_skills/, "the gate does not read what the cluster hires for")
+  assert.match(confirm, /role\.matched_skills/, "the gate does not read what the user holds")
+  // Narrow to the USAGE: the explanation above mayPropose names the old gate,
+  // and a bare-name assertion would trip on its own prose.
+  assert.doesNotMatch(
+    confirm,
+    /top\.matched_skill_count|role\.matched_skill_count/,
+    "the size-proxy count is back in the proposal path",
+  )
+})
+
+test("the gate carries the measurement that justifies it", () => {
   // A threshold with no number behind it is a guess with a constant name.
-  assert.match(confirm, /88%/, "the measured distribution is not recorded beside the floor")
+  assert.match(confirm, /91\.8%/, "the measured distribution is not recorded beside the gate")
+  assert.match(confirm, /72\.6%/, "the measured firing rate is not recorded beside the gate")
 })
 
 test("it proposes at most once and never argues with a removal", () => {

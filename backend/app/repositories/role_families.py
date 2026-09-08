@@ -25,18 +25,21 @@ class RoleFamiliesRepository:
         query: str | None = None,
         # Six, not three. Measured on 2026-09-07 against the 14 most recent
         # people who finished Direction: SEVEN of them chose a family that was
-        # not in the three they were shown — Pricing Analysis, Business
-        # Strategy, Financial Reporting, Market Analysis, System Design,
-        # Counseling Services. They got there only by finding the search box.
-        # The suggestions skew to high-frequency families (Business Operations
-        # appeared for 12 of those 14), so a narrow list quietly asks half the
-        # room to go looking.
+        # not in the three they were shown. Widening the list was never the fix
+        # — six slots moved exactly one of the fourteen — because the RANKING
+        # was a size proxy (migration 20260909100000). It ranks by fit now, and
+        # six is the width that fit earns.
         limit: int = 6,
         families: list[str] | None = None,
         skill_ids: list[int] | None = None,
     ) -> list[dict[str, Any]]:
-        """Suggest families by skill overlap, search them by text, or resolve
+        """Suggest families by skill FIT, search them by text, or resolve
         specific ones by key.
+
+        Fit is prevalence x IDF cosine against the family's own skill profile,
+        times log volume — not the count of skills that appear anywhere in it.
+        The count made the answer a function of family size: Business Operations
+        ranked first for 41.3% of all users, AI/ML for another 30.7%.
 
         `families` is the restore path: a direction the user already chose is
         returned whatever its skill overlap, and whether or not it was found

@@ -47,11 +47,29 @@ type Props = {
 
 const NAME_RE = /^[a-z0-9-]{3,32}$/
 
-/** How much CV overlap a family needs before Myro proposes it rather than asks.
- *  Measured over 60 real users' top-ranked family: 88% match on 3 or more
- *  skills, 12% on one or two, none on zero. Below this the screen stays blank —
- *  the same "never guesses" rule seniority already follows. */
-const ROLE_SUGGESTION_MIN_SKILLS = 3
+/** Whether Myro may PROPOSE this family, or must only offer it.
+ *
+ *  The old gate was `matched_skill_count >= 3` — three of the user's skills
+ *  appearing anywhere in the family. That number is a function of family SIZE
+ *  (a 2,326-job cluster holds 2,322 distinct skills), which is the exact bug
+ *  migration 20260909100000 removed from the ranking. It fired for 150 of the
+ *  156 users whose rank-1 was Business Operations and 109 of 116 whose rank-1
+ *  was AI/ML: 7 users in 10 had a direction pre-ticked their CV never implied.
+ *
+ *  Two conditions now, both readable on the screen itself:
+ *    - not a residual bucket. Myro cannot defend "Business Operations" as
+ *      somebody's direction, so it offers one and never asserts one.
+ *    - the person holds a skill the cluster is actually known for.
+ *
+ *  Measured over 379 users' rank-1 family: 91.8% hold one of its top skills,
+ *  23.7% rank a catch-all first, and the pair fires for 72.6% against the old
+ *  gate's 80.5%. Below it the screen stays blank and asks — the same "never
+ *  guesses" rule seniority already follows. */
+function mayPropose(role: RoleFamily): boolean {
+  if (role.is_catch_all) return false
+  const wanted = new Set(role.top_skills ?? [])
+  return (role.matched_skills ?? []).some((skill) => wanted.has(skill))
+}
 
 /** Four screens, in the order they narrow the search: the work defines it, the
  *  level bounds it, the place filters it, and the rest only colours it. */
@@ -161,7 +179,7 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
     const top = suggested[0]
     if (!top) return                       // list still loading — not "no answer"
     proposedRef.current = true
-    if (top.matched_skill_count >= ROLE_SUGGESTION_MIN_SKILLS) setSelected([top])
+    if (mayPropose(top)) setSelected([top])
   }, [suggested, selected.length])
   const listed = searching ? (searchedFamilies.data ?? []) : suggested
   const families = [...selected, ...listed.filter((row) => !selected.some((p) => p.family === row.family))]
@@ -221,7 +239,12 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
         setNinja(res.ninja_name)
       }
       await onboarding.saveTarget(token, {
-        role_titles: selected.map((family) => family.label),
+        // The FAMILY, not `label`. What the person chose is the cluster, and
+        // `target_role_titles` is what Settings chips, Practice and the score
+        // header all render — storing the modal job title there showed them
+        // "Custom Software Engineer" for a direction they picked as
+        // "Software Development", and named twenty families identically.
+        role_titles: selected.map((family) => family.family),
         role_families: selected.map((family) => family.family),
         seniority,
         locations,

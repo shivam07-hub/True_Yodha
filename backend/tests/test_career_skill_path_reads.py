@@ -56,7 +56,6 @@ TABLE_ROWS: dict[str, list[dict[str, Any]]] = {
     "career_target_snapshots": [SNAPSHOT],
     "learning_path_requests": [],
     "skill_certificates": [],
-    "role_family_labels": [{"label": "Data Analysis"}],
     "skills": [
         {"id": 1, "taxonomy_key": "sql", "display_name": "SQL"},
         {"id": 2, "taxonomy_key": "python", "display_name": "Python"},

@@ -140,7 +140,7 @@ function BandMap({ map }: { map: BandSkillMap }) {
 export function SkillPathMaps({ path }: { path: CareerSkillPath }) {
   if (!path.snapshot) return null
   const snap = path.snapshot
-  const family = snap.role_family_label || snap.role_title
+  const family = snap.role_family || snap.role_title
   const places = snap.locations.length > 0 ? snap.locations.join(", ") : "anywhere"
   return (
     <div className="csp-maps">

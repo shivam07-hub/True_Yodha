@@ -26,6 +26,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Loader2, Search } from "lucide-react"
 
 import { onboarding, type RoleFamily } from "@/lib/api"
+import { FamilySkills } from "@/components/target-role/family-skills"
 import { formatCount } from "@/lib/format"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value"
@@ -107,11 +108,14 @@ export function RoleFamilyPicker({
                   onClick={() => choose(role)}
                   className="tm-rolepick-option tm-control-focus"
                 >
-                  <span className="tm-rolepick-option-label">{role.label}</span>
+                  <span className="tm-rolepick-option-label">{role.family}</span>
                   {/* The evidence for the choice: this is why it is corpus-backed
-                      and not a free-text box wearing a dropdown. */}
+                      and not a free-text box wearing a dropdown. The skills are
+                      the evidence now — a count of overlaps could not say WHICH,
+                      and `label` named twenty different families the same thing. */}
+                  <FamilySkills topSkills={role.top_skills} matchedSkills={role.matched_skills} />
                   <span className="tm-rolepick-option-meta">
-                    {formatCount(role.open_count)} open · {role.matched_skill_count} matching skills
+                    {formatCount(role.open_count)} open
                   </span>
                 </button>
               ))}
