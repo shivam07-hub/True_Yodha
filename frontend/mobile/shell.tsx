@@ -4,8 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import Skeleton, { SkeletonTheme } from "react-loading-skeleton"
-import "react-loading-skeleton/dist/skeleton.css"
+import { Skeleton } from "@/components/ui/skeleton"
 // The mobile design system travels WITH the chrome that uses it, not with the
 // app shell. It used to be imported by components/app-shell.tsx alone, so a
 // signed-in visitor on a public route got .mm-root markup with no --mm-*
@@ -24,59 +23,53 @@ import { attentionCount } from "@/components/preparations/prep-model"
 import { useMobileUI } from "./redesign/mobile-ui"
 import { useViewport } from "./provider"
 
-// Canonical tokens, NOT --mm-*: AppShellSkeleton renders OUTSIDE any .mm-root
-// scope, so an --mm-* var here would resolve to nothing and blank the shimmer.
-// (This is the same scope trap the rest of this commit exists to remove.)
-const SKELETON_BASE = "var(--tm-surface-2)"
-const SKELETON_HIGHLIGHT = "var(--tm-border-faint)"
-
-export function AppShellSkeleton() {
+/**
+ * Chrome-only shell skeleton. The page skeleton is passed as children so the
+ * first paint is ONE frame — bars + the destination page — not a page-shaped
+ * load that then grows chrome, then a second page-shaped load.
+ *
+ * Desktop and mobile bars both live here; CSS hides the inactive skin
+ * (same contract as the live AppShell).
+ */
+export function AppShellSkeleton({ children }: { children: React.ReactNode }) {
   return (
-    <SkeletonTheme baseColor={SKELETON_BASE} highlightColor={SKELETON_HIGHLIGHT} duration={1.6} borderRadius={6}>
-      <div
-        className="tm-page-canvas tm-shell-skeleton"
-        style={{ display: "flex", flexDirection: "column", height: "100dvh", width: "100vw", overflow: "hidden" }}
-      >
-        {/* Desktop: top bar skeleton */}
-        <div className="tm-app-topbar" style={{ gap: 16 }}>
-          <Skeleton width={120} height={28} />
-          <div style={{ flex: 1, display: "flex", justifyContent: "center", gap: 8 }}>
-            {[72, 64, 96, 56, 80, 64].map((w, i) => <Skeleton key={i} width={w} height={32} borderRadius={99} />)}
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Skeleton width={80} height={32} borderRadius={99} />
-            <Skeleton width={34} height={34} circle />
-          </div>
-        </div>
-
-        {/* Mobile: top bar skeleton */}
-        <header className="tm-mobile-topbar" style={{ background: "var(--tm-surface)" }}>
-          <Skeleton width={72} height={24} />
-          <Skeleton width={34} height={34} borderRadius={10} />
-        </header>
-
-        {/* Content shimmer */}
-        <main style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-          <div className="tm-main-scroll" style={{ flex: 1, padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
-            {[80, 48, 48, 48, 32].map((h, i) => (
-              <div key={i} style={{ opacity: 1 - i * 0.1 }}>
-                <Skeleton height={h} />
-              </div>
-            ))}
-          </div>
-        </main>
-
-        {/* Mobile: bottom nav skeleton */}
-        <nav className="tm-mobile-bottomnav" style={{ background: "var(--tm-surface)" }}>
-          {[0, 1, 2, 3].map(i => (
-            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
-              <Skeleton width={22} height={22} />
-              <Skeleton width={34} height={9} />
-            </div>
+    <div
+      className="tm-page-canvas tm-shell-skeleton"
+      style={{ display: "flex", flexDirection: "column", height: "100dvh", width: "100vw", overflow: "hidden" }}
+    >
+      <div className="tm-app-topbar" style={{ gap: 16 }}>
+        <Skeleton style={{ width: 120, height: 28 }} />
+        <div style={{ flex: 1, display: "flex", justifyContent: "center", gap: 8 }}>
+          {[72, 64, 96, 56, 80, 64].map((w) => (
+            <Skeleton key={w} style={{ width: w, height: 32, borderRadius: 8 }} />
           ))}
-        </nav>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Skeleton style={{ width: 80, height: 32, borderRadius: 8 }} />
+          <Skeleton style={{ width: 34, height: 34, borderRadius: "50%" }} />
+        </div>
       </div>
-    </SkeletonTheme>
+
+      <header className="tm-mobile-topbar" style={{ background: "var(--tm-surface)" }}>
+        <Skeleton style={{ width: 72, height: 24 }} />
+        <Skeleton style={{ width: 34, height: 34, borderRadius: 10 }} />
+      </header>
+
+      <main style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <div className="tm-main-scroll" style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
+          {children}
+        </div>
+      </main>
+
+      <nav className="tm-mobile-bottomnav" style={{ background: "var(--tm-surface)" }}>
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+            <Skeleton style={{ width: 22, height: 22 }} />
+            <Skeleton style={{ width: 34, height: 9 }} />
+          </div>
+        ))}
+      </nav>
+    </div>
   )
 }
 

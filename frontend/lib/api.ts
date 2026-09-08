@@ -5930,6 +5930,16 @@ export interface LadderRoom {
   pct: number
   current_step: number
   levels: LevelRow[]
+  /** Step 1's count, weak matches excluded — the head states "9/9 · clear". */
+  evidence?: StepProgress
+  /** Step 3's count: stories worked, of stories this room's questions need. */
+  rehearsal?: StepProgress
+}
+
+/** A step's own count, as its card head states it. */
+export interface StepProgress {
+  answered: number
+  total: number
 }
 
 /** One level a job tests. `has_drill` false = /practice cannot serve it, so

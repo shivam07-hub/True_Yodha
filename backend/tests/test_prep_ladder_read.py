@@ -235,4 +235,10 @@ def test_endpoint_returns_the_ladder() -> None:
     assert body["totals"]["bottleneck_step"] in (1, 2, 3, 4)
     assert len(body["training"]) == 3
     # The response carries no role/company — /preparations already holds them.
-    assert set(body["rooms"][0]) == {"job_id", "steps", "pct", "current_step", "levels"}
+    assert set(body["rooms"][0]) == {
+        "job_id", "steps", "pct", "current_step", "levels", "evidence", "rehearsal",
+    }
+    # 2b's step heads state counts ("9/9 · clear"), so the ladder answers them
+    # from the coverage it already read rather than making the room open a card.
+    assert set(body["rooms"][0]["evidence"]) == {"answered", "total"}
+    assert set(body["rooms"][0]["rehearsal"]) == {"answered", "total"}

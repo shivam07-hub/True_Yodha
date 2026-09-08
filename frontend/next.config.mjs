@@ -1,3 +1,5 @@
+const production = process.env.NODE_ENV === "production"
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
@@ -8,7 +10,12 @@ const nextConfig = {
         source: "/(.*)",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "DENY" },
+          // SAMEORIGIN in `next dev` so /dev/phone can iframe real routes at
+          // 375px. Production stays DENY. Middleware CSP matches this split.
+          {
+            key: "X-Frame-Options",
+            value: production ? "DENY" : "SAMEORIGIN",
+          },
           {
             key: "Strict-Transport-Security",
             value: "max-age=31536000; includeSubDomains",
@@ -23,8 +30,9 @@ const nextConfig = {
           },
           {
             key: "Content-Security-Policy",
-            value:
-              "default-src 'none'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+            value: production
+              ? "default-src 'none'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+              : "default-src 'none'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'self'",
           },
         ],
       },

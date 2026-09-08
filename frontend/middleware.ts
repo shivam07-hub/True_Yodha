@@ -9,6 +9,14 @@ import {
 
 export function middleware(request: NextRequest) {
   const production = process.env.NODE_ENV === "production"
+  const path = request.nextUrl.pathname
+
+  // Phone lab + QA session exist only under `next dev`. The production
+  // bundle still contains the chunks; this is the belt that never serves them.
+  if (production && path.startsWith("/dev")) {
+    return new NextResponse(null, { status: 404 })
+  }
+
   const isNewsletterChart = request.nextUrl.pathname.startsWith(
     "/newsletter/charts/",
   )
@@ -35,6 +43,20 @@ export function middleware(request: NextRequest) {
   for (const [name, value] of Object.entries(STATIC_SECURITY_HEADERS)) {
     response.headers.set(name, value)
   }
+
+  // The lab iframes real routes at 375px so @media matches a handset, not
+  // the agent's desktop window. Production stays DENY / frame-ancestors none.
+  if (!production) {
+    response.headers.delete("X-Frame-Options")
+    const csp = response.headers.get("Content-Security-Policy")
+    if (csp) {
+      response.headers.set(
+        "Content-Security-Policy",
+        csp.replaceAll("frame-ancestors 'none'", "frame-ancestors 'self'"),
+      )
+    }
+  }
+
   return response
 }
 

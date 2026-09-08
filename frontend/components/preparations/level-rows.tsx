@@ -42,6 +42,22 @@ export function nextLevel(rows: LevelRow[]): number | null {
   return open ? Math.min(open.held + 1, open.required) : null
 }
 
+/** 2b's only in-room Finlatics mention, and it is conditional: it exists to
+ *  explain a row Myro cannot serve. Named after the skill that has no drill, so
+ *  the sentence answers the question the row above it just raised. */
+function NoDrillFooter({ rows }: { rows: LevelRow[] }) {
+  const unserved = rows.find((r) => !r.has_drill)
+  if (!unserved) return null
+  return (
+    <p className="prp-level-foot">
+      {unserved.name} has no drill yet. A Finlatics programme in the rail covers it.{" "}
+      <a className="tm-link tm-control-focus" href="#prp-train-title">
+        See the three matched to you →
+      </a>
+    </p>
+  )
+}
+
 export function LevelRows({ rows }: { rows: LevelRow[] }) {
   if (rows.length === 0) {
     return (
@@ -81,6 +97,7 @@ export function LevelRows({ rows }: { rows: LevelRow[] }) {
           )}
         </div>
       ))}
+      <NoDrillFooter rows={rows} />
     </div>
   )
 }

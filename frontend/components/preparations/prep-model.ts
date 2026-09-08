@@ -17,6 +17,11 @@ export type RoomStage = "applied" | "interviewing" | "closed"
  *  mobile all render THIS array so they cannot disagree about step 2's name. */
 export const STEP_LABELS = ["Evidence", "Skill level", "Rehearsal", "Day-of brief"] as const
 
+/** The rail legend keys four 4px-wide pip columns inside a 360px rail. The full
+ *  names do not fit that width — 2b shortens them, and a legend that wraps or
+ *  ellipsises stops keying anything. Same four steps, same order. */
+export const STEP_LEGEND = ["Evidence", "Level", "Rehearse", "Brief"] as const
+
 /** The room to send someone to when the whole board is stuck on one step:
  *  the one furthest behind on it, then the least ready overall.
  *

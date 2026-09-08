@@ -134,6 +134,8 @@ def assemble(repo: Any, user_id: str) -> dict[str, Any]:
             prep_ladder.rehearsal_step(result, rehearsed),
             prep_ladder.brief_step(cached.get(prep_ladder.BRIEF_KEY)),
         ]
+        answered, stated = prep_ladder.evidence_progress(result)
+        worked, rehearsable = prep_ladder.rehearsal_progress(result, rehearsed)
         rooms.append(
             {
                 "job_id": job_id,
@@ -141,6 +143,11 @@ def assemble(repo: Any, user_id: str) -> dict[str, Any]:
                 "pct": prep_ladder.room_pct(steps),
                 "current_step": prep_ladder.current_step(steps),
                 "levels": prep_ladder.level_rows(job_rows, user_levels),
+                # 2b's step heads state counts, not adjectives ("9/9 · clear").
+                # Both come off the coverage this read already holds, so the
+                # room stops having to open a card to learn its own numbers.
+                "evidence": {"answered": answered, "total": stated},
+                "rehearsal": {"answered": worked, "total": rehearsable},
             }
         )
         all_gaps.extend(_gaps_for_job(job_rows, user_levels, row.get("company")))

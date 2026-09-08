@@ -1,0 +1,14 @@
+/* One skeleton per viewport. Both skins stay in the DOM so loading.tsx can
+   paint before JS viewport hydrates; CSS picks the one that matches the live
+   page. If both were visible, that is the double-loading bug this file exists
+   to prevent.
+
+   768px is hardcoded on purpose: custom properties in @media are not reliable
+   across browsers, and this MUST match `.tm-mobile-topbar` in globals.css /
+   BREAKPOINT_MOBILE_MAX in mobile/viewport.ts. Change all three together. */
+.tm-skel-skin--mobile { display: none; }
+
+@media (max-width: 768px) {
+  .tm-skel-skin--desktop { display: none !important; }
+  .tm-skel-skin--mobile { display: block !important; }
+}

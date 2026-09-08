@@ -21,14 +21,19 @@
  * with its triage tiles — so the mount is a fill, not a jump.
  */
 import { Skeleton } from "@/components/ui/skeleton"
+import { SkeletonSkin } from "@/components/loading/skeleton-skin"
+import { CVMobileWorkstationSkeleton } from "@/components/loading/mobile-page-skeletons"
 
 const RAIL_W = 400
 const LINE_WIDTHS = ["96%", "88%", "72%", "94%", "63%", "90%", "78%"]
 
 export function CVWorkstationSkeleton() {
   return (
-    <div className="tm-page-canvas" aria-hidden="true"
-      style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
+    <div className="tm-page-canvas tm-page-enter" aria-hidden="true">
+      <SkeletonSkin
+        mobile={<CVMobileWorkstationSkeleton />}
+        desktop={
+    <div style={{ minHeight: "100%", display: "flex", flexDirection: "column" }}>
       {/* header — 64px, crumb · brand · job line · score · two actions */}
       <div style={{
         display: "flex", alignItems: "center", gap: 12, minHeight: 64,
@@ -139,6 +144,9 @@ export function CVWorkstationSkeleton() {
           </div>
         </aside>
       </div>
+    </div>
+        }
+      />
     </div>
   )
 }

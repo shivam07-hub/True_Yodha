@@ -1,9 +1,14 @@
 import { Skeleton } from "@/components/ui/skeleton"
+import { SkeletonSkin } from "@/components/loading/skeleton-skin"
+import { CVMobileHubSkeleton } from "@/components/loading/mobile-page-skeletons"
 
 export function CVBaselineSkeleton() {
   return (
-    <div className="tm-page-canvas" style={{
-      minHeight: "100dvh",
+    <div className="tm-page-canvas tm-page-enter" aria-hidden="true">
+      <SkeletonSkin
+        mobile={<CVMobileHubSkeleton />}
+        desktop={
+    <div style={{
       padding: "24px 32px 48px",
     }}>
       {/* Page head */}
@@ -103,6 +108,9 @@ export function CVBaselineSkeleton() {
           ))}
         </div>
       </div>
+    </div>
+        }
+      />
     </div>
   )
 }
