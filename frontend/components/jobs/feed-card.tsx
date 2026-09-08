@@ -280,7 +280,7 @@ export function FeedCard({
                 allowGapActions ? (
                   // A gap → one tap to start closing it. The chip IS the Forge CTA
                   // (design-over-words), so the card reads as "here's the path".
-                  <a
+                  <Link
                     key={c.name}
                     href={`/practice?skill=${encodeURIComponent(c.name)}`}
                     className="fc-chip is-gap"
@@ -290,7 +290,7 @@ export function FeedCard({
                   >
                     <Cross8 />
                     <span className="fc-chip-name">{c.name}</span>
-                  </a>
+                  </Link>
                 ) : (
                   <span key={c.name} className="fc-chip is-gap">
                     <Cross8 />

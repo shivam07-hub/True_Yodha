@@ -60,7 +60,7 @@ export async function RelatedCompanies({ current }: { current: string }) {
       >
         {neighbours.map((c) => (
           <li key={c.name}>
-            <a
+            <Link
               href={`/companies/${encodeURIComponent(c.name)}`}
               style={{
                 display: "flex", alignItems: "baseline", justifyContent: "space-between",
@@ -74,7 +74,7 @@ export async function RelatedCompanies({ current }: { current: string }) {
               <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 12, color: "var(--tm-text-faint)", flexShrink: 0 }}>
                 {formatCount(c.count)} open
               </span>
-            </a>
+            </Link>
           </li>
         ))}
       </ul>

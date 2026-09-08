@@ -89,9 +89,9 @@ export function LandingHero({ jobsTracked, companiesMonitored, skillsMapped }: L
               <p className="lp-path-body">
                 Myro maps the shortest route to your first offer, one skill at a time.
               </p>
-              <a className="lp-path-link" href="/signup" onClick={gate("landing_path_fresher")}>
+              <Link className="lp-path-link" href="/signup" onClick={gate("landing_path_fresher")}>
                 start the fresher route <ArrowRight className="size-4" aria-hidden="true" />
-              </a>
+              </Link>
             </article>
 
             <article className="lp-path-card">

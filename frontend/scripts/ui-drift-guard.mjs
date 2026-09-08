@@ -345,6 +345,34 @@ const METRICS = [
     mode: "max",
     hint: "Keep the label and pass the flag to <Button loading> — it holds the word, the focus and the colour, and refuses the second click. A raw button keeps its label too and says the verb in progress: Add → Adding….",
   },
+  {
+    name: "internalHrefAnchor",
+    exts: [".tsx"],
+    // A raw <a> to an in-app route throws the whole application away and
+    // rebuilds it: re-auth, re-hydrate, refetch the page the reader was
+    // already looking at. It is the single most expensive thing a press can
+    // cost, and it is invisible in every server-side latency number we keep.
+    // Three of these were fixed by hand and no rule was left behind, so nine
+    // more were sitting in the tree a week later — including the gap chip on
+    // the jobs feed, the busiest find-a-job surface in the product.
+    count: (src) => {
+      let n = 0
+      for (const m of src.matchAll(/<a\b/g)) {
+        const close = src.indexOf(">", m.index)
+        if (close === -1) continue
+        const tag = src.slice(m.index, close + 1)
+        // Only in-app routes. An absolute URL or a mailto: is a real anchor.
+        if (!/href=(?:"\/|\{"\/|\{`\/)/.test(tag)) continue
+        // Two honest anchors: a new tab, and a file the browser must fetch.
+        if (/target\s*=/.test(tag)) continue
+        if (/\bdownload\b/.test(tag)) continue
+        n++
+      }
+      return n
+    },
+    mode: "max",
+    hint: "Use <Link> from next/link for an in-app route — it keeps the app alive and the click costs a render, not a reload. A raw <a> is correct only when it leaves the app, opens a new tab, or downloads a file.",
+  },
 ]
 
 function walk(dir, exts, acc) {

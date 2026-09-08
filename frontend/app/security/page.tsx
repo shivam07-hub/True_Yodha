@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import type { CSSProperties } from "react"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
@@ -153,7 +154,7 @@ export default function SecurityPage() {
             <Section id="if-wrong" n="05" title="If Something Goes Wrong">
               <P>No system is perfectly secure. If a breach affects your personal data, we will notify affected users and the relevant authorities as required by law.</P>
               <P>For the full legal detail on how we collect, use, and retain data, see our{" "}
-                <a href="/privacy" style={{ color: "var(--tm-interactive)" }}>Privacy Policy</a>.</P>
+                <Link href="/privacy" style={{ color: "var(--tm-interactive)" }}>Privacy Policy</Link>.</P>
             </Section>
 
           </main>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { institutions, type InstitutionApplicationBody } from "@/lib/api"
 
 const PERSONAL = /@(gmail|yahoo|outlook|hotmail|icloud|aol|proton|protonmail|mail|live|me)\./i
@@ -224,7 +225,7 @@ export function InstitutionPane() {
 
                 <p className="es-legal">
                   We&apos;ll never email your students without your written sign-off.{" "}
-                  <a href="/privacy">Privacy</a>.
+                  <Link href="/privacy">Privacy</Link>.
                 </p>
               </form>
             </div>

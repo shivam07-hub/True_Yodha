@@ -18,5 +18,6 @@
   "rawButtonElement": 485,
   "busyLabelThreeDots": 0,
   "definedTokensOnly": 7,
-  "labelReplacedByEllipsis": 0
+  "labelReplacedByEllipsis": 0,
+  "internalHrefAnchor": 0
 }
