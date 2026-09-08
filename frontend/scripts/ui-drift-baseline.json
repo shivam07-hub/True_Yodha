@@ -17,5 +17,6 @@
   "disabledOnPending": 41,
   "rawButtonElement": 485,
   "busyLabelThreeDots": 0,
-  "definedTokensOnly": 7
+  "definedTokensOnly": 7,
+  "labelReplacedByEllipsis": 0
 }

@@ -286,11 +286,11 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
             </Field>
             {error && <div style={{ fontSize: 12, color: "var(--tm-danger)" }}>{error}</div>}
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
-              <Button variant="neutral" size="sm" onClick={() => handleSave({ skipSkills: true })} disabled={busy}>
-                {busy ? "…" : "Save"}
+              <Button variant="neutral" size="sm" onClick={() => handleSave({ skipSkills: true })} loading={busy}>
+                Save
               </Button>
-              <Button variant="solid" size="sm" onClick={handleExtract} disabled={busy}>
-                {busy ? "…" : "Extract skills →"}
+              <Button variant="solid" size="sm" onClick={handleExtract} loading={busy}>
+                Extract skills →
               </Button>
             </div>
           </>

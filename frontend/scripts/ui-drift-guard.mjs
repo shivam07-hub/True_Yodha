@@ -324,6 +324,27 @@ const METRICS = [
     mode: "max",
     hint: "Busy labels use one ellipsis character (…), never three periods — and read as the verb in progress: Save → Saving…, Book the call → Booking….",
   },
+  {
+    name: "labelReplacedByEllipsis",
+    exts: [".tsx"],
+    exclude: ["components/ui/"],
+    // The sibling rule above polices HOW a busy label is spelled. This one
+    // polices whether there is a label at all. `{busy ? "…" : "Save"}` deletes
+    // the word for what is happening at the exact moment the reader needs it,
+    // and resizes the control while they read it — the defect the four-beats
+    // pass removed from <Button>, then found hand-rolled at six call sites
+    // that the spelling rule could not see, because it matches "Saving..."
+    // inside a word and a bare ellipsis is not a word.
+    //
+    // The second half of the pattern is load-bearing: the OTHER branch must be
+    // a non-empty string, i.e. an actual label that the ellipsis replaces.
+    // Without it the rule also fires on `len > 10 ? "…" : ""` (truncation —
+    // the ellipsis means "this text continues") and on a stat cell whose
+    // pending value is an ellipsis because there is no word there to delete.
+    pattern: /\?\s*"[.…]{1,3}"\s*:\s*"[^"]+"/g,
+    mode: "max",
+    hint: "Keep the label and pass the flag to <Button loading> — it holds the word, the focus and the colour, and refuses the second click. A raw button keeps its label too and says the verb in progress: Add → Adding….",
+  },
 ]
 
 function walk(dir, exts, acc) {

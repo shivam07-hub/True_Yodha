@@ -95,8 +95,8 @@ export function MyrologyOptInPrompt({
             <Button type="button" variant="neutral" size="md" onClick={onClose} disabled={isPending} style={{ flex: 1 }}>
               Not now
             </Button>
-            <Button type="button" variant="solid" size="md" onClick={confirm} disabled={isPending} style={{ flex: 1 }}>
-              {isPending ? "…" : "Follow the signal"}
+            <Button type="button" variant="solid" size="md" onClick={confirm} loading={isPending} style={{ flex: 1 }}>
+              Follow the signal
             </Button>
           </div>
         </div>
