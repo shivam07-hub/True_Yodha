@@ -82,6 +82,7 @@ test("Skeleton matches the live workspace so the swap does not move the page", (
 
 test("The room renders the four steps, and every pip reads the same data-state", () => {
   const room = code("components/preparations/prep-room.tsx")
+  const rail = code("components/preparations/prep-rail.tsx")
   const step = code("components/preparations/step-card.tsx")
   const css = read("components/preparations/preparations.css")
 
@@ -98,6 +99,16 @@ test("The room renders the four steps, and every pip reads the same data-state",
   // ~550px at 1456 and stretched the legend, the room rows and the pips it is
   // supposed to key — the drift this test now pins shut.
   assert.match(css, /grid-template-columns:\s*360px\s*minmax\(0,\s*1fr\)/)
+
+  // Switching rooms is a STATE change. Both routes render one component off one
+  // cached read, so a route change bought nothing and cost an RSC round trip
+  // behind a loading.tsx whose skeleton is the whole page — the rail tore
+  // itself down on every click. Deep links keep working: the href stays.
+  const shell = code("components/preparations/prep-shell.tsx")
+  assert.match(rail, /event\.preventDefault\(\)/)
+  assert.match(rail, /onOpen\(app\.job_id, href\)/)
+  assert.match(shell, /window\.history\.pushState/)
+  assert.match(shell, /popstate/)
 
   // The list page's stage-grouped index is gone, and so are its styles.
   assert.doesNotMatch(css, /\.prp-group-head/)

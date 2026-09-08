@@ -391,3 +391,41 @@ of pushing the head off-screen.
 Verified by serving a fixture board to the real components at 1456 and 375, in
 both surfaces. The harness was deleted; the populated surface still has never
 been seen in a real authed session.
+
+
+---
+
+# Opening a room stopped being a navigation — 2026-09-08
+
+A room click took 2-3 seconds to register. Nothing was slow; the click was
+doing far too much.
+
+`/preparations` and `/preparations/[jobId]` are the SAME client component off
+the SAME cached read. The rail's rows were `<Link>`s, so every room click was a
+full App Router navigation to a dynamic segment: an RSC round trip for a
+payload that renders an identical tree, behind `app/(authed)/loading.tsx` —
+whose skeleton for this route is `PrepRoomSkeleton = PrepSkeleton`, the WHOLE
+page. Clicking a room in the rail tore the rail down, showed a skeleton of it,
+and put it back when the network answered. That is what "it takes 2-3 seconds
+to accept the click" looks like.
+
+**The room is now state.** `PrepShell` owns the chosen job, seeded by the route
+and corrected with `window.history.pushState` (App Router treats that as
+shallow in 14.2). Measured in the lab, dev build: **32ms and zero network
+requests**, against a navigation that fetched and remounted everything.
+
+What still works, and is tested by hand:
+
+- deep links, refresh, and arriving from Collections / a notification / the
+  loop bar — those are real navigations and still seed the prop, which wins
+- Back and Forward move between rooms (a `popstate` listener re-reads the path;
+  the router never re-renders for an entry we pushed ourselves)
+- cmd/ctrl/shift/middle click still open a new tab — the `href` never left
+- the cross-room footer opens the room furthest behind the same way, carrying
+  its `?step=`
+
+`prep-loading-shape.test.ts` pins the interception and the pushState.
+
+One consequence: the room no longer remounts between jobs, so anything it held
+open has to be closed explicitly. Step disclosures and the stage picker reset
+on `job_id`.

@@ -35,10 +35,12 @@ function RoomRow({
   app,
   room,
   selected,
+  onOpen,
 }: {
   app: ApplicationResponse
   room: LadderRoom | undefined
   selected: boolean
+  onOpen: (jobId: string, href: string) => void
 }) {
   const steps = room?.steps ?? [0, 0, 0, 0]
   const meta = STAGE_META[app.status]
@@ -48,9 +50,21 @@ function RoomRow({
   // that is simply over, and the reader would have no way to tell the two
   // apart. Closed rooms keep their place and drop the progress claim.
   const closed = roomStage(app.status) === "closed"
+  const href = `/preparations/${encodeURIComponent(app.job_id)}`
   return (
     <Link
-      href={`/preparations/${encodeURIComponent(app.job_id)}`}
+      href={href}
+      // A plain left click opens the room in place — same screen, same read, no
+      // route change. Modified clicks and middle clicks fall through to the
+      // href, so "open in a new tab" still works.
+      onClick={(event) => {
+        if (
+          event.defaultPrevented || event.button !== 0 ||
+          event.metaKey || event.ctrlKey || event.shiftKey || event.altKey
+        ) return
+        event.preventDefault()
+        onOpen(app.job_id, href)
+      }}
       className={[
         "prp-lroom tm-control-focus",
         selected ? "is-open" : "",
@@ -83,12 +97,14 @@ export function PrepRail({
   ladder,
   selectedJobId,
   live,
+  onOpenRoom,
 }: {
   token: string
   apps: ApplicationResponse[]
   ladder: PrepLadderResponse | undefined
   selectedJobId: string | null
   live: number
+  onOpenRoom: (jobId: string, href: string) => void
 }) {
   const byJob = new Map((ladder?.rooms ?? []).map((room) => [room.job_id, room]))
 
@@ -122,6 +138,7 @@ export function PrepRail({
                 app={app}
                 room={byJob.get(app.job_id)}
                 selected={app.job_id === selectedJobId}
+                onOpen={onOpenRoom}
               />
             ))}
           </div>

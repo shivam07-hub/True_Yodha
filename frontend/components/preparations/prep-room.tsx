@@ -91,6 +91,7 @@ export function PrepRoom({
   room,
   totals,
   behind,
+  onOpenRoom,
   initialStep = null,
 }: {
   token: string
@@ -99,6 +100,8 @@ export function PrepRoom({
   totals: LadderTotals | undefined
   /** The room the cross-room footer sends people to. */
   behind: LadderRoom | null
+  /** Open another room in place — same screen, same read, no route change. */
+  onOpenRoom: (jobId: string, href: string, step: number | null) => void
   /** `?step=N` — the step a cross-room link asked to open. */
   initialStep?: number | null
 }) {
@@ -111,7 +114,12 @@ export function PrepRoom({
   const [opened, setOpened] = React.useState<ReadonlySet<number> | null>(null)
   // A `?step=` link is a request, not a permanent mode: once the reader opens a
   // different card themselves, their choice wins.
-  React.useEffect(() => { setOpened(null) }, [app.job_id])
+  // The room no longer remounts between jobs, so anything the reader opened in
+  // the last one has to be closed here or it leaks into the next.
+  React.useEffect(() => {
+    setOpened(null)
+    setPickerOpen(false)
+  }, [app.job_id])
   const now = new Date()
 
   const stage = roomStage(app.status)
@@ -277,6 +285,18 @@ export function PrepRoom({
               {behind ? (
                 <Link
                   href={`/preparations/${encodeURIComponent(behind.job_id)}?step=${totals.bottleneck_step}`}
+                  onClick={(event) => {
+                    if (
+                      event.defaultPrevented || event.button !== 0 ||
+                      event.metaKey || event.ctrlKey || event.shiftKey || event.altKey
+                    ) return
+                    event.preventDefault()
+                    onOpenRoom(
+                      behind.job_id,
+                      `/preparations/${encodeURIComponent(behind.job_id)}?step=${totals.bottleneck_step}`,
+                      totals.bottleneck_step,
+                    )
+                  }}
                   className="prp-across-go tm-link tm-control-focus"
                 >
                   Work step {totals.bottleneck_step} →
