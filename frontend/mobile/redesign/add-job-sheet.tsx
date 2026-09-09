@@ -85,7 +85,7 @@ export function AddJobSheet({ open, onClose, token, onAdded, snack, closeSnack, 
         <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
           <input value={url} onChange={e => setUrl(e.target.value)} placeholder="Paste a job link…" style={inputStyle} />
           {!pasteMode && (
-            <button onClick={submitLink} disabled={busy} className="mm-press" style={{ ...btnStyle, opacity: busy ? 0.6 : 1 }}>{busy ? "…" : "Add"}</button>
+            <button onClick={submitLink} disabled={busy} aria-busy={busy || undefined} className="mm-press" style={btnStyle}>{busy ? "Adding…" : "Add"}</button>
           )}
         </div>
 
@@ -102,8 +102,8 @@ export function AddJobSheet({ open, onClose, token, onAdded, snack, closeSnack, 
               rows={6}
               style={{ ...inputStyle, height: "auto", padding: "10px 12px", resize: "vertical", lineHeight: 1.45 }}
             />
-            <button onClick={submitPaste} disabled={busy || !jd.trim()} className="mm-press" style={{ ...btnStyle, opacity: busy || !jd.trim() ? 0.6 : 1 }}>
-              {busy ? "…" : "Add to Collections"}
+            <button onClick={submitPaste} disabled={busy || !jd.trim()} aria-busy={busy || undefined} className="mm-press" style={{ ...btnStyle, opacity: !jd.trim() ? 0.6 : 1 }}>
+              {busy ? "Adding…" : "Add to Collections"}
             </button>
           </div>
         ) : (

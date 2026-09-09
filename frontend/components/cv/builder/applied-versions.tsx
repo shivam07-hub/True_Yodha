@@ -126,7 +126,7 @@ export function AppliedVersionsPanel({ token }: { token: string }) {
             </div>
             <div className="tm-cvhist-actions">
               <button type="button" className="tm-lib-btn sm" onClick={() => download(v)} disabled={busyId === v.id}>
-                <Icon name="download" size={12} /> {busyId === v.id ? "…" : "PDF"}
+                <Icon name="download" size={12} /> {busyId === v.id ? "Preparing…" : "PDF"}
               </button>
               {restorable && (
                 confirmId === v.id ? (

@@ -39,7 +39,6 @@ def assemble(db: Client, user_id: str) -> dict[str, Any]:
         {
             "requests": lambda: LearningPathRequests(db).active_by_key(user_id),
             "certs": lambda: SkillCertificates(db).for_user(user_id),
-            "label": lambda: _family_label(db, family, snapshot.get("role_title")),
         },
         label="career.skill_path.profile",
     )
@@ -50,8 +49,10 @@ def assemble(db: Client, user_id: str) -> dict[str, Any]:
         "id": str(snapshot["id"]),
         "role_title": snapshot.get("role_title"),
         "career_area": snapshot.get("l1_career_area") or None,
+        # The family IS the name now — Direction stores it as the role title and
+        # every surface renders it. `role_family_label` carried the cluster's
+        # modal job title beside it, and cost a read per assemble to fetch.
         "role_family": family,
-        "role_family_label": profile["label"],
         "seniority": anchor_band,
         "locations": list(snapshot.get("locations") or []),
         "cv_baseline_id": snapshot.get("cv_baseline_id"),
@@ -174,16 +175,6 @@ def _target_flow(db: Client, user_id: str) -> dict[str, Any] | None:
     return onboarding_service._awaiting_target_payload(
         db, user_id, reads["profile"] or {}, baseline
     )
-
-def _family_label(db: Client, family: str, fallback: str | None) -> str | None:
-    if not family:
-        return fallback
-    rows = (
-        db.table("role_family_labels").select("label").eq("family", family).limit(1).execute()
-    ).data or []
-    if rows and rows[0].get("label"):
-        return str(rows[0]["label"])
-    return fallback
 
 def _certs_by_key(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     out: dict[str, dict[str, Any]] = {}

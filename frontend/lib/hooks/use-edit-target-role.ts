@@ -19,10 +19,11 @@ export function useEditTargetRole() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (role: Pick<RoleFamily, "family" | "label">) => {
+    mutationFn: (role: Pick<RoleFamily, "family">) => {
       if (!token) throw new Error("Session not ready — please refresh.")
       return onboarding.saveTarget(token, {
-        role_title: role.label.trim(),
+        // The family names the direction on every surface — see target-confirm.
+        role_title: role.family.trim(),
         role_family: role.family,
       })
     },

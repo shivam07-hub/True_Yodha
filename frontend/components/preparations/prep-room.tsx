@@ -336,7 +336,13 @@ export function PrepRoom({
         <div style={{ marginTop: 8 }}>
           <NotesEditor
             initial={app.notes}
-            onSave={(notes) => updateNotes.mutate({ jobId: app.job_id, notes })}
+            saveState={
+              updateNotes.isPending ? "saving"
+                : updateNotes.isError ? "failed"
+                : updateNotes.isSuccess ? "saved"
+                : "idle"
+            }
+            onSave={(notes) => updateNotes.mutate({ jobId: app.job_id, notes, status: app.status })}
           />
         </div>
       </section>

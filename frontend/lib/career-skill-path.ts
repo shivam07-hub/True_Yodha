@@ -20,7 +20,6 @@ export interface CareerTargetSnapshot {
   role_title: string
   career_area: string | null
   role_family: string
-  role_family_label: string | null
   seniority: SourceSeniority
   locations: string[]
   cv_baseline_id: number | null

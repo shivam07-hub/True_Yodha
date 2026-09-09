@@ -21,6 +21,7 @@ import { LocationChoice } from "@/components/onboarding/location-choice"
 import { StepHead } from "@/components/journey/journey-chrome"
 import { formatCount } from "@/lib/format"
 import type { RoleFamily, TargetSeniority } from "@/lib/api"
+import { FamilySkills } from "@/components/target-role/family-skills"
 import { cn } from "@/lib/utils"
 
 export const MAX_ROLES = 3
@@ -79,9 +80,12 @@ export function RoleStep({
               )}
             >
               <span className="min-w-0">
-                <span className="block text-base font-medium text-[var(--tm-text)]">{family.label}</span>
-                <span className="mt-1 block text-pretty text-sm text-[var(--tm-text-muted)]">
-                  {formatCount(family.open_count)} open · {family.matched_skill_count} of your skills
+                {/* The FAMILY, not `label`. `label` is the cluster's commonest job
+                    title — not unique, and not the thing being chosen. */}
+                <span className="block text-base font-medium text-[var(--tm-text)]">{family.family}</span>
+                <FamilySkills topSkills={family.top_skills} matchedSkills={family.matched_skills} />
+                <span className="mt-1.5 block text-pretty text-sm text-[var(--tm-text-muted)]">
+                  {formatCount(family.open_count)} open
                 </span>
               </span>
               {picked ? <Check className="mt-1 size-4 shrink-0 text-[var(--tm-interactive)]" /> : null}

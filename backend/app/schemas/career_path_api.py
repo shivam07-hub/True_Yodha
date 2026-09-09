@@ -15,7 +15,6 @@ class CareerTargetSnapshotOut(BaseModel):
     role_title: str
     career_area: str | None = None
     role_family: str
-    role_family_label: str | None = None
     seniority: SourceSeniority
     locations: list[str] = Field(default_factory=list)
     cv_baseline_id: int | None = None

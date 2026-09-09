@@ -2,6 +2,7 @@ import { cache } from "react"
 import { jobs } from "@/lib/api"
 import { formatCount } from "@/lib/format"
 import { pickRelatedCompanies, type CompanyRef } from "@/lib/companies/related"
+import Link from "next/link"
 
 /**
  * Server-rendered "more companies" mesh for the bottom of every company page.
@@ -46,9 +47,9 @@ export async function RelatedCompanies({ current }: { current: string }) {
       </h2>
       <p style={{ margin: "0 0 16px", fontSize: 14, color: "var(--tm-text-muted)" }}>
         Explore live roles at other companies Myro tracks, or{" "}
-        <a href="/companies" style={{ color: "var(--tm-accent-text)", textDecoration: "underline" }}>
+        <Link href="/companies" style={{ color: "var(--tm-accent-text)", textDecoration: "underline" }}>
           browse the full directory
-        </a>
+        </Link>
         .
       </p>
       <ul
@@ -59,7 +60,7 @@ export async function RelatedCompanies({ current }: { current: string }) {
       >
         {neighbours.map((c) => (
           <li key={c.name}>
-            <a
+            <Link
               href={`/companies/${encodeURIComponent(c.name)}`}
               style={{
                 display: "flex", alignItems: "baseline", justifyContent: "space-between",
@@ -73,7 +74,7 @@ export async function RelatedCompanies({ current }: { current: string }) {
               <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 12, color: "var(--tm-text-faint)", flexShrink: 0 }}>
                 {formatCount(c.count)} open
               </span>
-            </a>
+            </Link>
           </li>
         ))}
       </ul>

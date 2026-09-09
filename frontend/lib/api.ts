@@ -903,10 +903,19 @@ export interface RoleStanding {
 }
 
 export interface RoleFamily {
+  /** The identity. The L2 cluster the matcher scopes on, and what the person chooses. */
   family: string
+  /** The cluster's most common job title. An EXAMPLE, never the name: twenty
+   *  families share "Custom Software Engineer". */
   label: string
   open_count: number
   matched_skill_count: number
+  /** What this cluster hires for, most characteristic first. */
+  top_skills?: string[]
+  /** Which of them the user's CV already covers — same sense as JobFeedItem. */
+  matched_skills?: string[]
+  /** A residual bucket ("Business Operations"). Offerable, never auto-proposed. */
+  is_catch_all?: boolean
 }
 
 export interface RoleFamilyLocation {
@@ -4346,10 +4355,6 @@ export const jobs = {
     request<JobLiveness>(`/jobs/${encodeURIComponent(jobId)}/liveness`, {
       headers: { Authorization: `Bearer ${token}` },
     }),
-  staleApplications: (token: string) =>
-    request<StaleApplication[]>("/jobs/applications/stale", {
-      headers: { Authorization: `Bearer ${token}` },
-    }),
   submitReview: (
     token: string,
     jobId: string,
@@ -4400,11 +4405,6 @@ export const jobs = {
     }),
   restoreTrackerJob: (token: string, jobId: string) =>
     request<void>(`/jobs/tracker/${encodeURIComponent(jobId)}/restore`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    }),
-  dismissStale: (token: string, jobId: string) =>
-    request<void>(`/jobs/applications/${encodeURIComponent(jobId)}/dismiss-stale`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }),

@@ -149,7 +149,8 @@ function SlotAdd({
       <RoleFamilyPicker
         label={copy.invite}
         busy={busy}
-        onChoose={(role) => onAdd("role", role.label, role.family)}
+        // The family names the direction everywhere — see target-confirm.
+        onChoose={(role) => onAdd("role", role.family, role.family)}
       />
     )
   }

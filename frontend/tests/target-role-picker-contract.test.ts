@@ -20,7 +20,9 @@ const CHOOSING_SURFACES = [
 test("the role picker offers verified corpus families", () => {
   assert.match(picker, /onboarding\.roleFamilies/)
   assert.match(picker, /Search roles in live jobs/)
-  assert.match(picker, /matching skills/)
+  // The evidence is the SKILLS now. A count of overlapping skills could not say
+  // which, and it ranked by family size — see migration 20260909100000.
+  assert.match(picker, /FamilySkills/)
   assert.doesNotMatch(picker, /e\.g\. Product Manager/)
 })
 
@@ -31,14 +33,19 @@ test("every surface that chooses a role mounts the same picker", () => {
   }
 })
 
-test("a picker selection saves its title and family together", () => {
-  assert.match(mutation, /role_title: role\.label\.trim\(\)/)
+test("a picker selection saves the family as both the title and the scope", () => {
+  // `label` is the cluster's commonest job title. It names TWENTY families
+  // "Custom Software Engineer", and it is not what the person chose — so
+  // storing it left Settings, Practice and the score header showing a title
+  // nobody picked. The family is the name on every surface.
+  assert.match(mutation, /role_title: role\.family\.trim\(\)/)
   assert.match(mutation, /role_family: role\.family/)
+  assert.doesNotMatch(mutation, /role\.label/, "the modal job title is back in the write path")
 })
 
 test("the pre-flight carries the family it resolved onto the order", () => {
   // Without this the title reaches `target_role_titles` and `derive()` keeps the
   // STORED family, because a family cannot be recovered from free text.
-  assert.match(read("components/preflight/chip-group.tsx"), /onAdd\("role", role\.label, role\.family\)/)
+  assert.match(read("components/preflight/chip-group.tsx"), /onAdd\("role", role\.family, role\.family\)/)
   assert.match(read("components/preflight/use-order-turns.ts"), /role_family: roleFamily/)
 })

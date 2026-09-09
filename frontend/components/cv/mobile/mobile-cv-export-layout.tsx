@@ -114,10 +114,10 @@ export function MobileCVExportLayout({
 
       <footer className="tm-mcv-export-actions">
         <Button type="button" size="lg" loading={pdfBusy} onClick={onDownloadPdf}>
-          <Icon name="download" /> Download PDF
+          <Icon name="download" /> {pdfBusy ? "Building PDF" : "Download PDF"}
         </Button>
         <Button type="button" variant="outline" size="lg" loading={docxBusy} onClick={onDownloadDocx}>
-          <Icon name="file" /> Download DOCX
+          <Icon name="file" /> {docxBusy ? "Building DOCX" : "Download DOCX"}
         </Button>
       </footer>
     </div>

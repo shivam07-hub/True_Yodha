@@ -26,7 +26,7 @@ export function CvStructuredRecovery({ isRetrying, onRetry }: CvStructuredRecove
       </p>
       <Button className="mt-6" loading={isRetrying} onClick={onRetry}>
         <RefreshCw aria-hidden="true" className="size-4" />
-        Try loading the CV again
+        {isRetrying ? "Loading the CV" : "Try loading the CV again"}
       </Button>
       <a
         href="/market"

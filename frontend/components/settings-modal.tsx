@@ -264,7 +264,11 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
     if (locationCloseTimer.current) clearTimeout(locationCloseTimer.current)
   }, [])
 
-  // Profile save mutation
+  // Profile save mutation.
+  // drift-ok(mutationWithoutBusyState): this is an autosave. The Working state
+  // starts on the EDIT (`schedule` sets "saving" immediately), so it already
+  // covers the debounce window; `isPending` would begin 800ms late and read as
+  // a lost keystroke.
   const mutation = useMutation({
     mutationFn: (payload: ProfileUpdate) => {
       if (!token) throw new Error("Session not ready — please refresh.")
@@ -957,9 +961,9 @@ function BillingTabContent({
   // test key is configured (or vice-versa).
   const isTestMode = (process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "").startsWith("rzp_test_")
   const buttonLabel = status === "creating"
-    ? "Opening checkout..."
+    ? "Opening checkout…"
     : status === "verifying"
-    ? "Verifying..."
+    ? "Verifying…"
     : `Pay Rs ${XP_PACK_PRICE_RUPEES}`
   const messageColor = status === "success"
     ? "var(--tm-success)"

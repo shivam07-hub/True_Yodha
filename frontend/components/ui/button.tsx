@@ -28,6 +28,15 @@ const buttonVariants = cva(
     "motion-safe:active:duration-[var(--tm-dur-fast)]",
     // Disabled — drained saturation (Spec § 2 solid disabled, applied universally)
     "disabled:cursor-not-allowed disabled:opacity-60 disabled:[filter:saturate(0.35)]",
+    // Busy is NOT disabled. A working button used to be given the disabled
+    // paint, so "we are doing it" and "you cannot do this" looked identical —
+    // and `disabled` drops the control out of the tab order mid-action, which
+    // loses a keyboard user their place. Busy keeps its colour and its focus,
+    // states itself to assistive tech, and refuses the second click in JS.
+    "data-[loading]:cursor-progress",
+    // It already stamped on the press that started the work. Stamping again
+    // while it is working would claim a second press was heard.
+    "data-[loading]:active:translate-y-0",
     // SVG defaults
     "[&_svg]:pointer-events-none [&_svg]:shrink-0",
   ),
@@ -106,6 +115,8 @@ const buttonVariants = cva(
 )
 
 type ButtonOwnProps = ButtonPrimitive.Props & VariantProps<typeof buttonVariants> & {
+  /** The action this button started is still running. Say so in the label too —
+   *  pass the verb in progress ("Saving", "Booking"), not the resting word. */
   loading?: boolean
 }
 
@@ -129,18 +140,36 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonOwnProps>(function Butt
   loading,
   disabled,
   children,
+  onClick,
   ...props
 }, ref) {
+  // The label STAYS. It used to be replaced by three dots, which removed the
+  // word for what was happening at the moment the reader most needed it — and
+  // resized the button while they read it. The dots sit beside the label now.
   return (
     <ButtonPrimitive
       ref={ref}
       data-slot="button"
       data-loading={loading || undefined}
-      disabled={disabled || loading}
+      disabled={disabled}
+      aria-busy={loading || undefined}
+      aria-disabled={loading || undefined}
+      onClick={(event) => {
+        // Busy is not disabled, so the browser will still deliver clicks. One
+        // action, one run: the second click is refused here rather than by
+        // taking the control away from whoever pressed the first one.
+        if (loading) {
+          event.preventDefault()
+          event.stopPropagation()
+          return
+        }
+        onClick?.(event)
+      }}
       className={cn(buttonVariants({ variant, size }), className)}
       {...props}
     >
-      {loading ? <ButtonLoader /> : children}
+      {children}
+      {loading ? <ButtonLoader /> : null}
     </ButtonPrimitive>
   )
 })

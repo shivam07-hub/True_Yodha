@@ -71,7 +71,7 @@ export function GrowthFilters({
         ↓ Save snapshot
       </button>
       <label className="gc-tool-button">
-        {importing ? "Loading..." : "↑ Load snapshot"}
+        {importing ? "Loading…" : "↑ Load snapshot"}
         <input
           type="file"
           accept="application/json"

@@ -176,7 +176,7 @@ export function GrowthWorkbench({
         {!publication ? (
           <>
             <button type="button" disabled={busy} onClick={() => void saveDraft()}>
-              {busy ? "Saving..." : "Save draft"}
+              {busy ? "Saving…" : "Save draft"}
             </button>
             <button
               type="button"

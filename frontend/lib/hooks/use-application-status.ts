@@ -103,7 +103,6 @@ export function useApplicationStatus(token: string | null): UseApplicationStatus
     onSettled: (_d, _e, vars) => {
       markPending(vars.jobId, false)
       queryClient.invalidateQueries({ queryKey: appsKey })
-      queryClient.invalidateQueries({ queryKey: dataKeys.staleApplications() })
     },
   })
 

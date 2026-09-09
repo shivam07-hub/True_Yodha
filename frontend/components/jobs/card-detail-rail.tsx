@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import { Crosshair, CheckCheck, Users, FileText } from "lucide-react"
 import { jobs as jobsApi, type JobMatch } from "@/lib/api"
@@ -122,9 +123,9 @@ function MatchPanel({ matched, missing }: { matched: string[]; missing: string[]
           <span key={s} className="fc-chip fc-chip-count">{s}</span>
         ))}
         {missing.map((s) => (
-          <a key={s} href={`/practice?skill=${encodeURIComponent(s)}`} className="fc-chip is-gap" title={`Practice ${s}`}>
+          <Link key={s} href={`/practice?skill=${encodeURIComponent(s)}`} className="fc-chip is-gap" title={`Practice ${s}`}>
             {s}
-          </a>
+          </Link>
         ))}
       </div>
     </>

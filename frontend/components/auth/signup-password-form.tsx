@@ -146,7 +146,7 @@ export function SignupPasswordForm({
         className="tm-auth-provider-btn tm-auth-provider-btn--primary"
         disabled={loading}
       >
-        {loading ? "Creating..." : "Create account"}
+        {loading ? "Creating…" : "Create account"}
       </button>
       <button
         type="button"

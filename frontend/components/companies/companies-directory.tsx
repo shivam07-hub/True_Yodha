@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { Search } from "lucide-react"
 import type { CompanyPulseItem } from "@/lib/api"
@@ -54,6 +55,7 @@ export function CompaniesDirectory({ companies, pool, pulses, totalCount, sector
     retryDelay: (attempt) => 1_000 * (attempt + 1),
     staleTime: 60_000,
   })
+  const router = useRouter()
   const [query, setQuery] = useState("")
   const [sector, setSector] = useState<string | null>(null)
   const [sort, setSort] = useState<SortMode>("pulse")
@@ -117,8 +119,10 @@ export function CompaniesDirectory({ companies, pool, pulses, totalCount, sector
       pending: false,
       loading: false,
       disabled: false,
+      // An anonymous Follow is a route change, not a new session — a full
+      // document load here rebuilds the directory the reader is standing in.
       toggle: () => {
-        window.location.href = "/signup?ref=companies"
+        router.push("/signup?ref=companies")
       },
     }
   }

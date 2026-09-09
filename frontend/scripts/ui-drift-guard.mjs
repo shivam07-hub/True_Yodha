@@ -260,6 +260,119 @@ const METRICS = [
     mode: "min",
     hint: "VirtualFeed must pass `getItemKey` to useVirtualizer, matching the `getKey` used for the React key — otherwise measured heights follow position instead of row identity and cards overlap when a row is inserted.",
   },
+  /* ── The four beats of a click ─────────────────────────────────────────────
+     Heard (the press stamp, globals.css) · Working (<Button loading>) · Slow
+     (useIsSlow past ACTION_SLOW_MS) · Settled (the result, or the error beside
+     the control). The stamp is global and needs no metric. These four ratchet
+     the other three toward the primitives that already implement them, which
+     had 4, 2 and 1 consumers respectively when this was written. */
+  {
+    name: "mutationWithoutBusyState",
+    exts: [".tsx"],
+    exclude: ["components/ui/"],
+    // A `useMutation` whose `isPending` is never read anywhere in its file: the
+    // click starts work and the screen says nothing until the answer lands.
+    // Two things in one file, so this cannot be one regex.
+    count: (src) => {
+      if (!src.includes("useMutation")) return 0
+      const names = [...src.matchAll(/const\s+(\w+)\s*=\s*useMutation/g)].map((m) => m[1])
+      // `onMutate` is the OTHER honest Working state: the row shows the result
+      // on the click and rolls back on error. Not a gap — a better answer.
+      const optimistic = (src.match(/onMutate:/g) ?? []).length
+      const silent = names.filter((n) => {
+        // Three honest answers, any one of which is enough:
+        //   isPending  — this file renders the Working state itself
+        //   mutateAsync — the promise is handed to a caller who awaits it, and
+        //                 THAT component owns the Working state
+        // (onMutate is the third, counted below: the result shows on the click.)
+        if (new RegExp(`\\b${n}\\.is(Pending|Loading)\\b`).test(src)) return false
+        if (new RegExp(`\\b${n}\\.mutateAsync\\b`).test(src)) return false
+        return true
+      }).length
+      return Math.max(0, silent - optimistic)
+    },
+    mode: "max",
+    hint: "This mutation's `isPending` is never read — the click has no Working state. Feed it to <Button loading> (which keeps the label, the focus and the colour), or mark the row optimistically in onMutate.",
+  },
+  {
+    name: "disabledOnPending",
+    exts: [".tsx"],
+    exclude: ["components/ui/"],
+    // Busy is not disabled. `disabled` drops the control out of the tab order
+    // mid-action, so a keyboard user loses their place, and it paints the
+    // control with the UNAVAILABLE styling — working and broken look the same.
+    pattern: /disabled=\{[^}]*\bis(Pending|Loading)\b[^}]*\}/g,
+    mode: "max",
+    hint: "Pass the flag to <Button loading> instead of `disabled`. Busy keeps focus and colour, states itself with aria-busy, and refuses the second click in JS.",
+  },
+  {
+    name: "rawButtonElement",
+    exts: [".tsx"],
+    // components/ui/ is the primitive itself; mobile/redesign/ is the mobile
+    // design system, which has its own press layer (`mm-press-*`).
+    exclude: ["components/ui/", "mobile/redesign/"],
+    pattern: /<button[\s>]/g,
+    mode: "max",
+    hint: "Use <Button> from @/components/ui/button. It owns the press stamp, the busy state, the disabled paint and the focus ring; a raw <button> re-rolls all four and usually gets the busy one wrong.",
+  },
+  {
+    name: "busyLabelThreeDots",
+    exts: [".tsx"],
+    // "Saving..." and "Saving…" both shipped, seventeen of one and five of the
+    // other. One ellipsis character, so a busy label is one string everywhere.
+    pattern: /"[A-Z][a-z]+ing\b[A-Za-z ]*\.\.\."/g,
+    mode: "max",
+    hint: "Busy labels use one ellipsis character (…), never three periods — and read as the verb in progress: Save → Saving…, Book the call → Booking….",
+  },
+  {
+    name: "labelReplacedByEllipsis",
+    exts: [".tsx"],
+    exclude: ["components/ui/"],
+    // The sibling rule above polices HOW a busy label is spelled. This one
+    // polices whether there is a label at all. `{busy ? "…" : "Save"}` deletes
+    // the word for what is happening at the exact moment the reader needs it,
+    // and resizes the control while they read it — the defect the four-beats
+    // pass removed from <Button>, then found hand-rolled at six call sites
+    // that the spelling rule could not see, because it matches "Saving..."
+    // inside a word and a bare ellipsis is not a word.
+    //
+    // The second half of the pattern is load-bearing: the OTHER branch must be
+    // a non-empty string, i.e. an actual label that the ellipsis replaces.
+    // Without it the rule also fires on `len > 10 ? "…" : ""` (truncation —
+    // the ellipsis means "this text continues") and on a stat cell whose
+    // pending value is an ellipsis because there is no word there to delete.
+    pattern: /\?\s*"[.…]{1,3}"\s*:\s*"[^"]+"/g,
+    mode: "max",
+    hint: "Keep the label and pass the flag to <Button loading> — it holds the word, the focus and the colour, and refuses the second click. A raw button keeps its label too and says the verb in progress: Add → Adding….",
+  },
+  {
+    name: "internalHrefAnchor",
+    exts: [".tsx"],
+    // A raw <a> to an in-app route throws the whole application away and
+    // rebuilds it: re-auth, re-hydrate, refetch the page the reader was
+    // already looking at. It is the single most expensive thing a press can
+    // cost, and it is invisible in every server-side latency number we keep.
+    // Three of these were fixed by hand and no rule was left behind, so nine
+    // more were sitting in the tree a week later — including the gap chip on
+    // the jobs feed, the busiest find-a-job surface in the product.
+    count: (src) => {
+      let n = 0
+      for (const m of src.matchAll(/<a\b/g)) {
+        const close = src.indexOf(">", m.index)
+        if (close === -1) continue
+        const tag = src.slice(m.index, close + 1)
+        // Only in-app routes. An absolute URL or a mailto: is a real anchor.
+        if (!/href=(?:"\/|\{"\/|\{`\/)/.test(tag)) continue
+        // Two honest anchors: a new tab, and a file the browser must fetch.
+        if (/target\s*=/.test(tag)) continue
+        if (/\bdownload\b/.test(tag)) continue
+        n++
+      }
+      return n
+    },
+    mode: "max",
+    hint: "Use <Link> from next/link for an in-app route — it keeps the app alive and the click costs a render, not a reload. A raw <a> is correct only when it leaves the app, opens a new tab, or downloads a file.",
+  },
 ]
 
 function walk(dir, exts, acc) {
@@ -295,10 +408,28 @@ function countMetric(metric) {
       continue
     }
     if (metric.transform) content = metric.transform(content)
+    // A documented exemption, one per instance, written where the reader of
+    // that line needs it: `// drift-ok(metricName): why this one is correct`.
+    // A ratchet with no way to say "this instance is right" gets satisfied by
+    // contorting the code instead, which is worse than the drift.
+    const exempt = (
+      content.match(new RegExp(`drift-ok\\(${metric.name}\\)`, "g")) ?? []
+    ).length
+    // A metric whose rule cannot be written as one regex (it has to relate two
+    // things in the same file) supplies `count` instead of `pattern`.
+    if (metric.count) {
+      const n = Math.max(0, metric.count(content) - exempt)
+      if (n > 0) {
+        total += n
+        offenders.push({ rel, n })
+      }
+      continue
+    }
     const matches = content.match(metric.pattern)
-    if (matches && matches.length) {
-      total += matches.length
-      offenders.push({ rel, n: matches.length })
+    const n = Math.max(0, (matches?.length ?? 0) - exempt)
+    if (n > 0) {
+      total += n
+      offenders.push({ rel, n })
     }
   }
   offenders.sort((a, b) => b.n - a.n)

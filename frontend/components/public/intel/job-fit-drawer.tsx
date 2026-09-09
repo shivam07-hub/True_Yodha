@@ -239,7 +239,7 @@ export function JobFitDrawer({
               disabled={busy}
               onClick={() => inputRef.current?.click()}
             >
-              {busy ? "Checking fit..." : "Choose CV"}
+              {busy ? "Checking fit…" : "Choose CV"}
             </button>
           </div>
         )}
@@ -253,7 +253,7 @@ export function JobFitDrawer({
             disabled={saving || (!readout && !authed)}
             onClick={() => void saveAndTailor()}
           >
-            {saving ? "Saving..." : "Save + tailor CV"}
+            {saving ? "Saving…" : "Save + tailor CV"}
           </button>
           <button type="button" className="tm-intel-fit-secondary" onClick={onClose}>
             Back to roles

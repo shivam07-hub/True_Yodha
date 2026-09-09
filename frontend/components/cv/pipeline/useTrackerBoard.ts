@@ -1,6 +1,6 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { jobs, APPLICATION_OUTCOMES } from "@/lib/api"
 import type { ApplicationResponse, ApplicationStatus } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
@@ -29,25 +29,16 @@ export interface UpdateStatusInput {
 export interface UpdateNotesInput {
   jobId: string
   notes: string
+  // The caller already knows the row it is editing. The status used to be
+  // looked up by reading EVERY application on mount, purely to echo it back on
+  // a PATCH — a whole network read to answer a question the caller could
+  // answer itself.
+  status: ApplicationStatus
 }
 
 export function useTrackerBoard() {
   const { token } = useAuth()
   const queryClient = useQueryClient()
-
-  const applicationsQuery = useQuery({
-    queryKey: dataKeys.applications(),
-    queryFn: () => jobs.applications(token!),
-    enabled: !!token,
-    staleTime: 60 * 1000,
-  })
-
-  const staleQuery = useQuery({
-    queryKey: dataKeys.staleApplications(),
-    queryFn: () => jobs.staleApplications(token!),
-    enabled: !!token,
-    staleTime: 60 * 1000,
-  })
 
   const updateStatus = useMutation({
     mutationFn: ({ jobId, status }: UpdateStatusInput) =>
@@ -69,45 +60,18 @@ export function useTrackerBoard() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.staleApplications() })
     },
   })
 
   const updateNotes = useMutation({
-    mutationFn: ({ jobId, notes }: UpdateNotesInput) =>
-      jobs.updateApplication(token!, jobId, {
-        status: applicationsQuery.data?.find(a => a.job_id === jobId)?.status ?? "saved",
-        notes,
-      }),
+    mutationFn: ({ jobId, notes, status }: UpdateNotesInput) =>
+      jobs.updateApplication(token!, jobId, { status, notes }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
     },
   })
 
-  const dismissStale = useMutation({
-    mutationFn: (jobId: string) => jobs.dismissStale(token!, jobId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: dataKeys.staleApplications() })
-    },
-  })
-
-  const deleteApplication = useMutation({
-    mutationFn: (jobId: string) => jobs.removeTrackerJob(token!, jobId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.staleApplications() })
-    },
-  })
-
-  return {
-    applications: applicationsQuery.data ?? [],
-    applicationsLoading: applicationsQuery.isLoading,
-    staleApplications: staleQuery.data ?? [],
-    updateStatus,
-    updateNotes,
-    dismissStale,
-    deleteApplication,
-  }
+  return { updateStatus, updateNotes }
 }
 
 export function partitionVerdicts(apps: ApplicationResponse[]): ApplicationResponse[] {

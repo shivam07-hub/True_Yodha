@@ -74,8 +74,25 @@ export function CoveragePanel({ token, jobId }: { token: string; jobId: string }
   const bank = useMutation({
     mutationFn: ({ requirement, answer }: { requirement: string; answer: string }) =>
       cvApi.career.jdCoverageAnswer(token, requirement, answer, jobId),
-    onSuccess: (_res, vars) => {
-      setBanked((prev) => new Set(prev).add(vars.requirement))
+    // Mark it banked on the PRESS, not on the answer. `banked` is the only
+    // state that flips the row to covered and moves the {doneCount} of
+    // {rows.length} counter, so both sat still for the whole round trip — the
+    // same shape the heatmap's saveMutation was fixed out of.
+    onMutate: ({ requirement }) => {
+      setBanked((prev) => new Set(prev).add(requirement))
+    },
+    onError: (_error, { requirement }) => {
+      setBanked((prev) => {
+        const next = new Set(prev)
+        next.delete(requirement)
+        return next
+      })
+    },
+    // The composer closes only once the story is durable. Its text lives in
+    // GapComposer's own state, so closing it on the press would destroy what
+    // the user wrote the moment a bank failed — and a career story is the most
+    // expensive thing anyone types on this screen.
+    onSuccess: () => {
       setOpenGap(null)
     },
   })

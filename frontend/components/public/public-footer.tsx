@@ -115,7 +115,7 @@ export function PublicFooter({ commons = false }: { commons?: boolean } = {}) {
         <span className="pub-footer-bottom-dot">·</span>
         <span>Made with ❤️ in India</span>
         <span className="pub-footer-bottom-dot">·</span>
-        <a className="pub-footer-trust" href="/security">Security →</a>
+        <Link className="pub-footer-trust" href="/security">Security →</Link>
       </div>
     </footer>
   )
