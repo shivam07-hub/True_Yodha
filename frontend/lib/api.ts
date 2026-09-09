@@ -4355,10 +4355,6 @@ export const jobs = {
     request<JobLiveness>(`/jobs/${encodeURIComponent(jobId)}/liveness`, {
       headers: { Authorization: `Bearer ${token}` },
     }),
-  staleApplications: (token: string) =>
-    request<StaleApplication[]>("/jobs/applications/stale", {
-      headers: { Authorization: `Bearer ${token}` },
-    }),
   submitReview: (
     token: string,
     jobId: string,
@@ -4409,11 +4405,6 @@ export const jobs = {
     }),
   restoreTrackerJob: (token: string, jobId: string) =>
     request<void>(`/jobs/tracker/${encodeURIComponent(jobId)}/restore`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    }),
-  dismissStale: (token: string, jobId: string) =>
-    request<void>(`/jobs/applications/${encodeURIComponent(jobId)}/dismiss-stale`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }),

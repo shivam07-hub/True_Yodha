@@ -24,7 +24,6 @@ export const dataKeys = {
   /** The Collection Record — the Collections surface's ONE query key
    *  (CONTEXT.md). Every mutation writes the server's response back into it. */
   collection: () => ["collection"] as const,
-  staleApplications: () => ["stale-applications"] as const,
   notificationsUnread: () => ["notifications", "unread"] as const,
   notifications: () => ["notifications", "list"] as const,
   userSkillDemand: () => ["user-skill-demand"] as const,
