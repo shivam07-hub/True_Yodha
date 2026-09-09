@@ -35,8 +35,7 @@ class _FakeQuery:
         return self
 
     def or_(self, _clause: str) -> "_FakeQuery":
-        # Recall filter (title ilike-OR) — a no-op in the fake; the precision filter
-        # (_role_match_score) and the eq/gte freshness gates do the real narrowing.
+        # A no-op in the fake; the eq/gte gates do the narrowing these tests assert.
         return self
 
     def order(self, key: str, desc: bool = False) -> "_FakeQuery":
@@ -684,36 +683,39 @@ def _roles_jobs_db(jobs: list[dict[str, Any]]) -> "_FakeDB":
     return _FakeDB({"jobs": jobs})
 
 
-def test_get_candidate_job_ids_for_roles_precision_matches_title() -> None:
-    # Only jobs whose TITLE contains ALL tokens of some target role survive the
-    # precision filter — "Sales Engineer" has "engineer" but not "software", so it
-    # is NOT a match for "Software Engineer" (no fabricated relevance).
+def test_get_candidate_job_ids_for_roles_selects_the_family_not_the_title() -> None:
+    # The selector reads `role_family` — the column the user's target was resolved
+    # from — not the words of the target's name against the title. j3's title looks
+    # like a match and is not one; j2's title looks like nothing and IS one. A
+    # family name is not a search query: measured 2026-09-09, "Artificial
+    # Intelligence and Machine Learning (AI/ML)" matched 0 titles against the 2,152
+    # jobs actually in it.
     db = _roles_jobs_db([
-        {"job_id": "j1", "job_title": "Software Engineer II", "role_domain": "Engineering",
+        {"job_id": "j1", "job_title": "Software Engineer II", "role_family": "Software Development",
          "is_active": True, "listing_confidence": "active", "last_seen": _fresh_marker(1)},
-        {"job_id": "j2", "job_title": "Senior Software Engineer", "role_domain": "",
+        {"job_id": "j2", "job_title": "Custom Application Developer", "role_family": "Software Development",
          "is_active": True, "listing_confidence": "active", "last_seen": _fresh_marker(2)},
-        {"job_id": "j3", "job_title": "Sales Engineer", "role_domain": "",
+        {"job_id": "j3", "job_title": "Software Sales Engineer", "role_family": "General Sales Practices",
          "is_active": True, "listing_confidence": "active", "last_seen": _fresh_marker(1)},
-        {"job_id": "j4", "job_title": "Data Analyst", "role_domain": "",
+        {"job_id": "j4", "job_title": "Data Analyst", "role_family": "Data Analysis",
          "is_active": True, "listing_confidence": "active", "last_seen": _fresh_marker(1)},
     ])
-    result = JobsRepository(db).get_candidate_job_ids_for_roles(["Software Engineer"])
+    result = JobsRepository(db).get_candidate_job_ids_for_roles(["Software Development"])
     assert set(result) == {"j1", "j2"}
 
 
 def test_get_candidate_job_ids_for_roles_drops_untrusted_not_old_listings() -> None:
     db = _roles_jobs_db([
-        {"job_id": "j1", "job_title": "Software Engineer", "role_domain": "",
+        {"job_id": "j1", "job_title": "Software Engineer", "role_family": "Software Development",
          "is_active": True, "listing_confidence": "active", "last_seen": _fresh_marker(1)},
-        {"job_id": "j2", "job_title": "Software Engineer", "role_domain": "",
+        {"job_id": "j2", "job_title": "Software Engineer", "role_family": "Software Development",
          "is_active": True, "listing_confidence": "active", "last_seen": _fresh_marker(90)},
-        {"job_id": "j3", "job_title": "Software Engineer", "role_domain": "",
+        {"job_id": "j3", "job_title": "Software Engineer", "role_family": "Software Development",
          "is_active": False, "listing_confidence": "closed", "last_seen": _fresh_marker(1)},
-        {"job_id": "j4", "job_title": "Software Engineer", "role_domain": "",
+        {"job_id": "j4", "job_title": "Software Engineer", "role_family": "Software Development",
          "is_active": True, "listing_confidence": "uncertain", "last_seen": _fresh_marker(1)},
     ])
-    result = JobsRepository(db).get_candidate_job_ids_for_roles(["Software Engineer"])
+    result = JobsRepository(db).get_candidate_job_ids_for_roles(["Software Development"])
     assert result == ["j1", "j2"]
 
 
@@ -721,13 +723,13 @@ def test_get_candidate_job_ids_for_roles_trusts_verifier_over_scraper_age() -> N
     db = _roles_jobs_db([{
         "job_id": "j1",
         "job_title": "Software Engineer",
-        "role_domain": "",
+        "role_family": "Software Development",
         "is_active": True,
         "listing_confidence": "active",
         "last_seen": _fresh_marker(90),
     }])
 
-    result = JobsRepository(db).get_candidate_job_ids_for_roles(["Software Engineer"])
+    result = JobsRepository(db).get_candidate_job_ids_for_roles(["Software Development"])
 
     assert result == ["j1"]
 
@@ -742,15 +744,15 @@ def test_get_candidate_job_ids_for_roles_no_roles_returns_empty() -> None:
 
 def test_get_candidate_job_ids_for_roles_filters_by_location() -> None:
     db = _roles_jobs_db([
-        {"job_id": "j1", "job_title": "Software Engineer", "role_domain": "",
+        {"job_id": "j1", "job_title": "Software Engineer", "role_family": "Software Development",
          "is_active": True, "listing_confidence": "active", "last_seen": _fresh_marker(1),
          "location_country": "india", "location_mode": "onsite"},
-        {"job_id": "j2", "job_title": "Software Engineer", "role_domain": "",
+        {"job_id": "j2", "job_title": "Software Engineer", "role_family": "Software Development",
          "is_active": True, "listing_confidence": "active", "last_seen": _fresh_marker(1),
          "location_country": "usa", "location_mode": "onsite"},
     ])
     result = JobsRepository(db).get_candidate_job_ids_for_roles(
-        ["Software Engineer"], target_location_countries=["india"]
+        ["Software Development"], target_location_countries=["india"]
     )
     assert result == ["j1"]
 

@@ -150,6 +150,7 @@ def _job(
     city: str | None = "Bengaluru",
     mode: str = "onsite",
     role_domain: str = "engineering",
+    role_family: str | None = None,
     skills: list[str] | None = None,
     seniority_level: str | None = None,
     min_years_experience: int | None = None,
@@ -168,6 +169,7 @@ def _job(
         "location_mode": mode,
         "location_quality": "ok",
         "role_domain": role_domain,
+        "role_family": role_family,
         "seniority_level": seniority_level,
         "min_years_experience": min_years_experience,
         "industry": "Technology",
@@ -286,11 +288,11 @@ def test_fit_sort_cv_only_ranks_by_skill_then_fresh() -> None:
 def test_fit_sort_roles_only_ranks_by_role_then_fresh() -> None:
     # No CV → skill weight dead, role (.6) dominates over fresh (.4).
     repo, _ = _repo([
-        _job("newer_norole", title="Designer", first_seen=20260601),
-        _job("older_role", title="Data Analyst", first_seen=20260101),
+        _job("newer_norole", title="Designer", role_family="Design", first_seen=20260601),
+        _job("older_role", title="Data Analyst", role_family="Data Analysis", first_seen=20260101),
     ])
     result = repo.feed_jobs(
-        sort="fit", user_target_roles=["Data Analyst"], page_size=10
+        sort="fit", user_target_roles=["Data Analysis"], page_size=10
     )
     assert [r["job_id"] for r in result["rows"]] == ["older_role", "newer_norole"]
 
@@ -310,11 +312,27 @@ def test_fit_sort_no_signals_degrades_to_pure_freshness() -> None:
 
 
 def test_role_match_is_seniority_agnostic() -> None:
-    repo, _ = _repo([_job("da", title="Senior Data Analyst", first_seen=20260101)])
-    # 'Data Analyst' target matches a 'Senior Data Analyst' posting — the role
-    # signal that feeds the `fit` blend is seniority-agnostic.
-    result = repo.feed_jobs(sort="fit", user_target_roles=["Data Analyst"], page_size=10)
+    repo, _ = _repo([
+        _job("da", title="Senior Data Analyst", role_family="Data Analysis", first_seen=20260101)
+    ])
+    # The role signal reads `role_family`, which carries no seniority at all — so a
+    # "Senior Data Analyst" posting is a match for the Data Analysis target on the
+    # structure, not on a title string that happens to omit the word.
+    result = repo.feed_jobs(sort="fit", user_target_roles=["Data Analysis"], page_size=10)
     assert result["rows"][0]["target_role_match"] == 1
+
+
+def test_role_match_reads_the_family_not_the_title_words() -> None:
+    # A title can carry the target's words and be other work; a title can carry
+    # none of them and be the work. Measured on prod 2026-09-09, 95.5% of the old
+    # token rule's hits were on jobs in a DIFFERENT family.
+    repo, _ = _repo([
+        _job("looks_right", title="Data Analysis Sales Lead", role_family="General Sales Practices"),
+        _job("is_right", title="Insights Associate", role_family="Data Analysis"),
+    ])
+    result = repo.feed_jobs(sort="fit", user_target_roles=["Data Analysis"], page_size=10)
+    by_id = {r["job_id"]: r["target_role_match"] for r in result["rows"]}
+    assert by_id == {"is_right": 1, "looks_right": 0}
 
 
 def test_min_skill_matches_filters_below_threshold() -> None:

@@ -174,7 +174,12 @@ def get_top_matches(
     jobs_data = job_meta_fetcher(candidate_ids)
     job_meta: dict[str, dict] = {row["job_id"]: row for row in jobs_data}
 
-    role_tokens = [r.lower() for r in (target_roles or []) if r]
+    # The families the user is aiming at. This used to be a substring test of the
+    # target's text against the job TITLE — "Artificial Intelligence and Machine
+    # Learning (AI/ML)" is never a substring of a title, so the boost never fired
+    # for a family target. The job carries the family the target was resolved
+    # from; compare those.
+    target_families = {r.strip() for r in (target_roles or []) if r and r.strip()}
 
     full_scored: list[dict] = []
     for job in candidates:
@@ -183,8 +188,7 @@ def get_top_matches(
             continue
 
         boosted = job["overlap_score"]
-        title_lower = (meta.get("job_title") or "").lower()
-        if role_tokens and any(tok in title_lower for tok in role_tokens):
+        if target_families and meta.get("role_family") in target_families:
             boosted = round(boosted * ROLE_BOOST, 1)
 
         full_scored.append({

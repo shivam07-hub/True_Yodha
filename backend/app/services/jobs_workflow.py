@@ -474,10 +474,12 @@ async def compute_job_matches(
     # `llm_provider` arg is a test-only override; production owns the provider here so
     # no caller can pass gemma into a ranking path (feedback_no_cheap_models_judgment).
     provider = llm_provider or get_judgment_provider()
-    # career-ops title_filter selector: role-right jobs the skill taxonomy missed still
-    # reach the brain. Human role titles drive the title match; fall back to the derived
-    # cluster roles when titles aren't set.
-    title_roles = profile.get("target_role_titles") or profile.get("target_roles") or []
+    # Role selector: role-right jobs the skill overlap missed still reach the brain.
+    # It selects on `role_family` now, so it takes the RESOLVED families — never
+    # `target_role_titles`, which is free text on the legacy and pre-flight paths
+    # and, since the families were made the visible name, is usually a copy of
+    # this same list anyway.
+    title_roles = profile.get("target_roles") or []
     excluded_set = set(excluded_job_ids or [])
 
     # Two-phase persist. The per-job reasoning below is the 166-220s a user watches

@@ -162,11 +162,6 @@ def _job_feed_marker_to_iso(value: Any) -> str | None:
 _ROLE_TOKEN_RE = re.compile(r"[a-z0-9+#]+")
 # Seniority/structure words are stripped so a target role matches regardless of
 # the level prefix on the posting ("Data Analyst" target ↔ "Senior Data Analyst").
-_ROLE_STOPWORDS = frozenset(
-    {"and", "of", "the", "in", "for", "to", "with", "a", "an", "at", "on",
-     "senior", "junior", "lead", "principal", "staff", "sr", "jr",
-     "i", "ii", "iii", "iv"}
-)
 _JOB_QUERY_GENERIC_WORDS = frozenset(
     {
         "job",
@@ -297,17 +292,9 @@ def _global_search_location_match(row: dict[str, Any], location_terms: list[str]
     return any(term in city or term in country for term in location_terms)
 
 
-def _role_token_sets(target_roles: list[str] | None) -> list[set[str]]:
-    """Significant-token set per target role, for honest token-subset matching."""
-    sets: list[set[str]] = []
-    for role in target_roles or []:
-        toks = {
-            t for t in _ROLE_TOKEN_RE.findall((role or "").lower())
-            if t not in _ROLE_STOPWORDS and len(t) > 1
-        }
-        if toks:
-            sets.append(toks)
-    return sets
+def _target_families(target_roles: list[str] | None) -> set[str]:
+    """The role families the user is aiming at, as an exact-match set."""
+    return {r.strip() for r in (target_roles or []) if r and r.strip()}
 
 
 def _feed_search_patterns(term: str) -> tuple[str, ...]:
@@ -330,21 +317,24 @@ def _feed_search_patterns(term: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys(patterns))
 
 
-def _role_match_score(
-    job_title: str | None, role_domain: str | None, token_sets: list[set[str]]
-) -> int:
-    """How many of the user's target roles this job's title/domain covers.
+def _role_match_score(role_family: str | None, target_families: set[str]) -> int:
+    """Whether this job is in one of the families the user is aiming at. 0 or 1.
 
-    A target role 'counts' when all its significant tokens appear in the job's
-    title or role_domain. Token-subset match — no LLM, no fuzzy guessing, no
-    fabricated relevance. Returns 0 when the user has set no target roles.
+    It used to ask whether every significant token of the family's NAME appeared
+    in the job's title or role_domain. That is a string coincidence, not a fact,
+    and the job already carries the fact: `role_family` is the column the user's
+    target was resolved from. Measured on prod 2026-09-09 over 149 targeting
+    users, the token rule fired 38,065 times, of which 36,346 — 95.5% — were on
+    jobs in a DIFFERENT family, while it found 1,719 of the 113,750 jobs that
+    genuinely were in the target family. A signal carrying 0.3 of "Best fit"
+    ordering (0.6 for a user with no CV) was ~95% wrong in both directions.
+
+    A job has exactly one family, so this is 0 or 1 — there is no denominator to
+    divide by, and a user with three targets is not three times harder to please.
     """
-    if not token_sets:
+    if not target_families or not role_family:
         return 0
-    hay_tokens = set(_ROLE_TOKEN_RE.findall(f"{job_title or ''} {role_domain or ''}".lower()))
-    if not hay_tokens:
-        return 0
-    return sum(1 for toks in token_sets if toks <= hay_tokens)
+    return 1 if role_family in target_families else 0
 
 
 # Fit-rank weights — the "Best fit" composite (market filter rework, Q7,
@@ -364,7 +354,6 @@ def _fit_scores(
     *,
     has_cv: bool,
     has_roles: bool,
-    num_target_roles: int,
 ) -> dict[str, float]:
     """Composite 'Best fit' score per job_id, normalized over the candidate set.
 
@@ -385,7 +374,6 @@ def _fit_scores(
         w_skill, w_role, w_fresh = _FIT_WEIGHTS["none"]
 
     max_skill = max((r["matched_skill_count"] for r in rows), default=0)
-    role_denom = num_target_roles if num_target_roles > 0 else 1
     fresh_ts: dict[str, float] = {}
     for r in rows:
         dt = _parse_iso_dt(r["first_seen"])
@@ -398,7 +386,7 @@ def _fit_scores(
     scores: dict[str, float] = {}
     for r in rows:
         skill_norm = (r["matched_skill_count"] / max_skill) if max_skill > 0 else 0.0
-        role_norm = min(1.0, r["target_role_match"] / role_denom)
+        role_norm = float(r["target_role_match"])  # already 0 or 1
         ts = fresh_ts.get(r["job_id"])
         fresh_norm = ((ts - fresh_min) / fresh_span) if ts is not None else 0.0
         scores[r["job_id"]] = w_skill * skill_norm + w_role * role_norm + w_fresh * fresh_norm
@@ -1981,7 +1969,7 @@ class JobsRepository:
         "location, location_raw, location_city, location_country, location_mode, location_quality, locations, "
         "role_domain, career_band, industry, industry_group, apply_url, first_seen, last_seen, "
         "seniority_level, min_years_experience, max_years_experience, "
-        "is_active, listing_confidence, last_verified_live_at, main_skills"
+        "is_active, listing_confidence, last_verified_live_at, main_skills, role_family"
     )
     _FEED_PERSONAL_CAP = 500  # bound the in-Python overlap rank set
 
@@ -1989,7 +1977,7 @@ class JobsRepository:
     def _feed_shape_row(
         row: dict[str, Any],
         user_skill_keys: set[str] | None,
-        role_token_sets: list[set[str]] | None = None,
+        target_families: set[str] | None = None,
     ) -> dict[str, Any]:
         _hydrate_location_fields(row)
         raw_skills = [s.strip() for s in (row.get("main_skills") or []) if s and s.strip()]
@@ -2002,9 +1990,7 @@ class JobsRepository:
         if user_skill_keys:
             matched_skills = [s for s in raw_skills if s.lower() in user_skill_keys]
         matched = len(matched_skills)
-        role_match = _role_match_score(
-            row.get("job_title"), row.get("role_domain"), role_token_sets or []
-        )
+        role_match = _role_match_score(row.get("role_family"), target_families or set())
         return {
             "job_id": row.get("job_id"),
             "job_title": row.get("job_title") or "",
@@ -2108,7 +2094,7 @@ class JobsRepository:
         skill_facet = (skill or "").strip()
         now = time.monotonic()
 
-        role_token_sets = _role_token_sets(user_target_roles)
+        target_families = _target_families(user_target_roles)
         min_skill = min_skill_matches if (min_skill_matches and min_skill_matches > 0) else 0
         # following_only with no follows → an empty feed is the honest answer
         # (IH1: the user's heatmap/follow set is theirs; no global default).
@@ -2179,7 +2165,7 @@ class JobsRepository:
             # candidate rows.
             rows = _feed_personal_cache.get_or_compute(pkey, _load_feed_candidates)
 
-            shaped = [self._feed_shape_row(r, user_skill_keys, role_token_sets) for r in rows]
+            shaped = [self._feed_shape_row(r, user_skill_keys, target_families) for r in rows]
             if eligibility_active:
                 shaped = [
                     row for row in shaped
@@ -2197,8 +2183,7 @@ class JobsRepository:
                 fit_scores = _fit_scores(
                     shaped,
                     has_cv=bool(user_skill_keys),
-                    has_roles=bool(role_token_sets),
-                    num_target_roles=len(role_token_sets),
+                    has_roles=bool(target_families),
                 )
                 shaped.sort(key=lambda r: fit_scores[r["job_id"]], reverse=True)
 
@@ -2238,7 +2223,7 @@ class JobsRepository:
             rows = result.data or []
             available_total = result.count if result.count is not None else len(rows)
             _feed_page_cache[ckey] = (now, (rows, available_total))
-        page_rows = [self._feed_shape_row(r, user_skill_keys, role_token_sets) for r in rows]
+        page_rows = [self._feed_shape_row(r, user_skill_keys, target_families) for r in rows]
         return {
             "rows": page_rows,
             "available_total": available_total,
@@ -2762,33 +2747,41 @@ class JobsRepository:
 
     def get_candidate_job_ids_for_roles(
         self,
-        role_titles: list[str],
+        role_families: list[str],
         *,
         target_location_countries: list[str] | None = None,
         require_fresh: bool = True,
         limit: int = 400,
     ) -> list[str]:
-        """career-ops title_filter as a candidate SELECTOR — jobs whose TITLE matches
-        the user's target roles, independent of skill overlap.
+        """Role-right jobs as a candidate SELECTOR, independent of skill overlap.
 
-        The skill-overlap selector (`get_candidate_job_ids_for_skills`) can never see a
-        role-right job whose skills the taxonomy missed; this reaches it. Recall is an
-        index-backed title ilike over the roles' significant tokens (GIN trigram index
-        idx_jobs_job_title_trgm); precision is `_role_match_score` (ALL tokens of some
-        role present in the title/role_domain — no fuzzy or fabricated relevance).
-        Verifier eligibility + location gate the same way the skill selector
-        does. Most recently verified first, capped. Returns [] when the user has
-        no target roles (nothing to match on).
+        The skill-overlap selector (`get_candidate_job_ids_for_skills`) only reaches
+        jobs sharing a skill with the CV; this reaches the rest of the family.
+
+        It used to do that by TITLE: an OR of trigram ilikes over every significant
+        token of the target's name, four times the wanted rows, then a Python pass
+        keeping only jobs whose title contained ALL tokens of some target. That
+        worked while the stored target was a job title. It is a family now, and a
+        family name is not a title — measured 2026-09-09, "Artificial Intelligence
+        and Machine Learning (AI/ML)" matched 0 titles against 2,152 jobs actually
+        in it, and Banking Services 12 against 2,926.
+
+        So it selects on the fact instead: `role_family` is the column the target
+        was resolved from, it is indexed (`idx_jobs_role_family`), and the target
+        list is capped at five, so the scope cannot grow with the data. One
+        equality replaces a trigram OR, a 4x overfetch and a re-filter.
+
+        Verifier eligibility + location gate the same way the skill selector does.
+        Most recently verified first, capped. Returns [] when the user has no
+        resolved family (nothing to select on).
         """
-        token_sets = _role_token_sets(role_titles)
-        if not token_sets:
+        families = sorted(_target_families(role_families))
+        if not families:
             return []
-        positive = sorted({tok for toks in token_sets for tok in toks})
-        or_clause = ",".join(f"job_title.ilike.%{tok}%" for tok in positive)
         query = (
             self._db.table("jobs")
-            .select("job_id, job_title, role_domain, last_verified_live_at")
-            .or_(or_clause)
+            .select("job_id, last_verified_live_at")
+            .in_("role_family", families)
         )
         if require_fresh:
             query = (
@@ -2796,14 +2789,9 @@ class JobsRepository:
                 .eq("listing_confidence", "active")
             )
         rows = (
-            query.order("last_verified_live_at", desc=True).limit(limit * 4).execute()
+            query.order("last_verified_live_at", desc=True).limit(limit).execute()
         ).data or []
-        # Precision: keep only true role-title matches (all tokens of some role present).
-        matched_ids = [
-            r["job_id"]
-            for r in rows
-            if _role_match_score(r.get("job_title"), r.get("role_domain"), token_sets) > 0
-        ]
+        matched_ids = [r["job_id"] for r in rows if r.get("job_id")]
         if target_location_countries:
             matched_ids = self._filter_job_ids_by_location(
                 matched_ids, target_location_countries
@@ -2864,7 +2852,7 @@ class JobsRepository:
             .select(
                 "job_id, job_title, job_description, company_name, industry, "
                 "location, location_raw, location_city, location_country, location_mode, location_quality, apply_url"
-                ", role_domain, career_band, seniority_level, min_years_experience, max_years_experience"
+                ", role_domain, role_family, career_band, seniority_level, min_years_experience, max_years_experience"
             )
             .in_("job_id", job_ids)
             .execute()
