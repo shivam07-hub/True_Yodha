@@ -29,6 +29,9 @@ from __future__ import annotations
 import hashlib
 import logging
 import secrets
+import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -37,7 +40,6 @@ from urllib.parse import urlencode
 from app.config import settings
 from app.repositories.partners import PartnerCredential, PartnersRepository
 from app.services import auth_links, email_service
-from app.services.user_provisioning import ensure_user_provisioned
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +74,9 @@ class SsoOutcome:
     connect_url: str | None
     user_ref: str                 # our partner_users.id — the partner's handle on this seat
     message: str
+    # (user_id, email, full_name) to seed a profile for AFTER the response. Set
+    # only when this call created the account — see the created branch.
+    provision: tuple[str, str, str | None] | None = None
 
 
 def callback_url(**params: str) -> str:
@@ -96,6 +101,27 @@ def _mint_connect_token() -> tuple[str, str, str]:
     return raw, hash_connect_token(raw), expires.isoformat()
 
 
+# An SSO call past this is logged with its hops. Same line as route.slow: past a
+# second of backend time, the partner's user is already waiting on us.
+_SLOW_MS = 1000.0
+
+
+@contextmanager
+def _hop(marks: dict[str, float], name: str) -> Iterator[None]:
+    started = time.perf_counter()
+    try:
+        yield
+    finally:
+        marks[name] = (time.perf_counter() - started) * 1000.0
+
+
+def _mint(admin: Any, email: str, redirect_to: str, marks: dict[str, float]) -> str:
+    with _hop(marks, "mint"):
+        return auth_links.mint_login_link_for_existing_user(
+            admin, email=email, redirect_to=redirect_to
+        )
+
+
 def start_session(
     repo: PartnersRepository,
     admin: Any,
@@ -105,10 +131,44 @@ def start_session(
     email: str,
     full_name: str | None,
 ) -> SsoOutcome:
-    """Run the binding gate. Always returns a url the partner can redirect to."""
+    """Run the binding gate. Always returns a url the partner can redirect to.
+
+    A slow call is logged with every remote hop it made. On 2026-09-08/09 SSO
+    calls took 1.1-9.7s, in bursts, while the rest of the API sat at ~300ms —
+    and the only lines this module emitted were INFO, which the app namespace
+    drops (main.py), so nothing could say which hop the time went to.
+    """
+    marks: dict[str, float] = {}
+    started = time.perf_counter()
+    outcome = _start_session(
+        repo, admin, marks,
+        partner=partner, external_id=external_id, email=email, full_name=full_name,
+    )
+    total_ms = (time.perf_counter() - started) * 1000.0
+    if total_ms >= _SLOW_MS:
+        logger.warning(
+            "metric partner_sso.slow partner=%s mode=%s total=%.0fms %s",
+            partner.slug, outcome.mode, total_ms,
+            " ".join(f"{hop}={ms:.0f}ms" for hop, ms in marks.items()),
+        )
+    return outcome
+
+
+def _start_session(
+    repo: PartnersRepository,
+    admin: Any,
+    marks: dict[str, float],
+    *,
+    partner: PartnerCredential,
+    external_id: str,
+    email: str,
+    full_name: str | None,
+) -> SsoOutcome:
+    """The gate itself. `marks` collects how long each remote hop took."""
     email = email.lower().strip()
     redirect_to = callback_url()
-    existing = repo.get_link(partner.partner_id, external_id)
+    with _hop(marks, "get_link"):
+        existing = repo.get_link(partner.partner_id, external_id)
 
     # Already through the gate on a previous call — and still the same address.
     # An email CHANGE re-opens the gate: the partner may now be naming somebody
@@ -121,35 +181,40 @@ def start_session(
     ):
         return SsoOutcome(
             mode="direct",
-            login_url=auth_links.mint_login_link_for_existing_user(
-                admin, email=email, redirect_to=redirect_to
-            ),
+            login_url=_mint(admin, email, redirect_to, marks),
             connect_url=None,
             user_ref=str(existing["id"]),
             message="Sign-in link minted.",
         )
 
-    created_user_id = auth_links.create_user_if_absent(admin, email)
+    with _hop(marks, "create_user"):
+        created_user_id = auth_links.create_user_if_absent(admin, email)
 
     if created_user_id:
         # Nobody has ever used this address on Myro. Linking it now cannot take
         # anything over, because there is nothing to take.
-        ensure_user_provisioned(created_user_id, email, full_name)
-        link = repo.link_new_seat(
-            partner_id=partner.partner_id,
-            external_id=external_id,
-            email=email,
-            user_id=created_user_id,
-        )
+        # The profile seed does NOT run here. It was three sequential round
+        # trips (a row check, a unique-name check, the upsert) on the one path a
+        # brand-new user waits through, and nothing the partner gets back needs
+        # it: the seat's user_id references auth.users, not user_profiles. The
+        # route runs it after responding; /auth/post-signin seeds again the
+        # moment the user lands, and the seed is idempotent, so either order
+        # converges on the same row — full_name included.
+        with _hop(marks, "link_seat"):
+            link = repo.link_new_seat(
+                partner_id=partner.partner_id,
+                external_id=external_id,
+                email=email,
+                user_id=created_user_id,
+            )
         logger.info("metric partner_sso.linked partner=%s mode=new_account", partner.slug)
         return SsoOutcome(
             mode="direct",
-            login_url=auth_links.mint_login_link_for_existing_user(
-                admin, email=email, redirect_to=redirect_to
-            ),
+            login_url=_mint(admin, email, redirect_to, marks),
             connect_url=None,
             user_ref=str(link.get("id") or ""),
             message="Account created and linked.",
+            provision=(created_user_id, email, full_name),
         )
 
     # The address predates this call. The partner gets a consent screen, not a
@@ -168,15 +233,16 @@ def start_session(
     # so the guard at the top of this function saw nothing and this branch
     # overwrote a good link with `pending_connect` and a NULL user_id. 24
     # Finlatics seats were taken apart that way. See migration 20260826090000.
-    link, claimed = repo.claim_connect_seat(
-        partner_id=partner.partner_id,
-        external_id=external_id,
-        email=email,
-        connect_token_hash=token_hash,
-        connect_token_expires_at=expires_at,
-        prev_connect_token_hash=prev_hash,
-        prev_connect_token_expires_at=prev_expires,
-    )
+    with _hop(marks, "claim_seat"):
+        link, claimed = repo.claim_connect_seat(
+            partner_id=partner.partner_id,
+            external_id=external_id,
+            email=email,
+            connect_token_hash=token_hash,
+            connect_token_expires_at=expires_at,
+            prev_connect_token_hash=prev_hash,
+            prev_connect_token_expires_at=prev_expires,
+        )
     if not claimed:
         # Another call linked this seat, to this address, while we were
         # deciding. Return what the guard above would have returned had our read
@@ -184,9 +250,7 @@ def start_session(
         logger.info("metric partner_sso.linked partner=%s mode=raced", partner.slug)
         return SsoOutcome(
             mode="direct",
-            login_url=auth_links.mint_login_link_for_existing_user(
-                admin, email=email, redirect_to=redirect_to
-            ),
+            login_url=_mint(admin, email, redirect_to, marks),
             connect_url=None,
             user_ref=str(link.get("id") or ""),
             message="Sign-in link minted.",

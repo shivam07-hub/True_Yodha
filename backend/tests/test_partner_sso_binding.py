@@ -9,6 +9,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
+import logging
+
 import pytest
 
 from app.repositories.partners import PartnerCredential
@@ -59,11 +61,6 @@ CREDENTIAL = PartnerCredential(
 )
 
 
-@pytest.fixture(autouse=True)
-def _no_provisioning(monkeypatch):
-    monkeypatch.setattr(partner_sso, "ensure_user_provisioned", lambda *a, **k: True)
-
-
 def test_new_account_is_linked_and_gets_a_url(monkeypatch):
     """Nobody has ever used this address — there is nothing to take over."""
     monkeypatch.setattr(partner_sso.auth_links, "create_user_if_absent", lambda admin, email: "new-user")
@@ -84,6 +81,9 @@ def test_new_account_is_linked_and_gets_a_url(monkeypatch):
     assert repo.links[0]["email"] == "new@example.com"
     assert repo.links[0]["user_id"] == "new-user"
     assert repo.claims == []
+    # The seed is handed back for the route to run AFTER the response — it was
+    # the longest stretch of this path and the partner waits on none of it.
+    assert outcome.provision == ("new-user", "new@example.com", "New")
 
 
 def test_pre_existing_account_gets_a_consent_url_not_a_session(monkeypatch):
@@ -115,6 +115,8 @@ def test_pre_existing_account_gets_a_consent_url_not_a_session(monkeypatch):
     # The user is mid-flow. Mailing them here is exactly the round-trip this
     # design removed; it happens only if they ask for it on the screen.
     assert sent == []
+    # An account that predates the call is not ours to seed.
+    assert outcome.provision is None
 
 
 def test_the_stored_connect_token_is_hashed(monkeypatch):
@@ -587,3 +589,29 @@ def test_a_suspended_partner_cannot_mail_through_the_recovery_path(monkeypatch):
         SimpleNamespace(), token="tok",
     )
     assert sent == []
+
+
+def test_a_slow_session_names_its_hops_at_warning(monkeypatch, caplog):
+    """INFO in the app namespace is dropped in production (main.py: it falls to
+    logging.lastResort), so every `metric partner_sso.*` line this module shipped
+    was invisible — and a 9.7s SSO call could not say where the time went. The
+    slow line is WARNING and names each remote hop."""
+    monkeypatch.setattr(partner_sso, "_SLOW_MS", 0.0)
+    monkeypatch.setattr(partner_sso.auth_links, "create_user_if_absent", lambda admin, email: "new-user")
+    monkeypatch.setattr(
+        partner_sso.auth_links,
+        "mint_login_link_for_existing_user",
+        lambda admin, **kw: "https://app/magic",
+    )
+    repo = _FakeRepo(link=None)
+
+    with caplog.at_level(logging.WARNING, logger=partner_sso.logger.name):
+        partner_sso.start_session(
+            repo, SimpleNamespace(), partner=CREDENTIAL,
+            external_id="ext-1", email="a@b.co", full_name=None,
+        )
+
+    line = next(r for r in caplog.records if "metric partner_sso.slow" in r.getMessage())
+    assert line.levelno == logging.WARNING
+    for hop in ("get_link", "create_user", "link_seat", "mint"):
+        assert f"{hop}=" in line.getMessage()
