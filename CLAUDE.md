@@ -143,12 +143,11 @@ record; guesses show their source, are answered alone, and are capped at the
 slot that holds them. A journey since `20260829` — a settled order opens on Sign
 off, one tap from Run. Invariants: [CONTEXT.md](CONTEXT.md) §Pre-flight Order.
 
-**3. Fix the phone.** *Layout swept 2026-08-27; real-device QA still owed.*
+**3. Fix the phone.** *Layout swept 2026-08-27; `/dev/phone` is the 375 lab; real-device QA still owed.*
 The July list of seven orphan screens is stale — CV, Prep, Skills, the coin
-guide and Profile render mobile-native. The sweep fixed five worse things and
-taught the gate to see them: `npm run qa:mobile` walks 20 routes × 2 themes,
-five probes, in CI. **Nobody has opened any of it on a real phone while logged
-in** — every measurement is a 375px Chromium. Detail: [BACKLOG.md](BACKLOG.md) #42.
+guide and Profile render mobile-native. `npm run qa:mobile` walks 20 routes × 2
+themes. **Nobody has opened any of it on a real phone while logged in.**
+Detail: [BACKLOG.md](BACKLOG.md) #42.
 
 **4. Make it fast enough to feel trustworthy.** *#16 software slices closed;
 capacity acceptance blocked on paid DB compute.* The 2026-08-13 pass removed
