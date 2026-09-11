@@ -1624,3 +1624,84 @@ Both predictions are falsifiable in a week of alerts. If `/tracks` and
 `/jobs/companies/pulse` are fixed, the queueing theory is wrong and they need
 measuring on their own. **Do not optimise either before that week is up** —
 that is the §11 mistake in its other direction.
+
+---
+
+## 18. Two front doors, measured (2026-09-11)
+
+Source: 21 `fanout.slow label=home.bootstrap` lines (2026-09-08 → 09-11, two
+deployments) and every `/partner/v1/sso/session` line on deployment `bde7986e`.
+
+### `/home/bootstrap` waited on its slowest section
+
+| slowest section | samples | worst |
+|---|---|---|
+| `matches` | 14 of 21 | 12,389ms |
+| `applications` | 7 of 21 | 5,343ms |
+
+`score`, `diary` and `cv_versions` were never the slowest and typically ran
+200–600ms. A bundle answers when its slowest member does, so a user's score sat
+behind their matches for up to ten seconds — the global gate ADR-0011 was
+written to kill, re-created by the BFF.
+
+Projected from the same 21 samples with `matches` removed:
+
+| | median | p90 | max | over 1s |
+|---|---|---|---|---|
+| before | 1,835ms | 10,098ms | 12,389ms | 20 of 21 |
+| `matches` out | 1,280ms | 3,301ms | 5,450ms | 12 of 21 |
+
+`7fd040c9`: `matches` left the bundle. `useJobMatches` is now the one
+fetching read of `dataKeys.jobs()` — the hero and the refresh banner each
+carried their own copy of that query, and mobile read matches out of the
+bundle. The hero's `onSettled`, which unlocks `/market`'s later rails, no longer
+waits on matches either; it also never opened while the lane yielded, because a
+disabled query never settles. `applications` stayed on purpose: the hero prints
+an active-targets count from it and would print "0" while loading.
+
+**Not yet measured live.** Compare the next `home.bootstrap` totals against the
+table above. If the p90 does not fall toward ~3.3s, the projection was wrong.
+
+### Partner SSO: 1.1–9.7s on a route that makes 2–4 reads
+
+Measured, in this order, before changing anything:
+
+- DB: no partner-table query appears in pg_stat_statements' top 12 by mean.
+- GoTrue: 145ms warm median and flat under a burst of five (144–236ms) —
+  faster than a PostgREST read from the same vantage (312ms).
+- The API was not queued: the fan-outs beside both SSO bursts ran 288–602ms.
+
+The new-account path walked every hop in series, including a three-round-trip
+profile seed that nothing before the url needs (`partner_users.user_id`
+references `auth.users`). `6f75ebf7` runs the seed after the response;
+`/auth/post-signin` seeds again on landing, so either order converges.
+
+Every `metric partner_sso.*` line was INFO and so was never emitted — the app
+namespace drops everything below WARNING (`main.py`). A call over 1s now logs
+`metric partner_sso.slow` at WARNING with each remote hop's duration.
+
+**Still unexplained, and now observable:** the returning-user path is one read
+plus one mint and still took 1.9–5.7s inside bursts. The next
+`partner_sso.slow` line names the hop.
+
+### The verifier: plan clean, cause unproven — not built
+
+`claim_verify_targets` is the #1 consumer by total time (2,895ms mean) and is
+live — its call count moved mid-session. Its plan is clean: cost 3,108,
+`idx_job_verification_schedule_due` on both branches, a hash anti-join over 88
+rows. The cost is the write: each claim UPDATEs up to 200 rows'
+`last_attempt_at`, the column its ordering index is built on. That it causes
+the `capacity_queue` victims is **not shown**, and the verifier runs in its own
+process, so an in-process lane cap would reserve nothing for the API. Its scope
+— whole corpus or only jobs a user touched — is a product call: interest-only
+feeds ~2.6% of the evidence the Ghost Index publishes from (19 companies need
+20 closures each).
+
+### What I got wrong in this pass
+
+- Called SSO latency "upstream GoTrue" from a `reads=` counter that counts
+  neither auth calls nor writes. Measured, GoTrue was the fastest hop.
+- Reported production as 859 commits behind from a local `main` eight weeks
+  stale; `origin/main` was 3 behind. Fetch, then compare `origin/` refs.
+- Ranked a 58-day cumulative pg_stat_statements row — the company `ILIKE` —
+  whose fix had already shipped. Check `stats_reset`, then take a delta.
