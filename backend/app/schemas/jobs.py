@@ -319,16 +319,6 @@ class ApplicationReviewResponse(BaseModel):
     created_at: datetime
 
 
-class StaleApplicationItem(BaseModel):
-    id: int
-    job_id: str
-    title: str
-    company: str | None
-    status: str
-    updated_at: datetime | None
-    last_stage_changed_at: datetime | None = None
-
-
 class CompanyReviewItem(BaseModel):
     star_rating: int
     last_stage: str

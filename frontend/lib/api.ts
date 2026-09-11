@@ -3376,15 +3376,6 @@ export interface ApplicationReview {
   created_at: string
 }
 
-export interface StaleApplication {
-  id: number
-  job_id: string
-  title: string
-  company: string | null
-  status: ApplicationStatus
-  updated_at: string | null
-}
-
 export interface CompanyReviewItem {
   star_rating: number
   last_stage: string
