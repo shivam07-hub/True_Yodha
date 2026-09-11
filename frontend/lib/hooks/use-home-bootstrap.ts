@@ -6,6 +6,11 @@
  * this hook settling, so on a cold load the dashboard paints from a single
  * round-trip instead of ~7 parallel calls (LinkedIn BFF pattern).
  *
+ * Matches are NOT in the bundle. A bundle answers when its slowest member
+ * does, and matches were the slowest in 14 of 21 prod loads (up to 12.4s),
+ * so every fast section sat behind them. They load on their own clock —
+ * see useJobMatches.
+ *
  * Seeding happens synchronously inside the queryFn before it resolves, so by
  * the time `isSuccess` flips the cache is already warm — a gated leaf query
  * then reads fresh cache and never hits the network.
@@ -39,7 +44,6 @@ export function useHomeBootstrap(token: string | null | undefined) {
       // read these instead of fetching.
       queryClient.setQueryData(dataKeys.profile(), data.profile)
       if (data.score) queryClient.setQueryData(dataKeys.scores(), data.score)
-      queryClient.setQueryData(dataKeys.jobs(), data.matches)
       queryClient.setQueryData(dataKeys.applications(), data.applications)
       queryClient.setQueryData(dataKeys.cvEvidence(), data.evidence)
       queryClient.setQueryData(dataKeys.cvVersions(null), data.cv_versions)

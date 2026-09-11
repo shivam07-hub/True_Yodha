@@ -5561,11 +5561,11 @@ export const publicCv = {
 // One round-trip that returns the whole above-the-fold dashboard bundle, so the
 // client makes a single call instead of ~9 to paint home. Each field mirrors the
 // payload of its standalone endpoint; the client seeds its TanStack cache from
-// this bundle (see useHomeBootstrap).
+// this bundle (see useHomeBootstrap). Matches are NOT in it — they are read on
+// their own clock by useJobMatches, because the bundle waited on them.
 export interface HomeBootstrapResponse {
   profile: UserProfile
   score: ScoreResponse | null
-  matches: JobMatchesResponse
   applications: ApplicationResponse[]
   evidence: CVEvidenceSummary
   cv_versions: { versions: CVVersion[] }
