@@ -1684,7 +1684,7 @@ namespace drops everything below WARNING (`main.py`). A call over 1s now logs
 plus one mint and still took 1.9–5.7s inside bursts. The next
 `partner_sso.slow` line names the hop.
 
-### The verifier: plan clean, cause unproven — not built
+### The verifier: plan clean, cause unproven — to be settled by a test
 
 `claim_verify_targets` is the #1 consumer by total time (2,895ms mean) and is
 live — its call count moved mid-session. Its plan is clean: cost 3,108,
@@ -1692,10 +1692,38 @@ live — its call count moved mid-session. Its plan is clean: cost 3,108,
 rows. The cost is the write: each claim UPDATEs up to 200 rows'
 `last_attempt_at`, the column its ordering index is built on. That it causes
 the `capacity_queue` victims is **not shown**, and the verifier runs in its own
-process, so an in-process lane cap would reserve nothing for the API. Its scope
-— whole corpus or only jobs a user touched — is a product call: interest-only
-feeds ~2.6% of the evidence the Ghost Index publishes from (19 companies need
-20 closures each).
+process, so an in-process lane cap would reserve nothing for the API.
+
+**Decision (Shivam, 2026-09-12): settle it with a test, not an argument.**
+
+- **Switch — env only, reversible.** On the service that runs
+  `app/workers/job_listing_verifier.py` (`job-listing-verifier`), set
+  `JOB_VERIFY_STALE_DAYS=3650`. The corpus branch of the claim then finds no row
+  old enough and claims nothing; the priority branch (tracked, shown, matched —
+  `job_verification_interest`) runs unchanged. That IS the interest-only scope.
+  Revert: unset it (default 7). Rows never attempted (`last_attempt_at IS NULL`)
+  are still claimed — 0 of 65,952 at the time of writing.
+- **Order — control first, and only after the production ship.** The /home
+  (`7fd040c9`) and SSO (`6f75ebf7`) fixes cut slow requests on their own. Run a
+  7-day control after they are live with the verifier untouched, THEN 7 days
+  with the switch on. Measured against today's numbers instead, those fixes
+  would be credited to the verifier.
+- **Measure:** `notices.occurrence_count` for `slow_200:capacity_queue` and
+  `capacity_503:upstream.read_timeout`, snapshotted at the start and end of each
+  window, as a rate per day. If traffic differs by more than ~20% between the
+  windows, divide by that window's `/users/me` request count. Also take the
+  `claim_verify_targets` delta from pg_stat_statements, and count the Ghost
+  Index closures recorded in each window — that is the coverage the test costs.
+- **Baseline, 2026-09-11 19:51 UTC** (context only; the control week is the
+  comparison): `capacity_queue` 2,523 since 09-06 06:15 (~453/day);
+  `upstream.read_timeout` 37 since 09-05 23:23 (~6.3/day);
+  `reads_over_budget` 100 since 09-06 06:14 (~18/day).
+- **Pre-registered verdict.** `capacity_queue` per day falls **≥40%** in the
+  switch week versus control → the verifier is a cause: keep interest-only in
+  the day and move the corpus sweep to a nightly window so the Ghost Index keeps
+  growing. Falls **<15%** → it is not: revert, and take the next suspect from
+  that window's pg_stat_statements delta. In between → inconclusive; run a
+  second week before deciding.
 
 ### What I got wrong in this pass
 
