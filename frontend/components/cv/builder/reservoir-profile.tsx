@@ -16,10 +16,11 @@
 import { useMemo, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import type { ApplicationResponse, CareerProfile, CareerStory, MergeSuggestion } from "@/lib/api"
+import type { ApplicationResponse, CareerProfile, CareerStory } from "@/lib/api"
 import { APPLICATION_OUTCOMES, cv as cvApi } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { ReservoirDump } from "./reservoir-dump"
+import { StoryReview } from "./story-review"
 import "./reservoir-profile.css"
 
 const STAR_FIELDS = [
@@ -139,42 +140,6 @@ function TailorMenu({ applications, token, onOpenJob }: {
   )
 }
 
-/** A judge-proposed same-role pair (#38) — the user rules, the ruling is law. */
-function MergeCard({ token, pair, onDecided }: {
-  token: string
-  pair: MergeSuggestion
-  onDecided: () => void
-}) {
-  const decide = useMutation({
-    mutationFn: (verdict: "merged" | "keep_separate") =>
-      cvApi.career.mergeVerdict(token, pair.role_a, pair.role_b, verdict),
-    onSuccess: onDecided,
-  })
-  return (
-    <div className="tm-rsv-merge" role="group" aria-label="Possible duplicate role">
-      <p className="tm-rsv-merge-q">Same role?</p>
-      <p className="tm-rsv-merge-pair">
-        <span>{pair.a_label}</span>
-        <span className="tm-rsv-merge-tie" aria-hidden>↔</span>
-        <span>{pair.b_label}</span>
-      </p>
-      <div className="tm-rsv-merge-actions">
-        <Button
-          size="sm"
-          disabled={decide.isPending}
-          onClick={() => decide.mutate("merged")}
-        >Merge</Button>
-        <Button
-          variant="neutral" size="sm"
-          disabled={decide.isPending}
-          onClick={() => decide.mutate("keep_separate")}
-        >Keep separate</Button>
-        {decide.isError && <span className="tm-rsv-merge-err" role="alert">Didn’t save — try again.</span>}
-      </div>
-    </div>
-  )
-}
-
 export function ReservoirProfile({ token, applications, onOpenJob }: {
   token: string
   applications: ApplicationResponse[]
@@ -234,21 +199,8 @@ export function ReservoirProfile({ token, applications, onOpenJob }: {
         </p>
       )}
 
-      {/* No silent mutation: auto-folded duplicates leave a receipt (7-day). */}
-      {profile && profile.tidied_roles > 0 && (
-        <p className="tm-rsv-tidied" role="status">
-          Tidied {profile.tidied_roles} duplicate {profile.tidied_roles === 1 ? "role" : "roles"} for you
-        </p>
-      )}
-
-      {(profile?.merge_suggestions ?? []).map((pair) => (
-        <MergeCard
-          key={`${pair.role_a}:${pair.role_b}`}
-          token={token}
-          pair={pair}
-          onDecided={() => void refetch()}
-        />
-      ))}
+      {/* No silent mutation: every fold Myro made is listed there, undoable. */}
+      <StoryReview token={token} onChanged={() => void refetch()} />
 
       {(dumpOpen || isEmpty) && (
         <ReservoirDump

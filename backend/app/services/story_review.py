@@ -46,6 +46,7 @@ def build_review(
     roles: list[dict[str, Any]],
     pointers: list[dict[str, Any]],
     user_ruled: int,
+    tidied_roles: int = 0,
 ) -> dict[str, Any]:
     by_id = {str(s["id"]): s for s in stories}
     roles_by_id = {str(r["id"]): r for r in roles}
@@ -101,4 +102,5 @@ def build_review(
         "role_pairs": role_pairs,
         "merged_for_you": merged_for_you,
         "you_decided": user_ruled,
+        "tidied_roles": tidied_roles,
     }

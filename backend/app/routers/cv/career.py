@@ -183,31 +183,12 @@ class ProfileRole(BaseModel):
     stories: list[ProfileStory]
 
 
-class MergeSuggestion(BaseModel):
-    """A judge-proposed same-role pair awaiting the user's ruling (#38)."""
-    role_a: str
-    role_b: str
-    a_label: str
-    b_label: str
-
-
 class ProfileView(BaseModel):
     roles: list[ProfileRole]
     highlights: list[ProfileStory]
     competencies: list[str]
     story_count: int
     pending_inflows: int
-    merge_suggestions: list[MergeSuggestion] = Field(default_factory=list)
-    #: auto-folded duplicate roles in the last 7 days — the visible receipt
-    tidied_roles: int = 0
-
-
-def _role_label(role: dict) -> str:
-    company = str(role.get("company") or "").strip()
-    title = str(role.get("title") or "").strip()
-    dates = str(role.get("date_label") or "").strip()
-    head = " — ".join(p for p in (company, title) if p)
-    return f"{head} ({dates})" if dates else head
 
 
 @router.get("/reservoir/profile", response_model=ProfileView)
@@ -223,23 +204,9 @@ def reservoir_profile(
     view = career_reservoir.build_profile_view(
         roles, stories, pointers, pending_inflows=repo.ingest_status(user.id)["pending"],
     )
-    # Judge-proposed merge cards: only pairs whose BOTH roles are still active
-    # (a curation archive in between voids the question).
-    active = {str(r["id"]): r for r in roles if (r.get("status") or "active") == "active"}
-    suggestions = [
-        MergeSuggestion(
-            role_a=str(p["role_a"]), role_b=str(p["role_b"]),
-            a_label=_role_label(active[str(p["role_a"])]),
-            b_label=_role_label(active[str(p["role_b"])]),
-        )
-        for p in repo.merge_proposals(user.id)
-        if str(p["role_a"]) in active and str(p["role_b"]) in active
-    ]
-    return ProfileView(
-        **view,
-        merge_suggestions=suggestions,
-        tidied_roles=repo.recent_auto_folds(user.id),
-    )
+    # Duplicate questions and receipts live in the review space (ADR-0021),
+    # which shows the story and role queues together: GET /cv/reservoir/review.
+    return ProfileView(**view)
 
 
 class MergeVerdictRequest(BaseModel):

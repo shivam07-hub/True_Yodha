@@ -63,6 +63,8 @@ class ReviewView(BaseModel):
     role_pairs: list[RolePair] = Field(default_factory=list)
     merged_for_you: list[FoldReceipt] = Field(default_factory=list)
     you_decided: int = 0
+    #: roles Myro folded on its own lately — counted, not undoable here
+    tidied_roles: int = 0
 
 
 @router.get("/reservoir/review", response_model=ReviewView)
@@ -80,6 +82,7 @@ def reservoir_review(
         roles=career.list_roles(user.id),
         pointers=repo.all_story_pointers(user.id),
         user_ruled=repo.user_ruled_count(user.id),
+        tidied_roles=career.recent_auto_folds(user.id),
     ))
 
 

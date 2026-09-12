@@ -1518,9 +1518,33 @@ export interface CareerProfile {
   story_count: number
   /** Dumped files still being read — poll while > 0. */
   pending_inflows: number
-  /** Judge-proposed same-role pairs awaiting the user's ruling (#38). */
-  merge_suggestions: MergeSuggestion[]
-  /** Auto-folded duplicate roles in the last 7 days — the visible receipt. */
+}
+export interface ReviewStory {
+  id: string
+  title: string
+  role_label: string
+  pointer: string
+  variant_count: number
+}
+/** A pair the judge could not settle alone — the user rules (ADR-0021). */
+export interface StoryPair {
+  story_a: string
+  story_b: string
+  a: ReviewStory
+  b: ReviewStory
+}
+export interface FoldReceipt {
+  story_a: string
+  story_b: string
+  kept: string
+  merged: string
+  when: string
+}
+export interface ReviewView {
+  story_pairs: StoryPair[]
+  role_pairs: MergeSuggestion[]
+  merged_for_you: FoldReceipt[]
+  you_decided: number
   tidied_roles: number
 }
 export interface MergeSuggestion {
@@ -2081,6 +2105,24 @@ export const cv = {
       }
       return res.json() as Promise<CareerIngestResponse>
     },
+    /** The Stories review space: what Myro cannot settle alone, plus what it
+     *  already merged for you (each undoable). */
+    review: (token: string) =>
+      request<ReviewView>("/cv/reservoir/review", {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    storyVerdict: (token: string, storyA: string, storyB: string, verdict: "merged" | "keep_separate") =>
+      request<{ verdict: string }>("/cv/reservoir/review/stories", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ story_a: storyA, story_b: storyB, verdict }),
+      }),
+    storyUndo: (token: string, storyA: string, storyB: string) =>
+      request<{ verdict: string }>("/cv/reservoir/review/stories/undo", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ story_a: storyA, story_b: storyB }),
+      }),
     patchStory: (token: string, storyId: string, patch: Partial<Pick<CareerStory, "status" | "title" | "skills">> & { narrative?: Record<string, string> }) =>
       request<CareerStory>(`/cv/reservoir/stories/${encodeURIComponent(storyId)}`, {
         method: "PATCH",

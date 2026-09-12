@@ -39,13 +39,13 @@ def test_a_pair_is_shown_with_both_sides_in_context():
         roles=_ROLES,
         pointers=[_p("p1", "a", "Authored the POV."), _p("p2", "a", "Wrote a POV.", False),
                   _p("p3", "b", "Built the matrix.")],
-        user_ruled=3,
+        user_ruled=3, tidied_roles=1,
     )
     pair = out["story_pairs"][0]
     assert pair["a"] == {"id": "a", "title": "Robotics POV", "role_label": "Capgemini — E.L.I.T.E Trainee",
                          "pointer": "Authored the POV.", "variant_count": 2}
     assert pair["b"]["variant_count"] == 1
-    assert out["you_decided"] == 3
+    assert out["you_decided"] == 3 and out["tidied_roles"] == 1
 
 
 def test_a_question_about_something_curated_away_is_not_asked():
@@ -53,7 +53,7 @@ def test_a_question_about_something_curated_away_is_not_asked():
         proposals=[{"story_a": "a", "story_b": "b"}],
         role_proposals=[{"role_a": "r1", "role_b": "r2"}], folds=[],
         stories=[_s("a", "A", "r1"), _s("b", "B", "r1", status="archived")],
-        roles=_ROLES, pointers=[], user_ruled=0,
+        roles=_ROLES, pointers=[], user_ruled=0, tidied_roles=0,
     )
     assert out["story_pairs"] == []
     assert out["role_pairs"] == []  # r2 is archived
@@ -68,7 +68,7 @@ def test_merged_for_you_names_both_sides_and_only_while_still_folded():
     ]
     out = story_review.build_review(
         proposals=[], role_proposals=[], folds=folds, stories=stories,
-        roles=_ROLES, pointers=[], user_ruled=0,
+        roles=_ROLES, pointers=[], user_ruled=0, tidied_roles=0,
     )
     assert out["merged_for_you"] == [
         {"story_a": "d", "story_b": "k", "kept": "Kept one", "merged": "Merged one", "when": "2026-09-12T10:00:00Z"},
@@ -98,6 +98,7 @@ class _FakeCareerRepo:
 
     def list_roles(self, user_id): return self.roles
     def merge_proposals(self, user_id): return self._role_proposals
+    def recent_auto_folds(self, user_id, days=7): return 0
 
 
 def _override(identity: _FakeIdentityRepo, career: _FakeCareerRepo | None = None) -> None:
