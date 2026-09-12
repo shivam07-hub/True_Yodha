@@ -146,7 +146,10 @@ def build_profile_view(
         by_story.setdefault(str(p.get("story_id")), []).append(p)
 
     def story_out(s: dict[str, Any]) -> dict[str, Any]:
-        pts = sorted(by_story.get(str(s["id"]), []), key=lambda p: (not p.get("is_canonical", False),))
+        pts = sorted(
+            by_story.get(str(s["id"]), []),
+            key=lambda p: (not p.get("is_canonical", False), float(p.get("ordering") or 0)),
+        )
         canonical = next((p for p in pts if p.get("is_canonical")), pts[0] if pts else None)
         return {
             "id": str(s["id"]),
@@ -158,6 +161,13 @@ def build_profile_view(
             "status": s.get("status") or "active",
             "pointer": (canonical or {}).get("text") or "",
             "variant_count": len(pts),
+            # Every way this achievement has been written — the drawer picks
+            # which one leads and drops a weak one (ADR-0021).
+            "phrasings": [
+                {"id": str(p.get("id") or ""), "text": p.get("text") or "",
+                 "is_canonical": bool(p.get("is_canonical"))}
+                for p in pts
+            ],
         }
 
     active = [s for s in stories if (s.get("status") or "active") == "active"]

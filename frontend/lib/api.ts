@@ -1458,6 +1458,12 @@ export interface IntakeDraftResponse {
 // Career Story Reservoir — the comprehensive profile built from the user's dump
 // (old CVs, LinkedIn export, notes): roles → STAR stories → canonical pointers.
 export interface CareerStoryMetric { value: string; what: string }
+/** One way an achievement has been written; the canonical one leads. */
+export interface Phrasing {
+  id: string
+  text: string
+  is_canonical: boolean
+}
 export interface CareerStory {
   id: string
   kind: "project" | "achievement" | "accolade" | "education" | "research" | "other"
@@ -1469,6 +1475,8 @@ export interface CareerStory {
   /** Canonical CV line projected from this story ("" when none yet). */
   pointer: string
   variant_count: number
+  /** Every phrasing of it, canonical first. */
+  phrasings: Phrasing[]
 }
 export interface CareerProfileRole {
   id: string
@@ -2085,6 +2093,16 @@ export const cv = {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify({ story_a: storyA, story_b: storyB, verdict }),
+      }),
+    promotePhrasing: (token: string, pointId: string) =>
+      request<{ ok: boolean }>(`/cv/reservoir/phrasings/${encodeURIComponent(pointId)}/promote`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    dropPhrasing: (token: string, pointId: string) =>
+      request<{ ok: boolean }>(`/cv/reservoir/phrasings/${encodeURIComponent(pointId)}/drop`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
       }),
     storyUndo: (token: string, storyA: string, storyB: string) =>
       request<{ verdict: string }>("/cv/reservoir/review/stories/undo", {

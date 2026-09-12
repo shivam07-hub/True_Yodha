@@ -463,6 +463,45 @@
 }
 
 /* ── role-merge cards + tidied receipt (#38) ─────────────────────────────── */
+/* ── the phrasing drawer: this achievement, said N ways ───────────────── */
+
+.tm-rsv-said {
+  margin: 10px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--tm-border);
+}
+.tm-rsv-said-head {
+  margin: 0 0 6px;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+.tm-rsv-say {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: var(--tm-fs-ui-sm);
+  line-height: 1.45;
+  color: var(--tm-text-muted);
+}
+.tm-rsv-say.lead { color: var(--tm-text); }
+.tm-rsv-say-mark { color: var(--tm-text-faint); }
+.tm-rsv-say.lead .tm-rsv-say-mark { color: var(--tm-interactive); }
+.tm-rsv-say-text { flex: 1 1 auto; min-width: 0; }
+.tm-rsv-say-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.tm-rsv-say-err {
+  margin: 6px 0 0;
+  font-size: var(--tm-fs-ui-sm);
+  color: var(--tm-danger-text);
+}
+
 /* ── mobile ───────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .tm-rsv-scope { padding: 4px 0 48px; }

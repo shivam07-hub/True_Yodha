@@ -30,16 +30,25 @@ const STAR_FIELDS = [
   ["result", "R"],
 ] as const
 
-function StoryCard({ story, token, onArchived }: {
+function StoryCard({ story, token, onChanged }: {
   story: CareerStory
   token: string
-  onArchived: () => void
+  onChanged: () => void
 }) {
   const [open, setOpen] = useState(false)
   const archive = useMutation({
     mutationFn: () => cvApi.career.patchStory(token, story.id, { status: "archived" }),
-    onSuccess: onArchived,
+    onSuccess: onChanged,
   })
+  const promote = useMutation({
+    mutationFn: (pointId: string) => cvApi.career.promotePhrasing(token, pointId),
+    onSuccess: onChanged,
+  })
+  const drop = useMutation({
+    mutationFn: (pointId: string) => cvApi.career.dropPhrasing(token, pointId),
+    onSuccess: onChanged,
+  })
+  const curationError = promote.error ?? drop.error
 
   const narrative = STAR_FIELDS.filter(([key]) => (story.narrative[key] || "").trim())
   return (
@@ -73,6 +82,34 @@ function StoryCard({ story, token, onArchived }: {
           {story.skills.length > 0 && (
             <div className="tm-rsv-skills">
               {story.skills.map((s) => <span key={s} className="tm-rsv-skill">{s}</span>)}
+            </div>
+          )}
+          {story.phrasings.length > 1 && (
+            <div className="tm-rsv-said">
+              <p className="tm-rsv-said-head">Said {story.phrasings.length} ways</p>
+              {story.phrasings.map((p) => (
+                <div key={p.id} className={`tm-rsv-say${p.is_canonical ? " lead" : ""}`}>
+                  <span className="tm-rsv-say-mark" aria-hidden>{p.is_canonical ? "◆" : "◇"}</span>
+                  <span className="tm-rsv-say-text">{p.text}</span>
+                  {!p.is_canonical && (
+                    <span className="tm-rsv-say-actions">
+                      <Button
+                        size="sm" variant="ghost"
+                        loading={promote.isPending && promote.variables === p.id}
+                        onClick={() => promote.mutate(p.id)}
+                      >Use this line</Button>
+                      <Button
+                        size="sm" variant="ghost"
+                        loading={drop.isPending && drop.variables === p.id}
+                        onClick={() => drop.mutate(p.id)}
+                      >Drop</Button>
+                    </span>
+                  )}
+                </div>
+              ))}
+              {curationError && (
+                <p className="tm-rsv-say-err" role="alert">{curationError.message}</p>
+              )}
             </div>
           )}
           <div className="tm-rsv-story-actions">
@@ -223,7 +260,7 @@ export function ReservoirProfile({ token, applications, onOpenJob }: {
             </div>
           </header>
           {role.stories.map((story) => (
-            <StoryCard key={story.id} story={story} token={token} onArchived={() => void refetch()} />
+            <StoryCard key={story.id} story={story} token={token} onChanged={() => void refetch()} />
           ))}
         </section>
       ))}
@@ -236,7 +273,7 @@ export function ReservoirProfile({ token, applications, onOpenJob }: {
             </div>
           </header>
           {profile.highlights.map((story) => (
-            <StoryCard key={story.id} story={story} token={token} onArchived={() => void refetch()} />
+            <StoryCard key={story.id} story={story} token={token} onChanged={() => void refetch()} />
           ))}
         </section>
       )}

@@ -160,9 +160,9 @@ def _profile_fixture():
          "narrative": {}, "metrics": [], "skills": [], "status": "archived"},
     ]
     pointers = [
-        {"story_id": "s1", "text": "Canonical pointer.", "is_canonical": True},
-        {"story_id": "s1", "text": "Variant pointer.", "is_canonical": False},
-        {"story_id": "s3", "text": "Scored 99.65 percentile.", "is_canonical": True},
+        {"id": "p1", "story_id": "s1", "text": "Canonical pointer.", "is_canonical": True},
+        {"id": "p2", "story_id": "s1", "text": "Variant pointer.", "is_canonical": False},
+        {"id": "p3", "story_id": "s3", "text": "Scored 99.65 percentile.", "is_canonical": True},
     ]
     return roles, stories, pointers
 
@@ -176,6 +176,13 @@ def test_build_profile_view_grouping_and_order():
     r1 = view["roles"][0]
     assert r1["stories"][0]["pointer"] == "Canonical pointer."
     assert r1["stories"][0]["variant_count"] == 2
+    # The drawer needs every phrasing, canonical first (ADR-0021).
+    phrasings = r1["stories"][0]["phrasings"]
+    assert len(phrasings) == 2 and phrasings[0]["is_canonical"] is True
+    assert phrasings[0]["text"] == "Canonical pointer."
+    # the id is what promote/drop act on — it must survive the projection
+    assert [ph["id"] for ph in phrasings] == ["p1", "p2"]
+    assert all(set(ph) == {"id", "text", "is_canonical"} for ph in phrasings)
     # archived story excluded
     assert all(s["id"] != "s4" for s in r1["stories"])
     # role-less story → highlights

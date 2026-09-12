@@ -162,6 +162,14 @@ class StoryIdentityRepository:
             ignore_duplicates=decided_by != "user",
         ).execute()
 
+    # ── phrasing curation (SQL holds both invariants) ────────────────────────
+
+    def promote_phrasing(self, user_id: str, point_id: str) -> None:
+        self._db.rpc("story_pointer_promote", {"p_user_id": user_id, "p_point_id": point_id}).execute()
+
+    def drop_phrasing(self, user_id: str, point_id: str) -> None:
+        self._db.rpc("story_pointer_drop", {"p_user_id": user_id, "p_point_id": point_id}).execute()
+
     # ── atomic fold / undo (SQL applies the plan in one transaction) ─────────
 
     def fold(self, user_id: str, plan: FoldPlan, *, verdict: str, decided_by: str) -> None:

@@ -161,6 +161,13 @@ async def ingest_dump(
 
 # ── profile ──────────────────────────────────────────────────────────────────
 
+class Phrasing(BaseModel):
+    """One way this achievement has been written. The canonical one leads."""
+    id: str
+    text: str
+    is_canonical: bool = False
+
+
 class ProfileStory(BaseModel):
     id: str
     kind: str
@@ -171,6 +178,7 @@ class ProfileStory(BaseModel):
     status: str = "active"
     pointer: str = ""
     variant_count: int = 0
+    phrasings: list[Phrasing] = Field(default_factory=list)
 
 
 class ProfileRole(BaseModel):
