@@ -29,6 +29,7 @@ import app.services.onboarding_service  # noqa: F401  onboarding_target_refresh,
 import app.services.partner_broadcast  # noqa: F401  partner_broadcast
 import app.services.partner_webhooks  # noqa: F401  partner_webhook_deliver
 import app.services.skill_floor_pipeline  # noqa: F401  skill_floor_drain
+import app.services.story_identity  # noqa: F401  story_identity
 from app.services.background.dispatch import registered_job_types
 
 __all__ = ["registered_job_types"]

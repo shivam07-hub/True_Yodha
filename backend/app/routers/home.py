@@ -40,14 +40,12 @@ from app.routers.cv.evidence import get_cv_evidence
 from app.routers.cv.versions import CVVersionListResponse, list_cv_versions
 from app.routers.diary import get_diary_history
 from app.routers.jobs.apply import get_applications
-from app.routers.jobs.match import get_job_matches
 from app.routers.scores import get_my_score
 from app.routers.users import get_me
 from app.schemas import (
     ApplicationResponse,
     CVEvidenceSummaryResponse,
     DiaryHistoryResponse,
-    JobMatchesResponse,
     MirrorScoreResponse,
     UserProfileResponse,
 )
@@ -59,7 +57,8 @@ router = APIRouter(prefix="/home", tags=["home"])
 
 
 class HomeBootstrapResponse(BaseModel):
-    """Everything the dashboard needs to paint above the fold, in one payload.
+    """The fast part of the dashboard, in one payload. `matches` is read on its
+    own clock — see home_bootstrap.
 
     `score` is nullable: a user with no CV yet has no score (the standalone
     endpoint 404s) — the bundle degrades that to null instead of failing.
@@ -67,7 +66,6 @@ class HomeBootstrapResponse(BaseModel):
 
     profile: UserProfileResponse
     score: MirrorScoreResponse | None
-    matches: JobMatchesResponse
     applications: list[ApplicationResponse]
     evidence: CVEvidenceSummaryResponse
     cv_versions: CVVersionListResponse
@@ -107,12 +105,15 @@ def home_bootstrap(
     sections = {
         "profile": lambda: get_me(principal=principal, users_repo=users_repo),
         "score": _score,
+        # `matches` is NOT in this bundle. A bundle answers when its slowest
+        # member does, and matches were the slowest in 14 of 21 prod loads
+        # (2026-09-08..11), up to 12,389ms — so the score, profile and CV list,
+        # ready in ~300ms, sat behind them for ten seconds. ADR-0011 already
+        # calls this page section-readiness; the client reads /jobs/matches on
+        # its own clock, in parallel with this call (useJobMatches).
+        #
         # Composed handlers are called directly, so FastAPI's DI never fills
-        # their parameters — the kwargs here ARE the contract. `background_tasks`
-        # carries the new-inventory announcement off the read path.
-        "matches": lambda: get_job_matches(
-            background_tasks=background_tasks, principal=principal, repo=jobs_repo
-        ),
+        # their parameters — the kwargs here ARE the contract.
         "applications": lambda: get_applications(principal=principal, repo=jobs_repo, cv_repo=cv_repo),
         "evidence": lambda: get_cv_evidence(principal=principal, cv_repo=cv_repo),
         "cv_versions": lambda: list_cv_versions(principal=principal, cv_repo=cv_repo),

@@ -3,15 +3,15 @@
 One deep module owning the dump → profile pipeline:
 
   ingest   an inflow entry (cv_dump_entries row: uploaded CV text, LinkedIn
-           render, pasted notes) → story_extractor → reconciled roles + deduped
+           render, pasted notes) → story_extractor → reconciled roles +
            STAR stories + one canonical pointer each (cv_points, story-linked).
   profile  the comprehensive career profile view: roles → stories → pointers,
            with metrics/skills/narrative — the "Myro understands my CV" surface.
 
 Policy (Shivam, 2026-07-11): bulk-dump extraction AUTO-ACCEPTS into the
-reservoir; the user curates after (archive-not-delete). Dedup is a silent
-fold-in: a story whose embedding ~matches an existing one is skipped, never
-prompted.
+reservoir; the user curates after (archive-not-delete). Whether a new story is
+an achievement the reservoir already holds is decided in ONE place for every
+inflow source — `story_identity`, which runs straight after each ingest.
 
 Runs on the durable Work Lane (ADR-0008): `story_ingest` is idempotent on its
 entry id (processed_at guard) — at-least-once delivery is safe. Provider/budget
@@ -30,9 +30,6 @@ from app.services import story_extractor
 from app.services.background import LANE_FAST, TransientJobError, enqueue, handler
 
 logger = logging.getLogger("myro.career_reservoir")
-
-DEDUP_COSINE = 0.90   # ≥ this vs an existing story = same achievement → fold (skip)
-_EMBED_CAP = 400      # dedup candidate cap (users have tens of stories, not thousands)
 
 JOB_TYPE_INGEST = "story_ingest"
 
@@ -112,10 +109,6 @@ def cosine(a: list[float], b: list[float]) -> float:
     return dot / (na * nb) if na and nb else 0.0
 
 
-def is_duplicate(candidate: list[float], existing: list[list[float]], threshold: float = DEDUP_COSINE) -> bool:
-    return any(cosine(candidate, vec) >= threshold for vec in existing)
-
-
 def story_embed_text(story: dict[str, Any]) -> str:
     """The text a story is embedded on: title + pointer + result — the identity of
     the achievement, stable across rephrasings."""
@@ -153,7 +146,10 @@ def build_profile_view(
         by_story.setdefault(str(p.get("story_id")), []).append(p)
 
     def story_out(s: dict[str, Any]) -> dict[str, Any]:
-        pts = sorted(by_story.get(str(s["id"]), []), key=lambda p: (not p.get("is_canonical", False),))
+        pts = sorted(
+            by_story.get(str(s["id"]), []),
+            key=lambda p: (not p.get("is_canonical", False), float(p.get("ordering") or 0)),
+        )
         canonical = next((p for p in pts if p.get("is_canonical")), pts[0] if pts else None)
         return {
             "id": str(s["id"]),
@@ -165,6 +161,13 @@ def build_profile_view(
             "status": s.get("status") or "active",
             "pointer": (canonical or {}).get("text") or "",
             "variant_count": len(pts),
+            # Every way this achievement has been written — the drawer picks
+            # which one leads and drops a weak one (ADR-0021).
+            "phrasings": [
+                {"id": str(p.get("id") or ""), "text": p.get("text") or "",
+                 "is_canonical": bool(p.get("is_canonical"))}
+                for p in pts
+            ],
         }
 
     active = [s for s in stories if (s.get("status") or "active") == "active"]
@@ -371,7 +374,7 @@ async def _ingest_entry(payload: dict[str, Any], allow_retry: bool) -> None:
             raise TransientJobError("provider/budget unavailable")
         return  # in-process path: stays pending, visible in the status line
 
-    story_ids = await _persist_extraction(repo, user_id, entry_id, extraction, provider)
+    story_ids = await _persist_extraction(repo, user_id, entry_id, extraction)
     repo.mark_processed(user_id, entry_id, story_ids)
     logger.info(
         "career_reservoir.ingested user=%s entry=%s stories=%d", user_id, entry_id, len(story_ids),
@@ -389,16 +392,28 @@ async def _ingest_entry(payload: dict[str, Any], allow_retry: bool) -> None:
         logger.info("role_dedup: post-ingest pass failed (%s)", exc.__class__.__name__)
 
 
+    # Post-ingest identity: the new stories meet the reservoir now, so a
+    # duplicate never waits for a visit to be folded. Decided pairs are skipped,
+    # so this is near-free when nothing changed. Best-effort: identity tidies
+    # the reservoir, it never fails an ingest.
+    try:
+        from app.repositories.story_identity import StoryIdentityRepository
+        from app.services import story_identity
+
+        await story_identity.run(StoryIdentityRepository(get_supabase_admin()), user_id)
+    except Exception as exc:  # noqa: BLE001 — ingest must never fail on identity
+        logger.info("story_identity: post-ingest pass failed (%s)", exc.__class__.__name__)
+
+
 async def _persist_extraction(
     repo: Any, user_id: str, entry_id: str, extraction: dict[str, list[dict[str, Any]]],
-    provider: Any,
 ) -> list[str]:
-    """Reconcile roles, FOLD duplicate stories into their canonical story (the
-    alternate phrasing lands as a pointer variant — never dropped), persist the
-    rest with their canonical pointer + embedding. Ambiguous near-matches go
-    through one batched LLM judge call. Embedding failure never blocks a write
-    (the story lands without one; dedup just can't see it yet)."""
-    from app.services import story_dedup
+    """Reconcile roles, then persist every extracted story with its canonical
+    pointer and embedding. Identity is NOT decided here: the story_identity
+    sweep that runs straight after ingest folds any story the reservoir already
+    holds — one rule for every inflow source. Embedding failure never blocks a
+    write (the story lands without a vector; the sweep can still meet it by
+    title)."""
     from app.services.embeddings import embed_texts
 
     existing_roles = repo.list_roles(user_id)
@@ -418,22 +433,11 @@ async def _persist_extraction(
     if not stories:
         return []
 
-    embed_inputs = [story_embed_text(s) for s in stories]
     vectors: list[list[float] | None] = [None] * len(stories)
     try:
-        vectors = list(await embed_texts(embed_inputs))  # type: ignore[arg-type]
+        vectors = list(await embed_texts([story_embed_text(s) for s in stories]))  # type: ignore[arg-type]
     except Exception as exc:  # noqa: BLE001 — embedding is best-effort, never blocks ingest
         logger.info("career_reservoir: embed failed (%s) — storing without vectors", exc.__class__.__name__)
-
-    candidates: list[tuple[str, list[float]]] = []
-    rows_by_id: dict[str, dict[str, Any]] = {}
-    for row in repo.story_dedup_rows(user_id)[:_EMBED_CAP]:
-        vec = _parse_vector(row.get("embedding"))
-        if vec is None:
-            continue
-        sid = str(row["id"])
-        candidates.append((sid, vec))
-        rows_by_id[sid] = row
 
     def role_of(story: dict[str, Any]) -> tuple[str | None, str | None]:
         ri = story.get("role_index")
@@ -442,40 +446,15 @@ async def _persist_extraction(
         return None, None
 
     created: list[str] = []
-    deferred: list[tuple[dict[str, Any], list[float] | None, str]] = []
     for i, story in enumerate(stories):
         vec = vectors[i] if i < len(vectors) else None
-        target_id, score = story_dedup.best_match(vec, candidates) if vec else (None, 0.0)
-        verdict = story_dedup.classify(score) if target_id else "new"
-        if verdict == "new":
-            twin = story_dedup.find_title_twin(str(story.get("title") or ""), rows_by_id)
-            if twin:
-                target_id, verdict = twin, "judge"
-        if verdict == "fold":
-            _fold_into(repo, user_id, entry_id, rows_by_id[target_id], story, role_of(story)[1])
-            continue
-        if verdict == "judge":
-            deferred.append((story, vec, target_id))  # type: ignore[arg-type]
-            continue
-        _create_story(repo, user_id, entry_id, story, role_of(story), vec, created, candidates, rows_by_id)
-
-    if deferred:
-        pairs = [{"new": s, "existing": rows_by_id[tid]} for s, _, tid in deferred]
-        flags = await story_dedup.judge_pairs(pairs, provider)
-        for (story, vec, target_id), same in zip(deferred, flags):
-            if same:
-                _fold_into(repo, user_id, entry_id, rows_by_id[target_id], story, role_of(story)[1])
-            else:
-                _create_story(repo, user_id, entry_id, story, role_of(story), vec, created, candidates, rows_by_id)
-
+        _create_story(repo, user_id, entry_id, story, role_of(story), vec, created)
     return created
 
 
 def _create_story(
     repo: Any, user_id: str, entry_id: str, story: dict[str, Any],
-    role: tuple[str | None, str | None], vec: list[float] | None,
-    created: list[str], candidates: list[tuple[str, list[float]]],
-    rows_by_id: dict[str, dict[str, Any]],
+    role: tuple[str | None, str | None], vec: list[float] | None, created: list[str],
 ) -> None:
     from app.services.embeddings import to_pgvector
 
@@ -495,8 +474,6 @@ def _create_story(
         return
     created.append(story_id)
     if vec:
-        candidates.append((story_id, vec))  # in-batch dedup folds later dupes here
-        rows_by_id[story_id] = {**story, "id": story_id, "inflow_ids": [entry_id]}
         try:
             repo.set_story_embedding(user_id, story_id, to_pgvector(vec))
         except Exception:  # noqa: BLE001
@@ -514,48 +491,3 @@ def _create_story(
             )
         except Exception:  # noqa: BLE001 — a pointer miss leaves a curatable story
             logger.info("career_reservoir: pointer write failed story=%s", story_id)
-
-
-def _fold_into(
-    repo: Any, user_id: str, entry_id: str, target_row: dict[str, Any],
-    story: dict[str, Any], role_kind: str | None,
-) -> None:
-    """Merge a same-achievement story into its canonical: the incoming pointer
-    attaches as a variant (the old-CV angle stays selectable), metrics/skills
-    union in, provenance appends. Failure degrades to the pre-fold behaviour
-    (achievement already in the reservoir) — logged, never raised."""
-    from app.services import story_dedup
-
-    target_id = str(target_row.get("id") or "")
-    if not target_id:
-        return
-    try:
-        pointer = (story.get("pointer") or "").strip()
-        if pointer:
-            existing = repo.story_pointers(user_id, [target_id])
-            texts = [p.get("text") or "" for p in existing]
-            if story_dedup.pointer_is_new(pointer, texts):
-                repo.add_story_pointer(
-                    user_id, target_id,
-                    point_key=str(uuid.uuid4()),
-                    section=pointer_section(story, role_kind),
-                    text=pointer,
-                    ordering=float(len(existing) + 1),
-                    is_canonical=False,
-                )
-
-        updates: dict[str, Any] = {}
-        merged_m = story_dedup.merged_metrics(target_row.get("metrics") or [], story.get("metrics") or [])
-        if merged_m != (target_row.get("metrics") or []):
-            updates["metrics"] = merged_m
-        merged_s = story_dedup.merged_skills(target_row.get("skills") or [], story.get("skills") or [])
-        if merged_s != (target_row.get("skills") or []):
-            updates["skills"] = merged_s
-        inflows = list(target_row.get("inflow_ids") or [])
-        if entry_id not in inflows:
-            updates["inflow_ids"] = inflows + [entry_id]
-        if updates:
-            repo.update_story(user_id, target_id, updates)
-            target_row.update(updates)  # keep the in-batch view current
-    except Exception as exc:  # noqa: BLE001 — a failed fold leaves a curatable dupe-free reservoir
-        logger.info("career_reservoir: fold failed story=%s reason=%s", target_id, exc.__class__.__name__)

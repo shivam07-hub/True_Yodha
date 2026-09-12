@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useHomeBootstrap } from "@/lib/hooks/use-home-bootstrap"
+import { useJobMatches } from "@/lib/hooks/use-job-matches"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { tierForScore } from "@/lib/score-tiers"
 import { useXPStore } from "@/store/xpStore"
@@ -47,7 +48,10 @@ export function ProfileSurface({ token }: { token: string }) {
   const skillsN = data?.score?.skills_assessed ?? 0
   const domainsN = data?.score ? Object.keys(data.score.domain_scores).length : 0
   const apps = data?.applications ?? []
-  const matchesN = data?.matches?.jobs?.length ?? 0
+  // Its own read: /home/bootstrap no longer carries matches. Same key and fetch
+  // as the desktop hero, so whichever surface mounts first warms the other.
+  const matches = useJobMatches(token, true)
+  const matchesN = matches.data?.jobs?.length ?? 0
 
   const missions = [
     { id: "browse", label: "Browse today's matches", done: matchesN > 0 },

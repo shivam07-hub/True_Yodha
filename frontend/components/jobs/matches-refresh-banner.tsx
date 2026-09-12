@@ -1,20 +1,18 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQueryClient } from "@tanstack/react-query"
 import "@/components/dashboard/dashboard.css"
 import { useMyroSearch } from "@/lib/hooks/use-myro-search"
 import { refreshIsLive } from "@/lib/hooks/use-job-refresh"
 import { useParticleMoment } from "@/components/particle"
 import { jobs, type MatchHealth } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import { withLocalCache, userCacheKey } from "@/lib/local-cache"
-import { JOB_MATCHES_CACHE_PARTS } from "@/lib/job-matches-cache"
+import { useJobMatches } from "@/lib/hooks/use-job-matches"
 import { openRefreshGate } from "@/store/refreshGateStore"
 import { useLaneYields } from "@/store/matchRunStore"
 import { NewInventoryStrip } from "./new-inventory-strip"
 
-const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
 
 /**
  * Myro Search host on Jobs (/market). Owns the whole new-inventory → search flow:
@@ -37,13 +35,7 @@ export function MatchesRefreshBanner({ token }: { token: string | null }) {
   // Warms dataKeys.jobs(); the Loop Bar's Capture "N new" badge + "next" fit read
   // this cache. Called for its cache side-effect (the bar is the renderer now) —
   // and here also for match_health (the Career-Ops vetting trust banner below).
-  const { data: matchesData } = useQuery({
-    queryKey: dataKeys.jobs(),
-    queryFn: () =>
-      withLocalCache(userCacheKey(token!, JOB_MATCHES_CACHE_PARTS), MATCHES_TTL, () => jobs.matches(token!)),
-    enabled: !!token && !yieldLane,
-    staleTime: MATCHES_TTL,
-  })
+  const { data: matchesData } = useJobMatches(token, !yieldLane)
 
   // Celebration fires on the done-transition, only when matches were actually
   // written (a "0 new" finish never fakes a payoff). Ref guards the edge.

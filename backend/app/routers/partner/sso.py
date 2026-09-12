@@ -20,6 +20,7 @@ from app.repositories.partners import PartnerCredential, PartnersRepository
 from app.schemas.partner import SsoSessionRequest, SsoSessionResponse
 from app.security.partner_auth import SCOPE_SSO, require_scope
 from app.services import partner_sso
+from app.services.user_provisioning import ensure_user_provisioned
 
 router = APIRouter()
 
@@ -40,6 +41,12 @@ def create_sso_session(
         email=str(body.email),
         full_name=body.full_name,
     )
+    if outcome.provision:
+        # First in the queue: background tasks run in order, and this is the one
+        # the user will reach — they land on /auth/post-signin seconds from now.
+        # It used to run inline, on the new-account path, before the partner got
+        # a url at all. post-signin seeds too, so a race converges either way.
+        background_tasks.add_task(ensure_user_provisioned, *outcome.provision)
     if outcome.mode == "direct":
         background_tasks.add_task(repo.touch_sso, outcome.user_ref)
     # Metered in BOTH modes, with the mode recorded. `direct` hands the user a

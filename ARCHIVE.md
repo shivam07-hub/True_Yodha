@@ -6,6 +6,10 @@
 
 ---
 
+## CLOSED 2026-09-07 — phone load is one skin; `/dev/phone` is the 375 lab
+
+Route skeletons at 375px were the desktop workspace, then the live surface mounted a second skeleton. Dual-skin CSS shows one; bootstrap is chrome plus that page (`ac1a61eb`). `/dev/phone` iframes Load or a live authed tab after QA session; production 404s `/dev` (`2208eb43`). Real-device QA stays open — BACKLOG #42.
+
 ## CLOSED 2026-08-15 — every scraper publish now runs the skill floor
 
 The August 6 Stage A repair reached zero, but it was a one-off backfill rather

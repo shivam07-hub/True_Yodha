@@ -76,7 +76,7 @@ def _messages(job_title: str, company: str, requirements: list[str], roles: list
         # outbound identifier filter rewrites every UUID to `[REDACTED_ID]` — so
         # the model echoed a placeholder back, no role ever matched, and every
         # bullet silently kept its original. Correlation keys must be opaque to
-        # that filter (`cv_weave` and `story_dedup` already index positionally).
+        # that filter (`cv_weave` and `story_identity` already index positionally).
         blocks.append(f"ROLE {index}: {r.role} · {r.company}\n{lines}")
     user = (
         f"Target job: {job_title or 'the role'} at {company or 'the company'}\n\n"

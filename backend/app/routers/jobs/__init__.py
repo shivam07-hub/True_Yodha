@@ -19,7 +19,6 @@ from .refresh import router as refresh_router
 from .report import router as report_router
 from .review import router as review_router
 from .skill_demand import router as skill_demand_router
-from .stale import router as stale_router
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -33,7 +32,6 @@ router.include_router(intelligence_router)
 router.include_router(match_router)
 router.include_router(apply_router)
 router.include_router(collections_router)
-router.include_router(stale_router)
 router.include_router(review_router)
 router.include_router(milestone_router)
 router.include_router(detail_router)

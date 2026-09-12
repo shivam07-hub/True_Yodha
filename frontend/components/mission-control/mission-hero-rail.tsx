@@ -26,12 +26,10 @@ import { dataKeys } from "@/lib/domain-data"
 import type { DiaryEntry } from "@/lib/forge-helpers"
 import { computeStreakFromDates } from "@/lib/forge-helpers"
 import { useHomeBootstrap } from "@/lib/hooks/use-home-bootstrap"
-import { withLocalCache, userCacheKey } from "@/lib/local-cache"
-import { JOB_MATCHES_CACHE_PARTS } from "@/lib/job-matches-cache"
+import { useJobMatches } from "@/lib/hooks/use-job-matches"
 import { useViewport } from "@/mobile"
 import { useLaneYields } from "@/store/matchRunStore"
 
-const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
 
 /** The greeting hero — desktop = pinned rail, mobile = thin banner. */
 export function MissionHeroRail({ token, onSettled }: { token: string | null; onSettled?: () => void }) {
@@ -55,12 +53,10 @@ export function MissionHeroRail({ token, onSettled }: { token: string | null; on
     enabled: !!token && settled,
     staleTime: 10 * 60 * 1000,
   })
-  const jobsQuery = useQuery({
-    queryKey: dataKeys.jobs(),
-    queryFn: () => withLocalCache(userCacheKey(token!, JOB_MATCHES_CACHE_PARTS), MATCHES_TTL, () => jobs.matches(token!)),
-    enabled: !!token && settled && !yieldLane,
-    staleTime: MATCHES_TTL,
-  })
+  // Not gated on the bootstrap, and not seeded by it: matches left the bundle
+  // because the bundle waited on them (up to 12.4s in prod). They load on their
+  // own clock, in parallel, and fill the job step of nextBestSteps when they land.
+  const jobsQuery = useJobMatches(token, !yieldLane)
   const applicationsQuery = useQuery({
     queryKey: dataKeys.applications(),
     queryFn: () => jobs.applications(token!),
@@ -90,10 +86,13 @@ export function MissionHeroRail({ token, onSettled }: { token: string | null; on
   const jobsData = jobsQuery.data
   const applications = applicationsQuery.data
   const evidenceData = evidenceQuery.data
+  // Matches are deliberately NOT in this gate. It unlocks /market's next rails
+  // (onSettled → heroSettled → demand → analytics), and waiting on the slowest
+  // read here made every later rail wait on it too. It also never opened while
+  // the lane yielded, because a disabled query never settles.
   const initialLoadSettled = settled && [
     scoreQuery,
     profileQuery,
-    jobsQuery,
     applicationsQuery,
     historyQuery,
     evidenceQuery,

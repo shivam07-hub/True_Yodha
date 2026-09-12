@@ -411,6 +411,26 @@ A headless engine (`createTaxonomy({ fetch })`, the `field-motion.ts` precedent)
 - The demand `band` reuses market-wide demand (`weighted_demand` from `build_user_skill_demand`) — the same unscoped signal the Skills page reads — never a fresh per-page `jobCount`. The build-time generator is a thin adapter that exports that already-computed signal into `priority.json`.
 - Artifacts are forward-only: regenerated on a scraper batch refresh, committed, **not** wired into `prebuild` (no build-time DB coupling).
 
+## Skill Closeness
+
+**Two skills are close when real jobs ask for them together** — never when a taxonomy files them under the same heading. Learned from live jobs and counted across companies, so one employer's copy-pasted template cannot invent a bond (67.4% of raw bonds were exactly that). Refreshed per ingest beside the other Tier-0 snapshots.
+
+Measured 2026-09-12: pairs jobs ask for together are **17.3× likelier than chance**, and **90.6% of them cross Lightcast L2 clusters**. Python's closest skills are Keras, Django, Flask, NumPy and Pandas — five different L2 clusters. Users' skills sit the same way: 10.9% of a person's own skill pairs are strong bonds, against 0.69% of all possible pairs.
+
+⚠️ **"Neighbour" is already taken.** Career Path uses `DemandKind = core | neighbor` for a skill's share of a band. Say **close**, or **bond**.
+
+## Family Profile
+
+A direction is a **named skill profile**, not a container of jobs: what it demands per seniority, its band, its characteristic skills, its open count. One Tier-0 snapshot answers every surface that used to scan `jobs` live (4.3s, and 2.8s × 3 on Career Path).
+
+**Fit is always graded** (ADR-0022). A job belongs to every direction it fits, and nothing stores the single bucket a job or skill is in:
+
+| fit | scored by |
+|---|---|
+| person ↔ direction | their skills against the profile |
+| job ↔ direction | how many of the direction's characteristic skills the job asks for |
+| person ↔ next skill | closeness to skills they already hold × what the direction demands |
+
 ## Skill Level and Role Standing
 
 **A skill's Level is the higher of what the CV evidences (`user_skills`) and what
@@ -554,13 +574,15 @@ _Avoid_: live LLM on GET, backfill-on-read, heal-on-poll, "still loading" copy i
 
 ## Career Story Reservoir
 
-The consolidation spine of the CV knowledge/inflow layer (migration `20260711h`): the user gives a DUMP — old CVs, pointer docs, a LinkedIn export zip, pasted notes — and Myro builds a comprehensive career profile from it. Three entities:
+The consolidation spine of the CV knowledge/inflow layer (migration `20260711h`): the user gives a DUMP — old CVs, pointer docs, a LinkedIn export zip, pasted notes — and Myro builds a comprehensive career profile from it. **Direction (Shivam, 2026-09-12, ADR-0021): the reservoir is becoming the user's Master CV** — the one place every document and pointer they ever produce lands and stays current. Three entities:
 
 - **Career Role** (`career_roles`) — a stable role container (company, title, dates, kind). Kills the positional `role_anchor` fragility: stories reference `role_id`, never a list index.
 - **Career Story** (`career_stories`) — the first-class parent narrative: one real project/achievement with a STAR narrative (situation/task/action/result), verbatim metrics, skills proven, an embedding, and `inflow_ids` provenance back to the dump entries that produced it. Interview prep reads stories directly.
 - **Pointer** — a `cv_points` row with `story_id` set (`role_anchor = "story:{id}"`): one CV-ready phrasing OF a story. A tailored CV is a **projection**: `career_projection` ranks stories against a job's skills, selects with per-role guarantees, composes a `cv_structured`, and writes it through the CV Version Writer Seam as a normal `deterministic` version.
 
-**Inflow ledger** — `cv_dump_entries` is the ONE place every capture surface writes (`kind`: note | file | linkedin; `payload` shape metadata; `processed_at` + `derived_story_ids` forward provenance). `story_ingest` (durable Work Lane, idempotent on entry id) runs `story_extractor` (playbook-grounded, no-fab ADR-0016, verbatim metrics, deterministic role-link verification) and folds near-duplicate stories silently via embedding cosine (`DEDUP_COSINE`).
+**Inflow ledger** — `cv_dump_entries` is the ONE place every capture surface writes (`kind`: note | file | linkedin; `payload` shape metadata; `processed_at` + `derived_story_ids` forward provenance). `story_ingest` (durable Work Lane, idempotent on entry id) runs `story_extractor` (playbook-grounded, no-fab ADR-0016, verbatim metrics, deterministic role-link verification) then hands the new stories to **Story Identity**.
+
+**Story Identity** (`story_identity`, ADR-0021) — the ONE place "one achievement = one story" is enforced, for every inflow source. **Same achievement = the same work with the same outcome, said differently; a part of a larger piece of work is its own story.** Similarity only *nominates* (floor 0.60; employer family, nearest neighbour, role-less, or a shared title). Near-verbatim pairs fold unjudged; one batched strong judge rules `same` → fold, `part_of`/`unsure` → the user rules in the Stories review space, `different` → kept. A failed judge call records nothing. Every ruling lands in `story_merge_verdicts`; **a user ruling is law**, enforced inside `story_identity_fold` (SQL). A fold is archive-only, atomic, and undoable exactly (`moved.dup_added`). Runs after every ingest and lazily on a Stories visit. Pure rules: `story_identity_rules`.
 
 **Policy (2026-07-11, Shivam):** dump extraction **auto-accepts** into the reservoir — the user curates after (archive-not-delete). This supersedes the 2026-06-24 "every inflow user-confirmed" rule for the dump flow.
 
@@ -711,7 +733,7 @@ async def rank_one(profile, cv_markdown, job, provider) -> eval | None
 - `RankCandidates.eval_cache_fetcher` (Backlog #36) lets `rank` skip any shortlist job already evaluated for this user — a job is brain-rated **once per `(user, job)`, ever** (permanent identity, migration 20260710), never re-paid on a later compute. Omit it for the old always-eval behaviour.
 - `compute_job_matches` (the batch compute — CV upload, paid Refresh, or scrape-triggered sweep) routes through `rank`; the exhausted/refund gates and candidate-id fetching stay in `jobs_workflow` (DB-coupled), unchanged. Its skip gate is **event-driven** (has-ever-matched + nothing-new-since), not calendar-driven.
 - **The model floor (F1) is owned inside `compute_job_matches`, not passed by callers.** Every judgment call (triage + eval) runs on `get_judgment_provider()` — the strong-only lane (see **Judgment provider** below). The `llm_provider` arg is a test-only override; no caller can put a small model on a ranking path.
-- **`RankCandidates.pool_augmenter`** (standardized matcher) unions the CandidatePool title_filter selector onto the overlap pool *before* triage, keeping `rank` DB-agnostic (the caller supplies the callback). None → overlap-only pool.
+- **`RankCandidates.pool_augmenter`** (standardized matcher) unions the CandidatePool family selector onto the overlap pool *before* triage, keeping `rank` DB-agnostic (the caller supplies the callback). None → overlap-only pool.
 
 ## Coin balance
 
@@ -814,11 +836,11 @@ Job Tracks' `can_open` still flips when Accept writes; the second-search offer i
 The seam that decides WHICH jobs reach the brain (`app/services/matching/candidate_pool.py`). Unions the deterministic selectors so a role-right job reaches triage regardless of how it was found:
 
 1. **skill-overlap** — `get_candidate_job_ids_for_skills` + `get_top_matches` scoring (the caller's overlap pool).
-2. **title_filter** (career-ops) — `get_candidate_job_ids_for_roles`: jobs whose TITLE matches the target roles, recall via the index-backed title ilike (`idx_jobs_job_title_trgm`), precision via `_role_match_score` (all tokens of some role present — no fabricated relevance), gated by the same freshness + location rules.
+2. **family selector** (formerly *title_filter*) — `get_candidate_job_ids_for_roles`: jobs whose `role_family` is one of the user's resolved families (`target_roles`) — one indexed equality on `idx_jobs_role_family`, gated by the same freshness + location rules. It matched TITLES until `4cb20cfe`; once the family became the stored name, "Artificial Intelligence and Machine Learning (AI/ML)" matched 0 titles against the 2,152 jobs in it. A taxonomy label is not a query — select on the key.
 
 **Invariants**
-- Overlap is a **ranking signal inside the pool, no longer the gate**. A title-matched job with zero skill overlap still enters (`merge_triage_pool` reserves up to half the pool for title-only candidates, as zero-overlap rows) and the **strong-model triage — not overlap — does the real selection**. This is the "brain is boss, overlap only cost-bounds" shape.
-- `assemble` **fails open** — a title-selector error leaves the overlap pool intact + emits `metric candidate_pool.title_selector_failed`.
+- Overlap is a **ranking signal inside the pool, no longer the gate**. A family-selected job with zero skill overlap still enters (`merge_triage_pool` reserves up to half the pool for selector-only candidates, as zero-overlap rows) and the **strong-model triage — not overlap — does the real selection**. This is the "brain is boss, overlap only cost-bounds" shape.
+- `assemble` **fails open** — a selector error leaves the overlap pool intact + emits `metric candidate_pool.title_selector_failed`.
 - Same seam the semantic retrieval slice (`project_semantic_job_retrieval` Slice 2) unions into later — swap `title_ids` for semantic ids, same merge.
 
 ## Match Run
@@ -849,7 +871,7 @@ The single read for "what Myro knows about what this user wants" — one module 
 - **`target_context_hash` is a SCOPING key, never a gate.** It answers "which direction was this verdict computed for" — the key `get_matches_for_context` and `get_current_credible_match` scope by. It is written whenever a baseline exists, even for a blank direction, because the reader (`onboarding_service.get_result`) has always hashed unconditionally and one key cannot have two production rules. It also does **not** appear in `evaluate_credibility`'s `credible` conjunction: absence of a bookkeeping field is not a verdict about a job (the same rule F3 applies to unreadable seniority and F4 to absent location meta). Until 2026-08-13 it did both jobs wrongly — NULL on 71% of rows, which made `get_matches_for_context` match nothing for **162 of 196 users holding 1,289 real match rows** (`_shortlist` reported "the market genuinely has no overlap") and made promotion impossible, so **153 users had brain-rated matches and exactly ONE had an `is_recommended` row** — withholding the "Tailor for {role} at {company}" primary action, the 10-minute-CV core loop, from 152 of them.
 - **Fill-empty-only.** A user-entered column value is never overwritten by memory — even a junk one; the modal is where the user fixes it.
 - **Prefill is draft-only.** Silent prefill lands in the modal's staging buffer; persistence happens only through the user's Run/Save action, so the distiller's propose-only lock on profile columns holds.
-- **Role titles plus the selected family are the write vocabulary.** The picker supplies a human title and a corpus family together; `targeting_write.derive` is the only derivation of the `target_roles` cluster union (shared by `save_target`, intent-chat, pre-flight, and `PUT /users/me/profile`). Title ILIKE is not a demand or aspiration path.
+- **The selected family is the write vocabulary, and its name is the title.** The picker supplies a corpus family; since `e2676160` it is stored as both `target_roles` and the visible `target_role_titles`, because the family's modal job title named twenty families "Custom Software Engineer". Titles a user typed on other paths are kept (the `20260909120000` backfill touched only corpus-label artifacts and empty slots). `targeting_write.derive` is the only derivation of the `target_roles` cluster union (shared by `save_target`, intent-chat, pre-flight, and `PUT /users/me/profile`). Title ILIKE is not a demand, aspiration, or selection path — the feed's role signal, the matcher's boost and the family selector all read `jobs.role_family` since `4cb20cfe`.
 - **Memory is fail-soft.** `list_active` degrades to `[]` (safe_read); a repo without a client (test fakes) carries no facts. Matching never breaks on the memory layer.
 - **`jobs_repo.get_user_profile_targeting` is this module's private input.** A ranking path that calls it directly is memory-blind, and since a verdict is cached permanently per `(user, job)` (migration 20260710) that blindness is permanent — nothing re-rates it. `on_demand` and `feed_warm` did exactly that until 2026-08-13: **1,175 of 1,686 brain verdicts in prod (70%) were written without seeing a single fact the user had told Myro**. 308 (3 users, ~52 active notes each) were materially wrong; the rest belonged to users with no ranking-relevant facts, where blind and informed agree.
 - **Two keys, two questions.** `context_key` → `user_job_matches.target_context_hash` is a SCOPING key: which direction a verdict belongs to. `eval_context_key` → `user_job_matches.eval_context_hash` is a STALENESS key: what the brain was *told* — direction plus the `known_facts` block the prompt renders. Deliberately separate. Folding memory into the scoping key would invalidate an onboarding shortlist mid-read every time the distiller writes a fact; leaving it out of the staleness key would keep "brain-rated once per (user, job), ever" (migration 20260710) meaning a verdict reasoned before Myro read anything the user said can never be revisited. **All three skip gates** — `jobs_workflow` (the Search), `on_demand` (brain-on-open), `feed_warm` (the /market top-10) — ask `eval_matches_context`, one rule in one place; what each gate additionally requires of a row stays at its own call site (on-open also demands a real score, so a Provisional Match recomputes). A NULL key is *"we cannot tell"*, never *"still valid"* — which is what makes the next Search correct with no backfill. Cost lands only where inputs moved: a repeat Search with nothing changed is still a full cache hit. `UserMemoryRepository.list_active` orders by `(created_at desc, id)` so the fact order — and the 8-fact cap over it — is total; without the tiebreaker, tied timestamps (7 of 83 active facts in prod) would reshuffle the key and re-rate for nothing.

@@ -17,7 +17,7 @@ gaining a required `background_tasks` shipped green and then 500'd
 from __future__ import annotations
 
 import inspect
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 
 import pytest
 from fastapi import HTTPException, status
@@ -35,7 +35,6 @@ from app.repositories.users import get_token_users_repository
 from app.schemas import (
     CVEvidenceSummaryResponse,
     DiaryHistoryResponse,
-    JobMatchesResponse,
     MirrorScoreResponse,
     UserProfileResponse,
 )
@@ -89,10 +88,6 @@ def _stub_all(monkeypatch, *, score_exc: HTTPException | None = None) -> None:
         )
 
     _stub(monkeypatch, "get_my_score", _score)
-    _stub(
-        monkeypatch, "get_job_matches",
-        lambda **_: JobMatchesResponse(jobs=[], batch_week=date(2026, 6, 1), total=0, dismissed_job_ids=[]),
-    )
     _stub(monkeypatch, "get_applications", lambda **_: [])
     _stub(
         monkeypatch, "get_cv_evidence",
@@ -131,8 +126,11 @@ def test_bootstrap_returns_full_bundle(client, monkeypatch):
     r = client.get("/home/bootstrap")
     assert r.status_code == 200
     body = r.json()
+    # `matches` left the bundle: it was the slowest section in 14 of 21 prod
+    # loads, up to 12.4s, and held every other section hostage. The client
+    # reads /jobs/matches on its own clock.
     assert set(body) == {
-        "profile", "score", "matches", "applications",
+        "profile", "score", "applications",
         "evidence", "cv_versions", "practice_activity", "diary",
     }
     assert body["profile"]["full_name"] == "Test Ninja"

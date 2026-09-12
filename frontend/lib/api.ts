@@ -1455,40 +1455,15 @@ export interface IntakeDraftResponse {
   rationale: string | null
 }
 
-// Experience Reservoir (v2) — GET /cv/reservoir. The master CV as a curatable
-// inventory: roles → points → phrasing variants (canonical first).
-export type PointSource = "migration" | "gap_session" | "forge" | "manual" | "restructure"
-export interface PointVariant {
-  id: string
-  text: string
-  audience_tags: string[]
-  source: PointSource
-  is_canonical: boolean
-}
-export interface ReservoirPoint {
-  point_key: string
-  variants: PointVariant[]
-  /** Canonical phrasing states no measurable result (no-fabrication guard mirror). */
-  needs_impact: boolean
-}
-export interface ReservoirRole {
-  role_id: string
-  kind: "experience" | "project"
-  title: string
-  org: string | null
-  dates: string | null
-  points: ReservoirPoint[]
-}
-export interface ReservoirView {
-  roles: ReservoirRole[]
-  summary: string | null
-  skills_line: string | null
-  certs: string[]
-}
-
 // Career Story Reservoir — the comprehensive profile built from the user's dump
 // (old CVs, LinkedIn export, notes): roles → STAR stories → canonical pointers.
 export interface CareerStoryMetric { value: string; what: string }
+/** One way an achievement has been written; the canonical one leads. */
+export interface Phrasing {
+  id: string
+  text: string
+  is_canonical: boolean
+}
 export interface CareerStory {
   id: string
   kind: "project" | "achievement" | "accolade" | "education" | "research" | "other"
@@ -1500,6 +1475,8 @@ export interface CareerStory {
   /** Canonical CV line projected from this story ("" when none yet). */
   pointer: string
   variant_count: number
+  /** Every phrasing of it, canonical first. */
+  phrasings: Phrasing[]
 }
 export interface CareerProfileRole {
   id: string
@@ -1518,9 +1495,33 @@ export interface CareerProfile {
   story_count: number
   /** Dumped files still being read — poll while > 0. */
   pending_inflows: number
-  /** Judge-proposed same-role pairs awaiting the user's ruling (#38). */
-  merge_suggestions: MergeSuggestion[]
-  /** Auto-folded duplicate roles in the last 7 days — the visible receipt. */
+}
+export interface ReviewStory {
+  id: string
+  title: string
+  role_label: string
+  pointer: string
+  variant_count: number
+}
+/** A pair the judge could not settle alone — the user rules (ADR-0021). */
+export interface StoryPair {
+  story_a: string
+  story_b: string
+  a: ReviewStory
+  b: ReviewStory
+}
+export interface FoldReceipt {
+  story_a: string
+  story_b: string
+  kept: string
+  merged: string
+  when: string
+}
+export interface ReviewView {
+  story_pairs: StoryPair[]
+  role_pairs: MergeSuggestion[]
+  merged_for_you: FoldReceipt[]
+  you_decided: number
   tidied_roles: number
 }
 export interface MergeSuggestion {
@@ -2081,6 +2082,34 @@ export const cv = {
       }
       return res.json() as Promise<CareerIngestResponse>
     },
+    /** The Stories review space: what Myro cannot settle alone, plus what it
+     *  already merged for you (each undoable). */
+    review: (token: string) =>
+      request<ReviewView>("/cv/reservoir/review", {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    storyVerdict: (token: string, storyA: string, storyB: string, verdict: "merged" | "keep_separate") =>
+      request<{ verdict: string }>("/cv/reservoir/review/stories", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ story_a: storyA, story_b: storyB, verdict }),
+      }),
+    promotePhrasing: (token: string, pointId: string) =>
+      request<{ ok: boolean }>(`/cv/reservoir/phrasings/${encodeURIComponent(pointId)}/promote`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    dropPhrasing: (token: string, pointId: string) =>
+      request<{ ok: boolean }>(`/cv/reservoir/phrasings/${encodeURIComponent(pointId)}/drop`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    storyUndo: (token: string, storyA: string, storyB: string) =>
+      request<{ verdict: string }>("/cv/reservoir/review/stories/undo", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ story_a: storyA, story_b: storyB }),
+      }),
     patchStory: (token: string, storyId: string, patch: Partial<Pick<CareerStory, "status" | "title" | "skills">> & { narrative?: Record<string, string> }) =>
       request<CareerStory>(`/cv/reservoir/stories/${encodeURIComponent(storyId)}`, {
         method: "PATCH",
@@ -2176,10 +2205,6 @@ export const cv = {
       }),
   },
   // The experience reservoir inventory (v2): roles → points → phrasing variants.
-  reservoir: (token: string) =>
-    request<ReservoirView>("/cv/reservoir", {
-      headers: { Authorization: `Bearer ${token}` },
-    }),
   // Apply an accepted rewrite — writes a new baseline (mirrors skill-edit).
   rewriteApply: (
     token: string,
@@ -3374,15 +3399,6 @@ export interface ApplicationReview {
   outcome: string
   written_note: string | null
   created_at: string
-}
-
-export interface StaleApplication {
-  id: number
-  job_id: string
-  title: string
-  company: string | null
-  status: ApplicationStatus
-  updated_at: string | null
 }
 
 export interface CompanyReviewItem {
@@ -5561,11 +5577,11 @@ export const publicCv = {
 // One round-trip that returns the whole above-the-fold dashboard bundle, so the
 // client makes a single call instead of ~9 to paint home. Each field mirrors the
 // payload of its standalone endpoint; the client seeds its TanStack cache from
-// this bundle (see useHomeBootstrap).
+// this bundle (see useHomeBootstrap). Matches are NOT in it — they are read on
+// their own clock by useJobMatches, because the bundle waited on them.
 export interface HomeBootstrapResponse {
   profile: UserProfile
   score: ScoreResponse | null
-  matches: JobMatchesResponse
   applications: ApplicationResponse[]
   evidence: CVEvidenceSummary
   cv_versions: { versions: CVVersion[] }

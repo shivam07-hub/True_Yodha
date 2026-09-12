@@ -1624,3 +1624,112 @@ Both predictions are falsifiable in a week of alerts. If `/tracks` and
 `/jobs/companies/pulse` are fixed, the queueing theory is wrong and they need
 measuring on their own. **Do not optimise either before that week is up** —
 that is the §11 mistake in its other direction.
+
+---
+
+## 18. Two front doors, measured (2026-09-11)
+
+Source: 21 `fanout.slow label=home.bootstrap` lines (2026-09-08 → 09-11, two
+deployments) and every `/partner/v1/sso/session` line on deployment `bde7986e`.
+
+### `/home/bootstrap` waited on its slowest section
+
+| slowest section | samples | worst |
+|---|---|---|
+| `matches` | 14 of 21 | 12,389ms |
+| `applications` | 7 of 21 | 5,343ms |
+
+`score`, `diary` and `cv_versions` were never the slowest and typically ran
+200–600ms. A bundle answers when its slowest member does, so a user's score sat
+behind their matches for up to ten seconds — the global gate ADR-0011 was
+written to kill, re-created by the BFF.
+
+Projected from the same 21 samples with `matches` removed:
+
+| | median | p90 | max | over 1s |
+|---|---|---|---|---|
+| before | 1,835ms | 10,098ms | 12,389ms | 20 of 21 |
+| `matches` out | 1,280ms | 3,301ms | 5,450ms | 12 of 21 |
+
+`7fd040c9`: `matches` left the bundle. `useJobMatches` is now the one
+fetching read of `dataKeys.jobs()` — the hero and the refresh banner each
+carried their own copy of that query, and mobile read matches out of the
+bundle. The hero's `onSettled`, which unlocks `/market`'s later rails, no longer
+waits on matches either; it also never opened while the lane yielded, because a
+disabled query never settles. `applications` stayed on purpose: the hero prints
+an active-targets count from it and would print "0" while loading.
+
+**Not yet measured live.** Compare the next `home.bootstrap` totals against the
+table above. If the p90 does not fall toward ~3.3s, the projection was wrong.
+
+### Partner SSO: 1.1–9.7s on a route that makes 2–4 reads
+
+Measured, in this order, before changing anything:
+
+- DB: no partner-table query appears in pg_stat_statements' top 12 by mean.
+- GoTrue: 145ms warm median and flat under a burst of five (144–236ms) —
+  faster than a PostgREST read from the same vantage (312ms).
+- The API was not queued: the fan-outs beside both SSO bursts ran 288–602ms.
+
+The new-account path walked every hop in series, including a three-round-trip
+profile seed that nothing before the url needs (`partner_users.user_id`
+references `auth.users`). `6f75ebf7` runs the seed after the response;
+`/auth/post-signin` seeds again on landing, so either order converges.
+
+Every `metric partner_sso.*` line was INFO and so was never emitted — the app
+namespace drops everything below WARNING (`main.py`). A call over 1s now logs
+`metric partner_sso.slow` at WARNING with each remote hop's duration.
+
+**Still unexplained, and now observable:** the returning-user path is one read
+plus one mint and still took 1.9–5.7s inside bursts. The next
+`partner_sso.slow` line names the hop.
+
+### The verifier: plan clean, cause unproven — to be settled by a test
+
+`claim_verify_targets` is the #1 consumer by total time (2,895ms mean) and is
+live — its call count moved mid-session. Its plan is clean: cost 3,108,
+`idx_job_verification_schedule_due` on both branches, a hash anti-join over 88
+rows. The cost is the write: each claim UPDATEs up to 200 rows'
+`last_attempt_at`, the column its ordering index is built on. That it causes
+the `capacity_queue` victims is **not shown**, and the verifier runs in its own
+process, so an in-process lane cap would reserve nothing for the API.
+
+**Decision (Shivam, 2026-09-12): settle it with a test, not an argument.**
+
+- **Switch — env only, reversible.** On the service that runs
+  `app/workers/job_listing_verifier.py` (`job-listing-verifier`), set
+  `JOB_VERIFY_STALE_DAYS=3650`. The corpus branch of the claim then finds no row
+  old enough and claims nothing; the priority branch (tracked, shown, matched —
+  `job_verification_interest`) runs unchanged. That IS the interest-only scope.
+  Revert: unset it (default 7). Rows never attempted (`last_attempt_at IS NULL`)
+  are still claimed — 0 of 65,952 at the time of writing.
+- **Order — control first, and only after the production ship.** The /home
+  (`7fd040c9`) and SSO (`6f75ebf7`) fixes cut slow requests on their own. Run a
+  7-day control after they are live with the verifier untouched, THEN 7 days
+  with the switch on. Measured against today's numbers instead, those fixes
+  would be credited to the verifier.
+- **Measure:** `notices.occurrence_count` for `slow_200:capacity_queue` and
+  `capacity_503:upstream.read_timeout`, snapshotted at the start and end of each
+  window, as a rate per day. If traffic differs by more than ~20% between the
+  windows, divide by that window's `/users/me` request count. Also take the
+  `claim_verify_targets` delta from pg_stat_statements, and count the Ghost
+  Index closures recorded in each window — that is the coverage the test costs.
+- **Baseline, 2026-09-11 19:51 UTC** (context only; the control week is the
+  comparison): `capacity_queue` 2,523 since 09-06 06:15 (~453/day);
+  `upstream.read_timeout` 37 since 09-05 23:23 (~6.3/day);
+  `reads_over_budget` 100 since 09-06 06:14 (~18/day).
+- **Pre-registered verdict.** `capacity_queue` per day falls **≥40%** in the
+  switch week versus control → the verifier is a cause: keep interest-only in
+  the day and move the corpus sweep to a nightly window so the Ghost Index keeps
+  growing. Falls **<15%** → it is not: revert, and take the next suspect from
+  that window's pg_stat_statements delta. In between → inconclusive; run a
+  second week before deciding.
+
+### What I got wrong in this pass
+
+- Called SSO latency "upstream GoTrue" from a `reads=` counter that counts
+  neither auth calls nor writes. Measured, GoTrue was the fastest hop.
+- Reported production as 859 commits behind from a local `main` eight weeks
+  stale; `origin/main` was 3 behind. Fetch, then compare `origin/` refs.
+- Ranked a 58-day cumulative pg_stat_statements row — the company `ILIKE` —
+  whose fix had already shipped. Check `stats_reset`, then take a delta.

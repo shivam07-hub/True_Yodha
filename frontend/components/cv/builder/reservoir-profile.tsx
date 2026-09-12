@@ -16,10 +16,11 @@
 import { useMemo, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import type { ApplicationResponse, CareerProfile, CareerStory, MergeSuggestion } from "@/lib/api"
+import type { ApplicationResponse, CareerProfile, CareerStory } from "@/lib/api"
 import { APPLICATION_OUTCOMES, cv as cvApi } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { ReservoirDump } from "./reservoir-dump"
+import { StoryReview } from "./story-review"
 import "./reservoir-profile.css"
 
 const STAR_FIELDS = [
@@ -29,16 +30,25 @@ const STAR_FIELDS = [
   ["result", "R"],
 ] as const
 
-function StoryCard({ story, token, onArchived }: {
+function StoryCard({ story, token, onChanged }: {
   story: CareerStory
   token: string
-  onArchived: () => void
+  onChanged: () => void
 }) {
   const [open, setOpen] = useState(false)
   const archive = useMutation({
     mutationFn: () => cvApi.career.patchStory(token, story.id, { status: "archived" }),
-    onSuccess: onArchived,
+    onSuccess: onChanged,
   })
+  const promote = useMutation({
+    mutationFn: (pointId: string) => cvApi.career.promotePhrasing(token, pointId),
+    onSuccess: onChanged,
+  })
+  const drop = useMutation({
+    mutationFn: (pointId: string) => cvApi.career.dropPhrasing(token, pointId),
+    onSuccess: onChanged,
+  })
+  const curationError = promote.error ?? drop.error
 
   const narrative = STAR_FIELDS.filter(([key]) => (story.narrative[key] || "").trim())
   return (
@@ -72,6 +82,34 @@ function StoryCard({ story, token, onArchived }: {
           {story.skills.length > 0 && (
             <div className="tm-rsv-skills">
               {story.skills.map((s) => <span key={s} className="tm-rsv-skill">{s}</span>)}
+            </div>
+          )}
+          {story.phrasings.length > 1 && (
+            <div className="tm-rsv-said">
+              <p className="tm-rsv-said-head">Said {story.phrasings.length} ways</p>
+              {story.phrasings.map((p) => (
+                <div key={p.id} className={`tm-rsv-say${p.is_canonical ? " lead" : ""}`}>
+                  <span className="tm-rsv-say-mark" aria-hidden>{p.is_canonical ? "◆" : "◇"}</span>
+                  <span className="tm-rsv-say-text">{p.text}</span>
+                  {!p.is_canonical && (
+                    <span className="tm-rsv-say-actions">
+                      <Button
+                        size="sm" variant="ghost"
+                        loading={promote.isPending && promote.variables === p.id}
+                        onClick={() => promote.mutate(p.id)}
+                      >Use this line</Button>
+                      <Button
+                        size="sm" variant="ghost"
+                        loading={drop.isPending && drop.variables === p.id}
+                        onClick={() => drop.mutate(p.id)}
+                      >Drop</Button>
+                    </span>
+                  )}
+                </div>
+              ))}
+              {curationError && (
+                <p className="tm-rsv-say-err" role="alert">{curationError.message}</p>
+              )}
             </div>
           )}
           <div className="tm-rsv-story-actions">
@@ -139,42 +177,6 @@ function TailorMenu({ applications, token, onOpenJob }: {
   )
 }
 
-/** A judge-proposed same-role pair (#38) — the user rules, the ruling is law. */
-function MergeCard({ token, pair, onDecided }: {
-  token: string
-  pair: MergeSuggestion
-  onDecided: () => void
-}) {
-  const decide = useMutation({
-    mutationFn: (verdict: "merged" | "keep_separate") =>
-      cvApi.career.mergeVerdict(token, pair.role_a, pair.role_b, verdict),
-    onSuccess: onDecided,
-  })
-  return (
-    <div className="tm-rsv-merge" role="group" aria-label="Possible duplicate role">
-      <p className="tm-rsv-merge-q">Same role?</p>
-      <p className="tm-rsv-merge-pair">
-        <span>{pair.a_label}</span>
-        <span className="tm-rsv-merge-tie" aria-hidden>↔</span>
-        <span>{pair.b_label}</span>
-      </p>
-      <div className="tm-rsv-merge-actions">
-        <Button
-          size="sm"
-          disabled={decide.isPending}
-          onClick={() => decide.mutate("merged")}
-        >Merge</Button>
-        <Button
-          variant="neutral" size="sm"
-          disabled={decide.isPending}
-          onClick={() => decide.mutate("keep_separate")}
-        >Keep separate</Button>
-        {decide.isError && <span className="tm-rsv-merge-err" role="alert">Didn’t save — try again.</span>}
-      </div>
-    </div>
-  )
-}
-
 export function ReservoirProfile({ token, applications, onOpenJob }: {
   token: string
   applications: ApplicationResponse[]
@@ -234,21 +236,8 @@ export function ReservoirProfile({ token, applications, onOpenJob }: {
         </p>
       )}
 
-      {/* No silent mutation: auto-folded duplicates leave a receipt (7-day). */}
-      {profile && profile.tidied_roles > 0 && (
-        <p className="tm-rsv-tidied" role="status">
-          Tidied {profile.tidied_roles} duplicate {profile.tidied_roles === 1 ? "role" : "roles"} for you
-        </p>
-      )}
-
-      {(profile?.merge_suggestions ?? []).map((pair) => (
-        <MergeCard
-          key={`${pair.role_a}:${pair.role_b}`}
-          token={token}
-          pair={pair}
-          onDecided={() => void refetch()}
-        />
-      ))}
+      {/* No silent mutation: every fold Myro made is listed there, undoable. */}
+      <StoryReview token={token} onChanged={() => void refetch()} />
 
       {(dumpOpen || isEmpty) && (
         <ReservoirDump
@@ -271,7 +260,7 @@ export function ReservoirProfile({ token, applications, onOpenJob }: {
             </div>
           </header>
           {role.stories.map((story) => (
-            <StoryCard key={story.id} story={story} token={token} onArchived={() => void refetch()} />
+            <StoryCard key={story.id} story={story} token={token} onChanged={() => void refetch()} />
           ))}
         </section>
       ))}
@@ -284,7 +273,7 @@ export function ReservoirProfile({ token, applications, onOpenJob }: {
             </div>
           </header>
           {profile.highlights.map((story) => (
-            <StoryCard key={story.id} story={story} token={token} onArchived={() => void refetch()} />
+            <StoryCard key={story.id} story={story} token={token} onChanged={() => void refetch()} />
           ))}
         </section>
       )}

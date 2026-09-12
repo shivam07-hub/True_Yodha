@@ -3,7 +3,7 @@
 The mit20 case (69 fragmented role rows) proved deterministic `reconcile_role`
 cannot see that "I&D India Sales Manager" and "GTM BD Manager, GCC Growth" are
 one job — that needs world knowledge + date reasoning. This module is the
-productized version of that hand-run, mirroring `story_dedup`'s two-stage shape:
+productized version of that hand-run, the same two-stage shape `story_identity` uses for stories:
 
   1. deterministic candidate pairs — same company family OR same-kind roles with
      overlapping date windows (pure, no LLM, capped per run)

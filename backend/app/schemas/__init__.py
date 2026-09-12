@@ -95,7 +95,6 @@ from app.schemas.jobs import (
     SkillCountItem,
     SkillGapItem,
     SkillGapResponse,
-    StaleApplicationItem,
     UserSkillDemandItem,
     UserSkillDemandResponse,
 )
@@ -154,7 +153,7 @@ __all__ = [
     "AgentPickItem", "AgentPicksResponse",
     "ApplicationStatusUpdate", "ApplicationResponse", "ApplyIntentRequest", "JobLivenessResponse", "ApplicationReviewRequest", "ApplicationReviewResponse", "CVBadge",
     "CompanyJobCardItem", "CompanyJobsResponse",
-    "CompanyPageResponse", "CompanyReviewItem", "PostingNoteItem", "StaleApplicationItem",
+    "CompanyPageResponse", "CompanyReviewItem", "PostingNoteItem",
     "RefreshTicketResponse", "RefreshStateResponse",
     "JobPathTargetInput", "JobPathTargetsRequest", "JobPathSkillTarget",
     "JobPathMilestoneUpdate", "JobPathMilestoneResponse", "JobPathResponse",

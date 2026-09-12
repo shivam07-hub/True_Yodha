@@ -1,0 +1,154 @@
+/* Stories review space — the duplicate questions, one at a time.
+   Two columns: the standing count, then the question being asked. Collapses to
+   one column at 640 (the rail becomes a header row, since counts read fine
+   inline and a 90px column does not). */
+
+.tm-sri {
+  display: grid;
+  grid-template-columns: minmax(0, 150px) minmax(0, 1fr);
+  gap: 16px;
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius);
+  background: var(--tm-bg-inset);
+  padding: 14px 16px;
+  margin: 0 0 16px;
+}
+
+/* ── the rail ─────────────────────────────────────────────────────────── */
+
+.tm-sri-rail {
+  border-right: 1px solid var(--tm-border);
+  padding-right: 14px;
+}
+.tm-sri-rail-head {
+  margin: 0 0 6px;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+.tm-sri-rail-head.done { margin-top: 14px; }
+
+.tm-sri-count {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: var(--tm-fs-ui-sm);
+  color: var(--tm-text-muted);
+}
+.tm-sri-count.live { color: var(--tm-text); }
+.tm-sri-n { font-family: var(--tm-font-mono); }
+.tm-sri-count.live .tm-sri-n { color: var(--tm-interactive); }
+
+/* ── the question ─────────────────────────────────────────────────────── */
+
+.tm-sri-q {
+  margin: 0;
+  font-size: var(--tm-fs-ui-lg);
+  font-weight: 500;
+  color: var(--tm-text);
+}
+.tm-sri-of {
+  margin: 2px 0 10px;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  color: var(--tm-text-faint);
+}
+
+.tm-sri-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.tm-sri-side {
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius-sm);
+  padding: 10px 12px;
+  background: var(--tm-bg);
+}
+.tm-sri-side-title {
+  margin: 0 0 3px;
+  font-size: var(--tm-fs-ui);
+  font-weight: 500;
+  color: var(--tm-text);
+}
+.tm-sri-side-role {
+  margin: 0;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  color: var(--tm-text-faint);
+}
+.tm-sri-side-line {
+  margin: 6px 0 0;
+  font-size: var(--tm-fs-ui-sm);
+  line-height: 1.45;
+  color: var(--tm-text-muted);
+}
+
+.tm-sri-rule {
+  margin: 0 0 10px;
+  font-size: var(--tm-fs-ui-sm);
+  line-height: 1.45;
+  color: var(--tm-text-muted);
+}
+
+.tm-sri-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.tm-sri-clear {
+  margin: 0;
+  font-size: var(--tm-fs-ui-sm);
+  color: var(--tm-text-muted);
+}
+.tm-sri-err {
+  margin: 8px 0 0;
+  font-size: var(--tm-fs-ui-sm);
+  color: var(--tm-danger-text);
+}
+
+/* ── what Myro already did ────────────────────────────────────────────── */
+
+.tm-sri-folds {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--tm-border);
+}
+.tm-sri-folds-head {
+  margin: 0 0 6px;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+.tm-sri-fold {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 4px;
+  font-size: var(--tm-fs-ui-sm);
+  color: var(--tm-text-muted);
+}
+.tm-sri-fold-text b { font-weight: 500; color: var(--tm-text); }
+
+@media (max-width: 640px) {
+  .tm-sri { grid-template-columns: minmax(0, 1fr); }
+  .tm-sri-rail {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    border-right: none;
+    border-bottom: 1px solid var(--tm-border);
+    padding: 0 0 10px;
+  }
+  .tm-sri-rail-head, .tm-sri-rail-head.done { margin: 0; align-self: center; }
+  .tm-sri-count { margin: 0; gap: 6px; }
+}

@@ -216,6 +216,53 @@ def test_direct_sso_usage_stamp_is_queued_after_the_response(monkeypatch):
     assert touched == ["seat1"]
 
 
+def test_a_new_account_is_seeded_after_the_response_and_first(monkeypatch):
+    """The profile seed used to run inline on the new-account path, before the
+    partner got a url. It now runs after the response, ahead of the telemetry —
+    the user reaches post-signin seconds later and should find their row."""
+    order: list[str] = []
+    background_tasks = BackgroundTasks()
+    repo = SimpleNamespace(touch_sso=lambda link_id: order.append(f"touch:{link_id}"))
+    credential = PartnerCredential(
+        key_id="k1", partner_id="p1", slug="acme", name="Acme",
+        scopes=frozenset({"sso"}),
+    )
+
+    monkeypatch.setattr(partner_sso_router, "get_supabase_admin", lambda: SimpleNamespace())
+    monkeypatch.setattr(partner_sso_router, "PartnersRepository", lambda _admin: repo)
+    monkeypatch.setattr(
+        partner_sso_router, "PartnerUsageRepository",
+        lambda _admin: SimpleNamespace(record=lambda **_kw: order.append("meter")),
+    )
+    monkeypatch.setattr(
+        partner_sso_router, "ensure_user_provisioned",
+        lambda user_id, email, full_name: order.append(f"seed:{user_id}:{full_name}"),
+    )
+    monkeypatch.setattr(
+        partner_sso_router.partner_sso,
+        "start_session",
+        lambda *_args, **_kwargs: SsoOutcome(
+            mode="direct",
+            login_url="https://auth.example/verify",
+            connect_url=None,
+            user_ref="seat1",
+            message="Account created and linked.",
+            provision=("u1", "user@example.com", "Ada"),
+        ),
+    )
+
+    response = partner_sso_router.create_sso_session(
+        SsoSessionRequest(external_id="ext-1", email="user@example.com"),
+        background_tasks,
+        credential,
+    )
+
+    assert response.login_url == "https://auth.example/verify"
+    assert order == []              # nothing ran before the partner had its url
+    asyncio.run(background_tasks())
+    assert order == ["seed:u1:Ada", "touch:seat1", "meter"]
+
+
 def test_every_partner_route_requires_a_scope():
     """A new route that forgets `require_scope` is a cross-tenant read waiting to
     happen. Assert the dependency is present on all of them."""

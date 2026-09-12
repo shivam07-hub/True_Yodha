@@ -274,7 +274,7 @@ def test_profile_endpoint_grouping():
                 "date_label": "", "location": "", "status": "active", "created_at": "2026-01-01"}],
         stories=[{"id": "s1", "role_id": "r1", "kind": "project", "title": "Pipeline",
                   "narrative": {"result": "50+ reqs"}, "metrics": [], "skills": ["GTM"], "status": "active"}],
-        pointers=[{"story_id": "s1", "text": "Pointer.", "is_canonical": True}],
+        pointers=[{"id": "p1", "story_id": "s1", "text": "Pointer.", "is_canonical": True}],
         pending=1,
     )
     _override(reservoir=reservoir)
@@ -326,7 +326,7 @@ def test_project_endpoint_writes_deterministic_version(monkeypatch):
         stories=[{"id": "s1", "role_id": "r1", "kind": "project", "title": "Pipeline",
                   "narrative": {}, "metrics": [{"value": "50+", "what": "reqs"}],
                   "skills": ["GTM"], "status": "active"}],
-        pointers=[{"story_id": "s1", "text": "Generated 50+ inbound requirements.", "is_canonical": True}],
+        pointers=[{"id": "p1", "story_id": "s1", "text": "Generated 50+ inbound requirements.", "is_canonical": True}],
     )
     reservoir.embeddings = [{"id": "s1", "embedding": [1.0, 0.0]}]
     cv_repo = _FakeCvRepo(baseline={"id": 7, "cv_structured": {"summary": "S", "contact": {"name": "N"}}})
