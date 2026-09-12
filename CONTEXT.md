@@ -586,7 +586,7 @@ The consolidation spine of the CV knowledge/inflow layer (migration `20260711h`)
 
 **Policy (2026-07-11, Shivam):** dump extraction **auto-accepts** into the reservoir — the user curates after (archive-not-delete). This supersedes the 2026-06-24 "every inflow user-confirmed" rule for the dump flow.
 
-Surfaces: `/cv?view=stories` (Stories mode pill on the CV workspace) — profile + dump panel + per-job "Tailor for job". Endpoints: `POST /cv/reservoir/ingest`, `GET /cv/reservoir/profile`, `PATCH /cv/reservoir/stories/{id}`, `POST /cv/reservoir/project`.
+Surfaces: `/cv?view=stories` (Stories mode pill on the CV workspace) — profile + dump panel + the **review space** (both duplicate queues, one question at a time, and every fold Myro made with an Undo) + the **phrasing drawer** on a story card ("said N ways": which line leads, and dropping a weak one) + per-job "Tailor for job". Endpoints: `POST /cv/reservoir/ingest`, `GET /cv/reservoir/profile`, `PATCH /cv/reservoir/stories/{id}`, `POST /cv/reservoir/project`, `GET /cv/reservoir/review`, `POST /cv/reservoir/review/stories[/undo]`, `POST /cv/reservoir/phrasings/{id}/promote|drop`.
 
 ---
 
