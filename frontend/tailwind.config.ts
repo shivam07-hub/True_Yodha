@@ -24,8 +24,8 @@ const config: Config = {
     },
     extend: {
       fontFamily: {
-        sans: ["var(--font-sans)", "var(--tm-font-sans)", "system-ui", "sans-serif"],
-        display: ["var(--tm-font-display)", "var(--font-sans)", "system-ui", "sans-serif"],
+        sans: ["var(--tm-font-sans)", "system-ui", "sans-serif"],
+        display: ["var(--tm-font-display)", "var(--tm-font-sans)", "system-ui", "sans-serif"],
         mono: ["var(--tm-font-mono)", "ui-monospace", "monospace"],
       },
       fontSize: {

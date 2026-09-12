@@ -147,15 +147,27 @@ test("each surface keeps card above page, and text legible against its own page"
   }
 })
 
-test("layout follows the OS surface by default and uses Space Grotesk (Inter fallback)", () => {
+test("layout follows the OS surface by default and uses the platform stack", () => {
   const layout = read("app/layout.tsx")
+  const tokens = read("app/design-tokens.css")
 
-  // Space Grotesk is the core family site-wide; Inter stays in the fallback
-  // stack so text never disappears if Grotesk fails to load.
-  assert.match(layout, /Space_Grotesk/)
-  assert.match(layout, /Inter/)
+  // Product UI is system-ui at every width. Grotesk/Inter are gone.
+  // Newsreader stays for reading; Geist stays on the CV sheet only.
+  assert.doesNotMatch(layout, /Space_Grotesk/)
+  assert.doesNotMatch(layout, /^import .+ from "next\/font\/google"/m)
   assert.doesNotMatch(layout, /Plus_Jakarta_Sans/)
   assert.doesNotMatch(layout, /Source_Serif_4/)
+  assert.match(layout, /newsreader/)
+  assert.match(tokens, /--tm-font-sans:\s*var\(--tm-font-sans-phone\)/)
+  assert.match(tokens, /--tm-fs-body:\s*0\.875rem/)
+  assert.match(tokens, /--tm-fs-caption:\s*0\.75rem/)
+  assert.match(tokens, /--tm-fs-heading:\s*1\.125rem/)
+  assert.match(tokens, /--tm-fs-title:\s*1\.5rem/)
+  assert.match(tokens, /--tm-fs-display:\s*2rem/)
+  assert.match(tokens, /--tm-card-pad:\s*16px/)
+  assert.match(tokens, /--tm-card-gap:\s*8px/)
+  assert.match(tokens, /--tm-feed-col:\s*732px/)
+  assert.match(tokens, /--tm-workspace-rail:\s*360px/)
   // SSR ships data-surface="light" as the no-JS fallback, but the init script
   // resolves a no-pref visitor to their OS theme (prefers-color-scheme), which
   // MUST match use-surface.ts's "system" default.
@@ -169,6 +181,7 @@ test("global rhythm exposes separate desktop and phone contracts", () => {
   const publicNav = read("components/public/public-nav.css")
 
   assert.match(tokens, /--tm-page-px:\s*32px/)
+  assert.match(tokens, /--tm-page-py:\s*32px/)
   assert.match(tokens, /--tm-mobile-page-px:\s*16px/)
   assert.match(tokens, /--tm-desktop-nav-h:\s*60px/)
   assert.match(tokens, /--tm-mobile-topbar-h:\s*56px/)

@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next"
-import { Inter, Space_Grotesk } from "next/font/google"
 import localFont from "next/font/local"
 import { headers } from "next/headers"
 import Script from "next/script"
@@ -10,26 +9,9 @@ import "./globals.css"
 // AuthedTopStrip renders on both the app shell and the public bar's authed view.
 import "@/components/nav/nav.css"
 
-// Space Grotesk is the core UI family site-wide (--tm-font-sans). Inter is kept
-// loaded purely as the fallback in the token stack so text survives if Grotesk
-// fails. The landing imported Grotesk locally before — now it is global so the
-// public surface and the authed app share one type world.
-const grotesk = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-grotesk",
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-})
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-sans",
-  weight: ["400", "500", "600", "700", "800"],
-})
-
+// Product UI is the platform stack (--tm-font-sans). No webfont on chrome.
 // Editorial serif reserved for long-form READING surfaces only (newsletter
-// article prose + headline). Exposed as --font-newsreader → --tm-font-reading.
-// Grotesk stays the UI family; this never touches app chrome.
+// article prose + audit artifact). Exposed as --font-newsreader → --tm-font-reading.
 //
 // Self-hosted, NOT next/font/google. Newsreader is absent from Next's bundled
 // Capsize metrics DB (14.2.35), and next/font/google downloads the file list
@@ -125,7 +107,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
-      className={`${grotesk.variable} ${inter.variable} ${newsreader.variable}`}
+      className={newsreader.variable}
       data-accent="signal"
       data-surface="light"
       suppressHydrationWarning

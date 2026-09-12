@@ -31,7 +31,7 @@ slop signal is *density*, not presence.
 | # | Tell | Why we keep it |
 |---|---|---|
 | 2 | Lucide icons | 57 files deep. Swapping icon sets is not a differentiator; **`strokeWidth={1.5}`** and never-decorative usage is. |
-| 10 | Inter / Geist / Space Grotesk | We ship **all three of the named faces** (Space Grotesk + Inter + JetBrains Mono). This is our largest single tell. Mitigation is *setting*, not swapping: 5-step scale, no 700+, no italics, mono only on numerals. Revisit the display face when the brand does — not per-component. |
+| 10 | Inter / Geist / Space Grotesk | **Paid down 2026-09-12.** Product UI is the platform stack at every width (`--tm-font-sans-phone`). Grotesk and Inter unloaded. Geist remains on the CV sheet/PDF only — a document, not chrome. Mitigation for the leftover: 6-rung scale (12/14/18/24/32), no 700+, no italics, mono only on numerals. |
 | 19 | Soft corner radius | Ours is **4/6/8/10px** — hard, terminal, not the 16–24px pillow. Already the counter-move. |
 | 28 | Hover animations | The Four-Signal Affordance Rule *requires* a hover state. Slop is hover on non-interactive things. Keep, and keep it 200ms + no transform. |
 | 31 | Light field (dawn) | Dark already owns a starfield. Light had none, so the two surfaces were a product and a photocopy. The bloom is pointer-repelled — it sits where you are not looking — which is information, not a corner orb. Spent the neon-closed slot **2026-08-30** (FIELD1). |
