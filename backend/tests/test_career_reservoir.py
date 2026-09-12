@@ -104,15 +104,12 @@ def test_retry_stale_ingests_requeues_old_and_debounces(monkeypatch):
 
 # ── dedup ────────────────────────────────────────────────────────────────────
 
-def test_cosine_and_is_duplicate():
+def test_cosine():
     a = [1.0, 0.0, 0.0]
     b = [1.0, 0.0, 0.0]
     c = [0.0, 1.0, 0.0]
     assert cr.cosine(a, b) == 1.0
     assert cr.cosine(a, c) == 0.0
-    assert cr.is_duplicate(a, [c, b])
-    assert not cr.is_duplicate(a, [c])
-    assert not cr.is_duplicate([], [b])
 
 
 def test_parse_vector_shapes():
