@@ -1725,6 +1725,42 @@ process, so an in-process lane cap would reserve nothing for the API.
   that window's pg_stat_statements delta. In between → inconclusive; run a
   second week before deciding.
 
+### Control week — started 2026-09-12 09:58 UTC
+
+Ship verified before starting the clock: `origin/main` is `25440fa0` (PR #324)
+and contains `6f75ebf7`, `7fd040c9`, `1361683f`, `82a32e57`; prod deployment
+`d26eb294` logged "Application startup complete" at 09:52:45 UTC.
+
+**Window: 2026-09-12 09:58 → 2026-09-19 09:58 UTC. The verifier is untouched.**
+
+| T0 counter | value |
+|---|---|
+| `notices` · `slow_200:capacity_queue` | **2,681** |
+| `notices` · `capacity_503:upstream.read_timeout` | **41** |
+| `notices` · `slow_200:reads_over_budget` | **112** |
+| `claim_verify_targets` | 4,380 calls · 12,465,876ms total · 2,846ms mean |
+| `listing_close_events` | 11,294 total · 1,362 in the prior 7 days (~195/day) |
+
+`pg_stat_statements` has not been reset since 2026-07-12, so every number from
+it is cumulative — take deltas, never the raw total (that mistake is in "What I
+got wrong", below).
+
+**The restart rule.** This window measures the post-ship system with the
+verifier unchanged. If any latency-affecting change reaches `main` before
+09-19, the control week **restarts** — otherwise its effect is credited to the
+verifier in week 2. Doc-only commits do not restart it; `origin/Develop` was 2
+commits ahead at T0 and both touch `CONTEXT.md` only.
+
+**Also observed this window, as observations and not changes:** the first live
+`fanout.slow label=home.bootstrap` totals, against the projection of p90 toward
+~3.3s from 10,098ms; and the first `metric partner_sso.slow` lines, which name
+the hop in the unexplained 1.9-5.7s returning-user path.
+
+**A verdict is possible before week 2 even begins.** If `capacity_queue` per day
+falls sharply during the control week itself — with the verifier untouched —
+then the queue was largely our own slow routes, the 8-section /home bundle and
+SSO, and not the verifier. The switch week would then only have to confirm it.
+
 ### What I got wrong in this pass
 
 - Called SSO latency "upstream GoTrue" from a `reads=` counter that counts
