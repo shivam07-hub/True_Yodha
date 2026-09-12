@@ -7,12 +7,15 @@ productized version of that hand-run, the same two-stage shape `story_identity` 
 
   1. deterministic candidate pairs — same company family OR same-kind roles with
      overlapping date windows (pure, no LLM, capped per run)
-  2. ONE batched JUDGMENT-lane call per run → per-pair verdict:
-       high      → auto-fold (stories move to the keep role; dup archives —
-                   archive-only, restorable in Stories curation)
-       maybe     → recorded as `proposed` → a Stories-tab merge card; the USER
-                   rules
+  2. batched JUDGMENT-lane calls → per-pair verdict:
+       high      → recorded as `proposed`. A role fold writes no receipt, so a
+       maybe       wrong one cannot be taken back; the USER rules on both.
        different → recorded so the pair is never re-judged
+       no answer → recorded as NOTHING: the pair is judged again next run
+
+Only the user's own ruling folds a role (`apply_fold`, from the merge-verdict
+endpoint). Give roles the receipt + undo that `story_identity_fold` has for
+stories and a confident judge can fold again.
 
 A HUMAN ruling is LAW (`role_merge_verdicts.decided_by='user'`) — decided pairs
 are excluded from candidates forever. Labels: the kept row's company/title stay
@@ -20,8 +23,8 @@ EXACTLY as extracted (the user's own words); the ONE deterministic touch is
 widening `date_label` to the union of merged periods. No LLM-authored labels in
 the reservoir (JD-aligned label framing lives in the tailoring layer only).
 
-Judge = `get_judgment_provider()` (no-cheap-models law); fail-soft = keep
-separate. Pair-text carries company + title + dates + story titles — a starved
+Judge = `get_judgment_provider()` (no-cheap-models law); fail-soft = decide
+nothing. Pair-text carries company + title + dates + story titles — a starved
 judge returns all-different (Lane A lesson).
 """
 from __future__ import annotations
@@ -34,9 +37,16 @@ from app.services.llm_provider import LLMProvider, LLMProviderError, get_judgmen
 
 logger = logging.getLogger("myro.role_dedup")
 
-MAX_PAIRS_PER_RUN = 24     # one batched call; sweeps converge across runs
+PAIRS_PER_CALL = 12        # one batched judge call
+MAX_CALLS_PER_RUN = 4      # a fragmented history converges across runs
+MAX_PAIRS_PER_RUN = PAIRS_PER_CALL * MAX_CALLS_PER_RUN
 SWEEP_MIN_ROLES = 12       # lazy Stories-visit sweep fires above this
-_MAX_JUDGE_TOKENS = 1200
+# The judgment lane leads with a REASONING model: it thinks in prose before it
+# answers, and a budget that runs out mid-thought returns no JSON at all. A
+# fixed 1200 for up to 24 pairs starved every call this module ever made — 47
+# verdicts, all "different", zero folds. The budget scales with the batch.
+_JUDGE_TOKENS_PER_PAIR = 1000
+_MIN_JUDGE_TOKENS = 1200
 _STORY_TITLES_PER_ROLE = 3
 
 _JUDGE_SYSTEM = (
@@ -157,11 +167,13 @@ def build_judge_messages(pair_texts: list[tuple[str, str]]) -> list[dict[str, st
     ]
 
 
-def parse_judge(raw: str, n: int) -> list[str]:
-    """Per-pair verdicts, defaulting 'different' on anything malformed."""
+def parse_judge(raw: str, n: int) -> list[str | None]:
+    """Per-pair verdicts. None where the answer is missing or malformed — the
+    pair is judged again next run, never stamped with a guess. Defaulting to
+    'different' is how 47 unanswered pairs became 47 permanent verdicts."""
     import json
 
-    verdicts = ["different"] * n
+    verdicts: list[str | None] = [None] * n
     text = (raw or "").strip()
     start, end = text.find("["), text.rfind("]")
     if start == -1 or end <= start:
@@ -209,15 +221,23 @@ def widened_date_label(keep_label: str, dup_label: str) -> str | None:
 
 # ── judge (batched, fail-soft) ───────────────────────────────────────────────
 
-async def judge_role_pairs(pair_texts: list[tuple[str, str]], provider: LLMProvider) -> list[str]:
-    """One batched call. Provider failure → all 'different' (fold nothing)."""
+async def judge_role_pairs(pair_texts: list[tuple[str, str]], provider: LLMProvider) -> list[str | None]:
+    """One batched call. No verdict is the honest answer to a judge that did not
+    answer — a failure decides nothing rather than recording 'different', which
+    would bar the pair from ever being asked again."""
     if not pair_texts:
         return []
     try:
-        raw = await provider.complete(build_judge_messages(pair_texts), max_tokens=_MAX_JUDGE_TOKENS)
+        budget = max(_MIN_JUDGE_TOKENS, len(pair_texts) * _JUDGE_TOKENS_PER_PAIR)
+        raw = await provider.complete(build_judge_messages(pair_texts), max_tokens=budget)
     except LLMProviderError:
-        logger.info("role_dedup: judge unavailable — treating %d pairs as different", len(pair_texts))
-        return ["different"] * len(pair_texts)
+        logger.info("metric role_dedup.judge_unavailable pairs=%d", len(pair_texts))
+        return [None] * len(pair_texts)
+    except Exception as exc:  # noqa: BLE001 — classified degradation, see the docstring
+        logger.info(
+            "metric role_dedup.judge_failed pairs=%d reason=%s", len(pair_texts), exc.__class__.__name__,
+        )
+        return [None] * len(pair_texts)
     return parse_judge(raw, len(pair_texts))
 
 
@@ -274,7 +294,7 @@ async def run_role_dedup(user_id: str, *, provider: LLMProvider | None = None) -
     decided = {pair_key(str(r["role_a"]), str(r["role_b"])) for r in decided_rows}
     pairs = candidate_pairs(roles, decided)
     if not pairs:
-        return {"judged": 0, "folded": 0, "proposed": 0}
+        return {"judged": 0, "proposed": 0, "kept": 0}
 
     story_rows = safe_read(
         db.table("career_stories").select("role_id, title").eq("user_id", user_id).eq("status", "active"),
@@ -289,27 +309,41 @@ async def run_role_dedup(user_id: str, *, provider: LLMProvider | None = None) -
         counts[rid] = counts.get(rid, 0) + 1
         titles_by_role.setdefault(rid, []).append(str(row.get("title") or ""))
 
-    pair_texts = [
-        (role_text(a, titles_by_role.get(str(a["id"]), [])),
-         role_text(b, titles_by_role.get(str(b["id"]), [])))
-        for a, b in pairs
-    ]
-    verdicts = await judge_role_pairs(pair_texts, provider or get_judgment_provider())
+    judge_with = provider or get_judgment_provider()
+    out = {"judged": 0, "proposed": 0, "kept": 0}
 
-    folded = proposed = 0
-    for (a, b), verdict in zip(pairs, verdicts):
-        if verdict == "high":
-            keep, dup = pick_keep(a, b, counts)
-            apply_fold(db, user_id, keep, dup)
-            record_verdict(db, user_id, str(a["id"]), str(b["id"]), "auto_folded")
-            folded += 1
-        elif verdict == "maybe":
-            record_verdict(db, user_id, str(a["id"]), str(b["id"]), "proposed")
-            proposed += 1
-        else:
-            record_verdict(db, user_id, str(a["id"]), str(b["id"]), "keep_separate")
+    for start in range(0, len(pairs), PAIRS_PER_CALL):
+        batch = pairs[start:start + PAIRS_PER_CALL]
+        pair_texts = [
+            (role_text(a, titles_by_role.get(str(a["id"]), [])),
+             role_text(b, titles_by_role.get(str(b["id"]), [])))
+            for a, b in batch
+        ]
+        verdicts = await judge_role_pairs(pair_texts, judge_with)
+        for (a, b), verdict in zip(batch, verdicts):
+            aid, bid = str(a["id"]), str(b["id"])
+            if verdict is None:
+                continue  # no verdict records nothing — asked again next run
+            out["judged"] += 1
+            # A confident verdict still goes to the user, because `apply_fold`
+            # writes no receipt: it moves every story under the dup and archives
+            # the row, and nothing records what moved, so a wrong fold cannot be
+            # taken back. Stories can auto-fold — story_identity_fold records the
+            # undo. Until roles have the same, the judge proposes.
+            #
+            # Earned, not cautious: the first run where the judge actually
+            # answered (2026-09-12, 44 of 46 pairs) returned exactly one "high",
+            # and it was wrong — a volunteer club folded into the degree it sat
+            # inside. One for one is not a record that buys the right to write.
+            if verdict in {"high", "maybe"}:
+                record_verdict(db, user_id, aid, bid, "proposed")
+                out["proposed"] += 1
+            else:
+                record_verdict(db, user_id, aid, bid, "keep_separate")
+                out["kept"] += 1
+
     logger.info(
-        "metric role_dedup.run user=%s judged=%d folded=%d proposed=%d",
-        user_id, len(pairs), folded, proposed,
+        "metric role_dedup.run user=%s candidates=%d judged=%d proposed=%d kept=%d",
+        user_id, len(pairs), out["judged"], out["proposed"], out["kept"],
     )
-    return {"judged": len(pairs), "folded": folded, "proposed": proposed}
+    return out

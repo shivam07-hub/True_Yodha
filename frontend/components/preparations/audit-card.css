@@ -11,8 +11,8 @@
 .awd-title {
   margin: 0;
   font-family: var(--tm-font-display);
-  font-size: var(--tm-fs-ui-lg);
-  font-weight: 500;
+  font-size: var(--tm-fs-heading);
+  font-weight: 600;
   color: var(--tm-text);
   letter-spacing: -0.01em;
 }
@@ -22,14 +22,14 @@
 .awd-state {
   margin: 0;
   font-family: var(--tm-font-sans);
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text);
 }
 
 .awd-line {
   margin: 0;
   font-family: var(--tm-font-sans);
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   line-height: 1.5;
   color: var(--tm-text-muted);
 }
@@ -44,7 +44,7 @@
 
 .awd-price {
   font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-ui);
+  font-size: var(--tm-fs-body);
   font-variant-numeric: tabular-nums;
   color: var(--tm-text);
 }
@@ -53,7 +53,7 @@
    about the queue, not a countdown being used to push. */
 .awd-slots {
   font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-micro);
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--tm-text-muted);
@@ -68,7 +68,7 @@
      target on a phone. */
   min-height: 24px;
   font-family: var(--tm-font-sans);
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   color: var(--tm-interactive-text);
   text-decoration: none;
   cursor: pointer;

@@ -7,9 +7,9 @@
   padding: 48px 24px;
   text-align: center;
   border: 1.5px dashed var(--tm-border);
-  border-radius: 14px;
+  border-radius: var(--tm-radius-card);
   color: var(--tm-text-muted);
-  font-size: 13.5px;
+  font-size: var(--tm-fs-body);
 }
 .prp-empty a { color: var(--tm-interactive-text); font-weight: 600; text-decoration: none; }
 
@@ -22,9 +22,9 @@
 }
 .prp-room-title { flex: 1; min-width: 0; }
 .prp-room-stage { position: relative; }
-.prp-room-role { font-size: 19px; font-weight: 700; color: var(--tm-text); margin: 0; }
+.prp-room-role { font-size: var(--tm-fs-heading); font-weight: 600; color: var(--tm-text); margin: 0; }
 .prp-room-company {
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   color: var(--tm-text-muted);
   margin: 2px 0 0;
   display: flex;
@@ -37,11 +37,11 @@
   align-items: center;
   gap: 6px;
   font-family: var(--tm-font-mono);
-  font-size: 11px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: var(--tm-button-radius);
   border: 1px solid var(--tm-border);
   background: transparent;
   color: var(--tm-text);
@@ -55,12 +55,12 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12.5px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
   padding: 8px 0 0;
 }
 .prp-stagecheck button {
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-interactive-text);
   background: none;
   border: none;
@@ -83,12 +83,12 @@
 }
 .prp-sec-label {
   font-family: var(--tm-font-mono);
-  font-size: 10.5px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--tm-text-faint);
 }
-.prp-sec-note { font-size: 12px; color: var(--tm-text-muted); }
+.prp-sec-note { font-size: var(--tm-fs-caption); color: var(--tm-text-muted); }
 .prp-sec-spacer { flex: 1; }
 
 /* coverage rows */
@@ -98,7 +98,7 @@
   gap: 10px;
   margin-bottom: 14px;
 }
-.prp-cov-num { font-family: var(--tm-font-mono); font-size: 13px; color: var(--tm-text); }
+.prp-cov-num { font-family: var(--tm-font-mono); font-size: var(--tm-fs-body); color: var(--tm-text); }
 .prp-cov-track {
   flex: 1;
   height: 4px;
@@ -120,23 +120,23 @@
   flex-shrink: 0;
   width: 18px;
   text-align: center;
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   line-height: 1.5;
 }
 .prp-req-marker.covered { color: var(--tm-success); }
 .prp-req-marker.weak { color: var(--tm-warning); }
 .prp-req-marker.gap { color: var(--tm-text-faint); }
 .prp-req-main { flex: 1; min-width: 0; }
-.prp-req-text { font-size: 13.5px; color: var(--tm-text); line-height: 1.45; }
+.prp-req-text { font-size: var(--tm-fs-body); color: var(--tm-text); line-height: 1.45; }
 .prp-req-story {
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
   margin-top: 3px;
   line-height: 1.4;
 }
 .prp-req-story b { color: var(--tm-text-muted); font-weight: 600; }
 .prp-req-action {
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   font-weight: 600;
   color: var(--tm-interactive-text);
   background: none;
@@ -145,7 +145,7 @@
   cursor: pointer;
   flex-shrink: 0;
 }
-.prp-req-banked { font-size: 11.5px; color: var(--tm-text-faint); flex-shrink: 0; }
+.prp-req-banked { font-size: var(--tm-fs-caption); color: var(--tm-text-faint); flex-shrink: 0; }
 
 /* gap answer composer */
 .prp-gapq { margin-top: 8px; }
@@ -154,7 +154,7 @@
   min-height: 88px;
   resize: vertical;
   font: inherit;
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   color: var(--tm-text);
   background: var(--tm-bg);
   border: 1px solid var(--tm-border);
@@ -168,16 +168,16 @@
   gap: 10px;
   margin-top: 8px;
 }
-.prp-gapq-hint { font-size: 11.5px; color: var(--tm-text-faint); flex: 1; }
+.prp-gapq-hint { font-size: var(--tm-fs-caption); color: var(--tm-text-faint); flex: 1; }
 
 .prp-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12.5px;
+  font-size: var(--tm-fs-caption);
   font-weight: 600;
   padding: 7px 14px;
-  border-radius: 999px;
+  border-radius: var(--tm-button-radius);
   border: 1px solid var(--tm-border);
   background: transparent;
   color: var(--tm-text);
@@ -221,10 +221,10 @@
   min-height: 28px;
   padding: 0 11px;
   border: 1px solid var(--tm-border);
-  border-radius: var(--tm-radius-pill);
+  border-radius: var(--tm-button-radius);
   background: transparent;
   color: var(--tm-text-muted);
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   font-weight: 600;
   cursor: pointer;
 }
@@ -242,12 +242,12 @@
   gap: 12px;
   border: 1px solid var(--tm-border-soft);
   border-radius: 12px;
-  padding: 14px 16px;
+  padding: var(--tm-card-pad);
   margin-bottom: 10px;
 }
-.prp-reh-q { font-size: 13.5px; font-weight: 600; color: var(--tm-text); line-height: 1.45; }
+.prp-reh-q { font-size: var(--tm-fs-body); font-weight: 600; color: var(--tm-text); line-height: 1.45; }
 .prp-reh-a {
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   color: var(--tm-text-muted);
   line-height: 1.5;
   margin-top: 8px;
@@ -255,13 +255,13 @@
   border-left: 2px solid var(--tm-border);
 }
 .prp-reh-a b { color: var(--tm-text); }
-.prp-reh-none { font-size: 12.5px; color: var(--tm-text-faint); margin-top: 8px; font-style: italic; }
+.prp-reh-none { font-size: var(--tm-fs-caption); color: var(--tm-text-faint); margin-top: 8px; }
 
 /* brief */
-.prp-brief-body { font-size: 13.5px; color: var(--tm-text); line-height: 1.55; }
+.prp-brief-body { font-size: var(--tm-fs-body); color: var(--tm-text); line-height: 1.55; }
 .prp-brief-body h4 {
   font-family: var(--tm-font-mono);
-  font-size: 10.5px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--tm-text-faint);
@@ -275,7 +275,7 @@
   border-left: 2px solid var(--tm-warning);
   background: color-mix(in srgb, var(--tm-warning) 6%, transparent);
   border-radius: 0 8px 8px 0;
-  font-size: 12.5px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
 }
 
@@ -284,36 +284,36 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 16px;
+  padding: var(--tm-card-pad);
   border: 1px solid var(--tm-border-soft);
   border-radius: 12px;
   background: color-mix(in srgb, var(--tm-interactive) 5%, transparent);
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   color: var(--tm-text);
   line-height: 1.5;
 }
 .prp-close-keep .n {
   font-family: var(--tm-font-mono);
-  font-size: 22px;
-  font-weight: 700;
+  font-size: var(--tm-fs-heading);
+  font-weight: 600;
   color: var(--tm-interactive-text);
 }
 .prp-offer-banner {
   text-align: center;
   padding: 22px 16px;
   border: 1px solid color-mix(in srgb, var(--tm-success) 40%, transparent);
-  border-radius: 14px;
+  border-radius: var(--tm-radius-card);
   background: color-mix(in srgb, var(--tm-success) 6%, transparent);
 }
-.prp-offer-banner .big { font-size: 17px; font-weight: 700; color: var(--tm-text); }
-.prp-offer-banner .sub { font-size: 13px; color: var(--tm-text-muted); margin-top: 4px; }
+.prp-offer-banner .big { font-size: var(--tm-fs-heading); font-weight: 600; color: var(--tm-text); }
+.prp-offer-banner .sub { font-size: var(--tm-fs-body); color: var(--tm-text-muted); margin-top: 4px; }
 
 /* footer strip: CV of record + notes */
 .prp-record {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12.5px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
   flex-wrap: wrap;
 }
@@ -323,8 +323,8 @@
   text-decoration: none;
 }
 
-.prp-err { font-size: 12.5px; color: var(--tm-danger); }
-.prp-quiet { font-size: 12.5px; color: var(--tm-text-faint); }
+.prp-err { font-size: var(--tm-fs-caption); color: var(--tm-danger); }
+.prp-quiet { font-size: var(--tm-fs-caption); color: var(--tm-text-faint); }
 
 /* drill embed wraps the up-* quiz kit — give it breathing room only */
 .prp-drill-wrap { margin-top: 4px; }
@@ -338,7 +338,7 @@
 }
 .prp-jd-summary {
   font-family: var(--tm-font-mono);
-  font-size: 10.5px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--tm-text-faint);
@@ -349,7 +349,7 @@
   gap: 8px;
 }
 .prp-jd-summary::-webkit-details-marker { display: none; }
-.prp-jd-summary::before { content: "▸"; font-size: 9px; }
+.prp-jd-summary::before { content: "▸"; font-size: var(--tm-fs-caption); }
 .prp-jd[open] .prp-jd-summary::before { content: "▾"; }
 .prp-jd-summary:hover { color: var(--tm-text-muted); }
 .prp-jd-body {
@@ -357,31 +357,27 @@
   max-height: 460px;
   overflow-y: auto;
   white-space: pre-wrap;
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   line-height: 1.55;
   color: var(--tm-text-muted);
 }
 
-/* ── the workspace: 1480 shell + 2:3 rail·room split (Prep only).
+/* ── the workspace: --tm-workspace-rail against a fluid room (Prep only).
    Default .mc-workspace is 248px and shared with Market/Collections.
    Unified Prep v2 (2b) puts the room IN this grid — there is no separate
    room page any more, so both routes render this one shape. ── */
 .prp-workspace-page {
-  padding: 32px 36px 64px;
-  max-width: 1480px;
+  padding: var(--tm-page-py) var(--tm-page-px) var(--tm-space-xl);
   margin: 0 auto;
 }
 /* 2b draws a fixed 360px rail against a fluid room, and the fixed part is
    load-bearing: the legend's four labels, the room rows' ellipsis and the four
    pips are all sized for that column. A fractional rail (this was 2fr·3fr) took
    ~550px at 1456 and stretched every one of them — the ladder read as a list
-   with a cramped room beside it. */
+   with a cramped room beside it. The 1180→300 squeeze is gone: 360 holds
+   until the 980 collapse. */
 .prp-workspace-page .mc-workspace {
-  grid-template-columns: 360px minmax(0, 1fr);
-}
-
-@media (max-width: 1180px) {
-  .prp-workspace-page .mc-workspace { grid-template-columns: 300px minmax(0, 1fr); }
+  grid-template-columns: var(--tm-workspace-rail) minmax(0, 1fr);
 }
 
 .prp-stand {
@@ -400,7 +396,7 @@
   align-items: center;
   gap: 4px;
   align-self: flex-start;
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   font-weight: 600;
   color: var(--tm-interactive-text);
   text-decoration: none;
@@ -425,17 +421,16 @@
    and each step's CTA becomes the full-width button a thumb expects. Same
    four steps, same order — that is the "one machine" claim. */
 @media (max-width: 640px) {
-  .prp-workspace-page { padding: 18px 14px 96px; }
+  .prp-workspace-page { padding: var(--tm-mobile-page-py) var(--tm-mobile-page-px) calc(var(--tm-space-xl) + var(--tm-mobile-bottomnav-h)); }
   /* The stage chip cannot sit beside a three-line role at 375. It drops under
      the title rather than pushing the head past the viewport. */
   .prp-room-head { flex-wrap: wrap; }
   .prp-room-stage { flex-basis: 100%; }
-  .prp-room-role { font-size: var(--tm-fs-prose); }
-  .prp-band { flex-wrap: wrap; gap: 14px; padding: 14px 16px; }
+  .prp-band { flex-wrap: wrap; gap: var(--tm-card-gap); padding: var(--tm-card-pad); }
   .prp-ring { width: 62px; height: 62px; }
   .prp-band-pips { width: 100%; justify-content: space-between; }
   .prp-band-pip { width: auto; flex: 1; }
-  .prp-step-head { flex-wrap: wrap; padding: 14px 16px; }
+  .prp-step-head { flex-wrap: wrap; padding: var(--tm-card-pad); }
   .prp-step-copy { min-width: 0; }
   .prp-step-cta {
     width: 100%;
@@ -443,7 +438,7 @@
     height: 44px;
     margin-top: 4px;
   }
-  .prp-step-panel { padding-left: 16px; padding-right: 16px; }
+  .prp-step-panel { padding-left: var(--tm-card-pad); padding-right: var(--tm-card-pad); }
   .prp-level { gap: 10px; }
   .prp-level-cta { min-height: 32px; }
 }
@@ -461,7 +456,7 @@
 
 .prp-plan-price {
   font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-micro);
+  font-size: var(--tm-fs-caption);
   font-variant-numeric: tabular-nums;
   color: var(--tm-text-muted);
 }
@@ -480,19 +475,19 @@
 .prp-rail-title { display: flex; align-items: baseline; gap: 8px; }
 .prp-rail-title h1 {
   margin: 0;
-  font-size: var(--tm-fs-prose);
+  font-size: var(--tm-fs-title);
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--tm-text);
 }
 .prp-rail-live {
   font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-note);
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-faint);
 }
 .prp-rail-sub {
   margin: 8px 0 0;
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   line-height: 1.5;
   color: var(--tm-text-muted);
 }
@@ -510,7 +505,7 @@
 }
 .prp-legend-label {
   font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-micro);
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--tm-text-faint);
@@ -545,7 +540,7 @@
 .prp-lroom-main { flex: 1; min-width: 0; }
 .prp-lroom-role {
   display: block;
-  font-size: var(--tm-fs-ui);
+  font-size: var(--tm-fs-body);
   font-weight: 600;
   color: var(--tm-text);
   overflow: hidden;
@@ -555,7 +550,7 @@
 .prp-lroom-meta {
   display: block;
   margin-top: 2px;
-  font-size: var(--tm-fs-note);
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -590,7 +585,7 @@
 .prp-across-spacer { flex: 1; }
 .prp-across-go {
   flex-shrink: 0;
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -605,7 +600,7 @@
   align-items: center;
   gap: 26px;
   margin-top: 18px;
-  padding: 18px 22px;
+  padding: var(--tm-card-pad);
   border-radius: var(--tm-radius-card);
   border: 1px solid var(--tm-int-border);
   background:
@@ -617,27 +612,27 @@
 .prp-ring-fill { stroke: var(--tm-interactive); }
 .prp-ring-text {
   font-family: var(--tm-font-mono);
-  font-size: 20px;
-  font-weight: 700;
+  font-size: var(--tm-fs-heading);
+  font-weight: 600;
   fill: var(--tm-text);
 }
 .prp-band-copy { flex: 1; min-width: 0; }
 .prp-band-kicker {
   font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-micro);
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--tm-text-faint);
 }
 .prp-band-line {
   margin-top: 5px;
-  font-size: var(--tm-fs-ui-lg);
+  font-size: var(--tm-fs-heading);
   font-weight: 600;
   color: var(--tm-text);
 }
 .prp-band-sub {
   margin-top: 5px;
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
 }
 .prp-band-sub b { color: var(--tm-text); font-weight: 600; }
@@ -656,7 +651,7 @@
   justify-content: center;
   border-radius: var(--tm-radius-lg);
   font-family: var(--tm-font-mono);
-  font-weight: 700;
+  font-weight: 600;
   border: 1px dashed var(--tm-border);
   color: var(--tm-text-faint);
   background: transparent;
@@ -678,7 +673,7 @@
   background: var(--tm-int-bg-wash);
 }
 .prp-band-pip-l {
-  font-size: var(--tm-fs-micro);
+  font-size: var(--tm-fs-caption);
   text-align: center;
   line-height: 1.25;
   color: var(--tm-text-faint);
@@ -690,8 +685,8 @@
 .prp-steps {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 20px;
+  gap: var(--tm-card-gap);
+  margin-top: var(--tm-space-md);
 }
 .prp-step {
   border-radius: var(--tm-radius-card);
@@ -710,7 +705,7 @@
   align-items: center;
   gap: 14px;
   width: 100%;
-  padding: 18px 22px;
+  padding: var(--tm-card-pad);
   border: 0;
   background: none;
   color: inherit;
@@ -722,14 +717,14 @@
 .prp-step-copy { flex: 1; min-width: 200px; }
 .prp-step-title {
   display: block;
-  font-size: var(--tm-fs-ui-lg);
+  font-size: var(--tm-fs-heading);
   font-weight: 600;
   color: var(--tm-text);
 }
 .prp-step-sub {
   display: block;
   margin-top: 3px;
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
 }
 .prp-step-state {
@@ -747,10 +742,10 @@
   flex-shrink: 0;
   height: 36px;
   padding: 0 17px;
-  border-radius: var(--tm-radius-pill);
+  border-radius: var(--tm-button-radius);
   border: 1px solid var(--tm-border);
   color: var(--tm-text-muted);
-  font-size: var(--tm-fs-ui);
+  font-size: var(--tm-fs-body);
   font-weight: 600;
 }
 .prp-step.is-current .prp-step-cta {
@@ -759,7 +754,7 @@
   color: var(--tm-interactive-fg);
 }
 .prp-step-panel {
-  padding: 0 22px 18px;
+  padding: 0 var(--tm-card-pad) var(--tm-card-pad);
   border-top: 1px solid var(--tm-border-soft);
   margin: 0 0 0;
   padding-top: 14px;
@@ -777,14 +772,14 @@
 .prp-level-copy { flex: 1; min-width: 150px; }
 .prp-level-name {
   display: block;
-  font-size: var(--tm-fs-ui);
+  font-size: var(--tm-fs-body);
   font-weight: 600;
   color: var(--tm-text);
 }
 .prp-level-state {
   display: block;
   margin-top: 2px;
-  font-size: var(--tm-fs-note);
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
 }
 .prp-level-rungs { display: flex; gap: 4px; }
@@ -796,8 +791,8 @@
   align-items: center;
   justify-content: center;
   font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-micro);
-  font-weight: 700;
+  font-size: var(--tm-fs-caption);
+  font-weight: 600;
   border: 1px dashed var(--tm-border);
   color: var(--tm-text-faint);
 }
@@ -821,7 +816,7 @@
   border-radius: var(--tm-radius-lg);
   background: var(--tm-interactive);
   color: var(--tm-interactive-fg);
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   font-weight: 600;
   text-decoration: none;
 }
@@ -834,7 +829,7 @@
    when a row has no drill behind it. */
 .prp-level-foot {
   margin: 4px 0 0;
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   line-height: 1.5;
   color: var(--tm-text-muted);
 }
@@ -854,7 +849,7 @@
   padding: 14px 18px;
   border-radius: var(--tm-radius-lg);
   border: 1px solid var(--tm-border-soft);
-  font-size: var(--tm-fs-ui);
+  font-size: var(--tm-fs-body);
   color: var(--tm-text-muted);
 }
 .prp-across b { color: var(--tm-text); font-weight: 600; }

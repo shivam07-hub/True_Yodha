@@ -33,17 +33,17 @@
   --lp-success:       var(--tm-success);
   --lp-warning:       var(--tm-warning);
 
-  /* Space Grotesk is global (--tm-font-sans); mono stays JetBrains on the
-     landing (loaded in app/page.tsx, the deliberate mono split). */
+  /* Product UI is the platform stack (--tm-font-sans). Mono follows the
+     same system face — JetBrains was a landing-only webfont split. */
   --lp-font: var(--tm-font-sans);
-  --lp-mono: var(--font-jbmono), "JetBrains Mono", "Geist Mono", ui-monospace, monospace;
+  --lp-mono: var(--tm-font-mono);
 
-  --lp-fs-hero:    56px;
-  --lp-fs-display: 36px;
-  --lp-fs-title:   24px;
-  --lp-fs-heading: 18px;
-  --lp-fs-body:    16px;
-  --lp-fs-meta:    13px;
+  --lp-fs-hero:    var(--tm-fs-hero);
+  --lp-fs-display: var(--tm-fs-display);
+  --lp-fs-title:   var(--tm-fs-title);
+  --lp-fs-heading: var(--tm-fs-heading);
+  --lp-fs-body:    var(--tm-fs-body);
+  --lp-fs-meta:    var(--tm-fs-caption);
 
   --lp-content-max: 1240px;
   --lp-page-px:     32px;

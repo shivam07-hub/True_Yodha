@@ -413,7 +413,11 @@ A headless engine (`createTaxonomy({ fetch })`, the `field-motion.ts` precedent)
 
 ## Skill Closeness
 
-**Two skills are close when real jobs ask for them together** — never when a taxonomy files them under the same heading. Learned from live jobs and counted across companies, so one employer's copy-pasted template cannot invent a bond (67.4% of raw bonds were exactly that). Refreshed per ingest beside the other Tier-0 snapshots.
+**Two skills are close when real jobs ask for them together** — never when a taxonomy files them under the same heading. `skill_closeness` (skill → its 20 closest, with lift, jobs and company count) is a Tier-0 snapshot on the shared lease, task `skill_closeness`, ~28.6s per ingest. 7,287 bonds across 1,122 skills.
+
+Counted **across companies**: a bond needs three or more employers and no single one supplying over half its jobs, because 67.4% of the raw bonds were one company's copy-pasted template. PostgreSQL's strongest bonds are MongoDB, NoSQL, Spring Boot, Kubernetes and Microservices — four different L2 clusters.
+
+It is a **pairwise relation, never a clustering.** Grouping skills into "kinds of work" was tried and fails the way grouping jobs does: Python, SQL, Java and Git hold the graph together because they belong to backend, data and ML at once, so the largest group swallowed 46% of every skill.
 
 Measured 2026-09-12: pairs jobs ask for together are **17.3× likelier than chance**, and **90.6% of them cross Lightcast L2 clusters**. Python's closest skills are Keras, Django, Flask, NumPy and Pandas — five different L2 clusters. Users' skills sit the same way: 10.9% of a person's own skill pairs are strong bonds, against 0.69% of all possible pairs.
 
@@ -421,7 +425,15 @@ Measured 2026-09-12: pairs jobs ask for together are **17.3× likelier than chan
 
 ## Family Profile
 
-A direction is a **named skill profile**, not a container of jobs: what it demands per seniority, its band, its characteristic skills, its open count. One Tier-0 snapshot answers every surface that used to scan `jobs` live (4.3s, and 2.8s × 3 on Career Path).
+A direction is a **named skill profile**, not a container of jobs: what it demands per seniority, its band membership, its characteristic skills, its open count.
+
+Two Tier-0 tables hold it — `role_family_scope` (family × seniority → job_count, the denominator every share is computed against) and `role_family_profile` (family × seniority × skill → `jobs_with_skill`, `jobs_must_have`, `weighted_demand`). **Counts, never ratios**, so a union of up to five families and any seniority band add up from the same rows: one grain answers "family", "families", and "family at this level". 1,465 scope rows, 124,229 profile rows, built inside `refresh_role_family_labels()`.
+
+`role_family_demand(families, seniority)` is the ONE reader. It replaced `role_family_market_skills` (4,311ms → **69ms** warm) and `role_family_band_market_skills` (2,833ms, three per Career Path load → **9ms**); `role_family_aspiration_skills` had no callers at all.
+
+**`is_primary` is not on this path** (SKILL_ENGINE Lock 4). On Stage A rows it is `required_level = 4` restated; on the 296,886 legacy enrichment rows it is a 94.7% constant. `jobs_must_have` counts the must-have zone instead. Dropping the constant moved 460 of Software Development's 2,096 skills from a level-3 target to level 2 — targets that existed only because the flag said so.
+
+**The target-level rule lives in `scoring.demand_rule` and nowhere else** — must-have in more than half the scope's jobs → 4, in at least one → 3, named at all → 2. It was implemented twice, and one copy disagreed with its own docstring.
 
 **Fit is always graded** (ADR-0022). A job belongs to every direction it fits, and nothing stores the single bucket a job or skill is in:
 
@@ -584,9 +596,13 @@ The consolidation spine of the CV knowledge/inflow layer (migration `20260711h`)
 
 **Story Identity** (`story_identity`, ADR-0021) — the ONE place "one achievement = one story" is enforced, for every inflow source. **Same achievement = the same work with the same outcome, said differently; a part of a larger piece of work is its own story.** Similarity only *nominates* (floor 0.60; employer family, nearest neighbour, role-less, or a shared title). Near-verbatim pairs fold unjudged; one batched strong judge rules `same` → fold, `part_of`/`unsure` → the user rules in the Stories review space, `different` → kept. A failed judge call records nothing. Every ruling lands in `story_merge_verdicts`; **a user ruling is law**, enforced inside `story_identity_fold` (SQL). A fold is archive-only, atomic, and undoable exactly (`moved.dup_added`). Runs after every ingest and lazily on a Stories visit. Pure rules: `story_identity_rules`.
 
+**Role Identity** (`role_dedup`, #38) — the same two-stage shape one level up, for the role CONTAINERS. Candidates are deterministic (same employer family, or same-kind roles whose date windows overlap); one batched strong judge rules per pair; rulings land in `role_merge_verdicts`. **Only the user's own ruling folds a role.** A confident judge records `proposed`, same as a hesitant one, because `apply_fold` writes no receipt — it moves every story under the dup and archives the row with nothing recording what moved, so a wrong role fold cannot be taken back the way a story fold can. Give roles the receipt + undo `story_identity_fold` has and a confident judge can fold again. Labels stay the user's own words; the one deterministic touch is widening `date_label` to the union of merged periods.
+
+**A judge that does not answer must decide nothing.** Both lanes read a missing or malformed verdict as `None` and record nothing, so the pair is asked again next run. `role_dedup` shipped with a fixed 1200-token budget for up to 24 pairs and a `parse_judge` that defaulted to `different`: the judgment lane leads with a reasoning model, every call ran out mid-thought, and 47 pairs were stamped `keep_separate` without ever being ruled on — invisibly, because a decided pair is never re-judged. Both budgets now scale with the batch (1000 tokens/pair, batches of 12). Cleared and re-judged 2026-09-12; the starved rows are kept in `role_merge_verdicts_starved_20260912`.
+
 **Policy (2026-07-11, Shivam):** dump extraction **auto-accepts** into the reservoir — the user curates after (archive-not-delete). This supersedes the 2026-06-24 "every inflow user-confirmed" rule for the dump flow.
 
-Surfaces: `/cv?view=stories` (Stories mode pill on the CV workspace) — profile + dump panel + per-job "Tailor for job". Endpoints: `POST /cv/reservoir/ingest`, `GET /cv/reservoir/profile`, `PATCH /cv/reservoir/stories/{id}`, `POST /cv/reservoir/project`.
+Surfaces: `/cv?view=stories` (Stories mode pill on the CV workspace) — profile + dump panel + the **review space** (both duplicate queues, one question at a time, and every fold Myro made with an Undo) + the **phrasing drawer** on a story card ("said N ways": which line leads, and dropping a weak one) + per-job "Tailor for job". Endpoints: `POST /cv/reservoir/ingest`, `GET /cv/reservoir/profile`, `PATCH /cv/reservoir/stories/{id}`, `POST /cv/reservoir/project`, `GET /cv/reservoir/review`, `POST /cv/reservoir/review/stories[/undo]`, `POST /cv/reservoir/phrasings/{id}/promote|drop`.
 
 ---
 

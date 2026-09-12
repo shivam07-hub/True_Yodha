@@ -1,17 +1,7 @@
 import type { Metadata, Viewport } from "next"
-import { JetBrains_Mono } from "next/font/google"
 import { LandingPage } from "@/components/public/landing-page"
 
 const BASE = "https://www.himyro.com"
-
-// Space Grotesk is loaded globally in app/layout.tsx now (--font-grotesk on
-// <html>), so the landing only needs to supply the mono used by --lp-mono.
-const jbMono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
-  variable: "--font-jbmono",
-  display: "swap",
-})
 
 const DESCRIPTION =
   "Upload your CV. Myro tracks MNC career pages in India, matches you to current openings, and helps you tailor your CV for the job."
@@ -67,7 +57,7 @@ export default function HomePage() {
         // eslint-disable-next-line react/no-danger
         dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
       />
-      <LandingPage fontClassName={jbMono.variable} />
+      <LandingPage />
     </>
   )
 }

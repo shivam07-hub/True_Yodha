@@ -30,7 +30,7 @@ import "@/components/public/landing/landing-motion.css"
  * dropzone plus two audience paths; the four-tab use-cases loop, live proof
  * and the commons strip sit below. One dropzone, one handoff to /cv-preview.
  */
-export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) {
+export function LandingPage() {
   const router = useRouter()
 
   // Already-signed-in users shouldn't land on the public marketing page.
@@ -62,7 +62,7 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
 
   return (
     <div
-      className={`tm-landing ${fontClassName}`.trim()}
+      className="tm-landing"
       data-scrolled={scrolled ? "true" : "false"}
     >
       <PublicTopNav active="home" showSignIn />

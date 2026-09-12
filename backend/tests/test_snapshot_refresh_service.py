@@ -47,6 +47,7 @@ def test_request_is_one_fast_persisted_rpc() -> None:
         search_refresh=lambda: {},
         role_family_refresh=lambda: {},
         company_directory_refresh=lambda: {},
+        skill_closeness_refresh=lambda: {},
     )
 
     assert service.request(trigger="batch-finalize", force=True) == db.requested
@@ -71,6 +72,7 @@ def test_one_refresh_failure_is_persisted_and_does_not_gate_the_others() -> None
         search_refresh=lambda: ran.append("job_search") or {"rows": 74379},
         role_family_refresh=lambda: ran.append("role_families") or {"families": 334},
         company_directory_refresh=lambda: ran.append("company_directory") or {"companies": 232},
+        skill_closeness_refresh=lambda: ran.append("skill_closeness") or {"rows": 7287},
     )
 
     service.process(

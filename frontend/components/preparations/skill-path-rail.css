@@ -10,7 +10,7 @@
 .prp-sk-kicker {
   margin: 0;
   font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-micro);
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--tm-text-faint);
@@ -29,7 +29,7 @@
 }
 .prp-sk-door {
   margin: 8px 0 0;
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
 }
 .prp-sk-radar {
   display: block;
@@ -55,7 +55,7 @@
 }
 .prp-sk-name {
   margin: 0;
-  font-size: var(--tm-fs-ui);
+  font-size: var(--tm-fs-body);
   font-weight: 600;
   color: var(--tm-text);
 }

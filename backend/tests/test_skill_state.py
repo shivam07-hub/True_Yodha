@@ -21,8 +21,23 @@ class _Repo:
     def get_user_proven_level_map(self, _user_id):
         return dict(self._proven)
 
-    def get_role_family_market(self, _families):
-        return self.market
+    def family_demand_rows(self, _families, *, seniority=None):
+        # The service builds the market from counts now (`scoring.demand_rule`).
+        # These fixtures still read as a market, so convert one back into the
+        # counts that produce it: must-have in 60 of 100 jobs -> target 4,
+        # 40 of 100 -> 3, named but never must-have -> 2, unnamed -> no target.
+        rows = []
+        for key in {*self.market.aspiration, *self.market.demand}:
+            level = self.market.aspiration.get(key)
+            must_have = {4: 60, 3: 40}.get(level or 0, 0)
+            rows.append({
+                "taxonomy_key": key,
+                "job_count": 100,
+                "jobs_must_have": must_have,
+                "jobs_with_skill": max(must_have, 1 if level else 0),
+                "weighted_demand": self.market.demand.get(key, 0),
+            })
+        return rows
 
 
 def _market(demand: dict[str, int], aspiration: dict[str, int] | None = None) -> RoleFamilyMarket:

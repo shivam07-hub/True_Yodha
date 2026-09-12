@@ -161,7 +161,7 @@ export function AccentField({
           color: "var(--tm-text-muted)",
           fontSize: 13,
           letterSpacing: "0.04em",
-          fontFamily: "var(--tm-font-sans, var(--font-sans), sans-serif)",
+          fontFamily: "var(--tm-font-sans, system-ui, sans-serif)",
           ...style,
         }}
       >

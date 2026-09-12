@@ -855,26 +855,8 @@
      on phones. (Pre-fix this block re-pinned dark values onto data-surface=light
      at <=768px, breaking light mode on mobile.) */
   :root {
-    /* Phone family swap (Shivam 2026-07-27). Everything reads --tm-font-sans,
-       so this one line moves the whole app to the platform stack at phone
-       widths while himyro.com keeps Space Grotesk. Deliberate — see
-       --tm-font-sans-phone in design-tokens.css for the accepted trade-off. */
-    --tm-font-sans: var(--tm-font-sans-phone);
-
-    --tm-fs-hero: 2.25rem;
-    --tm-lh-hero: 2.625rem;
-    --tm-fs-display: 1.75rem;
-    --tm-lh-display: 2.125rem;
-    --tm-fs-title: 1.375rem;
-    --tm-lh-title: 1.875rem;
-    --tm-fs-heading: 1.0625rem;
-    --tm-lh-heading: 1.5rem;
-    --tm-fs-body: 0.9375rem;
-    --tm-lh-body: 1.5rem;
-    --tm-fs-meta: 0.8125rem;
-    --tm-lh-meta: 1.25rem;
-    --tm-fs-caption: 0.6875rem;
-    --tm-lh-caption: 1rem;
+    /* Type rungs stay the six product sizes at every width. Only inset
+       tightens on phone — the face is already the platform stack. */
     --tm-page-px: var(--tm-mobile-page-px);
     --tm-page-py: var(--tm-mobile-page-py);
     --tm-section-gap: var(--tm-mobile-section-gap);

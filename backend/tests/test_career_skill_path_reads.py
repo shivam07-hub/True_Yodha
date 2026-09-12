@@ -35,20 +35,25 @@ SNAPSHOT = {
     "created_at": "2026-08-27T00:00:00Z",
 }
 
+# `role_family_demand` answers in COUNTS — the Family Profile snapshot shape.
+# `_market_reader` maps them onto the names the cards read, so these rows are
+# what the snapshot returns, not what `build_band` consumes.
+#   sql:    must-have in 80 of 100 -> target 4, and present beyond that (90 > 80)
+#   python: must-have in 40 of 100 -> target 3
 MARKET_ROWS = [
     {
         "taxonomy_key": "sql",
-        "skill_job_count": 90,
-        "band_job_count": 100,
-        "primary_job_count": 80,
-        "has_side_skill": False,
+        "jobs_with_skill": 90,
+        "jobs_must_have": 80,
+        "job_count": 100,
+        "weighted_demand": 320,
     },
     {
         "taxonomy_key": "python",
-        "skill_job_count": 60,
-        "band_job_count": 100,
-        "primary_job_count": 40,
-        "has_side_skill": True,
+        "jobs_with_skill": 60,
+        "jobs_must_have": 40,
+        "job_count": 100,
+        "weighted_demand": 200,
     },
 ]
 
@@ -175,7 +180,7 @@ def test_a_third_band_does_not_multiply_the_skill_reads() -> None:
             "differ only by seniority — union their demand and look the skills up once."
         )
     # One market read per band is the irreducible part: different seniority, different rows.
-    assert reads.count("rpc:role_family_band_market_skills") == 3
+    assert reads.count("rpc:role_family_demand") == 3
 
 
 def test_band_maps_stay_identical_after_the_collapse() -> None:

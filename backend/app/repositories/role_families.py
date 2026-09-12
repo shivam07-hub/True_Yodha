@@ -98,22 +98,3 @@ class RoleFamiliesRepository:
             {"p_family": family, "p_query": query, "p_limit": limit},
         ).execute()
         return response.data or []
-
-    def aspiration_skills(self, families: list[str]) -> dict[str, int]:
-        if not families:
-            return {}
-        rows = self._db.rpc(
-            "role_family_aspiration_skills", {"p_families": families}
-        ).execute().data or []
-        aspiration: dict[str, int] = {}
-        for row in rows:
-            key = str(row.get("taxonomy_key") or "").strip()
-            total = int(row.get("job_count") or 0)
-            primary_count = int(row.get("primary_job_count") or 0)
-            if not key or not total:
-                continue
-            if primary_count:
-                aspiration[key] = 4 if primary_count / total > 0.5 else 3
-            elif row.get("has_side_skill"):
-                aspiration[key] = 2
-        return aspiration

@@ -23,7 +23,7 @@ export default function OfflinePage() {
         padding: "40px 24px",
         textAlign: "center",
         fontFamily:
-          "var(--tm-font-sans, 'Space Grotesk', system-ui, -apple-system, sans-serif)",
+          "var(--tm-font-sans, system-ui, -apple-system, sans-serif)",
       }}
     >
       <style>{`

@@ -150,70 +150,55 @@
   --tm-tier-strong-border: var(--tm-success-border);
 
   /* ── Typography ────────────────────────────────────────────
-     Space Grotesk is the core family site-wide; --font-sans (Inter) stays in
-     the stack as the fallback so text never disappears if Grotesk fails to
-     load. Flip this ONE line to change the whole site's family (public + app). */
-  --tm-font-sans:     var(--font-grotesk), var(--font-sans), Inter, ui-sans-serif, system-ui, sans-serif;
+     Product UI is the platform stack at every width (grill 2026-09-12).
+     Space Grotesk + Inter were unloaded from layout.tsx — they were ANTI_SLOP
+     #10. There is no phone-only face: this stack IS --tm-font-sans.
+     Geist stays on the CV sheet/PDF only (cv-fonts.css), never here.
+     Newsreader stays for long-form READING only. */
+  --tm-font-sans:     -apple-system, BlinkMacSystemFont, "SF Pro Text",
+                      "SF Pro Display", system-ui, "Segoe UI", Roboto, sans-serif;
   --tm-font-display:  var(--tm-font-sans);
-  /* PHONE FAMILY (Shivam, 2026-07-27) — the platform stack, applied only at
-     phone widths by the @media block below. Chosen for small-size hinting in
-     dense rows; the mobile redesign (Jobs/Collections) already shipped on it
-     and was judged the standard. KNOWN, ACCEPTED COST: the app and himyro.com
-     read as different products in type. Do not "unify" this back to Grotesk
-     without asking — it is a decision, not drift. */
-  --tm-font-sans-phone: -apple-system, BlinkMacSystemFont, "SF Pro Text",
-                        "SF Pro Display", system-ui, "Segoe UI", Roboto, sans-serif;
-  --tm-font-mono:     "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
-  /* Editorial serif — long-form READING only (newsletter prose/headline). The
-     reading primitives below are deliberately reusable so the planned
-     site-wide readability pass can adopt them without redefining. */
+  --tm-font-mono:     ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+  /* Editorial serif — long-form READING only (newsletter prose, audit artifact).
+     Never app chrome. */
   --tm-font-reading:  var(--font-newsreader), Georgia, "Times New Roman", serif;
-  --tm-reading-measure: 68ch;       /* optimal line length for body prose */
+  --tm-reading-measure: 68ch;
 
-  --tm-fs-hero:       3.5rem;     /* 56px */
-  --tm-fs-display:    2.5rem;     /* 40px */
-  --tm-fs-title:      1.75rem;    /* 28px */
-  --tm-fs-heading:    1.25rem;    /* 20px */
-  --tm-fs-body:       1rem;       /* 16px */
-  --tm-fs-meta:       0.875rem;   /* 14px */
-  --tm-fs-caption:    0.75rem;    /* 12px */
-  /* The CV bullet — the largest body text in the product, two rungs above the
-     13.5px chrome around it. Aliased, not free-typed, so it rides the scale. */
-  --tm-fs-cv-line:    var(--tm-fs-body);
+  /* Six product rungs, Reddit live (r/popular 2026-09-12): 12 / 14 / 18 / 24 / 32.
+     Hero 48 is marketing-only. Weight: 400 body, 600 titles and buttons. */
+  --tm-fs-caption:    0.75rem;    /* 12px  — meta, labels, kickers */
+  --tm-fs-body:       0.875rem;   /* 14px  — app chrome and feed body */
+  --tm-fs-heading:    1.125rem;   /* 18px  — card titles */
+  --tm-fs-title:      1.5rem;     /* 24px  — page titles */
+  --tm-fs-display:    2rem;       /* 32px  — section display */
+  --tm-fs-hero:       3rem;       /* 48px  — marketing plane only */
+  --tm-fs-meta:       var(--tm-fs-body);
+  --tm-fs-reading:    1rem;       /* 16px  — Newsreader surfaces only */
+  /* CV workstation line — document size, not app body. The sheet itself
+     still declares Geist in cv-sheet.css. */
+  --tm-fs-cv-line:    var(--tm-fs-reading);
 
-  /* ── Dense UI scale (chrome, not prose) ────────────────────────
-     The seven rungs above are a PAGE scale — 56 → 12, jumping 25–40%
-     a step. Application chrome does not fit on it: a modal needs a
-     mono eyebrow, a source chip, a note, a pill, a button and the
-     sentence being confirmed, all legibly different, inside 10–21px.
-     Asked to hit that with `caption` and `meta` alone, every surface
-     free-typed instead — which is why the drift guard counts 1,500+
-     literal font-sizes across 88 files and the number only ever goes up.
-     A guard nobody can satisfy is a guard everyone raises the baseline on.
+  /* Legacy chrome names — aliases onto the six rungs, not extra sizes.
+     New CSS uses caption / body / heading / title / display. */
+  --tm-fs-micro:      var(--tm-fs-caption);
+  --tm-fs-note:       var(--tm-fs-caption);
+  --tm-fs-ui-sm:      var(--tm-fs-caption);
+  --tm-fs-ui:         var(--tm-fs-body);
+  --tm-fs-ui-lg:      var(--tm-fs-body);
+  --tm-fs-prose:      var(--tm-fs-reading);
+  --tm-fs-modal:      var(--tm-fs-heading);
+  --tm-fs-ask:        var(--tm-fs-title);
+  --tm-fs-numeral:    var(--tm-fs-display);
+  --tm-fs-stat:       var(--tm-fs-title);
+  --tm-fs-score:      var(--tm-fs-hero);
 
-     So: named rungs for the sizes the app actually uses, each with a job.
-     Use these for in-app chrome; keep the page scale for page type.
-     Adding a rung here is a design decision — free-typing 14.5px
-     because 14px "felt small" is not, and is what this replaces. */
-  --tm-fs-micro:      0.625rem;   /* 10px   — mono eyebrows, ribbon + tally counters, source chips */
-  --tm-fs-note:       0.719rem;   /* 11.5px — provenance notes, drop-notes, cost captions */
-  --tm-fs-ui-sm:      0.781rem;   /* 12.5px — pills, chips, secondary controls */
-  --tm-fs-ui:         0.844rem;   /* 13.5px — buttons, bubbles, inputs, dense body */
-  --tm-fs-ui-lg:      0.938rem;   /* 15px   — one claim being judged; bigger than the chrome around it */
-  --tm-fs-prose:      1.063rem;   /* 17px   — the thing being signed off. The largest text in a modal. */
-  --tm-fs-modal:      1.188rem;   /* 19px   — a modal's own name */
-  --tm-fs-ask:        1.313rem;   /* 21px   — one question, alone on a screen */
-  --tm-fs-numeral:    2.125rem;   /* 34px   — a result worth reading across the room */
-  --tm-fs-stat:       1.5rem;     /* 24px   — a stat cell's value inside a card */
-  --tm-fs-score:      2.75rem;    /* 44px   — the marketing plane's headline numeral */
-
-  --tm-lh-hero:       3.875rem;   /* 62px */
-  --tm-lh-display:    3rem;       /* 48px */
-  --tm-lh-title:      2.25rem;    /* 36px */
-  --tm-lh-heading:    1.75rem;    /* 28px */
-  --tm-lh-body:       1.625rem;   /* 26px */
-  --tm-lh-meta:       1.375rem;   /* 22px */
-  --tm-lh-caption:    1.0625rem;  /* 17px */
+  --tm-lh-caption:    1rem;       /* 16px */
+  --tm-lh-body:       1.25rem;    /* 20px */
+  --tm-lh-heading:    1.5rem;     /* 24px */
+  --tm-lh-title:      1.75rem;    /* 28px */
+  --tm-lh-display:    2.25rem;    /* 36px */
+  --tm-lh-hero:       3rem;       /* 48px */
+  --tm-lh-meta:       var(--tm-lh-body);
 
   --tm-tracking-tight:     0;
   --tm-tracking-normal:    0;        /* body copy */
@@ -231,21 +216,34 @@
   --tm-panel-radius-lg: 8px;
   --tm-radius-pill:   9999px;    /*       — pills, toggles       */
 
-  /* ── Spacing (on top of Tailwind's 4px grid) ─────────────── */
+  /* ── Spacing (Reddit 4px grid, live 2026-09-12) ───────────── */
+  --tm-space-2xs:     4px;
+  --tm-space-xs:      8px;
+  --tm-space-sm:      12px;
+  --tm-space-md:      16px;
+  --tm-space-lg:      24px;
+  --tm-space-xl:      32px;
+
   --tm-sidebar-w:     240px;
   --tm-content-max:   1280px;
   --tm-public-content-max: 1180px;
-  --tm-card-pad:      24px;
-  --tm-card-pad-sm:   16px;
-  --tm-card-pad-lg:   32px;
+  /* Feed = r/popular: 732 column + 316 right rail. Workspace rail stays 360
+     (Prep v2 lock — the four pips). Templates own page inset, not a 1280 blob. */
+  --tm-feed-col:      732px;
+  --tm-feed-rail:     316px;
+  --tm-workspace-rail: 360px;
+  --tm-card-pad:      16px;
+  --tm-card-pad-sm:   8px;
+  --tm-card-pad-lg:   24px;
+  --tm-card-gap:      8px;
   --tm-page-px:       32px;
-  --tm-page-py:       40px;
-  --tm-section-gap:   40px;
+  --tm-page-py:       32px;
+  --tm-section-gap:   32px;
   --tm-cluster-gap:   24px;
   --tm-panel-gap:     16px;
   --tm-mobile-page-px: 16px;
-  --tm-mobile-page-py: 20px;
-  --tm-mobile-section-gap: 28px;
+  --tm-mobile-page-py: 16px;
+  --tm-mobile-section-gap: 24px;
   --tm-mobile-cluster-gap: 16px;
   --tm-mobile-panel-gap: 12px;
   --tm-desktop-nav-h: 60px;
@@ -699,11 +697,17 @@ html {
   /* Smooth in-page anchor jumps app-wide — kills the scroll "jerk".
      Disabled under prefers-reduced-motion below. */
   scroll-behavior: smooth;
+  /* Rem root. The six rungs are authored as rem of 16px (12/14/18/24/32).
+     Putting --tm-fs-body (0.875rem) on html compounded every rung to 87.5%. */
+  font-size: 100%;
 }
 html, body {
   background: var(--tm-bg);
   background-attachment: fixed;
   color:      var(--tm-text);
+  font-family: var(--tm-font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 /* The deep-field mounts on body::before at z:-1, which paints BEFORE
    in-flow block backgrounds — an opaque body bg would cover it. The
@@ -711,6 +715,8 @@ html, body {
    transparent so the field shows through. */
 body {
   background: transparent;
+  font-size:   var(--tm-fs-body);
+  line-height: var(--tm-lh-body);
 }
 
 /* Generic route/layout wrappers never own the page paint. `html` owns the
@@ -720,13 +726,6 @@ body {
    editors, offline/admin surfaces) intentionally do not use this class. */
 .tm-page-canvas {
   background: transparent;
-}
-html, body {
-  font-family: var(--tm-font-sans);
-  font-size:   var(--tm-fs-body);
-  line-height: var(--tm-lh-body);
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
 }
 
 /* ── Deep-field layer ────────────────────────────────────────

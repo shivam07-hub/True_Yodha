@@ -11,7 +11,7 @@
   min-height: 100dvh;
   background: var(--gc-bg);
   color: var(--gc-ink);
-  font-family: var(--font-geist-sans), Inter, system-ui, sans-serif;
+  font-family: var(--tm-font-sans), system-ui, sans-serif;
   line-height: 1.5;
 }
 

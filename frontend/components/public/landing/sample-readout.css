@@ -17,7 +17,7 @@
   --lp-accent-text:   #6ac4eb;
   --lp-success:       #4ade80;
   --lp-warning:       #f59e0b;
-  --lp-mono:          var(--font-jbmono), "JetBrains Mono", "Geist Mono", ui-monospace, monospace;
+  --lp-mono:          var(--tm-font-mono);
   --lp-ease:          cubic-bezier(0.16, 1, 0.3, 1);
   color-scheme: dark;
 }
