@@ -1,6 +1,6 @@
 """Merge two CV bullets into one — Myro Mentor.
 
-Trigger: a heavy CV dump (`cv_reservoir`/`cv_intake`) or repeated rewrites leave
+Trigger: a heavy CV dump (`cv_intake`) or repeated rewrites leave
 near-duplicate bullets in the same role — the same win phrased twice, or a
 generic filler line saying nothing the bullet above it didn't already cover.
 Today the playground only offers hide/rewrite per bullet; a user has no way to
