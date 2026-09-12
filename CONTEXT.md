@@ -413,7 +413,11 @@ A headless engine (`createTaxonomy({ fetch })`, the `field-motion.ts` precedent)
 
 ## Skill Closeness
 
-**Two skills are close when real jobs ask for them together** — never when a taxonomy files them under the same heading. Learned from live jobs and counted across companies, so one employer's copy-pasted template cannot invent a bond (67.4% of raw bonds were exactly that). Refreshed per ingest beside the other Tier-0 snapshots.
+**Two skills are close when real jobs ask for them together** — never when a taxonomy files them under the same heading. `skill_closeness` (skill → its 20 closest, with lift, jobs and company count) is a Tier-0 snapshot on the shared lease, task `skill_closeness`, ~28.6s per ingest. 7,287 bonds across 1,122 skills.
+
+Counted **across companies**: a bond needs three or more employers and no single one supplying over half its jobs, because 67.4% of the raw bonds were one company's copy-pasted template. PostgreSQL's strongest bonds are MongoDB, NoSQL, Spring Boot, Kubernetes and Microservices — four different L2 clusters.
+
+It is a **pairwise relation, never a clustering.** Grouping skills into "kinds of work" was tried and fails the way grouping jobs does: Python, SQL, Java and Git hold the graph together because they belong to backend, data and ML at once, so the largest group swallowed 46% of every skill.
 
 Measured 2026-09-12: pairs jobs ask for together are **17.3× likelier than chance**, and **90.6% of them cross Lightcast L2 clusters**. Python's closest skills are Keras, Django, Flask, NumPy and Pandas — five different L2 clusters. Users' skills sit the same way: 10.9% of a person's own skill pairs are strong bonds, against 0.69% of all possible pairs.
 
