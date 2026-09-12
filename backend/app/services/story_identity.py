@@ -37,9 +37,15 @@ from app.services.llm_provider import LLMProvider, LLMProviderError, get_judgmen
 logger = logging.getLogger("myro.story_identity")
 
 JOB_TYPE = "story_identity"
-PAIRS_PER_CALL = 24     # one batched judge call
+PAIRS_PER_CALL = 12     # one batched judge call
 MAX_CALLS_PER_RUN = 4   # a large reservoir converges across runs
-_MAX_JUDGE_TOKENS = 1200
+# The judgment lane leads with a REASONING model: it thinks in prose before it
+# answers, and a budget that runs out mid-thought returns no JSON at all — which
+# reads as "no verdict" and stalls a heal without failing. Measured 2026-09-12
+# on the real reservoir: 3 pairs needed >1200 and finished under 4000; 6 pairs
+# answered in full at 6000; 12 at 12000. So the budget scales with the batch.
+_JUDGE_TOKENS_PER_PAIR = 1000
+_MIN_JUDGE_TOKENS = 1200
 _DEBOUNCE_SECONDS = 15 * 60
 _last_enqueue: dict[str, float] = {}  # per-process debounce, like role_dedup's
 
@@ -119,10 +125,20 @@ def _text(story: dict[str, Any], companies: dict[str, str], pointers: dict[str, 
 
 
 async def _judge(texts: list[tuple[str, str]], provider: Any) -> list[str | None]:
+    """No verdict is the honest answer to a judge that did not answer: the pairs
+    are judged again next sweep rather than stamped with a guess. Any provider
+    failure degrades that way — a transport error must not abandon a heal
+    half-way through, which is exactly what killed the first full sweep."""
     try:
-        raw = await provider.complete(rules.build_judge_messages(texts), max_tokens=_MAX_JUDGE_TOKENS)
+        budget = max(_MIN_JUDGE_TOKENS, len(texts) * _JUDGE_TOKENS_PER_PAIR)
+        raw = await provider.complete(rules.build_judge_messages(texts), max_tokens=budget)
     except LLMProviderError:
         logger.info("metric story_identity.judge_unavailable pairs=%d", len(texts))
+        return [None] * len(texts)
+    except Exception as exc:  # noqa: BLE001 — classified degradation, see the docstring
+        logger.info(
+            "metric story_identity.judge_failed pairs=%d reason=%s", len(texts), exc.__class__.__name__,
+        )
         return [None] * len(texts)
     return rules.parse_judge(raw, len(texts))
 
