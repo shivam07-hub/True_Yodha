@@ -62,6 +62,15 @@ class StoryIdentityRepository:
         rows = self.stories(user_id, [story_id])
         return rows[0] if rows else None
 
+    def all_stories_brief(self, user_id: str) -> list[dict[str, Any]]:
+        """Every story, archived included — a fold receipt names one that is no
+        longer active, and a proposal must not be shown for one curated away."""
+        return self._paged(
+            lambda: self._db.table("career_stories").select("id, role_id, title, status")
+            .eq("user_id", user_id).order("id"),
+            "story_identity_all_stories",
+        )
+
     def role_companies(self, user_id: str) -> dict[str, str]:
         rows = self._paged(
             lambda: self._db.table("career_roles").select("id, company")
