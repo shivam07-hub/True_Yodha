@@ -411,6 +411,26 @@ A headless engine (`createTaxonomy({ fetch })`, the `field-motion.ts` precedent)
 - The demand `band` reuses market-wide demand (`weighted_demand` from `build_user_skill_demand`) — the same unscoped signal the Skills page reads — never a fresh per-page `jobCount`. The build-time generator is a thin adapter that exports that already-computed signal into `priority.json`.
 - Artifacts are forward-only: regenerated on a scraper batch refresh, committed, **not** wired into `prebuild` (no build-time DB coupling).
 
+## Skill Closeness
+
+**Two skills are close when real jobs ask for them together** — never when a taxonomy files them under the same heading. Learned from live jobs and counted across companies, so one employer's copy-pasted template cannot invent a bond (67.4% of raw bonds were exactly that). Refreshed per ingest beside the other Tier-0 snapshots.
+
+Measured 2026-09-12: pairs jobs ask for together are **17.3× likelier than chance**, and **90.6% of them cross Lightcast L2 clusters**. Python's closest skills are Keras, Django, Flask, NumPy and Pandas — five different L2 clusters. Users' skills sit the same way: 10.9% of a person's own skill pairs are strong bonds, against 0.69% of all possible pairs.
+
+⚠️ **"Neighbour" is already taken.** Career Path uses `DemandKind = core | neighbor` for a skill's share of a band. Say **close**, or **bond**.
+
+## Family Profile
+
+A direction is a **named skill profile**, not a container of jobs: what it demands per seniority, its band, its characteristic skills, its open count. One Tier-0 snapshot answers every surface that used to scan `jobs` live (4.3s, and 2.8s × 3 on Career Path).
+
+**Fit is always graded** (ADR-0022). A job belongs to every direction it fits, and nothing stores the single bucket a job or skill is in:
+
+| fit | scored by |
+|---|---|
+| person ↔ direction | their skills against the profile |
+| job ↔ direction | how many of the direction's characteristic skills the job asks for |
+| person ↔ next skill | closeness to skills they already hold × what the direction demands |
+
 ## Skill Level and Role Standing
 
 **A skill's Level is the higher of what the CV evidences (`user_skills`) and what
