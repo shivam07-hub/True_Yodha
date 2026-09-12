@@ -421,7 +421,15 @@ Measured 2026-09-12: pairs jobs ask for together are **17.3× likelier than chan
 
 ## Family Profile
 
-A direction is a **named skill profile**, not a container of jobs: what it demands per seniority, its band, its characteristic skills, its open count. One Tier-0 snapshot answers every surface that used to scan `jobs` live (4.3s, and 2.8s × 3 on Career Path).
+A direction is a **named skill profile**, not a container of jobs: what it demands per seniority, its band membership, its characteristic skills, its open count.
+
+Two Tier-0 tables hold it — `role_family_scope` (family × seniority → job_count, the denominator every share is computed against) and `role_family_profile` (family × seniority × skill → `jobs_with_skill`, `jobs_must_have`, `weighted_demand`). **Counts, never ratios**, so a union of up to five families and any seniority band add up from the same rows: one grain answers "family", "families", and "family at this level". 1,465 scope rows, 124,229 profile rows, built inside `refresh_role_family_labels()`.
+
+`role_family_demand(families, seniority)` is the ONE reader. It replaced `role_family_market_skills` (4,311ms → **69ms** warm) and `role_family_band_market_skills` (2,833ms, three per Career Path load → **9ms**); `role_family_aspiration_skills` had no callers at all.
+
+**`is_primary` is not on this path** (SKILL_ENGINE Lock 4). On Stage A rows it is `required_level = 4` restated; on the 296,886 legacy enrichment rows it is a 94.7% constant. `jobs_must_have` counts the must-have zone instead. Dropping the constant moved 460 of Software Development's 2,096 skills from a level-3 target to level 2 — targets that existed only because the flag said so.
+
+**The target-level rule lives in `scoring.demand_rule` and nowhere else** — must-have in more than half the scope's jobs → 4, in at least one → 3, named at all → 2. It was implemented twice, and one copy disagreed with its own docstring.
 
 **Fit is always graded** (ADR-0022). A job belongs to every direction it fits, and nothing stores the single bucket a job or skill is in:
 

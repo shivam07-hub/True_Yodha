@@ -294,39 +294,31 @@ class ScoresRepository:
             target_seniority=self.get_target_seniority(user_id),
         )
 
-    def get_role_family_market(self, families: list[str]) -> RoleFamilyMarket:
-        """Target proficiency AND weighted demand for the user's chosen families.
+    def family_demand_rows(
+        self, families: list[str], *, seniority: str | None = None
+    ) -> list[dict[str, Any]]:
+        """Raw demand counts for a family scope, from the Family Profile snapshot.
 
-        One RPC over one job set — the same family scope Career Ops selects on —
-        so the level a gap is measured against and the weight it is ranked by can
-        never come from two different markets.
+        Counts only. The rule that turns them into a target level lives in
+        `scoring.demand_rule`, so the repository cannot become a second place
+        that decides what the market wants.
 
-        The scope travels as the family array, never as the answer keys. The
-        previous shape asked for demand by sending every taxonomy key back as a
-        `in.(…)` filter; two families expand to 1,642 keys / 33.5 KB, which
-        exceeded the edge's URI limit and returned a non-JSON `Bad Request` —
-        caught, fail-soft, and therefore invisible while every gap silently
-        weighed 0. A short array of family names cannot grow that way.
+        Replaces `role_family_market_skills` (4,311ms) and
+        `role_family_band_market_skills` (2,833ms, three per Career Path load).
+        Both rebuilt per request an aggregate the ingest refresh already holds;
+        measured warm against the snapshot, 69ms and 9ms. `seniority` None reads
+        the whole family, a band name reads that band — counts sum either way,
+        which is why the snapshot stores counts and not shares.
         """
         if not families:
-            return RoleFamilyMarket.empty()
-        rows = self._db.rpc(
-            "role_family_market_skills", {"p_families": families}
-        ).execute().data or []
-        aspiration: dict[str, int] = {}
-        demand: dict[str, int] = {}
-        for row in rows:
-            key = str(row.get("taxonomy_key") or "").strip()
-            total = int(row.get("job_count") or 0)
-            primary_count = int(row.get("primary_job_count") or 0)
-            if not key or not total:
-                continue
-            demand[key] = int(row.get("weighted_demand") or 0)
-            if primary_count:
-                aspiration[key] = 4 if primary_count / total > 0.5 else 3
-            elif row.get("has_side_skill"):
-                aspiration[key] = 2
-        return RoleFamilyMarket(aspiration=aspiration, demand=demand)
+            return []
+        return (
+            self._db.rpc(
+                "role_family_demand",
+                {"p_families": families, "p_seniority": seniority},
+            ).execute().data
+            or []
+        )
 
     def list_market_skill_rows(self) -> list[dict[str, Any]]:
         """Returns job skills from the FK-enforced job_skills join table."""

@@ -1,4 +1,3 @@
-from app.repositories.scores import RoleFamilyMarket
 from app.services.scoring.aspirations import fetch_aspiration_skills, fetch_role_family_market
 
 
@@ -6,13 +5,19 @@ class _RoleFamilyOnlyRepository:
     def __init__(self) -> None:
         self.calls = 0
 
-    def get_role_family_market(self, families: list[str]) -> RoleFamilyMarket:
+    def family_demand_rows(self, families: list[str], *, seniority: str | None = None):
         assert families == ["Sales and Marketing"]
+        assert seniority is None
         self.calls += 1
-        return RoleFamilyMarket(
-            aspiration={"Sales": 4, "Customer Relationship Management": 3},
-            demand={"Sales": 120, "Customer Relationship Management": 44},
-        )
+        # Counts only — the repository no longer decides what the market wants.
+        # Sales is must-have in 80 of 100 jobs (> half) -> target 4;
+        # CRM in 40 of 100 -> target 3.
+        return [
+            {"taxonomy_key": "Sales", "jobs_with_skill": 90,
+             "jobs_must_have": 80, "job_count": 100, "weighted_demand": 120},
+            {"taxonomy_key": "Customer Relationship Management", "jobs_with_skill": 70,
+             "jobs_must_have": 40, "job_count": 100, "weighted_demand": 44},
+        ]
 
     def find_role_skill_rows(self, _role: str):  # pragma: no cover - must not be called
         raise AssertionError("title ILIKE must not drive aspiration demand")
@@ -40,7 +45,7 @@ def test_one_read_returns_both_target_and_weight() -> None:
 
 def test_no_target_reads_nothing() -> None:
     class _Exploding:
-        def get_role_family_market(self, _families):  # pragma: no cover
+        def family_demand_rows(self, _families, *, seniority=None):  # pragma: no cover
             raise AssertionError("must not query without a chosen direction")
 
     assert fetch_role_family_market(_Exploding(), []).is_empty
@@ -48,7 +53,7 @@ def test_no_target_reads_nothing() -> None:
 
 def test_read_failure_degrades_to_open_market() -> None:
     class _Failing:
-        def get_role_family_market(self, _families):
+        def family_demand_rows(self, _families, *, seniority=None):
             raise RuntimeError("postgrest down")
 
     assert fetch_role_family_market(_Failing(), ["Sales and Marketing"]).is_empty

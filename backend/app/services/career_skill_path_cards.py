@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
+from app.services.scoring.demand_rule import target_level
+
 SkillState = Literal["on_cv", "practised", "not_evidenced"]
 DemandKind = Literal["core", "neighbor"]
 
@@ -28,13 +30,12 @@ def required_level(
     band_job_count: int,
     has_side: bool,
 ) -> int | None:
-    if band_job_count <= 0:
-        return None
-    if primary_job_count:
-        return 4 if primary_job_count / band_job_count > 0.5 else 3
-    if has_side:
-        return 2
-    return None
+    """One rule, shared with the score's aspiration read — see `demand_rule`."""
+    return target_level(
+        jobs_must_have=primary_job_count,
+        job_count=band_job_count,
+        present=has_side or primary_job_count > 0,
+    )
 
 
 def skill_state(*, evidence_text: str | None, on_cv_row: bool, assessed_level: int) -> SkillState:
