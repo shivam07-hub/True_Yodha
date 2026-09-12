@@ -75,11 +75,13 @@ def test_candidate_pairs_capped():
 
 # ── judge parse ───────────────────────────────────────────────────────────────
 
-def test_parse_judge_verdicts_and_defaults():
+def test_parse_judge_reads_answers_and_leaves_the_rest_unanswered():
     raw = '[{"index": 0, "verdict": "high"}, {"index": 1, "verdict": "maybe"}, {"index": 9, "verdict": "high"}]'
-    assert role_dedup.parse_judge(raw, 3) == ["high", "maybe", "different"]
-    assert role_dedup.parse_judge("garbage", 2) == ["different", "different"]
-    assert role_dedup.parse_judge('[{"index": 0, "verdict": "nuke"}]', 1) == ["different"]
+    # index 2 was never answered — None, not 'different'. A guess recorded as a
+    # verdict bars the pair from ever being asked again.
+    assert role_dedup.parse_judge(raw, 3) == ["high", "maybe", None]
+    assert role_dedup.parse_judge("garbage", 2) == [None, None]
+    assert role_dedup.parse_judge('[{"index": 0, "verdict": "nuke"}]', 1) == [None]
 
 
 # ── keep pick + label widening ───────────────────────────────────────────────
@@ -106,8 +108,12 @@ def test_widened_date_label():
 class _FakeProvider:
     def __init__(self, raw):
         self._raw = raw
+        self.budgets: list[int] = []
 
     async def complete(self, messages, max_tokens=None):
+        self.budgets.append(max_tokens)
+        if isinstance(self._raw, Exception):
+            raise self._raw
         return self._raw
 
 
@@ -159,7 +165,9 @@ class _FakeDb:
         return _Query(self, name)
 
 
-def test_run_role_dedup_folds_proposes_records(monkeypatch):
+def test_a_confident_judge_still_asks_the_user(monkeypatch):
+    """A role fold moves every story under it and writes no receipt, so nothing
+    but the user's own ruling may fold one. `high` and `maybe` both propose."""
     roles = [
         _role("a", "Capgemini", "I&D Sales Manager", "May 2025 – Present", created="1"),
         _role("b", "Capgemini GCC Growth", "GTM BD Manager", "May 2025 - Present", created="2"),
@@ -179,19 +187,63 @@ def test_run_role_dedup_folds_proposes_records(monkeypatch):
         '[{"index": 0, "verdict": "high"}, {"index": 1, "verdict": "maybe"}, {"index": 2, "verdict": "different"}]'
     )
     out = asyncio.run(role_dedup.run_role_dedup("u1", provider=provider))
-    assert out == {"judged": 3, "folded": 1, "proposed": 1}
-    # fold: b kept (2 stories) — a's stories repointed to b, a archived
-    story_moves = [u for u in db.updates if u[0] == "career_stories"]
-    assert story_moves and story_moves[0][2] == {"role_id": "b"} and story_moves[0][1]["role_id"] == "a"
-    role_archives = [u for u in db.updates if u[0] == "career_roles" and u[2].get("status") == "archived"]
-    assert role_archives and role_archives[0][1]["id"] == "a"
-    # all three pairs recorded
-    assert {u["verdict"] for u in db.upserts} == {"auto_folded", "proposed", "keep_separate"}
+    assert out == {"judged": 3, "proposed": 2, "kept": 1}
+    # the budget scales with the batch — a fixed cap starves a reasoning judge
+    assert provider.budgets == [3 * role_dedup._JUDGE_TOKENS_PER_PAIR]
+    assert [u["verdict"] for u in db.upserts] == ["proposed", "proposed", "keep_separate"]
+    assert db.updates == []  # no story moved, no role archived
+
+
+def test_run_role_dedup_proposes_a_maybe_for_the_user(monkeypatch):
+    db = _FakeDb(reads={
+        "career_roles": [
+            _role("a", "MIT Manipal", "B.Tech ECE", "2012 – 2016", kind="education", created="1"),
+            _role("b", "Manipal Institute of Technology", "BE Electronics", "2012 – 2016",
+                  kind="education", created="2"),
+        ],
+        "role_merge_verdicts": [],
+        "career_stories": [],
+    })
+    monkeypatch.setattr("app.database.get_supabase_admin", lambda: db)
+    provider = _FakeProvider('[{"index": 0, "verdict": "maybe"}]')
+    out = asyncio.run(role_dedup.run_role_dedup("u1", provider=provider))
+    assert out == {"judged": 1, "proposed": 1, "kept": 0}
+    assert [u["verdict"] for u in db.upserts] == ["proposed"]
+    assert db.updates == []  # a proposal touches nothing
+
+
+def test_a_judge_that_does_not_answer_records_nothing(monkeypatch):
+    """The 47-verdict bug: a starved or failing judge used to stamp every pair
+    'different', and a decided pair is never re-judged. Silence must decide
+    nothing so the next run asks again."""
+    roles = [
+        _role("a", "Capgemini", "I&D Sales Manager", "2025 – Present", created="1"),
+        _role("b", "Capgemini GCC Growth", "GTM BD Manager", "2025 – Present", created="2"),
+    ]
+    reads = {"career_roles": roles, "role_merge_verdicts": [], "career_stories": []}
+    monkeypatch.setattr("app.database.get_supabase_admin", lambda: _FakeDb(reads))
+
+    for raw in ("I'll compare these two roles. Both are at Capgemini and", TypeError("provider blew up")):
+        db = _FakeDb(reads)
+        monkeypatch.setattr("app.database.get_supabase_admin", lambda db=db: db)
+        out = asyncio.run(role_dedup.run_role_dedup("u1", provider=_FakeProvider(raw)))
+        assert out == {"judged": 0, "proposed": 0, "kept": 0}
+        assert db.upserts == [] and db.updates == []
+
+
+def test_run_role_dedup_batches_so_no_call_is_starved(monkeypatch):
+    roles = [_role(f"r{i}", "Capgemini", f"T{i}", "2024", created=str(i)) for i in range(8)]
+    db = _FakeDb(reads={"career_roles": roles, "role_merge_verdicts": [], "career_stories": []})
+    monkeypatch.setattr("app.database.get_supabase_admin", lambda: db)
+    provider = _FakeProvider("no json here")
+    asyncio.run(role_dedup.run_role_dedup("u1", provider=provider))
+    # 28 family pairs, capped at 48, asked 12 at a time
+    assert provider.budgets == [12000, 12000, 4000]
 
 
 def test_run_role_dedup_no_candidates_is_free(monkeypatch):
     db = _FakeDb(reads={"career_roles": [], "role_merge_verdicts": [], "career_stories": []})
     monkeypatch.setattr("app.database.get_supabase_admin", lambda: db)
     out = asyncio.run(role_dedup.run_role_dedup("u1"))
-    assert out == {"judged": 0, "folded": 0, "proposed": 0}
+    assert out == {"judged": 0, "proposed": 0, "kept": 0}
     assert db.upserts == []
