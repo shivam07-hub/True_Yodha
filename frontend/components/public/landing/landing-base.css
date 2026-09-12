@@ -38,12 +38,12 @@
   --lp-font: var(--tm-font-sans);
   --lp-mono: var(--tm-font-mono);
 
-  --lp-fs-hero:    56px;
-  --lp-fs-display: 36px;
-  --lp-fs-title:   24px;
-  --lp-fs-heading: 18px;
-  --lp-fs-body:    16px;
-  --lp-fs-meta:    13px;
+  --lp-fs-hero:    var(--tm-fs-hero);
+  --lp-fs-display: var(--tm-fs-display);
+  --lp-fs-title:   var(--tm-fs-title);
+  --lp-fs-heading: var(--tm-fs-heading);
+  --lp-fs-body:    var(--tm-fs-body);
+  --lp-fs-meta:    var(--tm-fs-caption);
 
   --lp-content-max: 1240px;
   --lp-page-px:     32px;

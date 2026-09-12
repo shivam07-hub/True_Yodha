@@ -95,10 +95,20 @@ test("The room renders the four steps, and every pip reads the same data-state",
   // The rail pip, the band pip and the step number all key off data-state.
   assert.match(css, /\.prp-lroom-pips > span\[data-state="2"\]/)
   assert.match(css, /\.prp-step-n\[data-state="2"\]/)
-  // 2b's rail is a FIXED 360px against a fluid room. A fractional rail took
-  // ~550px at 1456 and stretched the legend, the room rows and the pips it is
-  // supposed to key — the drift this test now pins shut.
-  assert.match(css, /grid-template-columns:\s*360px\s*minmax\(0,\s*1fr\)/)
+  // 2b's rail is --tm-workspace-rail (360px) against a fluid room. A
+  // fractional rail took ~550px at 1456 and stretched the legend, the room
+  // rows and the pips it is supposed to key — the drift this test now pins
+  // shut. The old 1480 shell and the 1180→300 squeeze are gone.
+  assert.match(css, /grid-template-columns:\s*var\(--tm-workspace-rail\)\s+minmax\(0,\s*1fr\)/)
+  assert.doesNotMatch(css, /max-width:\s*1480px/)
+  assert.doesNotMatch(css, /font-size:\s*[0-9.]+px/)
+  assert.doesNotMatch(css, /font-weight:\s*700/)
+  assert.doesNotMatch(css, /border-radius:\s*999px/)
+  assert.match(css, /--tm-card-pad/)
+  assert.match(css, /--tm-fs-caption/)
+  assert.match(css, /--tm-fs-body/)
+  assert.match(css, /--tm-fs-heading/)
+  assert.doesNotMatch(css, /--tm-fs-ui\b/)
 
   // Switching rooms is a STATE change. Both routes render one component off one
   // cached read, so a route change bought nothing and cost an RSC round trip

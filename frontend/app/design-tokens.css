@@ -152,12 +152,11 @@
   /* ── Typography ────────────────────────────────────────────
      Product UI is the platform stack at every width (grill 2026-09-12).
      Space Grotesk + Inter were unloaded from layout.tsx — they were ANTI_SLOP
-     #10, our largest named-face tell, and phone was already on this stack.
+     #10. There is no phone-only face: this stack IS --tm-font-sans.
      Geist stays on the CV sheet/PDF only (cv-fonts.css), never here.
      Newsreader stays for long-form READING only. */
-  --tm-font-sans-phone: -apple-system, BlinkMacSystemFont, "SF Pro Text",
-                        "SF Pro Display", system-ui, "Segoe UI", Roboto, sans-serif;
-  --tm-font-sans:     var(--tm-font-sans-phone);
+  --tm-font-sans:     -apple-system, BlinkMacSystemFont, "SF Pro Text",
+                      "SF Pro Display", system-ui, "Segoe UI", Roboto, sans-serif;
   --tm-font-display:  var(--tm-font-sans);
   --tm-font-mono:     ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
   /* Editorial serif — long-form READING only (newsletter prose, audit artifact).
@@ -698,11 +697,17 @@ html {
   /* Smooth in-page anchor jumps app-wide — kills the scroll "jerk".
      Disabled under prefers-reduced-motion below. */
   scroll-behavior: smooth;
+  /* Rem root. The six rungs are authored as rem of 16px (12/14/18/24/32).
+     Putting --tm-fs-body (0.875rem) on html compounded every rung to 87.5%. */
+  font-size: 100%;
 }
 html, body {
   background: var(--tm-bg);
   background-attachment: fixed;
   color:      var(--tm-text);
+  font-family: var(--tm-font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 /* The deep-field mounts on body::before at z:-1, which paints BEFORE
    in-flow block backgrounds — an opaque body bg would cover it. The
@@ -710,6 +715,8 @@ html, body {
    transparent so the field shows through. */
 body {
   background: transparent;
+  font-size:   var(--tm-fs-body);
+  line-height: var(--tm-lh-body);
 }
 
 /* Generic route/layout wrappers never own the page paint. `html` owns the
@@ -719,13 +726,6 @@ body {
    editors, offline/admin surfaces) intentionally do not use this class. */
 .tm-page-canvas {
   background: transparent;
-}
-html, body {
-  font-family: var(--tm-font-sans);
-  font-size:   var(--tm-fs-body);
-  line-height: var(--tm-lh-body);
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
 }
 
 /* ── Deep-field layer ────────────────────────────────────────

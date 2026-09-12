@@ -30,6 +30,8 @@
   --tm-danger-wash: oklch(0.66 0.17 25 / 0.14);
   --tm-danger-border: oklch(0.74 0.16 25);
 
+  --tm-font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "SF Pro Display", system-ui, "Segoe UI", Roboto, sans-serif;
   --tm-radius-sm: 4px;
   --tm-radius: 6px;
   --tm-button-radius: 10px;
@@ -58,7 +60,7 @@ body {
     var(--tm-bg);
   background-size: 44px 44px;
   color: var(--tm-text);
-  font-family: "Space Grotesk", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--tm-font-sans);
 }
 
 body.is-reviewing {
