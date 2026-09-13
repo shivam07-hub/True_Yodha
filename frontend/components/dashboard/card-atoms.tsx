@@ -4,6 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { Heart, X, Share, Check, Home, FileText, User, Radar, AlertTriangle } from "lucide-react"
 import type { JobMatch, JobPulse, ResponseSignal } from "@/lib/api"
+import { POSTING_CLOSED_CHIP } from "@/lib/jobs/detail-model"
 import { shareJob } from "@/lib/job-share"
 
 /* ── Monogram (company letter square) ───────────────────────────── */
@@ -191,7 +192,8 @@ export function PulseRow({ pulse, mobile, bare }: { pulse?: JobPulse; mobile?: b
   const verified = relTime(pulse.last_verified_at)
   const tracking = pulse.tracking_count
   const signal = pulse.response_signal
-  const closed = pulse.listing_confidence === "likely_closed" || pulse.listing_confidence === "closed"
+  const closed = pulse.listing_confidence === "closed"
+  const likelyClosed = pulse.listing_confidence === "likely_closed"
   // The crowd's ghost verdict — the count of users who tried to apply and found
   // it gone. null = privacy cohort under five, never zero. When present it is the
   // specific evidence, so it supersedes the generic "may be closed" label.
@@ -209,7 +211,12 @@ export function PulseRow({ pulse, mobile, bare }: { pulse?: JobPulse; mobile?: b
       ) : closed ? (
         <span className="tm-pulse-item tm-pulse-warn">
           <AlertTriangle size={11} aria-hidden style={{ marginRight: 3 }} />
-          apply link may be closed
+          {POSTING_CLOSED_CHIP}
+        </span>
+      ) : likelyClosed ? (
+        <span className="tm-pulse-item tm-pulse-warn">
+          <AlertTriangle size={11} aria-hidden style={{ marginRight: 3 }} />
+          may be closed
         </span>
       ) : null}
       {verified ? <span className="tm-pulse-item">Verified {verified}</span> : null}

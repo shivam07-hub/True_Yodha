@@ -1345,6 +1345,8 @@ Whether a job we surface still exists. Two triggers, one truth — every verdict
 
 **Liveness is not freshness.** `last_seen` records when the scraper last *ingested* a row, not when anyone confirmed it exists — while the scraper does not re-crawl, `last_seen` carries no liveness information at all and must not be rendered as if it does.
 
+**Unload.** `listing_confidence=closed` starts a one-hour clock (`quarantine_until` / `deletion_eligible_at`). Only `closed` unloads, never `likely_closed`. The verifier writes a `job_archive_v1` bundle (the same JSON + CSV shape as the 2026-07-15 / 2026-08-13 laptop unloads) to a local `job_unloads/` tree, then `retire_closed_jobs` deletes those ids. Nothing is written to Supabase Storage. Railway skips unload unless `JOB_UNLOAD_ARCHIVE_DIR` points at a real disk. User history is snapshotted into `job_applications` / `cv_versions` first. A scrape that sees the posting again writes it back as live. Restore from `backend/`: `python -m scripts.restore_job_archive path/to/archive_dir`. The scraper does not delete rows on publish.
+
 
 ## Target Location
 

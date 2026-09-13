@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import type { ApplyCapture } from "./use-apply-capture"
+import { POSTING_CLOSED_NOTICE } from "@/lib/jobs/detail-model"
 
 /**
  * Apply Transport (presentation half, web) — renders the capture band off the
@@ -24,7 +25,7 @@ export function ApplyCapturePrompt({ capture }: { capture: ApplyCapture }) {
     return (
       <div style={{ ...bandStyle, justifyContent: "space-between" }} role="status">
         <span style={{ color: "var(--tm-danger)", fontWeight: 600 }}>
-          This listing is closed — Myro stopped the handoff.
+          {POSTING_CLOSED_NOTICE}
         </span>
         <button type="button" onClick={capture.findSimilar} style={linkStyle}>
           Find live alternatives →

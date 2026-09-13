@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import type { CollectionEntry, JobPulse } from "@/lib/api"
+import { POSTING_CLOSED_CHIP } from "@/lib/jobs/detail-model"
 import { ORIGIN_LABEL, heroFor } from "@/lib/collections/model"
 import { companyHref } from "@/components/companies/company-link"
 import type { MobileJobRow } from "./job-model"
@@ -15,8 +16,10 @@ export function pulseLine(pulse?: JobPulse): { text: string; warn: boolean } | n
   if (!pulse) return null
   const gone = pulse.quality_report_count != null && pulse.quality_report_count > 0 ? pulse.quality_report_count : null
   if (gone) return { text: `${gone} reported gone`, warn: true }
-  if (pulse.listing_confidence === "likely_closed" || pulse.listing_confidence === "closed")
-    return { text: "apply link may be closed", warn: true }
+  if (pulse.listing_confidence === "closed")
+    return { text: POSTING_CLOSED_CHIP, warn: true }
+  if (pulse.listing_confidence === "likely_closed")
+    return { text: "may be closed", warn: true }
   if (pulse.last_verified_at) {
     const days = Math.floor((Date.now() - new Date(pulse.last_verified_at).getTime()) / 86_400_000)
     return { text: `Verified ${days <= 0 ? "today" : `${days}d ago`}`, warn: false }

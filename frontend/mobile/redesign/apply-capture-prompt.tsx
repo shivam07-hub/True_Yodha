@@ -1,6 +1,7 @@
 "use client"
 
 import type { ApplyCapture } from "@/components/jobs/use-apply-capture"
+import { POSTING_CLOSED_NOTICE } from "@/lib/jobs/detail-model"
 
 /**
  * Mobile presentation of the same return-confirmation contract as web.
@@ -17,7 +18,7 @@ export function ApplyCapturePromptMobile({ capture }: { capture: ApplyCapture })
     return (
       <div style={{ ...row, justifyContent: "space-between" }} role="status">
         <span style={{ color: "var(--mm-bad)", fontWeight: 650 }}>
-          This listing is closed — Myro stopped the handoff.
+          {POSTING_CLOSED_NOTICE}
         </span>
         <button type="button" onClick={capture.findSimilar} style={link}>Find live alternatives →</button>
       </div>

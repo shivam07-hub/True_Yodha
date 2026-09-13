@@ -56,8 +56,8 @@ def _warn_demand_rpc_fallback(exc: APIError) -> None:
 
 
 SKILL_DRILL_DEFAULT_PAGE_SIZE = 50
-# A posting the scraper hasn't re-confirmed live in this many days is flagged
-# stale on job cards. Below the scraper's 45-day hard-delist so it warns first.
+# Card-level stale flag. Age-delist identifies a posting as closed after 30 days
+# without a scrape; unload follows one hour after that close.
 STALE_AFTER_DAYS = 21
 # .in_() serialises each id into the URL query string — cap batch size so a huge
 # scrape's job_id list can't blow the PostgREST URL length limit (Backlog #36).

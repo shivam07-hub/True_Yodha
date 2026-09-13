@@ -20,7 +20,7 @@ test("desktop and mobile explain the stopped handoff and offer recovery", () => 
   for (const source of [webPrompt, mobilePrompt]) {
     assert.match(source, /capture\.state === "checking"/)
     assert.match(source, /capture\.state === "closed"/)
-    assert.match(source, /Myro stopped the handoff/)
+    assert.match(source, /POSTING_CLOSED_NOTICE/)
     assert.match(source, /Find live alternatives/)
   }
 })

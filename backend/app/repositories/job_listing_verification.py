@@ -13,10 +13,14 @@ from app.services.job_listing_verifier import (
     VerificationResult,
     VerificationTarget,
 )
+from app.services.job_unload_archive import archive_then_retire
 
 log = logging.getLogger(__name__)
 
 _T = TypeVar("_T")
+
+# Closed → wait this long → archive files → delete. A re-scrape can restore it.
+QUARANTINE_AFTER_CLOSE = timedelta(hours=1)
 
 # Supabase's edge/data-api layer intermittently 500s (Cloudflare "1101 Worker
 # threw exception" — an HTML body, not a PostgREST JSON error), unrelated to
@@ -229,7 +233,7 @@ class ListingVerificationRepository:
             )
         elif result.result == "closed" and result.strength == "strong":
             update.update(conclusive)
-            eligible_at = (now + timedelta(days=30)).isoformat()
+            eligible_at = (now + QUARANTINE_AFTER_CLOSE).isoformat()
             update.update(
                 {
                     "is_active": False,
@@ -290,8 +294,4 @@ class ListingVerificationRepository:
         )
 
     def retire_eligible(self, *, limit: int = 500) -> int:
-        capped = max(1, min(limit, 5000))
-        result = _with_retry(
-            lambda: self.db.rpc("retire_closed_jobs", {"p_limit": capped}).execute()
-        )
-        return len(result.data or [])
+        return archive_then_retire(self.db, limit=limit, now=self.now)
