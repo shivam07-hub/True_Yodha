@@ -16,6 +16,7 @@ import logging
 from typing import Any
 
 from app.database import get_supabase_admin
+from app.repositories.role_families import RoleFamiliesRepository
 from app.repositories.users import UsersRepository
 from app.services import onboarding_service
 from app.services.career_target import MAX_TARGET_LOCATIONS, record_from_profile
@@ -168,11 +169,64 @@ class TargetCommit:
         self.leans_changed = leans_changed
 
 
+def _drop_unknown_families(users_repo: UsersRepository, updates: dict[str, Any]) -> None:
+    """The matcher's scoping key may only name directions that exist.
+
+    It did not. 41 stored keys across 36 users were raw typed titles — "seo",
+    "hr", "any", "Teacher or a tele caller" — because `_normalize_families`
+    trims and de-dupes whatever a caller sends and never asks the corpus. 29 of
+    those users (18% of everyone with a target) had a scope made ENTIRELY of
+    phantoms, and nothing told them: `get_candidate_job_ids_for_roles` is an
+    equality on `jobs.role_family`, so it returned zero role-right jobs, and
+    `role_family_demand` returned no market to score or prep against. The rot
+    reached `career_target_snapshots.l2_role_family` too, because that snapshot
+    is recorded from this same profile.
+
+    The title is NOT discarded — it stays in `target_role_titles`, which is what
+    Settings, Practice and the score header render. Only the scope is cleaned.
+
+    ⚠️ Resolving a dropped title to a family by string match is NOT the repair,
+    and must not be added here later. Measured 2026-09-14 on the real stored
+    values, ILIKE gives "sales" -> Customer Service, "Intern" -> Internal
+    Controls, "any" -> Company, Product, and Service Knowledge. `save_target`'s
+    own docstring has said so since #145: the family comes from corpus-backed
+    discovery, never from a free-form title.
+    """
+    families = updates.get("target_roles")
+    if not families:
+        return
+    # Same guard `commit` uses for the snapshot write below: a pure-unit caller
+    # hands in a repo with no client, and a validation that cannot read the
+    # corpus must pass the patch through rather than drop a real family.
+    db = getattr(users_repo, "_db", None)
+    if db is None:
+        return
+    known = RoleFamiliesRepository(db).known_families(list(families))
+    kept = [family for family in families if family in known]
+    if kept == list(families):
+        return
+    if not kept:
+        # Same rule as the empty-scope guard in `derive`: an empty scoping key is
+        # not a narrower search, it is no search (invariant 5). Leave whatever is
+        # stored until a caller that actually resolved a family replaces it.
+        updates.pop("target_roles")
+        logger.warning(
+            "metric targeting.scope_all_unknown dropped=%d", len(families)
+        )
+        return
+    logger.warning(
+        "metric targeting.scope_partly_unknown kept=%d dropped=%d",
+        len(kept), len(families) - len(kept),
+    )
+    updates["target_roles"] = kept
+
+
 def commit(users_repo: UsersRepository, user_id: str, patch: dict[str, Any]) -> TargetCommit:
     """The only direction write. Snapshot first-class; profile is the projection."""
     before = users_repo.get_profile(user_id) or {}
     updates, lean = split_lean(patch)
     updates = derive(updates, before)
+    _drop_unknown_families(users_repo, updates)
 
     leans_changed = False
     if lean is not None:
