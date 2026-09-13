@@ -26,12 +26,14 @@ integration carries 37% of users.
 **It is a loop, and `repeat` is load-bearing.** If a task does not make one of
 the seven steps better, or the next pass richer than the last, it needs a reason.
 
-The loop does not accumulate yet. Upload now enqueues a reservoir ingest
-(`a191350a`) but no real signup has run through it; matching reads zero Career
-Stories; rehearsal has 0 runs. 3 of ~817 users have a story. The remaining
-call — promote the gap loop out of prep rooms that 328 of 397 CV-holders never
-open — is [BACKLOG.md](BACKLOG.md) TIER 3 #12, unpicked. Reach numbers:
-[FEATURE_LOOP_REGISTRY.md](docs/FEATURE_LOOP_REGISTRY.md).
+The loop has started to accumulate. Upload enqueues a reservoir ingest
+(`a191350a`) and one real signup has now run through it — 3 stories for a user
+who had none, all three with no number in them, which is why a CV line is banked
+as a start and not an answer (#13, `cb51d83b` + `97f42192`). 4 of ~821 users have
+a story. Matching still reads zero Career Stories (#14); rehearsal has 0 runs.
+The remaining call — promote the gap loop out of prep rooms that 328 of 397
+CV-holders never open — is [BACKLOG.md](BACKLOG.md) TIER 3 #12, unpicked. Reach
+numbers: [FEATURE_LOOP_REGISTRY.md](docs/FEATURE_LOOP_REGISTRY.md).
 
 ---
 
