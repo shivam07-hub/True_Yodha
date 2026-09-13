@@ -141,6 +141,34 @@ measured Free/Nano database ceiling, not unfinished application work.
 6. ~~**Match Verdict seam — Slice 4**~~ — ✅ CLOSED. Verified in memory `project_match_verdict_seam`: slice 4 built+shipped (`7643efc`), folded into the later standardization pass (`f3f1a2a`) which fixed the live dashboard fit bug + deleted the dead components slice 4 had decorated. Verdict word is live on `FeedFitRing`. Only remaining polish (tap-on-number→axes reveal panel) is deferred, not blocking.
 7. **#33 ₹99 Job-Switch Plan — the remaining build**: gap-personalised offer card (desktop rail + mobile feed inline), LLM review-draft → approve-queue → deliver, kill-switch env flag, L5 verbatim copy. Only revenue-bearing item in Tier 1–2.
 
+7b. **The tailor's "nothing is ever lost" promise silently does nothing.**
+    *Found 2026-09-13 tracing the upload bridge. Bounded fix, no decision needed.*
+
+    `_mirror_job_reword_to_reservoir` (`routers/cv/versions.py`) is named for the
+    reservoir and does not write to it. It calls `append_phrasing` with a
+    **positional** anchor (`experience:3`), which matches on `role_anchor` plus
+    the exact prior text and **returns `false` without a word** when no row
+    matches. The 1,710 positional `cv_points` are a one-off backfill frozen
+    2026-06-24 → 07-12; nothing has written that shape since. So for every user
+    whose points are that backfill — or who has none — a job-specific reword is
+    dropped on the floor while the code claims it was banked.
+
+    Two ways out, and they are the same decision as the dead layer below: point
+    the mirror at `story:{id}` so a reword becomes a real alternative phrasing on
+    the story, or delete the mirror and stop claiming it. Do not leave a function
+    whose name is the opposite of what it does.
+
+7c. **1,710 `cv_points` are a frozen layer no writer owns.** *Decision, then a
+    migration. Shivam's call — deleting is destructive.*
+
+    Two pointer shapes live in one table, told apart only by a string prefix:
+    `story:{uuid}` (407 rows, 3 users, live) and positional `experience:N` /
+    `projects:N` (1,710 rows, 185 users, last written 2026-07-12). No code path
+    writes positional any more. `story_pointers` scopes by `story_id`, so the
+    reservoir never double-counts them — they are inert, not dangerous — but they
+    are what makes 7b lie, and they are 81% of the table. Migrate onto stories or
+    retire them; either way, one shape.
+
 ### TIER 3 — needs a decision or a grill BEFORE code
 
 8. **#37 ranked job-skill importance** — `/grill-me` first (ordinal vs weight vs 3-tier; extension-only vs whole matcher; sister-repo scraper coordination).
@@ -226,6 +254,52 @@ measured Free/Nano database ceiling, not unfinished application work.
     `story_pointers` builds an unbounded `.in_("story_id", …)` — 171 stories is
     already a ~6.6KB URL and 400 would exceed a typical 8KB proxy limit, with no
     paging. The bridge adds ~8 stories per user, so this arrives sooner now.
+
+13. **⚠️ A CV-born story is thin, and nothing marks it as thin. LIVE AND
+    UNGUARDED since `a191350a` (2026-09-13).** *Grill before the next reservoir
+    slice — this is already running in production.*
+
+    The bridge now turns every uploaded CV into Career Stories. But a CV is a
+    summary of already-summarised work: its narrative fields are a bullet, not a
+    STAR. A story banked from a gap answer, where the user actually told the
+    story, is a different quality of evidence — and `career_stories` has no
+    notion of confidence or depth. `career_projection` ranks purely on cosine
+    against the JD, so a thin CV-born story can outrank the real one the user
+    typed out.
+
+    Either that is acceptable (thin beats absent; the user enriches later), or
+    the extractor marks depth at write time and the projection prefers depth on a
+    tie. Decide before the reservoir carries more weight, not after.
+
+14. **Step 2 of the loop reads zero Career Stories.** *Goal-level gap, found
+    2026-09-13. Needs a grill: this is the matcher, not a corner.*
+
+    "Find the job closest to your aspiration" runs on the skill layer. Every
+    module under `services/matching/` has zero reservoir reads. So the match is
+    made against *what skills a CV lists*, never against *what the person
+    actually did* — while the stories sit there embedded, with pgvector on them
+    and a working cosine already used by the projection. The single biggest
+    unexploited asset on the platform.
+
+15. **Step 5 leaves no trail back to the stories.** *Small, but it is what makes
+    `repeat` mean something.*
+
+    `cv_of_record` freezes the CV that went out into `cv_application_attempts`
+    with zero reservoir references. So Myro knows what you sent and knows what
+    you are made of, and cannot join the two: which stories won an interview,
+    which never get picked, which phrasing was on the CV that got a reply. Pass
+    two of the loop is supposed to be better than pass one; this is the join that
+    would make it so.
+
+16. **A role fold still has no receipt, so a confident judge may not fold.**
+    *`82f96ac0` turned role auto-fold off rather than ship an irreversible one.*
+
+    `apply_fold` moves every story under the duplicate role, archives the row and
+    may widen the survivor's dates, recording none of it — so a wrong fold cannot
+    be taken back, and "archive-only, restorable" was never true. Stories can
+    auto-fold because `story_identity_fold` writes `moved.dup_added` and `unfold`
+    takes back exactly that. Give roles the same receipt and the judge earns the
+    write back. Until then every confident verdict is a question for the user.
 
 ### TIER 4 — correctly deferred, DO NOT pick up
 
