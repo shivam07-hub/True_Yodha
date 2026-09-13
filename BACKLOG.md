@@ -256,8 +256,66 @@ measured Free/Nano database ceiling, not unfinished application work.
     paging. The bridge adds ~8 stories per user, so this arrives sooner now.
 
 13. **⚠️ A CV-born story is thin, and nothing marks it as thin. LIVE AND
-    UNGUARDED since `a191350a` (2026-09-13).** *Grill before the next reservoir
-    slice — this is already running in production.*
+    UNGUARDED since `a191350a` (2026-09-13).** *GRILL-LOCKED 2026-09-13 (Shivam,
+    3 locks). Nothing built yet — this is the design, in build order.*
+
+    **Shivam's goal, in his words:** a CV pointer should become "so fine and so
+    whole that it covers all the best practices of a CV point", and everything
+    the user produces through the day should land in the reservoir.
+
+    **L1 — a CV line never closes a question.** A story whose narrative came from
+    a CV bullet may show as evidence for a JD requirement but may not mark it
+    `covered`. Today `cv_weave_interview.py:106` filters the interview to
+    `status != "covered"` at `COVERED_MIN = 0.74`, so a scraped bullet clearing
+    0.74 permanently closes a question the user would have answered well — on
+    that job and every future one. That is the bridge suppressing the one door
+    measurably proven to work (`e91eef0b` built a whole reservoir from three gap
+    answers, no upload).
+
+    **L2 — the answer upgrades the SAME story; the CV line survives as an
+    alternative phrasing.** One story about one achievement, told version leading
+    on the CV, the user's original wording kept in the phrasing drawer. Not a
+    second story, not a replacement. Requires the answer to know which story it
+    is improving — `jd_coverage` already records `story_id` on the coverage row
+    (`jd_coverage.py:161`), but `WeaveAnswerRequest` does not carry it, so today
+    the reply mints a sibling and hopes `story_identity` folds it. Resolve
+    server-side from the cached coverage row; do not trust a client-supplied id.
+
+    **L3 — one question, two places.** The same question object is asked in the
+    job room (when that job needs the bullet) and stands as a queue in Stories
+    ("6 of your bullets are missing their number"). Answering in either place
+    upgrades the story everywhere and it is never asked twice
+    ([[feedback_record_against_the_person_not_the_occasion]]).
+
+    **What "whole" means — already defined in code, do not reinvent.**
+    `story_extractor._STATIC_STYLE` is the Google XYZ formula ("Accomplished X,
+    measured by Y, by doing Z") and the POINTER rule is 18-30 words, strong
+    past-tense verb, best metric woven in. So bullet completeness is a
+    deterministic test — carries a number, in the word band, opens on a real verb
+    — needing no LLM and no new column. ADR-0016 forbids inventing the missing
+    number, so the only repair is a specific question: "You led the migration —
+    how big was it, or what changed?", never a blank prompt.
+
+    **Depth needs no new column either.** `parse_extraction` drops empty
+    narrative keys, so a CV bullet yields `{result}` and a told story yields all
+    four of situation/task/action/result. Count the populated keys. Deriving it
+    beats tagging by source, because a rushed gap answer is also thin and should
+    be treated as thin.
+
+    **Two readers must learn depth.** `rank_stories` already carries a `+0.15`
+    metric bonus, so a non-cosine quality term has precedent — depth is a second
+    small term beside it, not a rewrite. And `story_identity_rules.pick_keep`
+    orders by pointer count → inflow count → older; a told story must beat a thin
+    one BEFORE pointer count, or two CV uploads outvote the story the user typed.
+    This matters because `fold_plan` unions metrics, skills and inflows but never
+    merges `narrative` — so today the loser's STAR text is simply archived.
+
+    **Backfill LAST, and not yet.** The 397 existing baselines would mint ~3,200
+    thin stories before any completion loop exists. Order: verify the bridge on
+    one real upload → depth signal + shared question → then backfill, newest
+    cohort first, measuring stories-per-user before widening.
+
+    Original finding:
 
     The bridge now turns every uploaded CV into Career Stories. But a CV is a
     summary of already-summarised work: its narrative fields are a bullet, not a
