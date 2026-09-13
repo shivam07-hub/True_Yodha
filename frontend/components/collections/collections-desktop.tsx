@@ -109,15 +109,8 @@ export function CollectionsDesktop({
   const neverSearched = collection.isEmpty && !isRefreshing
 
   return (
-    <div className="tm-intel-page" style={{ padding: "32px 36px 64px", maxWidth: 1480, margin: "0 auto" }}>
+    <div className="tm-intel-page tm-feed-page">
       <div className="mc-workspace">
-        <aside className="mc-ws-rail mc-ws-rail--peek">
-          <FirstSuccessChecklist token={token} />
-          <div className="mc-rail">
-            <PeekSurfaces token={token} />
-          </div>
-        </aside>
-
         <div className="mc-ws-main">
           <div className="db">
             <div className="db-head">
@@ -222,7 +215,7 @@ export function CollectionsDesktop({
                   items={shown}
                   getKey={(e) => e.job_id}
                   estimateSize={190}
-                  gap={14}
+                  gap={8}
                   className="db-feed"
                   renderItem={(entry) => (
                     <CollectionRow
@@ -253,7 +246,7 @@ export function CollectionsDesktop({
                 </button>
               </div>
             ) : (
-              <div className="db-empty" style={{ flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
+              <div className="db-empty">
                 <span>{stage ? emptyCopy(stage) : null}</span>
                 {stage === "found" ? (
                   <SplitFooter
@@ -287,6 +280,13 @@ export function CollectionsDesktop({
               : null}
           </div>
         </div>
+
+        <aside className="mc-ws-rail mc-ws-rail--peek">
+          <FirstSuccessChecklist token={token} />
+          <div className="mc-rail">
+            <PeekSurfaces token={token} />
+          </div>
+        </aside>
       </div>
     </div>
   )

@@ -94,28 +94,32 @@ export function PracticeDesktopSkeleton() {
 
 export function DashboardDesktopSkeleton() {
   return (
-    <div style={PAGE}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 32, alignItems: "start" }}>
-        <div>
-          <Bar w={340} h={38} r={10} />
-          <Bar w={220} h={14} r={4} mt={10} />
-          <div style={{ display: "flex", gap: 12, marginTop: 16, flexWrap: "wrap" }}>
-            {[64, 78, 52, 84, 60].map((w, i) => (
-              <Skeleton key={i} style={{ width: w, height: 24, borderRadius: 999 }} />
+    <div style={{ ...PAGE, padding: "var(--tm-page-py) var(--tm-page-px) var(--tm-space-xl)" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, var(--tm-feed-col)) var(--tm-feed-rail)",
+          gap: "var(--tm-space-lg)",
+          maxWidth: "calc(var(--tm-feed-col) + var(--tm-feed-rail) + var(--tm-space-lg))",
+          margin: "0 auto",
+          width: "100%",
+          alignItems: "start",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {[64, 78, 52, 84, 60].map((w) => (
+              <Skeleton key={w} style={{ width: w, height: 32, borderRadius: 10 }} />
             ))}
           </div>
-          <div style={{ marginTop: 22, maxWidth: 560 }}>
-            <Card h={180} />
-          </div>
+          {[0, 1, 2].map((i) => (
+            <FeedRow key={i} />
+          ))}
         </div>
-        <div style={{ width: 260 }}>
-          <Card h={240} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <RailWidget rows={4} />
+          <RailWidget rows={3} logo />
         </div>
-      </div>
-      <div style={{ marginTop: 36, display: "flex", gap: 12, flexWrap: "wrap" }}>
-        {[0, 1, 2, 3, 4].map((i) => (
-          <Skeleton key={i} style={{ width: 220, height: 76, borderRadius: 12 }} />
-        ))}
       </div>
     </div>
   )

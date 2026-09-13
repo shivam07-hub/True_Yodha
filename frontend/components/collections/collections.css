@@ -5,28 +5,28 @@
 .mf-reading {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 14px 16px;
-  border-radius: var(--tm-radius-md, 12px);
+  gap: 8px;
+  padding: var(--tm-card-pad);
+  border-radius: var(--tm-radius-card);
   border: 1px solid var(--tm-int-border);
   background: var(--tm-int-bg-wash);
   color: var(--tm-text);
-  font-size: 13px;
-  margin: 14px 0;
+  font-size: var(--tm-fs-body);
+  margin: var(--tm-space-sm) 0;
 }
 
 .mf-reading-dot {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: var(--tm-accent);
+  background: var(--tm-interactive);
   animation: mf-pulse 1.1s var(--tm-ease, ease) infinite;
   flex-shrink: 0;
 }
 
 @keyframes mf-pulse {
-  0%, 100% { opacity: 0.35; transform: scale(0.85); }
-  50% { opacity: 1; transform: scale(1); }
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
 }
 
 /* Screen-reader-only. The skeleton says "loading" visually; without this the
@@ -39,7 +39,7 @@
 
 .mf-skel {
   height: 84px;
-  border-radius: var(--tm-radius-md, 12px);
+  border-radius: var(--tm-radius-card);
   border: 1px solid var(--tm-border-soft);
   background: linear-gradient(
     100deg,
@@ -73,7 +73,7 @@
 }
 
 .mf-footer-line {
-  font-size: 12.5px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
   line-height: 1.5;
 }
@@ -91,23 +91,23 @@
 /* True-empty first-run CTA. */
 .mf-firstrun {
   text-align: center;
-  padding: 40px 24px;
+  padding: var(--tm-space-xl) var(--tm-space-lg);
   border: 1px dashed var(--tm-border-soft);
-  border-radius: var(--tm-radius-md, 12px);
+  border-radius: var(--tm-radius-card);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: var(--tm-space-sm);
 }
 
 .mf-firstrun-title {
-  font-size: 16px;
-  font-weight: 650;
+  font-size: var(--tm-fs-heading);
+  font-weight: 600;
   color: var(--tm-text);
 }
 
 .mf-firstrun-sub {
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   color: var(--tm-text-muted);
   max-width: 42ch;
   line-height: 1.55;
@@ -146,24 +146,43 @@
    it belongs to, in the same slot the note textarea uses — a correction is an
    edit of THIS row, never a second screen. */
 .db-fiximport {
-  margin-top: 8px; padding: 10px; display: grid; gap: 8px;
-  border: 1px solid var(--tm-border); border-radius: 8px; background: var(--tm-surface-2);
+  margin-top: 8px; padding: var(--tm-card-pad-sm); display: grid; gap: 8px;
+  border: 1px solid var(--tm-border); border-radius: var(--tm-radius-lg); background: var(--tm-surface-2);
 }
 .db-fiximport label { display: grid; gap: 4px; }
 .db-fiximport label span {
-  font-size: var(--tm-fs-micro); letter-spacing: 0.04em; text-transform: uppercase;
+  font-size: var(--tm-fs-caption); letter-spacing: 0.04em; text-transform: uppercase;
   color: var(--tm-text-muted);
 }
 .db-fiximport input {
-  padding: 8px 10px; border-radius: 6px; border: 1px solid var(--tm-border);
-  background: var(--tm-surface); color: var(--tm-text); font: inherit; font-size: 13.5px;
+  padding: 8px 10px; border-radius: var(--tm-radius); border: 1px solid var(--tm-border);
+  background: var(--tm-surface); color: var(--tm-text); font: inherit; font-size: var(--tm-fs-body);
 }
 .db-fiximport input:focus-visible { outline: 2px solid var(--tm-interactive); outline-offset: 1px; }
-.db-fiximport-error { margin: 0; color: var(--tm-danger); font-size: 12.5px; }
+.db-fiximport-error { margin: 0; color: var(--tm-danger); font-size: var(--tm-fs-caption); }
 .db-fiximport-actions { display: flex; gap: 8px; justify-content: flex-end; }
 
 @media (max-width: 520px) {
   .db-fiximport-actions { justify-content: stretch; }
   .db-fiximport-actions .db-btn { flex: 1; }
+}
+
+/* Hard radii on this feed's chrome. dashboard.css still ships 99px pills for
+   Prep's imported .db bits and the sort menu — those stay until their slice. */
+.tm-feed-page .db-seg,
+.tm-feed-page .db-sort-trigger,
+.tm-feed-page .db-sourcechip,
+.tm-feed-page .db-statuschip {
+  border-radius: var(--tm-button-radius);
+  font-size: var(--tm-fs-caption);
+}
+.tm-feed-page .db-seg { font-size: var(--tm-fs-body); }
+.tm-feed-page .db-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--tm-space-sm);
+  text-align: left;
+  font-size: var(--tm-fs-body);
 }
 

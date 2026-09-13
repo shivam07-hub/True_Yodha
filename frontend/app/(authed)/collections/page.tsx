@@ -13,7 +13,7 @@ import { DashboardSkeleton } from "@/components/loading/page-skeletons"
 /**
  * /collections — the saved-job worklist, successor of the retired /home
  * dashboard (2026-07-07 cutover). One route, two skins: the handoff mobile
- * surface and the desktop workspace (FeedCard rows + build drawer + rail).
+ * surface and the desktop feed (732 + 316 right rail, peeks on the right).
  * Browse for unsaved matches lives on Jobs (/market); this surface owns
  * collect → tailor → apply. `?jobId=` deep-links open that job's detail.
  *

@@ -916,6 +916,29 @@ body::after {
   box-shadow: 0 0 0 1px var(--tm-accent-ring), var(--tm-shadow-2);
 }
 
+/* Feed template — r/popular: 732 column + 316 right rail. Collections is the
+   proof. Market still sits on the 1480 shell until its slice. */
+.tm-feed-page {
+  padding: var(--tm-page-py) var(--tm-page-px) var(--tm-space-xl);
+  margin: 0 auto;
+}
+.tm-feed-page .mc-workspace {
+  grid-template-columns: minmax(0, var(--tm-feed-col)) var(--tm-feed-rail);
+  gap: var(--tm-space-lg);
+  max-width: calc(var(--tm-feed-col) + var(--tm-feed-rail) + var(--tm-space-lg));
+  margin: 0 auto;
+  width: 100%;
+}
+@media (max-width: 980px) {
+  .tm-feed-page {
+    padding: var(--tm-mobile-page-py) var(--tm-mobile-page-px) calc(var(--tm-space-xl) + var(--tm-mobile-bottomnav-h));
+  }
+  .tm-feed-page .mc-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: none;
+  }
+}
+
 /* ── Status pills ─────────────────────────────────────────── */
 .tm-pill {
   display: inline-flex;
