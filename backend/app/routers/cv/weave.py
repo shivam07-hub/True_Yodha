@@ -40,6 +40,7 @@ from app.services import (
     cv_weave_cache,
     cv_weave_interview,
     jd_coverage,
+    job_history,
     xp_policy,
     xp_service,
 )
@@ -161,11 +162,11 @@ class WeaveApplyResponse(BaseModel):
 
 # ── shared plumbing ────────────────────────────────────────────────────────────
 
-def _job_or_404(jobs_repo: JobsRepository, job_id: str) -> dict:
-    rows = jobs_repo.get_jobs_by_ids([job_id])
-    if not rows:
+def _job_or_404(jobs_repo: JobsRepository, user_id: str, job_id: str) -> dict:
+    job = job_history.listing_document(jobs_repo, user_id, job_id)
+    if not job:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Job not found.")
-    return rows[0]
+    return job
 
 
 def _baseline_or_409(cv_repo: CVVersionsRepository, user_id: str) -> dict:
@@ -220,7 +221,7 @@ async def weave_interview(
 ) -> WeaveInterviewResponse:
     """The questions Mentor asks before weaving — only the asks the user's
     stories + CV could not prove, each with mined candidate answers (L7)."""
-    job = _job_or_404(jobs_repo, body.job_id)
+    job = _job_or_404(jobs_repo, user.id, body.job_id)
     baseline = _baseline_or_409(cv_repo, user.id)
     cv_structured = baseline.get("cv_structured") or {}
 
@@ -330,7 +331,7 @@ async def run_weave(
 ) -> WeaveRunResponse:
     """The weave. 50 coins per run, charged only after a deliverable proposal
     exists; a cached proposal replays free unless `refresh` explicitly re-runs."""
-    job = _job_or_404(jobs_repo, body.job_id)
+    job = _job_or_404(jobs_repo, user.id, body.job_id)
     baseline = _baseline_or_409(cv_repo, user.id)
     cv_structured = baseline.get("cv_structured") or {}
     current_fp = cv_weave.source_fingerprint(cv_structured)
@@ -407,7 +408,7 @@ def apply_weave(
     if hit is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No tailored draft for this job yet.")
     proposal, _cache = hit
-    job = _job_or_404(jobs_repo, body.job_id)
+    job = _job_or_404(jobs_repo, user.id, body.job_id)
     baseline = _baseline_or_409(cv_repo, user.id)
     master = baseline.get("cv_structured") or {}
     if cv_weave.source_fingerprint(master) != proposal.fingerprint:

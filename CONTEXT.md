@@ -1345,8 +1345,11 @@ Whether a job we surface still exists. Two triggers, one truth — every verdict
 
 **Liveness is not freshness.** `last_seen` records when the scraper last *ingested* a row, not when anyone confirmed it exists — while the scraper does not re-crawl, `last_seen` carries no liveness information at all and must not be rendered as if it does.
 
-**Unload.** `listing_confidence=closed` starts a one-hour clock (`quarantine_until` / `deletion_eligible_at`). Only `closed` unloads, never `likely_closed`. The verifier writes a `job_archive_v1` bundle (the same JSON + CSV shape as the 2026-07-15 / 2026-08-13 laptop unloads) to a local `job_unloads/` tree, then `retire_closed_jobs` deletes those ids. Nothing is written to Supabase Storage. Railway skips unload unless `JOB_UNLOAD_ARCHIVE_DIR` points at a real disk. User history is snapshotted into `job_applications` / `cv_versions` first. A scrape that sees the posting again writes it back as live. Restore from `backend/`: `python -m scripts.restore_job_archive path/to/archive_dir`. The scraper does not delete rows on publish.
+**Unload.** `listing_confidence=closed` starts a one-hour clock (`quarantine_until` / `deletion_eligible_at`). Only `closed` unloads, never `likely_closed`. The verifier writes a `job_archive_v1` bundle (the same JSON + CSV shape as the 2026-07-15 / 2026-08-13 laptop unloads) to a local `job_unloads/` tree, then `retire_closed_jobs` deletes those ids. Child DELETE triggers that maintain `job_verification_interest` do not run after the job row is gone (that derived row CASCADEs). Nothing is written to Supabase Storage. Railway skips unload unless `JOB_UNLOAD_ARCHIVE_DIR` points at a real disk. User history is snapshotted into `job_applications` / `cv_versions` first. A scrape that sees the posting again writes it back as live. Restore from `backend/`: `python -m scripts.restore_job_archive path/to/archive_dir`. The scraper does not delete rows on publish.
 
+## Tracked Listing
+
+The JD a user is already working — distinct from a live marketplace row. Feed and match ask "is this still recommendable?" and read `jobs` under live-only RLS. Prep, coverage, weave, and the day-of brief ask "what is this room about?" and read a Tracked Listing: the live row when RLS still shows it, otherwise `job_applications.job_snapshot`. `job_history.listing_document` is the one lookup. A closed posting must not blank Evidence while the user is still preparing for the call.
 
 ## Target Location
 

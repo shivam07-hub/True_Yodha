@@ -90,6 +90,9 @@ class _FakeJobsRepo:
     def get_jobs_by_ids(self, ids):
         return [self.job] if self.job else []
 
+    def get_application_job_snapshot(self, user_id, job_id):
+        return None
+
     def get_deepening(self, user_id, job_id, prompt_key):
         return self.deepening
 

@@ -28,7 +28,14 @@ from app.repositories.connections import ConnectionsRepository, get_token_connec
 from app.repositories.cv import CVVersionsRepository, CVVersionWriteSpec, get_token_cv_repository
 from app.repositories.cv_dump import CvDumpRepository, get_cv_dump_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
-from app.services import career_projection, career_reservoir, cv_compose, jd_coverage, role_dedup
+from app.services import (
+    career_projection,
+    career_reservoir,
+    cv_compose,
+    jd_coverage,
+    job_history,
+    role_dedup,
+)
 from app.services.llm_provider import get_blocking_judgment_provider
 from app.services.connections_import import looks_like_connections_csv, parse_connections_csv
 from app.services.cv_structured_shape import has_content
@@ -313,10 +320,9 @@ async def project_reservoir(
     if not baseline or not has_content(baseline.get("cv_structured")):
         raise HTTPException(status.HTTP_409_CONFLICT, "Upload a CV first.")
 
-    rows = jobs_repo.get_jobs_by_ids([body.job_id])
-    if not rows:
+    job = job_history.listing_document(jobs_repo, user.id, body.job_id)
+    if not job:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Job not found.")
-    job = rows[0]
 
     roles = repo.list_roles(user.id)
     stories = repo.list_stories(user.id)
@@ -402,9 +408,8 @@ async def jd_coverage_for_job(
     the CV must never read "Missing"). The panel that drives the tailoring
     interview AND the Preparations room. Cached per (user, job) in
     job_deepenings — stable requirements between visits; `refresh` recomputes."""
-    rows = jobs_repo.get_jobs_by_ids([body.job_id])
-    if not rows:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Job not found.")
+    job = job_history.listing_document(jobs_repo, user.id, body.job_id)
+    jd_text = (job or {}).get("job_description") or ""
 
     def _respond(res: jd_coverage.CoverageResult, cached: bool, computed_at: str) -> JDCoverageResponse:
         return JDCoverageResponse(
@@ -421,11 +426,13 @@ async def jd_coverage_for_job(
         )
 
     result, cached, computed_at = await jd_coverage.assess_for_job(
-        user.id, body.job_id, rows[0].get("job_description") or "",
+        user.id, body.job_id, jd_text,
         jobs_repo, (cv_repo.latest_baseline(user.id) or {}).get("cv_structured") or {},
         get_blocking_judgment_provider(),
         refresh=body.refresh,
     )
+    if not result.requirements and job is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Job not found.")
     return _respond(result, cached=cached, computed_at=computed_at)
 
 

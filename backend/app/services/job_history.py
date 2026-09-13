@@ -50,3 +50,19 @@ def attach_jobs(
             row["jobs"] = jobs_by_id[jid]
         hydrate_job_snapshot(row)
     return rows
+
+
+def listing_document(repo: Any, user_id: str, job_id: str) -> dict[str, Any] | None:
+    """The JD this user is working.
+
+    Live marketplace row if RLS still shows it; otherwise the snapshot taken
+    when they started (application, not feed). Callers never ask which store
+    answered — None means this user has no document for that id.
+    """
+    live = repo.get_jobs_by_ids([job_id])
+    if live:
+        return live[0]
+    snapshot = repo.get_application_job_snapshot(user_id, job_id)
+    if isinstance(snapshot, dict) and snapshot:
+        return snapshot
+    return None
