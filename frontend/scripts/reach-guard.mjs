@@ -71,12 +71,29 @@ function routeOf(pageFile) {
   return "/" + visible.join("/")
 }
 
-function allRoutes() {
-  const pages = []
-  walk(APP_DIR).forEach((f) => {
-    if (f.endsWith(`${sep}page.tsx`) || f.endsWith(`${sep}page.ts`)) pages.push(f)
-  })
-  return [...new Set(pages.map(routeOf))].sort()
+function pageFiles() {
+  return walk(APP_DIR).filter(
+    (f) => f.endsWith(`${sep}page.tsx`) || f.endsWith(`${sep}page.ts`)
+  )
+}
+
+/**
+ * Is this page a forwarding shim for a retired URL?
+ *
+ * A retired route SHOULD keep a redirect: the old link lives in emails, in
+ * screenshots, in someone's bookmarks, and a 404 is a worse answer than a
+ * forward. /myro → /market and /diary → /practice both say so in their own
+ * comments, and /diary carries query params through so deep links from pipeline
+ * cards keep working.
+ *
+ * So a redirect stub is not a dead end — it is a door to somewhere else, and
+ * flagging it as debt teaches the reader to ignore this gate's output. The
+ * heuristic only ever applies to a page with ZERO inbound links, where a body
+ * that does nothing but redirect can only be a shim.
+ */
+function isRedirectShim(pageFile) {
+  const body = stripComments(readFileSync(pageFile, "utf8"))
+  return /\bredirect\s*\(/.test(body) || /\brouter\.(replace|push)\s*\(/.test(body)
 }
 
 /**
@@ -128,10 +145,14 @@ const debt = allowlist.debt ?? {}
 
 const unreachable = []   // hard failures: nothing links here, nothing explains it
 const thin = []          // one link only — a single edit away from orphaned
+const shims = []         // retired URLs kept alive as forwards
 const debtStillDead = []
 const debtNowWired = []
 
-for (const route of allRoutes()) {
+const routeToFile = new Map()
+for (const f of pageFiles()) if (!routeToFile.has(routeOf(f))) routeToFile.set(routeOf(f), f)
+
+for (const route of [...routeToFile.keys()].sort()) {
   if (route.includes("[")) continue // dynamic segments are linked by their builder
   const refs = inboundRefs(route)
   if (route in debt) {
@@ -139,6 +160,7 @@ for (const route of allRoutes()) {
     continue
   }
   if (route in external) continue
+  if (refs.length === 0 && isRedirectShim(routeToFile.get(route))) { shims.push(route); continue }
   if (refs.length === 0) unreachable.push(route)
   else if (refs.length === 1) thin.push({ route, by: refs[0] })
 }
@@ -191,7 +213,8 @@ if (failed) {
 
 console.error(
   `\n${GRN}✓ Every route is reachable${OFF} ` +
-  `${DIM}(${Object.keys(external).length} external, ${debtStillDead.length} known dead ends carried)${OFF}\n` +
+  `${DIM}(${Object.keys(external).length} external, ${shims.length} retired-URL forwards, ` +
+  `${debtStillDead.length} known dead ends carried)${OFF}\n` +
   `${DIM}  Reachable ≠ used. For whether anyone goes round the loop:${OFF}\n` +
   `${DIM}    python backend/scripts/loop_reach.py   →  docs/FEATURE_LOOP_REGISTRY.md${OFF}\n`
 )
