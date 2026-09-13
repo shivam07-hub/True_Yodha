@@ -1,383 +1,370 @@
 # Myro — Feature & Loop Registry
-### Source of Truth · v1.0 · 2026-05-27
+### Source of truth for "is this loop actually closed" · v2.0 · 2026-09-13
 
-Generated from graphify run (3315 nodes / 6795 edges) + CLAUDE.md audit.  
-**Update this doc** when shipping new features or retiring loops. Regenerate with `/graphify --update` then re-audit.
+Regenerated from the code and from **production counts**, not from a graph run.
+v1.0 (2026-05-27) was generated from graphify + a CLAUDE.md audit and drifted
+until it described a product we no longer run: it said "Forge" 33 times, a
+feature since renamed to Practice, and had **zero** mentions of the reservoir,
+coverage, `career_stories` or weave — the machinery the product now turns on.
 
----
+**The rule this file exists to enforce:**
 
-## INVESTOR FRAMING — "Built as a loop, not a one-shot"
+> A loop is not closed because the code is correct. It is closed when a number
+> from production says a real user went round it.
 
-> Marketing narrative retired from the public landing page 2026-06-13 (read as architecture, not
-> story). Preserved here as the investor/explainer artifact. **Thesis:** "A CV maker you use once.
-> An engine you come back to." The retention moat is the loop, not any single feature.
+Every loop below carries that number. Tests, types, lint, ui-drift and build —
+all five gates — prove the code works. **None of them can tell you whether
+anyone can reach it.** That is the gap every dead surface in this file fell
+through.
 
-7-node product loop, centered on **the Engine** (`The Engine keeps reading`):
-
-```
-Upload   — drop your CV, the Engine reads it
-   ↓
-Score    — 0–100 across 10 career domains
-   ↓
-Match    — best-fit roles from live openings
-   ↓
-Tailor   — one CV version per target job
-   ↓
-Apply    — send the version that fits
-   ↓
-Upskill  — practice the exact skills your matches demand   ← the accent node (where time is spent)
-   ↺
-repeat   — your score rises, your matches improve
-```
-
-This is the marketing-surface restatement of THE MASTER CYCLE below (the same loop, expressed in
-engineering terms). Keep both in sync if either changes.
+**Counts are from prod, 2026-09-13.** Re-measure before trusting them; the
+queries are in [§ How to regenerate](#how-to-regenerate).
 
 ---
 
-## THE MASTER CYCLE
+## THE SPINE — the four-step goal, with the drop at each step
+
+> Upload the CV, understand the platform, find a role for you, then download
+> the CV. — Shivam, 2026-08-28
 
 ```
-Record Win (after 25-min forge session)
-    ↓
-Win saved → LLM extracts skill evidence
-    ↓
-cv_versions new baseline written (POST /cv/skill-edit)
-    ↓
-Async re-tag: parse_cv_text → record_cv_score (BackgroundTask)
-    ↓
-Myro Score ticks up (mirror_scores updated)
-    ↓
-XP granted (+30 win / +50 forge claim)
-    ↓
-Skill level advances (total_forge_minutes ÷ 25 = session count → LEVEL_THRESHOLDS)
-    ↓
-Job match % improves (job_matcher re-runs on next refresh)
-    ↓
-Better job cards → motivation for next 25-min session
-    ↺ (loop)
+signed up                                  818
+  ↓ 49%
+uploaded a CV                              397
+  ↓ 97%
+got a Myro Score                           386      ← "understand" works
+  ↓ 67%
+has job matches                            260      ← "find a role" works
+  ↓ 27%
+collected a role                            69      ← the cliff
+  ↓ 20%
+tailored a CV version                       14      ← "download" barely happens
 ```
+
+**The spine holds for three steps and falls off at the fourth.** 386 of 397
+CV-uploaders get a score; 260 get matches. Then 69 collect anything and 14 ever
+produce a tailored CV. The goal's last word — *download* — is reached by 1.7% of
+signups and 3.5% of CV-holders.
+
+Everything below is a loop hanging off this spine. Read the spine first: a loop
+that starts after step 4 can only ever serve 14 people.
 
 ---
 
-## ALL RETENTION LOOPS
+## LOOP LEDGER
 
-### Loop A — Daily Forge → Skill Progression
-```
-/forge open
-→ start 25-min timer (forgeTimerStore Zustand + localStorage persist)
-→ any-duration burst completes → total_forge_minutes accumulates
-→ every 25 min cumulative = 1 session toward level-up
-→ claim XP (+50) via charge_xp() SQL RPC
-→ [PROPOSED] "Record a Win" prompt fires
-→ win → CV bullet updated → async re-score
-→ Myro Score ticks → motivation tomorrow
-⟳
-```
-
-### Loop B — Win → CV → Score → Jobs
-```
-Record win (free text / voice premium)
-→ LLM maps win text to skill evidence
-→ POST /cv/skill-edit → new baseline_upload cv_version
-→ BackgroundTask: parse_cv_text → record_cv_score
-→ user_skills updated → job_matcher re-ranks
-→ better matches visible on /jobs
-→ user saves job → job_applications row
-⟳
-```
-
-### Loop C — Save Job → Intel → Follow Company → Heatmap
-```
-User saves job (job_applications.status = 'pending')
-→ company identified
-→ user visits /intel (Intel/Market tab)
-→ follows company (10 XP via charge_xp → followed_companies)
-→ heatmap row appears (per-company useQuery, CV skills as cols)
-→ skill demand signals visible
-→ forge on high-demand skills → back to Loop A
-⟳
-```
-
-### Loop D — Share → Referral → New User
-```
-User sees /skills score
-→ taps ↗ share (Web Share API)
-→ link → /profile/{ninja_name}
-→ visitor sees ghost radar (logged-out)
-→ signs up via ?ref=ninja_name
-→ myro_ref cookie → user_profiles.referred_by_user_id
-→ [v2] original user gets XP credit on welcome_xp_granted=TRUE + referred_by_user_id IS NOT NULL
-⟳
-```
-
-### Loop E — Match Refresh → Upgrade CV → Better Matches
-```
-User refreshes matches (XP-gated)
-→ low match % on job cards
-→ /skills → skill card → "Edit CV pointer" or "Polish with AI"
-→ new baseline cv_version written
-→ async re-score → record_cv_score
-→ refresh matches again
-⟳
-```
-
-### Loop F — Win Recording → XP → Unlock Premium
-```
-Record win → +30 XP
-→ XP balance grows
-→ unlocks: match refresh / company follow / Polish with AI
-→ user sees platform value
-→ upgrades to premium (diary voice / Wispr flow-like)
-⟳ (monetisation funnel)
-```
-
-### Loop G — Match → Tailor → Apply/Share → Outcome  🆕 PROPOSED (closes the hire loop)
-```
-Job match surfaced (Loop B/E)
-→ user picks a job → "Tailor my CV for this" (factual reorder — never invent)
-→ tailored cv_version written (kind=tailored_*, parented to baseline)  ← ALREADY LIVE in CV Hub
-→ render tailored CV → PDF (Railway PDF API — ALREADY LIVE)
-→ DELIVER:  apply via apply_url  +  [PROPOSED] recruiter / referral outreach
-→ log outcome on job_applications (applied_at, channel, response)
-→ response rate per CV variant → which bullets/angles convert
-→ low response → re-tailor / forge the gap skill → Loop A/B
-⟳
-```
-**Why this matters:** Loops A–F build the profile and surface matches but stop at "save job". The
-payoff only lands when the user ships an application *and hears back*. Loop G is the missing closure.
-The firecrawl_Supabase **Career Ops Agent** prototypes the match→tailor half (`--tailor` builds a
-per-job CV from the same Supabase jobs); porting its 5-axis eval + `application_angle` into
-`llm_ranker` (see `docs/MATCHER_COMPARISON_CAREER_OPS_VS_TRUEYODHA.md`) gives each tailored CV a
-built-in "why apply" pitch. **Gap to build:** outcome capture (channel + response on
-`job_applications`) and the recruiter/referral delivery leg (cf. the empty
-`CV applier agent/Referral finder per company agent/` — intended home for recruiter discovery).
-
-### How to make existing loops better (cross-cutting, from this audit)
-- **Loop B/E (matches):** `job_matcher` already has the company-cap; the *eval* side is thin — upgrade
-  `llm_ranker` to emit grade + Apply/Skip + angle so job cards motivate action, not just show a %.
-- **Loop G (new):** every application is a labeled training signal. Capture response/no-response per CV
-  variant → the data loop that tells users which framing wins. Highest-leverage unbuilt loop.
-- **Deal-breakers** are implicit today; a first-class `user_profiles` field sharpens every match and
-  every tailored CV.
-
----
-
-## FEATURE SURFACE INVENTORY
-
-### 1. CV Hub (`/cv`)
-| Feature | DB / Store | Status |
-|---|---|---|
-| Upload PDF / text / LinkedIn | `cv_upload_jobs`, `cv_versions.source` | ✅ Live |
-| 2-phase async upload | `cv_upload_jobs.status` (processing/done/failed) | ✅ Live |
-| Idempotency (no double charge) | `cv_upload_jobs.idempotency_key` UNIQUE per user | ✅ Live |
-| Tab-close resume | `localStorage["myro_cv_upload_job_v1"]` | ✅ Live |
-| Scanned PDF guard | Phase-1: <80 non-ws chars → 422 before charge | ✅ Live |
-| Orphan sweep | `sweep_stale_cv_upload_jobs` RPC on FastAPI boot | ✅ Live |
-| Upload rate cap | 5/hr per user (`_enforce_user_upload_rate_limit`) | ✅ Live |
-| Main CV (baseline) | `cv_versions` kind=`baseline_upload` | ✅ Live |
-| Tailored versions | `cv_versions` kind=`tailored_*`, parented to baseline | ✅ Live |
-| Commit graph (visual history) | `cv_versions.parent_version_id` chain | ✅ Live |
-| Playground (per-job tailoring) | `?jobId=` query param, 2-pane editor | ✅ Live |
-| Skill-edit (edit bullet per skill) | `POST /cv/skill-edit`, SE1–SE17 decisions | ✅ Live |
-| Async recompute after edit | `cv_versions.recompute_finished_at`, polls 3s, cap 30s | ✅ Live |
-| PDF preview + ATS audit | `?view=pdf`, `cv.downloadPdf` endpoint | ✅ Live |
-
-### 2. Skills (`/skills`)
-| Feature | DB / Store | Status |
-|---|---|---|
-| Domain radar (12 domains) | `compute_and_persist_score()` → `mirror_scores` | ✅ Live |
-| Myro Score (0–100) | Aggregate across 10 domains | ✅ Live |
-| Skill cards (level, gap, CV pointer) | `user_skills` table | ✅ Live |
-| Skill levels L0–L5 | `user_skills.forge_sessions_count` ÷ LEVEL_THRESHOLDS | ✅ Live |
-| Log-to-Forge CTA | Skill card → `/forge?skill=X` deeplink | ✅ Live |
-| CV pointer inline edit | "Edit CV pointer" → skill-edit modal | ✅ Live |
-| Polish with AI | LLM rewrite of CV bullet (XP-gated) | ✅ Live |
-| `?skill=` deeplink | Opens domain accordion to skill | ✅ Live |
-| ScoreRing hero | SVG ring + domain breakdown accordion | ✅ Live |
-| WeaknessSpotlight | 3 lowest-scoring domains highlighted | ✅ Live |
-| Share profile (↗) | Web Share API → `/profile/{ninja_name}` | ✅ Live |
-
-### 3. Forge / Practice (`/forge`)
-| Feature | DB / Store | Status |
-|---|---|---|
-| 25-min session timer | `forgeTimerStore` Zustand + `localStorage["myro-forge-timer-v1"]` | ✅ Live |
-| Partial-burst continuation | `user_skills.total_forge_minutes` cumulative | ✅ Live |
-| ForgeXpPill ambient widget | 3 states: idle/running/claim-ready, conic ring | ✅ Live |
-| ForgeChip (4 states) | idle/cart/active/done on skill cards | ✅ Live |
-| LevelDots (5-dot ladder) | fills bottom-up via pendingMinutes/25 | ✅ Live |
-| XP on claim (+50) | `charge_xp` RPC | ✅ Live |
-| Auto-resume last skill | `GET /users/me/forge/last-skill` | ✅ Live |
-| Level-up on session count | LEVEL_THRESHOLDS in forge_service.py + level-thresholds.ts | ✅ Live |
-| Cycle counter | Sessions in one login window | 🔮 Backlog v2 |
-| Long-press dismiss | 600ms hold to dismiss mid-session | 🔮 Backlog v2 |
-| Streak multiplier | ×1.25/×1.5/×2 XP on N consecutive cycles | 🔮 Backlog v2 |
-
-### 4. Diary → "Record a Win" (PROPOSED REDESIGN)
-| Feature | DB / Store | Status |
-|---|---|---|
-| Old diary entry (+30 XP) | `daily_logs`, `cart_skills JSONB` | ✅ Live (old UX) |
-| **"Record a Win" prompt** | Triggered after forge claim | 🆕 Proposed |
-| **Daily win prompts (5 rotating)** | See prompts section below | 🆕 Proposed |
-| **Win → CV evidence extraction** | LLM parses win → skill bullets | 🆕 Proposed |
-| **Win → Skill level contribution** | Win = evidence toward skill advance | 🆕 Proposed |
-| **Win archive (searchable)** | `daily_logs` extended | 🆕 Proposed |
-| **N wins → CV rewrite** | Every 5 wins → "refresh your CV pointer?" | 🆕 Proposed |
-| **Voice-first (Wispr flow-like)** | Whisper transcribe → win text | 🔮 Premium |
-| **Astrology sub-brand prompts** | Personalised by natal chart / moon phase | 🔮 Premium |
-
-**Win prompts (rotate daily):**
-1. "What's one thing you shipped, fixed, or improved today?"
-2. "Describe a moment today where you used [skill X] — what happened?"
-3. "What problem did you solve? How would you explain it to a recruiter?"
-4. "What did you do today that your future self will thank you for?"
-5. "Name one thing today that proves you're getting better at [domain]."
-
-### 5. Job Matcher (`/jobs`)
-| Feature | DB / Store | Status |
-|---|---|---|
-| Top job matches | `job_applications`, `job_matcher.get_top_matches` | ✅ Live |
-| Match score (% skill overlap + LLM) | `job_skills` FK table | ✅ Live |
-| Tiered overlap floor (3→2 fallback) | Activates if pool underfills | ✅ Live |
-| Refresh matches (XP-gated, 50 XP) | `charge_xp` → refund on failure | ✅ Live |
-| Exhausted pool signal | `outcome_kind` in refresh response | ✅ Live |
-| Save job | `job_applications.status = 'pending'` | ✅ Live |
-| Application stage tracking | `job_applications.status` (saved→offer/reject) | ✅ Live |
-| Job card redesign | `JobCard.tsx` — Mission Control parity | ✅ Live |
-
-### 6. Tracker (`/tracker`)
-| Feature | DB / Store | Status |
-|---|---|---|
-| Pipeline Kanban (6 stages) | `job_applications.status` | ✅ Live |
-| Company focus drawer | Opens `company-drawer.tsx` on company tap | ✅ Live |
-| Stale-prompt (7-day) | `last_stage_changed_at` + bump RPC | ✅ Live |
-| Duplicate stale cards (M33) | Bug — parked HIGH | 🐛 Parked |
-
-### 7. Intel / Market (`/intel`, `/market`)
-| Feature | DB / Store | Status |
-|---|---|---|
-| Skill × Company heatmap | Per-company `useQuery`, CV skills as columns | ✅ Live |
-| Follow company (10 XP, cap 10, floor -30) | `followed_companies` table | ✅ Live |
-| Top Movers | 7D/30D/90D window + sort + followed-only toggle | ✅ Live |
-| Intel pane (public) | Job count stats, skill demand signals | ✅ Live |
-| Self Focus strip | User skill demand vs market | ✅ Live |
-| **Company page → live job listings** | `GET /companies/{name}/jobs`, JobRow grid, Save action | ✅ Live (2026-05-27) |
-| Country → city cascade (P1 next session) | Reorder selects + reset city on country change | 🔴 Next session |
-| Intel personalization from onboarding (P1) | Pre-populate `selectedCountry` from `target_location_country` | 🔴 Next session |
-| Heatmap labels missing (M17) | Bug — parked HIGH | 🐛 Parked |
-
-### 8. Share / Public Profile (`/profile/{ninja_name}`)
-| Feature | DB / Store | Status |
-|---|---|---|
-| Ninja / Public Name (vanity slug) | `user_profiles.ninja_name` UNIQUE | ✅ Live |
-| Domain Map (public radar) | 12-domain radar + score + tier — fully public | ✅ Live |
-| Ghost radar (logged-out) | Outline radar, `+` icon → `/signup?ref=` | ✅ Live |
-| OG image auto-gen | `app/profile/[ninja]/opengraph-image.tsx` | ✅ Live |
-| Web Share API (↗) | Native share sheet → WhatsApp first on mobile | ✅ Live |
-| Referral attribution | `myro_ref` cookie 30d + `referred_by_user_id` | ✅ Live |
-| Job overlap rows (logged-in only) | Max 3 mutual saved jobs | ✅ Live |
-
-### 9. Auth + Onboarding
-| Feature | DB / Store | Status |
-|---|---|---|
-| Google OAuth | Supabase provider | ✅ Live |
-| LinkedIn OAuth (identity + metadata) | `linkedin_oidc`, partner scopes granted | ✅ Live |
-| Magic link (3/hr/IP rate-limit) | `magic_link_attempts` table + RPC | ✅ Live |
-| Password (legacy) | Supabase | ✅ Live |
-| In-app browser detection | UA-sniff → warning sheet | ✅ Live |
-| Signup modal (global, one mount) | `useSignupGate` Zustand | ✅ Live |
-| Onboarding 5-step flow | CV → Role → Companies → Ninja Name → Score | ✅ Live |
-| Auto-ninja-name | `suggest_ninja_name()` from full_name → slug | ✅ Live |
-| Target company setup in onboarding | `followed_companies` seeded at step 3 | ✅ Live |
-| CV background upload during onboarding | `idle/running/done/failed` state machine | ✅ Live |
-| 12 GA4 signup telemetry events | `lib/analytics.ts::signupEvents` | ✅ Live |
-
-### 10. XP Economy
-| Feature | DB / Store | Status |
-|---|---|---|
-| Welcome grant (3000 XP) | DB BEFORE INSERT trigger on `user_profiles` | ✅ Live |
-| Forge claim (+50 XP) | `charge_xp` RPC | ✅ Live |
-| Win / Diary entry (+30 XP) | `daily_logs` write | ✅ Live |
-| Match refresh (cost varies) | `charge_xp` → `refund_xp` on failure | ✅ Live |
-| Company follow (10 XP, floor -30) | `charge_xp` | ✅ Live |
-| Polish with AI (XP-gated) | `use_xp_gate` hook | ✅ Live |
-| XP Explainer Modal | One-time on first positive balance, `localStorage["myro_xp_modal_seen_v1"]` | ✅ Live |
-| XP Gate Modal | `useXPGate` hook + `XPGateModal` | ✅ Live |
-| Ledger (audit trail) | `xp_ledger` append-only table | ✅ Live |
-| Atomic charge/refund | `charge_xp` / `refund_xp` SQL RPCs | ✅ Live |
-| Refund-rate metric | Structured log: `"metric refund.fired action=…"` | ✅ Live |
-| XP packs (premium purchase) | Billing/Settings, Razorpay | 🔮 Deferred |
-
-### 11. Operations / Infrastructure
-| Feature | DB / Store | Status |
-|---|---|---|
-| Railway auto-deploy (Develop) | `railway.toml` | ✅ Live |
-| Vercel deploy (main → himyro.com) | Vercel project | ✅ Live |
-| LLM chain fallback | OpenRouter free → Groq llama-3.3-70b → Gemini flash-lite → OpenRouter paid | ✅ Live |
-| Aspiration retry (3× exp backoff) | `_retry_supabase()` in `scores_repository.py` | ✅ Live |
-| Orphan CV job sweep on boot | `sweep_stale_cv_upload_jobs` RPC | ✅ Live |
-| Health check CLI | `ops/tools/health-check/` | ✅ Live |
-| Repo health CLI | `ops/tools/repo-health/` | ✅ Live |
-| Deploy check CLI | `ops/tools/deploy-check/` | ✅ Live |
-| Preview cleaner CLI | `ops/tools/preview-cleaner/` | ✅ Live |
-| Brand guidelines validator | Pre-commit + CI via `check-contrast.mjs` | ✅ Live |
-
----
-
-## STATE TRACKING MAP
-> Where is what stored?
-
-| Domain | Source of truth | Table / Store | How frontend reads |
+| # | Loop | Reach | Verdict |
 |---|---|---|---|
-| User identity | Supabase Auth | `auth.users` | JWT |
-| Profile + XP | DB | `user_profiles` | `GET /users/me` → `dataKeys.profile()` |
-| XP ledger | DB | `xp_ledger` | `GET /users/me/xp-ledger` |
-| CV versions | DB | `cv_versions` | `GET /cv/versions` |
-| CV upload status | DB | `cv_upload_jobs` | Poll `GET /cv/upload/status/{job_id}` |
-| Skills | DB | `user_skills` | `GET /users/me/skills` |
-| Myro Score | DB | `mirror_scores` | `GET /users/me/score` |
-| Forge timer | Client | `forgeTimerStore` Zustand | `useForgeSession` hook |
-| Forge session count | DB | `user_skills.forge_sessions_count` | via `/users/me/skills` |
-| Forge total minutes | DB | `user_skills.total_forge_minutes` | via `/users/me/skills` |
-| Wins / Diary | DB | `daily_logs` | `GET /users/me/daily-logs` |
-| Job matches | DB | `job_applications` | `GET /jobs/matches` |
-| Tracker stages | DB | `job_applications.status` | `GET /tracker` |
-| Followed companies | DB | `followed_companies` | `GET /users/me/followed-companies` |
-| Ninja name | DB | `user_profiles.ninja_name` | via profile |
-| Referral | DB | `user_profiles.referred_by_user_id` + `myro_ref` cookie | cookie set on `?ref=` landing |
-| XP modal seen | Client | `localStorage["myro_xp_modal_seen_v1"]` | one-time flag |
-| CV upload resume | Client | `localStorage["myro_cv_upload_job_v1"]` | on `/cv` mount |
-| Forge timer persist | Client | `localStorage["myro-forge-timer-v1"]` | Zustand persist middleware |
+| L1 | Upload → Score → Match → re-upload | 313 re-scored | **CLOSED** |
+| L2 | Skills confirm → target → matches | 389 / 99 | **CLOSED** |
+| L3 | Collect → prep room → 4 rungs → apply | 69 → 28 | **LEAKING** |
+| L4 | JD gap → answer → career story → tailored CV | **2** | **NEVER FIRED** |
+| L5 | Gap → Practice → certificate → CV line | 21 passed → **2** on a CV | **LEAKING BADLY** |
+| L6 | Save job → intel → follow company → heatmap | 46 | **LEAKING** |
+| L7 | Notification → return → act | 378 sent, return unmeasured | **UNINSTRUMENTED** |
+| L8 | Partner SSO → seat → activation | 330 | **CLOSED (not ours)** |
+| L9 | Referral → new user | **0** | **DEAD** |
+| L10 | Newsletter → signup | unattributed | **UNINSTRUMENTED** |
+| L11 | Coin economy → spend → unlock | 818 ledgered, 2 paid | **NOT A LOOP YET** |
 
 ---
 
-## OPEN BUGS IN LOOP CHAIN (HIGH)
-> Issues that break loop integrity
+### L1 — Upload → Score → Match → re-upload · **CLOSED**
 
-| ID | Loop affected | Description |
-|---|---|---|
-| ~~Company dead-end~~ | ~~Loop C~~ | ~~Company page showed cold-start reviews ask~~ **FIXED 2026-05-27 commit `92168b9`** |
-| M17 | Loop C (Intel) | Heatmap missing column/row labels |
-| M31 | Loop C (Intel) | Autodesk appears twice in heatmap — UNIQUE constraint audit needed |
-| **P1-Intel** | Loop C (Intel) | Country→city cascade missing. City filter not seeded from onboarding. **Next session.** |
-| M33 | Loop E (Tracker) | Duplicate stale-prompt cards for same company |
-| M13 | Loop B (CV) | Self Found row layout + 7× Cognizant dup in job cards |
-| M25 | Loop B (CV) | Tailored CV titles render `Cognizant · Cognizant` |
-| M30 | Loop B (CV) | `[Skip to main content](...)` scraper markdown leaking into LLM rationale |
-| M01 | Loop B (Score) | Score evidence trace — users ask "where did this score come from?" |
-| Backlog #14 | Loop E (Matches) | Match stuck at 2 for narrow CVs (pool exhausted, tiered floor fix landed but untested in prod) |
+```
+POST /cv/upload → cv_workflow → cv_versions + mirror_scores
+  → job_matcher → user_job_matches → /market cards
+  → user edits/re-uploads → new version → re-score  ↺
+```
+
+**313 of 386 scored users have more than one score.** 43 have more than one CV
+version. This is the one loop that demonstrably goes round more than once at
+scale, and it is the product's actual engine today.
+
+⚠️ Score lives in `mirror_scores` and waits for skill confirmation
+(`a6425b46`); a finished upload job carries no score by design.
 
 ---
 
-## HOW TO INVOKE THIS DOC
+### L2 — Skills confirm → career target → matches · **CLOSED**
 
 ```
-/graphify query "what features connect forge session to myro score"
+onboarding → user_skills (389 users) → career_target_snapshots (99)
+  → role-family targeting → user_job_matches
 ```
-Or reference directly: `docs/FEATURE_LOOP_REGISTRY.md`
 
-To refresh after shipping new features:
-1. `/graphify --update` → rebuilds graph
-2. Edit this file with new rows
+389 of 397 CV-holders confirm skills — the highest-completion step in the
+product. 99 hold a career target. Matching reads both.
 
-Graph source: `graphify-out/GRAPH_REPORT.md` + `graphify-out/graph.html`
+---
+
+### L3 — Collect → prep room → four rungs → apply · **LEAKING**
+
+```
+/market → collect (job_applications, 69 users)
+  → /preparations/[jobId] — four rungs:
+       1 CoveragePanel   (what this job wants vs what you've banked)  ← L4 lives here
+       2 LevelRows + DrillPanel  (skill levels)                       ← L5 lives here
+       3 RehearsePanel   (rehearsal marks the STORY, not the job)
+       4 BriefCard       (per job, correctly)
+  → stage: saved → applied → interviewing → ghosted/rejected
+```
+
+69 users collected something; **28 rooms ever moved past `saved`**; 25 users
+collected more than one role. All five stages are in use, so the ladder works —
+but 60% of rooms never advance, and the room is where L4 and L5 both live.
+
+**This is the bottleneck that starves two other loops.** Fixing L4's reach is
+mostly a question of not requiring a prep room first.
+
+---
+
+### L4 — JD gap → answer → career story → tailored CV · **NEVER FIRED**
+
+```
+POST /cv/jd-coverage        LLM-parses the JD's REAL requirements
+  → matched against (a) career_stories via memory_recall
+                    (b) the CV's own bullets (jd_coverage.bullets_from_cv)
+  → covered / weak / gap
+  → Myro asks ONE question about a gap
+  → POST /cv/jd-coverage/answer  |  POST /cv/weave/answer
+  → framed + ingested → career_stories (STAR + metrics + skills + a CV bullet)
+  → banked against the PERSON — counts in every other room
+  → career_projection → the tailored CV download                      ↺
+```
+
+**2 users have ever answered a gap. 3 users have a career story.**
+
+This is the most valuable loop in the product and the least reached. Two
+properties, neither obvious:
+
+- **It needs no dump.** Coverage falls back to the CV's own bullets, so it works
+  on an empty reservoir. `e91eef0b` built an entire reservoir from zero on
+  2026-08-05 with three weave answers and no dump at all.
+- **It is the only inflow that produces something the user did not already
+  have.** Every other path re-reads what they already wrote; this one extracts
+  what was never on the CV — the thing they actually get rejected for.
+
+**Why it is starved:** `CoveragePanel` is rung 1 *inside a prep room*. A user
+must upload a CV, find a job, collect it, open the room, and land on the right
+rung before Myro ever asks a question it could bank. 328 of 397 CV-holders never
+get that far (see L3).
+
+**It was also leaking silently until 2026-09-12.** Gap answers were written
+`kind='note'` while the inflow ledger read `kind IN ('file','linkedin')`, so a
+failed answer was invisible to `ingest_status` and unreachable by
+`retry_stale_ingests`. Three sat pending for two months. Fixed in `262b7250`:
+`kind='answer'` + CHECK + `INFLOW_KINDS`, plus `reservoir_ingest_sweep` (hourly,
+all users, bulk lane) so the heal no longer depends on opening the Stories tab.
+
+**Open decision — BACKLOG TIER 3 #12:** `/cv/upload` never touches the reservoir
+at all. Either upload enqueues its own ingest (a paid extraction per signup), or
+the gap loop stays the only way in and gets moved to where users already are.
+
+---
+
+### L5 — Gap → Practice → certificate → CV line · **LEAKING BADLY**
+
+```
+skill gap → /practice → quiz_attempts (65 users, 101 passes, 21 passers)
+  → skill certificate issued
+  → certificate_to_cv handler → cv_structured.certs → a checkable CV line   ↺
+```
+
+**101 passes, 21 users who passed, and 2 users with a Myro certificate line on
+their CV.** 230 users have certs on their CV, but those were parsed from the
+document they uploaded — zero carry a Myro `verification_id`.
+
+The last hop is built and works (the handler writes `cv_structured["certs"]`,
+the line carries a verify URL a recruiter can open). It has fired for 2 of 21
+eligible people. **Find out why before building anything new on this loop** —
+the difference between "the handler never runs" and "users pass but never earn a
+cert" is the whole diagnosis, and it is not in this file yet.
+
+Only 7 users ever ran a forge/practice session, against 65 who took a quiz.
+
+---
+
+### L6 — Save job → intel → follow company → heatmap · **LEAKING**
+
+```
+/market → job detail → company page → follow (followed_companies, 46 users)
+  → /intel, /hiring, sector panels → new roles surface  ↺
+```
+
+46 users follow a company. The read side (intel, ghost index, sector panels,
+company pulse) is heavily built — 95,723 jobs, 600,056 listing observations,
+26,996 company skill profiles — against 46 people who asked to be told.
+
+**Asset-rich, product-poor, exactly as POSITIONING.md says.** The data is the
+strongest thing Myro owns and the smallest number of users touch it.
+
+---
+
+### L7 — Notification → return → act · **UNINSTRUMENTED**
+
+378 users have received a notification (`user_notifications`, 396 rows). Whether
+any of them came back and did the thing is **not measured anywhere**. Myro Ops
+slices 3–5 (automatic picks, "show me more") are blocked on the scraper.
+
+A loop you cannot measure is a loop you cannot claim. Add the return event
+before building more of it.
+
+---
+
+### L8 — Partner SSO → seat → activation · **CLOSED (not ours)**
+
+330 of 818 users — **40%** — arrive through one partner integration (Finlatics
+SSO + webhooks). This is the largest single inflow into the product and Myro
+does not own it. `partner_usage_events` (190) meters active seats by IST month.
+
+⚠️ Concentration risk stated plainly: if that partner leaves, 40% of the user
+base leaves with it.
+
+---
+
+### L9 — Referral → new user · **DEAD**
+
+```
+/referral  → (no inbound link anywhere in the codebase)
+user_profiles.referred_by_user_id → 0 rows
+```
+
+**Zero referrers. Zero arrivals. Zero links into the page.** The route exists,
+the column exists, nothing connects them. Either wire it or delete it — an
+untouched loop with a live route is indistinguishable from a broken one.
+
+---
+
+### L10 — Newsletter → signup · **UNINSTRUMENTED**
+
+`/newsletter` + `/newsletter/[slug]` are the acquisition surface and carry real
+SEO/AEO work. Nothing attributes a signup to an issue. `growth_messages` (55)
+and `growth_attribution` exist; neither is wired to the newsletter.
+
+---
+
+### L11 — Coin economy → spend → unlock · **NOT A LOOP YET**
+
+All 818 users have a `coin_ledger` row (1,334 rows). **2 verified payments
+ever.** The ₹99 Job-Switch Plan and the ₹999 AI Workflow Audit are both built
+and neither is purchasable anywhere in the app.
+
+Coins are currently an accounting record, not a loop: nothing the user does with
+them changes what happens next in a way that brings them back.
+
+---
+
+## ORPHAN SURFACES — the notebook class
+
+A page that exists, renders, passes every gate, and has **no way in**. The
+pattern that produced them: work shipped with an explicit handoff to a decision
+("nav placement is a Shivam product call") that never came, and nothing surfaced
+the omission again.
+
+Specimen: `/notebook` shipped 2026-07-06 with exactly that sentence in its own
+commit message, sat unreachable for 68 days, took **zero rows**, and was deleted
+2026-09-12 (`262b7250`).
+
+57 routes. These have **zero** references anywhere — frontend, backend, emails,
+sitemap:
+
+| Route | Reading |
+|---|---|
+| `/referral` | **orphan + dead loop (L9).** Wire it or delete it. |
+| `/beta-feedback` | **orphan.** 114 ledger items and no way to file the 115th. |
+| `/(authed)/recruiter` | **orphan.** Distinct from the public `/recruiters` door, which IS in `site-routes.ts` + footer + sitemap. |
+| `/welcome` | **orphan.** Nothing redirects here post-signup. |
+| `/signup/institutions` | expected — B2B campaign landing, entered externally. |
+| `/admin/growth` | expected — admin. |
+| `/offline` | expected — PWA fallback served by the service worker. |
+
+Reachable only by URL or redirect — verify before assuming a user gets there:
+`/cv/export`, `/dashboard`, `/mission`, `/myro`, `/xp`, `/preparations/audit`,
+`/extension/connect`, `/dev/phone` (1 ref each); `/home` is a retired redirect
+stub.
+
+**The authed primary nav is four destinations:** Jobs (`/market`), Collections
+(`/collections`), CV (`/cv?view=cv`), Prep (`/preparations`) — plus Myrology,
+Intel and Newsletter behind unlock predicates (`frontend/lib/nav-items.ts`).
+`nav-items.ts` still declares ids `forge` and `tracker` that no item defines.
+
+---
+
+## WHAT TO DO WITH THIS FILE
+
+1. **Before building on a loop, read its number.** Building slice 4 of a loop
+   that 2 people have reached is not a slice, it's a bet.
+2. **A new surface is not shipped until something links to it.** If the link is
+   someone else's decision, the work is not done — it is blocked, and it belongs
+   in BACKLOG with an owner, not in a commit message.
+3. **When a loop's number does not move after a release, the release did not
+   work** — regardless of what the tests said.
+
+---
+
+## HOW TO REGENERATE
+
+The numbers, in one query (Supabase SQL editor or the `supabase` MCP):
+
+```sql
+select 'signed up' step, count(*)::text n from user_profiles
+union all select 'uploaded a CV',        count(distinct user_id)::text from cv_versions
+union all select 'got a Myro Score',     count(distinct user_id)::text from mirror_scores
+union all select 'has job matches',      count(distinct user_id)::text from user_job_matches
+union all select 'collected a role',     count(distinct user_id)::text from job_applications
+union all select 'answered a JD gap',    count(distinct user_id)::text from cv_dump_entries where source='jd_gap_answer'
+union all select 'has a career story',   count(distinct user_id)::text from career_stories
+union all select 'tailored a CV',        count(distinct user_id)::text from cv_versions where job_id is not null
+union all select 'passed a quiz',        count(distinct user_id)::text from quiz_attempts where passed
+union all select 'followed a company',   count(distinct user_id)::text from followed_companies
+union all select 'partner SSO',          count(distinct user_id)::text from partner_users
+union all select 'arrived via referral', count(*)::text from user_profiles where referred_by_user_id is not null;
+```
+
+Orphan-route scan (from `frontend/`):
+
+```bash
+python3 - <<'PY'
+import re, pathlib
+SRC=[f for r in ("app","components","lib") for f in pathlib.Path(r).rglob("*") if f.suffix in (".ts",".tsx")]
+def route_of(p):  # strip Next.js (group) segments
+    return "/" + "/".join(s for s in p.parent.parts[1:] if not (s.startswith("(") and s.endswith(")")))
+routes = sorted({route_of(p) for p in pathlib.Path("app").rglob("page.tsx")})
+print(f"{len(routes)} routes; orphans (<2 refs, excluding the route's own files):\n")
+for rt in routes:
+    if "[" in rt: continue                      # dynamic segments are linked by builder
+    pat = re.compile(r'["\'`]' + re.escape(rt) + r'(?:["\'`/?])')
+    own = "app" + rt + "/"
+    hits = {str(f) for f in SRC if not str(f).startswith(own) and pat.search(f.read_text(errors="ignore"))}
+    if len(hits) < 2: print(f"  {rt:<26} {len(hits)} ref(s)")
+PY
+```
+
+A 0-ref result is not automatically a bug — campaign landings, admin and the PWA
+fallback are entered from outside. It IS a bug whenever the route was meant to be
+reached from inside the product. Check the backend, emails and the sitemap before
+ruling:
+
+```bash
+grep -rn "/your-route" backend/app frontend/public frontend/lib/site-routes.ts
+```
+
+The code map (architecture, not loops) is `graphify-out/GRAPH_REPORT_frontend.md`
+— the `_frontend` suffix is the codebase; the unsuffixed `GRAPH_REPORT.md` is a
+docs/feedback corpus and will mislead you about the code.
+
+---
+
+## CHANGED FROM v1.0 (2026-05-27)
+
+- **Retired:** Loops A–F as written. "Daily Forge → Skill Progression" is now
+  L5 under the Practice name; "Win → CV → Score → Jobs" is L1; "Record a Win"
+  was never built and the diary it replaced is retired.
+- **New and absent from v1.0 entirely:** L4 (the reservoir / gap loop), L2
+  (skills → target → matches), L8 (partner SSO — now 40% of all users), L11.
+- **The investor framing** (7-node "Upload → Score → Match → Tailor → Apply →
+  Upskill → repeat") is kept in spirit by THE SPINE above, now with the drop
+  measured at each step rather than asserted.
+- **Every loop now carries a production number.** v1.0 carried none, which is
+  why it could drift for four months without anyone noticing.
