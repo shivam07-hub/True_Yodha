@@ -1134,18 +1134,37 @@ from an unrelated career path before a job reaches the feed or Career Ops.
   `business_product_operations`, `research_people_public_impact`, or
   `design_creative`. It is coarser than the existing controlled
   `role_domain`; `role_domain` remains the detailed functional classification.
-- **Primary Career Band** — the candidate's durable default role family. Myro
-  derives it from their CV and target-role titles, persists it in the profile,
-  and lets the candidate correct it.
-- **Explored Career Bands** — zero or more additional role families the
-  candidate explicitly enables. They are the only valid cross-band route.
+- **Chosen Career Bands** — the fields the candidate said yes to, asked at the
+  FIRST step of the Direction journey and changeable in Settings. Stored whole in
+  `explored_career_bands`, **the primary first**, and written by nothing but an
+  explicit pick. Myro's own reading of the CV agrees with this answer only 62.4%
+  of the time, so it proposes the best-fitting band and never asserts one.
+  ⚠️ **Empty means nobody has been asked — never "chose none".** Keeping the
+  primary inside the list is what buys that distinction, and the journey's
+  landing rule turns on it. The eligible set is a union in every reader, so the
+  primary appearing twice costs nothing.
+- **Primary Career Band** — the first chosen band. Until someone answers, it is
+  derived from their CV and target-role titles, and a second target role still
+  opens its own band — derived at READ time (`eligible_bands_for_profile`), never
+  written into the answer, so it can be removed and does not resurrect itself on
+  the next save.
 - **Job Career Band** — the deterministic family assigned to a job from its
   source role domain and explicit title signals. A title such as Product
   Designer may take the Design & Creative band even if its detailed role domain
   is Product Management.
 - **Career Band Boundary** — the server-side hard gate that admits a posting
-  only when its Job Career Band is the Primary Career Band or an explicitly
-  Explored Career Band. Unknown bands do not become silent cross-band matches.
+  only when its Job Career Band is one of the candidate's eligible bands.
+  Unknown bands do not become silent cross-band matches.
+- **Band scope of a direction** — `role_family_labels.bands`: every band holding
+  ≥25% of that direction's banded live jobs. It scopes SUGGESTIONS only. **Search
+  is never band-scoped** — seven of the fourteen most recent people to finish
+  Direction chose a family nobody had suggested, and they got there through that
+  box. A direction picked from outside your fields WIDENS them.
+- **`career_band_scope`** — the Tier-0 four-row snapshot behind the band step's
+  counts, filled in `refresh_role_family_labels`. Counting live jobs by band is
+  7,080ms warm; this read is four rows. `family_count` uses the same ≥25% rule
+  the suggestions do, so the card cannot promise more directions than the next
+  screen offers.
 
 **Default policy**
 
