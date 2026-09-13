@@ -442,6 +442,27 @@ async def _ingest_entry(payload: dict[str, Any], allow_retry: bool) -> None:
 
     story_ids = await _persist_extraction(repo, user_id, entry_id, extraction)
     repo.mark_processed(user_id, entry_id, story_ids)
+
+    # A banked gap answer improves the story the user was SHOWN as evidence for
+    # that requirement — it is not a new achievement. Folding it deterministically
+    # here is the difference between "one story, now told properly" and a sibling
+    # the judge may or may not notice later. `pick_keep` prefers the told row, so
+    # the answer becomes the story and the CV line stays as an alternative
+    # phrasing beneath it.
+    upgrades = str((entry.get("payload") or {}).get("upgrades_story_id") or "")
+    if upgrades and story_ids:
+        from app.repositories.story_identity import StoryIdentityRepository
+        from app.services import story_identity as _identity
+
+        identity_repo = StoryIdentityRepository(get_supabase_admin())
+        merged = sum(
+            1 for sid in story_ids
+            if _identity.merge_known_same(identity_repo, user_id, str(sid), upgrades)
+        )
+        logger.info(
+            "metric reservoir.answer_upgraded user=%s target=%s new=%d merged=%d",
+            user_id, upgrades, len(story_ids), merged,
+        )
     logger.info(
         "career_reservoir.ingested user=%s entry=%s stories=%d", user_id, entry_id, len(story_ids),
     )

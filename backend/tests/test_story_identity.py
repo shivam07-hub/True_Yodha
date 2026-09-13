@@ -287,3 +287,63 @@ def test_merging_a_changed_pair_is_refused_with_a_reason():
 def test_undo_without_a_fold_is_refused():
     with pytest.raises(si.StoryIdentityError):
         si.undo(FakeRepo([], [], []), "u", "a", "b")
+
+
+# ── merge_known_same: a banked answer improves the story it was shown against ─
+
+class _MergeRepo:
+    def __init__(self, rows, pointers):
+        self._rows = rows
+        self._pointers = pointers
+        self.folded: list[tuple[str, str, str]] = []
+
+    def stories(self, user_id, ids):
+        return [r for r in self._rows if str(r["id"]) in ids]
+
+    def story_pointers(self, user_id, ids):
+        return [p for p in self._pointers if str(p["story_id"]) in ids]
+
+    def fold(self, user_id, plan, *, verdict, decided_by):
+        self.folded.append((plan.keep_id, plan.dup_id, decided_by))
+
+
+def _row(sid, narrative, created):
+    return {"id": sid, "narrative": narrative, "metrics": [], "skills": [],
+            "inflow_ids": [], "created_at": created}
+
+
+def test_the_answer_becomes_the_story_and_the_cv_line_stays_beneath_it():
+    """L2. The told answer survives; the CV bullet the bridge lifted moves in as
+    an alternative phrasing. One story about one achievement, nothing lost."""
+    told = _row("new", {"situation": "s", "action": "a", "result": "r"}, "2026-09-13")
+    thin = _row("target", {"result": "Led migration to AWS."}, "2026-07-01")
+    pointers = [
+        {"id": "p-new", "story_id": "new", "text": "Migrated billing to AWS with zero downtime",
+         "is_canonical": True, "ordering": 0},
+        {"id": "p-old", "story_id": "target", "text": "Led migration of billing platform to AWS",
+         "is_canonical": True, "ordering": 0},
+    ]
+    repo = _MergeRepo([told, thin], pointers)
+
+    assert si.merge_known_same(repo, "u1", "new", "target") is True
+    keep_id, dup_id, decided_by = repo.folded[0]
+    assert keep_id == "new", "the told answer survives"
+    assert dup_id == "target", "the thin CV-born row is the duplicate"
+    assert decided_by == "upgrade"
+
+
+def test_a_merge_that_cannot_apply_never_fails_the_answer():
+    class _Boom(_MergeRepo):
+        def fold(self, *a, **k):
+            raise RuntimeError("guard refused")
+
+    repo = _Boom([_row("new", {"result": "r"}, "1"), _row("target", {"result": "r"}, "0")], [])
+    assert si.merge_known_same(repo, "u1", "new", "target") is False
+
+
+def test_a_missing_or_self_target_merges_nothing():
+    repo = _MergeRepo([_row("new", {"result": "r"}, "1")], [])
+    assert si.merge_known_same(repo, "u1", "new", "new") is False
+    assert si.merge_known_same(repo, "u1", "new", "") is False
+    assert si.merge_known_same(repo, "u1", "new", "gone") is False
+    assert repo.folded == []

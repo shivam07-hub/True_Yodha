@@ -264,9 +264,18 @@ async def weave_answer(
             return WeaveAnswerResponse(follow_up=follow_up)
     requirement = " ".join(body.requirement.split()).strip()
     framed = f"Career experience — {requirement}:\n{answer}" if requirement else f"Career experience:\n{answer}"
+    # Which story was the user shown as evidence for this requirement? That is
+    # the story their answer IMPROVES — resolved from our own cache, never from
+    # the client. The ingest folds the new telling into it (see _ingest_entry).
+    upgrades = jd_coverage.story_for_requirement(
+        jobs_repo.get_deepening(user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY), requirement,
+    ) if body.job_id and requirement else None
     row = dump_repo.add(
         user.id, framed, source="jd_gap_answer",
-        kind="answer", payload={"requirement": requirement or None, "job_id": body.job_id, "via": "weave"},
+        kind="answer", payload={
+            "requirement": requirement or None, "job_id": body.job_id, "via": "weave",
+            "upgrades_story_id": upgrades,
+        },
     )
     entry_id = str(row.get("id") or "")
     if not entry_id:

@@ -153,6 +153,13 @@ async def _cover_one(user_id: str, requirement: str) -> CoverageItem:
         return CoverageItem(requirement=requirement, status="gap")
     best = hits[0]
     status = _classify(best.similarity)
+    # A CV line is a start, not an answer (Shivam, 2026-09-13). `covered` is what
+    # removes a requirement from the weave interview — permanently, on this job
+    # and every later one — so a story the user never actually told may evidence
+    # a requirement but may not close it. It shows as `weak`, and the interview
+    # still asks; the answer then upgrades that same story from thin to told.
+    if status == "covered" and not best.told:
+        status = "weak"
     if status == "gap":
         return CoverageItem(requirement=requirement, status="gap")
     return CoverageItem(
@@ -321,6 +328,23 @@ def result_to_payload(result: CoverageResult) -> str:
             for i in result.requirements
         ],
     })
+
+
+def story_for_requirement(raw: str | None, requirement: str) -> str | None:
+    """The story the cached coverage row matched to this requirement, if any.
+
+    This is how a banked answer knows which story it is IMPROVING rather than
+    minting a sibling of. Resolved server-side from our own cache on purpose: a
+    client-supplied story id would let a caller graft an answer onto any story.
+    """
+    hit = payload_to_result(raw)
+    if hit is None:
+        return None
+    wanted = " ".join((requirement or "").split()).casefold()
+    for item in hit[0].requirements:
+        if " ".join(item.requirement.split()).casefold() == wanted:
+            return item.story_id or None
+    return None
 
 
 def patch_requirement_answered(raw: str | None, requirement: str, answer: str) -> str | None:
