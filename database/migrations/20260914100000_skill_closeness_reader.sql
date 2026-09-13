@@ -46,8 +46,7 @@ create or replace function public.skill_closeness_for(
 )
 returns table (
   taxonomy_key text,
-  closeness    real,
-  bonds        integer
+  closeness    real
 )
 language sql
 stable
@@ -59,8 +58,7 @@ as $$
     where s.taxonomy_key = any(coalesce(p_taxonomy_keys, array[]::text[]))
   )
   select n.taxonomy_key,
-         sum(ln(1 + sc.lift))::real as closeness,
-         count(*)::integer          as bonds
+         sum(ln(1 + sc.lift))::real as closeness
   from public.skill_closeness sc
   join held h on h.id = sc.skill_id
   join public.skills n on n.id = sc.close_skill_id
