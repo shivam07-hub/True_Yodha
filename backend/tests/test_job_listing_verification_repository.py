@@ -125,6 +125,24 @@ def test_strong_closed_verification_starts_quarantine() -> None:
     assert update["deletion_eligible_at"] == update["quarantine_until"]
 
 
+def test_weak_closed_verification_closes_the_same_way() -> None:
+    db = DB()
+    now = datetime(2026, 7, 11, tzinfo=timezone.utc)
+    repo = ListingVerificationRepository(db, now=lambda: now)
+
+    repo.record(
+        VerificationResult(
+            "job-1", "closed", "weak", "workday", 200,
+            "https://acme.wd1.myworkdayjobs.com/x", {},
+        )
+    )
+
+    update = next(payload for table, payload in db.calls if table == "jobs")
+    assert update["listing_confidence"] == "closed"
+    assert update["is_active"] is False
+    assert update["quarantine_until"] == "2026-07-11T01:00:00+00:00"
+
+
 def test_live_verification_reactivates_and_resets_misses() -> None:
     db = DB()
     now = datetime(2026, 7, 11, tzinfo=timezone.utc)

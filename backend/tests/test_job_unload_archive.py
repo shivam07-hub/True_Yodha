@@ -50,6 +50,18 @@ class _Query:
     def select(self, _cols: str):
         return self
 
+    def eq(self, *_args):
+        return self
+
+    def lte(self, *_args):
+        return self
+
+    def order(self, *_args):
+        return self
+
+    def limit(self, *_args):
+        return self
+
     def in_(self, _col: str, _ids: list[str]):
         return self
 
@@ -80,7 +92,6 @@ def test_archive_then_retire_writes_files_before_delete(tmp_path: Path) -> None:
     )
 
     assert deleted == 1
-    assert db.rpc_calls[0][0] == "list_unload_candidates"
     assert db.rpc_calls[-1] == (
         "retire_closed_jobs",
         {"p_limit": 10, "p_job_ids": ["j1"]},
@@ -92,18 +103,16 @@ def test_archive_then_retire_writes_files_before_delete(tmp_path: Path) -> None:
 
 def test_archive_then_retire_is_a_no_op_when_nothing_is_due() -> None:
     class Empty(_Db):
-        def rpc(self, name: str, params: dict) -> _Rpc:
-            self.rpc_calls.append((name, params))
+        def table(self, name: str) -> _Query:
+            class NoneDue(_Query):
+                def execute(self):
+                    return type("R", (), {"data": []})()
 
-            class Reply:
-                def execute(self_inner):
-                    return type("X", (), {"data": []})()
-
-            return Reply()
+            return NoneDue(self, name)
 
     db = Empty()
     assert archive_then_retire(db, limit=50) == 0  # type: ignore[arg-type]
-    assert db.rpc_calls == [("list_unload_candidates", {"p_limit": 50})]
+    assert db.rpc_calls == []
 
 
 def test_archive_then_retire_does_not_delete_when_disk_write_fails(tmp_path: Path) -> None:

@@ -1027,9 +1027,11 @@ answer computed in the client off a separate 100-id pulse batch.
 **The vocabulary** (use these exact words in code and copy): a **Collection** is
 one user's whole record; an **Entry** is one job in it, one per `(user, job)`,
 always; a **Stage** is where that entry is — `found · saved · tailored ·
-applied · closed`; an **Origin** is who put it there — `myro` / `you` /
+applied`; an **Origin** is who put it there — `myro` / `you` /
 `extension`; **Liveness** is whether the ad is still up — `live` / `uncertain` /
-`down`; an entry is **settled** when it needs nothing from the user right now.
+`down`. A `down` listing is **not an entry**. The user gets one
+`listing_vanished` notification and the card is gone. The tailored CV stays in
+CV history. An unanswered apply intent is deleted with the listing.
 
 **Invariants**
 
@@ -1042,12 +1044,10 @@ applied · closed`; an **Origin** is who put it there — `myro` / `you` /
   It is read from match-stack membership, not from the `source` string —
   `source` cannot answer it (see above). `isMyroSource` / `isExtSource` /
   `filterChip` are deleted; chips filter on `stage`.
-- **LIVENESS IS AN ATTRIBUTE, NOT A STAGE.** A dead ad demotes `found` and
-  `saved` to `closed` and stops there. `tailored` and `applied` keep their
-  stage, their Prep room and their CV — the listing coming down is the EXPECTED
-  outcome of applying, and 7 prod rows (3 of them mid-interview) had been filed
-  into the graveyard chip for succeeding. A closed listing on a live stage shows
-  a pulse line, never a demotion.
+- **A DEAD LISTING IS NOT AN ENTRY.** `found`, `saved`, `tailored`, and
+  `applied` all drop. The CV remains. One inbox row (`listing_vanished`) tells
+  people who were still on it that it vanished; people who already applied are
+  not pinged. There is no Closed chip.
 - **NEVER ADVANCE A STAGE ON THE USER'S BEHALF** (the pre-flight's *never mark a
   line kept*, one surface over). An apply click writes a `job_apply_intents`
   row, which is an INTENT; only the user's own answer writes `applied`. An
@@ -1345,7 +1345,7 @@ Whether a job we surface still exists. Two triggers, one truth — every verdict
 
 **Liveness is not freshness.** `last_seen` records when the scraper last *ingested* a row, not when anyone confirmed it exists — while the scraper does not re-crawl, `last_seen` carries no liveness information at all and must not be rendered as if it does.
 
-**Unload.** `listing_confidence=closed` starts a one-hour clock (`quarantine_until` / `deletion_eligible_at`). Only `closed` unloads, never `likely_closed`. The verifier writes a `job_archive_v1` bundle (the same JSON + CSV shape as the 2026-07-15 / 2026-08-13 laptop unloads) to a local `job_unloads/` tree, then `retire_closed_jobs` deletes those ids. Child DELETE triggers that maintain `job_verification_interest` do not run after the job row is gone (that derived row CASCADEs). Nothing is written to Supabase Storage. Railway skips unload unless `JOB_UNLOAD_ARCHIVE_DIR` points at a real disk. User history is snapshotted into `job_applications` / `cv_versions` first. A scrape that sees the posting again writes it back as live. Restore from `backend/`: `python -m scripts.restore_job_archive path/to/archive_dir`. The scraper does not delete rows on publish.
+**Unload.** Any gone-signal writes `listing_confidence=closed` and starts a one-hour clock (`quarantine_until` / `deletion_eligible_at`): one complete scrape miss, last_seen older than 30 days, verifier close (strong or weak), or a user report that the apply link is dead. `likely_closed` is leftover enum, not a holding pen. The card leaves Collection immediately. After the hour, the verifier writes a `job_archive_v1` bundle to a local `job_unloads/` tree, then `retire_closed_jobs` deletes those ids. Child DELETE triggers that maintain `job_verification_interest` do not run after the job row is gone (that derived row CASCADEs). Nothing is written to Supabase Storage. Railway skips unload unless `JOB_UNLOAD_ARCHIVE_DIR` points at a real disk. User history is snapshotted into `job_applications` / `cv_versions` first. A scrape that sees the posting again writes it back as live. Restore from `backend/`: `python -m scripts.restore_job_archive path/to/archive_dir`. The scraper does not delete rows on publish.
 
 ## Tracked Listing
 

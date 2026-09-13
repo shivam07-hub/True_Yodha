@@ -100,8 +100,17 @@ def archive_then_retire(
         log.info("metric job_unload.skipped reason=no_persistent_disk")
         return 0
     capped = max(1, min(limit, 5000))
+    stamp = (now or (lambda: datetime.now(timezone.utc)))()
     listed = (
-        db.rpc("list_unload_candidates", {"p_limit": capped}).execute().data or []
+        db.table("jobs")
+        .select("job_id")
+        .eq("listing_confidence", "closed")
+        .lte("deletion_eligible_at", stamp.isoformat())
+        .order("deletion_eligible_at")
+        .limit(capped)
+        .execute()
+        .data
+        or []
     )
     ids = [str(row["job_id"]) for row in listed if row.get("job_id")]
     if not ids:
@@ -112,7 +121,6 @@ def archive_then_retire(
         log.error("metric job_unload.fetch_empty listed=%d", len(ids))
         return 0
     skills = _fetch_skills(db, archived_ids)
-    stamp = (now or (lambda: datetime.now(timezone.utc)))()
     batch = stamp.strftime("%Y%m%dT%H%M%SZ") + "-" + uuid4().hex[:8]
     root = local_root if local_root is not None else _default_local_root()
     output_dir = root / stamp.strftime("%Y-%m-%d") / batch

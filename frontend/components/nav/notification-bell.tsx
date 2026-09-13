@@ -11,7 +11,7 @@ import { openRefreshGate } from "@/store/refreshGateStore"
 import "./notification-bell.css"
 
 /* One inbox for durable product events: fresh matches, CV analysis, new
-   inventory.
+   inventory, a listing that vanished while the user was still on it.
 
    The saved-role decision group is gone. It projected `collection_attention`,
    an age-based nag that escalated every saved role to `urgent` simply for

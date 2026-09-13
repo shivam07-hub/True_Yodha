@@ -4,7 +4,7 @@ saved-job worklist, as one entry per job carrying exactly one stage.
 CONTEXT.md → Collection Record. The rules that live here and nowhere else:
 
   · the stage ladder (found → saved → tailored → applied), highest rung wins
-  · liveness demotes `found`/`saved` to `closed` and NOTHING else
+  · a dead listing is not an entry — the card poofs; one notification tells them
   · origin is match-stack membership, never the `source` string
   · the landing stage — the first one still asking something of the user
 
@@ -39,9 +39,6 @@ PENDING_INTENT_AFTER = timedelta(minutes=10)
 
 #: Low rung → high rung. The entry's stage is the highest one it has reached.
 STAGE_ORDER: tuple[str, ...] = (STAGE_FOUND, STAGE_SAVED, STAGE_TAILORED, STAGE_APPLIED)
-
-#: Chip order on every skin, closed last.
-STAGE_CHIPS: tuple[str, ...] = (*STAGE_ORDER, STAGE_CLOSED)
 
 
 def _as_datetime(value: Any) -> datetime | None:
@@ -149,6 +146,8 @@ def resolve_collection(
         seen.add(job_id)
         source_row = match_row if match_row is not None else _synth_match_row(app_row or {})
         job = source_row.get("jobs") or {}
+        if not job or _liveness(job) == "down":
+            return
         tailored_head = tailored_by_job.get(job_id)
         applied = bool(app_row) and str(app_row.get("status") or "saved") != "saved"
         stage = _stage(
@@ -157,11 +156,6 @@ def resolve_collection(
             tailored=tailored_head is not None,
         )
         liveness = _liveness(job)
-        # A dead ad ends a hunt that had not started. It does not undo work
-        # already done: `tailored` and `applied` keep their stage, their CV and
-        # their Prep room, and say so with a trust line instead.
-        if liveness == "down" and stage in {STAGE_FOUND, STAGE_SAVED}:
-            stage = STAGE_CLOSED
         pending_apply = job_id in pending_intent_job_ids and not applied
         entries.append(
             CollectionEntry(
@@ -203,7 +197,7 @@ def resolve_collection(
     for job_id, app_row in apps_by_job.items():
         _append(job_id, None, app_row)
 
-    stages = {stage: 0 for stage in STAGE_CHIPS}
+    stages = {stage: 0 for stage in (*STAGE_ORDER, STAGE_CLOSED)}
     for entry in entries:
         stages[entry.stage] = stages.get(entry.stage, 0) + 1
 

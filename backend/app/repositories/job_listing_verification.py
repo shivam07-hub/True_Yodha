@@ -231,26 +231,23 @@ class ListingVerificationRepository:
                     "reactivated_at": timestamp,
                 }
             )
-        elif result.result == "closed" and result.strength == "strong":
+        elif result.result == "closed":
             update.update(conclusive)
             eligible_at = (now + QUARANTINE_AFTER_CLOSE).isoformat()
+            reason = (
+                f"{result.provider}_verifier_closed"
+                if result.strength == "strong"
+                else f"{result.provider}_verifier_unconfirmed_closed"
+            )
             update.update(
                 {
                     "is_active": False,
                     "listing_confidence": "closed",
-                    "confidence_reason": f"{result.provider}_verifier_closed",
+                    "confidence_reason": reason,
                     "quarantined_at": timestamp,
                     "quarantine_until": eligible_at,
                     "deletion_eligible_at": eligible_at,
                     "retired_at": timestamp,
-                }
-            )
-        elif result.result == "closed":
-            update.update(conclusive)
-            update.update(
-                {
-                    "listing_confidence": "likely_closed",
-                    "confidence_reason": f"{result.provider}_verifier_unconfirmed_closed",
                 }
             )
         elif result.result in {"redirected", "wrong_role"}:

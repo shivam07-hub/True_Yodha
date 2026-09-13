@@ -136,6 +136,11 @@ test("grade is not on the Collections face either", () => {
   assert.match(read("../components/jobs/card-detail-rail.tsx"), /fc-rail-grade/)
 })
 
+test("closed is not a collection chip", () => {
+  const hook = read("../lib/collections/use-collection.ts")
+  assert.doesNotMatch(hook, /key: "closed"/)
+})
+
 /* ── the loading contract ─────────────────────────────────────────────────────
  * Caught on the first real authed run: the page painted "0 0 0 0 0" chips and
  * "Nothing has cleared the bar yet" for ~1s, then jumped to 14/75/9/22/5 with

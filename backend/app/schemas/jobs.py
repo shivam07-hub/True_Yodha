@@ -922,8 +922,7 @@ class CollectionEntry(BaseModel):
     stage: CollectionStage
     #: Who put it here. A LABEL — never a filter (see the contract).
     origin: CollectionOrigin
-    #: Is the ad still up. An ATTRIBUTE — it demotes `found`/`saved` to `closed`
-    #: and touches no other stage.
+    #: Is the ad still up. A dead listing is not an entry.
     liveness: CollectionLiveness
     #: The card body. A real brain verdict where one exists; otherwise the
     #: application's job columns with `verdict: "checking"` — never a fake score.
