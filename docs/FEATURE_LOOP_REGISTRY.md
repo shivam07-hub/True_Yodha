@@ -266,23 +266,19 @@ Specimen: `/notebook` shipped 2026-07-06 with exactly that sentence in its own
 commit message, sat unreachable for 68 days, took **zero rows**, and was deleted
 2026-09-12 (`262b7250`).
 
-57 routes. These have **zero** references anywhere — frontend, backend, emails,
-sitemap:
+**As of 2026-09-13 there are zero dead ends** (`npm run check:reach`). Getting
+there took looking at all eight, and four of them turned out to be the gate
+being wrong:
 
-| Route | Reading |
+| Was | Outcome |
 |---|---|
-| `/referral` | **orphan + dead loop (L9).** Wire it or delete it. |
-| `/beta-feedback` | **orphan.** 114 ledger items and no way to file the 115th. |
-| `/(authed)/recruiter` | **orphan.** Distinct from the public `/recruiters` door, which IS in `site-routes.ts` + footer + sitemap. |
-| `/welcome` | **orphan.** Nothing redirects here post-signup. |
-| `/signup/institutions` | expected — B2B campaign landing, entered externally. |
-| `/admin/growth` | expected — admin. |
-| `/offline` | expected — PWA fallback served by the service worker. |
+| `/myro` `/diary` `/xp` `/welcome` | **Not dead ends.** Redirects for retired URLs — the right handling, since old links live in emails and bookmarks. The guard now detects a forwarding shim instead of calling it debt. |
+| `/(authed)/recruiter` `/(authed)/referral` | **Deleted.** Five-line copies of components already live at `/recruiters/workspace` and `/referrals/workspace`. Added 2026-07-03 as "auth-ready"; no recruiter account type was ever built. A test now fails if they return without a door. |
+| `/mission` | **Given a door** — `LEARN_LINKS` in the account menu, beside "About us", where the retired `/myro` hub's cards were consolidated. |
+| `/beta-feedback` | **Folded into the FeedbackHub, then deleted.** Its one unique field (product area) is now an optional select on every report; the 113 rows and the ledger export survive. |
 
-Reachable only by URL or redirect — verify before assuming a user gets there:
-`/cv/export`, `/dashboard`, `/mission`, `/myro`, `/xp`, `/preparations/audit`,
-`/extension/connect`, `/dev/phone` (1 ref each); `/home` is a retired redirect
-stub.
+The standing count is printed by the gate on every run: 14 external entries,
+5 retired-URL forwards, 0 dead ends.
 
 **The authed primary nav is four destinations:** Jobs (`/market`), Collections
 (`/collections`), CV (`/cv?view=cv`), Prep (`/preparations`) — plus Myrology,
