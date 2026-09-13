@@ -114,6 +114,9 @@ feedback corpus — reading it to understand the code will mislead you.
 
 ⚠️ **`/docs` AND `.claude/` are in `.gitignore`** — a NEW file under either is
 invisible to every other machine and agent. Put new docs at the repo root.
+**`docs/adr/` is the one exception** (`!/docs/adr/`, 2026-09-13): seven ADRs
+including the no-fabrication rule had existed only on one laptop. ADRs are
+tracked; one number = one decision, held by `test_adr_numbering.py`.
 **Zero skills are tracked:** a skill is a local shortcut, never a place to keep
 knowledge. Method goes in the repo; the skill points at it.
 

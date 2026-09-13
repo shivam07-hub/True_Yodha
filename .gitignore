@@ -100,7 +100,9 @@ backend/lightcast_skills_taxonomy copy.json
 # Newsletter drafts — local working folder
 Myro Newsletter/
 docs/free-llm-api-resources
-/docs
+# /docs is local scratch EXCEPT adr/ — an ADR is a decision every machine must read.
+/docs/*
+!/docs/adr/
 docs/free-llm-api-resources
 /Output per users
 docs/free-llm-api-resources

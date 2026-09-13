@@ -4,7 +4,7 @@
   POST /cv/reservoir/phrasings/{point_id}/drop      archive this phrasing
 
 A Career Story holds every way the user has written one achievement, gathered
-from old CVs, LinkedIn, tailored rewrites and merges (ADR-0021). The drawer in
+from old CVs, LinkedIn, tailored rewrites and merges (ADR-0023). The drawer in
 the story card is where they choose between them.
 
 Both invariants live in SQL (migration 20260912120000), not here: a story keeps

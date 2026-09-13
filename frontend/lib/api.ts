@@ -1503,7 +1503,7 @@ export interface ReviewStory {
   pointer: string
   variant_count: number
 }
-/** A pair the judge could not settle alone — the user rules (ADR-0021). */
+/** A pair the judge could not settle alone — the user rules (ADR-0023). */
 export interface StoryPair {
   story_a: string
   story_b: string

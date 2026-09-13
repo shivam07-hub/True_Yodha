@@ -2,7 +2,7 @@
  * Stories review space — the questions Myro cannot answer alone.
  *
  * The reservoir is the Master CV, so one achievement must be one story holding
- * every phrasing of it (ADR-0021). Myro folds what is plainly the same work
+ * every phrasing of it (ADR-0023). Myro folds what is plainly the same work
  * said twice; what is left is genuinely ambiguous — usually one piece of work
  * that is PART of another — and only the user knows. Those come here.
  *

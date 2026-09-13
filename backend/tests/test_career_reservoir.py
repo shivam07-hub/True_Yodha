@@ -176,7 +176,7 @@ def test_build_profile_view_grouping_and_order():
     r1 = view["roles"][0]
     assert r1["stories"][0]["pointer"] == "Canonical pointer."
     assert r1["stories"][0]["variant_count"] == 2
-    # The drawer needs every phrasing, canonical first (ADR-0021).
+    # The drawer needs every phrasing, canonical first (ADR-0023).
     phrasings = r1["stories"][0]["phrasings"]
     assert len(phrasings) == 2 and phrasings[0]["is_canonical"] is True
     assert phrasings[0]["text"] == "Canonical pointer."

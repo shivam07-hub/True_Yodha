@@ -212,7 +212,7 @@ def reservoir_profile(
     view = career_reservoir.build_profile_view(
         roles, stories, pointers, pending_inflows=repo.ingest_status(user.id)["pending"],
     )
-    # Duplicate questions and receipts live in the review space (ADR-0021),
+    # Duplicate questions and receipts live in the review space (ADR-0023),
     # which shows the story and role queues together: GET /cv/reservoir/review.
     return ProfileView(**view)
 

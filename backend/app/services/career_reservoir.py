@@ -162,7 +162,7 @@ def build_profile_view(
             "pointer": (canonical or {}).get("text") or "",
             "variant_count": len(pts),
             # Every way this achievement has been written — the drawer picks
-            # which one leads and drops a weak one (ADR-0021).
+            # which one leads and drops a weak one (ADR-0023).
             "phrasings": [
                 {"id": str(p.get("id") or ""), "text": p.get("text") or "",
                  "is_canonical": bool(p.get("is_canonical"))}
