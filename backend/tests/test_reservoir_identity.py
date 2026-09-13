@@ -110,3 +110,111 @@ async def test_ingest_skips_foreign_entry_without_extraction(monkeypatch: Any) -
 
     assert repo.skipped == [("e1", {"filename": "rishabh.pdf"}, "foreign_owner")]
     assert repo.processed == []
+
+
+@pytest.mark.asyncio
+async def test_the_users_own_uploaded_cv_is_never_judged_foreign(monkeypatch: Any) -> None:
+    """The guard exists because a bulk DUMP can carry someone else's CV. An
+    upload through the user's own account cannot, and judging it anyway is a
+    silent data-loss path: at upload time the new baseline's `cv_structured` is
+    still null, so the guard has only `user_profiles.full_name` to match on —
+    one token mismatch plus any email in the document reads as foreign.
+    """
+    entry = {
+        "id": "e2", "text": FOREIGN_CV, "payload": {"filename": "my-cv.pdf"},
+        "source": career_reservoir.ONBOARDING_CV_SOURCE,
+    }
+    repo = _GuardRepo(entry)
+    monkeypatch.setattr(
+        "app.repositories.career_reservoir.CareerReservoirRepository", lambda db: repo
+    )
+    monkeypatch.setattr("app.database.get_supabase_admin", lambda: object())
+    # A name that does NOT match the document — the guard would say "foreign".
+    monkeypatch.setattr(ri, "known_identity", lambda user_id: ({"Shivam Pathak"}, set()))
+
+    extracted: list[str] = []
+
+    async def _extract(text: str, provider: Any):
+        extracted.append(text)
+        return {"roles": [], "stories": []}
+
+    monkeypatch.setattr(career_reservoir.story_extractor, "extract", _extract)
+    monkeypatch.setattr(career_reservoir, "get_paid_jobs_provider", lambda: object(), raising=False)
+
+    async def _persist(*a: Any, **k: Any) -> list[str]:
+        return []
+
+    monkeypatch.setattr(career_reservoir, "_persist_extraction", _persist)
+
+    await career_reservoir._ingest_entry({"user_id": "u1", "entry_id": "e2"}, allow_retry=False)
+
+    assert repo.skipped == [], "an uploaded CV must never be skipped as foreign"
+    assert extracted, "the extractor must read the user's own CV"
+    assert repo.processed == ["e2"]
+
+
+# ── the upload bridge ────────────────────────────────────────────────────────
+
+from app.repositories.career_reservoir import INFLOW_KINDS  # noqa: E402
+
+class _DumpRepo:
+    def __init__(self, row: dict[str, Any] | None = None, boom: bool = False):
+        self.row = row if row is not None else {"id": "entry-1"}
+        self.boom = boom
+        self.added: list[dict[str, Any]] = []
+
+    def add(self, user_id: str, text: str, source: str = "manual", *, kind: str = "note",
+            payload: dict | None = None) -> dict[str, Any]:
+        if self.boom:
+            raise RuntimeError("postgrest exploded")
+        self.added.append(
+            {"user_id": user_id, "text": text, "source": source, "kind": kind, "payload": payload}
+        )
+        return self.row
+
+
+def _bridge(monkeypatch: Any, repo: _DumpRepo) -> list[tuple[str, str]]:
+    enqueued: list[tuple[str, str]] = []
+    monkeypatch.setattr("app.repositories.cv_dump.CvDumpRepository", lambda db: repo)
+    monkeypatch.setattr("app.database.get_supabase_admin", lambda: object())
+    monkeypatch.setattr(
+        career_reservoir, "enqueue_ingest", lambda u, e: enqueued.append((u, e))
+    )
+    return enqueued
+
+
+def test_banking_an_uploaded_cv_writes_an_inflow_the_extractor_reads(monkeypatch: Any) -> None:
+    repo = _DumpRepo()
+    enqueued = _bridge(monkeypatch, repo)
+
+    entry_id = career_reservoir.bank_uploaded_cv("u1", "  Led the migration...  ", 42)
+
+    assert entry_id == "entry-1"
+    assert repo.added[0]["source"] == career_reservoir.ONBOARDING_CV_SOURCE
+    # 'file', not 'note': note is the one kind nothing extracts (20260912130000).
+    assert repo.added[0]["kind"] in INFLOW_KINDS
+    assert repo.added[0]["text"] == "Led the migration..."
+    assert repo.added[0]["payload"] == {"baseline_version_id": 42}
+    assert enqueued == [("u1", "entry-1")]
+
+
+def test_an_empty_cv_banks_nothing(monkeypatch: Any) -> None:
+    repo = _DumpRepo()
+    enqueued = _bridge(monkeypatch, repo)
+    assert career_reservoir.bank_uploaded_cv("u1", "   ", 1) is None
+    assert repo.added == [] and enqueued == []
+
+
+def test_a_reservoir_failure_never_fails_the_upload(monkeypatch: Any) -> None:
+    """The baseline is already persisted and the user is already done."""
+    repo = _DumpRepo(boom=True)
+    enqueued = _bridge(monkeypatch, repo)
+    assert career_reservoir.bank_uploaded_cv("u1", "real text here", 1) is None
+    assert enqueued == []
+
+
+def test_a_write_that_returns_no_id_enqueues_nothing(monkeypatch: Any) -> None:
+    repo = _DumpRepo(row={})
+    enqueued = _bridge(monkeypatch, repo)
+    assert career_reservoir.bank_uploaded_cv("u1", "real text here", 1) is None
+    assert enqueued == []

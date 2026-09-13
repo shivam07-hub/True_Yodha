@@ -110,6 +110,26 @@ class CareerReservoirRepository:
             "user_id", user_id
         ).eq("id", story_id).execute()
 
+    def users_with_unembedded_stories(self, limit: int = 50) -> list[str]:
+        """Every user holding at least one active story with no vector — the
+        cross-user half of `stories_missing_embedding`, for the sweep. Admin
+        client only: a token-scoped caller sees just itself."""
+        rows = safe_read(
+            self._db.table("career_stories")
+            .select("user_id")
+            .eq("status", "active")
+            .is_("embedding", "null")
+            .limit(limit),
+            default=[],
+            context="career_stories_unembedded_users",
+        )
+        seen: list[str] = []
+        for row in rows:
+            uid = str(row.get("user_id") or "")
+            if uid and uid not in seen:
+                seen.append(uid)
+        return seen
+
     def stories_missing_embedding(self, user_id: str, limit: int = 20) -> list[dict[str, Any]]:
         """Active stories the ingest path stored WITHOUT a vector (embed is
         best-effort there) — invisible to every recall/coverage consumer until

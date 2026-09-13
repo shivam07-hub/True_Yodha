@@ -7,6 +7,8 @@ on the Stories-tab read, and the user who answered them never went back.
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+import pytest
+
 from app.services import career_reservoir, reservoir_ingest_sweep
 
 _NOW = datetime(2026, 9, 12, 12, 0, tzinfo=timezone.utc)
@@ -112,3 +114,48 @@ def test_sweep_handler_is_registered_on_the_work_lane():
     from app.services.background.registry import registered_job_types
 
     assert reservoir_ingest_sweep.JOB_TYPE in registered_job_types()
+
+
+# ── embedding heal ───────────────────────────────────────────────────────────
+
+class _EmbedRepo:
+    def __init__(self, users: list[str]):
+        self.users = users
+        self.asked: list[int] = []
+
+    def users_with_unembedded_stories(self, limit: int = 50) -> list[str]:
+        self.asked.append(limit)
+        return self.users
+
+
+@pytest.mark.asyncio
+async def test_the_sweep_embeds_what_the_ingest_missed(monkeypatch):
+    """An unembedded story is invisible to recall, unrankable by the projection
+    and never nominated for identity. The only heal used to be opening a tailor
+    interview — a heal on a visit is not a guarantee."""
+    repo = _EmbedRepo(["u1", "u2"])
+    healed: list[str] = []
+
+    async def _backfill(r, user_id):
+        healed.append(user_id)
+        return 3
+
+    monkeypatch.setattr(
+        "app.services.career_reservoir.backfill_missing_embeddings", _backfill
+    )
+    out = await reservoir_ingest_sweep.heal_embeddings(repo)
+
+    assert healed == ["u1", "u2"]
+    assert out == {"users": 2, "stories": 6}
+    assert repo.asked == [reservoir_ingest_sweep.EMBED_USER_LIMIT]
+
+
+@pytest.mark.asyncio
+async def test_nothing_unembedded_costs_nothing(monkeypatch):
+    repo = _EmbedRepo([])
+
+    async def _never(r, user_id):
+        raise AssertionError("backfill called with no unembedded stories")
+
+    monkeypatch.setattr("app.services.career_reservoir.backfill_missing_embeddings", _never)
+    assert await reservoir_ingest_sweep.heal_embeddings(repo) == {"users": 0, "stories": 0}

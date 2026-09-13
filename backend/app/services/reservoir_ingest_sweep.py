@@ -42,6 +42,10 @@ SWEEP_INTERVAL_SECONDS = 60 * 60
 # How many entries one sweep may re-enqueue. Bounds a cold start on a backlog.
 SWEEP_LIMIT = 200
 
+# Users whose unembedded stories one sweep will heal. An embed is cheap next to
+# an extraction, but this stays bounded for the same reason the inflow pass is.
+EMBED_USER_LIMIT = 25
+
 # Re-enqueues before an entry is declared unreadable and closed with a reason.
 # Three hourly attempts is enough to outlive a deploy, a queue flush and a
 # provider outage; a fourth would be answering the same question again.
@@ -92,6 +96,28 @@ def sweep(repo: Any, *, now: datetime | None = None) -> dict[str, int]:
     return {"seen": len(rows), "requeued": requeued, "abandoned": abandoned}
 
 
+async def heal_embeddings(repo: Any) -> dict[str, int]:
+    """Embed the stories the ingest path stored without a vector.
+
+    The ingest embeds best-effort, and the only heal was the weave interview —
+    so a story that missed its vector stayed invisible to recall and coverage,
+    unrankable by `career_projection`, and un-nominatable by `story_identity`,
+    until the user happened to open a tailor interview. Same reason this module
+    exists: a heal on a visit is not a guarantee.
+    """
+    from app.services import career_reservoir
+
+    users = repo.users_with_unembedded_stories(EMBED_USER_LIMIT)
+    healed = 0
+    for user_id in users:
+        healed += await career_reservoir.backfill_missing_embeddings(repo, user_id)
+    if users:
+        logger.info(
+            "metric reservoir_sweep.embedded users=%d stories=%d", len(users), healed,
+        )
+    return {"users": len(users), "stories": healed}
+
+
 def enqueue_sweep() -> None:
     """One sweep onto the bulk lane. No correlation id: two replicas each asking
     for a sweep is two harmless scans, and de-duplicating them by job id would
@@ -106,6 +132,7 @@ async def _sweep_handler(payload: dict[str, Any], allow_retry: bool) -> None:  #
 
     repo = CareerReservoirRepository(get_supabase_admin())
     await asyncio.to_thread(sweep, repo)
+    await heal_embeddings(repo)
 
 
 async def run_forever() -> None:  # pragma: no cover — the loop itself is the schedule

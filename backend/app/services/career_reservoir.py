@@ -32,6 +32,9 @@ from app.services.background import LANE_FAST, TransientJobError, enqueue, handl
 logger = logging.getLogger("myro.career_reservoir")
 
 JOB_TYPE_INGEST = "story_ingest"
+# The CV a user uploads at step 1 of the loop. Its own source label because the
+# foreign-document guard must not run on it — see `_ingest_entry`.
+ONBOARDING_CV_SOURCE = "onboarding_cv"
 
 
 # ── pure helpers ─────────────────────────────────────────────────────────────
@@ -214,6 +217,47 @@ def build_profile_view(
 
 # ── ingest orchestration (Work Lane handler) ─────────────────────────────────
 
+def bank_uploaded_cv(user_id: str, raw_text: str, baseline_version_id: int | None) -> str | None:
+    """Step 1 of the loop finally reaches the reservoir.
+
+    An uploaded CV is the richest document a user ever hands Myro, and until now
+    the upload path kept a `cv_versions` baseline and a skill list from it and
+    threw the rest away — so the reservoir was written only by a gap answer at
+    step 3 or step 6, which asks the user to re-type work that was already in
+    this file. 3 of 817 users had a reservoir.
+
+    Returns the inflow entry id, or None when nothing was banked. Best-effort by
+    contract: the baseline is already persisted and the user is already done, so
+    a reservoir failure here must never surface as a failed upload.
+    """
+    from app.repositories.cv_dump import CvDumpRepository
+
+    text = (raw_text or "").strip()
+    if not text:
+        return None
+    try:
+        from app.database import get_supabase_admin
+
+        row = CvDumpRepository(get_supabase_admin()).add(
+            user_id, text, source=ONBOARDING_CV_SOURCE, kind="file",
+            payload={"baseline_version_id": baseline_version_id},
+        )
+        entry_id = str(row.get("id") or "")
+        if not entry_id:
+            logger.warning("metric reservoir.cv_bank_no_id user=%s", user_id)
+            return None
+        enqueue_ingest(user_id, entry_id)
+        logger.info(
+            "metric reservoir.cv_banked user=%s entry=%s chars=%d", user_id, entry_id, len(text),
+        )
+        return entry_id
+    except Exception as exc:  # noqa: BLE001 — an upload must not fail on the reservoir
+        logger.warning(
+            "metric reservoir.cv_bank_failed user=%s reason=%s", user_id, exc.__class__.__name__,
+        )
+        return None
+
+
 def enqueue_ingest(user_id: str, entry_id: str) -> None:
     enqueue(
         LANE_FAST,
@@ -312,9 +356,15 @@ async def _role_dedup_job(payload: dict[str, Any], allow_retry: bool) -> None:  
 async def backfill_missing_embeddings(repo: Any, user_id: str, limit: int = 20) -> int:
     """Self-heal the ingest path's best-effort embedding: stories stored without a
     vector are invisible to memory_recall and jd_coverage (a banked gap answer
-    reads "Missing" forever — prod-verified 2026-07-16). Called best-effort from
-    the surfaces about to recall (weave interview, coverage refresh); any failure
-    returns 0 and the caller proceeds on whatever IS embedded."""
+    reads "Missing" forever — prod-verified 2026-07-16), cannot be RANKED by
+    career_projection, and are never nominated for story_identity — so an
+    unembedded story is also permanently un-deduped.
+
+    Called from the weave interview (the surface about to recall) AND from
+    `reservoir_ingest_sweep`, because a heal that only runs on a visit is not a
+    guarantee: this docstring used to name two callers and only the weave one
+    existed. Any failure returns 0 and the caller proceeds on whatever IS
+    embedded."""
     from app.services.embeddings import embed_texts, to_pgvector
 
     try:
@@ -366,7 +416,16 @@ async def _ingest_entry(payload: dict[str, Any], allow_retry: bool) -> None:
     # confident owner mismatch, and record WHY so the skip is never silent.
     from app.services import reservoir_identity
 
-    if reservoir_identity.classify_entry(entry, user_id) == "foreign":
+    # ...except for the CV the user uploaded themselves. The guard reads names
+    # from `user_profiles.full_name` plus the latest baseline's contact block —
+    # and at upload time that baseline's `cv_structured` is still null, because
+    # enrichment is a later job. So the guard would judge an uploaded CV on the
+    # profile name alone, and one token mismatch plus any email in the document
+    # (so: every document) reads as "foreign" and silently discards it. 352 of
+    # the 397 upload users have a profile name, i.e. an active guard with nothing
+    # to match against. A bulk dump can carry someone else's CV; an upload
+    # through the user's own account cannot.
+    if entry.get("source") != ONBOARDING_CV_SOURCE and reservoir_identity.classify_entry(entry, user_id) == "foreign":
         repo.mark_skipped(user_id, entry_id, entry.get("payload"), "foreign_owner")
         logger.warning(
             "metric reservoir.foreign_doc_skipped user=%s entry=%s file=%s",
