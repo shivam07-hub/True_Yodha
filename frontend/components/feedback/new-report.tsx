@@ -9,9 +9,11 @@ import { useContextSnapshot } from "./use-context-snapshot"
 import {
   CATEGORIES,
   CATEGORY_ORDER,
+  PRODUCT_AREAS,
   SEVERITY,
   type FeedbackCategory,
   type FeedbackSubmissionPayload,
+  type ProductArea,
 } from "./feedback-types"
 
 interface Screenshot {
@@ -76,6 +78,8 @@ export function NewReport({
   const { token } = useAuth()
   const [category, setCategory] = useState<FeedbackCategory>(defaultCategory)
   const [severity, setSeverity] = useState<"low" | "medium" | "blocker">("medium")
+  // Null until the reporter picks one — see FeedbackSubmissionPayload.area.
+  const [area, setArea] = useState<ProductArea | null>(null)
   const [title, setTitle] = useState("")
   const [body, setBody] = useState("")
   const [emailMe, setEmailMe] = useState(true)
@@ -139,6 +143,7 @@ export function NewReport({
       const payload: FeedbackSubmissionPayload = {
         category,
         severity: category === "bug" ? severity : null,
+        area,
         title: title.trim(),
         body: body.trim(),
         email_me: emailMe,
@@ -227,6 +232,34 @@ export function NewReport({
           </div>
         </div>
       )}
+
+      {/* Which part of Myro — optional, every category. The category says what
+          KIND of report this is; this says WHERE, which is what makes it
+          routable without reading the body. */}
+      <div className="fade-up">
+        <div className="eyebrow" style={{ marginBottom: 10 }}>
+          Which part of Myro? <span style={{ opacity: 0.6, fontWeight: 400 }}>optional</span>
+        </div>
+        <select
+          value={area ?? ""}
+          onChange={(e) => setArea((e.target.value || null) as ProductArea | null)}
+          style={{
+            width: "100%",
+            padding: "10px 12px",
+            borderRadius: "var(--tm-radius-sm)",
+            background: "var(--tm-bg-surface)",
+            border: "1px solid var(--tm-border-soft)",
+            color: area ? "var(--tm-text)" : "var(--tm-text-muted)",
+            fontFamily: "inherit",
+            fontSize: 13,
+          }}
+        >
+          <option value="">Not sure / not listed</option>
+          {PRODUCT_AREAS.map((a) => (
+            <option key={a} value={a}>{a}</option>
+          ))}
+        </select>
+      </div>
 
       {/* Title */}
       <div>

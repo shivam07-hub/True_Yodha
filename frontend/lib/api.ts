@@ -35,11 +35,6 @@ import { queryClient } from "./query-client"
 import { ApiError, classifyError, readErrorCode, readTraceId } from "./api-error"
 import { getTurnstileToken } from "./turnstile"
 import type { AcquisitionAttribution } from "./attribution"
-import type {
-  BetaAssignmentReceipt,
-  BetaAssignmentStatus,
-  BetaFeedbackDraft,
-} from "./beta-feedback"
 import {
   clearCVUploadPersistence,
   createCVUploadIdempotencyKey,
@@ -5016,18 +5011,6 @@ export const feedback = {
   listMine: (token: string, limit = 50) =>
     request<FeedbackReport[]>(`/feedback/my?limit=${limit}`, {
       headers: { Authorization: `Bearer ${token}` },
-    }),
-
-  betaAssignmentStatus: (token: string) =>
-    request<BetaAssignmentStatus>("/feedback/beta-assignment", {
-      headers: { Authorization: `Bearer ${token}` },
-    }),
-
-  submitBetaAssignment: (token: string, body: BetaFeedbackDraft) =>
-    request<BetaAssignmentReceipt>("/feedback/beta-assignment", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify(body),
     }),
 }
 

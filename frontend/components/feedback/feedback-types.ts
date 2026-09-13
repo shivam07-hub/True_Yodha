@@ -60,6 +60,35 @@ export const CATEGORIES: Record<FeedbackCategory, CategoryMeta> = {
 
 export const CATEGORY_ORDER: FeedbackCategory[] = ["bug", "idea", "question", "praise"]
 
+/**
+ * Which part of Myro a report is about.
+ *
+ * Carried over from the retired beta assignment form (deleted 2026-09-13), which
+ * was the only place that ever asked. Its 114 reports are the closure ledger,
+ * and every one of them had to be read to find out what it was about — the
+ * category says what KIND of report it is, never WHERE. This is the one field
+ * from that form the general hub genuinely lacked.
+ *
+ * Refreshed to today's product on the way across: the beta list still offered
+ * "Diary" and "Tracker", both retired surfaces, so a 2026 reporter would have
+ * been tagging their report with a screen that no longer exists.
+ */
+export const PRODUCT_AREAS = [
+  "Landing and signup",
+  "CV upload",
+  "CV analysis or Myro Score",
+  "CV Hub or tailoring",
+  "Skills or Practice",
+  "Jobs or matches",
+  "Collections",
+  "Prep rooms",
+  "Intel",
+  "Settings or account",
+  "Other",
+] as const
+
+export type ProductArea = (typeof PRODUCT_AREAS)[number]
+
 export interface SeverityMeta {
   id: FeedbackSeverity
   label: string
@@ -90,6 +119,9 @@ export const STATUS_META: Record<FeedbackStatus, StatusMeta> = {
 export interface FeedbackSubmissionPayload {
   category: FeedbackCategory
   severity: FeedbackSeverity | null
+  /** Which part of Myro this is about. Null when the reporter did not say —
+   *  an unanswered question must not be recorded as an answer. */
+  area: ProductArea | null
   title: string
   body: string
   email_me: boolean
