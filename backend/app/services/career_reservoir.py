@@ -26,7 +26,7 @@ import math
 import uuid
 from typing import Any
 
-from app.services import story_extractor
+from app.services import story_extractor, story_questions
 from app.services.background import LANE_FAST, TransientJobError, enqueue, handler
 
 logger = logging.getLogger("myro.career_reservoir")
@@ -139,11 +139,18 @@ def build_profile_view(
     stories: list[dict[str, Any]],
     pointers: list[dict[str, Any]],
     pending_inflows: int = 0,
+    awaiting_upgrade: set[str] | None = None,
 ) -> dict[str, Any]:
     """The comprehensive profile: roles (work first, newest first) → their stories
     (each with narrative/metrics/skills + canonical pointer & variant count) +
     role-less stories under 'highlights'. Competencies = frequency-ranked skills
-    across active stories."""
+    across active stories.
+
+    The completion queue (#13 L3) is computed here rather than behind its own
+    endpoint because everything it needs — every active story with its narrative
+    and metrics, and every canonical pointer — has already been read for the
+    profile itself. A queue that cost a second fan-out would be paying twice for
+    one answer."""
     by_story: dict[str, list[dict[str, Any]]] = {}
     for p in pointers:
         by_story.setdefault(str(p.get("story_id")), []).append(p)
@@ -206,12 +213,28 @@ def build_profile_view(
             skill_freq[skill] = skill_freq.get(skill, 0) + 1
     competencies = [k for k, _ in sorted(skill_freq.items(), key=lambda kv: (-kv[1], kv[0]))][:24]
 
+    canonical_text: dict[str, str] = {}
+    for sid, pts in by_story.items():
+        lead = next((p for p in pts if p.get("is_canonical")), pts[0] if pts else None)
+        canonical_text[sid] = (lead or {}).get("text") or ""
+    role_label = {
+        str(r["id"]): " · ".join(p for p in (r.get("title"), r.get("company")) if p)
+        for r in roles
+    }
+    queue = story_questions.build_queue(
+        active,
+        canonical_text,
+        {str(s["id"]): role_label.get(str(s.get("role_id") or ""), "") for s in active},
+        awaiting=awaiting_upgrade,
+    )
+
     return {
         "roles": roles_out,
         "highlights": [story_out(s) for s in homeless],
         "competencies": competencies,
         "story_count": len(active),
         "pending_inflows": pending_inflows,
+        **queue,
     }
 
 

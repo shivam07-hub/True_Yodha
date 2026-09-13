@@ -13,6 +13,7 @@ same trust model as memory_distiller) — user_id is always an explicit filter.
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import Depends
@@ -347,18 +348,65 @@ class CareerReservoirRepository:
             on_conflict="user_id,role_a,role_b",
         ).execute()
 
-    def ingest_status(self, user_id: str) -> dict[str, int]:
-        """Pending vs processed FILE-class inflow counts (the toggle's progress line)."""
+    def ingest_status(self, user_id: str) -> dict[str, Any]:
+        """Pending vs processed inflow counts, plus the stories a banked answer is
+        still on its way into.
+
+        `payload` rides the same read rather than a second one: these rows are
+        already being scanned to count them, and the payload of an inflow is a
+        handful of ids. `awaiting_upgrade` is what stops the completion queue
+        (#13 L3) asking a question whose answer is sitting in the ingest — the
+        one way that surface could ask twice, and the reason it is resolved from
+        the ledger rather than from a client that does not survive a reload.
+        """
         rows = safe_read(
             self._db.table("cv_dump_entries")
-            .select("id, processed_at")
+            .select("id, processed_at, payload")
             .eq("user_id", user_id)
             .in_("kind", list(INFLOW_KINDS)),
             default=[],
             context="career_ingest_status",
         )
-        pending = sum(1 for r in rows if not r.get("processed_at"))
-        return {"pending": pending, "processed": len(rows) - pending}
+        pending = [r for r in rows if not r.get("processed_at")]
+        awaiting = {
+            str((r.get("payload") or {}).get("upgrades_story_id") or "")
+            for r in pending
+        }
+        awaiting.discard("")
+        return {
+            "pending": len(pending),
+            "processed": len(rows) - len(pending),
+            "awaiting_upgrade": awaiting,
+        }
+
+    # ── the completion queue's one piece of stored state (#13 L3) ────────────
+
+    def set_completion_declined(
+        self, user_id: str, story_id: str, declined: bool,
+    ) -> dict[str, Any] | None:
+        """"There is no number for this one." ADR-0016 forbids inventing the
+        number a bullet is missing, so this has to be an answer the user can
+        actually give — otherwise the queue never reaches zero."""
+        stamp = datetime.now(timezone.utc).isoformat() if declined else None
+        result = (
+            self._db.table("career_stories")
+            .update({"completion_declined_at": stamp})
+            .eq("user_id", user_id)
+            .eq("id", story_id)
+            .execute()
+        )
+        return (result.data or [None])[0]
+
+    def clear_completion_declines(self, user_id: str) -> int:
+        """Ask me again — every bullet the user set aside comes back."""
+        result = (
+            self._db.table("career_stories")
+            .update({"completion_declined_at": None})
+            .eq("user_id", user_id)
+            .not_.is_("completion_declined_at", "null")
+            .execute()
+        )
+        return len(result.data or [])
 
 
 def get_career_reservoir_repository(db: Client = Depends(get_user_db)) -> CareerReservoirRepository:

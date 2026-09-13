@@ -1533,6 +1533,20 @@ export interface CareerProfileRole {
   kind: "work" | "education" | "leadership" | "volunteer" | "other"
   stories: CareerStory[]
 }
+/** One bullet's open question. The SAME object the job room asks when a job
+ *  needs that bullet (#13 L3) — answering in either place improves the one
+ *  story, so it is never asked twice. */
+export interface StoryQuestion {
+  story_id: string
+  title: string
+  role_label: string
+  pointer: string
+  /** "number" = no figure anywhere; "substance" = never actually told. */
+  kinds: ("number" | "substance")[]
+  /** What is missing, in the user's terms. */
+  missing: string[]
+  prompt: string
+}
 export interface CareerProfile {
   roles: CareerProfileRole[]
   /** Role-less stories: accolades, olympiads, competitions. */
@@ -1541,6 +1555,15 @@ export interface CareerProfile {
   story_count: number
   /** Dumped files still being read — poll while > 0. */
   pending_inflows: number
+  /** The standing completion queue, capped; `questions_total` is the real count. */
+  questions: StoryQuestion[]
+  questions_total: number
+  /** Bullets the user said have no number to give — ADR-0016 forbids inventing one. */
+  questions_set_aside: number
+  /** The two asks OVERLAP — a bullet can be missing both — so never derive one
+   *  of these from the other and the total. */
+  missing_number: number
+  missing_story: number
 }
 export interface ReviewStory {
   id: string
@@ -1617,6 +1640,9 @@ export interface WeaveOption {
   label: string
   detail: string
   story_id: string | null
+  /** What this story's bullet is still missing — the same ask the Stories
+   *  completion queue carries (#13 L3). Empty when it already stands alone. */
+  asks: string[]
 }
 export interface WeaveQuestion {
   requirement: string
@@ -2111,6 +2137,33 @@ export const cv = {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify({ story_a: storyA, story_b: storyB, verdict }),
+      }),
+    /** Answer one bullet's completion question. `final` skips the single probe.
+     *  A `follow_up` back means nothing was banked yet. */
+    answerStory: (token: string, storyId: string, answer: string, final = false) =>
+      request<{ follow_up: string | null; entry_id: string | null }>(
+        `/cv/reservoir/stories/${encodeURIComponent(storyId)}/answer`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ answer, final }),
+        },
+      ),
+    /** "No number to give" — some work genuinely has none, and Myro may not
+     *  invent it (ADR-0016), so the queue has to be finishable. */
+    setAsideStory: (token: string, storyId: string, aside = true) =>
+      request<{ aside: boolean }>(
+        `/cv/reservoir/stories/${encodeURIComponent(storyId)}/set-aside`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ aside }),
+        },
+      ),
+    reopenQuestions: (token: string) =>
+      request<{ reopened: number }>("/cv/reservoir/questions/reopen", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
       }),
     promotePhrasing: (token: string, pointId: string) =>
       request<{ ok: boolean }>(`/cv/reservoir/phrasings/${encodeURIComponent(pointId)}/promote`, {

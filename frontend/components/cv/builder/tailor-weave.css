@@ -113,6 +113,15 @@
   font-size: 12px; color: var(--tm-text-muted); line-height: 1.45;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
+/* What this bullet is still missing — the same ask the Stories queue carries
+   (#13 L3). Quieter than the line itself: it explains why the ask is weak, it
+   is not the thing being picked. */
+.tw-opt-asks { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.tw-opt-ask {
+  border: 1px solid var(--tm-border); border-radius: 999px; padding: 0 7px;
+  font-family: var(--tm-font-mono); font-size: 9.5px; line-height: 15px;
+  color: var(--tm-text-faint);
+}
 
 .tw-probe {
   border-left: 2px solid var(--tm-interactive); border-radius: 0 var(--tm-radius) var(--tm-radius) 0;

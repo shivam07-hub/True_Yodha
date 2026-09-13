@@ -208,11 +208,13 @@ measured Free/Nano database ceiling, not unfinished application work.
     the read path deliberately ([[feedback_record_against_the_person_not_the_occasion]]);
     a bank view that costs a fan-out per room would undo that.
 
-12. **The front door does not feed the reservoir — ✅ BUILT `a191350a`, 2026-09-13.**
-    *Shipped the first option below: the upload enqueues an ingest of its own
-    text. ⚠️ No real upload has run through it yet — verification is one signup
-    with a CV, then `cv_dump_entries` holds a `source='onboarding_cv'` row and
-    `career_stories` grows for that user.* Original finding:
+12. **The front door does not feed the reservoir — ✅ BUILT `a191350a`, 2026-09-13.
+    ✅ VERIFIED ON A REAL UPLOAD 2026-09-14.** *Shipped the first option below:
+    the upload enqueues an ingest of its own text. The verification asked for
+    here has now happened: `cv_dump_entries` holds one `source='onboarding_cv'`
+    row (user `9ae278f0`, 2026-09-13 15:20, processed 15:22) and that user went
+    from zero stories to 3. All three arrived with no metric at all, which is
+    exactly what #13 exists for.* Original finding:
 
     `/cv/upload` — the upload named in THE GOAL — never touches
     `career_reservoir`. Only three routes do: `/cv/reservoir/ingest`,
@@ -271,11 +273,33 @@ measured Free/Nano database ceiling, not unfinished application work.
     whole that it covers all the best practices of a CV point", and everything
     the user produces through the day should land in the reservoir.
 
-    **BUILT `cb51d83b` (2026-09-14): L1 and L2 in code, depth derived, both
-    readers taught. REMAINING: L3's standing Stories queue (a surface, needs
-    design) and the backfill, which stays last. ⚠️ Still unverified against a
-    real upload — the whole chain from CV to a capped `weak` to an upgraded
-    story has only ever run in tests.**
+    **BUILT `cb51d83b` + L3 (2026-09-14). All three locks are in code.
+    REMAINING: the 397-user backfill, which stays last on purpose.**
+
+    L3's standing queue rides `GET /cv/reservoir/profile` — the Stories tab
+    already reads every active story and every canonical pointer, so the queue
+    costs no second fan-out. `story_questions` derives it; the job room shows the
+    same ask on the weak requirement's story option; `POST
+    /cv/reservoir/stories/{id}/answer` banks it job-free with
+    `upgrades_story_id`, so both doors end in the same fold.
+
+    **The upload bridge HAS now run for real** (`onboarding_cv`, 2026-09-13
+    15:20 → processed 15:22 → 3 stories for a user who had none), which closes
+    #12's verification. What is still unrun authed is the rest of the chain: a
+    capped `weak` in a real job room, and an answer upgrading a real story.
+
+    Two things the live reservoir taught while this was built, both fixed before
+    shipping. **A word count is not a missing fact**: `missing_from_pointer`
+    calls any sub-18-word line short of "what you actually did", and it flagged
+    *"Halted manual release effort by 50% by implementing Jenkins CI/CD
+    pipelines…"* — 17 words, and it says what it did. The queue asks only for the
+    number and for a story never told; length stays an edit. That took one user
+    from 5 asks to 2, and another from 127 to 65. **And the two asks overlap** —
+    a bullet can be missing both — so the server sends both counts and no reader
+    derives one by subtraction.
+
+    Live queue at build time: **71 open questions across 4 users, 55 of them a
+    missing number.**
 
     **L1 — a CV line never closes a question.** A story whose narrative came from
     a CV bullet may show as evidence for a JD requirement but may not mark it
@@ -295,11 +319,20 @@ measured Free/Nano database ceiling, not unfinished application work.
     the reply mints a sibling and hopes `story_identity` folds it. Resolve
     server-side from the cached coverage row; do not trust a client-supplied id.
 
-    **L3 — one question, two places.** The same question object is asked in the
-    job room (when that job needs the bullet) and stands as a queue in Stories
-    ("6 of your bullets are missing their number"). Answering in either place
-    upgrades the story everywhere and it is never asked twice
-    ([[feedback_record_against_the_person_not_the_occasion]]).
+    **L3 — one question, two places. ✅ BUILT 2026-09-14.** The same question
+    object is asked in the job room (when that job needs the bullet) and stands
+    as a queue in Stories ("6 of your bullets are missing their number").
+    Answering in either place upgrades the story everywhere and it is never
+    asked twice ([[feedback_record_against_the_person_not_the_occasion]]).
+
+    **Never asked twice is derived, not bookkept**: a story leaves the queue for
+    the same reason it stops being capped to `weak` — it is told and its bullet
+    is whole. The one exception needing state is the ledger: a question whose
+    answer is mid-ingest is suppressed from `cv_dump_entries`, not from client
+    memory, so the rule survives a reload. And because ADR-0016 forbids inventing
+    the number, **"No number to give" is a real answer** — without it the queue
+    is a count that can never reach zero. It is listed and reversible
+    (`completion_declined_at`, migration `20260914120000`, APPLIED).
 
     **What "whole" means — already defined in code, do not reinvent.**
     `story_extractor._STATIC_STYLE` is the Google XYZ formula ("Accomplished X,
@@ -324,10 +357,14 @@ measured Free/Nano database ceiling, not unfinished application work.
     This matters because `fold_plan` unions metrics, skills and inflows but never
     merges `narrative` — so today the loser's STAR text is simply archived.
 
-    **Backfill LAST, and not yet.** The 397 existing baselines would mint ~3,200
-    thin stories before any completion loop exists. Order: verify the bridge on
-    one real upload → depth signal + shared question → then backfill, newest
-    cohort first, measuring stories-per-user before widening.
+    **Backfill LAST, and still not yet.** The 397 existing baselines would mint
+    ~3,200 thin stories. Two of the three preconditions are now met — the bridge
+    has run for real, and the completion loop exists — but the third has not:
+    **nobody has answered a completion question yet.** Backfilling before one
+    real answer has gone round would mint thousands of questions against a loop
+    never once exercised by a user. Order from here: one authed answer end to end
+    → then backfill, newest cohort first, measuring stories-per-user before
+    widening.
 
     Original finding:
 

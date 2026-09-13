@@ -57,6 +57,9 @@ class WeaveOption(BaseModel):
     label: str
     detail: str = ""
     story_id: str | None = None
+    #: What this story's bullet is still missing (#13 L3) — the same ask the
+    #: Stories completion queue carries, so the two places are one question.
+    asks: list[str] = Field(default_factory=list)
 
 
 class WeaveQuestion(BaseModel):

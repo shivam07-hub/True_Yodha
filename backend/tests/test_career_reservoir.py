@@ -198,6 +198,10 @@ def test_build_profile_view_empty():
     assert view == {
         "roles": [], "highlights": [], "competencies": [],
         "story_count": 0, "pending_inflows": 0,
+        # An empty reservoir has nothing to ask about — the completion queue
+        # (#13 L3) rides this same read and stays silent.
+        "questions": [], "questions_total": 0, "questions_set_aside": 0,
+        "missing_number": 0, "missing_story": 0,
     }
 
 

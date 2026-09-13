@@ -64,6 +64,14 @@ export function TailorInterview({
                 <span className="tw-opt-kind mono">{o.kind === "cv" ? "on your CV" : "your story"}</span>
                 <span className="tw-opt-label">{o.label}</span>
                 {o.detail && o.kind !== "cv" && <span className="tw-opt-detail">{o.detail}</span>}
+                {/* One question, two places (#13 L3): this ask is the same one
+                    standing in Stories for this bullet, and an answer here
+                    improves that same story. */}
+                {o.asks.length > 0 && (
+                  <span className="tw-opt-asks">
+                    {o.asks.map(a => <span key={a} className="tw-opt-ask">{a}</span>)}
+                  </span>
+                )}
               </span>
             </button>
           ))}

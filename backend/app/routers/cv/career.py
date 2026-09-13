@@ -198,12 +198,32 @@ class ProfileRole(BaseModel):
     stories: list[ProfileStory]
 
 
+class StoryQuestion(BaseModel):
+    """One bullet's open question — the same object the job room asks (#13 L3)."""
+    story_id: str
+    title: str
+    role_label: str = ""
+    pointer: str = ""
+    kinds: list[str] = Field(default_factory=list)
+    missing: list[str] = Field(default_factory=list)
+    prompt: str = ""
+
+
 class ProfileView(BaseModel):
     roles: list[ProfileRole]
     highlights: list[ProfileStory]
     competencies: list[str]
     story_count: int
     pending_inflows: int
+    #: The standing completion queue. Capped for payload weight; the totals
+    #: beside it are the honest count, and the list refills as it is worked.
+    questions: list[StoryQuestion] = Field(default_factory=list)
+    questions_total: int = 0
+    questions_set_aside: int = 0
+    #: The two asks overlap — a bullet can be missing both — so both are counted
+    #: here and neither may be derived from the other.
+    missing_number: int = 0
+    missing_story: int = 0
 
 
 @router.get("/reservoir/profile", response_model=ProfileView)
@@ -216,8 +236,14 @@ def reservoir_profile(
     career_reservoir.maybe_enqueue_role_dedup(user.id, roles)  # lazy #38 sweep
     stories = repo.list_stories(user.id)
     pointers = repo.story_pointers(user.id, [str(s["id"]) for s in stories])
+    inflow = repo.ingest_status(user.id)
     view = career_reservoir.build_profile_view(
-        roles, stories, pointers, pending_inflows=repo.ingest_status(user.id)["pending"],
+        roles, stories, pointers,
+        pending_inflows=inflow["pending"],
+        # A question whose answer is already in the ingest must not be asked
+        # again while it lands — "never asked twice" (#13 L3) has to survive a
+        # page reload, so it is resolved from the ledger, not from the client.
+        awaiting_upgrade=inflow["awaiting_upgrade"],
     )
     # Duplicate questions and receipts live in the review space (ADR-0023),
     # which shows the story and role queues together: GET /cv/reservoir/review.

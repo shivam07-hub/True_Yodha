@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from .apply_snapshot import router as apply_snapshot_router
 from .career import router as career_router
+from .completion import router as completion_router
 from .connections import router as connections_router
 from .evidence import router as evidence_router
 from .export import router as export_router
@@ -31,6 +32,7 @@ router.include_router(gap_plan_router)
 router.include_router(intake_router)
 router.include_router(career_router)
 router.include_router(review_router)
+router.include_router(completion_router)
 router.include_router(phrasings_router)
 router.include_router(apply_snapshot_router)
 router.include_router(connections_router)
