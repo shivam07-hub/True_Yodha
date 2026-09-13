@@ -294,6 +294,40 @@ class ScoresRepository:
             target_seniority=self.get_target_seniority(user_id),
         )
 
+    def skill_closeness_map(self, taxonomy_keys: list[str]) -> dict[str, float]:
+        """What live jobs ask for ALONGSIDE the skills this person already has.
+
+        One read, 6.0ms measured as `authenticated` on prod (112 neighbour rows
+        for a 15-skill caller, index-only throughout). Keyed on taxonomy_key so
+        the caller passes only names it already holds — the function takes no
+        user id, which is why it can stay SECURITY INVOKER and never becomes an
+        oracle.
+
+        Returns {} on failure, deliberately: closeness only ever lifts a gap up
+        the list, so losing it costs the ordering nothing that demand and gap
+        were not already deciding.
+        """
+        if not taxonomy_keys:
+            return {}
+        try:
+            rows = (
+                self._db.rpc(
+                    "skill_closeness_for", {"p_taxonomy_keys": taxonomy_keys}
+                ).execute().data
+                or []
+            )
+        except Exception as exc:
+            logger.error(
+                "metric closeness.read_failed skills=%d reason=%s fallback_used=true",
+                len(taxonomy_keys), exc.__class__.__name__,
+            )
+            return {}
+        return {
+            str(row["taxonomy_key"]): float(row.get("closeness") or 0.0)
+            for row in rows
+            if row.get("taxonomy_key")
+        }
+
     def family_demand_rows(
         self, families: list[str], *, seniority: str | None = None
     ) -> list[dict[str, Any]]:

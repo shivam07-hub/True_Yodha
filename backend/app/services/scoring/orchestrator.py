@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.repositories.scores import ScoresRepository
+from app.services.concurrent_reads import run_concurrently
 from app.services.job_eligibility import target_seniority_for_profile
 from app.services.scoring.aspirations import fetch_role_family_market
 from app.services.scoring.percentile import percentile_rank
@@ -117,7 +118,19 @@ def recompute_score(scores_repo: ScoresRepository, user_id: str) -> dict:
     Used by skill correction, manual recompute, diary submit, tracker outcome.
     """
     inputs = scores_repo.get_recompute_inputs(user_id)
-    market = fetch_role_family_market(scores_repo, inputs.target_roles)
+    # Two reads, one wave. Both depend only on `inputs` and neither depends on
+    # the other, so closeness costs no wall time — a sequential hop on this path
+    # is ~165ms, which is most of what the whole recompute has to spend.
+    reads = run_concurrently(
+        {
+            "market": lambda: fetch_role_family_market(scores_repo, inputs.target_roles),
+            "closeness": lambda: scores_repo.skill_closeness_map(
+                list(inputs.skill_level_map.keys())
+            ),
+        },
+        label="scoring.recompute",
+    )
+    market = reads["market"]
     projection = _score_math(
         scores_repo,
         inputs.skill_level_map,
@@ -125,6 +138,7 @@ def recompute_score(scores_repo: ScoresRepository, user_id: str) -> dict:
         scoped_demand=market.demand,
         include_market_signals=True,
         target_level=_band_target_level(inputs.target_seniority),
+        skill_closeness=reads["closeness"],
     )
     _persist_score(scores_repo, user_id, projection)
     _persist_band_percentile(scores_repo, user_id, inputs.target_seniority, projection.total_score)
@@ -164,6 +178,7 @@ def _score_math(
     include_market_signals: bool,
     target_level: int = DEFAULT_TARGET_LEVEL,
     skills_assessed_override: int | None = None,
+    skill_closeness: dict[str, float] | None = None,
 ) -> ScoreProjection:
     cluster_children, skill_to_cluster, cluster_to_domain = _build_cluster_maps()
     # Demand the user's own families already answered, from the same pass that set
@@ -193,6 +208,7 @@ def _score_math(
     total_score = compute_mirror_score(domain_scores)
     gap_skills = compute_gap_skills(
         skill_level_map, skill_demand, aspiration_skills, skill_to_cluster,
+        skill_closeness=skill_closeness,
     )
     # Honest "what moves score most" — attach the real projected total-score gain
     # from practising each gap one proficiency level (the actionable next step).
