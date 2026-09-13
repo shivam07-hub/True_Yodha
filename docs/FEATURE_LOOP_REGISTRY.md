@@ -59,7 +59,7 @@ that starts after step 4 can only ever serve 14 people.
 | L2 | Skills confirm → target → matches | 389 / 99 | **CLOSED** |
 | L3 | Collect → prep room → 4 rungs → apply | 69 → 28 | **LEAKING** |
 | L4 | JD gap → answer → career story → tailored CV | **2** | **NEVER FIRED** |
-| L5 | Gap → Practice → certificate → CV line | 21 passed → **2** on a CV | **LEAKING BADLY** |
+| L5 | Gap → Practice → certificate → CV line | 2 of 2 since ship; 19 predate the table | **HEALTHY POST-SHIP** |
 | L6 | Save job → intel → follow company → heatmap | 46 | **LEAKING** |
 | L7 | Notification → return → act | 378 sent, return unmeasured | **UNINSTRUMENTED** |
 | L8 | Partner SSO → seat → activation | 330 | **CLOSED (not ours)** |
@@ -157,13 +157,16 @@ failed answer was invisible to `ingest_status` and unreachable by
 `kind='answer'` + CHECK + `INFLOW_KINDS`, plus `reservoir_ingest_sweep` (hourly,
 all users, bulk lane) so the heal no longer depends on opening the Stories tab.
 
-**Open decision — BACKLOG TIER 3 #12:** `/cv/upload` never touches the reservoir
-at all. Either upload enqueues its own ingest (a paid extraction per signup), or
-the gap loop stays the only way in and gets moved to where users already are.
+**The fork in BACKLOG TIER 3 #12 was picked 2026-09-13:** upload now enqueues
+its own ingest (`a191350a`, `bank_uploaded_cv`). No real signup has run through
+it yet. The other half was not picked and must not be built in a coding
+session: the gap loop still lives at rung 1 of a prep room 328 of 397
+CV-holders never open. Moving that ask to Market / Collections / the CV page
+is a product call with real cost either way.
 
 ---
 
-### L5 — Gap → Practice → certificate → CV line · **LEAKING BADLY**
+### L5 — Gap → Practice → certificate → CV line · **HEALTHY POST-SHIP**
 
 ```
 skill gap → /practice → quiz_attempts (65 users, 101 passes, 21 passers)
@@ -171,17 +174,43 @@ skill gap → /practice → quiz_attempts (65 users, 101 passes, 21 passers)
   → certificate_to_cv handler → cv_structured.certs → a checkable CV line   ↺
 ```
 
-**101 passes, 21 users who passed, and 2 users with a Myro certificate line on
-their CV.** 230 users have certs on their CV, but those were parsed from the
-document they uploaded — zero carry a Myro `verification_id`.
+**101 passes, 21 passers, 4 certificates, 2 users — both on a CV.** 227 users
+have *some* certs on their latest baseline; almost all of those were parsed
+from the document they uploaded.
 
-The last hop is built and works (the handler writes `cv_structured["certs"]`,
-the line carries a verify URL a recruiter can open). It has fired for 2 of 21
-eligible people. **Find out why before building anything new on this loop** —
-the difference between "the handler never runs" and "users pass but never earn a
-cert" is the whole diagnosis, and it is not in this file yet.
+Measured 2026-09-13. This is not a handler that fails:
 
-Only 7 users ever ran a forge/practice session, against 65 who took a quiz.
+| | users | passes |
+|---|---|---|
+| Passed a quiz (`mode='upskilling'`) | 21 | 101 |
+| of those, before `skill_certificates` existed (≤2026-08-24) | **19** | 97 |
+| of those, on/after 2026-08-27 | **2** | 4 |
+| Certificate issued | 2 | 4 |
+| `cv_promoted_at` set | 2 | 4 |
+
+All 21 passers have a content-bearing baseline, so
+`certificate_to_cv.no_baseline` is not the miss. The 19 never got a certificate
+object: the table and `issue_for_pass` shipped 2026-08-27 (`01c14fe2`);
+auto-write to the Main CV shipped 2026-08-31 (`0e8f35c2`). There is no
+backfill. Every pass since then issued a certificate and landed it.
+
+The two who passed after ship used both doors:
+
+- `5c2e3176` (30 Aug, between issue and auto-write) used the win-screen **Add
+  to CV** path — line format `Myro Skill Certificate · … · msk_…` on an
+  uploaded baseline.
+- `b6cf26b1` (7 Sep) was written by the bulk handler — line format `Assessed
+  by Myro · myro.com/v/msk_…`, baseline title `Master CV · certificate`. An L1
+  line was replaced in place when L2 landed, which is the rule.
+
+**Do not build on a leak that is not leaking.** A backfill of ~96 certificates
+onto 19 CVs from June–August is a product call (BACKLOG TIER 3 #17). Two line
+formats still coexist (`certificateCvLine` vs `cv_line`); matching is by
+`verification_id`, so levelling-up still replaces, but a second Add-to-CV
+click can prepend a duplicate in the old shape.
+
+Only 7 users ever ran a forge/practice session, against 65 who started a quiz.
+That is a different loop (starting practice), not this hop.
 
 ---
 
@@ -313,6 +342,8 @@ union all select 'answered a JD gap',    count(distinct user_id)::text from cv_d
 union all select 'has a career story',   count(distinct user_id)::text from career_stories
 union all select 'tailored a CV',        count(distinct user_id)::text from cv_versions where job_id is not null
 union all select 'passed a quiz',        count(distinct user_id)::text from quiz_attempts where passed
+union all select 'issued a certificate', count(distinct user_id)::text from skill_certificates
+union all select 'certificate on a CV',  count(distinct user_id)::text from skill_certificates where cv_promoted_at is not null
 union all select 'followed a company',   count(distinct user_id)::text from followed_companies
 union all select 'partner SSO',          count(distinct user_id)::text from partner_users
 union all select 'arrived via referral', count(*)::text from user_profiles where referred_by_user_id is not null;

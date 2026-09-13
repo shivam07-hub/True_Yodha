@@ -35,6 +35,8 @@ STEPS: list[tuple[str, str, str | None, dict[str, Any]]] = [
     ("answered a JD gap", "cv_dump_entries", "user_id", {"source": "jd_gap_answer"}),
     ("has a career story", "career_stories", "user_id", {}),
     ("passed a skill quiz", "quiz_attempts", "user_id", {"passed": True}),
+    ("issued a skill certificate", "skill_certificates", "user_id", {}),
+    ("certificate on a CV", "skill_certificates", "user_id", {"cv_promoted_at": "__not_null__"}),
     ("followed a company", "followed_companies", "user_id", {}),
     ("arrived via partner SSO", "partner_users", "user_id", {}),
 ]
@@ -64,7 +66,10 @@ def _count(db: Any, table: str, user_col: str | None, filters: dict[str, Any]) -
     while True:
         query = db.table(table).select(user_col or "id")
         for column, value in filters.items():
-            query = query.eq(column, value)
+            if value == "__not_null__":
+                query = query.not_.is_(column, "null")
+            else:
+                query = query.eq(column, value)
         page = query.range(start, start + _PAGE - 1).execute().data or []
         rows_total += len(page)
         if user_col is not None:

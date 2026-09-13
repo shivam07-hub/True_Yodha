@@ -237,6 +237,12 @@ measured Free/Nano database ceiling, not unfinished application work.
     users who already uploaded, so promoting it remains open. Memory:
     `project_reservoir_has_one_inhabitant`.
 
+    **Promoting the gap loop is still a finding, not a fix.** 2 users have
+    answered a gap; `e91eef0b` built an entire reservoir from zero that way.
+    Coverage is rung 1 inside a prep room that 328 of 397 CV-holders never open.
+    Moving that ask to Market / Collections / the CV page is a product call with
+    real cost either way — do not pick it in a coding session.
+
     Two flaws found while building, both fixed in the same commit. **The
     foreign-document guard would have silently eaten the user's own CV**: it
     matches names from `user_profiles.full_name` plus the baseline's contact
@@ -358,6 +364,20 @@ measured Free/Nano database ceiling, not unfinished application work.
     auto-fold because `story_identity_fold` writes `moved.dup_added` and `unfold`
     takes back exactly that. Give roles the same receipt and the judge earns the
     write back. Until then every confident verdict is a question for the user.
+
+17. **Practice → certificate → CV is not leaking. Diagnosed 2026-09-13.**
+    21 quiz passers, 2 with a Myro certificate line. The 19 others all passed
+    between 2026-06-19 and 2026-08-24, before `skill_certificates` existed
+    (`01c14fe2`, 2026-08-27). No backfill. Every pass since then (4 attempts,
+    2 users) issued a certificate and landed it on the CV — one via Add to CV
+    (30 Aug, between issue and auto-write), one via the bulk handler (7 Sep).
+    All 21 passers already have a content-bearing baseline, so
+    `certificate_to_cv.no_baseline` is not the miss.
+
+    A backfill of ~96 certificates onto 19 CVs from June–August is a product
+    call: they did not opt in, and the lines would appear months later.
+    Until that call, do not build on this loop. Detail:
+    [FEATURE_LOOP_REGISTRY.md](docs/FEATURE_LOOP_REGISTRY.md) L5.
 
 ### TIER 4 — correctly deferred, DO NOT pick up
 
