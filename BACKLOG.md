@@ -178,8 +178,11 @@ measured Free/Nano database ceiling, not unfinished application work.
     the read path deliberately ([[feedback_record_against_the_person_not_the_occasion]]);
     a bank view that costs a fan-out per room would undo that.
 
-12. **The front door does not feed the reservoir.** *Measured 2026-09-12. Needs
-    Shivam's call on shape before code.*
+12. **The front door does not feed the reservoir — ✅ BUILT `a191350a`, 2026-09-13.**
+    *Shipped the first option below: the upload enqueues an ingest of its own
+    text. ⚠️ No real upload has run through it yet — verification is one signup
+    with a CV, then `cv_dump_entries` holds a `source='onboarding_cv'` row and
+    `career_stories` grows for that user.* Original finding:
 
     `/cv/upload` — the upload named in THE GOAL — never touches
     `career_reservoir`. Only three routes do: `/cv/reservoir/ingest`,
@@ -201,10 +204,28 @@ measured Free/Nano database ceiling, not unfinished application work.
     path the goal's population can actually reach, and its failures were both
     invisible and unhealable.
 
-    Decide before building: does the upload enqueue an ingest of its own text,
-    or does the gap loop stay the only way in and get promoted instead? The first
-    spends a paid extraction on every signup; the second is free but asks the
-    user to answer something first. Memory: `project_reservoir_has_one_inhabitant`.
+    Decided: the upload enqueues its own ingest (`bank_uploaded_cv`, phase 2,
+    best-effort). The gap loop stays — it is still the only door for the 397
+    users who already uploaded, so promoting it remains open. Memory:
+    `project_reservoir_has_one_inhabitant`.
+
+    Two flaws found while building, both fixed in the same commit. **The
+    foreign-document guard would have silently eaten the user's own CV**: it
+    matches names from `user_profiles.full_name` plus the baseline's contact
+    block, but at upload time that baseline's `cv_structured` is still null, so
+    it judges on the profile name alone — one token mismatch plus any email in
+    the document reads as `foreign`. 352 of 397 upload users have an active
+    guard with nothing to match against. The bridge skips it by source: a bulk
+    dump can carry someone else's CV, an upload cannot. **And
+    `backfill_missing_embeddings` had one caller, not the two its docstring
+    claimed** — an unembedded story is unrankable by `career_projection` and
+    never nominated by `story_identity`, so it is also permanently un-deduped;
+    the hourly sweep now heals embeddings for everyone.
+
+    Still open, found in the same pass and deliberately not fixed:
+    `story_pointers` builds an unbounded `.in_("story_id", …)` — 171 stories is
+    already a ~6.6KB URL and 400 would exceed a typical 8KB proxy limit, with no
+    paging. The bridge adds ~8 stories per user, so this arrives sooner now.
 
 ### TIER 4 — correctly deferred, DO NOT pick up
 
