@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts tests/*.test.mjs && TSX_TSCONFIG_PATH=tsconfig.test.json tsx --test tests/*.test.tsx",
     "check:ui-drift": "node scripts/ui-drift-guard.mjs",
+    "check:reach": "node scripts/reach-guard.mjs",
     "test:contracts": "node --test tests/api-session-contract.test.mjs",
     "test:onboarding": "node --test tests/onboarding-contract.test.mjs",
     "test:market-browse": "tsx --test tests/market-browse-contract.test.ts",
