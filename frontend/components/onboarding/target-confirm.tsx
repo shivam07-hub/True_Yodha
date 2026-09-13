@@ -27,6 +27,7 @@ import {
   BandStep, DirectionStep, LevelStep, MAX_ROLES, RoleStep, WhereStep,
 } from "@/components/onboarding/target-steps"
 import { invalidateTargetRoleData } from "@/lib/domain-data"
+import { useCareerBandOptions } from "@/lib/hooks/use-career-bands"
 import {
   emitJourneyPhase, onboarding, users as usersApi,
   type CareerBand, type OnboardingResult, type RoleFamily, type TargetSeniority,
@@ -89,16 +90,9 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
   const [locations, setLocations] = useState<string[]>(result.selected?.locations ?? [])
   const [lean, setLean] = useState<string[]>(result.direction?.lean ?? [])
   const [avoid, setAvoid] = useState<string[]>(result.direction?.avoid ?? [])
-  /** Their stored answer, or the best-fitting band pre-ticked. `bands` arrives
-   *  fit-ordered, so [0] is the proposal — the same "open on an answer" rule the
-   *  role list follows, applied to the step in front of it. An empty
-   *  `career_bands` means nobody has been asked, never "chose none". */
-  const [bands, setBands] = useState<CareerBand[]>(() => {
-    const stored = result.selected?.career_bands ?? []
-    if (stored.length > 0) return stored
-    const top = result.bands?.[0]
-    return top ? [top.band] : []
-  })
+  /** Their stored answer, or nothing yet — the pre-tick happens in an effect
+   *  below, because the options may not be in this payload at all. */
+  const [bands, setBands] = useState<CareerBand[]>(result.selected?.career_bands ?? [])
 
   // Direction is the last onboarding step and had no telemetry either. Whether
   // families were offered at all is the signal worth having: an empty picker is
@@ -115,6 +109,45 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
   const [ninjaClaimed, setNinjaClaimed] = useState(() => Boolean(result.ninja?.claimed))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  /**
+   * The band options, from the payload or fetched.
+   *
+   * ⚠️ They are NOT always in the payload. `confirm-skills` builds its
+   * `awaiting_target` with `include_families=False` so the button is not blocked
+   * on those reads, and that response is handed straight to this component by
+   * `first-run-skill-review` — which is the path EVERY user finishing onboarding
+   * takes. Families already had this fallback; bands shipped without one, so
+   * step one rendered four empty slots for exactly the people the step exists
+   * for. Caught only by logging in as the QA account and looking.
+   */
+  const bandQuery = useCareerBandOptions(token, (result.bands ?? []).length === 0)
+  // Memoised because the proposal effect below depends on it — a fresh array
+  // every render would re-run that effect on every render.
+  const bandOptions = useMemo(
+    () => ((result.bands ?? []).length > 0 ? result.bands : (bandQuery.data ?? [])),
+    [result.bands, bandQuery.data],
+  )
+
+  /**
+   * Open on an answer — the same rule the role list and the level step follow.
+   *
+   * Proposed at most once and never re-proposed: a user who unticks a band has
+   * answered, and the screen must not argue. It cannot live in `useState` any
+   * more because the options can arrive a request later than the component.
+   */
+  const bandProposedRef = useRef(false)
+  useEffect(() => {
+    if (bandProposedRef.current) return
+    if ((result.selected?.career_bands ?? []).length > 0 || bands.length > 0) {
+      bandProposedRef.current = true
+      return
+    }
+    const top = bandOptions[0]          // fit-ordered by the server
+    if (!top) return                    // still loading — not "no answer"
+    bandProposedRef.current = true
+    setBands([top.band])
+  }, [bandOptions, bands.length, result.selected?.career_bands])
 
   // Suggestions follow the bands the user just picked. The payload's families
   // were resolved against their STORED bands, so a band changed on screen has to
@@ -286,7 +319,7 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
         band_count: bands.length,
         // 1 when they kept Myro's reading untouched, 0 when they corrected it —
         // the 62.4% this step exists because of, measured on our own users.
-        band_kept: bands.length === 1 && bands[0] === result.bands?.[0]?.band ? 1 : 0,
+        band_kept: bands.length === 1 && bands[0] === bandOptions[0]?.band ? 1 : 0,
         role_count: selected.length,
         location_count: locations.length,
         lean_count: lean.length,
@@ -332,7 +365,7 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
       </div>
 
       {step === "band" ? (
-        <BandStep options={result.bands ?? []} selected={bands} onChange={setBands} />
+        <BandStep options={bandOptions} selected={bands} onChange={setBands} />
       ) : null}
 
       {step === "work" ? (
