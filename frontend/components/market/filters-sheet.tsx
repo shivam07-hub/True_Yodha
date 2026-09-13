@@ -4,7 +4,10 @@ import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import type { CareerBand } from "@/lib/api"
 import type { FeedScope } from "@/lib/feed-scope"
+import { BandChoice } from "@/components/target-role/band-choice"
 import { TargetRolesChips } from "@/components/target-role/target-roles-chips"
+import { useAuth } from "@/lib/hooks/use-auth"
+import { useCareerBandOptions } from "@/lib/hooks/use-career-bands"
 import {
   type FeedFilters, WORK_MODES, activeFilterCount, resetFilters,
 } from "./feed-types"
@@ -23,16 +26,9 @@ import "./market.css"
  * Career path · Skill match · Companies · Seniority · Listing quality.
  */
 
-const CAREER_BANDS: ReadonlyArray<readonly [CareerBand, string]> = [
-  ["engineering_data", "Engineering & Data"],
-  ["business_product_operations", "Business, Product & Operations"],
-  ["research_people_public_impact", "Research, People & Public Impact"],
-  ["design_creative", "Design & Creative"],
-] as const
-
 export function FiltersSheet({
   filters, onChange, onClose, targetRoles, chipCountMap, hasCv, scope, onEditLocations,
-  primaryCareerBand, exploredCareerBands, onExploredCareerBandsChange, applyLabel,
+  exploredCareerBands, onExploredCareerBandsChange, applyLabel,
 }: {
   filters: FeedFilters
   onChange: (f: FeedFilters) => void
@@ -42,13 +38,14 @@ export function FiltersSheet({
   hasCv: boolean
   scope: FeedScope
   onEditLocations: () => void
-  primaryCareerBand?: CareerBand | null
   exploredCareerBands?: CareerBand[]
   onExploredCareerBandsChange?: (bands: CareerBand[]) => void
   /** Optional confirm-button label. Left as "Show jobs" by default — never a
    *  count, because the loaded page is not the corpus. */
   applyLabel?: string
 }) {
+  const { token } = useAuth()
+  const bandOptions = useCareerBandOptions(token)
   const [mounted, setMounted] = useState(false)
   const [draft, setDraft] = useState<FeedFilters>(filters)
   const [draftCareerBands, setDraftCareerBands] = useState<CareerBand[]>(exploredCareerBands ?? [])
@@ -131,24 +128,19 @@ export function FiltersSheet({
             )}
           </Section>
 
+          {/* THE band control, the same one Direction and Settings render. This
+              was three switches reading "Also explore X" around a primary the
+              user never chose — a model the band step replaced. Every band is
+              the same kind of answer now, so there is no primary to arrange the
+              rest around. Clearing every band is not "no jobs": the server falls
+              back to the band derived from their roles. */}
           <Section title="Career path">
-            <div className="tm-sheet-empty" style={{ marginBottom: 8 }}>
-              {primaryCareerBand
-                ? `Your primary path: ${CAREER_BANDS.find(([key]) => key === primaryCareerBand)?.[1] ?? primaryCareerBand}`
-                : "Your primary path is inferred from your CV and target role."}
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {CAREER_BANDS.filter(([key]) => key !== primaryCareerBand).map(([key, label]) => (
-                <Toggle
-                  key={key}
-                  checked={draftCareerBands.includes(key)}
-                  onChange={(enabled) => setDraftCareerBands(current => enabled
-                    ? Array.from(new Set([...current, key]))
-                    : current.filter((band) => band !== key))}
-                  label={`Also explore ${label}`}
-                />
-              ))}
-            </div>
+            <BandChoice
+              options={bandOptions.data ?? []}
+              selected={draftCareerBands}
+              onChange={setDraftCareerBands}
+              layout="rows"
+            />
           </Section>
 
           <Section title="Skill match" locked={!hasCv} lockNote="Upload your CV to filter by skill match">

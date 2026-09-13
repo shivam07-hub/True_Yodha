@@ -202,7 +202,6 @@ function IntelPageInner() {
           targetRoles={targetRoles}
           chipCountMap={chipCountMap}
           hasCv={!!profileData?.has_cv}
-          primaryCareerBand={profileData?.target_career_band}
           exploredCareerBands={profileData?.explored_career_bands ?? []}
           onExploredCareerBandsChange={onExploredCareerBandsChange}
         />
@@ -245,7 +244,6 @@ function IntelPageInner() {
             onQueryChange={(q) => updateBrowse({ q })}
             initialSkillFacet={jobSkillFacet}
             onSkillFacetChange={(skill) => updateBrowse({ skill })}
-            primaryCareerBand={profileData?.target_career_band}
             exploredCareerBands={profileData?.explored_career_bands ?? []}
             onExploredCareerBandsChange={onExploredCareerBandsChange}
             targetLocations={profileData?.target_locations ?? []}

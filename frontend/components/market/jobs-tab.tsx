@@ -46,7 +46,6 @@ export interface MarketJobsTabProps {
   onQueryChange?: (query: string) => void
   initialSkillFacet?: string | null
   onSkillFacetChange?: (skill: string | null) => void
-  primaryCareerBand?: CareerBand | null
   exploredCareerBands?: CareerBand[]
   onExploredCareerBandsChange?: (bands: CareerBand[]) => void
   targetLocations: string[]
@@ -65,7 +64,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     token, hasCv, targetRoles, chipCountMap, selectedCluster, onSelectCluster,
     initialFilters, initialQuery = "", onFiltersChange, onQueryChange,
     targetLocations, followCompany, initialSkillFacet, onSkillFacetChange,
-    primaryCareerBand, exploredCareerBands, onExploredCareerBandsChange,
+    exploredCareerBands, onExploredCareerBandsChange,
     analyticsEnabled = true, demandEnabled = true,
     onFeedSettled, onDemandSettled, onAnalyticsSettled,
   } = props
@@ -448,7 +447,6 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
           hasCv={hasCv}
           scope={scope}
           onEditLocations={() => document.dispatchEvent(new CustomEvent("tm:open-settings", { detail: { tab: "Following" } }))}
-          primaryCareerBand={primaryCareerBand}
           exploredCareerBands={exploredCareerBands}
           onExploredCareerBandsChange={onExploredCareerBandsChange}
         />
