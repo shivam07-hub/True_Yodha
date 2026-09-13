@@ -12,6 +12,7 @@ same trust model as memory_distiller) — user_id is always an explicit filter.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from fastapi import Depends
@@ -28,9 +29,28 @@ from app.deps import get_user_db
 INFLOW_KINDS: tuple[str, ...] = ("file", "linkedin", "answer")
 
 
+# A story id is 36 chars; `in_` sends them all in the URL. 60 keeps the query
+# string near 2.5KB whatever the size of the reservoir behind it.
+_ID_CHUNK = 60
+# PostgREST's own response ceiling. It truncates in silence, so every read that
+# can outgrow it pages instead of hoping.
+_PAGE = 1000
+
+
 class CareerReservoirRepository:
     def __init__(self, db: Client):
         self._db = db
+
+    def _paged(self, build: Callable[[], Any], context: str) -> list[dict[str, Any]]:
+        """Read a query to exhaustion, `_PAGE` rows at a time."""
+        rows: list[dict[str, Any]] = []
+        while True:
+            page = safe_read(
+                build().range(len(rows), len(rows) + _PAGE - 1), default=[], context=context,
+            ) or []
+            rows.extend(page)
+            if len(page) < _PAGE:
+                return rows
 
     # ── roles ────────────────────────────────────────────────────────────────
 
@@ -184,17 +204,35 @@ class CareerReservoirRepository:
         return (result.data or [{}])[0]
 
     def story_pointers(self, user_id: str, story_ids: list[str]) -> list[dict[str, Any]]:
+        """Every active phrasing of the given stories, whole.
+
+        Two silent ceilings sit on the naive one-shot version of this, and a
+        growing reservoir walks into both:
+
+        * the id list travels in the URL, so `in_` over every story is a URL
+          that gets longer with the user's career — 171 stories is already
+          ~6.6KB and a typical proxy stops at 8KB;
+        * PostgREST caps a response at 1000 rows and says nothing, so a reservoir
+          past ~1000 phrasings would quietly lose the tail. Losing pointers is
+          not a slow read, it is a CV with bullets missing.
+
+        So the ids go in bounded chunks and every chunk is paged to exhaustion.
+        """
         if not story_ids:
             return []
-        return safe_read(
-            self._db.table("cv_points")
-            .select("id, story_id, point_key, text, is_canonical, status, ordering")
-            .eq("user_id", user_id)
-            .in_("story_id", story_ids)
-            .eq("status", "active"),
-            default=[],
-            context="career_story_pointers",
-        )
+        rows: list[dict[str, Any]] = []
+        for start in range(0, len(story_ids), _ID_CHUNK):
+            chunk = story_ids[start:start + _ID_CHUNK]
+            rows.extend(self._paged(
+                lambda c=chunk: self._db.table("cv_points")
+                .select("id, story_id, point_key, text, is_canonical, status, ordering")
+                .eq("user_id", user_id)
+                .in_("story_id", c)
+                .eq("status", "active")
+                .order("id"),
+                "career_story_pointers",
+            ))
+        return rows
 
     # ── inflow ledger (cv_dump_entries processing state) ─────────────────────
 
