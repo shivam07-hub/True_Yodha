@@ -456,7 +456,7 @@ async def jd_coverage_answer(
     framed = f"Career experience — {requirement}:\n{answer}" if requirement else f"Career experience:\n{answer}"
     row = dump_repo.add(
         user.id, framed, source="jd_gap_answer",
-        kind="note", payload={"requirement": requirement or None, "job_id": body.job_id},
+        kind="answer", payload={"requirement": requirement or None, "job_id": body.job_id},
     )
     entry_id = str(row.get("id") or "")
     if not entry_id:

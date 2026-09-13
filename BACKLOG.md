@@ -178,6 +178,34 @@ measured Free/Nano database ceiling, not unfinished application work.
     the read path deliberately ([[feedback_record_against_the_person_not_the_occasion]]);
     a bank view that costs a fan-out per room would undo that.
 
+12. **The front door does not feed the reservoir.** *Measured 2026-09-12. Needs
+    Shivam's call on shape before code.*
+
+    `/cv/upload` — the upload named in THE GOAL — never touches
+    `career_reservoir`. Only three routes do: `/cv/reservoir/ingest`,
+    `/cv/jd-coverage/answer`, `/cv/weave/answer`. So a user who uploads their CV
+    through the real door gets `cv_structured` + `mirror_scores` and an empty
+    reservoir, and must find the dump surface inside the CV builder to upload the
+    same CV a second time.
+
+    What that costs, on prod: **3 of 813 users have a career story.** 1,682 of
+    the 2,108 `cv_points` (185 users) are a one-off `source='migration'` backfill,
+    not a live path. `/cv/reservoir/project` — the tailored download — 409s with
+    *"No stories in your reservoir yet — dump your CVs first."* for everyone else.
+
+    The one encouraging number: user `e91eef0b` built an entire reservoir from
+    zero on 2026-08-05 by answering three weave gaps, no dump at all. Coverage
+    falls back to `bullets_from_cv`, so the gap panel works on an empty
+    reservoir — **answering gaps is already a working front door.** That is why
+    the inflow-ledger fix (`kind='answer'`, this session) mattered: it was the
+    path the goal's population can actually reach, and its failures were both
+    invisible and unhealable.
+
+    Decide before building: does the upload enqueue an ingest of its own text,
+    or does the gap loop stay the only way in and get promoted instead? The first
+    spends a paid extraction on every signup; the second is free but asks the
+    user to answer something first. Memory: `project_reservoir_has_one_inhabitant`.
+
 ### TIER 4 — correctly deferred, DO NOT pick up
 
 - **#39 per-skill band percentile** — gated on peer density (≥20 per band+skill); at current scale every chip would hide.

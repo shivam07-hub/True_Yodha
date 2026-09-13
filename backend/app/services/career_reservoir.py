@@ -228,11 +228,18 @@ _last_requeue: dict[str, float] = {}  # per-process debounce; profile polls ever
 
 
 def retry_stale_ingests(repo: Any, user_id: str) -> int:
-    """Re-enqueue pending inflow entries whose ingest job died (worker redeploy,
-    exhausted retries, flushed queue) — enqueue is idempotent on the entry id and
-    the handler no-ops on processed_at, so a duplicate delivery is safe. Called
-    from the profile read (the surface already polling while entries pend), so a
-    stuck 'Reading N dumps' heals itself instead of pulsing forever."""
+    """Re-enqueue THIS user's pending inflows whose ingest job died (worker
+    redeploy, exhausted retries, flushed queue) — enqueue is idempotent on the
+    entry id and the handler no-ops on processed_at, so a duplicate delivery is
+    safe. Called from the profile read, so a stuck 'Reading N dumps' heals while
+    the user is watching it instead of pulsing forever.
+
+    This is the FAST path, not the guarantee. It only ever heals a user who is
+    looking at the Stories tab, and a gap answer is given inside a job room — so
+    `reservoir_ingest_sweep` runs the same heal on a clock, for everyone. Do not
+    delete that one on the grounds that this exists; three answers sat pending
+    for two months while this function ran over them.
+    """
     import time
     from datetime import datetime, timezone
 

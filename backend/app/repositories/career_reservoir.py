@@ -20,6 +20,13 @@ from supabase import Client
 from app.db_safe import safe_read
 from app.deps import get_user_db
 
+# `kind` carries inflow intent, not just payload shape (migration 20260912130000).
+# `note` is the user's words and is never extracted; everything here is read by
+# the story extractor. `answer` was `note` until 2026-09-12, which is why the
+# heal and the progress line were both blind to a failed gap answer for two
+# months. Add a kind here and the CHECK constraint has to learn it too.
+INFLOW_KINDS: tuple[str, ...] = ("file", "linkedin", "answer")
+
 
 class CareerReservoirRepository:
     def __init__(self, db: Client):
@@ -176,12 +183,35 @@ class CareerReservoirRepository:
             self._db.table("cv_dump_entries")
             .select("id, text, kind, payload, source, created_at")
             .eq("user_id", user_id)
-            .in_("kind", ["file", "linkedin"])
+            .in_("kind", list(INFLOW_KINDS))
             .is_("processed_at", "null")
             .order("created_at", desc=False)
             .limit(limit),
             default=[],
             context="career_pending_entries",
+        )
+
+    def stale_pending_inflows(
+        self, older_than_iso: str, limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        """Every user's pending inflow older than a cutoff — the sweep's work set.
+
+        The ONE cross-user read in this repository, and admin-client only: the
+        sweep has no user to scope to, which is the whole point of it. It selects
+        ids and the shape metadata it must carry forward, never `text`, so a scan
+        over everyone's inflows carries nobody's words; the ingest handler
+        re-reads each entry under its own user_id filter.
+        """
+        return safe_read(
+            self._db.table("cv_dump_entries")
+            .select("id, user_id, payload, created_at")
+            .in_("kind", list(INFLOW_KINDS))
+            .is_("processed_at", "null")
+            .lt("created_at", older_than_iso)
+            .order("created_at", desc=False)
+            .limit(limit),
+            default=[],
+            context="career_stale_pending_inflows",
         )
 
     def get_entry(self, user_id: str, entry_id: str) -> dict[str, Any] | None:
@@ -199,6 +229,15 @@ class CareerReservoirRepository:
         self._db.table("cv_dump_entries").update(
             {"processed_at": "now()", "derived_story_ids": story_ids}
         ).eq("user_id", user_id).eq("id", entry_id).execute()
+
+    def set_entry_payload(self, user_id: str, entry_id: str, payload: dict[str, Any]) -> None:
+        """Replace an entry's shape metadata, leaving its processing state alone.
+        The sweep's attempt counter lives here so a poison entry is bounded by a
+        number on the row itself, not by a per-process memory that a redeploy
+        resets to zero."""
+        self._db.table("cv_dump_entries").update({"payload": payload}).eq(
+            "user_id", user_id
+        ).eq("id", entry_id).execute()
 
     def mark_skipped(self, user_id: str, entry_id: str, payload: dict[str, Any] | None, reason: str) -> None:
         """Close an entry WITHOUT extraction, recording why in its payload —
@@ -256,7 +295,7 @@ class CareerReservoirRepository:
             self._db.table("cv_dump_entries")
             .select("id, processed_at")
             .eq("user_id", user_id)
-            .in_("kind", ["file", "linkedin"]),
+            .in_("kind", list(INFLOW_KINDS)),
             default=[],
             context="career_ingest_status",
         )
