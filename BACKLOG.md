@@ -269,6 +269,12 @@ measured Free/Nano database ceiling, not unfinished application work.
     whole that it covers all the best practices of a CV point", and everything
     the user produces through the day should land in the reservoir.
 
+    **BUILT `cb51d83b` (2026-09-14): L1 and L2 in code, depth derived, both
+    readers taught. REMAINING: L3's standing Stories queue (a surface, needs
+    design) and the backfill, which stays last. ⚠️ Still unverified against a
+    real upload — the whole chain from CV to a capped `weak` to an upgraded
+    story has only ever run in tests.**
+
     **L1 — a CV line never closes a question.** A story whose narrative came from
     a CV bullet may show as evidence for a JD requirement but may not mark it
     `covered`. Today `cv_weave_interview.py:106` filters the interview to
