@@ -115,14 +115,53 @@ def career_bands_for_profile(profile: dict[str, Any]) -> list[CareerBand | str]:
     return bands
 
 
-def explored_bands_for_profile(profile: dict[str, Any], *, primary: str) -> list[CareerBand | str]:
-    """Preserve explicit exploration and include additional saved target roles."""
+def chosen_bands_for_profile(profile: dict[str, Any]) -> list[CareerBand | str]:
+    """The Career Bands the person actually said yes to — the whole answer.
+
+    `explored_career_bands` holds every band they chose, the primary included, and
+    `target_career_band` is the first of them. The primary sits in both columns on
+    purpose: every caller builds the same union, so carrying it twice costs nothing
+    and buys the one thing a split could not give — an EMPTY list here means
+    "nobody has been asked", not "chose exactly one band". The Direction journey's
+    landing rule reads that difference to decide whether to ask again, and a
+    representation where one pick looks like no pick would ask everybody forever.
+
+    It used to union the stored value with `career_bands_for_profile`, which reads
+    bands off the TITLES someone typed. So saving a second target role silently
+    widened the feed into a band nobody had chosen, and CONTEXT.md's rule that
+    expansion is never implicit was contradicted by the writer enforcing it. A
+    title is evidence about a band; it is not consent to browse one.
+    """
     bands: list[CareerBand | str] = []
-    for value in [*_as_list(profile.get("explored_career_bands")), *career_bands_for_profile(profile)]:
+    for value in _as_list(profile.get("explored_career_bands")):
         band = _career_band(value)
-        if band and band != primary and band not in bands:
+        if band and band not in bands:
             bands.append(band)
     return bands
+
+
+def eligible_bands_for_profile(profile: dict[str, Any]) -> set[CareerBand | str]:
+    """Which bands this person's feed may show. Their answer, or their titles.
+
+    ANSWERED — exactly the bands they chose, and nothing else. The band step is
+    the deliberate persisted preference CONTEXT.md §Career Band Eligibility asks
+    for, so once it exists nothing may widen past it.
+
+    NOT ASKED YET — every band their stated target roles land in. Choosing a
+    second target role in another band is a deliberate act and stays a valid
+    cross-band route; what changed is that it is DERIVED here, at read time,
+    instead of being regex'd into the stored answer on every write. Stored, it
+    could not be removed — the next save re-added it — and it made a profile
+    nobody had asked look answered.
+    """
+    chosen = set(chosen_bands_for_profile(profile))
+    if chosen:
+        return chosen
+    derived = {band for band in career_bands_for_profile(profile) if band}
+    primary = career_band_for_profile(profile)
+    if primary:
+        derived.add(primary)
+    return derived
 
 
 def canonical_source_seniority(value: Any) -> str:
@@ -168,11 +207,10 @@ def job_is_eligible(
     include_stretch: bool = False,
 ) -> bool:
     """True only if the job is in an enabled Career Band and safe level range."""
-    primary = career_band_for_profile(profile)
-    if not primary:
+    eligible = eligible_bands_for_profile(profile)
+    if not eligible:
         return False
-    explored = set(explored_bands_for_profile(profile, primary=primary))
-    if career_band_for_job(job) not in {primary, *explored}:
+    if career_band_for_job(job) not in eligible:
         return False
     return seniority_is_eligible(
         target_seniority_for_profile(profile),

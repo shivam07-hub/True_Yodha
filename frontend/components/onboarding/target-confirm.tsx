@@ -1,17 +1,17 @@
 "use client"
 
 /**
- * Onboarding's Direction step — four screens, one write.
+ * Onboarding's Direction step — five screens, one write.
  *
  * It used to ask everything at once: a list of role families, a level, a set of
  * cities, lean/avoid and a Myro name, stacked down one page with the submit
  * button under all of it. Same defect as Myro Search, and the same fix, so it
  * uses the same chrome rather than a second copy of it.
  *
- * What did NOT change: the state, the derivations, and `submit()`. The user
- * still answers the same five things and `onboarding.saveTarget` still receives
- * the same payload in one call at the end. Only how many of them are on screen
- * at a time is different — a restructure of the surface, not of the write.
+ * What did NOT change: the state, the derivations, and `submit()`. Every answer
+ * still reaches `onboarding.saveTarget` in ONE call at the end — including the
+ * Career Band, which is why a person who abandons at step three has changed
+ * nothing about their account.
  *
  * The step is score-free on purpose: the cohort selected here is what CREATES
  * the score.
@@ -24,12 +24,12 @@ import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import { StepActions, StepBack, StepRibbon } from "@/components/journey/journey-chrome"
 import { StickyOnboardingActionBar } from "@/components/onboarding/sticky-action-bar"
 import {
-  DirectionStep, LevelStep, MAX_ROLES, RoleStep, WhereStep,
+  BandStep, DirectionStep, LevelStep, MAX_ROLES, RoleStep, WhereStep,
 } from "@/components/onboarding/target-steps"
 import { invalidateTargetRoleData } from "@/lib/domain-data"
 import {
   emitJourneyPhase, onboarding, users as usersApi,
-  type OnboardingResult, type RoleFamily, type TargetSeniority,
+  type CareerBand, type OnboardingResult, type RoleFamily, type TargetSeniority,
 } from "@/lib/api"
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value"
 import { trackEvent } from "@/lib/analytics"
@@ -71,12 +71,13 @@ function mayPropose(role: RoleFamily): boolean {
   return (role.matched_skills ?? []).some((skill) => wanted.has(skill))
 }
 
-/** Four screens, in the order they narrow the search: the work defines it, the
- *  level bounds it, the place filters it, and the rest only colours it. */
-const STEP_KEYS = ["work", "level", "where", "about"] as const
+/** Five screens, in the order they narrow the search: the field bounds what can
+ *  be suggested at all, the work defines it, the level bounds it, the place
+ *  filters it, and the rest only colours it. */
+const STEP_KEYS = ["band", "work", "level", "where", "about"] as const
 type StepKey = (typeof STEP_KEYS)[number]
 const STEP_TITLE: Record<StepKey, string> = {
-  work: "The work", level: "Level", where: "Where", about: "About you",
+  band: "Field", work: "The work", level: "Level", where: "Where", about: "About you",
 }
 
 export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }: Props) {
@@ -88,6 +89,16 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
   const [locations, setLocations] = useState<string[]>(result.selected?.locations ?? [])
   const [lean, setLean] = useState<string[]>(result.direction?.lean ?? [])
   const [avoid, setAvoid] = useState<string[]>(result.direction?.avoid ?? [])
+  /** Their stored answer, or the best-fitting band pre-ticked. `bands` arrives
+   *  fit-ordered, so [0] is the proposal — the same "open on an answer" rule the
+   *  role list follows, applied to the step in front of it. An empty
+   *  `career_bands` means nobody has been asked, never "chose none". */
+  const [bands, setBands] = useState<CareerBand[]>(() => {
+    const stored = result.selected?.career_bands ?? []
+    if (stored.length > 0) return stored
+    const top = result.bands?.[0]
+    return top ? [top.band] : []
+  })
 
   // Direction is the last onboarding step and had no telemetry either. Whether
   // families were offered at all is the signal worth having: an empty picker is
@@ -105,15 +116,24 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Confirm-skills may return without families so the button stays fast; load them here.
+  // Suggestions follow the bands the user just picked. The payload's families
+  // were resolved against their STORED bands, so a band changed on screen has to
+  // re-ask — keyed on the bands, which is also what stops it re-fetching while
+  // they page back and forth without changing anything.
+  const bandKey = [...bands].sort().join(",")
+  const bandsChanged = bandKey !== [...(result.selected?.career_bands ?? [])].sort().join(",")
   const bootFamilies = useQuery({
-    queryKey: ["role-families", "suggested"],
-    queryFn: () => onboarding.roleFamilies(token),
-    enabled: result.families.length === 0,
+    queryKey: ["role-families", "suggested", bandKey],
+    queryFn: () => onboarding.roleFamilies(token, undefined, bands),
+    enabled: result.families.length === 0 || bandsChanged,
   })
   // Same settled-term rule as RoleFamilyPicker: one request per term the user
   // stopped on, not one per keystroke.
   const roleTerm = useDebouncedValue(roleSearch, 200).trim()
+  // NO bands here, deliberately. Seven of the fourteen most recent people to
+  // finish Direction chose a family nobody had suggested to them — they got
+  // there through this box. Scoping it to the bands they had just picked would
+  // shut the door that rescued half of them.
   const searchedFamilies = useQuery({
     queryKey: ["role-families", roleTerm],
     queryFn: () => onboarding.roleFamilies(token, roleTerm),
@@ -146,7 +166,7 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
   // Memoised because the proposal effect below depends on it: a fresh array
   // every render would re-run the effect on every render.
   const suggested = useMemo(
-    () => (result.families.length > 0 ? result.families : (bootFamilies.data ?? [])),
+    () => (bootFamilies.data ?? (result.families.length > 0 ? result.families : [])),
     [result.families, bootFamilies.data],
   )
 
@@ -195,6 +215,10 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
    * four screens to change one is the toll a stepped flow must not charge.
    */
   const needs: Record<StepKey, boolean> = {
+    // Asked once. A stored answer means this person has been here, so a returning
+    // user reviewing their direction does not pay the toll of a screen they have
+    // already settled. Never blocking either way — it opens pre-answered.
+    band: (result.selected?.career_bands ?? []).length === 0,
     work: selected.length === 0,
     level: !seniority,
     where: false, // Leaving it open searches everywhere. That is an answer.
@@ -214,6 +238,11 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
       const without = current.filter((pick) => pick.family !== family.family)
       if (without.length !== current.length) return without
       if (current.length >= MAX_ROLES) return current
+      // A direction found outside your fields means the fields were wrong, not
+      // that the pick is. Myro widens rather than refusing — which is also why
+      // the search box is never band-scoped.
+      const gained = (family.bands ?? []).filter((band) => !bands.includes(band))
+      if (gained.length > 0) setBands([...bands, ...gained])
       return [...current, family]
     })
     setLocations([])
@@ -246,6 +275,7 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
         // "Software Development", and named twenty families identically.
         role_titles: selected.map((family) => family.family),
         role_families: selected.map((family) => family.family),
+        career_bands: bands,
         seniority,
         locations,
         lean,
@@ -253,6 +283,10 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
         finish_onboarding: true,
       })
       trackEvent("onboarding_direction_confirmed", {
+        band_count: bands.length,
+        // 1 when they kept Myro's reading untouched, 0 when they corrected it —
+        // the 62.4% this step exists because of, measured on our own users.
+        band_kept: bands.length === 1 && bands[0] === result.bands?.[0]?.band ? 1 : 0,
         role_count: selected.length,
         location_count: locations.length,
         lean_count: lean.length,
@@ -296,6 +330,10 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
           label="Direction steps"
         />
       </div>
+
+      {step === "band" ? (
+        <BandStep options={result.bands ?? []} selected={bands} onChange={setBands} />
+      ) : null}
 
       {step === "work" ? (
         <RoleStep

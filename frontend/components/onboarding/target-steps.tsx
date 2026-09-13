@@ -16,11 +16,12 @@
 
 import { Check, Search } from "lucide-react"
 
+import { BandChoice } from "@/components/target-role/band-choice"
 import { DirectionChoice } from "@/components/onboarding/direction-choice"
 import { LocationChoice } from "@/components/onboarding/location-choice"
 import { StepHead } from "@/components/journey/journey-chrome"
 import { formatCount } from "@/lib/format"
-import type { RoleFamily, TargetSeniority } from "@/lib/api"
+import type { CareerBand, CareerBandOption, RoleFamily, TargetSeniority } from "@/lib/api"
 import { FamilySkills } from "@/components/target-role/family-skills"
 import { cn } from "@/lib/utils"
 
@@ -119,6 +120,39 @@ export function RoleStep({
           className="tm-control-focus min-h-11 w-full rounded-md border border-[var(--tm-border)] bg-[var(--tm-surface)] px-3 text-[var(--tm-text)] placeholder:text-[var(--tm-text-muted)]"
         />
       </label>
+    </>
+  )
+}
+
+/**
+ * The band, asked first — and pre-answered, never blocking.
+ *
+ * Myro reads a band off the CV, and that reading agrees with what the person
+ * actually picks only 62.4% of the time, so it cannot stand in for the question.
+ * But 233 users have reached this journey, chosen nothing and left, and the way
+ * to lose more of them is a wall in front of the step that already converts at
+ * 76%. So the best-fitting band arrives ticked and Continue is never disabled:
+ * the answer is theirs to change, not theirs to produce from nothing.
+ *
+ * Same rule the level step has always followed — propose where the evidence
+ * carries it, ask where it does not.
+ */
+export function BandStep({
+  options, selected, onChange,
+}: {
+  options: CareerBandOption[]
+  selected: CareerBand[]
+  onChange: (next: CareerBand[]) => void
+}) {
+  return (
+    <>
+      <StepHead
+        title="Your field"
+        lede="Pick every field you would take work in. Myro suggests directions from inside them; search still reaches everything."
+      />
+      <div className="mt-6">
+        <BandChoice options={options} selected={selected} onChange={onChange} />
+      </div>
     </>
   )
 }

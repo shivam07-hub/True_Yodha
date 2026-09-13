@@ -108,6 +108,9 @@ def test_target_saves_literal_role_seniority_and_location(monkeypatch) -> None:
         # not wipe what the user already told Myro.
         "avoid": None,
         "lean": None,
+        # And for the band. A legacy point-of-use role edit says nothing about
+        # Career Bands, so it must not clear the answer the Direction step stored.
+        "career_bands": None,
     }
 
 

@@ -32,6 +32,7 @@ class RoleFamiliesRepository:
         limit: int = 6,
         families: list[str] | None = None,
         skill_ids: list[int] | None = None,
+        bands: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         """Suggest families by skill FIT, search them by text, or resolve
         specific ones by key.
@@ -46,6 +47,14 @@ class RoleFamiliesRepository:
         through search. Without it, a family picked from the search box could
         not be shown back to them when they stepped backwards through the
         journey — the suggestion list is skill-ranked and would not contain it.
+
+        `bands` narrows SUGGESTIONS to the Career Bands the caller chose, and is
+        ignored by the search and restore branches — deliberately. Seven of the
+        fourteen most recent people to finish Direction chose a family nobody had
+        suggested to them, reached through the search box; scoping that box to
+        the bands they had just picked would shut the door that rescued half of
+        them. A family found outside your bands means the bands were wrong, and
+        the caller adds the band rather than refusing the pick.
         """
         # `skill_ids` lets a caller that needs BOTH the suggestion list and the
         # user's chosen families read `user_skills` once instead of twice. The
@@ -60,6 +69,7 @@ class RoleFamiliesRepository:
                 "p_query": query,
                 "p_limit": limit,
                 "p_families": families,
+                "p_bands": bands or None,
             },
         ).execute()
         return response.data or []
@@ -91,6 +101,19 @@ class RoleFamiliesRepository:
         )
         by_key = {str(row.get("family")): row for row in rows}
         return [by_key[key] for key in families if key in by_key]
+
+    def list_bands(self, user_id: str, *, skill_ids: list[int] | None = None) -> list[dict[str, Any]]:
+        """The four Career Bands, with what each holds and how well it fits.
+
+        Both numbers come from snapshots. Counting live jobs by band costs 7,080ms
+        warm on this instance (12,497 blocks read); `career_band_scope` holds the
+        four totals, refreshed from the scan `refresh_role_family_labels` already
+        makes. Fit is index-only over `role_family_skill_weights` — 9.2ms measured.
+        """
+        if skill_ids is None:
+            skill_ids = self.user_skill_ids(user_id)
+        response = self._db.rpc("career_band_options", {"p_skill_ids": skill_ids}).execute()
+        return response.data or []
 
     def list_locations(self, family: str, *, query: str | None = None, limit: int = 8) -> list[dict[str, Any]]:
         response = self._db.rpc(
