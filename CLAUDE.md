@@ -13,21 +13,27 @@ approval to commit or to apply migrations because of it.
 
 ## THE GOAL
 
-> Upload the CV, understand the platform, find a role for you, then download
-> the CV. Then we support it with the rest — a second track, Myro Ops, the
-> Chrome extension.
-> — Shivam, 2026-08-28
+> Upload the CV, find the job closest to your aspiration, tailor a CV for that
+> job, download the CV, apply with the new CV on the company portal page for
+> that job, prepare for the job till the call comes, repeat.
+> — Shivam, 2026-09-13
 
 **Why this is worth owning commercially: [POSITIONING.md](POSITIONING.md).**
 Every step of this loop produces verified data nobody else holds — and the
 platform is asset-rich, product-poor (mean asset 6.6, mean product 1.0). Two
 verified payments ever; one partner integration carries 37% of all users.
 
-**Finding the role is inside stage one, not after it.** It used to read
-"understand the platform and download their CV", with matching as stage two —
-so match work kept needing a reason to be worked on now. A CV downloaded
-without a role to aim it at is the thing nobody wants. If a task does not make
-that four-step line better, it needs a reason to be worked on now.
+**It is a loop, and `repeat` is load-bearing.** It used to be a four-step line
+ending at "download the CV", so apply and prepare were "the rest" and nothing
+owned whether pass two beats pass one. If a task does not make one of the seven
+steps better, or the next pass richer than the last, it needs a reason now.
+
+⚠️ **The loop does not accumulate yet** (measured 2026-09-13). Step 1 writes a
+`cv_versions` baseline and no reservoir inflow; step 2 reads zero Career
+Stories; step 6's rehearsal rung needs a story and has 0 rehearsals ever. The
+reservoir is written only at steps 3 and 6, by a banked gap answer — so on pass
+one it is empty exactly where it would pay. 3 of 817 users have one. The
+bridge: [BACKLOG.md](BACKLOG.md) TIER 3 #12.
 
 ---
 
