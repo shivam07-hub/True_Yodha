@@ -20,8 +20,9 @@ from app.repositories.users import UsersRepository
 from app.services import onboarding_service
 from app.services.career_target import MAX_TARGET_LOCATIONS, record_from_profile
 from app.services.job_eligibility import (
+    CAREER_BANDS,
     career_band_for_profile,
-    explored_bands_for_profile,
+    chosen_bands_for_profile,
     canonical_source_seniority,
 )
 
@@ -87,11 +88,39 @@ def derive(updates: dict[str, Any], before: dict[str, Any]) -> dict[str, Any]:
                 len(derived["target_role_titles"]),
             )
         updates.update(derived)
+
+    # THE BAND, in one place, whether or not titles moved in this same patch.
+    #
+    # It used to sit inside the `target_role_titles` branch and recompute both
+    # columns from the titles, so a band the person had just chosen was erased by
+    # the very call that saved their direction — onboarding writes the band and
+    # the roles in ONE `save_target`, and the roles won.
+    #
+    # The rule now: a chosen band wins, and a title only fills a silence.
+    #   caller states bands -> they are the answer; the first is primary and the
+    #                          whole set is stored, so one pick is distinguishable
+    #                          from no pick (see `chosen_bands_for_profile`)
+    #   caller says nothing -> an existing answer is left alone. Only while nobody
+    #                          has answered does a title derive the primary, which
+    #                          is the same "never guesses over an answer" rule
+    #                          seniority has always followed.
+    if "explored_career_bands" in updates:
+        chosen: list[str] = []
+        for value in updates.get("explored_career_bands") or []:
+            if isinstance(value, str) and value in CAREER_BANDS and value not in chosen:
+                chosen.append(value)
+        if chosen:
+            updates["target_career_band"] = chosen[0]
+            updates["explored_career_bands"] = chosen
+        else:
+            # An explicit empty list clears the answer — it does not clear the
+            # feed. Storage falls back to the derived primary, because an empty
+            # eligible set is a market that matches nothing (invariant 5).
+            updates["target_career_band"] = career_band_for_profile({**before, **updates}) or None
+            updates["explored_career_bands"] = []
+    elif "target_role_titles" in updates and not chosen_bands_for_profile(before):
         updates["target_career_band"] = career_band_for_profile(updates) or None
-        updates["explored_career_bands"] = explored_bands_for_profile(
-            {**before, **updates},
-            primary=updates["target_career_band"] or "",
-        )
+
     if "target_seniority" in updates:
         raw = updates.get("target_seniority")
         if str(raw or "").strip().lower() == "any":

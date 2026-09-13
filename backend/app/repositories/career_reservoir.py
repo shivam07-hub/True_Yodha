@@ -12,6 +12,7 @@ same trust model as memory_distiller) — user_id is always an explicit filter.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from fastapi import Depends
@@ -20,10 +21,36 @@ from supabase import Client
 from app.db_safe import safe_read
 from app.deps import get_user_db
 
+# `kind` carries inflow intent, not just payload shape (migration 20260912130000).
+# `note` is the user's words and is never extracted; everything here is read by
+# the story extractor. `answer` was `note` until 2026-09-12, which is why the
+# heal and the progress line were both blind to a failed gap answer for two
+# months. Add a kind here and the CHECK constraint has to learn it too.
+INFLOW_KINDS: tuple[str, ...] = ("file", "linkedin", "answer")
+
+
+# A story id is 36 chars; `in_` sends them all in the URL. 60 keeps the query
+# string near 2.5KB whatever the size of the reservoir behind it.
+_ID_CHUNK = 60
+# PostgREST's own response ceiling. It truncates in silence, so every read that
+# can outgrow it pages instead of hoping.
+_PAGE = 1000
+
 
 class CareerReservoirRepository:
     def __init__(self, db: Client):
         self._db = db
+
+    def _paged(self, build: Callable[[], Any], context: str) -> list[dict[str, Any]]:
+        """Read a query to exhaustion, `_PAGE` rows at a time."""
+        rows: list[dict[str, Any]] = []
+        while True:
+            page = safe_read(
+                build().range(len(rows), len(rows) + _PAGE - 1), default=[], context=context,
+            ) or []
+            rows.extend(page)
+            if len(page) < _PAGE:
+                return rows
 
     # ── roles ────────────────────────────────────────────────────────────────
 
@@ -103,6 +130,26 @@ class CareerReservoirRepository:
             "user_id", user_id
         ).eq("id", story_id).execute()
 
+    def users_with_unembedded_stories(self, limit: int = 50) -> list[str]:
+        """Every user holding at least one active story with no vector — the
+        cross-user half of `stories_missing_embedding`, for the sweep. Admin
+        client only: a token-scoped caller sees just itself."""
+        rows = safe_read(
+            self._db.table("career_stories")
+            .select("user_id")
+            .eq("status", "active")
+            .is_("embedding", "null")
+            .limit(limit),
+            default=[],
+            context="career_stories_unembedded_users",
+        )
+        seen: list[str] = []
+        for row in rows:
+            uid = str(row.get("user_id") or "")
+            if uid and uid not in seen:
+                seen.append(uid)
+        return seen
+
     def stories_missing_embedding(self, user_id: str, limit: int = 20) -> list[dict[str, Any]]:
         """Active stories the ingest path stored WITHOUT a vector (embed is
         best-effort there) — invisible to every recall/coverage consumer until
@@ -157,17 +204,35 @@ class CareerReservoirRepository:
         return (result.data or [{}])[0]
 
     def story_pointers(self, user_id: str, story_ids: list[str]) -> list[dict[str, Any]]:
+        """Every active phrasing of the given stories, whole.
+
+        Two silent ceilings sit on the naive one-shot version of this, and a
+        growing reservoir walks into both:
+
+        * the id list travels in the URL, so `in_` over every story is a URL
+          that gets longer with the user's career — 171 stories is already
+          ~6.6KB and a typical proxy stops at 8KB;
+        * PostgREST caps a response at 1000 rows and says nothing, so a reservoir
+          past ~1000 phrasings would quietly lose the tail. Losing pointers is
+          not a slow read, it is a CV with bullets missing.
+
+        So the ids go in bounded chunks and every chunk is paged to exhaustion.
+        """
         if not story_ids:
             return []
-        return safe_read(
-            self._db.table("cv_points")
-            .select("id, story_id, point_key, text, is_canonical, status, ordering")
-            .eq("user_id", user_id)
-            .in_("story_id", story_ids)
-            .eq("status", "active"),
-            default=[],
-            context="career_story_pointers",
-        )
+        rows: list[dict[str, Any]] = []
+        for start in range(0, len(story_ids), _ID_CHUNK):
+            chunk = story_ids[start:start + _ID_CHUNK]
+            rows.extend(self._paged(
+                lambda c=chunk: self._db.table("cv_points")
+                .select("id, story_id, point_key, text, is_canonical, status, ordering")
+                .eq("user_id", user_id)
+                .in_("story_id", c)
+                .eq("status", "active")
+                .order("id"),
+                "career_story_pointers",
+            ))
+        return rows
 
     # ── inflow ledger (cv_dump_entries processing state) ─────────────────────
 
@@ -176,12 +241,35 @@ class CareerReservoirRepository:
             self._db.table("cv_dump_entries")
             .select("id, text, kind, payload, source, created_at")
             .eq("user_id", user_id)
-            .in_("kind", ["file", "linkedin"])
+            .in_("kind", list(INFLOW_KINDS))
             .is_("processed_at", "null")
             .order("created_at", desc=False)
             .limit(limit),
             default=[],
             context="career_pending_entries",
+        )
+
+    def stale_pending_inflows(
+        self, older_than_iso: str, limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        """Every user's pending inflow older than a cutoff — the sweep's work set.
+
+        The ONE cross-user read in this repository, and admin-client only: the
+        sweep has no user to scope to, which is the whole point of it. It selects
+        ids and the shape metadata it must carry forward, never `text`, so a scan
+        over everyone's inflows carries nobody's words; the ingest handler
+        re-reads each entry under its own user_id filter.
+        """
+        return safe_read(
+            self._db.table("cv_dump_entries")
+            .select("id, user_id, payload, created_at")
+            .in_("kind", list(INFLOW_KINDS))
+            .is_("processed_at", "null")
+            .lt("created_at", older_than_iso)
+            .order("created_at", desc=False)
+            .limit(limit),
+            default=[],
+            context="career_stale_pending_inflows",
         )
 
     def get_entry(self, user_id: str, entry_id: str) -> dict[str, Any] | None:
@@ -199,6 +287,15 @@ class CareerReservoirRepository:
         self._db.table("cv_dump_entries").update(
             {"processed_at": "now()", "derived_story_ids": story_ids}
         ).eq("user_id", user_id).eq("id", entry_id).execute()
+
+    def set_entry_payload(self, user_id: str, entry_id: str, payload: dict[str, Any]) -> None:
+        """Replace an entry's shape metadata, leaving its processing state alone.
+        The sweep's attempt counter lives here so a poison entry is bounded by a
+        number on the row itself, not by a per-process memory that a redeploy
+        resets to zero."""
+        self._db.table("cv_dump_entries").update({"payload": payload}).eq(
+            "user_id", user_id
+        ).eq("id", entry_id).execute()
 
     def mark_skipped(self, user_id: str, entry_id: str, payload: dict[str, Any] | None, reason: str) -> None:
         """Close an entry WITHOUT extraction, recording why in its payload —
@@ -256,7 +353,7 @@ class CareerReservoirRepository:
             self._db.table("cv_dump_entries")
             .select("id, processed_at")
             .eq("user_id", user_id)
-            .in_("kind", ["file", "linkedin"]),
+            .in_("kind", list(INFLOW_KINDS)),
             default=[],
             context="career_ingest_status",
         )

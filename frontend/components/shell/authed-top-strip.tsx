@@ -58,6 +58,9 @@ const FEEDBACK_QUICK_ACTIONS: {
 // it is not re-listed here.
 const LEARN_LINKS = [
   { href: "/tokens", label: "About us" },
+  // /mission rendered the mission statement and nothing linked to it — the one
+  // page in this group that had no door (reach gate, 2026-09-13).
+  { href: "/mission", label: "Our mission" },
 ] as const
 
 interface AuthedTopStripProps {

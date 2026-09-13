@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { jobs, type JobFeedItem, type JobPulse, type QualityReasonCode } from "@/lib/api"
 import { ApiError } from "@/lib/api-error"
+import { POSTING_CLOSED_NOTICE } from "@/lib/jobs/detail-model"
 import { QUALITY_REASONS } from "@/lib/jobs/feedback"
 import { DetailDrawer } from "@/components/jobs/detail-drawer"
 import { DetailHeader } from "@/components/jobs/detail-header"
@@ -86,10 +87,15 @@ export function JobDetailDrawer({
               <span aria-hidden>⚠</span>
               <span>{reportedGone} {reportedGone === 1 ? "applicant" : "applicants"} reported this listing gone.</span>
             </div>
+          ) : confidence === "closed" ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 24px", fontSize: 12, color: "var(--tm-warning)", borderTop: "1px solid var(--tm-border-soft)", background: "var(--tm-warning-wash)" }}>
+              <span aria-hidden>⚠</span>
+              <span>{POSTING_CLOSED_NOTICE}</span>
+            </div>
           ) : concerning ? (
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 24px", fontSize: 12, color: "var(--tm-warning)", borderTop: "1px solid var(--tm-border-soft)", background: "var(--tm-warning-wash)" }}>
               <span aria-hidden>⚠</span>
-              <span>{verifiedDays != null ? `Last verified ${verifiedDays}d ago — ` : ""}apply link may be closed.</span>
+              <span>{verifiedDays != null ? `Last verified ${verifiedDays}d ago. ` : ""}This posting may be closed.</span>
             </div>
           ) : verifiedDays != null ? (
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 24px", fontSize: 12, color: "var(--tm-text-muted)", borderTop: "1px solid var(--tm-border-soft)" }}>

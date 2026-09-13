@@ -22,7 +22,7 @@ from typing import Any
 from app.database import get_supabase_admin
 from app.repositories.career_reservoir import CareerReservoirRepository
 from app.repositories.connections import ConnectionsRepository
-from app.services import embeddings, memory_semantic
+from app.services import embeddings, memory_semantic, story_depth
 from app.services.career_reservoir import cosine
 from app.services.memory_semantic import MemoryHit
 
@@ -37,6 +37,9 @@ class StoryHit:
     result: str
     skills: list[str]
     similarity: float
+    # Told = the user actually narrated this one. A story lifted from a CV line
+    # may evidence a requirement but may not close it — see story_depth.
+    told: bool = True
 
 
 @dataclass
@@ -97,6 +100,7 @@ async def recall_stories(user_id: str, query: str, k: int = 4) -> list[StoryHit]
                 result=narrative.get("result") or "",
                 skills=s.get("skills") or [],
                 similarity=sim,
+                told=story_depth.is_told(s),
             ))
         return hits
     except Exception as exc:  # noqa: BLE001 — recall is garnish, never an outage

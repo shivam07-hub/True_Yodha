@@ -13,21 +13,25 @@ approval to commit or to apply migrations because of it.
 
 ## THE GOAL
 
-> Upload the CV, understand the platform, find a role for you, then download
-> the CV. Then we support it with the rest — a second track, Myro Ops, the
-> Chrome extension.
-> — Shivam, 2026-08-28
+> Upload the CV, find the job closest to your aspiration, tailor a CV for that
+> job, download the CV, apply with the new CV on the company portal page for
+> that job, prepare for the job till the call comes, repeat.
+> — Shivam, 2026-09-13
 
 **Why this is worth owning commercially: [POSITIONING.md](POSITIONING.md).**
-Every step of this loop produces verified data nobody else holds — and the
-platform is asset-rich, product-poor (mean asset 6.6, mean product 1.0). Two
-verified payments ever; one partner integration carries 37% of all users.
+Every step produces verified data nobody else holds. Asset-rich, product-poor
+(mean asset 6.6, mean product 1.0). Two verified payments; one partner
+integration carries 37% of users.
 
-**Finding the role is inside stage one, not after it.** It used to read
-"understand the platform and download their CV", with matching as stage two —
-so match work kept needing a reason to be worked on now. A CV downloaded
-without a role to aim it at is the thing nobody wants. If a task does not make
-that four-step line better, it needs a reason to be worked on now.
+**It is a loop, and `repeat` is load-bearing.** If a task does not make one of
+the seven steps better, or the next pass richer than the last, it needs a reason.
+
+The loop does not accumulate yet. Upload now enqueues a reservoir ingest
+(`a191350a`) but no real signup has run through it; matching reads zero Career
+Stories; rehearsal has 0 runs. 3 of ~817 users have a story. The remaining
+call — promote the gap loop out of prep rooms that 328 of 397 CV-holders never
+open — is [BACKLOG.md](BACKLOG.md) TIER 3 #12, unpicked. Reach numbers:
+[FEATURE_LOOP_REGISTRY.md](docs/FEATURE_LOOP_REGISTRY.md).
 
 ---
 
@@ -37,8 +41,7 @@ that four-step line better, it needs a reason to be worked on now.
 2. State your plan. Wait for "yes / proceed / go ahead".
 3. One task at a time. Commit each when green.
 4. **Verify a backlog item in code before building it.** Items get marked "not
-   built" and turn out to be shipped. This has cost whole sessions — twice this
-   month an agent built, or nearly built, something already live.
+   built" and turn out to be shipped. This has cost whole sessions.
 
 ---
 
@@ -58,9 +61,11 @@ that four-step line better, it needs a reason to be worked on now.
 - **Root-cause only.** No try/except, type cast or `|| undefined` to make a
   symptom disappear. If the trade-off is unclear, ask before writing code.
 - **Delete on the way past.** If your change makes code unreachable, remove it
-  in the same commit — never as a follow-up item. This is how one loading
-  screen became three, and how a phase nothing emits stayed in the type for
-  months.
+  in the same commit — never as a follow-up item.
+- **No dead ends. A surface nothing links to is not shipped.** If the link is
+  someone else's decision the work is BLOCKED, not done: say so, put it in
+  [BACKLOG.md](BACKLOG.md) with an owner, and add it to the reach allowlist's
+  `debt`. `check:reach` enforces this.
 - **Design over words.** If the UI already shows a state, don't add text saying
   it. A disabled field does not need "cannot be edited".
 - **Newsletter: agree angle + chart + heading with Shivam BEFORE drafting.**
@@ -73,9 +78,7 @@ Someone uploads a CV. Myro reads it, scores it out of 100 across ten domains,
 matches it against live job openings, and shows the exact gap between where they
 are and the job they want — then helps them close it.
 
-Web, mobile-responsive. India first.
-
-Coin economy and level thresholds: [DECISIONS.md](DECISIONS.md).
+Web, mobile-responsive. India first. Coin economy: [DECISIONS.md](DECISIONS.md).
 
 **Stack:** FastAPI · Next.js 14 · Tailwind + shadcn · Supabase/Postgres ·
 Railway (backend) · Vercel (frontend) · OpenRouter → Groq → Gemini.
@@ -93,129 +96,73 @@ worker. A test upload on dev writes to production data. Full map: [INFRA.md](INF
 | Locked decisions + data model | [DECISIONS.md](DECISIONS.md) |
 | Servers, domains, env, DNS, deploy order | [INFRA.md](INFRA.md) |
 | Open work, in full | [BACKLOG.md](BACKLOG.md) |
-| **Prep = one ladder, four steps** — the design, and what shipped | [UNIFIED_PREP_V2.md](UNIFIED_PREP_V2.md) |
+| **Prep = one ladder, four steps** | [UNIFIED_PREP_V2.md](UNIFIED_PREP_V2.md) |
 | Vibecoded tells, ruled against our code | [ANTI_SLOP.md](ANTI_SLOP.md) |
-| One Myro voice + one memory writer · next session's brief | [MYRO_MENTOR.md](MYRO_MENTOR.md) |
-| A read's cost budget · **latency ledger** (§15) · **funnel ledger + priority** (§16) · how to diagnose one | [ARCHITECTURE_READ_PATH.md](ARCHITECTURE_READ_PATH.md) · [READ_PATH_PLAYBOOK.md](READ_PATH_PLAYBOOK.md) |
+| One Myro voice + one memory writer | [MYRO_MENTOR.md](MYRO_MENTOR.md) |
+| Read-path budget · latency ledger · funnel | [ARCHITECTURE_READ_PATH.md](ARCHITECTURE_READ_PATH.md) · [READ_PATH_PLAYBOOK.md](READ_PATH_PLAYBOOK.md) |
 | Closed work, past sessions, history | [ARCHIVE.md](ARCHIVE.md) |
 | Domain language and code seams | [CONTEXT.md](CONTEXT.md) |
 | Architecture map of the code | `graphify-out/GRAPH_REPORT_frontend.md` |
+| **Every loop + its production reach number** | [FEATURE_LOOP_REGISTRY.md](docs/FEATURE_LOOP_REGISTRY.md) |
 | Beta feedback closure state | `docs/beta-testing/closure-ledger/` |
 
-⚠️ **Two graphify outputs exist and only one is the code.** The `_frontend`
-suffix is the codebase. The unsuffixed `GRAPH_REPORT.md` is a separate docs and
-feedback corpus — reading it to understand the code will mislead you.
-
-⚠️ **`/docs` AND `.claude/` are in `.gitignore`** — a NEW file under either is
-invisible to every other machine and agent. Put new docs at the repo root.
-**Zero skills are tracked:** a skill is a local shortcut, never a place to keep
-knowledge. Method goes in the repo; the skill points at it.
+Two graphify outputs exist; only `_frontend` is the code. `/docs` and `.claude/`
+are gitignored — a NEW file under either is invisible. Put new docs at the repo
+root. Exception: `docs/adr/` (seven ADRs, held by `test_adr_numbering.py`).
+Skills are local shortcuts, never a place to keep knowledge.
 
 ---
 
 ## WHAT WE ARE WORKING ON
 
-Derived from the goal above. Detail for each: [BACKLOG.md](BACKLOG.md).
+Detail: [BACKLOG.md](BACKLOG.md). Spine (2026-09-13): **821 signed up → 398
+uploaded → 387 scored → 261 matched → 70 collected → 14 tailored.**
 
-### Stage 1 — upload, understand, find a role, download (now)
+| Now | State |
+|---|---|
+| Ship `Develop` → `main` | Shivam only. Re-verify himyro.com live. |
+| Align loops, kill dead ends | Open. Read a loop's number before building on it. |
+| Upload + download reliability | Two silent failures closed (`033c9403`). Resume parity, weak-network, four storage-only users left. Score lives in `mirror_scores`. |
+| Myro Search pre-flight | Built; never driven authed end-to-end. |
+| Phone | Layout swept; `/dev/phone` is the 375 lab; real-device QA owed (#42). |
+| Read capacity | Software closed; paid DB compute gate blocks launch (#16). |
 
-**1. Ship what's fixed to production.** ⚠️ *Shivam only.*
-`main` is behind. Right now himyro.com blanks the page after a CV upload, and
-large company pages 500. Fixes for both are on `Develop`, tested, waiting. Every
-other stage-one item is measured on a site that is currently broken.
+After stage one: Job Tracks (gate written `4e8fca46`), Myro Ops slices 3–5
+(blocked on the scraper), the Chrome extension, tailoring as the obvious next
+step. Evidence bank has no surface — grill first, #45 artboard 2a.
 
-**2. Make upload and download reliable.** *Open — two silent failures closed.*
-`033c9403` closed the two that left no trace: a rejected `/cv/upload/finalize`
-threw without a phase event (and writes no job row, so the trail ended at "put
-succeeded"), and the preflight accepted the 76-byte cloud-placeholder stub
-Drive/OneDrive hand the picker. Left: resume parity between the onboarding and
-CV routes, real progress, weak-network testing, user confirmation. **Four users
-have a CV in storage and nothing else** — `8459faec`, `f39204cb`, `8b27e6e6`,
-`477051ff` (2026-08-14). Reachable, and worth an email.
-
-⚠️ **Score lives in `mirror_scores`.** Scoring waits for skill confirmation
-(`a6425b46`), so a finished upload job has none — `cv_upload_jobs.score` and its
-readers were deleted in `e4ffc983`. A polled upload carries no score by design.
-
-**2b. Myro Search pre-flight — one typed Order, five steps.** *Built; ⚠️ never
-driven end to end while logged in (the QA account can't reach the modal).* ONE
-record; guesses show their source, are answered alone, and are capped at the
-slot that holds them. A journey since `20260829` — a settled order opens on Sign
-off, one tap from Run. Invariants: [CONTEXT.md](CONTEXT.md) §Pre-flight Order.
-
-**3. Fix the phone.** *Layout swept 2026-08-27; `/dev/phone` is the 375 lab; real-device QA still owed.*
-The July list of seven orphan screens is stale — CV, Prep, Skills, the coin
-guide and Profile render mobile-native. `npm run qa:mobile` walks 20 routes × 2
-themes. **Nobody has opened any of it on a real phone while logged in.**
-Detail: [BACKLOG.md](BACKLOG.md) #42.
-
-**4. Make it fast enough to feel trustworthy.** *#16 software slices closed;
-capacity acceptance blocked on paid DB compute.* The 2026-08-13 pass removed
-secondary Market reads from J0, collapsed feed context, single-flighted cold
-fills, repaired the verifier's cache-evicting claim query, and moved full job
-descriptions off feed reads. A warm feed is 477ms backend p95, but a 10-user
-Market-arrival burst is 2,161ms p95 on the shared Supabase Free/Nano project.
-That project holds 1,118MB against the tier's 500MB recommended DB size and has
-224MB `shared_buffers`; do not call launch capacity green until the paid compute
-gate in [ARCHITECTURE_READ_PATH.md](ARCHITECTURE_READ_PATH.md) passes.
-
-### What supports it, once stage one holds (after)
-
-Job Tracks (shipped; its gate was never written, so all of it was unreachable
-until `4e8fca46`), Myro Ops (notifications → automatic picks → "show me more",
-slices 3-5), the Chrome extension, and making the built tailoring engine the
-obvious next step after a match. Two Ops items are blocked on the scraper.
-
-**The evidence bank — the horizontal loop has no surface.** *Needs a grill
-first: [BACKLOG.md](BACKLOG.md) #45, design artboard 2a.* Prep records against
-the PERSON now, so clearing a step really does count in every room
-(`85ac9ead`, `10043107`). Nothing shows it: a user who answers a gap at Sanofi
-has just moved four other rooms and is told nothing. One sentence in a footer
-is not the surface that claim needs.
-
-### Standing, not a stage
-
-- **113 beta feedback items logged as unverified.** Built is not closed. Each
-  needs evidence: deployed version, a test, and a user confirming it.
-- **The ₹99 Job-Switch Plan is the only revenue item on the board, and it is not
-  offered anywhere in the app.** Flagged rather than buried — Shivam's call when
-  it earns a slot.
+Standing: 113 beta items unverified (built ≠ closed). ₹99 Job-Switch Plan is
+the only revenue item and is offered nowhere — Shivam's call.
 
 ---
 
 ## HOW WE WORK
 
 **Python:** 3.11+, async, type hints, Pydantic, Supabase client (no ORM).
-**TypeScript:** strict, no `any`, functional components, API calls via
-`lib/api.ts`, TanStack Query for server state, Zustand for UI state.
-**Commits:** `feat:` `fix:` `chore:` `docs:` `test:` `refactor:` — one scope each.
-**No file over 300 lines.** Split it. **375px must work.**
-**Claude vs Codex:** Claude takes cross-cutting refactors and multi-file
-orchestration; Codex takes mechanical splits, renames and test scaffolding once
-the interface is agreed. Both work on `Develop` and run the same five gates.
+**TypeScript:** strict, no `any`, functional components, API via `lib/api.ts`,
+TanStack Query, Zustand. **Commits:** `feat:` `fix:` `chore:` `docs:` `test:`
+`refactor:` — one scope each. **No file over 300 lines.** **375px must work.**
 
-**Before saying done — all five pass:**
+**Before saying done — all six pass:**
 
 ```bash
 pytest backend/tests && ruff check <your files>
 cd frontend && npx tsc --noEmit && npm run lint && npm test
-npm run check:ui-drift && npm run build
+npm run check:ui-drift && npm run build && npm run check:reach
 ```
 
-**Dev:**
+Gates 1–5 prove the code is **correct**; `check:reach` asks whether anyone can
+**get to it**. Loop reach: `python backend/scripts/loop_reach.py`.
 
-```bash
-source .venv/bin/activate && PYTHONPATH=backend uvicorn app.main:app --reload
-cd frontend && npm run dev
-```
+**Dev:** `PYTHONPATH=backend uvicorn app.main:app --reload` · `npm run dev`.
 
 ---
 
 ## SKILLS
 
-`/grill-me` settle an unclear plan · `/read-path-perf` **before touching any
-read path** · `/tdd` · `/frontend-design` · `/review` · `/security-review` ·
-`/triage-issue` · `/to-issues` · `/to-prd` · `/qa` · `/graphify` · `/schedule` ·
+`/grill-me` · `/read-path-perf` before any read path · `/tdd` ·
+`/frontend-design` · `/review` · `/security-review` · `/triage-issue` ·
+`/to-issues` · `/to-prd` · `/qa` · `/graphify` · `/schedule` ·
 `/improve-codebase-architecture` · `/fixing-accessibility` ·
 `/fixing-motion-performance` · `/fixing-metadata` · `/baseline-ui` · `/caveman`
 
@@ -227,8 +174,6 @@ read path** · `/tdd` · `/frontend-design` · `/review` · `/security-review` �
   to [ARCHIVE.md](ARCHIVE.md). Do not leave it struck through.
 - **No session summaries here.** Git log holds those.
 - **Never write "OWED: main merge" or "OWED: deploy dev".** Railway deploys
-  `Develop` automatically. Notice closes merge `main` themselves (CONTEXT.md).
-  Those two OWED lines rotted about 25 entries into a backlog of work that was
-  already done.
+  `Develop` automatically. Notice closes merge `main` themselves.
 - **If you cannot check a claim in seconds, do not write it.**
 - **This file stays under 200 lines.** Past that, something belongs elsewhere.

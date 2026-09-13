@@ -26,7 +26,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from app.services import cv_parser, embeddings, project_rewrite
+from app.services import cv_parser, embeddings, project_rewrite, story_depth
 from app.services.career_reservoir import cosine
 
 logger = logging.getLogger("myro.career_projection")
@@ -84,6 +84,12 @@ def rank_stories(
         score = score_story(story_vec_by_id.get(str(s.get("id"))), req_vecs)
         if s.get("metrics"):
             score += 0.15
+        # Same shape as the metric bonus, same reason: relevance is not the only
+        # thing that makes a story worth printing. Between two stories the JD
+        # wants equally, the one the user actually narrated carries specifics a
+        # CV line lifted by the upload bridge does not.
+        if story_depth.is_told(s):
+            score += 0.10
         ranked.append((s, score))
     ranked.sort(key=lambda pair: -pair[1])
     return ranked

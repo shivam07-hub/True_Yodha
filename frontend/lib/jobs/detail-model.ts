@@ -39,6 +39,10 @@ export const JOB_PLAN_ORDER: readonly JobPlanSectionId[] = [
  *  Listing Verification). `unknown` is a real answer, not a failure. */
 export type JobLivenessState = "live" | "closed" | "unverified" | "unknown"
 
+export const POSTING_CLOSED_NOTICE =
+  "This posting has closed. If it reopens, the next scrape will pick it up."
+export const POSTING_CLOSED_CHIP = "Posting closed"
+
 export interface LivenessNotice {
   /** `warn` earns colour + prominence; `quiet` is a muted one-liner. */
   tone: "warn" | "quiet"
@@ -52,7 +56,7 @@ export interface LivenessNotice {
  * What to tell the user about this listing's liveness — the honesty layer of
  * the funnel. Deliberately says something in every state:
  *   live       → the trust payoff, quiet, with when we last saw it
- *   closed     → the one loud state; guards Apply so nobody tailors a dead role
+ *   closed     → posting gone; next scrape will pick it up if it reopens; guards Apply
  *   unknown    → we tried and couldn't tell; NEVER dressed up as either verdict
  *   unverified → we haven't checked yet; disclosed rather than implied-live
  *
@@ -69,7 +73,7 @@ export function livenessNotice(
     case "live":
       return { tone: "quiet", text: age ? `Listing confirmed live ${age}` : "Listing confirmed live", guardsApply: false }
     case "closed":
-      return { tone: "warn", text: "This listing looks closed — it may no longer accept applications", guardsApply: true }
+      return { tone: "warn", text: POSTING_CLOSED_NOTICE, guardsApply: true }
     case "unknown":
       return { tone: "quiet", text: "Couldn't check whether this listing is still open", guardsApply: false }
     case "unverified":

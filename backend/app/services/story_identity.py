@@ -143,6 +143,35 @@ async def _judge(texts: list[tuple[str, str]], provider: Any) -> list[str | None
     return rules.parse_judge(raw, len(texts))
 
 
+def merge_known_same(repo: Any, user_id: str, new_id: str, target_id: str) -> bool:
+    """Fold two stories that are the same achievement by construction — no judge.
+
+    The one caller is a banked gap answer: the user was shown a story as the
+    evidence for a requirement and then told us more about it, so the pair is
+    known, not guessed. `pick_keep` decides which row survives, and it prefers a
+    TOLD story, so the answer's narrative becomes the story and the CV line the
+    upload bridge lifted moves in beneath it as an alternative phrasing. Nothing
+    the user ever wrote is lost — that is the reservoir's whole promise.
+
+    Best-effort: a failed merge leaves two stories, which the sweep's judge can
+    still fold later. It must never fail the answer the user just gave.
+    """
+    if not new_id or not target_id or new_id == target_id:
+        return False
+    try:
+        rows = {str(s["id"]): s for s in repo.stories(user_id, [new_id, target_id])}
+        if new_id not in rows or target_id not in rows:
+            return False
+        pointers = _by_story(repo.story_pointers(user_id, [new_id, target_id]))
+        return _fold(
+            repo, user_id, rows, pointers, set(), new_id, target_id,
+            verdict="auto_folded", decided_by="upgrade",
+        )
+    except Exception as exc:  # noqa: BLE001 — an answer must land even if the merge does not
+        logger.info("metric story_identity.upgrade_merge_failed reason=%s", exc.__class__.__name__)
+        return False
+
+
 def _fold(
     repo: Any, user_id: str, stories: dict[str, dict[str, Any]],
     pointers: dict[str, list[dict[str, Any]]], gone: set[str], a: str, b: str,

@@ -47,14 +47,13 @@ export interface JobsSurfaceProps {
   targetRoles: string[]
   chipCountMap: Record<string, number>
   hasCv: boolean
-  primaryCareerBand?: CareerBand | null
   exploredCareerBands?: CareerBand[]
   onExploredCareerBandsChange?: (bands: CareerBand[]) => void
 }
 
 export function JobsSurface({
   token, targetLocations, filters, onFiltersChange, targetRoles, chipCountMap, hasCv,
-  primaryCareerBand, exploredCareerBands, onExploredCareerBandsChange,
+  exploredCareerBands, onExploredCareerBandsChange,
 }: JobsSurfaceProps) {
   const router = useRouter()
   const { snack, closeSnack } = useMobileUI()
@@ -302,7 +301,6 @@ export function JobsSurface({
           hasCv={hasCv}
           scope={scope}
           onEditLocations={() => document.dispatchEvent(new CustomEvent("tm:open-settings", { detail: { tab: "Following" } }))}
-          primaryCareerBand={primaryCareerBand}
           exploredCareerBands={exploredCareerBands}
           onExploredCareerBandsChange={onExploredCareerBandsChange}
         />

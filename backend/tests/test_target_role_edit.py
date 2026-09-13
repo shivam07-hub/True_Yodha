@@ -10,6 +10,7 @@ from __future__ import annotations
 import pytest
 
 from app.services import onboarding_service
+from app.services.job_eligibility import eligible_bands_for_profile
 
 
 class _FakeUsersRepo:
@@ -141,7 +142,39 @@ def test_multi_role_titles_project_to_union_clusters_and_primary(wired) -> None:
     # matcher read model = union of clusters across all titles, order-preserved, de-duped
     assert users.updates["target_roles"] == ["Data Analysis"]
     assert users.updates["target_career_band"] == "business_product_operations"
-    assert users.updates["explored_career_bands"] == ["engineering_data"]
+    # The second title still opens its band — but it is DERIVED at read time, not
+    # regex'd into the stored answer. `explored_career_bands` holds explicit picks
+    # only, so a band a title implied can be removed and does not reappear on the
+    # next save, and an untouched column keeps "nobody has been asked" readable.
+    assert "explored_career_bands" not in users.updates
+    assert eligible_bands_for_profile(users.updates) == {
+        "business_product_operations",
+        "engineering_data",
+    }
+
+
+def test_chosen_bands_are_the_answer_and_a_title_cannot_overwrite_them(wired) -> None:
+    """The defect this contract exists to stop: Direction saves the band and the
+    roles in ONE call, and the roles used to win."""
+    users, _onboarding, _bg = wired
+
+    onboarding_service.save_target(
+        object(),
+        "u1",
+        role_titles=["Product Manager", "Data Scientist"],
+        career_bands=["design_creative", "research_people_public_impact"],
+    )
+
+    assert users.updates["target_career_band"] == "design_creative"
+    assert users.updates["explored_career_bands"] == [
+        "design_creative",
+        "research_people_public_impact",
+    ]
+    # Neither title's band leaks in, and the primary is the band they picked first.
+    assert eligible_bands_for_profile(users.updates) == {
+        "design_creative",
+        "research_people_public_impact",
+    }
 
 
 def test_title_with_no_cluster_falls_back_to_itself(wired) -> None:

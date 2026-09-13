@@ -18,6 +18,7 @@ from app.repositories.users import UsersRepository
 from app.services import background, scoring
 from app.services.concurrent_reads import run_concurrently
 from app.services.experience_years import seniority_from_cv
+from app.services.job_eligibility import chosen_bands_for_profile
 
 logger = logging.getLogger(__name__)
 
@@ -322,6 +323,7 @@ def save_target(
     locations: list[str] | None = None,
     avoid: list[str] | None = None,
     lean: list[str] | None = None,
+    career_bands: list[str] | None = None,
 ) -> None:
     """Canonical target-role write (issue #145 · multi-role, User Memory Phase 0).
 
@@ -337,6 +339,12 @@ def save_target(
     already an array end-to-end (`user_target_locations` → `build_location_scope`
     ORs across cities), so the singular `location` was a narrowing that lived
     only in this write path and the picker above it.
+
+    `career_bands` is the Direction journey's first answer, and it travels in this
+    same call rather than a write of its own — the step asks five things and saves
+    once, so a person who abandons at step three has changed nothing. Omitted
+    preserves; `[]` clears back to the derived band. `targeting_write` owns the
+    rule that a stated band is not overwritten by a title.
     """
     titles = _normalize_role_titles(role_title, role_titles)
     if not titles:
@@ -365,6 +373,8 @@ def save_target(
         patch["deal_breakers"] = _normalize_direction_phrases(avoid)
     if lean is not None:
         patch["lean"] = lean
+    if career_bands is not None:
+        patch["explored_career_bands"] = career_bands
     result = targeting_write.commit(users_repo, user_id, patch)
     stored_seniority = str((result.profile or {}).get("target_seniority") or seniority or "")
     if not result.direction_changed and not result.leans_changed:
@@ -820,6 +830,9 @@ def _awaiting_target_payload(
     chosen_keys = [
         str(key) for key in (profile.get("target_roles") or []) if str(key).strip()
     ]
+    # The bands they have already answered — empty means nobody has asked yet,
+    # which is the distinction `chosen_bands_for_profile` exists to keep.
+    chosen_bands = [str(band) for band in chosen_bands_for_profile(profile)]
 
     # One wave, not four sequential hops. Measured on prod for a returning user
     # with a CV and no target — the population this screen exists to catch:
@@ -831,28 +844,34 @@ def _awaiting_target_payload(
     # `resolve_families` fires only when target_roles are stored, which is
     # exactly the 53 users who have roles but no snapshot — the stranded cohort
     # paid an extra hop the others did not.
-    def _family_reads() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        """Both family reads in ONE section, to stay inside the 3-section read
+    def _family_reads() -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+        """Every family read in ONE section, to stay inside the 3-section read
         contract rather than adding to its exception register — that register is
         a debt list, not a permission slip.
 
         They share a section because `resolve_families` IS `list_families` with
-        different arguments. Both used to re-read the same `user_skills` rows
-        for the same user on the same request; the repository now takes those
-        ids so the read happens once.
+        different arguments, and the band options are the same `user_skills` ids
+        again. All three used to be — or would have been — separate reads of
+        identical rows for the same user on the same request; the repository
+        takes those ids so the read happens once.
         """
         if not include_families:
-            return [], []
-        # One `user_skills` read feeds both lookups. They are the same method
-        # with different arguments and each used to re-read identical rows.
+            return [], [], []
+        # One `user_skills` read feeds all three lookups.
         skill_ids = families_repo.user_skill_ids(user_id)
-        suggested = families_repo.list_families(user_id, skill_ids=skill_ids)
+        # Suggestions narrow to the bands the person already chose. Nothing
+        # chosen yet -> no narrowing, which is today's behaviour and the right
+        # one: a band step that has not been answered must not pre-filter the
+        # step after it.
+        suggested = families_repo.list_families(
+            user_id, skill_ids=skill_ids, bands=chosen_bands or None
+        )
         chosen = (
             families_repo.resolve_families(user_id, chosen_keys, skill_ids=skill_ids)
             if chosen_keys
             else []
         )
-        return suggested, chosen
+        return suggested, chosen, families_repo.list_bands(user_id, skill_ids=skill_ids)
 
     reads = run_concurrently(
         {
@@ -862,7 +881,7 @@ def _awaiting_target_payload(
         },
         label="onboarding.awaiting_target",
     )
-    families, selected_families = reads["families"]
+    families, selected_families, band_options = reads["families"]
     from app.services.job_eligibility import SOURCE_SENIORITY, canonical_source_seniority
 
     stored_band = canonical_source_seniority(profile.get("target_seniority"))
@@ -877,10 +896,14 @@ def _awaiting_target_payload(
         "baseline_version_id": int(baseline["id"]),
         "families": selected_families + [row for row in families if str(row.get("family")) not in chosen],
         "seniority": _seniority_suggestion(baseline),
+        "bands": band_options,
         "selected": {
             "families": selected_families,
             "seniority": stored_band if stored_band in SOURCE_SENIORITY else None,
             "locations": stored_locations,
+            # Empty is "not asked yet", never "chose none" — the journey's landing
+            # rule opens on the band step only for the first of those.
+            "career_bands": chosen_bands,
         },
         "direction": reads["direction"],
         "ninja": reads["ninja"],

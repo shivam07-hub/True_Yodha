@@ -3,7 +3,7 @@
  *
  * The reservoir is the Master CV, so a duplicate question is not decoration:
  * it decides whether two entries stay two lines on a tailored CV or become one
- * (ADR-0021). The rules this pins:
+ * (ADR-0023). The rules this pins:
  *
  *   · nothing waiting AND nothing done  → the band does not render. An empty
  *     queue is not a state worth a card.

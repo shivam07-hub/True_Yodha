@@ -377,3 +377,48 @@ def test_project_conflicts_without_stories():
     with TestClient(app) as client:
         resp = client.post("/cv/reservoir/project", json={"job_id": "j1"}, headers=_H)
     assert resp.status_code == 409
+
+
+def test_gap_answer_is_written_as_an_inflow_kind(monkeypatch):
+    """A banked answer must be `kind='answer'`, not `note`.
+
+    It was `note` from 2026-07-14 to 2026-09-12, and the inflow ledger reads
+    `kind IN INFLOW_KINDS` — so `retry_stale_ingests` could not see a failed
+    answer and `ingest_status` reported nothing pending. Three of user
+    33b66361's answers sat pending for two months behind that one word.
+    """
+    from app.repositories.career_reservoir import INFLOW_KINDS
+    from app.repositories.jobs import get_token_jobs_repository
+
+    enqueued: list[tuple[str, str]] = []
+    monkeypatch.setattr(career_reservoir, "enqueue_ingest", lambda uid, eid: enqueued.append((uid, eid)))
+    dump = _FakeDumpRepo()
+    _override(dump=dump)
+    app.dependency_overrides[get_token_jobs_repository] = lambda: _FakeCoverageJobsRepo()
+
+    with TestClient(app) as client:
+        resp = client.post(
+            "/cv/jd-coverage/answer",
+            json={
+                "requirement": "Manage partner performance",
+                "answer": "I ran the partner scorecard for 40 channels and lifted watch time 18%.",
+                "job_id": "j1",
+            },
+            headers=_H,
+        )
+
+    assert resp.status_code == 200
+    assert dump.rows[0]["kind"] == "answer"
+    assert dump.rows[0]["kind"] in INFLOW_KINDS
+    assert enqueued == [("u1", "e1")]
+
+
+class _FakeCoverageJobsRepo:
+    def get_deepening(self, user_id, job_id, prompt_key):
+        return None
+
+    def upsert_deepening(self, user_id, job_id, prompt_key, payload):
+        return None
+
+    def list_coverage_rows(self, user_id, prompt_key):
+        return []

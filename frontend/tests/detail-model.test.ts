@@ -60,6 +60,8 @@ test("a closed listing is the only state loud enough to guard Apply", () => {
   const closed = livenessNotice("closed")
   assert.equal(closed?.tone, "warn")
   assert.equal(closed?.guardsApply, true)
+  assert.match(closed!.text, /has closed/i)
+  assert.match(closed!.text, /next scrape/i)
 
   for (const state of ["live", "unknown", "unverified"] as const) {
     const notice = livenessNotice(state)

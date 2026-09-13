@@ -5,9 +5,6 @@ from uuid import UUID
 
 from app.database import get_supabase, get_supabase_admin
 from app.schemas.feedback import (
-    BetaAssignmentReceipt,
-    BetaAssignmentRequest,
-    BetaAssignmentStatus,
     FeedbackReceipt,
     FeedbackReport,
     FeedbackRequest,
@@ -23,6 +20,11 @@ router = APIRouter(prefix="/feedback", tags=["feedback"])
 
 _bearer = HTTPBearer(auto_error=False)
 
+# The retired intern-beta cohort form (deleted 2026-09-13) wrote under this
+# program tag. Its 114 reports ARE the closure ledger — the guard below stays so
+# a general submission can never forge the tag and pollute that record, and
+# backend/scripts/export_beta_feedback_ledger.py still reads the rows. Only the
+# write path is gone; the data and its reader are not.
 BETA_ASSIGNMENT_PROGRAM = "intern_beta_assignment_v1"
 
 
@@ -43,27 +45,6 @@ def _require_user_id(credentials: HTTPAuthorizationCredentials | None) -> str:
     return user_id
 
 
-def _find_beta_assignment_receipt(user_id: str) -> BetaAssignmentReceipt | None:
-    result = (
-        get_supabase_admin()
-        .table("user_feedback")
-        .select("id, created_at")
-        .eq("user_id", user_id)
-        .eq("type", "feedback")
-        .eq("payload->>program", BETA_ASSIGNMENT_PROGRAM)
-        .order("created_at", desc=True)
-        .limit(1)
-        .execute()
-    )
-    rows = result.data or []
-    if not rows:
-        return None
-    return BetaAssignmentReceipt(
-        id=rows[0]["id"],
-        submitted_at=rows[0]["created_at"],
-    )
-
-
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
@@ -79,7 +60,7 @@ def submit_feedback(
     if body.payload.get("program") == BETA_ASSIGNMENT_PROGRAM:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="This feedback program is reserved for its validated submission endpoint",
+            detail="This feedback program is closed and cannot accept new submissions",
         )
     user_id = _resolve_user_id(credentials)
     db = get_supabase_admin()
@@ -137,105 +118,6 @@ def submit_feedback(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to save feedback")
 
     return FeedbackReceipt(id=result.data[0]["id"], replayed=False)
-
-
-@router.get("/beta-assignment", response_model=BetaAssignmentStatus)
-def get_beta_assignment_status(
-    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
-) -> BetaAssignmentStatus:
-    user_id = _require_user_id(credentials)
-    receipt = _find_beta_assignment_receipt(user_id)
-    return BetaAssignmentStatus(
-        submitted=receipt is not None,
-        receipt=receipt,
-    )
-
-
-@router.post(
-    "/beta-assignment",
-    status_code=status.HTTP_201_CREATED,
-    response_model=BetaAssignmentReceipt,
-)
-def submit_beta_assignment(
-    body: BetaAssignmentRequest,
-    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
-) -> BetaAssignmentReceipt:
-    user_id = _require_user_id(credentials)
-    if _find_beta_assignment_receipt(user_id) is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="This account has already submitted optional feedback",
-        )
-
-    payload = {
-        "program": BETA_ASSIGNMENT_PROGRAM,
-        "schema_version": 1,
-        "submitted_via": "beta_feedback_page",
-        "role_stream": body.role_stream,
-        "session": {
-            "device_type": body.device_type,
-            "operating_system": body.operating_system,
-            "browser": body.browser,
-            "connection_type": body.connection_type,
-            "session_outcome": body.session_outcome,
-            "time_to_value": body.time_to_value,
-            "areas_explored": body.areas_explored,
-        },
-        "assessment": {
-            "product_understanding": body.product_understanding,
-            "most_useful_moment": body.most_useful_moment,
-            "biggest_problem_area": body.biggest_problem_area,
-            "biggest_problem": body.biggest_problem,
-            "attempted_action": body.attempted_action,
-            "expected_result": body.expected_result,
-            "actual_result": body.actual_result,
-            "reproduction_steps": body.reproduction_steps,
-            "priority_improvement": body.priority_improvement,
-            "priority_reason": body.priority_reason,
-            "preserve": body.preserve,
-            "return_trigger": body.return_trigger,
-        },
-        "ratings": {
-            "next_step": body.rating_next_step,
-            "trust": body.rating_trust,
-            "relevance": body.rating_relevance,
-            "return": body.rating_return,
-            "recommend": body.rating_recommend,
-        },
-        "confirmations": {
-            "privacy": body.privacy_confirmation,
-            "independent_work": body.independent_work_confirmation,
-            "final_submission": body.final_submission_confirmation,
-        },
-    }
-    row = {
-        "user_id": user_id,
-        "type": "feedback",
-        "status": "received",
-        "payload": payload,
-    }
-
-    try:
-        result = get_supabase_admin().table("user_feedback").insert(row).execute()
-    except APIError as exc:
-        if getattr(exc, "code", None) != "23505":
-            raise
-        _find_beta_assignment_receipt(user_id)
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="This account has already submitted optional feedback",
-        ) from exc
-
-    rows = result.data or []
-    if not rows:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to save optional feedback",
-        )
-    return BetaAssignmentReceipt(
-        id=rows[0]["id"],
-        submitted_at=rows[0]["created_at"],
-    )
 
 
 @router.get("/my")

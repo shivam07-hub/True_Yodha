@@ -25,6 +25,17 @@ _RANK_TIERS = [
 ]
 
 
+# How much closeness may move a skill up the list.
+#
+# `_priority` is demand x gap, times at most (1 + this). At 0.5 a maximally
+# close skill needs two thirds of a rival's demand x gap to overtake it, so
+# closeness reorders the middle of the list and breaks near-ties — it cannot put
+# a skill nobody hires for above one everybody does. That ceiling is the point:
+# "next to what you know" is a reason to pick BETWEEN two worthwhile skills, not
+# a reason to learn an unwanted one.
+_CLOSENESS_LIFT = 0.5
+
+
 def compute_gap_skills(
     skill_level_map: dict[str, int],
     skill_demand: dict[str, int],
@@ -32,6 +43,7 @@ def compute_gap_skills(
     skill_to_cluster: dict[str, str],
     max_days: int = 7,
     top_n: int = 5,
+    skill_closeness: dict[str, float] | None = None,
 ) -> list[dict]:
     """
     Returns aspiration-driven gap items fitting within max_days.
@@ -40,8 +52,23 @@ def compute_gap_skills(
       for the user's target role/company. When empty, falls back to demand-based
       ordering (target = next level above current).
 
-    Sorted by market_demand_weight × proficiency_gap. Greedily fills the 7-day
-    budget — high-demand, low-effort skills first. Remaining gap deferred to week 2.
+    skill_closeness: {skill_name: damped lift} from `skill_closeness_for` — how
+      much live jobs ask for this skill ALONGSIDE the ones this person already
+      has. Normalised across the candidate set here, never across the corpus: the
+      question is which of THESE skills is nearest, and a corpus-wide scale would
+      hand every candidate in a small market the same tiny number.
+
+    Sorted by market_demand_weight x proficiency_gap, lifted by closeness.
+    Greedily fills the 7-day budget — high-demand, low-effort skills first.
+    Remaining gap deferred to week 2.
+
+    ⚠️ **A missing closeness is not a distant skill.** The graph covers 15.1% of
+    the candidates that reach the top of this list (measured 2026-09-14 over 37
+    users with targets), because 55% of the skills people hold appear in fewer
+    than 20 live jobs and are deliberately excluded from bonding — below that a
+    "bond" is noise, not a signal. So closeness only ever LIFTS. A candidate with
+    no bond keeps exactly the rank demand and gap give it, which is why passing
+    no map at all reproduces the old ordering to the digit.
     """
     max_demand = max(skill_demand.values(), default=1) or 1
 
@@ -88,7 +115,22 @@ def compute_gap_skills(
                 else f"In demand right now — {demand} open roles ask for it."
             ),
             "_priority": weight * (target_level - current_level),
+            "_closeness": float((skill_closeness or {}).get(skill, 0.0)),
         })
+
+    # Normalised across THIS candidate set, so the lift means "nearest of the
+    # skills actually on offer to you". Max, not sum: the scale has to survive a
+    # candidate set of three as well as one of two thousand.
+    top_close = max((c["_closeness"] for c in candidates), default=0.0)
+    if top_close > 0:
+        for item in candidates:
+            item["_priority"] *= 1 + _CLOSENESS_LIFT * (item["_closeness"] / top_close)
+            # Deliberately NOT emitted. Closeness is a ranking input, and a number
+            # in the payload that no surface renders is the next dead field. The
+            # card that would earn it is the one naming the skills this sits next
+            # to ("asked for alongside React and TypeScript"), and that needs the
+            # neighbour NAMES this read does not fetch — a payload change, not a
+            # leftover. BACKLOG #46 S5 carries it.
 
     candidates.sort(key=lambda x: x["_priority"], reverse=True)
 
@@ -98,7 +140,7 @@ def compute_gap_skills(
         if budget <= 0 or len(selected) >= top_n:
             break
         days_alloc = min(item["days_to_close"], budget)
-        entry = {k: v for k, v in item.items() if k != "_priority"}
+        entry = {k: v for k, v in item.items() if not k.startswith("_")}
         entry["days_allocated"] = days_alloc
         selected.append(entry)
         budget -= days_alloc

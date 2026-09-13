@@ -141,6 +141,34 @@ measured Free/Nano database ceiling, not unfinished application work.
 6. ~~**Match Verdict seam — Slice 4**~~ — ✅ CLOSED. Verified in memory `project_match_verdict_seam`: slice 4 built+shipped (`7643efc`), folded into the later standardization pass (`f3f1a2a`) which fixed the live dashboard fit bug + deleted the dead components slice 4 had decorated. Verdict word is live on `FeedFitRing`. Only remaining polish (tap-on-number→axes reveal panel) is deferred, not blocking.
 7. **#33 ₹99 Job-Switch Plan — the remaining build**: gap-personalised offer card (desktop rail + mobile feed inline), LLM review-draft → approve-queue → deliver, kill-switch env flag, L5 verbatim copy. Only revenue-bearing item in Tier 1–2.
 
+7b. **The tailor's "nothing is ever lost" promise silently does nothing.**
+    *Found 2026-09-13 tracing the upload bridge. Bounded fix, no decision needed.*
+
+    `_mirror_job_reword_to_reservoir` (`routers/cv/versions.py`) is named for the
+    reservoir and does not write to it. It calls `append_phrasing` with a
+    **positional** anchor (`experience:3`), which matches on `role_anchor` plus
+    the exact prior text and **returns `false` without a word** when no row
+    matches. The 1,710 positional `cv_points` are a one-off backfill frozen
+    2026-06-24 → 07-12; nothing has written that shape since. So for every user
+    whose points are that backfill — or who has none — a job-specific reword is
+    dropped on the floor while the code claims it was banked.
+
+    Two ways out, and they are the same decision as the dead layer below: point
+    the mirror at `story:{id}` so a reword becomes a real alternative phrasing on
+    the story, or delete the mirror and stop claiming it. Do not leave a function
+    whose name is the opposite of what it does.
+
+7c. **1,710 `cv_points` are a frozen layer no writer owns.** *Decision, then a
+    migration. Shivam's call — deleting is destructive.*
+
+    Two pointer shapes live in one table, told apart only by a string prefix:
+    `story:{uuid}` (407 rows, 3 users, live) and positional `experience:N` /
+    `projects:N` (1,710 rows, 185 users, last written 2026-07-12). No code path
+    writes positional any more. `story_pointers` scopes by `story_id`, so the
+    reservoir never double-counts them — they are inert, not dangerous — but they
+    are what makes 7b lie, and they are 81% of the table. Migrate onto stories or
+    retire them; either way, one shape.
+
 ### TIER 3 — needs a decision or a grill BEFORE code
 
 8. **#37 ranked job-skill importance** — `/grill-me` first (ordinal vs weight vs 3-tier; extension-only vs whole matcher; sister-repo scraper coordination).
@@ -178,6 +206,185 @@ measured Free/Nano database ceiling, not unfinished application work.
     the read path deliberately ([[feedback_record_against_the_person_not_the_occasion]]);
     a bank view that costs a fan-out per room would undo that.
 
+12. **The front door does not feed the reservoir — ✅ BUILT `a191350a`, 2026-09-13.**
+    *Shipped the first option below: the upload enqueues an ingest of its own
+    text. ⚠️ No real upload has run through it yet — verification is one signup
+    with a CV, then `cv_dump_entries` holds a `source='onboarding_cv'` row and
+    `career_stories` grows for that user.* Original finding:
+
+    `/cv/upload` — the upload named in THE GOAL — never touches
+    `career_reservoir`. Only three routes do: `/cv/reservoir/ingest`,
+    `/cv/jd-coverage/answer`, `/cv/weave/answer`. So a user who uploads their CV
+    through the real door gets `cv_structured` + `mirror_scores` and an empty
+    reservoir, and must find the dump surface inside the CV builder to upload the
+    same CV a second time.
+
+    What that costs, on prod: **3 of 813 users have a career story.** 1,682 of
+    the 2,108 `cv_points` (185 users) are a one-off `source='migration'` backfill,
+    not a live path. `/cv/reservoir/project` — the tailored download — 409s with
+    *"No stories in your reservoir yet — dump your CVs first."* for everyone else.
+
+    The one encouraging number: user `e91eef0b` built an entire reservoir from
+    zero on 2026-08-05 by answering three weave gaps, no dump at all. Coverage
+    falls back to `bullets_from_cv`, so the gap panel works on an empty
+    reservoir — **answering gaps is already a working front door.** That is why
+    the inflow-ledger fix (`kind='answer'`, this session) mattered: it was the
+    path the goal's population can actually reach, and its failures were both
+    invisible and unhealable.
+
+    Decided: the upload enqueues its own ingest (`bank_uploaded_cv`, phase 2,
+    best-effort). The gap loop stays — it is still the only door for the 397
+    users who already uploaded, so promoting it remains open. Memory:
+    `project_reservoir_has_one_inhabitant`.
+
+    **Promoting the gap loop is still a finding, not a fix.** 2 users have
+    answered a gap; `e91eef0b` built an entire reservoir from zero that way.
+    Coverage is rung 1 inside a prep room that 328 of 397 CV-holders never open.
+    Moving that ask to Market / Collections / the CV page is a product call with
+    real cost either way — do not pick it in a coding session.
+
+    Two flaws found while building, both fixed in the same commit. **The
+    foreign-document guard would have silently eaten the user's own CV**: it
+    matches names from `user_profiles.full_name` plus the baseline's contact
+    block, but at upload time that baseline's `cv_structured` is still null, so
+    it judges on the profile name alone — one token mismatch plus any email in
+    the document reads as `foreign`. 352 of 397 upload users have an active
+    guard with nothing to match against. The bridge skips it by source: a bulk
+    dump can carry someone else's CV, an upload cannot. **And
+    `backfill_missing_embeddings` had one caller, not the two its docstring
+    claimed** — an unembedded story is unrankable by `career_projection` and
+    never nominated by `story_identity`, so it is also permanently un-deduped;
+    the hourly sweep now heals embeddings for everyone.
+
+    Still open, found in the same pass and deliberately not fixed:
+    `story_pointers` builds an unbounded `.in_("story_id", …)` — 171 stories is
+    already a ~6.6KB URL and 400 would exceed a typical 8KB proxy limit, with no
+    paging. The bridge adds ~8 stories per user, so this arrives sooner now.
+
+13. **⚠️ A CV-born story is thin, and nothing marks it as thin. LIVE AND
+    UNGUARDED since `a191350a` (2026-09-13).** *GRILL-LOCKED 2026-09-13 (Shivam,
+    3 locks). Nothing built yet — this is the design, in build order.*
+
+    **Shivam's goal, in his words:** a CV pointer should become "so fine and so
+    whole that it covers all the best practices of a CV point", and everything
+    the user produces through the day should land in the reservoir.
+
+    **BUILT `cb51d83b` (2026-09-14): L1 and L2 in code, depth derived, both
+    readers taught. REMAINING: L3's standing Stories queue (a surface, needs
+    design) and the backfill, which stays last. ⚠️ Still unverified against a
+    real upload — the whole chain from CV to a capped `weak` to an upgraded
+    story has only ever run in tests.**
+
+    **L1 — a CV line never closes a question.** A story whose narrative came from
+    a CV bullet may show as evidence for a JD requirement but may not mark it
+    `covered`. Today `cv_weave_interview.py:106` filters the interview to
+    `status != "covered"` at `COVERED_MIN = 0.74`, so a scraped bullet clearing
+    0.74 permanently closes a question the user would have answered well — on
+    that job and every future one. That is the bridge suppressing the one door
+    measurably proven to work (`e91eef0b` built a whole reservoir from three gap
+    answers, no upload).
+
+    **L2 — the answer upgrades the SAME story; the CV line survives as an
+    alternative phrasing.** One story about one achievement, told version leading
+    on the CV, the user's original wording kept in the phrasing drawer. Not a
+    second story, not a replacement. Requires the answer to know which story it
+    is improving — `jd_coverage` already records `story_id` on the coverage row
+    (`jd_coverage.py:161`), but `WeaveAnswerRequest` does not carry it, so today
+    the reply mints a sibling and hopes `story_identity` folds it. Resolve
+    server-side from the cached coverage row; do not trust a client-supplied id.
+
+    **L3 — one question, two places.** The same question object is asked in the
+    job room (when that job needs the bullet) and stands as a queue in Stories
+    ("6 of your bullets are missing their number"). Answering in either place
+    upgrades the story everywhere and it is never asked twice
+    ([[feedback_record_against_the_person_not_the_occasion]]).
+
+    **What "whole" means — already defined in code, do not reinvent.**
+    `story_extractor._STATIC_STYLE` is the Google XYZ formula ("Accomplished X,
+    measured by Y, by doing Z") and the POINTER rule is 18-30 words, strong
+    past-tense verb, best metric woven in. So bullet completeness is a
+    deterministic test — carries a number, in the word band, opens on a real verb
+    — needing no LLM and no new column. ADR-0016 forbids inventing the missing
+    number, so the only repair is a specific question: "You led the migration —
+    how big was it, or what changed?", never a blank prompt.
+
+    **Depth needs no new column either.** `parse_extraction` drops empty
+    narrative keys, so a CV bullet yields `{result}` and a told story yields all
+    four of situation/task/action/result. Count the populated keys. Deriving it
+    beats tagging by source, because a rushed gap answer is also thin and should
+    be treated as thin.
+
+    **Two readers must learn depth.** `rank_stories` already carries a `+0.15`
+    metric bonus, so a non-cosine quality term has precedent — depth is a second
+    small term beside it, not a rewrite. And `story_identity_rules.pick_keep`
+    orders by pointer count → inflow count → older; a told story must beat a thin
+    one BEFORE pointer count, or two CV uploads outvote the story the user typed.
+    This matters because `fold_plan` unions metrics, skills and inflows but never
+    merges `narrative` — so today the loser's STAR text is simply archived.
+
+    **Backfill LAST, and not yet.** The 397 existing baselines would mint ~3,200
+    thin stories before any completion loop exists. Order: verify the bridge on
+    one real upload → depth signal + shared question → then backfill, newest
+    cohort first, measuring stories-per-user before widening.
+
+    Original finding:
+
+    The bridge now turns every uploaded CV into Career Stories. But a CV is a
+    summary of already-summarised work: its narrative fields are a bullet, not a
+    STAR. A story banked from a gap answer, where the user actually told the
+    story, is a different quality of evidence — and `career_stories` has no
+    notion of confidence or depth. `career_projection` ranks purely on cosine
+    against the JD, so a thin CV-born story can outrank the real one the user
+    typed out.
+
+    Either that is acceptable (thin beats absent; the user enriches later), or
+    the extractor marks depth at write time and the projection prefers depth on a
+    tie. Decide before the reservoir carries more weight, not after.
+
+14. **Step 2 of the loop reads zero Career Stories.** *Goal-level gap, found
+    2026-09-13. Needs a grill: this is the matcher, not a corner.*
+
+    "Find the job closest to your aspiration" runs on the skill layer. Every
+    module under `services/matching/` has zero reservoir reads. So the match is
+    made against *what skills a CV lists*, never against *what the person
+    actually did* — while the stories sit there embedded, with pgvector on them
+    and a working cosine already used by the projection. The single biggest
+    unexploited asset on the platform.
+
+15. **Step 5 leaves no trail back to the stories.** *Small, but it is what makes
+    `repeat` mean something.*
+
+    `cv_of_record` freezes the CV that went out into `cv_application_attempts`
+    with zero reservoir references. So Myro knows what you sent and knows what
+    you are made of, and cannot join the two: which stories won an interview,
+    which never get picked, which phrasing was on the CV that got a reply. Pass
+    two of the loop is supposed to be better than pass one; this is the join that
+    would make it so.
+
+16. **A role fold still has no receipt, so a confident judge may not fold.**
+    *`82f96ac0` turned role auto-fold off rather than ship an irreversible one.*
+
+    `apply_fold` moves every story under the duplicate role, archives the row and
+    may widen the survivor's dates, recording none of it — so a wrong fold cannot
+    be taken back, and "archive-only, restorable" was never true. Stories can
+    auto-fold because `story_identity_fold` writes `moved.dup_added` and `unfold`
+    takes back exactly that. Give roles the same receipt and the judge earns the
+    write back. Until then every confident verdict is a question for the user.
+
+17. **Practice → certificate → CV is not leaking. Diagnosed 2026-09-13.**
+    21 quiz passers, 2 with a Myro certificate line. The 19 others all passed
+    between 2026-06-19 and 2026-08-24, before `skill_certificates` existed
+    (`01c14fe2`, 2026-08-27). No backfill. Every pass since then (4 attempts,
+    2 users) issued a certificate and landed it on the CV — one via Add to CV
+    (30 Aug, between issue and auto-write), one via the bulk handler (7 Sep).
+    All 21 passers already have a content-bearing baseline, so
+    `certificate_to_cv.no_baseline` is not the miss.
+
+    A backfill of ~96 certificates onto 19 CVs from June–August is a product
+    call: they did not opt in, and the lines would appear months later.
+    Until that call, do not build on this loop. Detail:
+    [FEATURE_LOOP_REGISTRY.md](docs/FEATURE_LOOP_REGISTRY.md) L5.
+
 ### TIER 4 — correctly deferred, DO NOT pick up
 
 - **#39 per-skill band percentile** — gated on peer density (≥20 per band+skill); at current scale every chip would hide.
@@ -204,11 +411,37 @@ measured Free/Nano database ceiling, not unfinished application work.
 
     **✅ S2 Skill Closeness (`dec41c89`, migrations `20260912110000` + `…120000`).** `skill_closeness`, 7,287 bonds over 1,122 skills, own Tier-0 task, ~28.6s per ingest. Bonds counted **across companies** (≥3 companies, no single one over half) because 67.4% of raw bonds were one employer's template. Retired `role_family_market_skills`, `role_family_band_market_skills`, `role_family_aspiration_skills` after verifying zero callers.
 
-    **OPEN — S3 Band step first in Direction.** Shivam's call, 2026-09-12: ask the band during onboarding right after the CV, Reddit/Pinterest style, multi-select, changeable in Settings. Land it as the FIRST step of the Direction journey (`band → work → level → where → about`) so the journey's existing landing rule skips it for anyone who has answered. Suggestions then come from within the chosen bands; **search stays global** (that box rescued 7 of 14 finishers — don't scope it), and picking a direction outside your bands adds that band. Evidence: 56.4% of users currently see suggestions spanning ≥2 bands, and a CV-derived band matches the user's own choice only **62.4%** of the time, so it must be asked, not inferred. Reuse the four-band multi-select that already exists in `components/market/filters-sheet.tsx` (it writes `explored_career_bands` today via `market/page.tsx:179`) rather than building a second one. Order bands by CV fit and **show live-job counts** — Business/Product/Ops 43.8%, Engineering/Data 41.4%, Research/People 2.2%, Design & Creative **0.6% (250 jobs)**. Also fix `explored_bands_for_profile`, which merges regex-derived bands into the "explicitly explored" set and so contradicts CONTEXT.md's rule that expansion is never implicit.
+    **✅ S3 Band step — SHIPPED 2026-09-13 (`48e751d5`, `5035af5f`, migration `20260913100000`). ⚠️ No authed run.** Asked first (`band → work → level → where → about`), **pre-answered and never blocking**: the best-fitting band arrives ticked and Continue stays enabled. A wall in front of a step converting at 76% was the risk not worth taking, and a ticked answer the person changes is still their answer — the same rule the level step has always followed. The landing rule skips the step for anyone who has answered. `p_bands` narrows SUGGESTIONS only; **search stays global**, and a direction picked from outside your fields widens them (`list_role_families` now returns `bands`).
 
-    **OPEN — S4 Graded job ↔ direction fit.** Replace the remaining `jobs.role_family` reads (feed `_role_match_score`, `job_matcher` ROLE_BOOST, `get_candidate_job_ids_for_roles`, `roles_feed`, `partner/roles`, `refresh_sector_panel`) with "the job asks for ≥2 of the direction's characteristic skills": measured **76% precision / 40% reach** against the current bucket's 71%/29% — better on both. The feed can compute it with no extra read (`main_skills` is already selected and `top_skills` are display names; the two agree — 100% of scraper names are Stage A names). The candidate-pool selector needs an RPC over `job_skills` by `skill_id`. Only once these are gone can `role_family_for_job`, `trg_refresh_job_role_family` (per-row, ~2.9ms × 2 per skill row, ~57 min per two weeks of ingest) and the column itself retire.
+    **The counts could not be live.** Measured 2026-09-13: `group by career_band` over live jobs is **14,393ms cold / 7,080ms warm**, 12,497 blocks read. So `career_band_scope` (four rows) is filled inside `refresh_role_family_labels` from the scan it already makes for `role_family_labels.bands` — nothing new read per ingest. Band fit is index-only at **9.2ms**. Live figures: Business/Product/Ops **20,659 jobs · 154 directions**, Engineering/Data **17,960 · 235**, Research/People **945 · 33**, Design & Creative **234 · 8**. ⚠️ `family_count` counts directions under the **≥25% rule**, the same one `p_bands` filters on — counted off raw jobs it reads 71 for Design & Creative where the next screen offers 8.
 
-    **OPEN — S5 Prep ranks by closeness.** `compute_gap_skills` ranks by `demand × level gap` with nothing about closeness to what the user already holds — so "learn what's next to what you know" is not implemented. Fold `skill_closeness` into `_priority`, normalised within the candidate set. ⚠️ Do `/read-path-perf` first: the naive version adds three reads to the score path, so it wants one RPC (`skill_closeness` joined to `skills` on both sides), not a PostgREST round trip per hop.
+    **The write was the real defect.** Direction saves the band and the roles in ONE `save_target`, and the roles won: `targeting_write` recomputed both band columns from the title regex on every save, so the band chosen at step one was erased by the call that stored it. Now `explored_career_bands` holds the **whole explicit answer, primary first**, and only an explicit pick writes it (`chosen_bands_for_profile`). That is also what makes "nobody has been asked" (empty) readable apart from "chose exactly one band". A second target role still opens its band — derived at read time in `eligible_bands_for_profile`, where it can be removed and does not resurrect itself. **10 profiles were backfilled**; without it they would have silently lost their primary band from the feed.
+
+    **One control, not two.** The backlog said to reuse the multi-select in `filters-sheet.tsx`; there wasn't one — three "Also explore X" switches around a derived primary, the only band UI in the app, encoding the model this replaces. `components/target-role/band-choice.tsx` is now shared by Direction, the filters sheet and Settings (`BandSettings`, beside Target Roles), and `primaryCareerBand` is gone from the sheet, the jobs tab, the mobile surface and the market page. Verified at 375 and desktop in both themes against fixed data; **the step itself has never been driven authed** — the QA account stalls at `awaiting_skill_confirmation`, before Direction.
+
+    **OPEN — S4 Graded job ↔ direction fit. ⚠️ MEASURED 2026-09-13 AND DEFERRED — it needs the paid DB compute gate, not more design.**
+    The rule is right and Pareto-better (**76% precision / 40% reach** against the bucket's 71%/29%). The cost is the problem. On the shared Nano instance, against 46,801 live jobs:
+
+    | how | cost |
+    |---|---|
+    | today's bucket lookup (`role_family = any(...)`) | indexed, milliseconds |
+    | graded per request, naive join | **23.2s** |
+    | graded per request, reshaped so skill hits drive the lookup | **5.8s** |
+    | precomputed per ingest (top-12 skills/family, ≥2 matched, capped 500/family) | **13.8s for the 50 largest families**, 25MB temp spill → extrapolates to ~60–90s and ~170MB spill for all 330 |
+
+    The precompute produces only ~20k rows for the 50 biggest families (≈60–80k for all), so storage is fine; the *build* is the cost, on a database already holding 1,118MB against a 500MB recommended size with 224MB `shared_buffers`. Same gate as #16.
+
+    **Do not ship half of it.** Shipping the cheap half (the feed's role signal, which needs no new read — `main_skills` is already selected and `top_skills` is already on `role_family_labels`) while the candidate-pool selector keeps the bucket lookup would give the platform **two definitions of "does this job fit the direction"** — exactly the drift S1/S2 removed. One definition or none.
+
+    When compute allows, the shape is: a `role_family_pool(family, job_id, matched)` snapshot built in the same refresh, read by BOTH the selector and the feed so the definition stays single. Only then can `role_family_for_job`, `trg_refresh_job_role_family` and the column retire. Original notes:  Replace the remaining `jobs.role_family` reads (feed `_role_match_score`, `job_matcher` ROLE_BOOST, `get_candidate_job_ids_for_roles`, `roles_feed`, `partner/roles`, `refresh_sector_panel`) with "the job asks for ≥2 of the direction's characteristic skills": measured **76% precision / 40% reach** against the current bucket's 71%/29% — better on both. The feed can compute it with no extra read (`main_skills` is already selected and `top_skills` are display names; the two agree — 100% of scraper names are Stage A names). The candidate-pool selector needs an RPC over `job_skills` by `skill_id`. Only once these are gone can `role_family_for_job`, `trg_refresh_job_role_family` (per-row, ~2.9ms × 2 per skill row, ~57 min per two weeks of ingest) and the column itself retire.
+
+    **✅ S5 Prep ranks by closeness — SHIPPED 2026-09-14 (`bfc87170`, migration `20260914100000`). ⚠️ No authed run.** `compute_gap_skills` folds `skill_closeness` into `_priority`, normalised within the candidate set. This is the FIRST reader `skill_closeness` has ever had — S2 built 7,287 bonds and shipped with none, so "learn what is next to what you know" was a product claim with no code behind it. One RPC, **6.0ms as `authenticated`**, run inside the recompute's wave beside the family-market read rather than after it (a sequential hop on this path is ~165ms). Keyed on `taxonomy_key`, so it takes no user id and stays SECURITY INVOKER instead of becoming an oracle.
+
+    **Closeness only LIFTS, capped at 0.5.** Measured over 37 users with a target: a bond exists for **4.3%** of the whole demand vocabulary and **15.1%** of the top 25, where the five slots are actually decided — because 55% of the skills people hold appear in fewer than 20 live jobs and are excluded from bonding on purpose. Demoting the unbonded would let a silent 85% decide the list. Effect: **7 of 15 users get a different top five**, one slot each; for one, Performance Management (demand 568, bonded) rose 6→3 over Financial Services (578, unbonded) while the head of the list held. `ln(1+lift)`, not lift — raw lift is decided by one lucky edge (Gitlab 216.7 on ONE bond over Kubernetes 67.4 on two). Full numbers: [ARCHITECTURE_READ_PATH.md](ARCHITECTURE_READ_PATH.md) §19.
+
+    **OPEN, small — the "why" copy.** Closeness is deliberately not in the payload: a number no surface renders is the next dead field. The card that earns it names the neighbours ("asked for alongside React and TypeScript, which you already have") and needs the neighbour NAMES the current read does not fetch — a payload change plus one line of copy, replacing the generic "In demand right now".
+
+    ⚠️ **One bad taxonomy mapping is ranking nonsense into prep plans, platform-wide.** A business/sales user's rank-2 gap is **"Transformation (Genetics)"** — a genetics term matched off the word "transformation" in business job text. It sits in **101 role families across 1,645 live jobs**, three times the reach of the real skill it is crowding out ("Business Transformation": 37 families, 556 jobs). Closeness neither caused it nor fixes it — it made it visible. **Checked and it is isolated**: no other skill with a scientific-domain parenthetical reaches 20+ families. The fix is one Stage-A mapping, but remapping 1,645 rows is destructive and needs Shivam. ⚠️ Not just a prep-plan defect — this key is in the demand profile, so it also weights the score.
 
     **Still true and deliberately unfixed:** a family's profile is only as good as the jobs it is built from. "Data Analysis" holds 224 jobs of which 10 are data-analyst jobs, and the closeness graph already found the real bundle (Tableau, Snowflake, Data Pipelines, Data Governance). Seeding profiles from bonds instead of the modal-cluster vote is the next question after S4 — and with this architecture it changes one refresh step, not any consumer.
 
@@ -271,7 +504,7 @@ measured Free/Nano database ceiling, not unfinished application work.
 
 39. **Per-skill band percentile (density-gated) — LOGGED 2026-07-18 (grill-locked decision 3 of the banded-score redesign, NOT built — deferred at 296-user scale).** Trigger: the banded Myro Score redesign (backlog closed via `54d0825f`, memory `project_banded_myro_score`). Decision 3 locked a per-skill percentile: same-band, **density-gated (show only where the (band, skill) cell has ≥20 peers, else hide)**, honest tie semantics (share of band-peers at a **strictly lower** level). NOT built because at 296 users the (band, skill) cells are almost all <20 peers → every chip hides → zero visible value now, and a heavy cross-user aggregate read for nothing = speculative. **Scaffolding ready:** `backend/app/services/scoring/percentile.py` already has `percentile_rank` (strictly-below tie semantics) + `MIN_BAND_PEERS = 20`. **Build sketch when density arrives:** (a) repo aggregate — group `user_skills` by (skill_id, matched_level) joined to `user_profiles` band (`target_seniority_for_profile`), filter to the viewer's band, per skill compute peer count + share strictly below the viewer's level; (b) gate ≥20 peers → else omit; (c) endpoint (e.g. `GET /scores/skill-percentiles` or fold into the user-skills payload the forge/skills page reads); (d) frontend chip on the skill card, rendered ONLY when the API supplies a value (conditional, never an empty shell). Bound the aggregate (band-filtered SQL, not full-table scan) before shipping at scale. Cross-link `project_banded_myro_score`, [[feedback_no_cheap_models_judgment]] N/A (pure stat, no LLM). Trigger to pick up: a band grows past ~20 peers holding common skills (watch `user_skills` volume), or Shivam asks for it.
 
-38. **Role-dedup judge — ✅ BUILT; ⚠️ two corrections 2026-09-12, and L1 is now dead.** The judge never once answered: a fixed 1200-token budget for up to 24 pairs starved every call, and `parse_judge` defaulted an unanswered pair to `different`, so 47 pairs were stamped `keep_separate` unruled and a decided pair is never re-judged. Budget now scales with the batch; silence records nothing; the 47 were cleared and re-judged (44 keep_separate, 2 proposed, 0 folds). **L1's "auto-fold HIGH (archive-only, restorable)" was never true** — `apply_fold` moves every story under the dup and archives the row with no record of what moved, so there is nothing to restore from. Auto-fold is off: a confident judge proposes, and only the user's ruling folds a role. OWED to re-earn it: give roles the receipt + undo `story_identity_fold` has for stories (ADR-0021). Evidence for the caution: the first run where the judge actually answered returned exactly one `high`, and it was wrong (a volunteer club folded into the degree it sat inside). **Original build notes:** Slice 1: `role_dedup.py` (candidate pairs = company family OR same-kind date-overlap, capped/converging; ONE batched judgment-lane call; high auto-folds archive-only via most-storied keep + deterministic date-union; maybe→proposed; different recorded — pair never re-judged) + `role_merge_verdicts` (own-only RLS, pair-normalized UNIQUE) + 11 tests. Slice 2: post-ingest pass in `_ingest_entry` (best-effort, never fails ingest) + lazy Stories-visit sweep (`maybe_enqueue_role_dedup`, >12 active roles, per-process debounce, `role_dedup` @handler on LANE_FAST — the retro path, no cron) + `ProfileView.merge_suggestions/tidied_roles` + `POST /cv/reservoir/roles/merge-verdict` (user ruling = law, merged applies fold via token client/RLS); career suites 142 passed. Slice 3: Stories-tab `MergeCard` ("Same role? A ↔ B" → Merge/Keep separate) + "Tidied N duplicate roles" 7-day receipt (no silent mutation); `cv.career.mergeVerdict` wire; tsc0/lint0/ui-drift/build✓. **OWED (Shivam): main merge (backend+worker+FE ride Develop) + authed QA on a fragmented account (cards render, Merge folds, receipt shows after a dump).** GRILL-LOCKED 2026-07-14 (`/grill-me`, 5 locks + one Shivam nuance). Full locks: memory `project_role_dedup_judge`. **L1** auto-fold HIGH (archive-only, restorable) · confirm MEDIUM via card · identity-suspect NEVER auto-ruled. **L2** post-ingest incremental (judge pass in `_persist_extraction`, ONE batched call per dump, worker) + lazy full-inventory sweep on Stories visit (>~12 active roles ∧ changed since last sweep — this IS the retro path); NO cron, dormant users cost zero. **L3** inline merge cards on Stories tab between the two containers ([Merge]/[Keep separate]; identity → [Mine]/[Not mine]); verdicts persist in new `role_merge_verdicts` — human ruling is LAW, judge never re-litigates. **L4** kept-row labels untouched (user's own words; deterministic date-union only; NO LLM-authored reservoir labels) — **projection-time exception: at CV tailoring the LLM MAY propose a JD-aligned role-label framing on the artifact (grounded, titles actually held, never written back)**. **L5** visible receipt ("Tidied N duplicate roles · review"), `get_judgment_provider()`, fail-soft = keep separate, pair-text must carry company+title+dates+top story titles (Lane A starved-judge lesson). Build: `role_dedup.py` mirroring `story_dedup.py` + `role_merge_verdicts` migration (manual-apply + reload) + Stories cards. Original context (why deterministic reconcile_role can't do this): The 2026-07-14 mit20 repair (69→31 roles) was a hand-run: strong-model judgment over the full role inventory + 4 user-fork questions. The product only has deterministic `reconcile_role` (ingest) + `repair_reservoir.py` (same matcher) — exactly what LEFT the fragments; it cannot see "I&D India Sales Manager" == "GTM BD Manager, GCC Growth" (zero title overlap, needs world knowledge + date reasoning). Every heavy dumper fragments the same way. **Build sketch (mirror `story_dedup.py`'s proven two-stage shape):** new `role_dedup.py` — deterministic pass (existing reconcile_role) → ambiguous candidate pairs (same normalized company family OR same/overlapping date window) → ONE batched **judgment-lane** judge call (`get_judgment_provider`, [[feedback_no_cheap_models_judgment]] — a 4B would confidently wrong-merge) returning merge pairs + confidence → auto-fold HIGH (same company + same period + title-synonym; archive-only, restorable) · MEDIUM → one-tap user confirm ("These look like the same role — merge?", the Mentor-walk one-Q pattern) · identity-ambiguous (foreign-vs-mine) NEVER auto-archived, always user-ruled (PV1/trust). Triggers: post-ingest after a dump lands roles + the profile-poll self-heal spot. `/grill-me` forks before build: auto-fold threshold vs confirm-everything · confirm UI surface (Stories tab banner vs walk step) · retro-run for existing users. Memory: `project_story_memory_jd_interview` (repair detail = the ground truth for judge prompts).
+38. **Role-dedup judge — ✅ BUILT; ⚠️ two corrections 2026-09-12, and L1 is now dead.** The judge never once answered: a fixed 1200-token budget for up to 24 pairs starved every call, and `parse_judge` defaulted an unanswered pair to `different`, so 47 pairs were stamped `keep_separate` unruled and a decided pair is never re-judged. Budget now scales with the batch; silence records nothing; the 47 were cleared and re-judged (44 keep_separate, 2 proposed, 0 folds). **L1's "auto-fold HIGH (archive-only, restorable)" was never true** — `apply_fold` moves every story under the dup and archives the row with no record of what moved, so there is nothing to restore from. Auto-fold is off: a confident judge proposes, and only the user's ruling folds a role. OWED to re-earn it: give roles the receipt + undo `story_identity_fold` has for stories (ADR-0023). Evidence for the caution: the first run where the judge actually answered returned exactly one `high`, and it was wrong (a volunteer club folded into the degree it sat inside). **Original build notes:** Slice 1: `role_dedup.py` (candidate pairs = company family OR same-kind date-overlap, capped/converging; ONE batched judgment-lane call; high auto-folds archive-only via most-storied keep + deterministic date-union; maybe→proposed; different recorded — pair never re-judged) + `role_merge_verdicts` (own-only RLS, pair-normalized UNIQUE) + 11 tests. Slice 2: post-ingest pass in `_ingest_entry` (best-effort, never fails ingest) + lazy Stories-visit sweep (`maybe_enqueue_role_dedup`, >12 active roles, per-process debounce, `role_dedup` @handler on LANE_FAST — the retro path, no cron) + `ProfileView.merge_suggestions/tidied_roles` + `POST /cv/reservoir/roles/merge-verdict` (user ruling = law, merged applies fold via token client/RLS); career suites 142 passed. Slice 3: Stories-tab `MergeCard` ("Same role? A ↔ B" → Merge/Keep separate) + "Tidied N duplicate roles" 7-day receipt (no silent mutation); `cv.career.mergeVerdict` wire; tsc0/lint0/ui-drift/build✓. **OWED (Shivam): main merge (backend+worker+FE ride Develop) + authed QA on a fragmented account (cards render, Merge folds, receipt shows after a dump).** GRILL-LOCKED 2026-07-14 (`/grill-me`, 5 locks + one Shivam nuance). Full locks: memory `project_role_dedup_judge`. **L1** auto-fold HIGH (archive-only, restorable) · confirm MEDIUM via card · identity-suspect NEVER auto-ruled. **L2** post-ingest incremental (judge pass in `_persist_extraction`, ONE batched call per dump, worker) + lazy full-inventory sweep on Stories visit (>~12 active roles ∧ changed since last sweep — this IS the retro path); NO cron, dormant users cost zero. **L3** inline merge cards on Stories tab between the two containers ([Merge]/[Keep separate]; identity → [Mine]/[Not mine]); verdicts persist in new `role_merge_verdicts` — human ruling is LAW, judge never re-litigates. **L4** kept-row labels untouched (user's own words; deterministic date-union only; NO LLM-authored reservoir labels) — **projection-time exception: at CV tailoring the LLM MAY propose a JD-aligned role-label framing on the artifact (grounded, titles actually held, never written back)**. **L5** visible receipt ("Tidied N duplicate roles · review"), `get_judgment_provider()`, fail-soft = keep separate, pair-text must carry company+title+dates+top story titles (Lane A starved-judge lesson). Build: `role_dedup.py` mirroring `story_dedup.py` + `role_merge_verdicts` migration (manual-apply + reload) + Stories cards. Original context (why deterministic reconcile_role can't do this): The 2026-07-14 mit20 repair (69→31 roles) was a hand-run: strong-model judgment over the full role inventory + 4 user-fork questions. The product only has deterministic `reconcile_role` (ingest) + `repair_reservoir.py` (same matcher) — exactly what LEFT the fragments; it cannot see "I&D India Sales Manager" == "GTM BD Manager, GCC Growth" (zero title overlap, needs world knowledge + date reasoning). Every heavy dumper fragments the same way. **Build sketch (mirror `story_dedup.py`'s proven two-stage shape):** new `role_dedup.py` — deterministic pass (existing reconcile_role) → ambiguous candidate pairs (same normalized company family OR same/overlapping date window) → ONE batched **judgment-lane** judge call (`get_judgment_provider`, [[feedback_no_cheap_models_judgment]] — a 4B would confidently wrong-merge) returning merge pairs + confidence → auto-fold HIGH (same company + same period + title-synonym; archive-only, restorable) · MEDIUM → one-tap user confirm ("These look like the same role — merge?", the Mentor-walk one-Q pattern) · identity-ambiguous (foreign-vs-mine) NEVER auto-archived, always user-ruled (PV1/trust). Triggers: post-ingest after a dump lands roles + the profile-poll self-heal spot. `/grill-me` forks before build: auto-fold threshold vs confirm-everything · confirm UI surface (Stories tab banner vs walk step) · retro-run for existing users. Memory: `project_story_memory_jd_interview` (repair detail = the ground truth for judge prompts).
 
 37. **Ranked job-skill importance (extension + matcher) — ✅ GRILL-LOCKED 2026-07-24 (Shivam, 3 forks). BLOCKED on sister-repo coordination, NOT yet buildable.** Trigger: extension "Track this job" popup screenshot — extracted skills render as flat PRIMARY/SECONDARY chip buckets; Shivam: *"rank the extracted skills by how important they are for the role — a better basis for deciding if a job is a good fit."* Current state (verified in code 2026-07-14): `backend/app/services/job_importer.py` splits binary primary/secondary via a deterministic required-zone term match (hardcoded confidence 0.82/0.68, [job_importer.py:113](backend/app/services/job_importer.py#L113)); scraped jobs carry only `job_skills.is_primary BOOLEAN` (canonical skill source, written by the `firecrawl_Supabase` scraper); the deterministic matcher flat-counts matched skills.
 

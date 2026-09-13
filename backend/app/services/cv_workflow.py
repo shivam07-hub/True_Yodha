@@ -882,6 +882,16 @@ async def _run_cv_upload_stages(
 
         onboarding_service.enqueue_provisional_baseline_score(user_id, baseline_version_id)
 
+        # Bank the CV into the Career Story Reservoir. This is the edge that was
+        # missing: the loop's step 1 held the user's richest document and passed
+        # nothing to the one place that is meant to stay current, so the tailor's
+        # projection and the prep ladder's rehearsal rung were both empty on pass
+        # one. Swallows its own failures by contract (see bank_uploaded_cv), and
+        # a dead ingest is healed hourly by reservoir_ingest_sweep.
+        from app.services import career_reservoir
+
+        career_reservoir.bank_uploaded_cv(user_id, raw_text, baseline_version_id)
+
 
 async def _fail_and_refund(
     job_id: str, user_id: str, *, error_code: str, detail: str,

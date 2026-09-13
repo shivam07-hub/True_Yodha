@@ -296,6 +296,75 @@ class TestGapAnalysis:
         )
         assert sum(g["days_allocated"] for g in gaps) <= 7
 
+    def test_no_closeness_map_reproduces_the_demand_ordering_exactly(self) -> None:
+        """The fallback has to be the OLD behaviour, not an approximation of it.
+
+        15.1% of the candidates that reach the top of this list have a bond at
+        all, so for most users most of the time this path is the whole answer.
+        """
+        aspiration = {"Django": 3, "SQL": 3, "AWS": 3, "Flask": 3, "GCP": 3}
+        without = compute_gap_skills({}, self.SKILL_DEMAND, aspiration, SKILL_TO_CLUSTER)
+        empty = compute_gap_skills(
+            {}, self.SKILL_DEMAND, aspiration, SKILL_TO_CLUSTER, skill_closeness={}
+        )
+        assert [g["taxonomy_key"] for g in without] == [g["taxonomy_key"] for g in empty]
+        assert [g["taxonomy_key"] for g in without][0] == "Django"
+
+    def test_closeness_lifts_a_near_rival_over_a_slightly_stronger_one(self) -> None:
+        """What S5 is for: between two skills the market wants, prefer the one
+        sitting next to what this person already has."""
+        aspiration = {"SQL": 3, "AWS": 3}
+        demand = {"SQL": 80, "AWS": 78}
+        plain = compute_gap_skills({}, demand, aspiration, SKILL_TO_CLUSTER)
+        assert [g["taxonomy_key"] for g in plain][0] == "SQL"
+
+        lifted = compute_gap_skills(
+            {}, demand, aspiration, SKILL_TO_CLUSTER, skill_closeness={"AWS": 4.0}
+        )
+        assert [g["taxonomy_key"] for g in lifted][0] == "AWS"
+
+    def test_closeness_cannot_outrank_a_much_stronger_market(self) -> None:
+        """The 0.5 ceiling, asserted. A maximally close skill still loses to one
+        the market wants twice as much — closeness picks BETWEEN worthwhile
+        skills, it does not make an unwanted one worth learning."""
+        gaps = compute_gap_skills(
+            {},
+            {"Django": 100, "GCP": 20},
+            {"Django": 3, "GCP": 3},
+            SKILL_TO_CLUSTER,
+            skill_closeness={"GCP": 99.0},
+        )
+        assert [g["taxonomy_key"] for g in gaps][0] == "Django"
+
+    def test_closeness_is_normalised_within_the_candidate_set(self) -> None:
+        """Absolute lift means nothing across users — one person's 40 is another's
+        2. Only the RATIO inside this candidate set may move the order, so scaling
+        every value by 100 must change nothing."""
+        aspiration = {"SQL": 3, "AWS": 3}
+        small = compute_gap_skills(
+            {}, self.SKILL_DEMAND, aspiration, SKILL_TO_CLUSTER,
+            skill_closeness={"AWS": 0.4, "SQL": 0.2},
+        )
+        large = compute_gap_skills(
+            {}, self.SKILL_DEMAND, aspiration, SKILL_TO_CLUSTER,
+            skill_closeness={"AWS": 40.0, "SQL": 20.0},
+        )
+        assert [g["taxonomy_key"] for g in small] == [g["taxonomy_key"] for g in large]
+
+    def test_no_private_key_reaches_the_payload(self) -> None:
+        """`_priority` and `_closeness` are ranking internals, and closeness is
+        deliberately not emitted at all. One key used to be stripped by name; a
+        second arrived, and a name-by-name filter is how the next one ships to a
+        client that never asked for it."""
+        gaps = compute_gap_skills(
+            {}, self.SKILL_DEMAND, {"Django": 3}, SKILL_TO_CLUSTER,
+            skill_closeness={"Django": 3.0},
+        )
+        assert gaps
+        for gap in gaps:
+            assert not [key for key in gap if key.startswith("_")]
+            assert "closeness" not in gap
+
     def test_skill_at_target_excluded(self) -> None:
         gaps = compute_gap_skills(
             {"Django": 3}, self.SKILL_DEMAND, {"Django": 3}, SKILL_TO_CLUSTER

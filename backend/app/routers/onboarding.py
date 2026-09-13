@@ -12,6 +12,7 @@ from app.security import redact_sensitive_text
 from app.services import cv_workflow, onboarding_first_role, onboarding_service
 from app.services.baseline_generator import generate_baseline, validate_answer
 from app.services.skill_overrides import apply_skill_overrides
+from app.services.job_eligibility import CareerBand
 from app.services.skill_confirmation import confirm_baseline_skills
 
 
@@ -55,6 +56,11 @@ class TargetRequest(BaseModel):
     # enough to hold an answer and short enough to stay one clause.
     avoid: list[str] | None = Field(default=None, max_length=6)
     lean: list[str] | None = Field(default=None, max_length=6)
+    # The Career Bands the person chose at the journey's first step. Same
+    # omitted-vs-empty rule again: absent preserves, `[]` clears back to the band
+    # derived from their titles. Four is the whole vocabulary, so there is no
+    # sensible answer longer than that.
+    career_bands: list[CareerBand] | None = Field(default=None, max_length=4)
     # Direction's final CTA only. Point-of-use role edits (Market) share this
     # endpoint and must NOT complete onboarding — that would couple every target
     # write to journey state and raise when a ninja claim is still missing.
@@ -160,6 +166,7 @@ def save_target(
             locations=body.locations,
             avoid=body.avoid,
             lean=body.lean,
+            career_bands=body.career_bands,
         )
         if body.finish_onboarding:
             onboarding_service.complete_onboarding_after_direction(db, principal.id)

@@ -112,6 +112,11 @@ export function useShellModel() {
     target_locations: profileData?.target_locations ?? [],
     linkedin_url: profileData?.linkedin_url ?? null,
     ninja_name: profileData?.ninja_name ?? null,
+    // Listed explicitly, like every field above it. This object is built
+    // key-by-key, and the field is optional on `UserProfile`, so leaving it out
+    // typechecks and hands Settings an empty selection — which the next save
+    // would write back as the person's real answer.
+    explored_career_bands: profileData?.explored_career_bands ?? [],
   }
 
   return {

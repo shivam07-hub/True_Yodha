@@ -100,7 +100,9 @@ backend/lightcast_skills_taxonomy copy.json
 # Newsletter drafts — local working folder
 Myro Newsletter/
 docs/free-llm-api-resources
-/docs
+# /docs is local scratch EXCEPT adr/ — an ADR is a decision every machine must read.
+/docs/*
+!/docs/adr/
 docs/free-llm-api-resources
 /Output per users
 docs/free-llm-api-resources
@@ -115,3 +117,6 @@ docs/free-llm-api-resources
 # and tmp/pdfs holds real user names, so this must never be committed. Untracked
 # with no rule is what makes `git add -A` tempting; the rule is the fix.
 tmp/
+
+# Closed-job unload bundles (job_archive_v1 JSON + CSV). Laptop disk only.
+job_unloads/

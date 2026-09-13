@@ -339,20 +339,6 @@ class CVVersionsRepository:
 
     # ── Experience Reservoir (v2) — cv_points ─────────────────────────────────
 
-    def reservoir_points(self, user_id: str) -> list[dict[str, Any]]:
-        """All active reservoir points (variants included) for the inventory view.
-        RLS scopes to the caller; the user_id filter is defensive."""
-        result = (
-            self._db.table("cv_points")
-            .select("id, point_key, role_anchor, section, text, audience_tags, source, is_canonical, ordering, status")
-            .eq("user_id", user_id)
-            .eq("status", "active")
-            .order("role_anchor")
-            .order("ordering")
-            .execute()
-        )
-        return result.data or []
-
     def append_phrasing(
         self,
         user_id: str,

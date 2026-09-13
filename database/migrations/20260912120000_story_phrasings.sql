@@ -1,7 +1,7 @@
 -- Story phrasings — promote one, drop one (2026-09-12).
 --
 -- A Career Story holds every way the user has ever written one achievement
--- (ADR-0021). The phrasing drawer lets them choose which one leads on the CV
+-- (ADR-0023). The phrasing drawer lets them choose which one leads on the CV
 -- and drop one that is weak. Two invariants, stated here rather than hoped for
 -- in application code:
 --

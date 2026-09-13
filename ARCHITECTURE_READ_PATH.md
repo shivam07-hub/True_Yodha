@@ -1769,3 +1769,79 @@ SSO, and not the verifier. The switch week would then only have to confirm it.
   stale; `origin/main` was 3 behind. Fetch, then compare `origin/` refs.
 - Ranked a 58-day cumulative pg_stat_statements row — the company `ILIKE` —
   whose fix had already shipped. Check `stats_reset`, then take a delta.
+
+---
+
+## 19. Closeness on the score path, and the sweep it prompted (2026-09-14)
+
+**BACKLOG #46 S5.** `compute_gap_skills` ranked by demand × level-gap and knew
+nothing about what the person already holds, so "learn what is next to what you
+know" existed as a product claim and nowhere in code. `skill_closeness` — 7,287
+bonds over 1,122 skills, built 2026-09-12 — had **zero readers**.
+
+### What the graph can and cannot say
+
+Measured over 37 users with a target:
+
+| | |
+|---|---|
+| candidates with a bond, whole family-demand vocabulary | **4.3%** |
+| candidates with a bond, top 25 — where the 5 slots are decided | **15.1%** |
+| distinct skills users hold | 1,294 |
+| … clearing the ≥20-live-jobs bonding floor | 588 |
+| … actually carrying a bond | 423 |
+
+55% of what people hold appears in fewer than 20 live jobs and is excluded from
+bonding deliberately — below that a bond is lift noise on a rare pair, and
+20260912110000 already found 67.4% of raw bonds were one employer's template.
+
+**So closeness only ever LIFTS.** Absence of a bond is not evidence of distance,
+and demoting the unbonded would let a silent 85% decide the list. The lift is
+capped at 0.5, so a maximally close skill needs two thirds of a rival's
+demand × gap to overtake it — it picks BETWEEN worthwhile skills and cannot make
+an unwanted one worth learning. Effect: **7 of 15 users see a different top five,
+one slot each.**
+
+`ln(1 + lift)`, not lift: raw lift is decided by one lucky edge — for a real user
+it put Gitlab (216.7, ONE bond) above Kubernetes (67.4, two).
+
+### The read
+
+`skill_closeness_for(text[])` — **6.0ms as `authenticated`** (112 rows for a
+15-skill caller, index-only on `idx_skill_closeness_skill`). Runs inside the
+recompute's wave beside the family-market read, not after it: both depend only
+on the same inputs, and a sequential hop on this path is ~165ms. Keyed on
+`taxonomy_key`, so it takes no user id, reads nothing user-scoped, and stays
+SECURITY INVOKER rather than becoming an oracle for its own parameter (§4b of
+the playbook).
+
+### The dead-end sweep, and what it got wrong twice
+
+103 public functions, cross-checked against this repo, other SQL functions,
+triggers, views and `cron.job`.
+
+⚠️ **A pg_proc + repo grep is not a caller list.** It said
+`close_evidence_is_admissible` had zero callers — it is applied in the VIEW
+`listing_close_events`, which `refresh_ghost_index` reads. It said
+`run_snapshot_sql_refresh` was dead — it is on **four cron jobs**. Check
+functions, triggers, views AND cron before calling anything dead.
+
+**Nothing was deleted, deliberately.** 14 functions have no caller in this repo,
+no SQL caller, no trigger, no view and no cron — and they are the enrichment,
+embeddings and verifier-queue surfaces, which the **scraper repo** calls over
+PostgREST. `job_enrichment_queue_metrics` shows 15 real calls in
+`pg_stat_statements`, proving the pattern. `track_functions` is `none`, so
+per-function call counts are not available to settle the rest. Resolving them
+needs the scraper repo, not this one:
+
+```
+apply_job_embeddings · claim_job_embeddings · retry_job_embeddings
+job_embedding_metrics · claim_job_enrichment · read_job_enrichment_queue
+read_priority_job_enrichment · request_job_enrichment_priority
+retry_job_enrichment_message · archive_job_enrichment_message
+job_enrichment_queue_metrics · count_verify_due · count_priority_verify_due
+refresh_company_skill_profiles
+```
+
+`role_family_for_job` and `refresh_job_role_family` (trigger) stay until #46 S4
+ships — that retirement is graded fit's, and it is gated on paid DB compute.

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { ThemeControl } from "@/components/ui/theme-control"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AccentControl } from "@/components/ui/accent-control"
+import { BandSettings } from "@/components/target-role/band-settings"
 import { TargetRolesChips } from "@/components/target-role/target-roles-chips"
 import { CompanyLink } from "@/components/companies/company-link"
 import { FollowCompanyControl } from "@/components/companies/follow-company-control"
@@ -765,6 +766,15 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
                   <div style={ROW_LABEL}>Target Roles</div>
                   <div style={{ marginTop: 10 }}>
                     <TargetRolesChips roles={targetRoleTitles} editable showReadiness />
+                  </div>
+                </div>
+
+                {/* The fields the person said yes to. Asked once in Direction,
+                    changed here — the same control, the same column. */}
+                <div style={ROW_STYLE}>
+                  <div style={ROW_LABEL}>Fields</div>
+                  <div style={{ marginTop: 10 }}>
+                    <BandSettings value={profile?.explored_career_bands ?? []} />
                   </div>
                 </div>
 

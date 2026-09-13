@@ -176,7 +176,7 @@ def test_build_profile_view_grouping_and_order():
     r1 = view["roles"][0]
     assert r1["stories"][0]["pointer"] == "Canonical pointer."
     assert r1["stories"][0]["variant_count"] == 2
-    # The drawer needs every phrasing, canonical first (ADR-0021).
+    # The drawer needs every phrasing, canonical first (ADR-0023).
     phrasings = r1["stories"][0]["phrasings"]
     assert len(phrasings) == 2 and phrasings[0]["is_canonical"] is True
     assert phrasings[0]["text"] == "Canonical pointer."
@@ -199,3 +199,84 @@ def test_build_profile_view_empty():
         "roles": [], "highlights": [], "competencies": [],
         "story_count": 0, "pending_inflows": 0,
     }
+
+
+# ── story_pointers: two silent ceilings ──────────────────────────────────────
+
+class _PointerQuery:
+    """Records the id list and serves fixed-size pages, like PostgREST."""
+
+    def __init__(self, db: "_PointerDb"):
+        self._db = db
+        self._ids: list[str] = []
+
+    def select(self, *_a, **_k):
+        return self
+
+    def eq(self, *_a, **_k):
+        return self
+
+    def order(self, *_a, **_k):
+        return self
+
+    def in_(self, _col, values):
+        self._ids = list(values)
+        self._db.chunks.append(list(values))
+        return self
+
+    def range(self, start, end):
+        self._start, self._end = start, end
+        return self
+
+    def execute(self):
+        rows = [r for r in self._db.rows if r["story_id"] in self._ids]
+        page = rows[self._start:self._end + 1]
+        self._db.pages.append(len(page))
+
+        class _R:
+            data = page
+        return _R()
+
+
+class _PointerDb:
+    def __init__(self, rows):
+        self.rows = rows
+        self.chunks: list[list[str]] = []
+        self.pages: list[int] = []
+
+    def table(self, _name):
+        return _PointerQuery(self)
+
+
+def test_story_pointers_chunks_the_id_list_so_the_url_cannot_grow_unbounded():
+    from app.repositories import career_reservoir as repo_mod
+
+    ids = [f"s{i:04d}" for i in range(150)]
+    db = _PointerDb([{"id": f"p{i}", "story_id": sid} for i, sid in enumerate(ids)])
+    rows = repo_mod.CareerReservoirRepository(db).story_pointers("u1", ids)
+
+    assert len(rows) == 150, "every pointer comes back"
+    assert all(len(c) <= repo_mod._ID_CHUNK for c in db.chunks)
+    assert sum(len(c) for c in db.chunks) == 150, "each id asked for exactly once"
+
+
+def test_story_pointers_pages_past_the_1000_row_ceiling():
+    """PostgREST truncates at 1000 in silence. A dropped pointer is a CV bullet
+    that vanishes, so the read pages instead of trusting one response."""
+    from app.repositories import career_reservoir as repo_mod
+
+    ids = ["s1"]
+    db = _PointerDb([{"id": f"p{i}", "story_id": "s1"} for i in range(2500)])
+    rows = repo_mod.CareerReservoirRepository(db).story_pointers("u1", ids)
+
+    assert len(rows) == 2500
+    assert db.pages[:2] == [repo_mod._PAGE, repo_mod._PAGE], "full pages keep going"
+    assert db.pages[-1] < repo_mod._PAGE, "a short page ends the read"
+
+
+def test_story_pointers_of_nothing_asks_nothing():
+    from app.repositories import career_reservoir as repo_mod
+
+    db = _PointerDb([])
+    assert repo_mod.CareerReservoirRepository(db).story_pointers("u1", []) == []
+    assert db.chunks == []

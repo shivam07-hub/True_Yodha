@@ -586,7 +586,7 @@ _Avoid_: live LLM on GET, backfill-on-read, heal-on-poll, "still loading" copy i
 
 ## Career Story Reservoir
 
-The consolidation spine of the CV knowledge/inflow layer (migration `20260711h`): the user gives a DUMP — old CVs, pointer docs, a LinkedIn export zip, pasted notes — and Myro builds a comprehensive career profile from it. **Direction (Shivam, 2026-09-12, ADR-0021): the reservoir is becoming the user's Master CV** — the one place every document and pointer they ever produce lands and stays current. Three entities:
+The consolidation spine of the CV knowledge/inflow layer (migration `20260711h`): the user gives a DUMP — old CVs, pointer docs, a LinkedIn export zip, pasted notes — and Myro builds a comprehensive career profile from it. **Direction (Shivam, 2026-09-12, ADR-0023): the reservoir is becoming the user's Master CV** — the one place every document and pointer they ever produce lands and stays current. Three entities:
 
 - **Career Role** (`career_roles`) — a stable role container (company, title, dates, kind). Kills the positional `role_anchor` fragility: stories reference `role_id`, never a list index.
 - **Career Story** (`career_stories`) — the first-class parent narrative: one real project/achievement with a STAR narrative (situation/task/action/result), verbatim metrics, skills proven, an embedding, and `inflow_ids` provenance back to the dump entries that produced it. Interview prep reads stories directly.
@@ -594,7 +594,7 @@ The consolidation spine of the CV knowledge/inflow layer (migration `20260711h`)
 
 **Inflow ledger** — `cv_dump_entries` is the ONE place every capture surface writes (`kind`: note | file | linkedin; `payload` shape metadata; `processed_at` + `derived_story_ids` forward provenance). `story_ingest` (durable Work Lane, idempotent on entry id) runs `story_extractor` (playbook-grounded, no-fab ADR-0016, verbatim metrics, deterministic role-link verification) then hands the new stories to **Story Identity**.
 
-**Story Identity** (`story_identity`, ADR-0021) — the ONE place "one achievement = one story" is enforced, for every inflow source. **Same achievement = the same work with the same outcome, said differently; a part of a larger piece of work is its own story.** Similarity only *nominates* (floor 0.60; employer family, nearest neighbour, role-less, or a shared title). Near-verbatim pairs fold unjudged; one batched strong judge rules `same` → fold, `part_of`/`unsure` → the user rules in the Stories review space, `different` → kept. A failed judge call records nothing. Every ruling lands in `story_merge_verdicts`; **a user ruling is law**, enforced inside `story_identity_fold` (SQL). A fold is archive-only, atomic, and undoable exactly (`moved.dup_added`). Runs after every ingest and lazily on a Stories visit. Pure rules: `story_identity_rules`.
+**Story Identity** (`story_identity`, ADR-0023) — the ONE place "one achievement = one story" is enforced, for every inflow source. **Same achievement = the same work with the same outcome, said differently; a part of a larger piece of work is its own story.** Similarity only *nominates* (floor 0.60; employer family, nearest neighbour, role-less, or a shared title). Near-verbatim pairs fold unjudged; one batched strong judge rules `same` → fold, `part_of`/`unsure` → the user rules in the Stories review space, `different` → kept. A failed judge call records nothing. Every ruling lands in `story_merge_verdicts`; **a user ruling is law**, enforced inside `story_identity_fold` (SQL). A fold is archive-only, atomic, and undoable exactly (`moved.dup_added`). Runs after every ingest and lazily on a Stories visit. Pure rules: `story_identity_rules`.
 
 **Role Identity** (`role_dedup`, #38) — the same two-stage shape one level up, for the role CONTAINERS. Candidates are deterministic (same employer family, or same-kind roles whose date windows overlap); one batched strong judge rules per pair; rulings land in `role_merge_verdicts`. **Only the user's own ruling folds a role.** A confident judge records `proposed`, same as a hesitant one, because `apply_fold` writes no receipt — it moves every story under the dup and archives the row with nothing recording what moved, so a wrong role fold cannot be taken back the way a story fold can. Give roles the receipt + undo `story_identity_fold` has and a confident judge can fold again. Labels stay the user's own words; the one deterministic touch is widening `date_label` to the union of merged periods.
 
@@ -1134,18 +1134,37 @@ from an unrelated career path before a job reaches the feed or Career Ops.
   `business_product_operations`, `research_people_public_impact`, or
   `design_creative`. It is coarser than the existing controlled
   `role_domain`; `role_domain` remains the detailed functional classification.
-- **Primary Career Band** — the candidate's durable default role family. Myro
-  derives it from their CV and target-role titles, persists it in the profile,
-  and lets the candidate correct it.
-- **Explored Career Bands** — zero or more additional role families the
-  candidate explicitly enables. They are the only valid cross-band route.
+- **Chosen Career Bands** — the fields the candidate said yes to, asked at the
+  FIRST step of the Direction journey and changeable in Settings. Stored whole in
+  `explored_career_bands`, **the primary first**, and written by nothing but an
+  explicit pick. Myro's own reading of the CV agrees with this answer only 62.4%
+  of the time, so it proposes the best-fitting band and never asserts one.
+  ⚠️ **Empty means nobody has been asked — never "chose none".** Keeping the
+  primary inside the list is what buys that distinction, and the journey's
+  landing rule turns on it. The eligible set is a union in every reader, so the
+  primary appearing twice costs nothing.
+- **Primary Career Band** — the first chosen band. Until someone answers, it is
+  derived from their CV and target-role titles, and a second target role still
+  opens its own band — derived at READ time (`eligible_bands_for_profile`), never
+  written into the answer, so it can be removed and does not resurrect itself on
+  the next save.
 - **Job Career Band** — the deterministic family assigned to a job from its
   source role domain and explicit title signals. A title such as Product
   Designer may take the Design & Creative band even if its detailed role domain
   is Product Management.
 - **Career Band Boundary** — the server-side hard gate that admits a posting
-  only when its Job Career Band is the Primary Career Band or an explicitly
-  Explored Career Band. Unknown bands do not become silent cross-band matches.
+  only when its Job Career Band is one of the candidate's eligible bands.
+  Unknown bands do not become silent cross-band matches.
+- **Band scope of a direction** — `role_family_labels.bands`: every band holding
+  ≥25% of that direction's banded live jobs. It scopes SUGGESTIONS only. **Search
+  is never band-scoped** — seven of the fourteen most recent people to finish
+  Direction chose a family nobody had suggested, and they got there through that
+  box. A direction picked from outside your fields WIDENS them.
+- **`career_band_scope`** — the Tier-0 four-row snapshot behind the band step's
+  counts, filled in `refresh_role_family_labels`. Counting live jobs by band is
+  7,080ms warm; this read is four rows. `family_count` uses the same ≥25% rule
+  the suggestions do, so the card cannot promise more directions than the next
+  screen offers.
 
 **Default policy**
 
@@ -1325,6 +1344,8 @@ Whether a job we surface still exists. Two triggers, one truth — every verdict
 **`unknown` is a first-class verdict.** A 401/403/429/timeout from an ATS is not evidence a role is gone; it resolves to `unknown` and the surface discloses "couldn't check". Only real closure evidence (404/410, an absent record on the ATS's own API, explicit closed-marker copy) may read as `closed`. Closed-marker copy is matched on the clause every phrasing shares — Godrej says "the job you are trying to apply for has been filled", which neither "position has been filled" nor "job has been filled" is a substring of.
 
 **Liveness is not freshness.** `last_seen` records when the scraper last *ingested* a row, not when anyone confirmed it exists — while the scraper does not re-crawl, `last_seen` carries no liveness information at all and must not be rendered as if it does.
+
+**Unload.** `listing_confidence=closed` starts a one-hour clock (`quarantine_until` / `deletion_eligible_at`). Only `closed` unloads, never `likely_closed`. The verifier writes a `job_archive_v1` bundle (the same JSON + CSV shape as the 2026-07-15 / 2026-08-13 laptop unloads) to a local `job_unloads/` tree, then `retire_closed_jobs` deletes those ids. Nothing is written to Supabase Storage. Railway skips unload unless `JOB_UNLOAD_ARCHIVE_DIR` points at a real disk. User history is snapshotted into `job_applications` / `cv_versions` first. A scrape that sees the posting again writes it back as live. Restore from `backend/`: `python -m scripts.restore_job_archive path/to/archive_dir`. The scraper does not delete rows on publish.
 
 
 ## Target Location

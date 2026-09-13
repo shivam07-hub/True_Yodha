@@ -1,0 +1,36 @@
+{
+  "_readme": [
+    "Reach gate allowlist — see scripts/reach-guard.mjs.",
+    "external: entered from OUTSIDE the app. Legitimate forever. State how.",
+    "debt: known dead ends nobody has wired or deleted. Every entry is a bug",
+    "      with a URL. Printed on every run so it cannot be forgotten the way",
+    "      /notebook was (68 days unreachable, zero rows, deleted 2026-09-12).",
+    "Adding to debt is not a fix. It is a receipt that says we know.",
+    "",
+    "A retired URL kept alive as a redirect needs NO entry here — the guard",
+    "detects a forwarding shim and reports it as a forward, not a dead end.",
+    "Keep the redirect: old links live in emails, screenshots and bookmarks,",
+    "and a 404 is a worse answer than a forward."
+  ],
+
+  "external": {
+    "/": "Public landing page — the front door.",
+    "/admin/growth": "Admin only, entered by URL by the team.",
+    "/offline": "PWA offline fallback, served by the service worker.",
+    "/signup/institutions": "B2B campaign landing — entered from outreach, not from the app.",
+    "/dev/phone": "375px device lab (BACKLOG #42). Entered by URL during mobile QA.",
+    "/dev/phone/frame": "Iframe target for /dev/phone.",
+    "/auth/callback": "OAuth redirect target — entered by the identity provider.",
+    "/connect/[partner]": "Partner SSO entry — entered from the partner's product.",
+    "/extension/connect": "Chrome extension auth handshake — entered by the extension.",
+    "/login": "Entered from the public nav and from every auth redirect.",
+    "/signup": "Entered from the public nav and from campaigns.",
+    "/onboarding": "Entered by redirect after signup — the one door into the spine.",
+    "/onboarding/result": "Terminal step of /onboarding, entered by its own flow.",
+    "/cv-preview": "Anonymous CV preview — entered from the public scorer."
+  },
+
+  "debt": {
+    "/beta-feedback": "Cohort research form, one submission per account, 114 rows, last 2026-07-21. Superseded for general feedback by the always-mounted FeedbackHub. Awaiting Shivam: delete, or re-open for a second cohort and give it a door."
+  }
+}

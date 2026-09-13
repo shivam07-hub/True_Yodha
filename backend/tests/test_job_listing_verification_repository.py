@@ -121,7 +121,7 @@ def test_strong_closed_verification_starts_quarantine() -> None:
     update = next(payload for table, payload in db.calls if table == "jobs")
     assert update["listing_confidence"] == "closed"
     assert update["is_active"] is False
-    assert update["quarantine_until"] == "2026-08-10T00:00:00+00:00"
+    assert update["quarantine_until"] == "2026-07-11T01:00:00+00:00"
     assert update["deletion_eligible_at"] == update["quarantine_until"]
 
 
@@ -254,3 +254,22 @@ def test_with_retry_reraises_client_error(monkeypatch) -> None:
     except APIError:
         pass
     assert calls["n"] == 1  # no retries on a genuine 4xx-class bug
+
+
+def test_retire_eligible_archives_before_any_delete(monkeypatch) -> None:
+    seen: dict[str, object] = {}
+
+    def fake_archive(db, *, limit, now):
+        seen["limit"] = limit
+        seen["now"] = now
+        return 4
+
+    monkeypatch.setattr(
+        "app.repositories.job_listing_verification.archive_then_retire",
+        fake_archive,
+    )
+    now = datetime(2026, 9, 13, tzinfo=timezone.utc)
+    repo = ListingVerificationRepository(DB(), now=lambda: now)
+    assert repo.retire_eligible(limit=25) == 4
+    assert seen["limit"] == 25
+    assert seen["now"]() == now

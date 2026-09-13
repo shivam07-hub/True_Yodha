@@ -216,6 +216,26 @@ async def _start_skill_floor_heartbeat() -> None:
     asyncio.create_task(run_forever())
 
 
+@app.on_event("startup")
+async def _start_reservoir_ingest_sweep() -> None:
+    """Heal dead story ingests on a clock instead of on a visit.
+
+    The only heal used to be `retry_stale_ingests`, called from the Stories-tab
+    read — so a career story arrived only if the user happened to open the
+    surface that was waiting for it. Gap answers are given inside a job room,
+    and three sat pending for two months because nobody went back. The clock
+    lives here because the web process is the always-up one; the sweep itself
+    runs on the bulk lane.
+    """
+    from app.config import settings
+
+    if not settings.supabase_url or not settings.supabase_service_key:
+        return
+    from app.services.reservoir_ingest_sweep import run_forever
+
+    asyncio.create_task(run_forever())
+
+
 @app.get("/robots.txt", include_in_schema=False, response_class=PlainTextResponse)
 async def robots() -> str:
     """Keep the API host out of search results.

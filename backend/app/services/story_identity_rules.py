@@ -15,6 +15,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+from app.services import story_depth
 from app.services.role_dedup import same_company_family
 
 # Similarity only NOMINATES a pair. Measured on the one real reservoir
@@ -118,9 +119,18 @@ def near_verbatim(similarity: float, canonical_a: str, canonical_b: str) -> bool
 def pick_keep(
     a: dict[str, Any], b: dict[str, Any], pointer_counts: dict[str, int],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    """(keep, dup): more phrasings wins, then more provenance, then the older."""
-    def rank(s: dict[str, Any]) -> tuple[int, int, str, str]:
+    """(keep, dup): a told story wins, then more phrasings, then more provenance,
+    then the older.
+
+    Depth leads because `fold_plan` unions pointers, metrics, skills and
+    provenance but never merges `narrative` — the duplicate's STAR text is
+    archived outright. So whichever row survives decides what Myro knows about
+    the achievement forever. Ranking depth below pointer count would let two
+    uploads of the same CV outvote the one story the user sat down and told.
+    """
+    def rank(s: dict[str, Any]) -> tuple[int, int, int, str, str]:
         return (
+            0 if story_depth.is_told(s) else 1,
             -pointer_counts.get(str(s["id"]), 0),
             -len(s.get("inflow_ids") or []),
             str(s.get("created_at") or ""),

@@ -212,7 +212,7 @@ def reservoir_profile(
     view = career_reservoir.build_profile_view(
         roles, stories, pointers, pending_inflows=repo.ingest_status(user.id)["pending"],
     )
-    # Duplicate questions and receipts live in the review space (ADR-0021),
+    # Duplicate questions and receipts live in the review space (ADR-0023),
     # which shows the story and role queues together: GET /cv/reservoir/review.
     return ProfileView(**view)
 
@@ -454,9 +454,17 @@ async def jd_coverage_answer(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Tell me a bit more so I can capture it.")
     requirement = " ".join(body.requirement.split()).strip()
     framed = f"Career experience — {requirement}:\n{answer}" if requirement else f"Career experience:\n{answer}"
+    # The story shown as evidence for this requirement is the one this answer
+    # improves — resolved from our own cache, never from the client.
+    upgrades = jd_coverage.story_for_requirement(
+        jobs_repo.get_deepening(user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY), requirement,
+    ) if body.job_id and requirement else None
     row = dump_repo.add(
         user.id, framed, source="jd_gap_answer",
-        kind="note", payload={"requirement": requirement or None, "job_id": body.job_id},
+        kind="answer", payload={
+            "requirement": requirement or None, "job_id": body.job_id,
+            "upgrades_story_id": upgrades,
+        },
     )
     entry_id = str(row.get("id") or "")
     if not entry_id:

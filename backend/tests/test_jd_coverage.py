@@ -221,3 +221,70 @@ def test_router_never_caches_empty_parse(monkeypatch):
         assert repo.deepenings == {}  # a failed parse is never frozen
     finally:
         app.dependency_overrides.clear()
+
+
+# ── L1: a CV line is a start, not an answer (BACKLOG #13, 2026-09-13) ────────
+
+def _hit(sim, told):
+    return StoryHit(id="s1", title="Billing migration", pointer="", result="Moved it to AWS.",
+                    skills=[], similarity=sim, told=told)
+
+
+def test_a_thin_story_is_capped_at_weak_however_well_it_scores(monkeypatch):
+    """`covered` is what removes a requirement from the weave interview — for
+    good, on this job and every later one. A story lifted from a CV line may
+    evidence the requirement; it may not close it."""
+    async def _recall(user_id, q, k=1):
+        return [_hit(0.97, told=False)]
+
+    monkeypatch.setattr(jd_coverage.memory_recall, "recall_stories", _recall)
+    item = asyncio.run(jd_coverage._cover_one("u1", "migrate payments to cloud"))
+    assert item.status == "weak", "a scraped bullet must not close the question"
+    assert item.story_id == "s1", "…but it is still shown as the evidence"
+
+
+def test_a_told_story_at_the_same_score_does_close_it(monkeypatch):
+    async def _recall(user_id, q, k=1):
+        return [_hit(0.97, told=True)]
+
+    monkeypatch.setattr(jd_coverage.memory_recall, "recall_stories", _recall)
+    assert asyncio.run(jd_coverage._cover_one("u1", "migrate payments to cloud")).status == "covered"
+
+
+def test_depth_does_not_rescue_a_genuine_gap(monkeypatch):
+    async def _recall(user_id, q, k=1):
+        return [_hit(0.20, told=True)]
+
+    monkeypatch.setattr(jd_coverage.memory_recall, "recall_stories", _recall)
+    assert asyncio.run(jd_coverage._cover_one("u1", "kubernetes")).status == "gap"
+
+
+# ── L2: the answer knows which story it improves ─────────────────────────────
+
+def test_story_for_requirement_reads_the_cache_not_the_client():
+    """The answer must know which story it improves. Resolved from OUR cache: a
+    client-supplied id would let a caller graft an answer onto any story."""
+    payload = jd_coverage.result_to_payload(
+        jd_coverage.CoverageResult(requirements=[
+            jd_coverage.CoverageItem(
+                requirement="Migrate payments to cloud", status="weak",
+                story_id="story-42", story_title="t", story_pointer="p", similarity=0.8,
+            ),
+        ])
+    )
+    # whitespace- and case-insensitive, because the answer echoes the requirement back
+    assert jd_coverage.story_for_requirement(payload, "Migrate  payments to cloud") == "story-42"
+    assert jd_coverage.story_for_requirement(payload, "migrate payments to CLOUD") == "story-42"
+    assert jd_coverage.story_for_requirement(payload, "Something else") is None
+    assert jd_coverage.story_for_requirement(None, "Migrate payments to cloud") is None
+    assert jd_coverage.story_for_requirement("not json", "Migrate payments to cloud") is None
+
+
+def test_a_gap_requirement_has_no_story_to_improve():
+    """Nothing evidenced it, so an answer about it is a genuinely new story."""
+    payload = jd_coverage.result_to_payload(
+        jd_coverage.CoverageResult(requirements=[
+            jd_coverage.CoverageItem(requirement="Kubernetes", status="gap"),
+        ])
+    )
+    assert jd_coverage.story_for_requirement(payload, "Kubernetes") is None

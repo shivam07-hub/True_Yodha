@@ -15,6 +15,9 @@ export type SidebarProfile = Pick<
   | "target_role_titles"
   | "target_location"
   | "target_locations"
+  // The Career Bands the person chose. Settings edits them next to the roles
+  // and locations they sit beside; they narrow the same feed.
+  | "explored_career_bands"
   | "linkedin_url"
   | "email"
   | "ninja_name"

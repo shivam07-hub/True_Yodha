@@ -35,11 +35,6 @@ import { queryClient } from "./query-client"
 import { ApiError, classifyError, readErrorCode, readTraceId } from "./api-error"
 import { getTurnstileToken } from "./turnstile"
 import type { AcquisitionAttribution } from "./attribution"
-import type {
-  BetaAssignmentReceipt,
-  BetaAssignmentStatus,
-  BetaFeedbackDraft,
-} from "./beta-feedback"
 import {
   clearCVUploadPersistence,
   createCVUploadIdempotencyKey,
@@ -872,6 +867,11 @@ export interface OnboardingTarget {
   // omitted-vs-empty rule as locations — `[]` clears, absent preserves.
   avoid?: string[]
   lean?: string[]
+  /** The Career Bands chosen at the journey's first step. Same rule again:
+   *  omitted preserves the stored answer, `[]` clears it back to the band Myro
+   *  derives from the titles. Travels in THIS call because Direction asks five
+   *  things and saves once. */
+  career_bands?: CareerBand[]
   /** Direction final CTA only — Market role edits must omit this. */
   finish_onboarding?: boolean
 }
@@ -916,6 +916,34 @@ export interface RoleFamily {
   matched_skills?: string[]
   /** A residual bucket ("Business Operations"). Offerable, never auto-proposed. */
   is_catch_all?: boolean
+  /** The Career Bands this direction belongs to. Search is never band-scoped, so
+   *  picking one from outside your chosen fields WIDENS them rather than being
+   *  refused — that box is how half of the last fourteen finishers got here. */
+  bands?: CareerBand[]
+}
+
+/** `?query=…&band=…&band=…` — repeated params, because a band is a closed
+ *  vocabulary of four and each value round-trips as itself. */
+function buildRoleFamilyQuery(query?: string, bands?: string[]): string {
+  const params = new URLSearchParams()
+  if (query) params.set("query", query)
+  for (const band of bands ?? []) params.append("band", band)
+  const search = params.toString()
+  return search ? `?${search}` : ""
+}
+
+/** One of the four Career Bands, as the band step shows it.
+ *
+ *  `job_count` is live work in the band; `family_count` is how many directions
+ *  the band holds under the same >= 25% rule that scopes the suggestions on the
+ *  next screen. Both, because 234 jobs over 8 directions and 17,960 over 235 are
+ *  not the same offer. `fit` orders the options server-side and is never
+ *  rendered — a band is not a score. */
+export interface CareerBandOption {
+  band: CareerBand
+  job_count: number
+  family_count: number
+  fit: number
 }
 
 export interface RoleFamilyLocation {
@@ -974,7 +1002,16 @@ export type OnboardingResult = OnboardingReach & (
       seniority: { value: TargetSeniority | null; years?: number; title?: string; source: "experience_years" | "title" | "unknown"; needs_choice: boolean }
       /** What they already chose, when arriving here from further along. Empty
        *  on the first visit — one shape, seeded the same way either way. */
-      selected: { families: RoleFamily[]; seniority: TargetSeniority | null; locations: string[] }
+      selected: {
+        families: RoleFamily[]
+        seniority: TargetSeniority | null
+        locations: string[]
+        /** Empty means NOBODY HAS BEEN ASKED — never "chose none". The step
+         *  order below opens on the band only for the first of those. */
+        career_bands: CareerBand[]
+      }
+      /** The four bands with their counts, best fit first. */
+      bands: CareerBandOption[]
       /** What Myro believes you're drawn to and away from. `proposed` names the
        *  halves that are Myro's reading of your CV rather than your own answer —
        *  the step says so, so a guess is never shown as a decision. */
@@ -1031,9 +1068,18 @@ export const onboarding = {
   roleStanding: (token: string) => request<RoleStanding>("/skills/role-standing", {
     headers: { Authorization: `Bearer ${token}` },
   }),
-  roleFamilies: (token: string, query?: string) => request<RoleFamily[]>(`/roles/families${query ? `?query=${encodeURIComponent(query)}` : ""}`, {
+  /** The four bands, best fit first. Both counts are snapshot reads — the live
+   *  equivalent is a 7-second scan of the jobs heap. */
+  careerBands: (token: string) => request<CareerBandOption[]>("/roles/bands", {
     headers: { Authorization: `Bearer ${token}` },
   }),
+  // `bands` narrows SUGGESTIONS only; the server ignores it whenever `query` is
+  // present. Seven of the fourteen most recent people to finish Direction found
+  // their family through search alone, so that box stays global.
+  roleFamilies: (token: string, query?: string, bands?: string[]) => request<RoleFamily[]>(
+    `/roles/families${buildRoleFamilyQuery(query, bands)}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  ),
   // family goes in the QUERY, never a path segment: real family names contain
   // slashes ("… (AI/ML)") and uvicorn unquotes %2F before routing, which split
   // the path and 404'd. See backend app/routers/roles.py.
@@ -1503,7 +1549,7 @@ export interface ReviewStory {
   pointer: string
   variant_count: number
 }
-/** A pair the judge could not settle alone — the user rules (ADR-0021). */
+/** A pair the judge could not settle alone — the user rules (ADR-0023). */
 export interface StoryPair {
   story_a: string
   story_b: string
@@ -1632,15 +1678,6 @@ export interface WeaveGetResponse {
   applied?: boolean
   accepted_roles?: number[]
   decided_roles?: number[]
-}
-
-/** One entry in the persistent brain-dump notebook (User Memory Phase 3). */
-export interface DumpEntry {
-  id: string
-  text: string
-  /** Which surface authored it: "manual" (hand-typed) | "job_intent" (Tell Myro) | … */
-  source?: string
-  created_at: string
 }
 
 /** One remembered fact in the user_memory store (authored or distilled). */
@@ -1776,25 +1813,6 @@ export const cv = {
     request<CVEvidenceSummary>("/cv/evidence", {
       headers: { Authorization: `Bearer ${token}` },
     }),
-  /** Brain-dump notebook (Phase 3) — the durable "what I've done / what I want"
-   *  notepad that feeds distillation + CV-bullet intake. */
-  dump: {
-    list: (token: string) =>
-      request<{ entries: DumpEntry[] }>("/cv/dump", {
-        headers: { Authorization: `Bearer ${token}` },
-      }),
-    add: (token: string, text: string, source?: string) =>
-      request<DumpEntry>("/cv/dump", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify(source ? { text, source } : { text }),
-      }),
-    remove: (token: string, id: string) =>
-      request<void>(`/cv/dump/${encodeURIComponent(id)}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      }),
-  },
   structured: (token: string) =>
     request<CVStructured>("/cv/structured", {
       headers: { Authorization: `Bearer ${token}` },
@@ -4993,18 +5011,6 @@ export const feedback = {
   listMine: (token: string, limit = 50) =>
     request<FeedbackReport[]>(`/feedback/my?limit=${limit}`, {
       headers: { Authorization: `Bearer ${token}` },
-    }),
-
-  betaAssignmentStatus: (token: string) =>
-    request<BetaAssignmentStatus>("/feedback/beta-assignment", {
-      headers: { Authorization: `Bearer ${token}` },
-    }),
-
-  submitBetaAssignment: (token: string, body: BetaFeedbackDraft) =>
-    request<BetaAssignmentReceipt>("/feedback/beta-assignment", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify(body),
     }),
 }
 
