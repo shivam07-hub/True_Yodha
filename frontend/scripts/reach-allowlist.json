@@ -1,0 +1,40 @@
+{
+  "_readme": [
+    "Reach gate allowlist — see scripts/reach-guard.mjs.",
+    "external: entered from OUTSIDE the app. Legitimate forever. State how.",
+    "debt: known dead ends nobody has wired or deleted. Every entry is a bug",
+    "      with a URL. Printed on every run so it cannot be forgotten the way",
+    "      /notebook was (68 days unreachable, zero rows, deleted 2026-09-12).",
+    "Adding to debt is not a fix. It is a receipt that says we know."
+  ],
+
+  "external": {
+    "/": "Public landing page — the front door.",
+    "/admin/growth": "Admin only, entered by URL by the team.",
+    "/offline": "PWA offline fallback, served by the service worker.",
+    "/signup/institutions": "B2B campaign landing — entered from outreach, not from the app.",
+    "/dev/phone": "375px device lab (BACKLOG #42). Entered by URL during mobile QA.",
+    "/dev/phone/frame": "Iframe target for /dev/phone.",
+    "/auth/callback": "OAuth redirect target — entered by the identity provider.",
+    "/connect/[partner]": "Partner SSO entry — entered from the partner's product.",
+    "/extension/connect": "Chrome extension auth handshake — entered by the extension.",
+    "/login": "Entered from the public nav and from every auth redirect.",
+    "/signup": "Entered from the public nav and from campaigns.",
+    "/onboarding": "Entered by redirect after signup — the one door into the spine.",
+    "/onboarding/result": "Terminal step of /onboarding, entered by its own flow.",
+    "/cv-preview": "Anonymous CV preview — entered from the public scorer.",
+    "/dashboard": "Legacy redirect stub.",
+    "/home": "Retired redirect stub — /collections is the real surface."
+  },
+
+  "debt": {
+    "/referral": "DEAD LOOP L9 — 0 referrers, 0 arrivals, 0 inbound links (2026-09-13). Wire it or delete it.",
+    "/beta-feedback": "ORPHAN — 114 ledger items and no way for a user to file the 115th.",
+    "/recruiter": "ORPHAN (authed). The PUBLIC door /recruiters is wired via lib/site-routes.ts; this authed one is not.",
+    "/welcome": "ORPHAN — nothing redirects here after signup.",
+    "/mission": "Reachable only by URL. Decide: link it or delete it.",
+    "/myro": "Reachable only by URL. Decide: link it or delete it.",
+    "/xp": "Reachable only by URL. The coin economy is not a loop yet (L11).",
+    "/diary": "Retired surface — the notebook's predecessor. Verify nothing serves it, then delete."
+  }
+}

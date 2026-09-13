@@ -67,6 +67,13 @@ bridge: [BACKLOG.md](BACKLOG.md) TIER 3 #12.
   in the same commit — never as a follow-up item. This is how one loading
   screen became three, and how a phase nothing emits stayed in the type for
   months.
+- **No dead ends. A surface nothing links to is not shipped.** "Nav placement is
+  a product call" is not a resolution — `/notebook` shipped with exactly that
+  sentence in its commit message, sat unreachable for 68 days, took zero rows,
+  and was deleted. If the link is someone else's decision the work is BLOCKED,
+  not done: say so, put it in [BACKLOG.md](BACKLOG.md) with an owner, and add it
+  to the reach allowlist's `debt` so it surfaces on every run. `check:reach`
+  enforces this; the standing dead ends are listed there.
 - **Design over words.** If the UI already shows a state, don't add text saying
   it. A disabled field does not need "cannot be edited".
 - **Newsletter: agree angle + chart + heading with Shivam BEFORE drafting.**
@@ -106,6 +113,7 @@ worker. A test upload on dev writes to production data. Full map: [INFRA.md](INF
 | Closed work, past sessions, history | [ARCHIVE.md](ARCHIVE.md) |
 | Domain language and code seams | [CONTEXT.md](CONTEXT.md) |
 | Architecture map of the code | `graphify-out/GRAPH_REPORT_frontend.md` |
+| **Every loop + its production reach number** | [FEATURE_LOOP_REGISTRY.md](docs/FEATURE_LOOP_REGISTRY.md) |
 | Beta feedback closure state | `docs/beta-testing/closure-ledger/` |
 
 ⚠️ **Two graphify outputs exist and only one is the code.** The `_frontend`
@@ -129,9 +137,21 @@ Derived from the goal above. Detail for each: [BACKLOG.md](BACKLOG.md).
 ### Stage 1 — upload, understand, find a role, download (now)
 
 **1. Ship what's fixed to production.** ⚠️ *Shivam only.*
-`main` is behind. Right now himyro.com blanks the page after a CV upload, and
-large company pages 500. Fixes for both are on `Develop`, tested, waiting. Every
-other stage-one item is measured on a site that is currently broken.
+`main` merged 2026-09-13 (PR #325) and both bugs this line used to name — the
+blank page after a CV upload and the 500 on large company pages (`cad90259`) —
+are now IN main. Develop is 11 ahead. **Re-verify himyro.com live rather than
+trusting this paragraph**; it asserted a broken site for weeks after the fixes
+landed, which is the exact rot this file exists to prevent.
+
+**1b. Align the platform to the loop, and remove the dead ends.** *Open.*
+[FEATURE_LOOP_REGISTRY.md](docs/FEATURE_LOOP_REGISTRY.md) (v2.0, regenerated
+2026-09-13) carries a production reach number for all 11 loops. The spine:
+**821 signed up → 398 uploaded a CV → 387 scored → 261 matched → 70 collected →
+14 tailored.** It holds for three steps and falls off at the fourth. One loop
+has NEVER FIRED (the JD gap loop — 2 users, and it is the most valuable one),
+one is DEAD (referral: 0/0/0), two are uninstrumented. Read a loop's number
+before building its next slice: a slice on a loop 2 people reached is a bet,
+not a slice.
 
 **2. Make upload and download reliable.** *Open — two silent failures closed.*
 `033c9403` closed the two that left no trace: a rejected `/cv/upload/finalize`
@@ -203,13 +223,20 @@ is not the surface that claim needs.
 orchestration; Codex takes mechanical splits, renames and test scaffolding once
 the interface is agreed. Both work on `Develop` and run the same five gates.
 
-**Before saying done — all five pass:**
+**Before saying done — all six pass:**
 
 ```bash
 pytest backend/tests && ruff check <your files>
 cd frontend && npx tsc --noEmit && npm run lint && npm test
-npm run check:ui-drift && npm run build
+npm run check:ui-drift && npm run build && npm run check:reach
 ```
+
+Gates 1–5 prove the code is **correct**; `check:reach` asks whether anyone can
+**get to it**. It fails on a route nothing links to — declare an external entry
+in `frontend/scripts/reach-allowlist.json` with a reason, or add it to `debt`.
+It does NOT fail on low usage (day one is legitimately zero). For whether anyone
+goes round a loop: `python backend/scripts/loop_reach.py`, then update the
+registry.
 
 **Dev:**
 
