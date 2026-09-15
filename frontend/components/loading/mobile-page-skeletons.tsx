@@ -30,7 +30,7 @@ function CardBlock({ height, opacity = 1 }: { height: number; opacity?: number }
     <div
       style={{
         height,
-        borderRadius: 16,
+        borderRadius: 10,
         border: "1px solid var(--tm-border-faint)",
         background: "var(--tm-surface)",
         padding: 14,
@@ -125,7 +125,7 @@ export function ProfileMobileSkeleton() {
           alignItems: "center",
           gap: 14,
           padding: 14,
-          borderRadius: 16,
+          borderRadius: 10,
           border: "1px solid var(--tm-border-faint)",
           background: "var(--tm-surface)",
         }}

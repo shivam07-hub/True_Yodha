@@ -34,7 +34,7 @@ export default function TokensPage() {
           <div
             style={{
               fontFamily: "var(--tm-font-mono)",
-              fontSize: 10,
+              fontSize: "var(--tm-fs-caption)",
               letterSpacing: "0.14em",
               textTransform: "uppercase",
               color: "var(--tm-text-faint)",
@@ -46,8 +46,8 @@ export default function TokensPage() {
           <h1
             style={{
               margin: 0,
-              fontSize: 28,
-              fontWeight: 800,
+              fontSize: "var(--tm-fs-title)",
+              fontWeight: 600,
               color: "var(--tm-text)",
               letterSpacing: 0,
               lineHeight: 1.15,
@@ -55,7 +55,7 @@ export default function TokensPage() {
           >
             About Myro
           </h1>
-          <p style={{ margin: "10px 0 0", maxWidth: 650, fontSize: 15, lineHeight: 1.65, color: "var(--tm-text-muted)" }}>
+          <p style={{ margin: "10px 0 0", maxWidth: 650, fontSize: "var(--tm-fs-body)", lineHeight: 1.65, color: "var(--tm-text-muted)" }}>
             Myro reads your CV, matches it against live hiring demand, and tells you exactly what to fix to get hired —
             backed by a fair coin economy so the heavy analysis stays sustainable.
           </p>
@@ -85,8 +85,8 @@ export default function TokensPage() {
                 textDecoration: "none",
               }}
             >
-              <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6 }}>{item.label}</div>
-              <div style={{ fontSize: 12.5, lineHeight: 1.5, color: "var(--tm-text-faint)" }}>{item.detail}</div>
+              <div style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600, marginBottom: 6 }}>{item.label}</div>
+              <div style={{ fontSize: "var(--tm-fs-caption)", lineHeight: 1.5, color: "var(--tm-text-faint)" }}>{item.detail}</div>
             </Link>
           ))}
         </section>
@@ -94,7 +94,7 @@ export default function TokensPage() {
         <div
           style={{
             fontFamily: "var(--tm-font-mono)",
-            fontSize: 10,
+            fontSize: "var(--tm-fs-caption)",
             letterSpacing: "0.14em",
             textTransform: "uppercase",
             color: "var(--tm-text-faint)",
@@ -106,8 +106,8 @@ export default function TokensPage() {
         <h2
           style={{
             margin: "0 0 10px",
-            fontSize: 20,
-            fontWeight: 800,
+            fontSize: "var(--tm-fs-heading)",
+            fontWeight: 600,
             color: "var(--tm-text)",
           }}
         >
@@ -133,10 +133,10 @@ export default function TokensPage() {
                 background: "var(--tm-surface)",
               }}
             >
-              <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-interactive)", marginBottom: 8 }}>
+              <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", color: "var(--tm-interactive)", marginBottom: 8 }}>
                 0{index + 1}
               </div>
-              <div style={{ fontSize: 14, lineHeight: 1.5, color: "var(--tm-text-muted)" }}>{principle}</div>
+              <div style={{ fontSize: "var(--tm-fs-body)", lineHeight: 1.5, color: "var(--tm-text-muted)" }}>{principle}</div>
             </div>
           ))}
         </section>
@@ -167,8 +167,8 @@ export default function TokensPage() {
           aria-label="Start earning Myro Coins"
         >
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 16, flexWrap: "wrap", marginBottom: 12 }}>
-            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "var(--tm-text)" }}>Start from here</h2>
-            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)" }}>
+            <h2 style={{ margin: 0, fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--tm-text)" }}>Start from here</h2>
+            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
               Earn first, spend when the work completes
             </span>
           </div>
@@ -187,8 +187,8 @@ export default function TokensPage() {
                   textDecoration: "none",
                 }}
               >
-                <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 4 }}>{action.label}</div>
-                <div style={{ fontSize: 12, lineHeight: 1.45, color: "var(--tm-text-faint)" }}>{action.detail}</div>
+                <div style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600, marginBottom: 4 }}>{action.label}</div>
+                <div style={{ fontSize: "var(--tm-fs-caption)", lineHeight: 1.45, color: "var(--tm-text-faint)" }}>{action.detail}</div>
               </Link>
             ))}
           </div>

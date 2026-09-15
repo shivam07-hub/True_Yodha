@@ -135,7 +135,7 @@ export function SignupPasswordForm({
           style={{
             position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
             background: "none", border: "none", color: "var(--tm-text-faint)",
-            fontSize: 12, cursor: "pointer", padding: "4px 8px",
+            fontSize: "var(--tm-fs-caption)", cursor: "pointer", padding: "4px 8px",
           }}
         >
           {showPassword ? "Hide" : "Show"}
@@ -153,7 +153,7 @@ export function SignupPasswordForm({
         onClick={() => { setError(null); onUseMagicLink() }}
         style={{
           background: "none", border: "none", color: "var(--tm-text-faint)",
-          fontSize: 13, cursor: "pointer", padding: 0, textAlign: "center",
+          fontSize: "var(--tm-fs-body)", cursor: "pointer", padding: 0, textAlign: "center",
         }}
       >
         <span style={{ color: "var(--tm-interactive)" }}>Email me a link instead</span>
@@ -161,7 +161,7 @@ export function SignupPasswordForm({
 
       {error && (
         <p role="alert" style={{
-          fontSize: 13, color: "var(--tm-danger)",
+          fontSize: "var(--tm-fs-body)", color: "var(--tm-danger)",
           padding: "8px 12px", borderRadius: 8,
           background: "var(--tm-danger-wash)",
           border: "1px solid rgba(251,113,133,0.25)",

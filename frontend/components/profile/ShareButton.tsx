@@ -62,7 +62,7 @@ export function ShareButton({ url, ninjaName, score }: ShareButtonProps) {
           color: copied ? "var(--tm-interactive)" : "var(--tm-text)",
           borderColor: copied ? "var(--tm-interactive)" : "var(--tm-border)",
           cursor: "pointer",
-          fontSize: 16,
+          fontSize: "var(--tm-fs-heading)",
           transition: "color 200ms, border-color 200ms",
         }}
       >
@@ -80,8 +80,8 @@ export function ShareButton({ url, ninjaName, score }: ShareButtonProps) {
             background: "var(--tm-surface)",
             border: "1px solid var(--tm-interactive)",
             color: "var(--tm-interactive)",
-            borderRadius: 99,
-            fontSize: 11,
+            borderRadius: 10,
+            fontSize: "var(--tm-fs-caption)",
             fontFamily: "var(--tm-font-mono)",
             letterSpacing: "0.04em",
             whiteSpace: "nowrap",

@@ -60,7 +60,7 @@
   margin: 0 0 20px;
   font-family: var(--tm-font-display);
   font-size: clamp(2rem, 5vw, 3rem);
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.1;
   color: var(--tm-text);
   letter-spacing: -0.02em;

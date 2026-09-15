@@ -138,7 +138,7 @@
 
 .si-company-cell { position: sticky; left: 0; z-index: 2; width: 210px; background: var(--tm-surface); }
 .si-company-cell a { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 48px; padding: 8px 12px; color: var(--tm-text); text-decoration: none; }
-.si-company-cell span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; background: color-mix(in srgb, var(--si-orange) 12%, var(--tm-surface)); color: var(--si-orange); font-size: var(--tm-fs-caption); font-weight: 800; }
+.si-company-cell span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; background: color-mix(in srgb, var(--si-orange) 12%, var(--tm-surface)); color: var(--si-orange); font-size: var(--tm-fs-caption); font-weight: 600; }
 .si-company-cell b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--tm-fs-body); }
 .si-company-cell em { color: var(--tm-text-faint); font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-style: normal; }
 .si-demand-cell {

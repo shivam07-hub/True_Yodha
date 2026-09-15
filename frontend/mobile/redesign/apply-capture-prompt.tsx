@@ -85,7 +85,7 @@ const row: React.CSSProperties = {
 
 function pill(danger: boolean): React.CSSProperties {
   return {
-    padding: "6px 13px", borderRadius: 999,
+    padding: "6px 13px", borderRadius: 10,
     border: `1px solid ${danger ? "var(--mm-bad)" : "var(--mm-border)"}`,
     background: "transparent", color: danger ? "var(--mm-bad)" : "var(--mm-text)",
     fontSize: "var(--tm-fs-caption)", cursor: "pointer", fontFamily: "inherit",

@@ -56,17 +56,17 @@ export function BulletRow({ text, hits, hidden, editable, onToggle, onEdit }: Bu
         <div className="cvb-bullet-meta">
           {hits.length > 0 ? (
             hits.slice(0, 4).map(h => (
-              <span key={h.kw} className="cvb-kw-chip match" style={{ fontSize: 10.5 }}>
+              <span key={h.kw} className="cvb-kw-chip match" style={{ fontSize: "var(--tm-fs-caption)" }}>
                 <span className="dot"/>{formatKeywordChipLabel(h.kw)}
               </span>
             ))
           ) : (
-            <span style={{ fontSize: 10, color: "var(--tm-text-faint)", fontFamily: "var(--cvb-font-mono)", padding: "1px 7px" }}>
+            <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", fontFamily: "var(--cvb-font-mono)", padding: "1px 7px" }}>
               ○ no target match
             </span>
           )}
           {hits.length > 4 && (
-            <span style={{ fontSize: 10, color: "var(--tm-text-faint)", fontFamily: "var(--cvb-font-mono)" }}>
+            <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", fontFamily: "var(--cvb-font-mono)" }}>
               +{hits.length - 4}
             </span>
           )}

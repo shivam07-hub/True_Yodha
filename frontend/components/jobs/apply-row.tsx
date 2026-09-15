@@ -36,7 +36,7 @@ export function ApplyRow({ company, title, jobId, variant = "compact", hideCaree
     minHeight: isBlock ? 32 : 26,
     padding: isBlock ? "0 12px" : "0 10px",
     borderRadius: 6,
-    fontSize: isBlock ? 12 : 11,
+    fontSize: "var(--tm-fs-caption)",
     fontFamily: "var(--tm-font-mono)",
     border: "1px solid var(--tm-border-soft)",
     background: "rgba(255,255,255,0.02)",

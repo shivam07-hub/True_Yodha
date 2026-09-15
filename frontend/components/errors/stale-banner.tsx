@@ -24,7 +24,7 @@ const bar: CSSProperties = {
   border: "1px solid var(--tm-border-soft)",
   background: "var(--tm-surface)",
   color: "var(--tm-text-muted)",
-  fontSize: 12,
+  fontSize: "var(--tm-fs-caption)",
   fontFamily: "var(--tm-font-sans)",
 }
 
@@ -37,7 +37,7 @@ const btn: CSSProperties = {
   border: "1px solid var(--tm-border)",
   background: "transparent",
   color: "var(--tm-interactive)",
-  fontSize: 12,
+  fontSize: "var(--tm-fs-caption)",
   cursor: "pointer",
   fontFamily: "inherit",
 }

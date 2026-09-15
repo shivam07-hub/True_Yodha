@@ -42,7 +42,7 @@ export function AppDataLoading({ route, queryError, fallback, onRetry }: AppData
           textAlign: "center",
         }}
       >
-        <span style={{ fontSize: 13, color: "var(--tm-text-muted)", fontFamily: "var(--tm-font-sans)" }}>
+        <span style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", fontFamily: "var(--tm-font-sans)" }}>
           Service is temporarily unavailable
         </span>
         {onRetry && (
@@ -54,7 +54,7 @@ export function AppDataLoading({ route, queryError, fallback, onRetry }: AppData
               border: "1px solid var(--tm-border)",
               background: "var(--tm-surface)",
               color: "var(--tm-interactive)",
-              fontSize: 12,
+              fontSize: "var(--tm-fs-caption)",
               cursor: "pointer",
               fontFamily: "var(--tm-font-sans)",
             }}

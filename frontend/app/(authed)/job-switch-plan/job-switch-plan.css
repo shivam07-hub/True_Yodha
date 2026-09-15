@@ -31,7 +31,7 @@
   padding: clamp(20px, 4vw, 32px);
   background: var(--tm-surface);
   border: 1px solid var(--tm-border);
-  border-radius: 16px;
+  border-radius: var(--tm-button-radius);
 }
 
 /* offer (no plan yet) */
@@ -91,7 +91,7 @@
 
 .jsp-actions { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 12px; }
 
-.jsp-skeleton { height: 200px; border-radius: 16px; background: var(--tm-surface-2); animation: jsp-pulse 1.4s ease-in-out infinite; }
+.jsp-skeleton { height: 200px; border-radius: var(--tm-button-radius); background: var(--tm-surface-2); animation: jsp-pulse 1.4s ease-in-out infinite; }
 @keyframes jsp-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
 
 @media (max-width: 560px) {

@@ -219,7 +219,7 @@ function CallbackInner() {
     const expired = failure === "expired"
     return (
       <AuthPageShell title={expired ? "This link has expired" : "Sign-in didn’t finish"}>
-        <p style={{ fontSize: 15, lineHeight: 1.55, color: "var(--tm-text-muted)" }}>
+        <p style={{ fontSize: "var(--tm-fs-body)", lineHeight: 1.55, color: "var(--tm-text-muted)" }}>
           {expired ? "Open Myro again from where you started." : "Go back and try again."}
         </p>
       </AuthPageShell>

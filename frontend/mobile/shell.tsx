@@ -110,7 +110,7 @@ function TabBadge({ n }: { n: number }) {
       style={{
         position: "absolute", top: -3, right: -9, minWidth: 15, height: 15, borderRadius: 10,
         background: "var(--mm-accent)", color: "var(--mm-accent-fg)",
-        fontSize: "var(--tm-fs-caption)", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: "var(--tm-fs-caption)", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center",
         padding: "0 4px", fontVariantNumeric: "tabular-nums",
       }}
     >

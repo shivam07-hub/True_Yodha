@@ -78,16 +78,16 @@ export function MyrologyOptInPrompt({
         }}
       >
         <div style={{ padding: "28px 26px 22px" }}>
-          <div style={{ fontSize: 30, color: "var(--tm-interactive)", lineHeight: 1, marginBottom: 14 }} aria-hidden>✦</div>
-          <h2 style={{ fontSize: 19, fontWeight: 700, color: "var(--tm-text)", margin: 0, lineHeight: 1.3 }}>
+          <div style={{ fontSize: "var(--tm-fs-display)", color: "var(--tm-interactive)", lineHeight: 1, marginBottom: 14 }} aria-hidden>✦</div>
+          <h2 style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--tm-text)", margin: 0, lineHeight: 1.3 }}>
             Interested in following the signal from cosmos?
           </h2>
-          <p style={{ fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.6, marginTop: 12 }}>
+          <p style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", lineHeight: 1.6, marginTop: 12 }}>
             Myrology reads your birth chart as a second signal beside your career data —
             a research-oriented astrologer reads it and you decide when to move and when to wait.
             Turn it on and Myrology joins your navigation. Switch it off anytime.
           </p>
-          <p style={{ fontSize: 12, color: "var(--tm-text-faint)", lineHeight: 1.55, marginTop: 10 }}>
+          <p style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", lineHeight: 1.55, marginTop: 10 }}>
             To read your chart we use three facts — your date, time and place of birth.
           </p>
 

@@ -87,7 +87,7 @@ export function MobileUIProvider({ children }: { children: React.ReactNode }) {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px" }}>
-            <span style={{ flex: 1, fontSize: "var(--tm-fs-body)", fontWeight: 550, color: "var(--mm-text)" }}>{snackState.msg}</span>
+            <span style={{ flex: 1, fontSize: "var(--tm-fs-body)", fontWeight: 400, color: "var(--mm-text)" }}>{snackState.msg}</span>
             {snackState.action && (
               <button
                 onClick={() => snackState.onAction?.()}

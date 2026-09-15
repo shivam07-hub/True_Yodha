@@ -144,8 +144,8 @@ export function AuthedTopStrip({ model, mountFeedbackHub = false }: AuthedTopStr
                 <div style={{ position: "fixed", inset: 0, zIndex: 29 }} onClick={() => setMenuOpen(false)} />
                 <div className="tm-topbar-menu">
                   <div className="tm-topbar-menu-user">
-                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)" }}>{fullName ?? "My Account"}</div>
-                    <div style={{ fontSize: 12, color: "var(--tm-text-faint)", marginTop: 2 }}>{profile?.email ?? ""}</div>
+                    <div style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "var(--tm-text)" }}>{fullName ?? "My Account"}</div>
+                    <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", marginTop: 2 }}>{profile?.email ?? ""}</div>
                   </div>
                   {FEEDBACK_QUICK_ACTIONS.map((a) => (
                     <Fragment key={a.id}>
@@ -155,8 +155,8 @@ export function AuthedTopStrip({ model, mountFeedbackHub = false }: AuthedTopStr
                         onMouseEnter={(e) => { e.currentTarget.style.background = a.bg; e.currentTarget.style.borderColor = a.color }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent" }}
                       >
-                        <span style={{ fontSize: 13, color: a.color, minWidth: 18, textAlign: "center" }}>{a.icon}</span>
-                        <span style={{ fontSize: 13, color: "var(--tm-interactive-rest)" }}>{a.label}</span>
+                        <span style={{ fontSize: "var(--tm-fs-body)", color: a.color, minWidth: 18, textAlign: "center" }}>{a.icon}</span>
+                        <span style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-interactive-rest)" }}>{a.label}</span>
                       </button>
                       {/* Myrology sits in the old "Suggest an idea" slot (after Report a bug). */}
                       {a.id === "bug" && (
@@ -170,8 +170,8 @@ export function AuthedTopStrip({ model, mountFeedbackHub = false }: AuthedTopStr
                           onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-int-bg-wash)"; e.currentTarget.style.borderColor = "var(--tm-interactive)" }}
                           onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent" }}
                         >
-                          <span style={{ fontSize: 13, color: "var(--tm-interactive)", minWidth: 18, textAlign: "center" }}>✦</span>
-                          <span style={{ fontSize: 13, color: "var(--tm-interactive-rest)" }}>Myrology</span>
+                          <span style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-interactive)", minWidth: 18, textAlign: "center" }}>✦</span>
+                          <span style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-interactive-rest)" }}>Myrology</span>
                         </button>
                       )}
                     </Fragment>
@@ -192,8 +192,8 @@ export function AuthedTopStrip({ model, mountFeedbackHub = false }: AuthedTopStr
                       onMouseEnter={(e) => { e.currentTarget.style.background = a.hoverBg }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
                     >
-                      <span style={{ fontSize: 13, color: a.color, minWidth: 18 }}>{a.icon}</span>
-                      <span style={{ fontSize: 13, color: a.color }}>{a.label}</span>
+                      <span style={{ fontSize: "var(--tm-fs-body)", color: a.color, minWidth: 18 }}>{a.icon}</span>
+                      <span style={{ fontSize: "var(--tm-fs-body)", color: a.color }}>{a.label}</span>
                     </button>
                   ))}
                   {/* Learn — the retired /myro hub's reference cards find their home
@@ -208,8 +208,8 @@ export function AuthedTopStrip({ model, mountFeedbackHub = false }: AuthedTopStr
                       onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)" }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
                     >
-                      <span style={{ fontSize: 13, color: "var(--tm-text-faint)", minWidth: 18 }}>·</span>
-                      <span style={{ fontSize: 13, color: "var(--tm-interactive-rest)" }}>{l.label}</span>
+                      <span style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text-faint)", minWidth: 18 }}>·</span>
+                      <span style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-interactive-rest)" }}>{l.label}</span>
                     </Link>
                   ))}
                   <div className="tm-topbar-menu-divider" />
@@ -245,9 +245,9 @@ export function AuthedTopStrip({ model, mountFeedbackHub = false }: AuthedTopStr
         <div style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setSignOutConfirm(false)}>
           <div style={{ position: "absolute", inset: 0, background: "var(--tm-scrim)", backdropFilter: "blur(10px)" }} />
           <div style={{ position: "relative", background: "var(--tm-surface)", border: "1px solid rgba(255,100,100,0.2)", borderRadius: "var(--tm-radius-lg)", padding: "28px", width: 340, zIndex: 1, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ fontSize: 29, marginBottom: 12, color: "var(--tm-text-muted)" }}>→</div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginBottom: 6 }}>Sign out?</div>
-            <div style={{ fontSize: 13, color: "var(--tm-text-muted)", marginBottom: 24, lineHeight: 1.6 }}>Your progress is saved. You can sign back in anytime.</div>
+            <div style={{ fontSize: "var(--tm-fs-display)", marginBottom: 12, color: "var(--tm-text-muted)" }}>→</div>
+            <div style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--tm-text)", marginBottom: 6 }}>Sign out?</div>
+            <div style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", marginBottom: 24, lineHeight: 1.6 }}>Your progress is saved. You can sign back in anytime.</div>
             <div style={{ display: "flex", gap: 8 }}>
               <Button variant="neutral" size="md" onClick={() => setSignOutConfirm(false)} style={{ flex: 1 }}>Cancel</Button>
               <Button variant="danger" size="md" onClick={signOut} style={{ flex: 1 }}>Sign out</Button>

@@ -83,41 +83,41 @@ export function JobDetailDrawer({
               When the crowd has reported it gone, lead with that count: it's the
               specific, user-verified evidence behind the confidence state. */}
           {reportedGone ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 24px", fontSize: 12, color: "var(--tm-warning)", borderTop: "1px solid var(--tm-border-soft)", background: "var(--tm-warning-wash)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 24px", fontSize: "var(--tm-fs-caption)", color: "var(--tm-warning)", borderTop: "1px solid var(--tm-border-soft)", background: "var(--tm-warning-wash)" }}>
               <span aria-hidden>⚠</span>
               <span>{reportedGone} {reportedGone === 1 ? "applicant" : "applicants"} reported this listing gone.</span>
             </div>
           ) : confidence === "closed" ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 24px", fontSize: 12, color: "var(--tm-warning)", borderTop: "1px solid var(--tm-border-soft)", background: "var(--tm-warning-wash)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 24px", fontSize: "var(--tm-fs-caption)", color: "var(--tm-warning)", borderTop: "1px solid var(--tm-border-soft)", background: "var(--tm-warning-wash)" }}>
               <span aria-hidden>⚠</span>
               <span>{POSTING_CLOSED_NOTICE}</span>
             </div>
           ) : concerning ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 24px", fontSize: 12, color: "var(--tm-warning)", borderTop: "1px solid var(--tm-border-soft)", background: "var(--tm-warning-wash)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 24px", fontSize: "var(--tm-fs-caption)", color: "var(--tm-warning)", borderTop: "1px solid var(--tm-border-soft)", background: "var(--tm-warning-wash)" }}>
               <span aria-hidden>⚠</span>
               <span>{verifiedDays != null ? `Last verified ${verifiedDays}d ago. ` : ""}This posting may be closed.</span>
             </div>
           ) : verifiedDays != null ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 24px", fontSize: 12, color: "var(--tm-text-muted)", borderTop: "1px solid var(--tm-border-soft)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 24px", fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-muted)", borderTop: "1px solid var(--tm-border-soft)" }}>
               <span aria-hidden>✓</span>
               <span>Verified {verifiedDays === 0 ? "today" : `${verifiedDays}d ago`}</span>
             </div>
           ) : null}
 
-          {msg ? <div style={{ padding: "10px 24px", fontSize: 12, color: "var(--tm-text-muted)", borderTop: "1px solid var(--tm-border-soft)" }}>{msg}</div> : null}
+          {msg ? <div style={{ padding: "10px 24px", fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-muted)", borderTop: "1px solid var(--tm-border-soft)" }}>{msg}</div> : null}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "16px 24px calc(16px + env(safe-area-inset-bottom))" }}>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {/* PRIMARY — tailor a CV for THIS job, Myro's core value. One tap
                   captures the save and crosses into the build stage. */}
-              <button type="button" onClick={saveAndTailor} style={{ flex: "1 1 auto", textAlign: "center", padding: "11px 16px", borderRadius: 10, border: "none", fontWeight: 600, fontSize: 13, background: "var(--tm-interactive)", color: "var(--tm-on-interactive, #fff)", cursor: "pointer" }}>Tailor now →</button>
+              <button type="button" onClick={saveAndTailor} style={{ flex: "1 1 auto", textAlign: "center", padding: "11px 16px", borderRadius: 10, border: "none", fontWeight: 600, fontSize: "var(--tm-fs-body)", background: "var(--tm-interactive)", color: "var(--tm-on-interactive, #fff)", cursor: "pointer" }}>Tailor now →</button>
               {/* SECONDARY — apply on the source site (outline, not the accent). */}
               {capture.target.kind === "direct" ? (
-                <a href={capture.href ?? undefined} target="_blank" rel="noopener noreferrer" onClick={capture.onApply} style={{ padding: "11px 16px", borderRadius: 10, textDecoration: "none", fontWeight: 600, fontSize: 13, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text)" }}>{capture.target.actionLabel} ↗</a>
+                <a href={capture.href ?? undefined} target="_blank" rel="noopener noreferrer" onClick={capture.onApply} style={{ padding: "11px 16px", borderRadius: 10, textDecoration: "none", fontWeight: 600, fontSize: "var(--tm-fs-body)", border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text)" }}>{capture.target.actionLabel} ↗</a>
               ) : (
                 <ApplyRow company={job.company_name} title={job.job_title} jobId={job.job_id} variant="compact" onApply={capture.onApply} />
               )}
-              <button type="button" onClick={() => { if (!saved) { onSave(); setSaved(true); setMsg("Saved to your shortlist") } }} disabled={saved} style={{ padding: "11px 16px", borderRadius: 10, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text)", fontWeight: 600, fontSize: 13, cursor: saved ? "default" : "pointer" }}>{saved ? "★ Saved" : "★ Save"}</button>
+              <button type="button" onClick={() => { if (!saved) { onSave(); setSaved(true); setMsg("Saved to your shortlist") } }} disabled={saved} style={{ padding: "11px 16px", borderRadius: 10, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text)", fontWeight: 600, fontSize: "var(--tm-fs-body)", cursor: saved ? "default" : "pointer" }}>{saved ? "★ Saved" : "★ Save"}</button>
               <ShareJobButton job={job} variant="drawer" />
             </div>
             <ReportProblem token={token} jobId={job.job_id} />
@@ -131,7 +131,7 @@ export function JobDetailDrawer({
       <MyroTake token={token} jobId={job.job_id} />
       {job.skills.length > 0 ? (
         <div style={{ marginBottom: 18 }}>
-          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-muted)", marginBottom: 8 }}>Key skills</div>
+          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-muted)", marginBottom: 8 }}>Key skills</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{job.skills.map(s => <SkillChip key={s} label={s} />)}</div>
         </div>
       ) : null}
@@ -143,7 +143,7 @@ export function JobDetailDrawer({
           type="button"
           aria-expanded={assessOpen}
           onClick={() => setAssessOpen((v) => !v)}
-          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, width: "100%", textAlign: "left", padding: "12px 14px", borderRadius: 10, border: "1px solid var(--tm-int-border-soft)", background: "var(--tm-int-bg-wash)", color: "var(--tm-interactive)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, width: "100%", textAlign: "left", padding: "12px 14px", borderRadius: 10, border: "1px solid var(--tm-int-border-soft)", background: "var(--tm-int-bg-wash)", color: "var(--tm-interactive)", fontWeight: 600, fontSize: "var(--tm-fs-body)", cursor: "pointer" }}
         >
           <span>◎ Assess my readiness for this job</span>
           <span aria-hidden style={{ transform: assessOpen ? "rotate(90deg)" : "none", transition: "transform 160ms var(--tm-ease, ease)" }}>→</span>
@@ -155,8 +155,8 @@ export function JobDetailDrawer({
         ) : null}
       </div>
       <div>
-        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-muted)", marginBottom: 8 }}>Job description</div>
-        <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: 13.5, lineHeight: 1.6, color: "var(--tm-text)" }}>{job.job_description || "No description available."}</pre>
+        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-muted)", marginBottom: 8 }}>Job description</div>
+        <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: "var(--tm-fs-body)", lineHeight: 1.6, color: "var(--tm-text)" }}>{job.job_description || "No description available."}</pre>
       </div>
     </DetailDrawer>
   )
@@ -195,10 +195,10 @@ function ReportProblem({ token, jobId }: { token: string; jobId: string }) {
     }
   }
 
-  if (done) return <div style={{ fontSize: 12, color: "var(--tm-text-muted)" }}>{done}</div>
+  if (done) return <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-muted)" }}>{done}</div>
   if (capped) {
     return (
-      <div style={{ fontSize: 12, color: "var(--tm-text-muted)" }}>
+      <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-muted)" }}>
         Daily report limit reached.{" "}
         <Link href="/collections" style={{ color: "var(--tm-interactive)" }}>Tracking what happened still counts →</Link>
       </div>
@@ -207,17 +207,17 @@ function ReportProblem({ token, jobId }: { token: string; jobId: string }) {
   return (
     <div>
       {!open ? (
-        <button type="button" onClick={() => setOpen(true)} style={{ background: "none", border: "none", padding: 0, color: "var(--tm-text-faint)", fontSize: 12, cursor: "pointer", textDecoration: "underline" }}>
+        <button type="button" onClick={() => setOpen(true)} style={{ background: "none", border: "none", padding: 0, color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-caption)", cursor: "pointer", textDecoration: "underline" }}>
           Report a problem
         </button>
       ) : (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
           {QUALITY_REASONS.map(r => (
-            <button key={r.code} type="button" disabled={busy} onClick={() => send(r.code)} style={{ padding: "5px 10px", borderRadius: 999, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text-muted)", fontSize: 11.5, cursor: busy ? "default" : "pointer" }}>
+            <button key={r.code} type="button" disabled={busy} onClick={() => send(r.code)} style={{ padding: "5px 10px", borderRadius: 10, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text-muted)", fontSize: "var(--tm-fs-caption)", cursor: busy ? "default" : "pointer" }}>
               {r.label}
             </button>
           ))}
-          <button type="button" onClick={() => setOpen(false)} style={{ background: "none", border: "none", color: "var(--tm-text-faint)", fontSize: 11.5, cursor: "pointer" }}>cancel</button>
+          <button type="button" onClick={() => setOpen(false)} style={{ background: "none", border: "none", color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-caption)", cursor: "pointer" }}>cancel</button>
         </div>
       )}
     </div>

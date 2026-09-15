@@ -426,7 +426,7 @@
 }
 .mc-forge-cart-footer .lhs strong {
   font-family: var(--tm-font-mono);
-  font-weight: 800; color: var(--tm-interactive);
+  font-weight: 600; color: var(--tm-interactive);
 }
 .mc-forge-cart-footer .rhs {
   display: inline-flex; align-items: center; gap: 6px;

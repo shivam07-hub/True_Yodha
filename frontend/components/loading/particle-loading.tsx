@@ -170,7 +170,7 @@ export function ParticleLoading({ message = "Loading…", height = 400 }: Partic
       }}>
         <span style={{
           fontFamily: "var(--tm-font-mono, 'SF Mono', monospace)",
-          fontSize: 11,
+          fontSize: "var(--tm-fs-caption)",
           letterSpacing: "0.1em",
           textTransform: "uppercase",
           color: "var(--tm-text-faint)",

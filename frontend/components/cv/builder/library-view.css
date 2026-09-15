@@ -678,7 +678,7 @@
   padding: 64px 32px;
   color: var(--tm-text-faint);
   border: 1px dashed var(--tm-border-soft);
-  border-radius: 16px;
+  border-radius: var(--tm-button-radius);
   background: var(--tm-surface);
   margin-top: 24px;
   gap: 12px;

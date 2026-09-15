@@ -18,7 +18,7 @@ export function NewsletterFAQ({ items }: NewsletterFAQProps) {
       className="nl-faq"
       style={{ marginTop: 48, paddingTop: 32, borderTop: "1px solid var(--tm-border-soft)" }}
     >
-      <h2 id="nl-faq-heading" className="nl-eyebrow" style={{ display: "block", fontSize: 13, margin: "0 0 16px" }}>
+      <h2 id="nl-faq-heading" className="nl-eyebrow" style={{ display: "block", fontSize: "var(--tm-fs-body)", margin: "0 0 16px" }}>
         Frequently asked
       </h2>
       <div>

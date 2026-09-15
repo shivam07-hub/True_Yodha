@@ -1596,7 +1596,7 @@ mark.cvb-kw {
     grid-template-columns: 1fr !important;
     align-items: stretch;
     padding: 14px !important;
-    border-radius: 16px;
+    border-radius: var(--tm-button-radius);
   }
   .cvb-intel-strip .score {
     justify-content: space-between;

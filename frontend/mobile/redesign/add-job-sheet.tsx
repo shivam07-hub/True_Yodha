@@ -112,7 +112,7 @@ export function AddJobSheet({ open, onClose, token, onAdded, snack, closeSnack, 
           </button>
         )}
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", marginTop: 12, padding: "12px", borderRadius: 12, border: "1px solid var(--mm-border)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", marginTop: 12, padding: "12px", borderRadius: 10, border: "1px solid var(--mm-border)" }}>
           <span style={{ width: 32, height: 32, borderRadius: 9, background: "var(--mm-raise-1)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--mm-text-3)" }}><svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.4" /></svg></span>
           <span style={{ flex: 1 }}>
             <span style={{ display: "block", fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "var(--mm-text)" }}>Chrome extension</span>
@@ -125,10 +125,10 @@ export function AddJobSheet({ open, onClose, token, onAdded, snack, closeSnack, 
 }
 
 const inputStyle: React.CSSProperties = {
-  flex: 1, height: 40, borderRadius: 12, border: "1px solid var(--mm-border)", background: "var(--mm-inset)",
+  flex: 1, height: 40, borderRadius: 10, border: "1px solid var(--mm-border)", background: "var(--mm-inset)",
   color: "var(--mm-text)", padding: "0 12px", fontSize: "var(--tm-fs-body)", outline: "none", fontFamily: "inherit",
 }
 const btnStyle: React.CSSProperties = {
-  height: 40, padding: "0 16px", borderRadius: 12, border: "none", background: "var(--mm-accent)",
+  height: 40, padding: "0 16px", borderRadius: 10, border: "none", background: "var(--mm-accent)",
   color: "var(--mm-accent-fg)", fontSize: "var(--tm-fs-body)", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
 }

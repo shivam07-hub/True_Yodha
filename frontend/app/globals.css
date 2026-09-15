@@ -725,7 +725,7 @@
 }
 .tm-topbar-forge-claim {
   font-size: var(--tm-fs-caption);
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: 0.08em;
   background: var(--tm-interactive);
   color: var(--tm-interactive-fg);

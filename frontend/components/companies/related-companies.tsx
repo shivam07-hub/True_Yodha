@@ -42,10 +42,10 @@ export async function RelatedCompanies({ current }: { current: string }) {
       aria-label="More companies hiring"
       style={{ maxWidth: 1080, margin: "0 auto", padding: "8px 24px 64px" }}
     >
-      <h2 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--tm-text)" }}>
+      <h2 style={{ margin: "0 0 4px", fontSize: "var(--tm-fs-heading)", fontWeight: 600, letterSpacing: "-0.02em", color: "var(--tm-text)" }}>
         More companies hiring
       </h2>
-      <p style={{ margin: "0 0 16px", fontSize: 14, color: "var(--tm-text-muted)" }}>
+      <p style={{ margin: "0 0 16px", fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)" }}>
         Explore live roles at other companies Myro tracks, or{" "}
         <Link href="/companies" style={{ color: "var(--tm-accent-text)", textDecoration: "underline" }}>
           browse the full directory
@@ -65,13 +65,13 @@ export async function RelatedCompanies({ current }: { current: string }) {
               style={{
                 display: "flex", alignItems: "baseline", justifyContent: "space-between",
                 gap: 12, padding: "8px 12px", borderRadius: "var(--tm-radius-sm)",
-                color: "var(--tm-text)", textDecoration: "none", fontSize: 14,
+                color: "var(--tm-text)", textDecoration: "none", fontSize: "var(--tm-fs-body)",
               }}
             >
               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {c.name} jobs
               </span>
-              <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 12, color: "var(--tm-text-faint)", flexShrink: 0 }}>
+              <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", flexShrink: 0 }}>
                 {formatCount(c.count)} open
               </span>
             </Link>

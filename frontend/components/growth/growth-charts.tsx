@@ -61,8 +61,8 @@ export function GrowthCharts({ messages }: { messages: GrowthMessage[] }) {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={platforms} margin={{ top: 8, right: 12, left: -24, bottom: 0 }}>
               <CartesianGrid stroke="#eef2f7" vertical={false} />
-              <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+              <XAxis dataKey="label" tick={{ fontSize: "var(--tm-fs-caption)" }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: "var(--tm-fs-caption)" }} />
               <Tooltip />
               <Bar dataKey="count" radius={[6, 6, 0, 0]}>
                 {platforms.map((item) => (

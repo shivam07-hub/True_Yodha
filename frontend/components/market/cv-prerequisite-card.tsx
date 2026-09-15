@@ -34,10 +34,10 @@ export function CVPrerequisiteCard({
         gap: 12,
       }}
     >
-      <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)" }}>{title}</div>
-      <div style={{ fontSize: 13, lineHeight: 1.6, color: "var(--tm-text-faint)", maxWidth: 720 }}>{body}</div>
+      <div style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--tm-text)" }}>{title}</div>
+      <div style={{ fontSize: "var(--tm-fs-body)", lineHeight: 1.6, color: "var(--tm-text-faint)", maxWidth: 720 }}>{body}</div>
       {readiness === "failed" && errorCode ? (
-        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.08em", color: "var(--tm-warning)" }}>
+        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", letterSpacing: "0.08em", color: "var(--tm-warning)" }}>
           LAST ERROR / {errorCode.toUpperCase()}
         </div>
       ) : null}
@@ -51,8 +51,8 @@ export function CVPrerequisiteCard({
             color: "var(--tm-interactive-fg)",
             border: "1px solid var(--tm-interactive)",
             textDecoration: "none",
-            fontSize: 12,
-            fontWeight: 700,
+            fontSize: "var(--tm-fs-caption)",
+            fontWeight: 600,
           }}
         >
           {readiness === "processing" ? "View upload status" : readiness === "failed" ? "Retry CV upload" : "Upload CV"}
@@ -66,7 +66,7 @@ export function CVPrerequisiteCard({
             color: "var(--tm-text-faint)",
             border: "1px solid var(--tm-border-soft)",
             textDecoration: "none",
-            fontSize: 12,
+            fontSize: "var(--tm-fs-caption)",
             fontWeight: 600,
           }}
         >

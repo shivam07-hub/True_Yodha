@@ -201,7 +201,7 @@ export function MarketJobsColumn({
                 style={{
                   width: "100%", marginBottom: 12, padding: "11px 14px", textAlign: "left",
                   borderRadius: 12, border: "1px solid var(--tm-int-border)", background: "var(--tm-int-bg-wash)",
-                  color: "var(--tm-text)", fontSize: 13, cursor: "pointer",
+                  color: "var(--tm-text)", fontSize: "var(--tm-fs-body)", cursor: "pointer",
                 }}
               >
                 Only a few matches here. <strong style={{ color: "var(--tm-interactive)" }}>Tell Myro what you actually want →</strong>
@@ -243,7 +243,7 @@ export function MarketJobsColumn({
             )}
             <div ref={sentinelRef} style={{ height: 1 }} />
             {fetchingMore ? <FeedSkeleton rows={2} /> : null}
-            {!hasNextPage ? <div style={{ textAlign: "center", padding: "24px", fontSize: 12, color: "var(--tm-text-faint)" }}>End of feed</div> : null}
+            {!hasNextPage ? <div style={{ textAlign: "center", padding: "24px", fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>End of feed</div> : null}
           </>
         )}
       </div>

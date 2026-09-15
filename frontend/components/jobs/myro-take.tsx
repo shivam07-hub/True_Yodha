@@ -32,13 +32,13 @@ export function MyroTake({ token, jobId }: { token: string; jobId: string }) {
         <VerdictPill recommendation={r.recommendation} />
         <LegitimacyBadge tier={r.legitimacy_tier} reason={r.legitimacy_reason} />
         <ArchetypeChip archetype={r.archetype} />
-        <span style={{ marginLeft: "auto", fontFamily: "var(--tm-font-mono)", fontSize: 12, color: "var(--tm-text-faint)" }}>
+        <span style={{ marginLeft: "auto", fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
           {r.overall_score.toFixed(1)}/5.0
         </span>
       </div>
 
       {r.summary ? (
-        <p style={{ margin: "0 0 14px", fontSize: 13.5, color: "var(--tm-text)", lineHeight: 1.6 }}>{r.summary}</p>
+        <p style={{ margin: "0 0 14px", fontSize: "var(--tm-fs-body)", color: "var(--tm-text)", lineHeight: 1.6 }}>{r.summary}</p>
       ) : null}
 
       <AxisBreakdown job={r} />
@@ -46,7 +46,7 @@ export function MyroTake({ token, jobId }: { token: string; jobId: string }) {
       {r.application_angle ? (
         <div style={{ marginTop: 14, padding: "11px 13px", borderRadius: 10, background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)" }}>
           <div style={miniLabelStyle}>How to position</div>
-          <p style={{ margin: 0, fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.6 }}>{r.application_angle}</p>
+          <p style={{ margin: 0, fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", lineHeight: 1.6 }}>{r.application_angle}</p>
         </div>
       ) : null}
 
@@ -69,8 +69,8 @@ const panelStyle: React.CSSProperties = {
 }
 
 const miniLabelStyle: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 700,
+  fontSize: "var(--tm-fs-caption)",
+  fontWeight: 600,
   color: "var(--tm-interactive)",
   fontFamily: "var(--tm-font-mono)",
   textTransform: "uppercase",
@@ -93,7 +93,7 @@ function PointList({ title, points, tone }: { title: string; points: string[]; t
       <div style={{ ...miniLabelStyle, color: tone, marginBottom: 6 }}>{title}</div>
       <ul style={{ margin: 0, paddingLeft: 16, display: "flex", flexDirection: "column", gap: 4 }}>
         {points.map((p, i) => (
-          <li key={i} style={{ fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.5 }}>{p}</li>
+          <li key={i} style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", lineHeight: 1.5 }}>{p}</li>
         ))}
       </ul>
     </div>

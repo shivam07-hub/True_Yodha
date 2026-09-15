@@ -24,7 +24,7 @@ export function NewsletterBackLink() {
       href="/newsletter"
       onClick={handleClick}
       className="nl-back-link"
-      style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--tm-text-muted)", textDecoration: "none", marginBottom: 40, transition: "color var(--tm-dur) var(--tm-ease)" }}
+      style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", textDecoration: "none", marginBottom: 40, transition: "color var(--tm-dur) var(--tm-ease)" }}
     >
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
         <path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

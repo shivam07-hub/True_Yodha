@@ -224,7 +224,7 @@
   .tm-b2b-feature-grid,
   .tm-b2b-bottom { grid-template-columns: 1fr; }
   .tm-b2b-panel,
-  .tm-b2b-bottom { padding: 18px; border-radius: 16px; }
+  .tm-b2b-bottom { padding: 18px; border-radius: var(--tm-button-radius); }
   .tm-b2b-metric { min-width: calc(50% - 6px); }
   .tm-b2b-button { width: 100%; }
 }

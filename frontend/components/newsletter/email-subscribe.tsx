@@ -76,7 +76,7 @@ export function EmailSubscribe({
             borderRadius: "var(--tm-radius)",
             color: "var(--tm-text)",
             fontFamily: "var(--tm-font-sans)",
-            fontSize: 14,
+            fontSize: "var(--tm-fs-body)",
             outline: "none",
             transition: "border-color var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
           }}
@@ -105,7 +105,7 @@ export function EmailSubscribe({
             border: "none",
             borderRadius: "var(--tm-radius)",
             fontFamily: "var(--tm-font-sans)",
-            fontSize: 14,
+            fontSize: "var(--tm-fs-body)",
             fontWeight: 600,
             cursor: isDone ? "default" : isBusy ? "wait" : "pointer",
             opacity: isBusy ? 0.7 : 1,
@@ -129,12 +129,12 @@ export function EmailSubscribe({
         </button>
       </div>
       {state === "error" && errorMsg && (
-        <p role="alert" style={{ margin: 0, fontSize: 13, color: "var(--tm-danger)" }}>
+        <p role="alert" style={{ margin: 0, fontSize: "var(--tm-fs-body)", color: "var(--tm-danger)" }}>
           {errorMsg}
         </p>
       )}
       {isDone && (
-        <p role="status" style={{ margin: 0, fontSize: 13, color: "var(--tm-success)" }}>
+        <p role="status" style={{ margin: 0, fontSize: "var(--tm-fs-body)", color: "var(--tm-success)" }}>
           <strong style={{ color: "var(--tm-text)" }}>{subscribedEmail}</strong> is subscribed — intel lands in your inbox every week.
         </p>
       )}

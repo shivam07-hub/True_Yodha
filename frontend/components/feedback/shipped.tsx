@@ -37,7 +37,7 @@ export function Shipped() {
         }}
       >
         <div className="eyebrow" style={{ color: "var(--tm-success)" }}>What you helped build</div>
-        <div style={{ marginTop: 6, fontSize: 13, lineHeight: 1.6, color: "var(--tm-text-muted)" }}>
+        <div style={{ marginTop: 6, fontSize: "var(--tm-fs-body)", lineHeight: 1.6, color: "var(--tm-text-muted)" }}>
           Every dispatch is read by a human. A growing share of Myro&apos;s roadmap
           starts as a user signal.
         </div>
@@ -72,8 +72,8 @@ export function Shipped() {
                   display: "grid",
                   placeItems: "center",
                   color: "var(--tm-success)",
-                  fontSize: 8,
-                  fontWeight: 800,
+                  fontSize: "var(--tm-fs-caption)",
+                  fontWeight: 600,
                 }}
               >
                 ✓
@@ -84,7 +84,7 @@ export function Shipped() {
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <span
                       className="mono"
-                      style={{ fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.06em" }}
+                      style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", letterSpacing: "0.06em" }}
                     >
                       {s.id}
                     </span>
@@ -93,10 +93,10 @@ export function Shipped() {
                     </span>
                     <span className="eyebrow" style={{ color: c.color }}>{c.label}</span>
                   </div>
-                  <div style={{ marginTop: 4, fontSize: 13, color: "var(--tm-text)", fontWeight: 500 }}>
+                  <div style={{ marginTop: 4, fontSize: "var(--tm-fs-body)", color: "var(--tm-text)", fontWeight: 500 }}>
                     {s.title}
                   </div>
-                  <div style={{ marginTop: 4, fontSize: 11, color: "var(--tm-text-faint)" }}>
+                  <div style={{ marginTop: 4, fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
                     Shipped {s.ts}
                   </div>
                 </div>

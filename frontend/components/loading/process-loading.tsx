@@ -161,7 +161,7 @@ export function ProcessLoading({
         <span
           style={{
             color: "var(--tm-text-faint)",
-            fontSize: 11,
+            fontSize: "var(--tm-fs-caption)",
             letterSpacing: "0.04em",
           }}
         >

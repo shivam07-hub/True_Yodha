@@ -51,7 +51,7 @@ function CardShell({
   return (
     <div onClick={onOpen} style={{ background: "var(--mm-card)", border: "1px solid var(--mm-hair)", borderRadius: 10, padding: "13px 14px 11px", cursor: "pointer", animation: "mm-screenIn 260ms cubic-bezier(0.16,1,0.3,1) both", opacity: trust?.warn ? 0.92 : 1 }}>
       <div style={{ display: "flex", gap: 11 }}>
-        <div style={{ width: 38, height: 38, borderRadius: 11, background: row.logoBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "#fff", flex: "none" }}>{row.coInitial}</div>
+        <div style={{ width: 38, height: 38, borderRadius: 10, background: row.logoBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "#fff", flex: "none" }}>{row.coInitial}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
             <span style={{ fontSize: "var(--tm-fs-caption)", fontWeight: 600, color: "var(--mm-text-3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{row.co}</span>
@@ -61,7 +61,7 @@ function CardShell({
           <div style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600, letterSpacing: "-0.01em", lineHeight: 1.28, marginTop: 2, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{row.role}</div>
           <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--mm-faint)", marginTop: 3 }}>{row.metaLine}</div>
           {trust && (
-            <div style={{ fontSize: "var(--tm-fs-caption)", marginTop: 3, color: trust.warn ? "var(--mm-warn)" : "var(--mm-dim)", fontWeight: trust.warn ? 650 : 400 }}>
+            <div style={{ fontSize: "var(--tm-fs-caption)", marginTop: 3, color: trust.warn ? "var(--mm-warn)" : "var(--mm-dim)", fontWeight: trust.warn? 600 : 400 }}>
               {trust.warn ? "⚠ " : ""}{trust.text}
             </div>
           )}

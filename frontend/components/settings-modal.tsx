@@ -119,7 +119,7 @@ function SaveBadge({ status }: { status: SaveStatus }) {
     error: { text: "Couldn't save", color: "var(--tm-danger)", weight: 500 },
   } as const
   const s = map[status]
-  return <span role="status" style={{ fontSize: 11, color: s.color, fontWeight: s.weight, whiteSpace: "nowrap" }}>{s.text}</span>
+  return <span role="status" style={{ fontSize: "var(--tm-fs-caption)", color: s.color, fontWeight: s.weight, whiteSpace: "nowrap" }}>{s.text}</span>
 }
 
 function InitialsAvatar({ name, size = 52 }: { name: string; size?: number }) {
@@ -129,7 +129,7 @@ function InitialsAvatar({ name, size = 52 }: { name: string; size?: number }) {
       width: size, height: size, borderRadius: "50%", flexShrink: 0,
       background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)",
       display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: Math.round(size * 0.38), fontWeight: 700, letterSpacing: "-0.02em",
+      fontSize: Math.round(size * 0.38), fontWeight: 600, letterSpacing: "-0.02em",
       boxShadow: "0 0 16px var(--tm-int-bg-hover)",
     }}>
       {initials}
@@ -155,7 +155,7 @@ function CompanyAvatar({ name, size = 36 }: { name: string; size?: number }) {
 const INPUT_STYLE: React.CSSProperties = {
   width: "100%", padding: "9px 12px", borderRadius: "var(--tm-radius-sm)",
   background: "rgba(255,255,255,0.03)", border: "1px solid var(--tm-border-soft)",
-  color: "var(--tm-text)", fontSize: 13, fontFamily: "inherit", outline: "none",
+  color: "var(--tm-text)", fontSize: "var(--tm-fs-body)", fontFamily: "inherit", outline: "none",
   transition: "border-color var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
   boxSizing: "border-box" as const,
 }
@@ -163,7 +163,7 @@ const INPUT_FOCUS_STYLE = { borderColor: "var(--tm-int-border)", boxShadow: "0 0
 const INPUT_BLUR_STYLE = { borderColor: "var(--tm-border-soft)", boxShadow: "none" }
 
 const SECTION_HEADER: React.CSSProperties = {
-  fontSize: 11, letterSpacing: "0.09em", textTransform: "uppercase" as const,
+  fontSize: "var(--tm-fs-caption)", letterSpacing: "0.09em", textTransform: "uppercase" as const,
   color: "var(--tm-text-faint)", marginBottom: 4, marginTop: 24,
 }
 const ROW_STYLE: React.CSSProperties = {
@@ -171,10 +171,10 @@ const ROW_STYLE: React.CSSProperties = {
   display: "flex", flexDirection: "column", gap: 8,
 }
 const ROW_LABEL: React.CSSProperties = {
-  fontSize: 14, fontWeight: 600, color: "var(--tm-text)",
+  fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "var(--tm-text)",
 }
 const ROW_DESC: React.CSSProperties = {
-  fontSize: 12, color: "var(--tm-text-faint)", marginTop: 1,
+  fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", marginTop: 1,
 }
 
 export function SettingsModal({ open, onClose, profile, profileLoading = false, initialTab = "Account" }: {
@@ -531,10 +531,10 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
             ) : (
               <>
                 <InitialsAvatar name={name || "?"} size={52} />
-                <div style={{ marginTop: 12, fontSize: 14, fontWeight: 700, color: "var(--tm-text)", lineHeight: 1.3 }}>
+                <div style={{ marginTop: 12, fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.3 }}>
                   {name || "Set your name"}
                 </div>
-                <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 4, wordBreak: "break-all" }}>
+                <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", marginTop: 4, wordBreak: "break-all" }}>
                   {profile?.email ?? ""}
                 </div>
               </>
@@ -554,12 +554,12 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
                   background: activeTab === tab ? "var(--tm-int-bg-wash)" : "transparent",
                   border: `1px solid ${activeTab === tab ? "var(--tm-int-border)" : "transparent"}`,
                   color: activeTab === tab ? "var(--tm-interactive)" : "var(--tm-interactive-rest)",
-                  fontSize: 13, fontWeight: activeTab === tab ? 600 : 400,
+                  fontSize: "var(--tm-fs-body)", fontWeight: activeTab === tab ? 600 : 400,
                   fontFamily: "inherit", textAlign: "left",
                   transition: "all 180ms var(--tm-ease)",
                 }}
               >
-                <span className="tm-settings-nav-icon" style={{ fontSize: 12, opacity: 0.8 }}>{TAB_ICONS[tab]}</span>
+                <span className="tm-settings-nav-icon" style={{ fontSize: "var(--tm-fs-caption)", opacity: 0.8 }}>{TAB_ICONS[tab]}</span>
                 <span>{tab}</span>
                 {tab === "Following" && following.count > 0 && (
                   <Badge variant="default" className="tm-settings-nav-badge" style={{ marginLeft: "auto" }}>
@@ -585,7 +585,7 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
             display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--tm-text)", margin: 0 }}>
+              <h2 style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--tm-text)", margin: 0 }}>
                 {activeTab}
               </h2>
               {/* Sits right beside the tab title — the same level as the section
@@ -605,7 +605,7 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
               type="button" aria-label="Close settings" onClick={flushAndClose}
               style={{
                 background: "transparent", border: "1px solid transparent",
-                color: "var(--tm-interactive-rest)", fontSize: 20, cursor: "pointer",
+                color: "var(--tm-interactive-rest)", fontSize: "var(--tm-fs-heading)", cursor: "pointer",
                 lineHeight: 1, padding: "4px 6px", borderRadius: "var(--tm-radius-sm)",
                 transition: "color var(--tm-dur), background var(--tm-dur), border-color var(--tm-dur)",
               }}
@@ -684,7 +684,7 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
                         id="sm-linkedin" type="url" value={linkedin}
                         onChange={(e) => { setLinkedin(e.target.value); schedule({ linkedin_url: normalizeLinkedIn(e.target.value) }) }}
                         placeholder="linkedin.com/in/you"
-                        style={{ ...INPUT_STYLE, fontSize: 12 }}
+                        style={{ ...INPUT_STYLE, fontSize: "var(--tm-fs-caption)" }}
                         onFocus={(e) => Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE)}
                         onBlur={(e) => Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE)}
                       />
@@ -709,7 +709,7 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
                       else setMyroPromptOpen(true)
                     }}
                     style={{
-                      flexShrink: 0, width: 44, height: 26, borderRadius: 99, padding: 3, cursor: "pointer",
+                      flexShrink: 0, width: 44, height: 26, borderRadius: 10, padding: 3, cursor: "pointer",
                       border: "1px solid var(--tm-int-border)",
                       background: myrologyInterested ? "var(--tm-interactive)" : "rgba(255,255,255,0.05)",
                       display: "flex", justifyContent: myrologyInterested ? "flex-end" : "flex-start",
@@ -739,10 +739,10 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
                 {(rewardNotice || (saveStatus === "error" && saveError)) && (
                   <div style={{ paddingTop: 20, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12 }}>
                     {rewardNotice && (
-                      <span style={{ fontSize: 12, color: "var(--tm-success)", fontWeight: 600 }}>{rewardNotice}</span>
+                      <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-success)", fontWeight: 600 }}>{rewardNotice}</span>
                     )}
                     {saveStatus === "error" && saveError && (
-                      <span style={{ fontSize: 12, color: "var(--tm-danger)" }}>{saveError}</span>
+                      <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-danger)" }}>{saveError}</span>
                     )}
                   </div>
                 )}
@@ -802,7 +802,7 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
                       >
                         {locationSuggestions.map((entry) => (
                           <button key={entry} type="button" role="option" aria-selected={false} onClick={() => selectLocation(entry)}
-                            style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--tm-border-soft)", color: "var(--tm-interactive-rest)", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}
+                            style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--tm-border-soft)", color: "var(--tm-interactive-rest)", fontSize: "var(--tm-fs-body)", fontFamily: "inherit", cursor: "pointer" }}
                             onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-int-bg-wash)"; e.currentTarget.style.color = "var(--tm-interactive)" }}
                             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-interactive-rest)" }}
                           >{entry}</button>
@@ -813,11 +813,11 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
                   {locations.length > 0 && (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                       {locations.map((loc, i) => (
-                        <div key={loc} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 8px 5px 12px", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)", fontSize: 12, color: "var(--tm-interactive)" }}>
+                        <div key={loc} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 8px 5px 12px", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)", fontSize: "var(--tm-fs-caption)", color: "var(--tm-interactive)" }}>
                           <span style={{ fontWeight: 500 }}>{loc}</span>
                           <button
                             type="button" onClick={() => removeLocation(i)} aria-label={`Remove ${loc}`}
-                            style={{ width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--tm-int-border-soft)", border: "none", padding: 0, cursor: "pointer", color: "var(--tm-interactive)", fontSize: 12, lineHeight: 1 }}
+                            style={{ width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--tm-int-border-soft)", border: "none", padding: 0, cursor: "pointer", color: "var(--tm-interactive)", fontSize: "var(--tm-fs-caption)", lineHeight: 1 }}
                           >×</button>
                         </div>
                       ))}
@@ -832,7 +832,7 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                       <SaveBadge status={followStatus} />
                       {followedCompanies.length > 0 && (
-                        <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+                        <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
                           {followedCompanies.length} targeted
                         </span>
                       )}
@@ -874,7 +874,7 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
                             role="option"
                             aria-selected={false}
                             onClick={() => selectCompany(name)}
-                            style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", padding: "10px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--tm-border-soft)", color: "var(--tm-interactive-rest)", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}
+                            style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", padding: "10px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--tm-border-soft)", color: "var(--tm-interactive-rest)", fontSize: "var(--tm-fs-body)", fontFamily: "inherit", cursor: "pointer" }}
                             onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-int-bg-wash)"; e.currentTarget.style.color = "var(--tm-interactive)" }}
                             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-interactive-rest)" }}
                           >
@@ -886,12 +886,12 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
                     )}
                   </div>
                   {following.error && (
-                    <div role="alert" style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: "var(--tm-danger, #f87171)" }}>
+                    <div role="alert" style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10, fontSize: "var(--tm-fs-caption)", color: "var(--tm-danger, #f87171)" }}>
                       <span>{following.error.message}</span>
                       <button
                         type="button"
                         onClick={() => { if (following.error) following.toggle(following.error.name) }}
-                        style={{ background: "transparent", border: "1px solid currentColor", color: "inherit", borderRadius: "var(--tm-radius-sm)", padding: "2px 8px", fontSize: 11, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}
+                        style={{ background: "transparent", border: "1px solid currentColor", color: "inherit", borderRadius: "var(--tm-radius-sm)", padding: "2px 8px", fontSize: "var(--tm-fs-caption)", fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}
                       >
                         Retry
                       </button>
@@ -911,15 +911,15 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
                   </div>
                 ) : followedCompanies.length === 0 ? (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "32px 0", textAlign: "center" }}>
-                    <div style={{ fontSize: 28, opacity: 0.2, color: "var(--tm-interactive)" }}>★</div>
-                    <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>
+                    <div style={{ fontSize: "var(--tm-fs-title)", opacity: 0.2, color: "var(--tm-interactive)" }}>★</div>
+                    <div style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text-faint)" }}>
                       Follow a company to track its hiring
                     </div>
                   </div>
                 ) : (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
                     {followedCompanies.map((company) => (
-                      <div key={company.company_name} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 8px 5px 12px", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)", fontSize: 12, color: "var(--tm-interactive)" }}>
+                      <div key={company.company_name} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 8px 5px 12px", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)", fontSize: "var(--tm-fs-caption)", color: "var(--tm-interactive)" }}>
                         <CompanyLink company={company.company_name} stopPropagation={false} />
 
                         <FollowCompanyControl company={company.company_name} action={following.action(company.company_name)} />
@@ -998,8 +998,8 @@ function BillingTabContent({
           border: "1px solid var(--tm-int-border)",
           background: "var(--tm-int-bg-wash)",
           color: "var(--tm-interactive)",
-          fontSize: 12,
-          fontWeight: 700,
+          fontSize: "var(--tm-fs-caption)",
+          fontWeight: 600,
           textDecoration: "none",
         }}
       >
@@ -1019,23 +1019,23 @@ function BillingTabContent({
               display: "inline-flex", alignItems: "center",
               padding: "3px 8px", borderRadius: "var(--tm-radius-pill)",
               border: "1px solid var(--tm-int-border)", color: "var(--tm-interactive)",
-              fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
+              fontSize: "var(--tm-fs-caption)", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase",
             }}>
               Launch price
             </div>
-            <div style={{ marginTop: 12, fontSize: 24, fontWeight: 750, color: "var(--tm-text)", lineHeight: 1 }}>
+            <div style={{ marginTop: 12, fontSize: "var(--tm-fs-title)", fontWeight: 600, color: "var(--tm-text)", lineHeight: 1 }}>
               {formatCount(XP_PACK_AMOUNT)} Myro Coins
             </div>
-            <div style={{ marginTop: 8, fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.5, maxWidth: 360 }}>
+            <div style={{ marginTop: 8, fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", lineHeight: 1.5, maxWidth: 360 }}>
               Use Myro Coins for company follows, match refreshes, and focused practice sessions.
             </div>
           </div>
 
           <div style={{ textAlign: "right", flexShrink: 0 }}>
-            <div style={{ fontSize: 28, fontWeight: 800, color: "var(--tm-text)", lineHeight: 1 }}>
+            <div style={{ fontSize: "var(--tm-fs-title)", fontWeight: 600, color: "var(--tm-text)", lineHeight: 1 }}>
               Rs {XP_PACK_PRICE_RUPEES}
             </div>
-            <div style={{ marginTop: 6, fontSize: 11, color: "var(--tm-text-faint)" }}>
+            <div style={{ marginTop: 6, fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
               Razorpay Standard Checkout
             </div>
           </div>
@@ -1049,7 +1049,7 @@ function BillingTabContent({
             style={{
               padding: "10px 20px", borderRadius: "var(--tm-radius-sm)", border: "none",
               background: status === "success" ? "var(--tm-success)" : "var(--tm-interactive)",
-              color: "var(--tm-interactive-fg)", fontSize: 13, fontWeight: 700, fontFamily: "inherit",
+              color: "var(--tm-interactive-fg)", fontSize: "var(--tm-fs-body)", fontWeight: 600, fontFamily: "inherit",
               cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.72 : 1,
               minWidth: 150, boxShadow: busy ? "none" : "0 0 18px var(--tm-int-bg-hover)",
               transition: "opacity var(--tm-dur) var(--tm-ease), background var(--tm-dur) var(--tm-ease)",
@@ -1059,13 +1059,13 @@ function BillingTabContent({
           </button>
 
           {message && (
-            <div role="status" style={{ fontSize: 12, color: messageColor, lineHeight: 1.45, maxWidth: 360 }}>
+            <div role="status" style={{ fontSize: "var(--tm-fs-caption)", color: messageColor, lineHeight: 1.45, maxWidth: 360 }}>
               {message}
             </div>
           )}
         </div>
 
-        <p style={{ marginTop: 14, fontSize: 11, color: "var(--tm-text-faint)", lineHeight: 1.55, maxWidth: 420 }}>
+        <p style={{ marginTop: 14, fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", lineHeight: 1.55, maxWidth: 420 }}>
           By paying, you agree to Myro&rsquo;s{" "}
           <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "var(--tm-interactive)", textDecoration: "none" }}>Terms</a>
           {" "}and{" "}
@@ -1083,16 +1083,16 @@ function BillingTabContent({
       }}>
         <div>
           <div style={{
-            fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase",
+            fontSize: "var(--tm-fs-caption)", letterSpacing: "0.08em", textTransform: "uppercase",
             color: "var(--tm-text-faint)", fontWeight: 500,
           }}>
             Payment partner
           </div>
-          <div style={{ marginTop: 4, fontSize: 13, color: "var(--tm-text)" }}>
+          <div style={{ marginTop: 4, fontSize: "var(--tm-fs-body)", color: "var(--tm-text)" }}>
             Razorpay
           </div>
         </div>
-        <span style={{ fontSize: 11, color: isTestMode ? "var(--tm-warning)" : "var(--tm-text-faint)" }}>
+        <span style={{ fontSize: "var(--tm-fs-caption)", color: isTestMode ? "var(--tm-warning)" : "var(--tm-text-faint)" }}>
           {isTestMode ? "Test mode" : "Secure checkout"}
         </span>
       </div>
@@ -1119,13 +1119,13 @@ function FeedbackTabContent({ onClose }: { onClose: () => void }) {
         border: "1px solid var(--tm-int-border)",
       }}>
         <div style={{
-          fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase",
+          fontSize: "var(--tm-fs-caption)", letterSpacing: "0.08em", textTransform: "uppercase",
           color: "var(--tm-interactive)", fontWeight: 500,
         }}>Direct line</div>
-        <div style={{ marginTop: 6, fontSize: 18, color: "var(--tm-text)", fontWeight: 600 }}>
+        <div style={{ marginTop: 6, fontSize: "var(--tm-fs-heading)", color: "var(--tm-text)", fontWeight: 600 }}>
           Help shape Myro
         </div>
-        <div style={{ marginTop: 6, fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.55 }}>
+        <div style={{ marginTop: 6, fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", lineHeight: 1.55 }}>
           Every dispatch is read by a human. A growing share of Myro&apos;s roadmap starts as a user signal.
         </div>
         <Button type="button" variant="solid" size="sm" onClick={() => open()} style={{ marginTop: 14 }}>
@@ -1136,7 +1136,7 @@ function FeedbackTabContent({ onClose }: { onClose: () => void }) {
       {/* Quick dispatch */}
       <div>
         <div style={{
-          fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase",
+          fontSize: "var(--tm-fs-caption)", letterSpacing: "0.08em", textTransform: "uppercase",
           color: "var(--tm-text-faint)", fontWeight: 500, marginBottom: 10,
         }}>Quick dispatch</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
@@ -1169,8 +1169,8 @@ function FeedbackTabContent({ onClose }: { onClose: () => void }) {
                   <CategoryGlyph category={id} size={18} />
                 </span>
                 <div>
-                  <div style={{ fontSize: 13, color: "var(--tm-text)", fontWeight: 600 }}>{c.label}</div>
-                  <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 1 }}>{c.hint}</div>
+                  <div style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text)", fontWeight: 600 }}>{c.label}</div>
+                  <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", marginTop: 1 }}>{c.hint}</div>
                 </div>
               </button>
             )
@@ -1188,16 +1188,16 @@ function FeedbackTabContent({ onClose }: { onClose: () => void }) {
       }}>
         <div>
           <div style={{
-            fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase",
+            fontSize: "var(--tm-fs-caption)", letterSpacing: "0.08em", textTransform: "uppercase",
             color: "var(--tm-text-faint)", fontWeight: 500,
           }}>Response time</div>
-          <div style={{ marginTop: 4, fontSize: 13, color: "var(--tm-text)" }}>
-            <span style={{ fontFamily: "var(--tm-font-mono)", color: "var(--tm-interactive)", fontWeight: 700 }}>14h</span>
+          <div style={{ marginTop: 4, fontSize: "var(--tm-fs-body)", color: "var(--tm-text)" }}>
+            <span style={{ fontFamily: "var(--tm-font-mono)", color: "var(--tm-interactive)", fontWeight: 600 }}>14h</span>
             <span style={{ color: "var(--tm-text-muted)", marginLeft: 6 }}>median this week · 1 human reads</span>
           </div>
         </div>
         <span style={{
-          fontSize: 11, color: "var(--tm-text-faint)",
+          fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)",
           fontFamily: "var(--tm-font-mono)",
         }}>
           ⌘/ opens this anywhere

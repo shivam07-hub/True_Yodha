@@ -22,7 +22,7 @@ export function ShareButton({ url, title }: ShareButtonProps) {
         display: "inline-flex",
         alignItems: "center",
         gap: 6,
-        fontSize: 13,
+        fontSize: "var(--tm-fs-body)",
         fontWeight: 500,
         color: "var(--tm-text-muted)",
         background: "transparent",

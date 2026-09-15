@@ -45,7 +45,7 @@ export function CVBaselineSkeleton() {
         display: "grid",
         gridTemplateColumns: "minmax(420px, 0.85fr) 1.15fr",
         border: "1px solid rgba(255,255,255,0.05)",
-        borderRadius: 16,
+        borderRadius: 10,
         background: "var(--tm-surface)",
         overflow: "hidden",
         minHeight: 620,

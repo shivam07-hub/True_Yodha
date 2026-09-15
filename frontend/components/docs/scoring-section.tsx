@@ -38,8 +38,8 @@ export function ScoringSection() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))", gap: 8, margin: "16px 0" }}>
         {PUBLIC_SCORE_DOMAINS.map((domain) => (
           <div key={domain.short} style={{ border: "1px solid var(--tm-border-soft)", borderRadius: 8, padding: "10px 12px", background: "var(--tm-surface)" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tm-text)" }}>{domain.short}</div>
-            <div style={{ marginTop: 3, fontSize: 11, lineHeight: 1.45, color: "var(--tm-text-faint)" }}>{domain.full}</div>
+            <div style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "var(--tm-text)" }}>{domain.short}</div>
+            <div style={{ marginTop: 3, fontSize: "var(--tm-fs-caption)", lineHeight: 1.45, color: "var(--tm-text-faint)" }}>{domain.full}</div>
           </div>
         ))}
       </div>

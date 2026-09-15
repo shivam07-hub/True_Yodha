@@ -66,14 +66,14 @@ function XpActionRow({
       </div>
       <div style={{ minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-          <span style={{ fontSize: compact ? 13 : 15, fontWeight: 700, color: "var(--tm-text)" }}>
+          <span style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "var(--tm-text)" }}>
             {item.title}
           </span>
         </div>
         <div
           style={{
             marginTop: 3,
-            fontSize: compact ? 12 : 13,
+            fontSize: compact? "var(--tm-fs-caption)" : "var(--tm-fs-body)",
             color: "var(--tm-text-faint)",
             lineHeight: 1.5,
           }}
@@ -86,8 +86,8 @@ function XpActionRow({
         style={{
           fontFamily: "var(--tm-font-mono)",
           fontVariantNumeric: "tabular-nums",
-          fontSize: compact ? 12 : 13,
-          fontWeight: 800,
+          fontSize: compact? "var(--tm-fs-caption)" : "var(--tm-fs-body)",
+          fontWeight: 600,
           color: item.amount.startsWith("+") ? "var(--tm-success)" : "var(--tm-interactive)",
           paddingTop: 2,
         }}
@@ -110,7 +110,7 @@ export function XpGuideLists({ compact = false }: { compact?: boolean }) {
       <section>
         <div
           style={{
-            fontSize: 11,
+            fontSize: "var(--tm-fs-caption)",
             letterSpacing: "0.09em",
             textTransform: "uppercase",
             color: "var(--tm-text-faint)",
@@ -132,7 +132,7 @@ export function XpGuideLists({ compact = false }: { compact?: boolean }) {
       <section>
         <div
           style={{
-            fontSize: 11,
+            fontSize: "var(--tm-fs-caption)",
             letterSpacing: "0.09em",
             textTransform: "uppercase",
             color: "var(--tm-text-faint)",
@@ -157,7 +157,7 @@ export function XpFairnessNote({ compact = false }: { compact?: boolean }) {
         borderRadius: 8,
         border: "1px solid var(--tm-border-soft)",
         background: "rgba(255,255,255,0.025)",
-        fontSize: compact ? 12 : 13,
+        fontSize: compact? "var(--tm-fs-caption)" : "var(--tm-fs-body)",
         color: "var(--tm-text-faint)",
         lineHeight: 1.5,
       }}

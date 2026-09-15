@@ -81,7 +81,7 @@ export function JobDetailSheet({
     <BottomSheet open={open} onClose={onClose} label="Job detail" maxHeight="88%">
       <div className="mm-scroll" style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "2px 18px 14px" }}>
         <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: row.logoBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "#fff", flex: "none" }}>{row.coInitial}</div>
+          <div style={{ width: 44, height: 44, borderRadius: 10, background: row.logoBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "#fff", flex: "none" }}>{row.coInitial}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "var(--mm-accent)" }}>{row.co}</span>
@@ -193,9 +193,9 @@ export function JobDetailSheet({
             </button>
           </>
         ) : null}
-        <button onClick={onTailor} className="mm-press" style={{ flex: 1, height: 42, borderRadius: 13, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: "var(--tm-fs-body)", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-0.01em" }}>Tailor CV</button>
+        <button onClick={onTailor} className="mm-press" style={{ flex: 1, height: 42, borderRadius: 10, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: "var(--tm-fs-body)", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-0.01em" }}>Tailor CV</button>
         {hasApply && (
-          <button onClick={onApply} className="mm-press-sm" style={{ height: 42, padding: "0 14px", borderRadius: 13, border: "1px solid rgba(255,255,255,0.09)", background: "transparent", color: "var(--mm-text)", fontSize: "var(--tm-fs-body)", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", flex: "none" }}>{applyLabel} ↗</button>
+          <button onClick={onApply} className="mm-press-sm" style={{ height: 42, padding: "0 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.09)", background: "transparent", color: "var(--mm-text)", fontSize: "var(--tm-fs-body)", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", flex: "none" }}>{applyLabel} ↗</button>
         )}
       </div>
     </BottomSheet>
@@ -206,6 +206,6 @@ const sectionLabel: React.CSSProperties = {
   fontSize: "var(--tm-fs-caption)", fontWeight: 600, letterSpacing: "0.08em", color: "var(--mm-faint)", textTransform: "uppercase",
 }
 const footBtn: React.CSSProperties = {
-  width: 42, height: 42, borderRadius: 13, border: "1px solid rgba(255,255,255,0.09)", background: "transparent",
+  width: 42, height: 42, borderRadius: 10, border: "1px solid rgba(255,255,255,0.09)", background: "transparent",
   display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flex: "none",
 }

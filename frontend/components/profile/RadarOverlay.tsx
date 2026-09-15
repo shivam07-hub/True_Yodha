@@ -92,7 +92,7 @@ export function RadarOverlay({
           display: "flex",
           gap: 16,
           justifyContent: "center",
-          fontSize: 11,
+          fontSize: "var(--tm-fs-caption)",
           color: "var(--tm-text-faint)",
           letterSpacing: "0.06em",
           marginTop: 8,

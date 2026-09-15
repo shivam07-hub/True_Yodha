@@ -43,7 +43,7 @@ const buttonStyle: CSSProperties = {
   background: "var(--tm-int-bg-wash)",
   color: "var(--tm-interactive)",
   fontFamily: "inherit",
-  fontSize: 13,
+  fontSize: "var(--tm-fs-body)",
   fontWeight: 600,
   cursor: "pointer",
   textDecoration: "none",
@@ -60,13 +60,13 @@ function ErrorPanel({
         !
       </div>
       <div>
-        <h1 id="route-error-title" style={{ margin: 0, color: "var(--tm-text)", fontSize: "var(--tm-fs-title)", lineHeight: "var(--tm-lh-title)", fontWeight: 700 }}>
+        <h1 id="route-error-title" style={{ margin: 0, color: "var(--tm-text)", fontSize: "var(--tm-fs-title)", lineHeight: "var(--tm-lh-title)", fontWeight: 600 }}>
           {title}
         </h1>
         {/* --tm-text-muted, not --tm-text-faint: faint is ~3:1 at 14px on the
             light paper, and this sentence is the only thing telling the user
             the failure is temporary and retryable. */}
-        <p style={{ margin: "8px 0 0", color: "var(--tm-text-muted)", fontSize: 14, lineHeight: 1.5 }}>
+        <p style={{ margin: "8px 0 0", color: "var(--tm-text-muted)", fontSize: "var(--tm-fs-body)", lineHeight: 1.5 }}>
           The page hit a temporary failure. Retry the route or return home.
         </p>
       </div>

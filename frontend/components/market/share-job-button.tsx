@@ -37,7 +37,7 @@ export function ShareJobButton({ job, variant = "triage" }: { job: ShareJob; var
         onClick={onClick}
         aria-label={copied ? "Link copied" : "Share this job"}
         title="Share this job"
-        style={{ padding: "11px 16px", borderRadius: 10, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+        style={{ padding: "11px 16px", borderRadius: 10, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text)", fontWeight: 600, fontSize: "var(--tm-fs-body)", cursor: "pointer" }}
       >
         <span aria-hidden>{glyph}</span> {label}
       </button>
