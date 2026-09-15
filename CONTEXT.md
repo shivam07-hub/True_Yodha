@@ -543,6 +543,27 @@ Two halves:
 
 ---
 
+## Reach Target
+
+A person the **user nominated** for outreach (ADR-0018 Path 3). Not a scrape.
+The user pasted a LinkedIn `/in/{vanity}` URL they opened in their own session
+and typed the name they read there. Myro stores that nomination, fills Path 2
+copy when a Reach Pack exists, and records user-confirmed states:
+`queued → sent → followed_up → replied | stopped`. Follow-up is due three days
+after `sent`. `job_id` is optional so the desk can hold cold-reach prospects
+with no collected job.
+
+**Invariants**
+
+- Myro never fetches the profile, never sends, never holds LinkedIn credentials.
+- A search URL, Sales Nav URL, or company page is not a Reach Target.
+- The user marks sent / replied. There is no scheduled or unattended send.
+- Table `reach_targets`, own-only RLS. Cap 80 per user.
+
+Surfaces: job Reach section (`ReachLog`), Collections desk strip, `/reach`.
+
+---
+
 ## CV Version Writer Seam
 
 `CVVersionsRepository.create(spec: CVVersionWriteSpec)` is the single seam through which CV Versions enter the database. Every endpoint that produces a version — upload, save playground, polish, edit — reduces to building a spec and calling this method. The repository owns:

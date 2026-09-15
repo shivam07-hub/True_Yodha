@@ -7,6 +7,7 @@ import {
   IntelDesktopSkeleton,
   MarketDesktopSkeleton,
   PracticeDesktopSkeleton,
+  ReachDesktopSkeleton,
 } from "@/components/loading/desktop-page-skeletons"
 import {
   CollectionsMobileSkeleton,
@@ -15,6 +16,7 @@ import {
   JobsMobileSkeleton,
   PracticeMobileSkeleton,
   ProfileMobileSkeleton,
+  ReachMobileSkeleton,
 } from "@/components/loading/mobile-page-skeletons"
 
 /**
@@ -52,6 +54,10 @@ export function IntelSkeleton() {
 
 export function GenericPageSkeleton() {
   return <RouteSkeleton desktop={<GenericDesktopSkeleton />} mobile={<GenericMobileSkeleton />} />
+}
+
+export function ReachSkeleton() {
+  return <RouteSkeleton desktop={<ReachDesktopSkeleton />} mobile={<ReachMobileSkeleton />} />
 }
 
 /**
@@ -93,6 +99,7 @@ export function skeletonForPath(pathname: string): React.ReactNode {
   if (pathname.startsWith("/preparations/")) return <PrepRoomSkeleton />
   if (pathname.startsWith("/preparations")) return <PrepSkeleton />
   if (pathname.startsWith("/me")) return <ProfileMobileSkeleton />
+  if (pathname.startsWith("/reach")) return <ReachSkeleton />
   // /tracker merged into /cv (2026-06-02) — it redirects to /cv → CVRouteSkeleton.
   return <GenericPageSkeleton />
 }

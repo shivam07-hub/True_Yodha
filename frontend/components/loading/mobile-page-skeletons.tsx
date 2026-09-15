@@ -224,3 +224,19 @@ export function GenericMobileSkeleton() {
     </div>
   )
 }
+
+/** /reach desk on a phone — stacked form, then queue rows. */
+export function ReachMobileSkeleton() {
+  return (
+    <div style={PAGE}>
+      <Skeleton style={{ width: 72, height: 11, borderRadius: 4 }} />
+      <Skeleton style={{ width: 120, height: 26, borderRadius: 8 }} />
+      <Skeleton style={{ height: 36, borderRadius: 8 }} />
+      <Skeleton style={{ height: 36, borderRadius: 8 }} />
+      <Skeleton style={{ height: 36, borderRadius: 8 }} />
+      {[0, 1, 2].map((i) => (
+        <CardBlock key={i} height={88} opacity={1 - i * 0.18} />
+      ))}
+    </div>
+  )
+}

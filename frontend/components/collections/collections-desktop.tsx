@@ -23,6 +23,7 @@ import { emptyCopy, orderEntries } from "@/lib/collections/model"
 import type { SortKey } from "@/lib/dashboard/feed-model"
 import type { CollectionEntry, CollectionStage } from "@/lib/api"
 import { CollectionRow } from "./collection-rows"
+import { ReachDueStrip } from "@/components/reach/reach-due-strip"
 
 /* ══════════════════════════════════════════════════════════════════════════
    The Myro Ops folder (desktop). ONE read (`GET /jobs/collections`), one entry
@@ -154,6 +155,7 @@ export function CollectionsDesktop({
             </div>
 
             <MatchVettingBanner token={token} health={collection.query.data?.match_health} />
+            <ReachDueStrip token={token} />
 
             {/* Picks inherit THIS surface's card, not the market one: inside the
                 Ops folder the job is already collected, so Save is not the hero

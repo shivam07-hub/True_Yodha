@@ -4037,6 +4037,32 @@ export interface ReachPackResponse {
   new_coin_balance: number | null
 }
 
+/** ADR-0018 Path 3 — a person the user nominated, not a scrape. */
+export type ReachTargetStatus = "queued" | "sent" | "followed_up" | "replied" | "stopped"
+
+export interface ReachTarget {
+  id: string
+  job_id: string | null
+  profile_url: string
+  display_name: string
+  company: string | null
+  role_title: string | null
+  status: ReachTargetStatus
+  connect_note: string
+  followup_note: string
+  referral_ask: string
+  sent_at: string | null
+  followup_due_at: string | null
+  replied_at: string | null
+  due: boolean
+  created_at: string | null
+}
+
+export interface ReachTargetList {
+  targets: ReachTarget[]
+  due_count: number
+}
+
 // Preparations room day-of brief (30 coins, charge-on-success, replay free).
 export interface PrepBriefLead {
   story: string
@@ -4601,6 +4627,36 @@ export const jobs = {
     request<ReachPackResponse>(`/jobs/${encodeURIComponent(jobId)}/reach/pack`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
+    }),
+  listReachTargets: (token: string, opts?: { jobId?: string | null; due?: boolean }) => {
+    const q = new URLSearchParams()
+    if (opts?.jobId) q.set("job_id", opts.jobId)
+    if (opts?.due) q.set("due", "true")
+    const suffix = q.toString() ? `?${q.toString()}` : ""
+    return request<ReachTargetList>(`/jobs/reach/targets${suffix}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  },
+  createReachTarget: (
+    token: string,
+    body: {
+      profile_url: string
+      display_name: string
+      company?: string | null
+      role_title?: string | null
+      job_id?: string | null
+    },
+  ) =>
+    request<ReachTarget>(`/jobs/reach/targets`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    }),
+  advanceReachTarget: (token: string, targetId: string, action: "sent" | "followed_up" | "replied" | "stopped") =>
+    request<ReachTarget>(`/jobs/reach/targets/${encodeURIComponent(targetId)}/advance`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action }),
     }),
   /** Purchased-state for a job's day-of brief — no charge (UI gate). */
   getPrepBrief: (token: string, jobId: string) =>

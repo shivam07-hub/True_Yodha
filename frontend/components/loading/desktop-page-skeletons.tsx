@@ -259,3 +259,22 @@ export function GenericDesktopSkeleton() {
     </div>
   )
 }
+
+/** /reach desk — one narrow column, form, then queue rows. */
+export function ReachDesktopSkeleton() {
+  return (
+    <div style={{ ...PAGE, maxWidth: 640, margin: "0 auto" }}>
+      <Header titleW={120} />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr 1fr 88px", gap: 8, marginBottom: 20 }}>
+        <Bar w="100%" h={36} r={8} />
+        <Bar w="100%" h={36} r={8} />
+        <Bar w="100%" h={36} r={8} />
+        <Bar w="100%" h={36} r={8} />
+      </div>
+      <Bar w={72} h={11} r={4} mt={8} />
+      {[0, 1, 2].map((i) => (
+        <Card key={i} h={88} />
+      ))}
+    </div>
+  )
+}

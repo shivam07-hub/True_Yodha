@@ -278,6 +278,15 @@ a.fc-co:hover { color: var(--tm-interactive); }
 .fc-rail-reach a:last-child { border-bottom: none; }
 .fc-rail-reach a:hover { color: var(--tm-interactive); }
 .fc-rail-reach .fc-rail-reach-kind { color: var(--tm-text-faint); font-size: var(--tm-fs-caption); white-space: nowrap; }
+.fc-rail-desk {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: var(--tm-fs-caption);
+  color: var(--tm-interactive);
+  text-decoration: none;
+  cursor: pointer;
+}
+.fc-rail-desk:hover { text-decoration: underline; }
 .fc-rail-loading { color: var(--tm-text-muted); font-size: var(--tm-fs-body); }
 
 /* Verified trust stamp — lift it from the faintest line to a live signal (it's

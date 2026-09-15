@@ -158,6 +158,9 @@ function ReachPanel({ token, jobId, job }: { token: string; jobId: string; job: 
           </a>
         ))}
       </div>
+      <Link href={`/reach?jobId=${encodeURIComponent(jobId)}`} className="fc-rail-desk">
+        Log who you reached
+      </Link>
     </>
   )
 }

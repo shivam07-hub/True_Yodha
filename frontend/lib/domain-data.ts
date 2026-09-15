@@ -35,6 +35,7 @@ export const dataKeys = {
   careerSkillPath: () => ["career-skill-path"] as const,
   jobPath: (jobId: JobId) => ["job-path", jobId] as const,
   skillGap: (jobId: JobId) => ["skill-gap", jobId] as const,
+  reachTargets: (scope: string) => ["reach-targets", scope] as const,
   deepenings: (jobId: JobId) => ["deepenings", jobId] as const,
   growthCommand: () => ["growth-command"] as const,
   jobsAnalytics: (

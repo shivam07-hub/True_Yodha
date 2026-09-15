@@ -19,6 +19,7 @@ import { MobileAgentPicks } from "./agent-picks-mobile"
 import { matchToRow } from "./job-model"
 import { useMobileUI } from "./mobile-ui"
 import { CollectionsMobileFeedRows } from "@/components/loading/mobile-page-skeletons"
+import { ReachDueStrip } from "@/components/reach/reach-due-strip"
 
 /* ══════════════════════════════════════════════════════════════════════════
    CollectionsSurface — the mobile Myro Ops folder. ONE read
@@ -180,6 +181,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
       </div>
 
       <div style={{ padding: "2px 16px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+        <ReachDueStrip token={token} />
         {stage === "found" && !collection.isLoading ? <MobileAgentPicks token={token} context="collections" /> : null}
 
         {collection.isLoading ? (

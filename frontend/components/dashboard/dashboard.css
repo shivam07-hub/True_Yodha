@@ -375,6 +375,18 @@
 .db-reach-conn { margin-top: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .db-reach-conn-note { font-size: var(--tm-fs-caption); color: var(--db-faint); flex: 1; min-width: 160px; }
 .db-reach-conn-on { font-size: var(--tm-fs-caption); color: var(--db-accent-text); }
+.db-reach-log { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.db-reach-log-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.db-reach-desk-link { font-size: var(--tm-fs-caption); color: var(--tm-interactive); text-decoration: none; }
+.db-reach-desk-link:hover { text-decoration: underline; }
+.db-reach-form { display: flex; flex-wrap: wrap; gap: 6px; }
+.db-reach-form .tm-input { flex: 1; min-width: 140px; }
+.db-reach-person { border: 1px solid var(--db-line-soft); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+.db-reach-person-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.db-reach-person-name { font-size: var(--tm-fs-body); font-weight: 600; color: var(--tm-interactive); text-decoration: none; }
+.db-reach-person-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.db-reach-st { font-size: var(--tm-fs-caption); font-family: var(--tm-font-mono); color: var(--db-faint); }
+.db-reach-st.is-due { color: var(--tm-warning); }
 
 .db-otherrole {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
