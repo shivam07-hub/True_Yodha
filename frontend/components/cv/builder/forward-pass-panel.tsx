@@ -75,12 +75,12 @@ export function ForwardPassPanel({ token }: { token: string }) {
 
   return (
     <section className="tm-fwp" aria-label="What Myro added to your CV">
-      <header className="tm-fwp-head">
-        <p className="tm-fwp-kicker mono">Platform update</p>
-        <h2 className="tm-fwp-title">
-          Your CV is now {profile.story_count} career {profile.story_count === 1 ? "story" : "stories"}.
-        </h2>
-      </header>
+      {/* No kicker. "Platform update" is true for the returning user this panel
+          was built for and a lie for the new one who just uploaded — and both
+          land here. The headline is true for both, so it stands alone. */}
+      <h2 className="tm-fwp-title">
+        Your CV is now {profile.story_count} career {profile.story_count === 1 ? "story" : "stories"}.
+      </h2>
 
       {/* Renders nothing of its own accord when there is nothing left to ask. */}
       <StoryQuestions
