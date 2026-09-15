@@ -74,13 +74,18 @@ class CareerReservoirRepository:
     # ── roles ────────────────────────────────────────────────────────────────
 
     def list_roles(self, user_id: str) -> list[dict[str, Any]]:
-        return safe_read(
-            self._db.table("career_roles")
+        # Paged, and `id` is the tiebreak: `created_at` is not unique, and a
+        # non-unique sort key lets PostgREST hand back the same row twice across
+        # page boundaries while skipping another. Live max is 97 roles for one
+        # user — a third of the way to nothing, but the forward pass is about to
+        # bank 393 more people through this read.
+        return self._paged(
+            lambda: self._db.table("career_roles")
             .select("*")
             .eq("user_id", user_id)
-            .order("created_at", desc=False),
-            default=[],
-            context="career_roles_list",
+            .order("created_at", desc=False)
+            .order("id"),
+            "career_roles_list",
         )
 
     def add_role(self, user_id: str, role: dict[str, Any]) -> dict[str, Any]:
@@ -109,14 +114,17 @@ class CareerReservoirRepository:
     # ── stories ──────────────────────────────────────────────────────────────
 
     def list_stories(self, user_id: str, *, include_archived: bool = False) -> list[dict[str, Any]]:
-        query = self._db.table("career_stories").select("*").eq("user_id", user_id)
-        if not include_archived:
-            query = query.eq("status", "active")
-        return safe_read(
-            query.order("created_at", desc=False),
-            default=[],
-            context="career_stories_list",
-        )
+        def build() -> Any:
+            query = self._db.table("career_stories").select("*").eq("user_id", user_id)
+            if not include_archived:
+                query = query.eq("status", "active")
+            return query.order("created_at", desc=False).order("id")
+
+        # `story_pointers` below pages because a dropped pointer is a CV bullet
+        # that vanishes. This is that read's PARENT: a story truncated here takes
+        # its pointers with it, and nothing says so. Live max is 153 active
+        # stories for one user, from 50 inflows.
+        return self._paged(build, "career_stories_list")
 
     def add_story(self, user_id: str, story: dict[str, Any]) -> dict[str, Any]:
         payload = {
@@ -188,16 +196,18 @@ class CareerReservoirRepository:
     def story_embeddings(self, user_id: str) -> list[dict[str, Any]]:
         """(id, embedding) of active stories that HAVE an embedding — the in-Python
         dedup candidate set (user story counts are small; no ANN RPC needed)."""
-        rows = safe_read(
-            self._db.table("career_stories")
+        # A truncated candidate set does not fail — it silently stops proposing
+        # the folds whose stories fell off the end, so a duplicate the judge would
+        # have caught simply never comes up again.
+        return self._paged(
+            lambda: self._db.table("career_stories")
             .select("id, embedding")
             .eq("user_id", user_id)
             .eq("status", "active")
-            .not_.is_("embedding", "null"),
-            default=[],
-            context="career_stories_embeddings",
+            .not_.is_("embedding", "null")
+            .order("id"),
+            "career_stories_embeddings",
         )
-        return rows
 
     # ── story-linked pointers (cv_points) ────────────────────────────────────
 
@@ -377,13 +387,18 @@ class CareerReservoirRepository:
         one way that surface could ask twice, and the reason it is resolved from
         the ledger rather than from a client that does not survive a reload.
         """
-        rows = safe_read(
-            self._db.table("cv_dump_entries")
+        # Two invariants ride on this count, and both fail SILENTLY on a
+        # truncated read: the Stories tab stops polling when `pending` reads 0
+        # while an ingest is still running, and a lost `awaiting_upgrade` id lets
+        # the completion queue re-ask a question whose answer is mid-ingest —
+        # the one way #13 L3's "never asked twice" can break.
+        rows = self._paged(
+            lambda: self._db.table("cv_dump_entries")
             .select("id, processed_at, payload")
             .eq("user_id", user_id)
-            .in_("kind", list(INFLOW_KINDS)),
-            default=[],
-            context="career_ingest_status",
+            .in_("kind", list(INFLOW_KINDS))
+            .order("id"),
+            "career_ingest_status",
         )
         pending = [r for r in rows if not r.get("processed_at")]
         awaiting = {

@@ -148,3 +148,92 @@ def test_it_pages_past_the_1000_row_ceiling():
     assert out["pending"] == 1, "the tail is read, not dropped"
     assert db.pages[0] == repo_mod._PAGE
     assert db.ordered is True, "paging without an order is not stable"
+
+
+# ── the 1000-row ceiling, on every per-user read that can outgrow it ──────────
+
+class _CeilQuery:
+    def __init__(self, db):
+        self._db = db
+        self._start, self._end = 0, repo_mod._PAGE - 1
+
+    def select(self, *_a, **_k):
+        return self
+
+    def eq(self, *_a):
+        return self
+
+    def in_(self, *_a):
+        return self
+
+    @property
+    def not_(self):
+        """`.not_.is_(...)` reads the attribute first, then calls `is_` on it."""
+        return self
+
+    def is_(self, *_a):
+        return self
+
+    def order(self, col, **_k):
+        self._db.order_cols.append(col)
+        return self
+
+    def range(self, start, end):
+        self._start, self._end = start, end
+        return self
+
+    def execute(self):
+        page = self._db.rows[self._start:self._end + 1]
+        self._db.pages.append(len(page))
+
+        class _R:
+            data = page
+        return _R()
+
+
+class _CeilDb:
+    def __init__(self, n):
+        self.rows = [{"id": f"r{i}", "processed_at": None, "payload": {}} for i in range(n)]
+        self.pages: list[int] = []
+        self.order_cols: list[str] = []
+
+    def table(self, _name):
+        return _CeilQuery(self)
+
+
+def _repo(n):
+    db = _CeilDb(n)
+    return repo_mod.CareerReservoirRepository(db), db
+
+
+def test_list_stories_pages_because_a_lost_story_takes_its_pointers_with_it():
+    repo, db = _repo(2300)
+    assert len(repo.list_stories("u1")) == 2300
+    assert db.pages[0] == repo_mod._PAGE
+
+
+def test_list_roles_pages():
+    repo, db = _repo(1400)
+    assert len(repo.list_roles("u1")) == 1400
+
+
+def test_story_embeddings_pages_so_a_duplicate_is_still_proposable():
+    repo, db = _repo(1200)
+    assert len(repo.story_embeddings("u1")) == 1200
+
+
+def test_ingest_status_pages_so_pending_cannot_read_zero_mid_ingest():
+    repo, db = _repo(1500)
+    assert repo.ingest_status("u1")["pending"] == 1500
+
+
+def test_every_paged_read_carries_a_unique_tiebreak():
+    """`created_at` is not unique. Paging on it alone lets PostgREST return one
+    row twice across a page boundary and skip another — so `id` comes last."""
+    repo, db = _repo(10)
+    repo.list_stories("u1")
+    assert db.order_cols[-1] == "id"
+
+    repo2, db2 = _repo(10)
+    repo2.list_roles("u1")
+    assert db2.order_cols[-1] == "id"
