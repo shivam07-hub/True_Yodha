@@ -172,47 +172,40 @@ function RailWidget({ rows, logo }: { rows: number; logo?: boolean }) {
 
 export function MarketDesktopSkeleton() {
   return (
-    <div style={{ ...PAGE, maxWidth: 1480, margin: "0 auto" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "248px minmax(0, 1fr)", gap: 28, alignItems: "start" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Bar w={170} h={16} r={4} />
-          <Bar w={120} h={11} r={4} />
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <Skeleton style={{ width: 68, height: 68, borderRadius: "50%", flexShrink: 0 }} />
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <Bar w={72} h={10} r={4} />
-              <Bar w={88} h={14} r={4} />
-              <Bar w={110} h={11} r={4} />
-            </div>
+    <div style={{ ...PAGE, padding: "var(--tm-page-py) var(--tm-page-px) var(--tm-space-xl)" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, var(--tm-feed-col)) var(--tm-feed-rail)",
+          gap: "var(--tm-space-lg)",
+          maxWidth: "calc(var(--tm-feed-col) + var(--tm-feed-rail) + var(--tm-space-lg))",
+          margin: "0 auto",
+          width: "100%",
+          alignItems: "start",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Bar w={40} h={40} r={10} />
+            <Bar w={88} h={32} r={10} />
+            <Bar w={72} h={32} r={10} />
+            <Bar w={80} h={32} r={8} />
           </div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {[92, 78, 118].map((w) => (
-              <Skeleton key={w} style={{ width: w, height: 28, borderRadius: 14 }} />
-            ))}
-          </div>
-          {[100, 86, 70].map((w) => (
-            <Skeleton key={w} style={{ width: "100%", height: 40, borderRadius: 10 }} />
+          {[0, 1, 2].map((i) => (
+            <FeedRow key={i} />
           ))}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Bar w={88} h={32} r={16} />
-            <Bar w={72} h={32} r={16} />
-            <Bar w={80} h={32} r={8} />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 320px", gap: 28, alignItems: "start" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div style={{ display: "flex", gap: 10 }}>
-                <Bar w={64} h={11} r={4} />
-                <Bar w={96} h={26} r={13} />
-              </div>
-              {[0, 1, 2].map((i) => <FeedRow key={i} />)}
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <RailWidget rows={6} />
-              <RailWidget rows={4} logo />
+          <Bar w={170} h={16} r={4} />
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <Skeleton style={{ width: 68, height: 68, borderRadius: 10, flexShrink: 0 }} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <Bar w={72} h={10} r={4} />
+              <Bar w={88} h={14} r={4} />
             </div>
           </div>
+          <RailWidget rows={6} />
+          <RailWidget rows={4} logo />
         </div>
       </div>
     </div>

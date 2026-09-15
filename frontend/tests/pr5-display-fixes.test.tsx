@@ -13,7 +13,7 @@ test("heatmap skill labels are short and page uses the helper", () => {
   assert.equal(shortHeatmapSkillLabel("Machine Learning"), "ML")
   assert.equal(shortHeatmapSkillLabel("Time Series Analysis And Forecasting"), "Time Srs")
 
-  const source = readFileSync(join(frontendRoot, "app/(authed)/market/page.tsx"), "utf8")
+  const source = readFileSync(join(frontendRoot, "components/market/intel-workspace.tsx"), "utf8")
   assert.match(source, /shortHeatmapSkillLabel/)
   assert.doesNotMatch(source, /max-width:\s*12ch/)
 })

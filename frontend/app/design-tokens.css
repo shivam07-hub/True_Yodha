@@ -916,8 +916,8 @@ body::after {
   box-shadow: 0 0 0 1px var(--tm-accent-ring), var(--tm-shadow-2);
 }
 
-/* Feed template — r/popular: 732 column + 316 right rail. Collections is the
-   proof. Market still sits on the 1480 shell until its slice. */
+/* Feed template — r/popular: 732 column + 316 right rail. Collections and
+   Market are the proof. */
 .tm-feed-page {
   padding: var(--tm-page-py) var(--tm-page-px) var(--tm-space-xl);
   margin: 0 auto;

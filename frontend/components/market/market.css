@@ -1,10 +1,4 @@
-/* Market triage feed — Inshorts cards × LinkedIn chrome.
-   Scopes: card hover, triage buttons, control row, filters sheet, mobile swipe. */
-
-/* PR-4 — the reading column. The feed (search · controls · cards) sits in one
-   centred ~680px measure on desktop (X/LinkedIn), full-bleed on mobile. The
-   heatmap tab keeps the page's full 1480px width (it's a separate tab). */
-.tm-jobs-col { max-width: 680px; margin: 0 auto; }
+/* Market triage feed. Card hover, triage buttons, control row, filters sheet. */
 
 /* ── keyframes (idempotent — drawer/sheet reuse these) ───────────────────── */
 @keyframes tmScrimIn { from { opacity: 0 } to { opacity: 1 } }

@@ -13,7 +13,7 @@ const code = (p: string) =>
 
 const nudge = code("components/common/setup-nudge.tsx")
 const marketPage = read("app/(authed)/market/page.tsx")
-const jobsTab = code("components/market/jobs-tab.tsx")
+const jobsTab = code("components/market/market-jobs-column.tsx")
 const collections = code("app/(authed)/collections/page.tsx")
 const scoreReveal = code("components/cv/cv-score-progress.tsx")
 

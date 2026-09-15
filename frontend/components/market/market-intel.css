@@ -1,25 +1,23 @@
-/* market-intel.css — the reading-feed additions: interleaved story cards, the
-   right market rail, the mobile chip strip, the cold-start nudge, and the
-   two-column layout that wraps the feed + rail. Global --tm-* tokens only. */
+/* Market intel rail widgets. The 732+316 frame lives on .tm-feed-page
+   (design-tokens.css); this file must not recreate a nested 640+320. */
 
-/* ── two-zone layout (center reading column + right rail) ─────────────────── */
-/* Overrides .tm-jobs-col's centred 680px when a rail is present: the pair is
-   centred together, rail absorbs the width that read as dead space before. */
-.tm-market-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 640px) 320px;
-  gap: 28px;
-  max-width: 1000px;
-  margin: 0 auto;
-  align-items: start;
+/* Feed template owns the 316 rail's sticky scrollport. A second sticky
+   inside it nests two overflow boxes and clips the greeting + intel. */
+.tm-market-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tm-space-md);
 }
-.tm-market-main { min-width: 0; }
-@media (max-width: 1080px) {
-  .tm-market-layout { grid-template-columns: minmax(0, 680px); max-width: 680px; }
-  .mi-rail { display: none; }
+.tm-market-rail .mi-rail {
+  position: static;
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
+  margin-right: 0;
 }
-
-/* ── interleaved story card ───────────────────────────────────────────────── */
+@media (max-width: 980px) {
+  .tm-feed-page .tm-market-rail { order: -1; }
+}
 .mi-story {
   position: relative; overflow: hidden;
   padding: 18px 20px 18px 22px;
