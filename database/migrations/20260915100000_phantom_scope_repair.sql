@@ -46,6 +46,13 @@ create table if not exists public.phantom_scope_repair_20260915 (
   repaired_at          timestamptz not null default now()
 );
 
+-- This table holds 36 users' before/after targeting rows, so it is own-nothing:
+-- RLS on with NO policy denies anon and authenticated outright, and the service
+-- role (which is all that ever reads it — a restore is an operator action)
+-- bypasses RLS. Prod already had this; the file did not say so, which is the
+-- half that matters the next time this SQL runs anywhere else.
+alter table public.phantom_scope_repair_20260915 enable row level security;
+
 comment on table public.phantom_scope_repair_20260915 is
   'Before/after of the 2026-09-15 repair that removed non-existent role families '
   'from user_profiles.target_roles. Restore from here if needed. Keep until the '
