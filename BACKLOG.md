@@ -273,8 +273,22 @@ measured Free/Nano database ceiling, not unfinished application work.
     whole that it covers all the best practices of a CV point", and everything
     the user produces through the day should land in the reservoir.
 
-    **BUILT `cb51d83b` + L3 (2026-09-14). All three locks are in code.
-    REMAINING: the 397-user backfill, which stays last on purpose.**
+    **✅ CLOSED 2026-09-15. All three locks are in code (`cb51d83b` + `97f42192`),
+    the 397-user backfill is RETIRED — replaced by the forward pass (`806110a8`,
+    see below and CLAUDE.md § THE FORWARD PASS) — and the queue now has a second
+    door on the default `/cv` view (`964f1587`).**
+
+    The last gap was reach, not machinery. The forward pass banks a returning
+    user's CV from `/cv/structured`, but the only surface that said so was
+    `<ReservoirProfile>`, which mounts on `/cv?view=stories` — and `/cv` opens on
+    `view=cv`. `<ForwardPassPanel>` is the default view's half: it shows the
+    ingest running, then hands over the completion questions in place.
+
+    ⚠️ **`upgrades_story_id` is still 0 in production.** L2's fold — the answer
+    improving the SAME story — has never once run for a real user, because until
+    `964f1587` the only door to it was a prep room 328 of 397 CV-holders never
+    open. That number is now the measurement worth watching: one non-zero row
+    proves the whole chain end to end.
 
     L3's standing queue rides `GET /cv/reservoir/profile` — the Stories tab
     already reads every active story and every canonical pointer, so the queue
