@@ -62,18 +62,40 @@ class _Query:
     def limit(self, *_args):
         return self
 
-    def in_(self, _col: str, _ids: list[str]):
+    def in_(self, col: str, ids: list[str]):
+        self.db.filters.append((self.table, col, list(ids)))
+        return self
+
+    def update(self, payload: dict):
+        self.db.updates.append((self.table, payload))
+        return self
+
+    def insert(self, payload):
+        self.db.inserts.append((self.table, payload))
         return self
 
     def execute(self):
         if self.table == "jobs":
-            return type("R", (), {"data": [{"job_id": "j1", "job_title": "Role"}]})()
+            return type(
+                "R",
+                (),
+                {
+                    "data": [{
+                        "job_id": "j1",
+                        "job_title": "Role",
+                        "last_verified_live_at": "2026-09-01T00:00:00+00:00",
+                    }]
+                },
+            )()
         return type("R", (), {"data": [{"job_id": "j1", "skill_id": 1}]})()
 
 
 class _Db:
     def __init__(self) -> None:
         self.rpc_calls: list[tuple[str, dict]] = []
+        self.updates: list[tuple[str, dict]] = []
+        self.inserts: list[tuple[str, object]] = []
+        self.filters: list[tuple[str, str, list[str]]] = []
 
     def rpc(self, name: str, params: dict) -> _Rpc:
         return _Rpc(self, name, params)
@@ -92,6 +114,20 @@ def test_archive_then_retire_writes_files_before_delete(tmp_path: Path) -> None:
     )
 
     assert deleted == 1
+    assert db.updates == [("job_applications", {"match_id": None})]
+    assert db.inserts == [(
+        "job_listing_observations",
+        [{
+            "job_id": "j1",
+            "observer": "scraper",
+            "result": "seen_live",
+            "strength": "strong",
+            "observed_at": "2026-09-01T00:00:00+00:00",
+            "evidence": {"source": "retire_freeze"},
+            "verifier_version": "thin-ledger-v1",
+        }],
+    )]
+    assert ("job_applications", "job_id", ["j1"]) in db.filters
     assert db.rpc_calls[-1] == (
         "retire_closed_jobs",
         {"p_limit": 10, "p_job_ids": ["j1"]},

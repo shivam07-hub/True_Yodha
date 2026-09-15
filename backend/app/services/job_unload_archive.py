@@ -125,6 +125,10 @@ def archive_then_retire(
     root = local_root if local_root is not None else _default_local_root()
     output_dir = root / stamp.strftime("%Y-%m-%d") / batch
     write_archive_bundle(jobs, skills, output_dir, created_at=stamp)
+    # Applications keep the job_id; match rows CASCADE off jobs. Clear the
+    # pointer here so we do not need a dashboard ALTER to finish a drain.
+    _freeze_feed_presence(db, jobs)
+    _clear_application_match_pointers(db, archived_ids)
     deleted = (
         db.rpc(
             "retire_closed_jobs",
@@ -141,6 +145,40 @@ def archive_then_retire(
 
 def _default_local_root() -> Path:
     return Path(os.getenv("JOB_UNLOAD_ARCHIVE_DIR", "job_unloads"))
+
+
+def _freeze_feed_presence(db: Client, jobs: list[dict[str, Any]]) -> None:
+    """One seen_live row so Ghost Index still has last_in_feed after DELETE."""
+    rows: list[dict[str, Any]] = []
+    for job in jobs:
+        job_id = job.get("job_id")
+        stamp = job.get("last_verified_live_at")
+        if not job_id or not stamp:
+            continue
+        rows.append(
+            {
+                "job_id": str(job_id),
+                "observer": "scraper",
+                "result": "seen_live",
+                "strength": "strong",
+                "observed_at": stamp,
+                "evidence": {"source": "retire_freeze"},
+                "verifier_version": "thin-ledger-v1",
+            }
+        )
+    for start in range(0, len(rows), _IN_CHUNK):
+        db.table("job_listing_observations").insert(rows[start : start + _IN_CHUNK]).execute()
+
+
+def _clear_application_match_pointers(db: Client, ids: list[str]) -> None:
+    for start in range(0, len(ids), _IN_CHUNK):
+        chunk = ids[start : start + _IN_CHUNK]
+        (
+            db.table("job_applications")
+            .update({"match_id": None})
+            .in_("job_id", chunk)
+            .execute()
+        )
 
 
 def _fetch_jobs(db: Client, ids: list[str]) -> list[dict[str, Any]]:
