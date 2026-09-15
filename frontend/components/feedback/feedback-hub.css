@@ -32,7 +32,7 @@
     flex: 1;
     justify-content: center !important;
     padding: 9px 8px !important;
-    font-size: 12px !important;
+    font-size: var(--tm-fs-caption) !important;
     white-space: nowrap;
   }
 
@@ -41,7 +41,7 @@
   }
 
   .tm-feedback-header h2 {
-    font-size: 18px !important;
+    font-size: var(--tm-fs-heading) !important;
   }
 
   .tm-feedback-header > div > div {

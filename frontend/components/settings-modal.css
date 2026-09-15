@@ -57,7 +57,7 @@ body:has(.tm-settings-dialog) [data-slot="dialog-overlay"] {
     justify-content: center !important;
     gap: 5px !important;
     padding: 9px 6px !important;
-    font-size: 12px !important;
+    font-size: var(--tm-fs-caption) !important;
     line-height: 1 !important;
     text-align: center !important;
   }
@@ -72,7 +72,7 @@ body:has(.tm-settings-dialog) [data-slot="dialog-overlay"] {
   }
 
   .tm-settings-header h2 {
-    font-size: 18px !important;
+    font-size: var(--tm-fs-heading) !important;
   }
 
   .tm-settings-body {

@@ -49,19 +49,19 @@ function CardShell({
 }) {
   const trust = pulseLine(pulse)
   return (
-    <div onClick={onOpen} style={{ background: "var(--mm-card)", border: "1px solid var(--mm-hair)", borderRadius: 16, padding: "13px 14px 11px", cursor: "pointer", animation: "mm-screenIn 260ms cubic-bezier(0.16,1,0.3,1) both", opacity: trust?.warn ? 0.92 : 1 }}>
+    <div onClick={onOpen} style={{ background: "var(--mm-card)", border: "1px solid var(--mm-hair)", borderRadius: 10, padding: "13px 14px 11px", cursor: "pointer", animation: "mm-screenIn 260ms cubic-bezier(0.16,1,0.3,1) both", opacity: trust?.warn ? 0.92 : 1 }}>
       <div style={{ display: "flex", gap: 11 }}>
-        <div style={{ width: 38, height: 38, borderRadius: 11, background: row.logoBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: "#fff", flex: "none" }}>{row.coInitial}</div>
+        <div style={{ width: 38, height: 38, borderRadius: 11, background: row.logoBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "#fff", flex: "none" }}>{row.coInitial}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--mm-text-3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{row.co}</span>
-            {statusChip && <span style={{ fontSize: 10, fontWeight: 700, color: statusChip === "Applied" ? "var(--mm-accent)" : "var(--mm-muted)", background: statusChip === "Applied" ? "var(--mm-accent-wash)" : "var(--mm-hair)", borderRadius: 5, padding: "1.5px 6px", flex: "none" }}>{statusChip}</span>}
-            {row.ago && <span style={{ fontSize: 11, color: "var(--mm-dim)", flex: "none", marginLeft: "auto" }}>{row.ago}</span>}
+            <span style={{ fontSize: "var(--tm-fs-caption)", fontWeight: 600, color: "var(--mm-text-3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{row.co}</span>
+            {statusChip && <span style={{ fontSize: "var(--tm-fs-caption)", fontWeight: 600, color: statusChip === "Applied" ? "var(--mm-accent)" : "var(--mm-muted)", background: statusChip === "Applied" ? "var(--mm-accent-wash)" : "var(--mm-hair)", borderRadius: 5, padding: "1.5px 6px", flex: "none" }}>{statusChip}</span>}
+            {row.ago && <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--mm-dim)", flex: "none", marginLeft: "auto" }}>{row.ago}</span>}
           </div>
-          <div style={{ fontSize: 15, fontWeight: 650, letterSpacing: "-0.01em", lineHeight: 1.28, marginTop: 2, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{row.role}</div>
-          <div style={{ fontSize: 11.5, color: "var(--mm-faint)", marginTop: 3 }}>{row.metaLine}</div>
+          <div style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600, letterSpacing: "-0.01em", lineHeight: 1.28, marginTop: 2, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{row.role}</div>
+          <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--mm-faint)", marginTop: 3 }}>{row.metaLine}</div>
           {trust && (
-            <div style={{ fontSize: 10.5, marginTop: 3, color: trust.warn ? "var(--mm-warn)" : "var(--mm-dim)", fontWeight: trust.warn ? 650 : 400 }}>
+            <div style={{ fontSize: "var(--tm-fs-caption)", marginTop: 3, color: trust.warn ? "var(--mm-warn)" : "var(--mm-dim)", fontWeight: trust.warn ? 650 : 400 }}>
               {trust.warn ? "⚠ " : ""}{trust.text}
             </div>
           )}
@@ -72,9 +72,9 @@ function CardShell({
               <circle cx="20" cy="20" r="16.5" fill="none" stroke="var(--mm-border)" strokeWidth="3" />
               {fitKnown && <circle cx="20" cy="20" r="16.5" fill="none" stroke={row.ringColor} strokeWidth="3" strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - row.fit / 100)} transform="rotate(-90 20 20)" />}
             </svg>
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12.5, fontWeight: 700, color: fitKnown ? "var(--mm-text)" : "var(--mm-dim)" }}>{fitKnown ? row.fit : "—"}</div>
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--tm-fs-caption)", fontWeight: 600, color: fitKnown ? "var(--mm-text)" : "var(--mm-dim)" }}>{fitKnown ? row.fit : "—"}</div>
           </div>
-          {fitKnown && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.07em", color: row.ringColor, textTransform: "uppercase", whiteSpace: "nowrap" }}>{row.verdict}</span>}
+          {fitKnown && <span style={{ fontSize: "var(--tm-fs-caption)", fontWeight: 600, letterSpacing: "0.07em", color: row.ringColor, textTransform: "uppercase", whiteSpace: "nowrap" }}>{row.verdict}</span>}
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10 }}>{children}</div>
@@ -142,7 +142,7 @@ export function CollectionCard({
       )}
       {/* The ask the 1.2s inline band never got to make. */}
       {entry.pending_apply ? (
-        <div onClick={(e) => e.stopPropagation()} style={{ flexBasis: "100%", display: "flex", alignItems: "center", gap: 8, marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--mm-hair)", fontSize: 12 }}>
+        <div onClick={(e) => e.stopPropagation()} style={{ flexBasis: "100%", display: "flex", alignItems: "center", gap: 8, marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--mm-hair)", fontSize: "var(--tm-fs-caption)" }}>
           <span style={{ color: "var(--mm-text-2)" }}>Did you submit it?</span>
           <div style={{ flex: 1 }} />
           <button onClick={() => onAnswerPending(true)} className="mm-press-sm" style={heroStyle("go")}>Yes, applied</button>
@@ -164,8 +164,8 @@ const STATUS_WORD: Record<string, string> = {
 
 function heroStyle(kind: "go" | "gap" | "quiet"): React.CSSProperties {
   const base: React.CSSProperties = {
-    height: 32, padding: "0 14px", borderRadius: 99, display: "inline-flex", alignItems: "center",
-    fontSize: 12.5, fontWeight: 700, fontFamily: "inherit", textDecoration: "none", cursor: "pointer",
+    height: 32, padding: "0 14px", borderRadius: 10, display: "inline-flex", alignItems: "center",
+    fontSize: "var(--tm-fs-caption)", fontWeight: 600, fontFamily: "inherit", textDecoration: "none", cursor: "pointer",
     whiteSpace: "nowrap",
   }
   if (kind === "go") return { ...base, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)" }
@@ -174,6 +174,6 @@ function heroStyle(kind: "go" | "gap" | "quiet"): React.CSSProperties {
 }
 
 const iconBtn: React.CSSProperties = {
-  width: 32, height: 32, borderRadius: 99, border: "1px solid var(--mm-border)", background: "transparent",
+  width: 32, height: 32, borderRadius: 10, border: "1px solid var(--mm-border)", background: "transparent",
   display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
 }

@@ -58,7 +58,7 @@
 .lp-uc-foot {
   margin: 0;
   color: var(--tm-text-faint);
-  font-size: var(--tm-fs-ui);
+  font-size: var(--tm-fs-body);
   line-height: 1.5;
 }
 

@@ -31,26 +31,26 @@
   background: var(--tm-interactive);
 }
 .mi-story-kicker {
-  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  font-size: var(--tm-fs-caption); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--tm-interactive);
 }
-.mi-story-h { margin: 9px 0 5px; font-size: 18px; font-weight: 600; line-height: 1.3; letter-spacing: -0.01em; color: var(--tm-text); }
+.mi-story-h { margin: 9px 0 5px; font-size: var(--tm-fs-heading); font-weight: 600; line-height: 1.3; letter-spacing: -0.01em; color: var(--tm-text); }
 /* .mi-accent rode on two different things: a company LINK (correct — accent
    means clickable) and a bare skill noun inside a headline (not correct — it is
    the subject of a sentence, not a control). Split, so the class name cannot
    quietly re-acquire the second meaning. */
 .mi-accent { color: var(--tm-interactive); }
 .mi-subject { color: var(--tm-text); font-weight: 600; }
-.mi-story-p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--tm-text-muted); }
+.mi-story-p { margin: 0; font-size: var(--tm-fs-body); line-height: 1.55; color: var(--tm-text-muted); }
 .mi-story-cta { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
 .mi-go {
-  font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  font: inherit; font-size: var(--tm-fs-body); font-weight: 600; cursor: pointer;
   padding: 9px 16px; border-radius: 11px; border: none;
   background: var(--tm-interactive); color: var(--tm-on-interactive, #fff);
 }
 .mi-go:hover { filter: brightness(1.05); }
 .mi-quiet {
-  font: inherit; font-size: 13.5px; cursor: pointer; background: none; border: none;
+  font: inherit; font-size: var(--tm-fs-body); cursor: pointer; background: none; border: none;
   color: var(--tm-text-muted); border-bottom: 1px solid transparent; padding: 0 0 1px;
 }
 .mi-quiet:hover { color: var(--tm-text); border-color: var(--tm-border); }
@@ -76,8 +76,8 @@
   background: var(--tm-surface); border: 1px solid var(--tm-border-soft);
   border-radius: var(--tm-radius-lg, 16px); padding: 16px; box-shadow: var(--tm-shadow-1);
 }
-.mi-h4 { margin: 0 0 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--tm-text-faint); }
-.mi-sub { margin: -6px 0 12px; font-size: 12.5px; color: var(--tm-text-muted); line-height: 1.5; }
+.mi-h4 { margin: 0 0 12px; font-size: var(--tm-fs-caption); font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--tm-text-faint); }
+.mi-sub { margin: -6px 0 12px; font-size: var(--tm-fs-caption); color: var(--tm-text-muted); line-height: 1.5; }
 .mi-warn { color: var(--tm-warning-text, var(--tm-warning)); }
 .mi-widget-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 .mi-widget-head .mi-h4 { margin-bottom: 0; }
@@ -87,7 +87,7 @@
   background: var(--tm-surface-2, var(--tm-surface));
 }
 .mi-seg-btn {
-  font: inherit; font-size: 11px; font-weight: 600; cursor: pointer;
+  font: inherit; font-size: var(--tm-fs-caption); font-weight: 600; cursor: pointer;
   border: none; border-radius: 6px; padding: 4px 7px;
   background: transparent; color: var(--tm-text-muted);
 }
@@ -105,8 +105,8 @@
 }
 .mi-mover:last-child, .mi-vrow:last-child { border-bottom: none; }
 .mi-mover:hover .mi-mover-n, .mi-vrow:hover .mi-vrow-nm { color: var(--tm-interactive); }
-.mi-mover-n { flex: 1; font-size: 14px; font-weight: 600; }
-.mi-mover-up { font-size: 13px; font-weight: 700; color: var(--tm-success-text, var(--tm-success)); }
+.mi-mover-n { flex: 1; font-size: var(--tm-fs-body); font-weight: 600; }
+.mi-mover-up { font-size: var(--tm-fs-body); font-weight: 600; color: var(--tm-success-text, var(--tm-success)); }
 
 .mi-company-list {
   max-height: min(420px, 40dvh);
@@ -122,13 +122,13 @@
 }
 
 .mi-verify { border-color: var(--tm-warning-border, var(--tm-border-soft)); }
-.mi-vrow-nm { flex: 1; font-size: 13.5px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mi-vrow-nm { flex: 1; font-size: var(--tm-fs-body); font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mi-vchip {
-  flex: 0 0 auto; font-size: 11px; font-weight: 600; white-space: nowrap;
-  padding: 3px 8px; border-radius: 999px;
+  flex: 0 0 auto; font-size: var(--tm-fs-caption); font-weight: 600; white-space: nowrap;
+  padding: 3px 8px; border-radius: var(--tm-button-radius);
   background: var(--tm-warning-wash); color: var(--tm-warning-text, var(--tm-warning));
 }
-.mi-foot { margin: 11px 0 0; font-size: 12px; color: var(--tm-text-faint); line-height: 1.5; }
+.mi-foot { margin: 11px 0 0; font-size: var(--tm-fs-caption); color: var(--tm-text-faint); line-height: 1.5; }
 
 /* ── mobile chip strip (the collapsed rail) ───────────────────────────────── */
 .mi-chipstrip {
@@ -138,11 +138,11 @@
 .mi-chipstrip::-webkit-scrollbar { display: none; }
 .mi-chip {
   flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
-  font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
-  padding: 7px 13px; border-radius: 999px;
+  font: inherit; font-size: var(--tm-fs-caption); font-weight: 600; cursor: pointer;
+  padding: 7px 13px; border-radius: var(--tm-button-radius);
   border: 1px solid var(--tm-border-soft); background: var(--tm-surface); color: var(--tm-text);
 }
-.mi-chip-up { color: var(--tm-success-text, var(--tm-success)); font-weight: 700; }
+.mi-chip-up { color: var(--tm-success-text, var(--tm-success)); font-weight: 600; }
 .mi-chip-warn { background: var(--tm-warning-wash); color: var(--tm-warning-text, var(--tm-warning)); border-color: transparent; }
 
 @media (min-width: 1081px) { .mi-chipstrip { display: none; } }
@@ -154,7 +154,7 @@
 .sd-city {
   display: flex; align-items: center; gap: 5px;
   margin: -4px 0 12px; position: relative;
-  font-size: 12.5px; color: var(--tm-text-muted);
+  font-size: var(--tm-fs-caption); color: var(--tm-text-muted);
 }
 .sd-city-label { flex: 0 0 auto; }
 .sd-city select {
@@ -183,13 +183,13 @@
 
 .sd-row-top { display: flex; align-items: baseline; gap: 10px; }
 .sd-skill {
-  flex: 1; min-width: 0; font-size: 13.5px; font-weight: 600; line-height: 1.35;
+  flex: 1; min-width: 0; font-size: var(--tm-fs-body); font-weight: 600; line-height: 1.35;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 /* A role count is a metric — it reads as text at size, never as the accent.
    Accent here promised the number was tappable; the ROW is (see .sd-row). */
 .sd-roles {
-  flex: 0 0 auto; font-size: 13px; font-weight: 700;
+  flex: 0 0 auto; font-size: var(--tm-fs-body); font-weight: 600;
   font-variant-numeric: tabular-nums; color: var(--tm-text);
 }
 
@@ -210,12 +210,12 @@
 .sd-row:hover .sd-tick { opacity: 0.85; }
 .sd-row:hover .sd-tick-more { opacity: 0.35; }
 
-.sd-meta { font-size: 11.5px; color: var(--tm-text-muted); white-space: nowrap; }
+.sd-meta { font-size: var(--tm-fs-caption); color: var(--tm-text-muted); white-space: nowrap; }
 
-.sd-empty { margin: 4px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--tm-text-muted); }
+.sd-empty { margin: 4px 0 0; font-size: var(--tm-fs-caption); line-height: 1.5; color: var(--tm-text-muted); }
 .sd-foot {
   margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--tm-border-soft);
-  font-size: 11px; color: var(--tm-text-faint);
+  font-size: var(--tm-fs-caption); color: var(--tm-text-faint);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -19,21 +19,21 @@
 
 .tm-agentpicks-mark {
   color: var(--tm-accent-text);
-  font-size: 15px;
+  font-size: var(--tm-fs-body);
   line-height: 1;
 }
 
 .tm-agentpicks-title h2 {
   margin: 0;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--tm-fs-heading);
+  font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--tm-text);
 }
 
 .tm-agentpicks-sub {
   margin: 4px 0 0;
-  font-size: 12.5px;
+  font-size: var(--tm-fs-caption);
   line-height: 1.45;
   color: var(--tm-text-muted);
 }
@@ -73,10 +73,10 @@
   justify-content: center;
   width: 22px;
   height: 22px;
-  border-radius: 999px;
+  border-radius: var(--tm-button-radius);
   font-family: var(--tm-font-mono);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--tm-fs-caption);
+  font-weight: 600;
   color: var(--tm-accent-ink, #fff);
   background: var(--tm-accent);
 }
@@ -90,7 +90,7 @@
 .tm-agentpick-why {
   flex: 1;
   margin: 0;
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   line-height: 1.45;
   color: var(--tm-text-muted);
 }
@@ -99,11 +99,11 @@
   flex: 0 0 auto;
   align-self: flex-start;
   font-family: var(--tm-font-mono);
-  font-size: 9.5px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   padding: 2px 7px;
-  border-radius: 999px;
+  border-radius: var(--tm-button-radius);
   color: var(--tm-accent-text);
   background: color-mix(in srgb, var(--tm-accent) 12%, transparent);
 }
@@ -133,11 +133,11 @@
 
 .tm-agentpicks-divider-copy {
   margin: 0;
-  font-size: 12.5px;
+  font-size: var(--tm-fs-caption);
   line-height: 1.5;
   color: var(--tm-text-faint);
 }
 .tm-agentpicks-divider-copy strong {
   color: var(--tm-text-muted);
-  font-weight: 700;
+  font-weight: 600;
 }

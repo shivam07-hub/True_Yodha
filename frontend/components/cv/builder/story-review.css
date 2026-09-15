@@ -35,7 +35,7 @@
   justify-content: space-between;
   gap: 8px;
   margin: 0 0 4px;
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
 }
 .tm-sri-count.live { color: var(--tm-text); }
@@ -46,7 +46,7 @@
 
 .tm-sri-q {
   margin: 0;
-  font-size: var(--tm-fs-ui-lg);
+  font-size: var(--tm-fs-body);
   font-weight: 500;
   color: var(--tm-text);
 }
@@ -71,7 +71,7 @@
 }
 .tm-sri-side-title {
   margin: 0 0 3px;
-  font-size: var(--tm-fs-ui);
+  font-size: var(--tm-fs-body);
   font-weight: 500;
   color: var(--tm-text);
 }
@@ -83,14 +83,14 @@
 }
 .tm-sri-side-line {
   margin: 6px 0 0;
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   line-height: 1.45;
   color: var(--tm-text-muted);
 }
 
 .tm-sri-rule {
   margin: 0 0 10px;
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   line-height: 1.45;
   color: var(--tm-text-muted);
 }
@@ -104,12 +104,12 @@
 
 .tm-sri-clear {
   margin: 0;
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
 }
 .tm-sri-err {
   margin: 8px 0 0;
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   color: var(--tm-danger-text);
 }
 
@@ -134,7 +134,7 @@
   justify-content: space-between;
   gap: 10px;
   margin: 0 0 4px;
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
 }
 .tm-sri-fold-text b { font-weight: 500; color: var(--tm-text); }

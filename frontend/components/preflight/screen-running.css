@@ -39,7 +39,7 @@
 }
 
 .pf-run-tape-item {
-  font-size: var(--tm-fs-ui);
+  font-size: var(--tm-fs-body);
   color: var(--tm-text);
   line-height: 1.4;
   overflow-wrap: anywhere;

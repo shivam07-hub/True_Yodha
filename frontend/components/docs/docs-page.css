@@ -32,7 +32,7 @@
 .docs-pricing h3 {
   margin: 0 0 14px;
   color: var(--tm-text);
-  font-size: 18px;
+  font-size: var(--tm-fs-heading);
   line-height: 1.25;
   text-wrap: balance;
 }
@@ -48,7 +48,7 @@
 .docs-pricing-footnote {
   margin: 0;
   color: var(--tm-text-muted);
-  font-size: 14px;
+  font-size: var(--tm-fs-body);
   line-height: 1.7;
   text-wrap: pretty;
 }
@@ -74,7 +74,7 @@
   margin: 0 0 14px;
   color: var(--tm-accent);
   font-family: var(--tm-font-mono);
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   font-weight: 600;
   text-transform: uppercase;
 }
@@ -92,7 +92,7 @@
 
 .docs-pricing-column li {
   color: var(--tm-text);
-  font-size: 14px;
+  font-size: var(--tm-fs-body);
   line-height: 1.4;
 }
 

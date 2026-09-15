@@ -185,16 +185,16 @@ export function JobsSurface({
       {/* header */}
       <div style={{ padding: "10px 16px 10px" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-          <h1 style={{ margin: 0, flex: "none", fontSize: 25, fontWeight: 700, letterSpacing: "-0.03em" }}>Jobs</h1>
+          <h1 style={{ margin: 0, flex: "none", fontSize: "var(--tm-fs-title)", fontWeight: 600, letterSpacing: "-0.03em" }}>Jobs</h1>
           {/* The one shrinkable child on this row, so a long city name can never
               push the Myro Search pill off-screen. Truncates from the tail —
               the counts survive, the location degrades. */}
-          <span title={countLine} style={{ flex: "0 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12, color: "var(--mm-faint)", fontVariantNumeric: "tabular-nums" }}>{countLine}</span>
+          <span title={countLine} style={{ flex: "0 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "var(--tm-fs-caption)", color: "var(--mm-faint)", fontVariantNumeric: "tabular-nums" }}>{countLine}</span>
           <div style={{ flex: 1 }} />
           {/* Myro Search (the paid run) lives on the header row — it needs the
               width its label deserves. The free in-feed search is a filter and
               sits with the other filters below. */}
-          <button onClick={runMyroSearch} disabled={isRefreshing} className="mm-press" title="Run Myro Search" style={{ height: 30, flex: "none", alignSelf: "center", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5, padding: "0 11px", borderRadius: 99, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", opacity: isRefreshing ? 0.6 : 1 }}>
+          <button onClick={runMyroSearch} disabled={isRefreshing} className="mm-press" title="Run Myro Search" style={{ height: 30, flex: "none", alignSelf: "center", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5, padding: "0 11px", borderRadius: 10, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: "var(--tm-fs-caption)", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: isRefreshing ? 0.6 : 1 }}>
             <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8" /></svg>
             {isRefreshing ? "Searching…" : "Myro Search"}
           </button>
@@ -203,8 +203,8 @@ export function JobsSurface({
 
         {searchOpen ? (
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="Company or role" autoFocus style={{ flex: 1, height: 36, borderRadius: 10, border: "1px solid var(--mm-border)", background: "var(--mm-card-2)", color: "var(--mm-text)", padding: "0 12px", fontSize: 14, outline: "none", fontFamily: "inherit" }} />
-            <button onClick={() => { setSearchOpen(false); setSearchQ("") }} style={{ height: 36, padding: "0 12px", borderRadius: 10, border: "none", background: "transparent", color: "var(--mm-muted)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+            <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="Company or role" autoFocus style={{ flex: 1, height: 36, borderRadius: 10, border: "1px solid var(--mm-border)", background: "var(--mm-card-2)", color: "var(--mm-text)", padding: "0 12px", fontSize: "var(--tm-fs-body)", outline: "none", fontFamily: "inherit" }} />
+            <button onClick={() => { setSearchOpen(false); setSearchQ("") }} style={{ height: 36, padding: "0 12px", borderRadius: 10, border: "none", background: "transparent", color: "var(--mm-muted)", fontSize: "var(--tm-fs-body)", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
           </div>
         ) : (
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
@@ -212,7 +212,7 @@ export function JobsSurface({
               <SegBtn on={filters.sort === "fit"} onClick={() => onFiltersChange({ ...filters, sort: "fit" })}>Best fit</SegBtn>
               <SegBtn on={filters.sort === "fresh"} onClick={() => onFiltersChange({ ...filters, sort: "fresh" })}>Newest</SegBtn>
             </div>
-            <button onClick={() => setFiltersOpen(true)} style={{ height: 32, flex: "none", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6, padding: "0 11px", borderRadius: 99, border: "1px solid var(--mm-border)", background: "transparent", color: "var(--mm-text-3)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+            <button onClick={() => setFiltersOpen(true)} style={{ height: 32, flex: "none", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6, padding: "0 11px", borderRadius: 10, border: "1px solid var(--mm-border)", background: "transparent", color: "var(--mm-text-3)", fontSize: "var(--tm-fs-caption)", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
               <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M4 7h16M7 12h10M10 17h4" /></svg>
               {filterCount > 0 ? `Filters · ${filterCount}` : "Filters"}
             </button>
@@ -240,8 +240,8 @@ export function JobsSurface({
           <JobsMobileFeedRows />
         ) : rows.length === 0 ? (
           <div style={{ textAlign: "center", padding: "44px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-            <div style={{ fontSize: 15, fontWeight: 650 }}>Feed clear 🎯</div>
-            <div style={{ fontSize: 12.5, color: "var(--mm-faint)", lineHeight: 1.5 }}>You&apos;ve triaged everything here.<br />Next: tailor a CV for what you saved.</div>
+            <div style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600 }}>Feed clear 🎯</div>
+            <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--mm-faint)", lineHeight: 1.5 }}>You&apos;ve triaged everything here.<br />Next: tailor a CV for what you saved.</div>
             <button onClick={() => router.push("/collections")} className="mm-press" style={ctaBtn}>Open Collections</button>
             <button onClick={tellMyro} style={intentLink}>Not what you wanted? Tell Myro →</button>
           </div>
@@ -316,7 +316,7 @@ export function JobsSurface({
 
 function SegBtn({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} style={{ height: 28, padding: "0 14px", borderRadius: 7, border: "none", background: on ? "var(--mm-raise-2)" : "transparent", color: on ? "var(--mm-text)" : "var(--mm-faint)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "background 180ms" }}>
+    <button onClick={onClick} style={{ height: 28, padding: "0 14px", borderRadius: 7, border: "none", background: on ? "var(--mm-raise-2)" : "transparent", color: on ? "var(--mm-text)" : "var(--mm-faint)", fontSize: "var(--tm-fs-caption)", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "background 180ms" }}>
       {children}
     </button>
   )
@@ -335,7 +335,7 @@ function HiddenView({ token, snack }: { token: string; snack: (s: { msg: string 
   const list = hidden.data ?? []
   return (
     <>
-      <div style={{ fontSize: 12, color: "var(--mm-faint)", padding: "2px 2px 4px" }}>Hidden roles stay out of your feed. Restore any time.</div>
+      <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--mm-faint)", padding: "2px 2px 4px" }}>Hidden roles stay out of your feed. Restore any time.</div>
       {list.map(row => {
         const co = row.company_name ?? "—"
         // Scope the pending flag to THIS row. One mutation object is shared by
@@ -345,29 +345,29 @@ function HiddenView({ token, snack }: { token: string; snack: (s: { msg: string 
         const restoring = restore.isPending && restore.variables === row.job_id
         return (
           <div key={row.job_id} style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--mm-card)", border: "1px solid var(--mm-hair)", borderRadius: 14, padding: "12px 14px" }}>
-            <div style={{ width: 34, height: 34, borderRadius: 10, background: "var(--mm-raise-1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "var(--mm-text-3)", flex: "none" }}>{co.slice(0, 1).toUpperCase()}</div>
+            <div style={{ width: 34, height: 34, borderRadius: 10, background: "var(--mm-raise-1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "var(--mm-text-3)", flex: "none" }}>{co.slice(0, 1).toUpperCase()}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{row.job_title}</div>
-              <div style={{ fontSize: 11.5, color: "var(--mm-faint)" }}>{co}</div>
+              <div style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{row.job_title}</div>
+              <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--mm-faint)" }}>{co}</div>
             </div>
-            <button onClick={() => restore.mutate(row.job_id)} disabled={restoring} aria-busy={restoring || undefined} className="mm-press-sm" style={{ height: 30, padding: "0 12px", borderRadius: 99, border: "1px solid rgba(255,255,255,0.09)", background: "transparent", color: "var(--mm-text)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{restoring ? "Restoring…" : "Restore"}</button>
+            <button onClick={() => restore.mutate(row.job_id)} disabled={restoring} aria-busy={restoring || undefined} className="mm-press-sm" style={{ height: 30, padding: "0 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.09)", background: "transparent", color: "var(--mm-text)", fontSize: "var(--tm-fs-caption)", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{restoring ? "Restoring…" : "Restore"}</button>
           </div>
         )
       })}
-      {!hidden.isLoading && list.length === 0 && <div style={{ textAlign: "center", color: "var(--mm-dim)", fontSize: 12.5, padding: "28px 0" }}>Nothing hidden yet.</div>}
+      {!hidden.isLoading && list.length === 0 && <div style={{ textAlign: "center", color: "var(--mm-dim)", fontSize: "var(--tm-fs-caption)", padding: "28px 0" }}>Nothing hidden yet.</div>}
     </>
   )
 }
 
 const roundIcon: React.CSSProperties = {
-  width: 32, height: 32, borderRadius: 99, border: "none", background: "transparent", color: "var(--mm-muted)",
+  width: 32, height: 32, borderRadius: 10, border: "none", background: "transparent", color: "var(--mm-muted)",
   display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
 }
 const intentLink: React.CSSProperties = {
-  border: "none", background: "transparent", color: "var(--mm-faint)", fontSize: 12, cursor: "pointer",
+  border: "none", background: "transparent", color: "var(--mm-faint)", fontSize: "var(--tm-fs-caption)", cursor: "pointer",
   fontFamily: "inherit", padding: "6px 4px",
 }
 const ctaBtn: React.CSSProperties = {
-  marginTop: 6, height: 36, padding: "0 16px", borderRadius: 99, border: "none", background: "var(--mm-accent)",
-  color: "var(--mm-accent-fg)", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+  marginTop: 6, height: 36, padding: "0 16px", borderRadius: 10, border: "none", background: "var(--mm-accent)",
+  color: "var(--mm-accent-fg)", fontSize: "var(--tm-fs-body)", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
 }

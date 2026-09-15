@@ -81,7 +81,7 @@ export function BottomSheet({
           onPointerCancel={onGrabUp}
           style={{ flex: "none", padding: "9px 0 6px", display: "flex", justifyContent: "center", cursor: "grab", touchAction: "none" }}
         >
-          <div style={{ width: 36, height: 4.5, borderRadius: 99, background: "rgba(255,255,255,0.16)" }} />
+          <div style={{ width: 36, height: 4.5, borderRadius: 10, background: "rgba(255,255,255,0.16)" }} />
         </div>
         {children}
       </div>

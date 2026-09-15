@@ -133,7 +133,7 @@
   background: var(--tm-interactive);
   color: var(--tm-interactive-fg);
   font: inherit;
-  font-size: var(--tm-fs-ui-lg);
+  font-size: var(--tm-fs-body);
   font-weight: 600;
   letter-spacing: -0.005em;
   cursor: pointer;
@@ -159,7 +159,7 @@
   background: transparent;
   color: var(--tm-text-muted);
   font: inherit;
-  font-size: var(--tm-fs-ui);
+  font-size: var(--tm-fs-body);
   cursor: pointer;
   transition:
     color var(--tm-dur-fast) var(--tm-ease),

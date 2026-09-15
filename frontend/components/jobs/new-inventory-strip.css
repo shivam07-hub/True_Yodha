@@ -27,7 +27,7 @@
 .tm-newinv-count {
   font-family: var(--tm-font-mono);
   font-size: var(--tm-fs-body);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--tm-accent-text);
   line-height: 1;
 }

@@ -83,7 +83,7 @@ export function BandChoice({
             )}
           >
             <span className="min-w-0">
-              <span className="block text-[length:var(--tm-fs-ui)] font-medium text-[var(--tm-text)]">
+              <span className="block text-[length:var(--tm-fs-body)] font-medium text-[var(--tm-text)]">
                 {CAREER_BAND_LABEL[option.band]}
               </span>
               <span className="mt-1 block text-[length:var(--tm-fs-caption)] text-[var(--tm-text-muted)]">

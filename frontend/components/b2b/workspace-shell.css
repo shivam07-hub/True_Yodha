@@ -32,13 +32,13 @@
 .b2bws-kicker,
 .b2bws-stage-label,
 .b2bws-score-label {
-  font-size: 11px;
+  font-size: var(--tm-fs-caption);
   line-height: 1.1;
   letter-spacing: var(--tm-tracking-caps);
   text-transform: uppercase;
 }
 .b2bws-eyebrow,
-.b2bws-kicker { color: var(--tm-interactive); font-weight: 700; }
+.b2bws-kicker { color: var(--tm-interactive); font-weight: 600; }
 .b2bws-title {
   margin: 0;
   font-family: var(--tm-font-display);
@@ -80,7 +80,7 @@
 .b2bws-tab { border-radius: 18px; box-shadow: var(--tm-shadow-2); }
 .b2bws-metric { padding: 16px 18px; }
 .b2bws-metric dt { color: var(--tm-text-faint); margin: 0 0 8px; }
-.b2bws-metric dd { margin: 0 0 6px; font-size: 1.45rem; line-height: 1.05; font-weight: 700; }
+.b2bws-metric dd { margin: 0 0 6px; font-size: 1.45rem; line-height: 1.05; font-weight: 600; }
 .b2bws-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .b2bws-tab {
   display: grid;
@@ -100,7 +100,7 @@
     linear-gradient(180deg, rgba(79, 199, 246, 0.12), rgba(79, 199, 246, 0.03)),
     var(--tm-surface);
 }
-.b2bws-tab-label { font-size: 0.95rem; font-weight: 700; color: var(--tm-text); }
+.b2bws-tab-label { font-size: 0.95rem; font-weight: 600; color: var(--tm-text); }
 .b2bws-grid { grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr); }
 .b2bws-panel { padding: 22px; display: grid; gap: 14px; min-width: 0; }
 .b2bws-panel h2,
@@ -132,7 +132,7 @@
   justify-content: center;
   min-height: 40px;
   padding: 0 14px;
-  border-radius: 999px;
+  border-radius: var(--tm-button-radius);
   color: var(--tm-text);
   cursor: pointer;
   transition: border-color var(--tm-dur-fast) var(--tm-ease), transform var(--tm-dur-fast) var(--tm-ease);
@@ -148,10 +148,10 @@
   width: fit-content;
   min-height: 34px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: var(--tm-button-radius);
 }
 .b2bws-pill { color: var(--tm-text); }
-.b2bws-score { color: var(--tm-interactive); font-weight: 700; }
+.b2bws-score { color: var(--tm-interactive); font-weight: 600; }
 .b2bws-bullets { padding: 0; margin: 0; list-style: none; }
 .b2bws-bullets li { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; }
 .b2bws-bullet-dot {
@@ -168,10 +168,10 @@
 .b2bws-mini {
   display: inline-flex;
   padding: 6px 10px;
-  border-radius: 999px;
+  border-radius: var(--tm-button-radius);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--tm-border-soft);
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
 }
 .b2bws-stage-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }

@@ -22,7 +22,7 @@
   gap: 8px;
   margin: 0;
   font-family: var(--tm-font-mono);
-  font-size: 11px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
 }
 .tm-fwp-pulse {
@@ -59,7 +59,7 @@
 .tm-fwp-link {
   display: inline-block;
   font-family: var(--tm-font-mono);
-  font-size: 11px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-interactive);
   text-decoration: none;
 }

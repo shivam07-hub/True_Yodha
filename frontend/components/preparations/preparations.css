@@ -102,11 +102,11 @@
 .prp-cov-track {
   flex: 1;
   height: 4px;
-  border-radius: 99px;
+  border-radius: var(--tm-button-radius);
   background: var(--tm-border-soft);
   overflow: hidden;
 }
-.prp-cov-fill { height: 100%; border-radius: 99px; background: var(--tm-interactive); transition: width 300ms ease; }
+.prp-cov-fill { height: 100%; border-radius: var(--tm-button-radius); background: var(--tm-interactive); transition: width 300ms ease; }
 
 .prp-req {
   display: flex;
@@ -514,7 +514,7 @@
 .prp-legend-bar {
   width: 100%;
   height: 3px;
-  border-radius: 99px;
+  border-radius: var(--tm-button-radius);
   background: var(--tm-border);
 }
 
@@ -570,7 +570,7 @@
 .prp-lroom-pips > span {
   flex: 1;
   height: 4px;
-  border-radius: 99px;
+  border-radius: var(--tm-button-radius);
   background: var(--tm-border);
 }
 .prp-lroom-pips > span[data-state="1"] { background: var(--tm-warning); }

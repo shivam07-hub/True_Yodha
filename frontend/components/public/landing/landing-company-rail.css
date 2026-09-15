@@ -9,14 +9,14 @@
   padding: 0 var(--lp-page-px);
   color: var(--lp-faint);
   font-family: var(--lp-mono);
-  font-size: 11px;
+  font-size: var(--tm-fs-caption);
   text-align: center;
   text-transform: uppercase;
 }
 
 .lp-company-rail > p strong {
   color: var(--lp-accent-text);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .lp-company-rail-scroll {
@@ -52,10 +52,10 @@
   min-height: 44px;
   padding: 7px 14px 7px 8px;
   border: 1px solid var(--lp-border);
-  border-radius: 999px;
+  border-radius: var(--tm-button-radius);
   background: var(--lp-surface);
   color: var(--lp-muted);
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   font-weight: 600;
 }
 
@@ -68,7 +68,7 @@
   background: var(--lp-surface-2);
   color: var(--lp-accent-text);
   font-family: var(--lp-mono);
-  font-size: 11px;
+  font-size: var(--tm-fs-caption);
 }
 
 .lp-partner-rail > p {
@@ -88,7 +88,7 @@
   width: 132px;
   height: 44px;
   border: 1px solid var(--lp-border);
-  border-radius: 999px;
+  border-radius: var(--tm-button-radius);
   background: var(--lp-surface-2);
 }
 

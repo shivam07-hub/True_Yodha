@@ -21,20 +21,20 @@
   margin: 0;
   max-width: 36ch;
   color: var(--tm-text);
-  font-size: var(--tm-fs-ui);
+  font-size: var(--tm-fs-body);
   line-height: 1.45;
   text-wrap: pretty;
 }
 .sm-band {
   margin: 0;
   color: var(--tm-text);
-  font-size: 14px;
+  font-size: var(--tm-fs-body);
   line-height: 1.4;
 }
 .sm-band strong {
   color: var(--tm-text);
   font-family: var(--tm-font-mono);
-  font-weight: 650;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
@@ -55,8 +55,8 @@
 .sm-radar-card { scroll-margin-top: 88px; }
 .sm-card { padding: 14px 16px 16px; }
 .sm-card-head, .sm-focus-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.sm-card h2 { margin: 0; color: var(--tm-text); font-size: 18px; letter-spacing: -.025em; text-wrap: balance; }
-.sm-card-head > span { color: var(--tm-text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.sm-card h2 { margin: 0; color: var(--tm-text); font-size: var(--tm-fs-heading); letter-spacing: -.025em; text-wrap: balance; }
+.sm-card-head > span { color: var(--tm-text-muted); font-size: var(--tm-fs-caption); font-variant-numeric: tabular-nums; }
 
 .sm-radar-body {
   display: grid;
@@ -85,13 +85,13 @@
 .sm-radar-wrap .dr-hit:active .dr-vertex { transform: scale(0.96); }
 
 .sm-focus { position: sticky; top: 88px; }
-.sm-focus-title h2 { max-width: 240px; font-size: 22px; text-wrap: balance; }
+.sm-focus-title h2 { max-width: 240px; font-size: var(--tm-fs-title); text-wrap: balance; }
 .sm-focus-title > strong {
   color: var(--tm-interactive);
   font: 650 32px/1 var(--tm-font-mono);
   font-variant-numeric: tabular-nums;
 }
-.sm-focus-meta { margin: 8px 0 0; color: var(--tm-text); font-size: 13px; line-height: 1.45; text-wrap: pretty; }
+.sm-focus-meta { margin: 8px 0 0; color: var(--tm-text); font-size: var(--tm-fs-body); line-height: 1.45; text-wrap: pretty; }
 
 .sm-skill-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 .sm-skill-chips a {
@@ -102,12 +102,12 @@
   border: 1px solid var(--tm-border);
   border-radius: 8px;
   color: var(--tm-interactive-rest);
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   font-weight: 600;
   text-decoration: none;
   transition: border-color var(--tm-dur) var(--tm-ease), color var(--tm-dur) var(--tm-ease), opacity var(--tm-dur) var(--tm-ease);
 }
-.sm-skill-chips a::after { content: "→"; margin-left: 6px; color: var(--tm-text-muted); font-size: 12px; }
+.sm-skill-chips a::after { content: "→"; margin-left: 6px; color: var(--tm-text-muted); font-size: var(--tm-fs-caption); }
 .sm-skill-chips a[data-proof="yes"] { background: var(--tm-surface-2); }
 .sm-skill-chips a[data-proof="no"] { border-style: dashed; border-color: var(--tm-border-soft); }
 .sm-skill-chips a:hover,
@@ -122,14 +122,14 @@
 .sm-skill-chips em {
   margin-left: 4px;
   color: var(--tm-text-muted);
-  font: 600 11px var(--tm-font-mono);
+  font: 600 var(--tm-fs-caption) var(--tm-font-mono);
   font-style: normal;
   font-variant-numeric: tabular-nums;
 }
 
 .sm-move { margin-top: 18px; border-top: 1px solid var(--tm-border-soft); padding-top: 16px; }
-.sm-move h3 { margin: 6px 0 0; color: var(--tm-text); font-size: 16px; text-wrap: balance; }
-.sm-move > p:not(.sm-eyebrow) { margin: 8px 0 0; color: var(--tm-text-muted); font-size: 13px; line-height: 1.5; text-wrap: pretty; }
+.sm-move h3 { margin: 6px 0 0; color: var(--tm-text); font-size: var(--tm-fs-heading); text-wrap: balance; }
+.sm-move > p:not(.sm-eyebrow) { margin: 8px 0 0; color: var(--tm-text-muted); font-size: var(--tm-fs-body); line-height: 1.5; text-wrap: pretty; }
 .sm-move p strong { color: var(--tm-text); font-variant-numeric: tabular-nums; }
 .sm-actions { display: grid; gap: 8px; margin-top: 14px; }
 .sm-primary, .sm-secondary {
@@ -140,8 +140,8 @@
   gap: 7px;
   border-radius: 9px;
   padding: 0 13px;
-  font-size: 13px;
-  font-weight: 650;
+  font-size: var(--tm-fs-body);
+  font-weight: 600;
   text-decoration: none;
 }
 .sm-primary { margin-top: 16px; background: var(--tm-interactive); color: var(--tm-bg); }

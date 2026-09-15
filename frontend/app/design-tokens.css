@@ -182,9 +182,6 @@
      New CSS uses caption / body / heading / title / display. */
   --tm-fs-micro:      var(--tm-fs-caption);
   --tm-fs-note:       var(--tm-fs-caption);
-  --tm-fs-ui-sm:      var(--tm-fs-caption);
-  --tm-fs-ui:         var(--tm-fs-body);
-  --tm-fs-ui-lg:      var(--tm-fs-body);
   --tm-fs-prose:      var(--tm-fs-reading);
   --tm-fs-modal:      var(--tm-fs-heading);
   --tm-fs-ask:        var(--tm-fs-title);

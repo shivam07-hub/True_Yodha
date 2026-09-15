@@ -59,7 +59,7 @@
   margin: 14px 0 0;
   max-width: 68ch;
   font-family: var(--tm-font-sans);
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   line-height: 1.6;
   color: var(--tm-text-muted);
 }
@@ -131,7 +131,7 @@
 .hp-figures dd {
   margin: 0;
   font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-ui-lg);
+  font-size: var(--tm-fs-body);
   font-variant-numeric: tabular-nums;
   color: var(--tm-text);
 }
@@ -165,7 +165,7 @@
   flex-direction: column;
   gap: 2px;
   font-family: var(--tm-font-sans);
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text);
   white-space: nowrap;
 }
@@ -210,7 +210,7 @@
   border: 1px solid var(--tm-border);
   border-radius: var(--tm-radius-sm);
   font-family: var(--tm-font-sans);
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text);
 }
 

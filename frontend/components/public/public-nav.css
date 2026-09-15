@@ -31,9 +31,9 @@
 
 .tm-public-nav-wordmark {
   font-family: var(--tm-font-display);
-  font-size: 20px;
+  font-size: var(--tm-fs-heading);
   line-height: 1;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .tm-public-nav-links {
@@ -59,7 +59,7 @@
   padding: 0 12px;
   height: var(--tm-desktop-nav-item-h);
   border-radius: var(--tm-panel-radius);
-  font-size: 14px;
+  font-size: var(--tm-fs-body);
   font-weight: 500;
   color: var(--tm-text);
   background: transparent;
@@ -121,8 +121,8 @@
   padding: 0 18px;
   height: 40px;
   border-radius: var(--tm-button-radius);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--tm-fs-body);
+  font-weight: 600;
   color: var(--tm-interactive-fg);
   background: var(--tm-interactive);
   border: 1px solid var(--tm-interactive);
@@ -144,7 +144,7 @@
   padding: 0 12px;
   height: 40px;
   border-radius: var(--tm-button-radius);
-  font-size: 14px;
+  font-size: var(--tm-fs-body);
   font-weight: 600;
   color: var(--tm-interactive);
   background: transparent;
@@ -226,14 +226,14 @@
   .tm-public-nav-signup {
     padding: 0 12px;
     height: 38px;
-    font-size: 14px;
+    font-size: var(--tm-fs-body);
     border-radius: var(--tm-button-radius);
   }
 
   .tm-public-nav-signin {
     padding: 0 10px;
     height: 38px;
-    font-size: 14px;
+    font-size: var(--tm-fs-body);
     border-radius: var(--tm-button-radius);
   }
 }

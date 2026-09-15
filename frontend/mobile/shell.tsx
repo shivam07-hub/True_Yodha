@@ -108,9 +108,9 @@ function TabBadge({ n }: { n: number }) {
   return (
     <span
       style={{
-        position: "absolute", top: -3, right: -9, minWidth: 15, height: 15, borderRadius: 99,
+        position: "absolute", top: -3, right: -9, minWidth: 15, height: 15, borderRadius: 10,
         background: "var(--mm-accent)", color: "var(--mm-accent-fg)",
-        fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: "var(--tm-fs-caption)", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center",
         padding: "0 4px", fontVariantNumeric: "tabular-nums",
       }}
     >
@@ -173,7 +173,7 @@ export function MobileTopBar() {
     <header className="tm-mobile-topbar mm-root" style={{ alignItems: "center", background: "var(--mm-bg)", borderBottom: "1px solid var(--tm-border-faint)" }}>
       <Link href="/market" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", minWidth: 0 }}>
         <MyroLogo size={24} decorative />
-        <span style={{ fontSize: 17.5, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--mm-text)" }}>Myro</span>
+        <span style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 600, letterSpacing: "-0.02em", color: "var(--mm-text)" }}>Myro</span>
       </Link>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         {/* Fresh-match notifications (Backlog #36) */}
@@ -191,7 +191,7 @@ export function MobileTopBar() {
           <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
             <path d="M13 2 4.5 13.5H11L9.8 22 19 10h-6.5L13 2Z" />
           </svg>
-          <span style={{ position: "absolute", top: -3, right: -3, width: 8, height: 8, borderRadius: 99, background: "var(--mm-accent)" }} />
+          <span style={{ position: "absolute", top: -3, right: -3, width: 8, height: 8, borderRadius: 10, background: "var(--mm-accent)" }} />
         </button>
         {/* Profile — moved up from the retired 4th tab (Prep owns it now). */}
         <Link
@@ -199,7 +199,7 @@ export function MobileTopBar() {
           aria-label="Profile"
           className="mm-press-sm"
           style={{
-            width: 34, height: 34, borderRadius: 99,
+            width: 34, height: 34, borderRadius: 10,
             border: "1px solid var(--mm-border)", background: "var(--mm-card)", color: "var(--mm-text-3)",
             display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none",
           }}
@@ -264,7 +264,7 @@ export function MobileBottomNav() {
               {tab.key === "collections" && <TabBadge n={badges.collections} />}
               {tab.key === "prep" && <TabBadge n={badges.prep} />}
             </span>
-            <span style={{ fontSize: 10, fontWeight: 650, letterSpacing: "0.01em" }}>{tab.label}</span>
+            <span style={{ fontSize: "var(--tm-fs-caption)", fontWeight: 600, letterSpacing: "0.01em" }}>{tab.label}</span>
           </Link>
         )
       })}

@@ -23,7 +23,7 @@
 .cva-headline {
   margin: 0;
   font-size: clamp(20px, 2.4vw, 25px);
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.25;
   text-wrap: balance;
   color: var(--tm-text);
@@ -45,7 +45,7 @@
 
 .cva-line {
   height: 9px;
-  border-radius: 999px;
+  border-radius: var(--tm-button-radius);
   background: var(--tm-border);
 }
 .cva-line.w90 { width: 90%; }
@@ -97,7 +97,7 @@
   column-gap: 12px;
   align-items: start;
   padding-bottom: 18px;
-  font-size: 14px;
+  font-size: var(--tm-fs-body);
   line-height: 1.45;
 }
 .cva-step:last-child { padding-bottom: 0; }
@@ -182,7 +182,7 @@
   align-self: start;
   padding-top: 1px;
   font-family: var(--tm-font-mono);
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   font-weight: 600;
   letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
@@ -194,7 +194,7 @@
 
 .cva-note {
   margin: -4px 0 0;
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   line-height: 1.5;
   color: var(--tm-text-muted);
 }

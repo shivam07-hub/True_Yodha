@@ -95,7 +95,7 @@
 /* ── Shared section furniture ───────────────────────────────── */
 .lp-eyebrow {
   font-family: var(--lp-mono);
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   font-weight: 500;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -129,7 +129,7 @@
   white-space: nowrap;
   font-size: clamp(16px, 2.6vw, 32px);
   line-height: 1.18;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--lp-text);
 }
@@ -211,7 +211,7 @@
 .lp-dropzone-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 
 .lp-dropzone-title {
-  font-size: 14px;
+  font-size: var(--tm-fs-body);
   font-weight: 600;
   color: var(--lp-text);
   white-space: nowrap;
@@ -221,7 +221,7 @@
 
 .lp-dropzone-trust {
   font-family: var(--lp-mono);
-  font-size: 11px;
+  font-size: var(--tm-fs-caption);
   color: var(--lp-muted);
   overflow-wrap: anywhere;
 }
@@ -233,8 +233,8 @@
   border-radius: 10px;
   background: var(--lp-accent);
   color: var(--lp-accent-fg);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--tm-fs-body);
+  font-weight: 600;
   white-space: nowrap;
   transition: filter var(--lp-dur) var(--lp-ease);
 }
@@ -254,7 +254,7 @@
 .lp-dropzone-note {
   margin: 10px 0 0;
   font-family: var(--lp-mono);
-  font-size: 11px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.04em;
   color: var(--lp-faint);
 }
@@ -262,7 +262,7 @@
 .lp-dropzone-error {
   margin: 10px 0 0;
   max-width: 560px;
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   line-height: 1.45;
   color: var(--lp-warning);
 }
@@ -283,7 +283,7 @@
   border: none;
   padding: 2px 0;
   font-family: var(--lp-mono);
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   color: var(--lp-muted);
   cursor: pointer;
   text-decoration: underline;
@@ -303,7 +303,7 @@
   background: var(--lp-surface);
   color: var(--lp-text);
   font-family: var(--lp-font);
-  font-size: 14px;
+  font-size: var(--tm-fs-body);
   line-height: 1.5;
   resize: vertical;
   min-height: 120px;
@@ -324,8 +324,8 @@
   background: var(--lp-accent);
   color: var(--lp-accent-fg);
   font-family: var(--lp-font);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--tm-fs-body);
+  font-weight: 600;
   cursor: pointer;
   transition: filter var(--lp-dur) var(--lp-ease);
 }
@@ -337,7 +337,7 @@
   border: none;
   padding: 8px 4px;
   font-family: var(--lp-mono);
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   color: var(--lp-muted);
   cursor: pointer;
 }

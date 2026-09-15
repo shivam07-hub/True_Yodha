@@ -39,7 +39,7 @@ test("focused editor exposes all structured sections and explicit bullet actions
   }
   assert.match(bullets, /"Done" : "Edit"/)
   assert.match(bullets, /<BulletRewrite/)
-  assert.match(editorCss, /font-size: 16px/)
+  assert.match(editorCss, /font-size: var\(--tm-fs-heading\)/)
 })
 
 test("mobile export uses visual templates, actionable ATS review, and explicit mark preference", () => {

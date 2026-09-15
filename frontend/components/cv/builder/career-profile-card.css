@@ -18,7 +18,7 @@
 
 .tm-cp-title {
   font-family: var(--tm-font-mono);
-  font-size: 10.5px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--tm-text-muted);
@@ -46,10 +46,10 @@
   gap: 8px;
   margin-bottom: 6px;
 }
-.tm-cp-card-label { font-size: 12px; font-weight: 600; color: var(--tm-text-muted); }
+.tm-cp-card-label { font-size: var(--tm-fs-caption); font-weight: 600; color: var(--tm-text-muted); }
 .tm-cp-card-kind {
   font-family: var(--tm-font-mono);
-  font-size: 9px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.06em;
   color: var(--tm-text-faint);
   border: 1px solid var(--tm-border);
@@ -57,13 +57,13 @@
   padding: 1px 6px;
   white-space: nowrap;
 }
-.tm-cp-card-value { font-size: 13px; line-height: 1.5; color: var(--tm-text); margin: 0 0 9px; }
+.tm-cp-card-value { font-size: var(--tm-fs-body); line-height: 1.5; color: var(--tm-text); margin: 0 0 9px; }
 .tm-cp-card-actions { display: flex; gap: 12px; align-items: center; }
 .tm-cp-card-bool {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   color: var(--tm-text);
   margin-bottom: 9px;
 }
@@ -76,7 +76,7 @@
   border: none;
   padding: 0;
   font: inherit;
-  font-size: 11px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-accent-text);
   cursor: pointer;
 }
@@ -88,7 +88,7 @@
 .tm-cp-add { margin-top: 2px; }
 .tm-cp-add > summary {
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -111,7 +111,7 @@
 }
 
 .tm-cp-legend {
-  font-size: 10.5px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.6px;
   text-transform: uppercase;
   color: var(--tm-text-muted);
@@ -144,7 +144,7 @@
 }
 
 .tm-cp-label {
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
 }
 
@@ -157,7 +157,7 @@
 .tm-cp-input {
   width: 100%;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   color: var(--tm-text);
   background: var(--tm-surface-2, var(--tm-bg));
   border: 1px solid var(--tm-border);
@@ -177,7 +177,7 @@ textarea.tm-cp-input {
 }
 
 .tm-cp-suffix {
-  font-size: 11px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-faint, var(--tm-text-muted));
   white-space: nowrap;
 }
@@ -190,12 +190,12 @@ textarea.tm-cp-input {
 
 .tm-cp-row-bool .tm-cp-label {
   order: 2;
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   color: var(--tm-text);
 }
 
 .tm-cp-hint {
-  font-size: 11px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-faint, var(--tm-text-muted));
 }
 
@@ -206,12 +206,12 @@ textarea.tm-cp-input {
 }
 
 .tm-cp-err {
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-danger, #d64545);
 }
 
 .tm-cp-empty {
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
   padding: 8px 0;
 }

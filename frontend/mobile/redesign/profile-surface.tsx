@@ -76,21 +76,21 @@ export function ProfileSurface({ token }: { token: string }) {
   return (
     <div data-screen-label="Profile" className="mm-root" style={{ background: "var(--mm-bg)", minHeight: "100%", animation: "mm-screenIn 240ms cubic-bezier(0.16,1,0.3,1)" }}>
       <div style={{ padding: "10px 16px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
-        <h1 style={{ margin: 0, fontSize: 25, fontWeight: 700, letterSpacing: "-0.03em" }}>Profile</h1>
+        <h1 style={{ margin: 0, fontSize: "var(--tm-fs-title)", fontWeight: 600, letterSpacing: "-0.03em" }}>Profile</h1>
 
         {/* score card */}
-        <div style={{ display: "flex", alignItems: "center", gap: 14, background: "var(--mm-card)", border: "1px solid var(--mm-hair)", borderRadius: 16, padding: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, background: "var(--mm-card)", border: "1px solid var(--mm-hair)", borderRadius: 10, padding: 14 }}>
           <div style={{ position: "relative", width: 64, height: 64, flex: "none" }} role="img" aria-label={`Myro Score ${score}`}>
             <svg width={64} height={64} viewBox="0 0 64 64" aria-hidden="true">
               <circle cx="32" cy="32" r="27.5" fill="none" stroke="var(--mm-border)" strokeWidth="4" />
               <circle cx="32" cy="32" r="27.5" fill="none" stroke="var(--mm-accent)" strokeWidth="4" strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={ringOn ? CIRC * (1 - score / 100) : CIRC} transform="rotate(-90 32 32)" style={{ transition: "stroke-dashoffset 900ms cubic-bezier(0.16,1,0.3,1)" }} />
             </svg>
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, fontWeight: 700, color: "var(--mm-text)" }}>{score}</div>
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--mm-text)" }}>{score}</div>
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.01em" }}>{tier.label}</div>
-            {tier.next != null && <div style={{ fontSize: 12, color: "var(--mm-faint)", marginTop: 2 }}>{Math.max(0, tier.next - score)} points to {tier.nextLabel}</div>}
-            <div style={{ display: "flex", gap: 12, marginTop: 8, fontSize: 11.5, color: "var(--mm-muted)", fontVariantNumeric: "tabular-nums" }}>
+            <div style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 600, letterSpacing: "-0.01em" }}>{tier.label}</div>
+            {tier.next != null && <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--mm-faint)", marginTop: 2 }}>{Math.max(0, tier.next - score)} points to {tier.nextLabel}</div>}
+            <div style={{ display: "flex", gap: 12, marginTop: 8, fontSize: "var(--tm-fs-caption)", color: "var(--mm-muted)", fontVariantNumeric: "tabular-nums" }}>
               <span><b style={{ color: "var(--mm-text)" }}>{sessions}</b> sessions</span>
               <span><b style={{ color: "var(--mm-text)" }}>{streak}d</b> streak</span>
               <span><b style={{ color: "var(--mm-text)" }}>{coins}</b> coins</span>
@@ -99,37 +99,37 @@ export function ProfileSurface({ token }: { token: string }) {
         </div>
 
         {/* missions */}
-        <div style={{ background: "var(--mm-card)", border: "1px solid var(--mm-hair)", borderRadius: 16, padding: 14 }}>
+        <div style={{ background: "var(--mm-card)", border: "1px solid var(--mm-hair)", borderRadius: 10, padding: 14 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-            <span style={{ fontSize: 13.5, fontWeight: 650 }}>Today&apos;s missions</span>
-            <span style={{ fontSize: 12, color: "var(--mm-accent)", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{missionsDone}/5</span>
+            <span style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600 }}>Today&apos;s missions</span>
+            <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--mm-accent)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{missionsDone}/5</span>
           </div>
-          <div style={{ height: 4, borderRadius: 99, background: "var(--mm-border)", marginTop: 9, overflow: "hidden" }}>
-            <div style={{ height: "100%", borderRadius: 99, background: "var(--mm-accent)", width: `${(missionsDone / 5) * 100}%`, transition: "width 500ms cubic-bezier(0.16,1,0.3,1)" }} />
+          <div style={{ height: 4, borderRadius: 10, background: "var(--mm-border)", marginTop: 9, overflow: "hidden" }}>
+            <div style={{ height: "100%", borderRadius: 10, background: "var(--mm-accent)", width: `${(missionsDone / 5) * 100}%`, transition: "width 500ms cubic-bezier(0.16,1,0.3,1)" }} />
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 1, marginTop: 9 }}>
             {missions.map(m => (
               <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 9, padding: "5.5px 0" }}>
-                <span style={{ width: 17, height: 17, borderRadius: 99, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9.5, fontWeight: 800, background: m.done ? "var(--mm-accent-wash)" : "transparent", color: m.done ? "var(--mm-accent)" : "var(--mm-dim)", border: `1px solid ${m.done ? "rgba(79,199,246,0.3)" : "rgba(255,255,255,0.14)"}` }}>{m.done ? "✓" : ""}</span>
-                <span style={{ fontSize: 13, color: m.done ? "var(--mm-faint)" : "var(--mm-text)" }}>{m.label}</span>
+                <span style={{ width: 17, height: 17, borderRadius: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "var(--tm-fs-caption)", fontWeight: 800, background: m.done ? "var(--mm-accent-wash)" : "transparent", color: m.done ? "var(--mm-accent)" : "var(--mm-dim)", border: `1px solid ${m.done ? "rgba(79,199,246,0.3)" : "rgba(255,255,255,0.14)"}` }}>{m.done ? "✓" : ""}</span>
+                <span style={{ fontSize: "var(--tm-fs-body)", color: m.done ? "var(--mm-faint)" : "var(--mm-text)" }}>{m.label}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* hub list */}
-        <div style={{ background: "var(--mm-card)", border: "1px solid var(--mm-hair)", borderRadius: 16, overflow: "hidden" }}>
+        <div style={{ background: "var(--mm-card)", border: "1px solid var(--mm-hair)", borderRadius: 10, overflow: "hidden" }}>
           {rows.map((r, i) => (
             <button key={r.label} onClick={r.onTap} style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "13px 14px", border: "none", background: "transparent", borderBottom: i === rows.length - 1 ? "none" : "1px solid var(--mm-hair)", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
-              <span style={{ fontSize: 13.5, fontWeight: 600, color: r.danger ? "var(--mm-bad)" : "var(--mm-text)" }}>{r.label}</span>
+              <span style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600, color: r.danger ? "var(--mm-bad)" : "var(--mm-text)" }}>{r.label}</span>
               <span style={{ flex: 1 }} />
-              {r.meta && <span style={{ fontSize: 11.5, color: "var(--mm-dim)" }}>{r.meta}</span>}
-              <span style={{ color: "var(--mm-dim)", fontSize: 15 }}>›</span>
+              {r.meta && <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--mm-dim)" }}>{r.meta}</span>}
+              <span style={{ color: "var(--mm-dim)", fontSize: "var(--tm-fs-body)" }}>›</span>
             </button>
           ))}
         </div>
 
-        <div style={{ textAlign: "center", fontSize: 10.5, color: "var(--mm-stroke)", paddingTop: 2 }}>Myro beta · himyro.com</div>
+        <div style={{ textAlign: "center", fontSize: "var(--tm-fs-caption)", color: "var(--mm-stroke)", paddingTop: 2 }}>Myro beta · himyro.com</div>
       </div>
     </div>
   )

@@ -18,7 +18,7 @@
   appearance: none;
   padding: 7px 14px;
   font: inherit;
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.005em;
   border-radius: 8px;
   cursor: pointer;
@@ -60,7 +60,7 @@
   border-radius: 10px;
 }
 .pf-heard-copy { flex: 1; min-width: 0; }
-.pf-heard-line { font-size: var(--tm-fs-ui-sm); line-height: 1.4; color: var(--tm-text); }
+.pf-heard-line { font-size: var(--tm-fs-caption); line-height: 1.4; color: var(--tm-text); }
 .pf-heard-why {
   margin-top: 2px;
   font-family: var(--tm-font-mono);
@@ -73,7 +73,7 @@
   appearance: none;
   padding: 7px 12px;
   font: inherit;
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   border: 1px solid var(--pf-stroke);
   background: transparent;
   color: var(--tm-text-muted);
@@ -130,7 +130,7 @@
   gap: 10px;
 }
 .pf-conflict-title {
-  font-size: var(--tm-fs-ui);
+  font-size: var(--tm-fs-body);
   line-height: 1.4;
   color: var(--tm-text);
   font-weight: 500;
@@ -188,7 +188,7 @@
 .pf-conflict-choice-text {
   flex: 1;
   min-width: 0;
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   line-height: 1.35;
 }
 /* No per-row verb.

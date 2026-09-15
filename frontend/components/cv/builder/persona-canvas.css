@@ -13,7 +13,7 @@
 .tm-pc-head { margin-bottom: 28px; }
 .tm-pc-eyebrow {
   font-family: var(--tm-font-mono);
-  font-size: 10.5px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--tm-text-faint);
@@ -29,7 +29,7 @@
   text-wrap: balance;
 }
 .tm-pc-meta {
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   color: var(--tm-text-muted);
   line-height: 1.6;
   max-width: 56ch;
@@ -41,18 +41,18 @@
   align-items: center;
   gap: 6px;
   border: 1px solid var(--tm-border);
-  border-radius: 999px;
+  border-radius: var(--tm-button-radius);
   padding: 4px 12px;
   font-family: var(--tm-font-mono);
-  font-size: 10px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--tm-text-faint);
 }
 .tm-pc-badge.is-lit { color: var(--tm-text-primary); border-color: var(--tm-accent); }
-.tm-pc-updated { font-size: 12px; color: var(--tm-text-faint); }
+.tm-pc-updated { font-size: var(--tm-fs-caption); color: var(--tm-text-faint); }
 .tm-pc-refresh {
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -65,7 +65,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   color: var(--tm-text-muted);
   margin: 0 0 20px;
 }
@@ -90,11 +90,11 @@
 }
 .tm-pc-skel-line.short { width: 62%; margin-bottom: 18px; }
 .tm-pc-skel-grounds { display: flex; gap: 6px; }
-.tm-pc-skel-chip { width: 84px; height: 16px; border-radius: 999px; }
+.tm-pc-skel-chip { width: 84px; height: 16px; border-radius: var(--tm-button-radius); }
 
 /* ── pending / error states ── */
-.tm-pc-state { font-size: 14px; color: var(--tm-text-muted); padding: 18px 0; }
-.tm-pc-hint { font-size: 13px; color: var(--tm-text-faint); margin-top: 8px; }
+.tm-pc-state { font-size: var(--tm-fs-body); color: var(--tm-text-muted); padding: 18px 0; }
+.tm-pc-hint { font-size: var(--tm-fs-body); color: var(--tm-text-faint); margin-top: 8px; }
 .tm-pc-hint a { color: var(--tm-text-secondary); text-decoration: underline; text-underline-offset: 2px; }
 
 /* ── movements ── */
@@ -114,12 +114,12 @@
 .tm-pc-numeral {
   font-family: var(--tm-font-reading);
   font-style: italic;
-  font-size: 15px;
+  font-size: var(--tm-fs-body);
   color: var(--tm-text-faint);
 }
 .tm-pc-m-title {
   font-family: var(--tm-font-mono);
-  font-size: 10.5px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--tm-text-muted);
@@ -145,7 +145,7 @@
 .tm-pc-pin-tag {
   display: block;
   font-family: var(--tm-font-mono);
-  font-size: 9px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--tm-accent-text);
@@ -153,7 +153,7 @@
 }
 .tm-pc-text {
   font-family: var(--tm-font-reading);
-  font-size: 16.5px;
+  font-size: var(--tm-fs-heading);
   line-height: 1.6;
   margin: 0 0 14px;
   padding-right: 44px;
@@ -170,10 +170,10 @@
   align-items: center;
   gap: 5px;
   font-family: var(--tm-font-mono);
-  font-size: 10px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
   background: var(--tm-surface-2);
-  border-radius: 999px;
+  border-radius: var(--tm-button-radius);
   padding: 2px 9px;
   cursor: default;
 }
@@ -190,7 +190,7 @@
   top: 12px;
   right: 12px;
   font-family: var(--tm-font-mono);
-  font-size: 9px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--tm-text-faint);
@@ -205,7 +205,7 @@
   width: 100%;
   min-height: 96px;
   font-family: var(--tm-font-reading);
-  font-size: 15.5px;
+  font-size: var(--tm-fs-heading);
   line-height: 1.6;
   color: var(--tm-text-primary);
   background: var(--tm-surface);
@@ -226,7 +226,7 @@
 }
 .tm-pc-constellation-label {
   font-family: var(--tm-font-mono);
-  font-size: 10px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--tm-text-faint);
@@ -234,14 +234,14 @@
 }
 .tm-pc-constellation p {
   font-family: var(--tm-font-reading);
-  font-size: 14.5px;
+  font-size: var(--tm-fs-body);
   line-height: 1.6;
   color: var(--tm-text-muted);
   max-width: 48ch;
   margin: 0 0 14px;
 }
 .tm-pc-fine {
-  font-size: 11px !important;
+  font-size: var(--tm-fs-caption) !important;
   font-family: var(--tm-font-sans) !important;
   color: var(--tm-text-faint) !important;
   margin: 12px 0 0 !important;
@@ -249,7 +249,7 @@
 .tm-pc-cosmos-note {
   font-family: var(--tm-font-reading);
   font-style: italic;
-  font-size: 14.5px;
+  font-size: var(--tm-fs-body);
   color: var(--tm-text-muted);
   max-width: 56ch;
 }
@@ -257,5 +257,5 @@
 /* ── mobile ── */
 @media (max-width: 640px) {
   .tm-pc-grid { grid-template-columns: 1fr; }
-  .tm-pc-text { font-size: 15.5px; padding-right: 40px; }
+  .tm-pc-text { font-size: var(--tm-fs-heading); padding-right: 40px; }
 }
