@@ -30,8 +30,8 @@
 .kicker {
   margin: 0;
   color: var(--tm-interactive);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--tm-fs-caption);
+  font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -43,7 +43,7 @@
 .panelTitle {
   margin: 7px 0 8px;
   color: var(--tm-text);
-  font-size: 17px;
+  font-size: var(--tm-fs-heading);
   font-weight: 600;
   line-height: 1.25;
   letter-spacing: var(--tm-tracking-tight);
@@ -52,7 +52,7 @@
 .panelBody {
   margin: 0 0 16px;
   color: var(--tm-text-muted);
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   line-height: 1.55;
 }
 
@@ -79,21 +79,21 @@
 
 .proofLabel {
   color: var(--tm-text-muted);
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
 }
 
 .proofValue {
   color: var(--tm-text);
   font-family: var(--tm-font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 14px;
+  font-size: var(--tm-fs-body);
   font-weight: 600;
 }
 
 .proofFoot {
   margin: 12px 0 0;
   color: var(--tm-text-faint);
-  font-size: 11px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.04em;
 }
 
@@ -117,7 +117,7 @@
   align-items: baseline;
   gap: 8px;
   margin-bottom: 4px;
-  font-size: 10px;
+  font-size: var(--tm-fs-caption);
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -132,7 +132,7 @@
 
 .itemTitle {
   color: var(--tm-text);
-  font-size: 13.5px;
+  font-size: var(--tm-fs-body);
   font-weight: 600;
   line-height: 1.35;
   transition: color var(--tm-dur) var(--tm-ease);
@@ -152,7 +152,7 @@
   padding: 10px 0;
   border-top: 1px solid var(--tm-border-soft);
   color: var(--tm-text-muted);
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   text-decoration: none;
   transition: color var(--tm-dur) var(--tm-ease);
 }
@@ -164,7 +164,7 @@
 .clusterCount {
   color: var(--tm-text);
   font-family: var(--tm-font-mono);
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
 }
 
 /* ── Score CTA — the one accent action in the rail ──────────────────────── */
@@ -186,8 +186,8 @@
   border-radius: var(--tm-radius);
   background: var(--tm-interactive);
   color: var(--tm-interactive-fg);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--tm-fs-body);
+  font-weight: 600;
   text-decoration: none;
   transition:
     background var(--tm-dur) var(--tm-ease),
