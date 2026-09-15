@@ -6,6 +6,40 @@
 
 ---
 
+## CLOSED 2026-09-15 — twenty-one settled backlog items left the tracker
+
+Cleared from [BACKLOG.md](BACKLOG.md), which is meant to hold open work only. Each
+was already marked closed there and each was re-checked against the tracker's own
+evidence before removal; none carried an open residual. Listed so a history
+question still has an answer.
+
+**TIER 1/2** — Career Ops `last_seen` freshness gate removed (2026-07-22, closed
+`AGENTS.md` #14) · #40 `keyStats` backfilled across all 16 newsletter issues
+(`375d0c29`) · Career Ops matcher findings F2/F3, one ranking brain and one
+liveness authority, no duplicate verifier (2026-07-22) · Signal Thread S3 gap-alert
+endpoint + strip (`d0597692`, `4962569b`) · Match Verdict seam slice 4 (`7643efc`,
+folded into `f3f1a2a`; the tap-to-reveal polish stays deferred, not blocking).
+
+**Surfaces** — Myrology landing on source-labelled figures (`f9aa5a5e`) · Referral
+Intelligence v1 + per-job Job Plan, all 5 slices (ADR-0018-clean) · CV Playground
+trust journey, all 7 slices, the Resume Worded teardown · pre-login live CV scoring
+and the CV Hub re-scope · Dashboard/Home redesign with the matches-500 prod fix ·
+CV Playground redesign phases 1–4 · global dark-mode token migration (done, then
+superseded by the landing palette).
+
+**Contracts and migrations** — "XP"/"Tokens" → Myro Coins, PR1+PR2, and PR3's
+contract migration dropping `xp_*`, applied and verified on prod · CV
+rewrite/restructure grounding on live Mentor RAG · alg-aware local JWT verify
+(ES256/JWKS), which replaced the dead and dangerous `SUPABASE_JWT_SECRET` item ·
+Market filter cleanup debt · job-card render contract for the new scraper columns.
+
+**Read path** — #21 read-path latency at scale, fully closed 2026-06-28. Distinct
+from #16, which remains open on a paid database-capacity gate rather than on code.
+
+**Void** — Forge widget v2, the whole 2026-05-19 spec, verified absent in code ·
+multi-location targeting, shipped and verified in code + live DB · match refresh
+stuck at 2 results, tiered overlap floor live in `job_matches`.
+
 ## CLOSED 2026-09-07 — phone load is one skin; `/dev/phone` is the 375 lab
 
 Route skeletons at 375px were the desktop workspace, then the live surface mounted a second skeleton. Dual-skin CSS shows one; bootstrap is chrome plus that page (`ac1a61eb`). `/dev/phone` iframes Load or a live authed tab after QA session; production 404s `/dev` (`2208eb43`). Real-device QA stays open — BACKLOG #42.

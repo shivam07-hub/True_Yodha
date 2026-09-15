@@ -57,10 +57,10 @@ export function XpExplainerModal({
             <Coins size={19} aria-hidden />
           </div>
           <div className="tm-xp-explainer-header-title" style={{ minWidth: 0, flex: 1 }}>
-            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "var(--tm-text)" }}>
+            <h2 style={{ margin: 0, fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--tm-text)" }}>
               How Myro Coins Work
             </h2>
-            <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--tm-text-faint)", lineHeight: 1.45 }}>
+            <p style={{ margin: "4px 0 0", fontSize: "var(--tm-fs-body)", color: "var(--tm-text-faint)", lineHeight: 1.45 }}>
               Earn Myro Coins by doing career work. Spend them on heavier analysis.
             </p>
           </div>
@@ -70,8 +70,8 @@ export function XpExplainerModal({
             background: "var(--tm-int-bg-wash)",
             border: "1px solid var(--tm-int-border)",
             fontFamily: "var(--tm-font-mono)",
-            fontSize: 13,
-            fontWeight: 800,
+            fontSize: "var(--tm-fs-body)",
+            fontWeight: 600,
             color: "var(--tm-text)",
             whiteSpace: "nowrap",
           }}>
@@ -125,8 +125,8 @@ export function XpExplainerModal({
               border: "1px solid var(--tm-int-border)",
               background: "var(--tm-int-bg-wash)",
               color: "var(--tm-interactive)",
-              fontSize: 12,
-              fontWeight: 800,
+              fontSize: "var(--tm-fs-caption)",
+              fontWeight: 600,
               textDecoration: "none",
               whiteSpace: "nowrap",
             }}

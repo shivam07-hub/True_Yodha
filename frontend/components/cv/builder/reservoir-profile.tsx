@@ -21,6 +21,7 @@ import { APPLICATION_OUTCOMES, cv as cvApi } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { ReservoirDump } from "./reservoir-dump"
 import { StoryReview } from "./story-review"
+import { StoryQuestions } from "./story-questions"
 import "./reservoir-profile.css"
 
 const STAR_FIELDS = [
@@ -232,12 +233,28 @@ export function ReservoirProfile({ token, applications, onOpenJob }: {
       {profile && profile.pending_inflows > 0 && (
         <p className="tm-rsv-pending" role="status">
           <span className="tm-rsv-pulse" aria-hidden />
-          Reading {profile.pending_inflows} {profile.pending_inflows === 1 ? "dump" : "dumps"}
+          {/* Not only dumps any more: a bullet answered in the queue below is an
+              inflow too, and it lands here while Myro reads it. */}
+          Reading {profile.pending_inflows} {profile.pending_inflows === 1 ? "addition" : "additions"}
         </p>
       )}
 
       {/* No silent mutation: every fold Myro made is listed there, undoable. */}
       <StoryReview token={token} onChanged={() => void refetch()} />
+
+      {/* Duplicates first: folding changes which story a question belongs to,
+          so there is no point finishing a bullet that is about to merge. */}
+      {profile && (
+        <StoryQuestions
+          token={token}
+          questions={profile.questions}
+          total={profile.questions_total}
+          setAside={profile.questions_set_aside}
+          missingNumber={profile.missing_number}
+          missingStory={profile.missing_story}
+          onChanged={() => void refetch()}
+        />
+      )}
 
       {(dumpOpen || isEmpty) && (
         <ReservoirDump

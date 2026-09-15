@@ -49,7 +49,7 @@ test("a spliced row shifts every position below it, and no key moves with them",
 })
 
 test("both feeds key virtual rows by row identity, never by index", () => {
-  for (const file of ["../components/market/jobs-tab.tsx", "../components/market/mobile-feed.tsx"]) {
+  for (const file of ["../components/market/market-jobs-column.tsx", "../components/market/mobile-feed.tsx"]) {
     const src = readFileSync(new URL(file, import.meta.url), "utf8")
     const getKey = src.match(/getKey=\{([^}]*\})?[^}]*\}/)?.[0] ?? ""
     assert.match(getKey, /job\.job_id/, `${file}: a job row must be keyed by job_id`)

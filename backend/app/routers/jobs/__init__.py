@@ -15,6 +15,7 @@ from .milestone import router as milestone_router
 from .prep import router as prep_router
 from .provenance import router as provenance_router
 from .reach import router as reach_router
+from .reach_targets import router as reach_targets_router
 from .refresh import router as refresh_router
 from .report import router as report_router
 from .review import router as review_router
@@ -26,6 +27,8 @@ router.include_router(list_router)
 # Before detail_router: its `/{job_id}` would otherwise swallow `/skill-demand`
 # and `/contributions`.
 router.include_router(skill_demand_router)
+# Static `/reach/targets` before `/{job_id}/…` so `job_id=reach` cannot swallow it.
+router.include_router(reach_targets_router)
 router.include_router(refresh_router)
 router.include_router(provenance_router)
 router.include_router(intelligence_router)

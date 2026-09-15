@@ -709,3 +709,91 @@ def test_router_answer_patches_coverage_cache(monkeypatch):
         assert hit is not None and hit[0].requirements[0].status == "covered"
     finally:
         app.dependency_overrides.clear()
+
+
+def test_the_job_room_names_what_the_weak_story_is_missing(monkeypatch):
+    """One question, two places (#13 L3).
+
+    A `weak` ask is weak because the story standing as its evidence was never
+    properly told. The interview says which fact would close it — the same fact
+    the Stories queue asks for, so answering either one improves the same story.
+    """
+    async def _embed(texts):
+        return [[0.0, 0.0, 1.0] for _ in texts]
+
+    monkeypatch.setattr(cv_weave_interview.embeddings, "embed_texts", _embed)
+
+    pointer = (
+        "Analyzed patient data using SQL, Excel, and Power BI to inform development "
+        "of a physiotherapy device, translating findings into actionable insights"
+    )
+
+    class _Repo:
+        def __init__(self, _db=None):
+            pass
+
+        def story_embeddings(self, _u):
+            return []
+
+        def list_stories(self, _u):
+            return [{
+                "id": "s1", "title": "Patient data analysis", "metrics": [],
+                "narrative": {"situation": "s", "task": "t", "action": "a"},
+            }]
+
+        def story_pointers(self, _u, ids):
+            return [{"story_id": "s1", "is_canonical": True, "text": pointer}]
+
+    import app.database as database_mod
+    import app.repositories.career_reservoir as reservoir_mod
+    monkeypatch.setattr(database_mod, "get_supabase_admin", lambda: None)
+    monkeypatch.setattr(reservoir_mod, "CareerReservoirRepository", _Repo)
+
+    items = [CoverageItem(
+        requirement="Clinical data analysis", status="weak",
+        story_id="s1", story_title="Patient data analysis", story_pointer=pointer,
+    )]
+    questions = _run(cv_weave_interview.build_interview("u1", items, CV))
+    lead = questions[0].options[0]
+    assert lead.story_id == "s1"
+    assert lead.asks == ["no number in this line"]
+
+
+def test_a_whole_bullet_carries_no_ask_into_the_job_room(monkeypatch):
+    async def _embed(texts):
+        return [[0.0, 0.0, 1.0] for _ in texts]
+
+    monkeypatch.setattr(cv_weave_interview.embeddings, "embed_texts", _embed)
+    pointer = (
+        "Cut invoice processing time by 43% across 12 markets by rebuilding the "
+        "reconciliation pipeline from ingest through to the ledger"
+    )
+
+    class _Repo:
+        def __init__(self, _db=None):
+            pass
+
+        def story_embeddings(self, _u):
+            return []
+
+        def list_stories(self, _u):
+            return [{
+                "id": "s1", "title": "Reconciliation rebuild",
+                "metrics": [{"value": "43%", "what": "faster"}],
+                "narrative": {"situation": "s", "task": "t", "action": "a", "result": "r"},
+            }]
+
+        def story_pointers(self, _u, ids):
+            return [{"story_id": "s1", "is_canonical": True, "text": pointer}]
+
+    import app.database as database_mod
+    import app.repositories.career_reservoir as reservoir_mod
+    monkeypatch.setattr(database_mod, "get_supabase_admin", lambda: None)
+    monkeypatch.setattr(reservoir_mod, "CareerReservoirRepository", _Repo)
+
+    items = [CoverageItem(
+        requirement="Finance operations", status="weak",
+        story_id="s1", story_title="Reconciliation rebuild", story_pointer=pointer,
+    )]
+    questions = _run(cv_weave_interview.build_interview("u1", items, CV))
+    assert questions[0].options[0].asks == []

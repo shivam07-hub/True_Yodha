@@ -1,0 +1,79 @@
+.rd {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 20px 16px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.rd-head h1 {
+  margin: 0;
+  font-size: var(--tm-fs-title);
+  font-weight: 600;
+  color: var(--tm-text);
+}
+.rd-head p {
+  margin: 6px 0 0;
+  font-size: var(--tm-fs-body);
+  color: var(--tm-text-muted);
+  max-width: 42ch;
+}
+.rd-back {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: var(--tm-fs-body);
+  color: var(--tm-interactive);
+}
+.rd-form {
+  display: grid;
+  gap: 8px;
+}
+@media (min-width: 640px) {
+  .rd-form { grid-template-columns: 1fr 1.4fr 1fr auto; align-items: end; }
+}
+.rd-err { margin: 0; font-size: var(--tm-fs-body); color: var(--tm-danger); }
+.rd-empty { margin: 0; font-size: var(--tm-fs-body); color: var(--tm-text-muted); }
+.rd-sec { display: flex; flex-direction: column; gap: 10px; }
+.rd-sec h2 {
+  margin: 0;
+  font-size: var(--tm-fs-caption);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+.rd-row {
+  border: 1px solid var(--tm-border);
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--tm-surface);
+}
+.rd-row-main { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; }
+.rd-name { color: var(--tm-interactive); font-size: var(--tm-fs-body); font-weight: 600; text-decoration: none; }
+.rd-name:hover { text-decoration: underline; }
+.rd-meta { font-size: var(--tm-fs-caption); color: var(--tm-text-muted); }
+.rd-st { font-size: var(--tm-fs-caption); font-family: var(--tm-font-mono); color: var(--tm-text-faint); }
+.rd-st.is-due { color: var(--tm-warning); }
+.rd-note { margin: 0; font-size: var(--tm-fs-body); color: var(--tm-text); white-space: pre-wrap; line-height: 1.45; }
+.rd-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.rd-copy { font-size: var(--tm-fs-caption); }
+
+.rd-due-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--tm-border);
+  border-radius: 6px;
+  color: var(--tm-text);
+  text-decoration: none;
+  background: var(--tm-surface);
+  cursor: pointer;
+}
+.rd-due-link:hover { border-color: var(--tm-interactive); }
+.rd-due-n { font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); color: var(--tm-warning); }

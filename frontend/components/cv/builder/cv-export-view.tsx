@@ -412,7 +412,7 @@ export function CVExportView({
           )}
           <div>
             <div className="eyebrow mono">cv export</div>
-            <div style={{ fontSize: 13, color: "var(--tm-text)", display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text)", display: "flex", alignItems: "center", gap: 8 }}>
               <Icon name="file" size={14} style={{ color: "var(--tm-interactive)" }} />
               <span className="mono">{filename}</span>
             </div>
@@ -463,7 +463,7 @@ export function CVExportView({
 
         {docxError && <div className="cvb-export-err">{docxError}</div>}
 
-        <div style={{ fontSize: 11.5, color: "var(--tm-text-faint)" }}>
+        <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
           PDF suits most ATS — pick DOCX only if the portal asks for a Word file.
         </div>
 

@@ -182,9 +182,6 @@
      New CSS uses caption / body / heading / title / display. */
   --tm-fs-micro:      var(--tm-fs-caption);
   --tm-fs-note:       var(--tm-fs-caption);
-  --tm-fs-ui-sm:      var(--tm-fs-caption);
-  --tm-fs-ui:         var(--tm-fs-body);
-  --tm-fs-ui-lg:      var(--tm-fs-body);
   --tm-fs-prose:      var(--tm-fs-reading);
   --tm-fs-modal:      var(--tm-fs-heading);
   --tm-fs-ask:        var(--tm-fs-title);
@@ -228,7 +225,7 @@
   --tm-content-max:   1280px;
   --tm-public-content-max: 1180px;
   /* Feed = r/popular: 732 column + 316 right rail. Workspace rail stays 360
-     (Prep v2 lock — the four pips). Templates own page inset, not a 1280 blob. */
+     (Prep + CV). Templates own page inset, not a 1280 blob. */
   --tm-feed-col:      732px;
   --tm-feed-rail:     316px;
   --tm-workspace-rail: 360px;
@@ -914,6 +911,29 @@ body::after {
 .tm-card-interactive:hover {
   border-color: var(--tm-accent-ring);
   box-shadow: 0 0 0 1px var(--tm-accent-ring), var(--tm-shadow-2);
+}
+
+/* Feed template — r/popular: 732 column + 316 right rail. Collections and
+   Market are the proof. */
+.tm-feed-page {
+  padding: var(--tm-page-py) var(--tm-page-px) var(--tm-space-xl);
+  margin: 0 auto;
+}
+.tm-feed-page .mc-workspace {
+  grid-template-columns: minmax(0, var(--tm-feed-col)) var(--tm-feed-rail);
+  gap: var(--tm-space-lg);
+  max-width: calc(var(--tm-feed-col) + var(--tm-feed-rail) + var(--tm-space-lg));
+  margin: 0 auto;
+  width: 100%;
+}
+@media (max-width: 980px) {
+  .tm-feed-page {
+    padding: var(--tm-mobile-page-py) var(--tm-mobile-page-px) calc(var(--tm-space-xl) + var(--tm-mobile-bottomnav-h));
+  }
+  .tm-feed-page .mc-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: none;
+  }
 }
 
 /* ── Status pills ─────────────────────────────────────────── */

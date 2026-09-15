@@ -102,6 +102,31 @@ class RoleFamiliesRepository:
         by_key = {str(row.get("family")): row for row in rows}
         return [by_key[key] for key in families if key in by_key]
 
+    def known_families(self, families: list[str]) -> set[str]:
+        """Which of these strings are real directions in the corpus snapshot.
+
+        The scoping key the matcher runs on must name a family that exists. It
+        did not: 41 stored keys across 36 users were raw typed titles — "seo",
+        "hr", "any", "Teacher or a tele caller" — and 29 users had a scope made
+        ENTIRELY of them, so `get_candidate_job_ids_for_roles` (an equality on
+        `jobs.role_family`) returned nothing and `role_family_demand` returned
+        no market. Silently: no error, just a quietly worse product.
+
+        One indexed read against the 337-row snapshot, and only on a patch that
+        actually touches the scope.
+        """
+        if not families:
+            return set()
+        rows = (
+            self._db.table("role_family_labels")
+            .select("family")
+            .in_("family", families)
+            .execute()
+            .data
+            or []
+        )
+        return {str(row["family"]) for row in rows if row.get("family")}
+
     def list_bands(self, user_id: str, *, skill_ids: list[int] | None = None) -> list[dict[str, Any]]:
         """The four Career Bands, with what each holds and how well it fits.
 

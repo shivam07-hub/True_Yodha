@@ -39,14 +39,14 @@ export function CategoryCard({
       <div
         style={{
           marginTop: 10,
-          fontSize: 14,
+          fontSize: "var(--tm-fs-body)",
           fontWeight: 600,
           color: active ? c.color : "var(--tm-text)",
         }}
       >
         {c.label}
       </div>
-      <div style={{ marginTop: 2, fontSize: 11, color: "var(--tm-text-faint)", lineHeight: 1.4 }}>
+      <div style={{ marginTop: 2, fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", lineHeight: 1.4 }}>
         {c.hint}
       </div>
       {active && (

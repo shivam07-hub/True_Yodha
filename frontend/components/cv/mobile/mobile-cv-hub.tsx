@@ -4,6 +4,7 @@ import { useState } from "react"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { CVExportView } from "@/components/cv/builder/cv-export-view"
 import { FinishTailoringLane } from "@/components/cv/builder/finish-tailoring-lane"
+import { ForwardPassPanel } from "@/components/cv/builder/forward-pass-panel"
 import { Icon } from "@/components/cv/builder/icons"
 import { Button } from "@/components/ui/button"
 import {
@@ -96,6 +97,8 @@ export function MobileCVHub({
           <Icon name="settings" />
         </Button>
       </header>
+
+      <ForwardPassPanel token={token} />
 
       <FinishTailoringLane token={token} onOpenJob={onOpenJob} />
 

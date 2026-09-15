@@ -39,7 +39,7 @@ export function ApplyCapturePrompt({ capture }: { capture: ApplyCapture }) {
         style={{
           display: "flex", alignItems: "center", gap: 10, padding: "10px 24px",
           borderTop: "1px solid var(--tm-border-soft)", background: "var(--tm-int-bg-wash)",
-          fontSize: 12.5, flexWrap: "wrap",
+          fontSize: "var(--tm-fs-caption)", flexWrap: "wrap",
         }}
       >
         <span style={{ color: "var(--tm-text)", fontWeight: 600 }}>Did you submit?</span>
@@ -101,19 +101,19 @@ export function ApplyCapturePrompt({ capture }: { capture: ApplyCapture }) {
 const bandStyle: React.CSSProperties = {
   display: "flex", alignItems: "center", gap: 10, padding: "10px 24px",
   borderTop: "1px solid var(--tm-border-soft)", background: "var(--tm-int-bg-wash)",
-  fontSize: 12.5, flexWrap: "wrap",
+  fontSize: "var(--tm-fs-caption)", flexWrap: "wrap",
 }
 
 const linkStyle: React.CSSProperties = {
   background: "none", border: "none", padding: 0, color: "var(--tm-interactive)",
-  fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+  fontSize: "var(--tm-fs-caption)", fontWeight: 600, cursor: "pointer",
 }
 
 function pillStyle(danger = false): React.CSSProperties {
   return {
-    padding: "5px 12px", borderRadius: 999,
+    padding: "5px 12px", borderRadius: 10,
     border: `1px solid ${danger ? "var(--tm-danger)" : "var(--tm-border-soft)"}`,
     background: "transparent", color: danger ? "var(--tm-danger)" : "var(--tm-text)",
-    fontSize: 12, cursor: "pointer",
+    fontSize: "var(--tm-fs-caption)", cursor: "pointer",
   }
 }

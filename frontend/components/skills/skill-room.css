@@ -14,7 +14,7 @@
   gap: 6px;
   margin-bottom: 22px;
   color: var(--tm-text-muted);
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   text-decoration: none;
 }
 .sr-back:hover { color: var(--tm-text); }
@@ -37,20 +37,20 @@
 }
 .sr-bracket strong {
   color: var(--tm-accent-text, var(--tm-interactive));
-  font-size: 16px;
-  font-weight: 650;
+  font-size: var(--tm-fs-heading);
+  font-weight: 600;
 }
 .sr-level {
   color: var(--tm-text-muted);
   font-family: var(--tm-font-mono);
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   font-weight: 600;
 }
 .sr-definition {
   margin: 12px 0 0;
   max-width: var(--tm-reading-measure, 68ch);
   color: var(--tm-reading-ink);
-  font-size: 14px;
+  font-size: var(--tm-fs-body);
   line-height: 1.6;
 }
 
@@ -73,14 +73,14 @@
 .sr-fact {
   margin: 0;
   color: var(--tm-reading-ink);
-  font-size: 14px;
+  font-size: var(--tm-fs-body);
   line-height: 1.6;
 }
-.sr-fact strong { color: var(--tm-text); font-weight: 700; }
+.sr-fact strong { color: var(--tm-text); font-weight: 600; }
 .sr-fact-sub {
   margin-top: 6px;
   color: var(--tm-text-muted);
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
 }
 
 /* ── Signature: the classification spine ──────────────────────────────────
@@ -116,19 +116,19 @@
 
 .sr-rung-name {
   color: var(--tm-text-muted);
-  font-size: 14px;
+  font-size: var(--tm-fs-body);
   line-height: 1.4;
 }
 .sr-rung-scale {
   flex-shrink: 0;
   color: var(--tm-text-muted);
   font-family: var(--tm-font-mono);
-  font-size: 11px;
+  font-size: var(--tm-fs-caption);
   font-variant-numeric: tabular-nums;
 }
 .sr-rung--here .sr-rung-name {
   color: var(--tm-text);
-  font-weight: 650;
+  font-weight: 600;
 }
 .sr-rung--here .sr-rung-scale { color: var(--tm-accent-text, var(--tm-interactive)); }
 .sr-rung--here::before { background: var(--tm-interactive); }
@@ -138,7 +138,7 @@
   margin: 6px 0 0;
   color: var(--tm-text-muted);
   font-family: var(--tm-font-mono);
-  font-size: 11px;
+  font-size: var(--tm-fs-caption);
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
 }
@@ -164,19 +164,19 @@
   max-width: var(--tm-reading-measure, 68ch);
   color: var(--tm-reading-ink);
   font-family: var(--tm-font-reading, inherit);
-  font-size: 16px;
+  font-size: var(--tm-fs-heading);
   line-height: 1.62;
 }
 .sr-source {
   margin: 10px 0 0;
   color: var(--tm-text-muted);
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
 }
 .sr-unproven {
   margin: 0;
   max-width: var(--tm-reading-measure, 68ch);
   color: var(--tm-reading-ink);
-  font-size: 14px;
+  font-size: var(--tm-fs-body);
   line-height: 1.6;
 }
 
@@ -190,8 +190,8 @@
   margin-top: 14px;
   border-radius: 9px;
   padding: 0 15px;
-  font-size: 12px;
-  font-weight: 650;
+  font-size: var(--tm-fs-caption);
+  font-weight: 600;
   text-decoration: none;
 }
 .sr-primary { background: var(--tm-interactive); color: var(--tm-bg); }
@@ -201,7 +201,7 @@
 @media (max-width: 480px) {
   .sr { padding-bottom: 96px; }
   .sr-block { border-radius: 12px; padding: 15px 16px; }
-  .sr-quote { font-size: 15px; padding-left: 13px; }
+  .sr-quote { font-size: var(--tm-fs-body); padding-left: 13px; }
   .sr-rung { flex-wrap: wrap; gap: 2px 14px; }
   .sr-rung + .sr-rung { padding-left: 26px; }
   .sr-rung + .sr-rung::before { width: 19px; }

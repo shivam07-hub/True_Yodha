@@ -1,0 +1,256 @@
+/* ── mobile (1f) ──
+   The CV scrolls full-height, severity becomes a chip row under the header
+   (a 3px gutter is doing less work at this size), and the next action is
+   pinned to the bottom with a 48px-min primary. */
+.cvw-chips { display: none; }
+.cvw-donow { display: none; }
+
+@media (max-width: 900px) {
+  .cvw-toolbar { position: static; padding: 10px 14px; }
+  .cvw-fill-stats { display: none; }
+  /* The chip row IS the triage at this size — three 24px tiles do not fit at
+     375px, and showing both would be the same count said twice. */
+  .cvw-triage { display: none; }
+  /* Room for the pinned do-now card, which is fixed and out of flow. */
+  .cvb-v2 { padding-bottom: 156px; }
+
+  .cvw-chips {
+    position: sticky; top: 0; z-index: 18;
+    display: flex; gap: 8px; padding: 10px 14px;
+    background: var(--tm-surface); border-bottom: 1px solid var(--tm-border-soft);
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .cvw-chips::-webkit-scrollbar { display: none; }
+  .cvw-chip {
+    flex: none; display: inline-flex; align-items: center; gap: 7px; min-height: 32px;
+    padding: 0 12px; border-radius: var(--tm-button-radius); cursor: pointer;
+    border: 1px solid transparent;
+    background: color-mix(in oklab, var(--cvw-sev) 14%, transparent);
+    color: var(--cvw-sev);
+    font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-weight: 600;
+  }
+  .cvw-chip::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+  }
+  .cvw-chip[data-empty="true"] { background: var(--tm-surface-2); color: var(--tm-text-faint); }
+  .cvw-chip[data-empty="true"]::before { display: none; }
+  .cvw-chip[aria-pressed="true"] { border-color: currentColor; }
+
+  /* The role head is three facts in one row; at 375px that squeezed the title
+     into three words per line. Title takes the row, company + dates share the
+     next one. */
+  .cvw-rolehead { flex-wrap: wrap; padding: 12px 14px; }
+  .cvw-roletitle { flex: 1 1 100%; }
+  .cvw-roledates { margin-left: auto; }
+
+  /* Verdict drops under the line. Pointers stay a list, not cards. */
+  .cvw-line {
+    grid-template-columns: 3px minmax(0, 1fr);
+    column-gap: 12px;
+  }
+  .cvw-verdict { grid-column: 2; padding: 0 14px 14px 4px; text-align: left; }
+  .cvw-v-wide { display: none; }
+  .cvw-v-dense { display: inline; }
+  .cvw-linebody { padding-bottom: 8px; }
+
+  .cvw-donow {
+    position: fixed; left: 0; right: 0; z-index: 27;
+    bottom: calc(var(--tm-mobile-bottomnav-h, 0px) + env(safe-area-inset-bottom));
+    display: block; padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+    background: var(--tm-surface); border-top: 1px solid var(--tm-border-soft);
+  }
+  .cvw-donow-head { display: flex; align-items: baseline; gap: 10px; }
+  .cvw-donow-eyebrow {
+    flex: 1; font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--tm-interactive-text);
+  }
+  .cvw-donow-count {
+    font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); color: var(--tm-text-faint);
+  }
+  .cvw-donow-title {
+    margin-top: 6px;
+    font-family: var(--tm-font-sans); font-size: var(--tm-fs-heading); font-weight: 600;
+    line-height: 1.3; color: var(--tm-text);
+  }
+  .cvw-donow-cta {
+    width: 100%; min-height: 48px; margin-top: 12px; border: 0; cursor: pointer;
+    background: var(--tm-interactive); color: var(--tm-interactive-fg);
+    border-radius: var(--tm-button-radius, 10px);
+    font-family: var(--tm-font-sans); font-size: var(--tm-fs-body); font-weight: 600;
+  }
+
+  /* The rewrite is a bottom sheet on a phone, not an inline card — an inline
+     card under line 9 of 15 puts the primary button below the fold. */
+  .cvw-rw {
+    position: fixed; left: 0; right: 0; z-index: 40;
+    bottom: 0; margin: 0; border-radius: var(--tm-radius-card) var(--tm-radius-card) 0 0;
+    border-bottom: 0; background: var(--tm-surface);
+    padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
+    box-shadow: 0 -12px 32px color-mix(in oklab, var(--tm-scrim) 60%, transparent);
+    max-height: 76dvh; overflow-y: auto;
+  }
+  .cvw-rw::before {
+    content: ""; display: block; width: 44px; height: 4px; margin: 0 auto 14px;
+    border-radius: 2px; background: var(--tm-border);
+  }
+  .cvw-rw-foot { flex-direction: column; align-items: stretch; }
+  .cvw-rw-primary { min-height: 48px; }
+  .cvw-rw-discard { margin-left: 0; text-align: center; }
+  .cvw-railfoot { margin-top: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cvw-fill-bar > span { transition: none; }
+}
+
+/* the active queue row points at the pane rather than repeating the address */
+.cvw-issue-open { color: var(--tm-interactive-text); }
+
+/* a jumped-to line pulses once, so a rail click lands somewhere visible */
+@keyframes cvw-pulse {
+  from { box-shadow: inset 0 0 0 2px var(--tm-interactive); }
+  to   { box-shadow: inset 0 0 0 2px transparent; }
+}
+.cvw-line.cvw-pulse { animation: cvw-pulse 1.2s var(--tm-ease); }
+@media (prefers-reduced-motion: reduce) { .cvw-line.cvw-pulse { animation: none; } }
+
+/* The quieter of the two header actions. Download is the primary everywhere —
+   it is what the user came for and it cannot misfire. Apply opens an external
+   page and arms the capture prompt, so it asks for a deliberate second look. */
+.cvb-v2-secondarybtn {
+  flex: none; cursor: pointer; white-space: nowrap;
+  border: 1px solid var(--tm-border); background: transparent; color: var(--tm-text);
+  padding: 10px 16px; border-radius: var(--tm-button-radius, 10px);
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-body); font-weight: 600;
+  transition: border-color var(--tm-dur-fast) var(--tm-ease);
+}
+.cvb-v2-secondarybtn:hover { border-color: var(--tm-int-border); }
+.cvb-v2-secondarybtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+
+/* Education / certification entries edit in place, but the CV is paper, not a
+   form: the field is invisible until the user reaches for it. Without this the
+   two closing sections render as a stack of boxed inputs and the document stops
+   looking like the thing a recruiter receives. */
+.cvw-card .cvw-idgrid .cvw-edit,
+.cvw-card > .cvw-line > .cvw-linebody > .cvw-edit {
+  background: transparent; border-color: transparent;
+  padding: 4px 6px; margin: 0 -6px;
+}
+.cvw-card .cvw-idgrid .cvw-edit:hover,
+.cvw-card > .cvw-line > .cvw-linebody > .cvw-edit:hover {
+  border-color: var(--tm-border-soft);
+}
+.cvw-card .cvw-idgrid .cvw-edit:focus,
+.cvw-card > .cvw-line > .cvw-linebody > .cvw-edit:focus {
+  background: var(--tm-surface-2); border-color: var(--tm-interactive);
+}
+
+/* ── SHEET tab ──
+   The A4 sheet is a fixed 816px artifact — it has to be, because it IS the
+   thing the server renders to PDF (ADR-0020). Dropped into a column narrower
+   than that it clipped, on every surface. `zoom` (not transform) shrinks it AND
+   reserves the right height, keyed off the column's own width. Screen only:
+   print keeps the full-size sheet from cv-builder.css, so the download is
+   untouched. `width` defeats the ≤720px reflow that would fight the zoom. */
+@media screen {
+  .cvb-v2-editorbody > .cvb-scope { container-type: inline-size; }
+  .cvb-v2-editorbody > .cvb-scope .cvb-pdf-page {
+    width: 816px !important;
+    zoom: min(1, 100cqw / 816px);
+  }
+}
+
+/* ── the brief: what's wrong, why, and what good looks like ──
+   Free and instant. It renders in two places — expanded under a rail row, and
+   as the first phase of the card under the line — because a user arrives at a
+   fix from either side and both owe the same answer before spending a model
+   call. Rank-wise the example is the loudest thing here: it is what most people
+   act on, and acting on it costs nothing. */
+.cvw-brief {
+  padding: 14px 16px 16px;
+  border-top: 1px solid var(--tm-border-soft);
+  background: var(--tm-surface);
+}
+.cvw-rw .cvw-brief { border-top: 0; background: none; padding: 12px 0 0; }
+
+.cvw-brief-head {
+  margin: 0;
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-body); font-weight: 600;
+  line-height: 1.45; color: var(--tm-text);
+}
+.cvw-brief-why {
+  margin: 10px 0 0; padding: 0; list-style: none;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.cvw-brief-why li {
+  position: relative; padding-left: 14px;
+  font-size: var(--tm-fs-caption); line-height: 1.5; color: var(--tm-text-muted);
+}
+.cvw-brief-why li::before {
+  content: ""; position: absolute; left: 2px; top: 8px;
+  width: 4px; height: 4px; border-radius: 50%; background: var(--cvw-sev, var(--tm-text-faint));
+}
+
+.cvw-brief-eg {
+  margin: 12px 0 0; border-radius: var(--tm-radius, 6px);
+  background: var(--tm-surface-2); overflow: hidden;
+}
+.cvw-brief-eg-head {
+  padding: 8px 12px 0;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--tm-text-faint);
+}
+.cvw-brief-eg-row {
+  display: grid; grid-template-columns: 64px minmax(0, 1fr);
+  gap: 10px; margin: 0; padding: 10px 12px;
+  font-size: var(--tm-fs-caption); line-height: 1.5;
+}
+.cvw-brief-eg-row.is-before { color: var(--tm-text-faint); }
+.cvw-brief-eg-row.is-before span:last-child { text-decoration: line-through; text-decoration-color: var(--tm-text-disabled); }
+.cvw-brief-eg-row.is-after {
+  color: var(--tm-text);
+  border-top: 1px solid var(--tm-border-faint);
+  background: color-mix(in oklab, var(--tm-success) 8%, transparent);
+}
+.cvw-brief-eg-tag {
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--tm-text-faint);
+  padding-top: 1px;
+}
+.cvw-brief-eg-row.is-after .cvw-brief-eg-tag { color: var(--tm-success); }
+
+.cvw-brief-acts { display: flex; align-items: center; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.cvw-brief-acts .cvw-rw-primary,
+.cvw-brief-acts .cvw-rw-ghost { padding: 8px 14px; font-size: var(--tm-fs-caption); }
+
+.cvw-issue-wrap {
+  border: 1px solid transparent; border-radius: var(--tm-radius-lg, 8px);
+  background: var(--tm-surface-2); overflow: hidden;
+}
+.cvw-issue-wrap:has(.cvw-issue[data-active="true"]) { border-color: var(--tm-interactive); }
+.cvw-issue-wrap .cvw-issue { border: 0; border-radius: 0; }
+
+@media (max-width: 900px) {
+  .cvw-brief-eg-row { grid-template-columns: 1fr; gap: 4px; }
+  .cvw-brief-acts .cvw-rw-primary { flex: 1 1 100%; min-height: 44px; }
+}
+
+/* When a fix is open, its phrase is the loud one. A line can carry marks from
+   two different findings, and reading a brief about a missing number while an
+   unrelated phrase sits underlined is its own small lie. */
+.cvw-line[data-focus="true"] .cvw-off {
+  box-shadow: inset 0 -3px 0 color-mix(in oklab, var(--tm-text-faint) 30%, transparent);
+}
+.cvw-line[data-focus="true"] .cvw-off.is-active {
+  box-shadow: inset 0 -3px 0 var(--tm-interactive);
+}
+
+/* "1 of 2 on this line" — steps to the other fix on the same bullet. */
+.cvw-rw-step {
+  border: 0; background: none; cursor: pointer; padding: 2px 0;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption);
+  letter-spacing: 0.06em; color: var(--tm-interactive-text);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.cvw-rw-step:hover { color: var(--tm-text); }

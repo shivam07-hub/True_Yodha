@@ -3,18 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useViewport } from "@/mobile"
-import type { CareerBand, JobFeedItem } from "@/lib/api"
-import { formatCount } from "@/lib/format"
-import { AgentPicksBand } from "@/components/jobs/agent-picks-band"
-import { openRefreshGate } from "@/store/refreshGateStore"
-import { NotInterestedUndo } from "@/components/jobs/not-interested-undo"
-import { SetupNudge } from "@/components/common/setup-nudge"
-import { JobCard } from "./job-card"
-import { JobDetailDrawer } from "./job-detail-drawer"
-import { MobileFeed } from "./mobile-feed"
-import { VirtualFeed } from "@/components/jobs/virtual-feed"
-import { FeedControls, FilterChips, FiltersSheet } from "./feed-filters"
-import { EmptyHandoff, FeedSkeleton, LocationScopePill } from "./jobs-tab-helpers"
+import type { JobFeedItem } from "@/lib/api"
 import { useJobFeed } from "./use-job-feed"
 import { useFeedWarm } from "./use-feed-warm"
 import { usePulses } from "@/lib/hooks/use-pulses"
@@ -24,40 +13,17 @@ import { useFeedScope } from "@/lib/hooks/use-feed-scope"
 import { useTracks } from "@/lib/hooks/use-tracks"
 import { trackDividers } from "@/lib/jobs/track-sections"
 import { MarketRail } from "./market-rail"
-import { StoryCard, type FeedStory } from "./story-card"
+import { MarketFeedFrame } from "./market-feed-frame"
+import { MarketJobsColumn } from "./market-jobs-column"
+import { MarketJobsOverlays } from "./market-jobs-overlays"
+import { type FeedStory } from "./story-card"
 import { interleaveStories } from "./feed-rows"
-import { HiddenJobsDialog } from "./hidden-jobs-dialog"
 import { DEFAULT_FILTERS, applyViewFilters, localFilters, pickDefaultSort, type FeedFilters } from "./feed-types"
-import { Search, X } from "lucide-react"
-import type { UseFollowCompany } from "@/lib/hooks/use-follow-company"
+import { type MarketJobsTabProps } from "./market-jobs-tab-props"
 import "./market.css"
 import "./market-intel.css"
 
-export interface MarketJobsTabProps {
-  token: string
-  hasCv: boolean
-  targetRoles: string[]
-  chipCountMap: Record<string, number>
-  selectedCluster: string | null         // shared with the page's analytics/heatmap
-  onSelectCluster: (cluster: string | null) => void
-  initialFilters?: FeedFilters
-  initialQuery?: string
-  onFiltersChange?: (filters: FeedFilters) => void
-  onQueryChange?: (query: string) => void
-  initialSkillFacet?: string | null
-  onSkillFacetChange?: (skill: string | null) => void
-  exploredCareerBands?: CareerBand[]
-  onExploredCareerBandsChange?: (bands: CareerBand[]) => void
-  targetLocations: string[]
-  followCompany: Pick<UseFollowCompany, "followedNames" | "action">
-  /** Opens company signals after the preceding rail item settles. */
-  analyticsEnabled?: boolean
-  /** Opens skill demand after the preceding rail item settles. */
-  demandEnabled?: boolean
-  onFeedSettled?: () => void
-  onDemandSettled?: () => void
-  onAnalyticsSettled?: () => void
-}
+export type { MarketJobsTabProps } from "./market-jobs-tab-props"
 
 export function MarketJobsTab(props: MarketJobsTabProps) {
   const {
@@ -67,6 +33,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     exploredCareerBands, onExploredCareerBandsChange,
     analyticsEnabled = true, demandEnabled = true,
     onFeedSettled, onDemandSettled, onAnalyticsSettled,
+    header, railHead,
   } = props
   const router = useRouter()
   const { isDesktop } = useViewport()
@@ -258,202 +225,70 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   }
 
   return (
-    <div className="tm-market-layout">
-      <main className="tm-market-main">
-        <div className="tm-feed-bar">
-          {searchOpen ? (
-            <>
-              <input
-                autoFocus
-                value={searchInput}
-                onChange={e => setSearchInput(e.target.value)}
-                placeholder="Search roles, companies, skills..."
-                aria-label="Search jobs"
-                className="tm-feed-search"
-              />
-              <button
-                type="button"
-                className="tm-feed-iconbtn"
-                aria-label="Close search"
-                onClick={() => { setSearchInput(""); setQ(""); onQueryChange?.(""); setSearchOpen(false) }}
-              >
-                <X size={15} />
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                className="tm-feed-iconbtn"
-                aria-label="Search jobs"
-                onClick={() => setSearchOpen(true)}
-              >
-                <Search size={16} />
-              </button>
-              <FeedControls
-                filters={filters}
-                onChange={onChangeFilters}
-                hasCv={hasCv}
-                hasTargetRoles={hasTargetRoles}
-                savedCount={savedCount}
-                onOpenSaved={() => router.push("/collections")}
-                onOpenFilters={() => setFiltersOpen(true)}
-              />
-              <HiddenJobsDialog token={token} />
-            </>
-          )}
-        </div>
-
-        {/* The SAME component mobile renders. This was hand-rolled here and
-            duplicated in components/common with a different door. */}
-        <SetupNudge token={token} style={{ marginTop: 14 }} />
-
-        {/* Curated Agent Picks band — only on the default feed view (hidden while
-            the user is actively searching or filtering, where fixed picks would be
-            out of context). Renders nothing when the user has no picks. */}
-        {!q && !skillFacet && !filters.roleDomain ? (
-          <AgentPicksBand token={token} hasCv={hasCv} context="feed" onSave={onSave} onSkip={onSkip} />
-        ) : null}
-
-        <div style={{ marginTop: 8 }}>
-          {loading ? (
-            <FeedSkeleton summary />
-          ) : visibleJobs.length === 0 ? (
-            <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/collections")} onClear={clearBrowse} onTellMyro={() => openRefreshGate("say")} />
-          ) : (
-            <>
-              <div className="tm-feed-summary">
-                <span className="tm-feed-summary-count">{formatCount(total)} role{total === 1 ? "" : "s"}</span>
-                <LocationScopePill scope={scope} onOpen={() => setFiltersOpen(true)} />
-                {skillFacet ? (
-                  <button
-                    type="button"
-                    className="tm-feed-activechip"
-                    onClick={() => { setSkillFacet(null); onSkillFacetChange?.(null) }}
-                    aria-label={`Remove skill: ${skillFacet}`}
-                  >
-                    <span className="tm-feed-chip-label" title={skillFacet}>{skillFacet}</span> <span aria-hidden>x</span>
-                  </button>
-                ) : null}
-                {filters.roleDomain ? (
-                  <button
-                    type="button"
-                    className="tm-feed-activechip"
-                    onClick={() => onChangeFilters({ ...filters, roleDomain: null })}
-                    aria-label={`Remove role: ${filters.roleDomain}`}
-                  >
-                    <span className="tm-feed-chip-label" title={filters.roleDomain}>{filters.roleDomain}</span> <span aria-hidden>x</span>
-                  </button>
-                ) : null}
-                <FilterChips filters={filters} onChange={onChangeFilters} />
-                {/* ONE door. "Not it? Tell Myro →" used to sit right here beside
-                    this button, opening a second modal against the same Order
-                    and the same engine — so saying what was wrong and making it
-                    count were two errands. The complaint is a landing inside
-                    Myro Search now, not a rival to it. */}
-                <button
-                  type="button"
-                  className="tm-feed-searchchip"
-                  onClick={() => openRefreshGate("review")}
-                  title="Run Myro Search"
-                  style={{ marginLeft: "auto" }}
-                >
-                  <Search size={13} aria-hidden />
-                  Myro Search
-                </button>
-              </div>
-              {/* Honest weak-shortlist header (Q7): the engineer found no strong
-                  matches — say so and point forward, never fake a Strong. */}
-              {weakShortlist ? (
-                <div className="tm-feed-weak-note">
-                  <strong>No strong matches yet.</strong> Here are the closest — each card shows what would move it.
-                </div>
-              ) : null}
-              {/* Auto-nudge: catch the frustrated user when the feed runs thin. */}
-              {total > 0 && total < 5 ? (
-                <button
-                  type="button"
-                  onClick={() => openRefreshGate("say")}
-                  style={{
-                    width: "100%", marginBottom: 12, padding: "11px 14px", textAlign: "left",
-                    borderRadius: 12, border: "1px solid var(--tm-int-border)", background: "var(--tm-int-bg-wash)",
-                    color: "var(--tm-text)", fontSize: 13, cursor: "pointer",
-                  }}
-                >
-                  Only a few matches here. <strong style={{ color: "var(--tm-interactive)" }}>Tell Myro what you actually want →</strong>
-                </button>
-              ) : null}
-              {isDesktop ? (
-                <VirtualFeed
-                  items={rows}
-                  getKey={row => (row.t === "job" ? row.job.job_id : row.id)}
-                  estimateSize={180}
-                  gap={14}
-                  renderItem={row =>
-                    row.t === "divider" ? (
-                      <div className="tm-feed-expansion-divider" data-kind={row.kind}>{row.label}</div>
-                    ) : row.t === "story" ? (
-                      <StoryCard
-                        story={row.story}
-                        onPrimary={() => onStoryPrimary(row.story)}
-                        onSecondary={() => onStorySecondary(row.story)}
-                        companyAction={row.story.kind === "company" ? followCompany.action(row.story.company) : undefined}
-                      />
-                    ) : (
-                      <JobCard job={row.job} pulse={pulses.get(row.job.job_id)} hasCv={hasCv} onOpen={() => setOpenJob(row.job)} onSave={() => onSave(row.job)} onSkip={() => onSkip(row.job)} />
-                    )
-                  }
-                />
-              ) : (
-                <MobileFeed
-                  rows={rows}
-                  pulses={pulses}
-                  hasCv={hasCv}
-                  onOpen={setOpenJob}
-                  onSave={onSave}
-                  onSkip={onSkip}
-                  onStoryPrimary={onStoryPrimary}
-                  onStorySecondary={onStorySecondary}
-                  companyAction={followCompany.action}
-                />
-              )}
-              <div ref={sentinelRef} style={{ height: 1 }} />
-              {feed.isFetchingNextPage ? <FeedSkeleton rows={2} /> : null}
-              {!feed.hasNextPage ? <div style={{ textAlign: "center", padding: "24px", fontSize: 12, color: "var(--tm-text-faint)" }}>End of feed</div> : null}
-            </>
-          )}
-        </div>
-      </main>
-
-      <MarketRail {...railProps} />
-
-      {openJob ? (
-        <JobDetailDrawer
-          job={openJob}
-          pulse={pulses.get(openJob.job_id)}
+    <MarketFeedFrame
+      header={header}
+      railHead={railHead}
+      rail={<MarketRail {...railProps} />}
+      extras={
+        <MarketJobsOverlays
+          openJob={openJob}
+          pulses={pulses}
           token={token}
-          onClose={() => setOpenJob(null)}
-          onSave={() => { onSave(openJob); setOpenJob(null) }}
-        />
-      ) : null}
-
-      {filtersOpen ? (
-        <FiltersSheet
+          onCloseJob={() => setOpenJob(null)}
+          onSaveOpenJob={() => { if (openJob) { onSave(openJob); setOpenJob(null) } }}
+          filtersOpen={filtersOpen}
           filters={filters}
-          onChange={onChangeFilters}
-          onClose={() => setFiltersOpen(false)}
+          onChangeFilters={onChangeFilters}
+          onCloseFilters={() => setFiltersOpen(false)}
           targetRoles={targetRoles}
           chipCountMap={chipCountMap}
           hasCv={hasCv}
           scope={scope}
-          onEditLocations={() => document.dispatchEvent(new CustomEvent("tm:open-settings", { detail: { tab: "Following" } }))}
           exploredCareerBands={exploredCareerBands}
           onExploredCareerBandsChange={onExploredCareerBandsChange}
+          pending={pending}
+          undo={undo}
+          savedCount={savedCount}
         />
-      ) : null}
-
-      {pending ? <NotInterestedUndo kind={pending.kind} jobId={pending.jobId} token={token} onUndo={undo} queuePosition={pending.kind === "saved" ? savedCount : undefined} /> : null}
-
-    </div>
+      }
+    >
+      <MarketJobsColumn
+        token={token}
+        hasCv={hasCv}
+        hasTargetRoles={hasTargetRoles}
+        searchOpen={searchOpen}
+        setSearchOpen={setSearchOpen}
+        searchInput={searchInput}
+        setSearchInput={setSearchInput}
+        setQ={setQ}
+        onQueryChange={onQueryChange}
+        filters={filters}
+        onChangeFilters={onChangeFilters}
+        savedCount={savedCount}
+        onOpenFilters={() => setFiltersOpen(true)}
+        q={q}
+        skillFacet={skillFacet}
+        setSkillFacet={setSkillFacet}
+        onSkillFacetChange={onSkillFacetChange}
+        onSave={onSave}
+        onSkip={onSkip}
+        loading={loading}
+        visibleJobs={visibleJobs}
+        clearBrowse={clearBrowse}
+        total={total}
+        scope={scope}
+        weakShortlist={weakShortlist}
+        isDesktop={isDesktop}
+        rows={rows}
+        pulses={pulses}
+        followCompany={followCompany}
+        onOpenJob={setOpenJob}
+        onStoryPrimary={onStoryPrimary}
+        onStorySecondary={onStorySecondary}
+        sentinelRef={sentinelRef}
+        fetchingMore={feed.isFetchingNextPage}
+        hasNextPage={!!feed.hasNextPage}
+      />
+    </MarketFeedFrame>
   )
 }

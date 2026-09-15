@@ -65,7 +65,7 @@ function ReportRow({ r }: { r: FeedbackReport }) {
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <span
             className="mono"
-            style={{ fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.06em" }}
+            style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", letterSpacing: "0.06em" }}
           >
             MR-{r.id}
           </span>
@@ -73,7 +73,7 @@ function ReportRow({ r }: { r: FeedbackReport }) {
           {severity && (
             <span
               style={{
-                fontSize: 10,
+                fontSize: "var(--tm-fs-caption)",
                 fontFamily: "var(--tm-font-mono)",
                 color: severity === "blocker" ? "var(--tm-danger)" : "var(--tm-warning)",
                 letterSpacing: "0.08em",
@@ -84,10 +84,10 @@ function ReportRow({ r }: { r: FeedbackReport }) {
             </span>
           )}
         </div>
-        <div style={{ marginTop: 6, fontSize: 13, color: "var(--tm-text)", fontWeight: 500 }}>
+        <div style={{ marginTop: 6, fontSize: "var(--tm-fs-body)", color: "var(--tm-text)", fontWeight: 500 }}>
           {title}
         </div>
-        <div style={{ marginTop: 4, fontSize: 11, color: "var(--tm-text-faint)" }}>
+        <div style={{ marginTop: 4, fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
           {formatRelative(r.created_at)}
         </div>
       </div>
@@ -125,12 +125,12 @@ export function MyReports() {
       >
         <div>
           <div className="eyebrow" style={{ color: "var(--tm-interactive)" }}>Operator stats</div>
-          <div style={{ marginTop: 4, fontSize: 13, color: "var(--tm-text)" }}>
-            <span className="mono" style={{ color: "var(--tm-interactive)", fontWeight: 700 }}>
+          <div style={{ marginTop: 4, fontSize: "var(--tm-fs-body)", color: "var(--tm-text)" }}>
+            <span className="mono" style={{ color: "var(--tm-interactive)", fontWeight: 600 }}>
               {reports.length}
             </span>{" "}
             dispatch{reports.length === 1 ? "" : "es"} ·
-            <span className="mono" style={{ color: "var(--tm-success)", fontWeight: 700 }}>
+            <span className="mono" style={{ color: "var(--tm-success)", fontWeight: 600 }}>
               {" "}{shipped}
             </span>{" "}
             shipped
@@ -140,11 +140,11 @@ export function MyReports() {
           <span
             style={{
               padding: "5px 10px",
-              borderRadius: 99,
+              borderRadius: 10,
               background: "var(--tm-interactive)",
               color: "var(--tm-interactive-fg)",
-              fontSize: 10,
-              fontWeight: 700,
+              fontSize: "var(--tm-fs-caption)",
+              fontWeight: 600,
               letterSpacing: "0.08em",
             }}
           >
@@ -154,7 +154,7 @@ export function MyReports() {
       </div>
 
       {query.isLoading && (
-        <div style={{ padding: "32px 0", textAlign: "center", color: "var(--tm-text-faint)", fontSize: 12 }}>
+        <div style={{ padding: "32px 0", textAlign: "center", color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-caption)" }}>
           Loading your dispatches…
         </div>
       )}
@@ -168,7 +168,7 @@ export function MyReports() {
             background: "var(--tm-danger-wash)",
             border: "1px solid var(--tm-danger)",
             color: "var(--tm-danger)",
-            fontSize: 12,
+            fontSize: "var(--tm-fs-caption)",
           }}
         >
           Couldn&apos;t load your reports.
@@ -183,7 +183,7 @@ export function MyReports() {
             color: "var(--tm-text-faint)",
             border: "1px dashed var(--tm-border-soft)",
             borderRadius: "var(--tm-radius-sm)",
-            fontSize: 12,
+            fontSize: "var(--tm-fs-caption)",
           }}
         >
           No dispatches yet. The first one earns you the Signal Contributor badge.

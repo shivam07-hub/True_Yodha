@@ -300,11 +300,11 @@ export function SkillNodeMap({ userSkills, gapSkills = [], selectedDomain = null
     <div ref={wrapRef} style={{ width: "100%", height: 520, position: "relative" }}>
       <canvas ref={canvasRef} style={{ display: "block" }} />
       <div style={{ position: "absolute", bottom: 12, right: 16, display: "flex", gap: 14, alignItems: "center", pointerEvents: "none" }}>
-        <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: "var(--tm-text-faint)" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
           <svg width="10" height="10" aria-hidden="true"><circle cx="5" cy="5" r="4" fill="hsl(var(--primary))" opacity="0.85" /></svg>
           Skills you have
         </span>
-        <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: "var(--tm-text-faint)" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
           <svg width="10" height="10" aria-hidden="true"><circle cx="5" cy="5" r="4" fill="none" stroke="rgb(91,156,255)" strokeWidth="1.2" opacity="0.65" /></svg>
           Skills to unlock
         </span>

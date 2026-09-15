@@ -189,19 +189,25 @@ class ListingVerificationRepository:
             "status_code": result.status_code,
             "final_url": result.final_url,
         }
-        _with_retry(
-            lambda: self.db.table("job_listing_observations").insert(
-                {
-                    "job_id": result.job_id,
-                    "observer": "verifier",
-                    "result": result.result,
-                    "strength": result.strength,
-                    "observed_at": timestamp,
-                    "evidence": evidence,
-                    "verifier_version": "provider_http_v1",
-                }
-            ).execute()
+        log.info(
+            "metric listing.observe observer=verifier job_id=%s result=%s "
+            "strength=%s provider=%s",
+            result.job_id, result.result, result.strength, result.provider,
         )
+        if result.result == "closed":
+            _with_retry(
+                lambda: self.db.table("job_listing_observations").insert(
+                    {
+                        "job_id": result.job_id,
+                        "observer": "verifier",
+                        "result": result.result,
+                        "strength": result.strength,
+                        "observed_at": timestamp,
+                        "evidence": evidence,
+                        "verifier_version": "provider_http_v1",
+                    }
+                ).execute()
+            )
 
         update: dict[str, Any] = {
             "last_verification_attempt_at": timestamp,
@@ -231,26 +237,23 @@ class ListingVerificationRepository:
                     "reactivated_at": timestamp,
                 }
             )
-        elif result.result == "closed" and result.strength == "strong":
+        elif result.result == "closed":
             update.update(conclusive)
             eligible_at = (now + QUARANTINE_AFTER_CLOSE).isoformat()
+            reason = (
+                f"{result.provider}_verifier_closed"
+                if result.strength == "strong"
+                else f"{result.provider}_verifier_unconfirmed_closed"
+            )
             update.update(
                 {
                     "is_active": False,
                     "listing_confidence": "closed",
-                    "confidence_reason": f"{result.provider}_verifier_closed",
+                    "confidence_reason": reason,
                     "quarantined_at": timestamp,
                     "quarantine_until": eligible_at,
                     "deletion_eligible_at": eligible_at,
                     "retired_at": timestamp,
-                }
-            )
-        elif result.result == "closed":
-            update.update(conclusive)
-            update.update(
-                {
-                    "listing_confidence": "likely_closed",
-                    "confidence_reason": f"{result.provider}_verifier_unconfirmed_closed",
                 }
             )
         elif result.result in {"redirected", "wrong_role"}:
@@ -262,12 +265,7 @@ class ListingVerificationRepository:
                 }
             )
         elif result.result in {"blocked", "timeout"}:
-            # We could not reach the listing. That is not evidence it is gone —
-            # but it is also not permission to keep asserting the old verdict.
-            # Previously this branch did not exist: the row kept `active` AND
-            # re-stamped its attempt clock, which renewed the intent-gate cache
-            # for another 6h. Five of these in a row is how a listing last seen
-            # live in June was served as verified-active in August.
+            # Unreachable is not "gone". A run of them withdraws `active`.
             state = self._failure_state(result.job_id)
             failures = state[0] + 1
             update["consecutive_verify_failures"] = failures

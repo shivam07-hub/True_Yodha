@@ -135,7 +135,7 @@ export default function CvPreviewPage() {
             <ScoringConsole />
             {slow && (
               <div style={{ maxWidth: 560, margin: "18px auto 0", textAlign: "center" }}>
-                <p style={{ fontSize: 13, color: "var(--tm-text-muted)", marginBottom: 10 }}>
+                <p style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", marginBottom: 10 }}>
                   This is taking longer than usual. You can keep waiting, or paste your CV text to score it instantly.
                 </p>
                 <button
@@ -173,7 +173,7 @@ export default function CvPreviewPage() {
               <p className="mt-4 text-center text-xs text-[var(--tm-text-faint)]">Your CV is saved only if you choose to create an account.</p>
             </CVUploadStep>
             {result && !canBuild && (
-              <p style={{ marginTop: 14, textAlign: "center", fontSize: 13, color: "var(--tm-text-muted)" }}>
+              <p style={{ marginTop: 14, textAlign: "center", fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)" }}>
                 We scored your CV ({result.score}/100) but couldn&rsquo;t read its structure cleanly enough to rebuild it.
                 Try a text-based PDF or DOCX export.
               </p>

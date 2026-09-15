@@ -23,6 +23,7 @@ import { emptyCopy, orderEntries } from "@/lib/collections/model"
 import type { SortKey } from "@/lib/dashboard/feed-model"
 import type { CollectionEntry, CollectionStage } from "@/lib/api"
 import { CollectionRow } from "./collection-rows"
+import { ReachDueStrip } from "@/components/reach/reach-due-strip"
 
 /* ══════════════════════════════════════════════════════════════════════════
    The Myro Ops folder (desktop). ONE read (`GET /jobs/collections`), one entry
@@ -109,15 +110,8 @@ export function CollectionsDesktop({
   const neverSearched = collection.isEmpty && !isRefreshing
 
   return (
-    <div className="tm-intel-page" style={{ padding: "32px 36px 64px", maxWidth: 1480, margin: "0 auto" }}>
+    <div className="tm-intel-page tm-feed-page">
       <div className="mc-workspace">
-        <aside className="mc-ws-rail mc-ws-rail--peek">
-          <FirstSuccessChecklist token={token} />
-          <div className="mc-rail">
-            <PeekSurfaces token={token} />
-          </div>
-        </aside>
-
         <div className="mc-ws-main">
           <div className="db">
             <div className="db-head">
@@ -161,6 +155,7 @@ export function CollectionsDesktop({
             </div>
 
             <MatchVettingBanner token={token} health={collection.query.data?.match_health} />
+            <ReachDueStrip token={token} />
 
             {/* Picks inherit THIS surface's card, not the market one: inside the
                 Ops folder the job is already collected, so Save is not the hero
@@ -222,7 +217,7 @@ export function CollectionsDesktop({
                   items={shown}
                   getKey={(e) => e.job_id}
                   estimateSize={190}
-                  gap={14}
+                  gap={8}
                   className="db-feed"
                   renderItem={(entry) => (
                     <CollectionRow
@@ -253,7 +248,7 @@ export function CollectionsDesktop({
                 </button>
               </div>
             ) : (
-              <div className="db-empty" style={{ flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
+              <div className="db-empty">
                 <span>{stage ? emptyCopy(stage) : null}</span>
                 {stage === "found" ? (
                   <SplitFooter
@@ -287,6 +282,13 @@ export function CollectionsDesktop({
               : null}
           </div>
         </div>
+
+        <aside className="mc-ws-rail mc-ws-rail--peek">
+          <FirstSuccessChecklist token={token} />
+          <div className="mc-rail">
+            <PeekSurfaces token={token} />
+          </div>
+        </aside>
       </div>
     </div>
   )

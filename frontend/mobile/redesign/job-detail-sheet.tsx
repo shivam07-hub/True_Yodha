@@ -81,14 +81,14 @@ export function JobDetailSheet({
     <BottomSheet open={open} onClose={onClose} label="Job detail" maxHeight="88%">
       <div className="mm-scroll" style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "2px 18px 14px" }}>
         <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: row.logoBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 700, color: "#fff", flex: "none" }}>{row.coInitial}</div>
+          <div style={{ width: 44, height: 44, borderRadius: 10, background: row.logoBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "#fff", flex: "none" }}>{row.coInitial}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 650, color: "var(--mm-accent)" }}>{row.co}</span>
-              {row.hasGrade && <span style={{ fontSize: 10, fontWeight: 700, color: row.gradeFg, border: `1px solid ${row.gradeBd}`, borderRadius: 5, padding: "0.5px 4px" }}>{row.grade}</span>}
+              <span style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "var(--mm-accent)" }}>{row.co}</span>
+              {row.hasGrade && <span style={{ fontSize: "var(--tm-fs-caption)", fontWeight: 600, color: row.gradeFg, border: `1px solid ${row.gradeBd}`, borderRadius: 5, padding: "0.5px 4px" }}>{row.grade}</span>}
             </div>
-            <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.25, marginTop: 2 }}>{row.role}</div>
-            <div style={{ fontSize: 12, color: "var(--mm-faint)", marginTop: 3 }}>{[row.metaLine, row.verified].filter(Boolean).join(" · ")}</div>
+            <div style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.25, marginTop: 2 }}>{row.role}</div>
+            <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--mm-faint)", marginTop: 3 }}>{[row.metaLine, row.verified].filter(Boolean).join(" · ")}</div>
           </div>
           {/* A 0 is not a fit — it is the absence of one. `row.fit` is 0 on
               every job the brain never evaluated (extension imports, manual
@@ -101,7 +101,7 @@ export function JobDetailSheet({
                 <circle cx="23" cy="23" r="19" fill="none" stroke={row.ringColor} strokeWidth="3.4" strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - row.fit / 100)} transform="rotate(-90 23 23)" />
               ) : null}
             </svg>
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: fitKnown ? "var(--mm-text)" : "var(--mm-dim)" }}>{fitKnown ? row.fit : "—"}</div>
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--tm-fs-body)", fontWeight: 600, color: fitKnown ? "var(--mm-text)" : "var(--mm-dim)" }}>{fitKnown ? row.fit : "—"}</div>
           </div>
         </div>
 
@@ -113,7 +113,7 @@ export function JobDetailSheet({
         </div>
 
         {row.checkDetails && (
-          <div style={{ marginTop: 10, fontSize: 11.5, color: "var(--mm-warn)", background: "rgba(245,158,11,0.09)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 10, padding: "8px 11px" }}>
+          <div style={{ marginTop: 10, fontSize: "var(--tm-fs-caption)", color: "var(--mm-warn)", background: "rgba(245,158,11,0.09)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 10, padding: "8px 11px" }}>
             ⚠ Check details before applying — some listing fields looked off when Myro verified it.
           </div>
         )}
@@ -121,7 +121,7 @@ export function JobDetailSheet({
         {sections.includes("why") && (
           <div style={{ marginTop: 14 }}>
             <div style={sectionLabel}>Why you fit</div>
-            <p style={{ margin: "6px 0 0", fontSize: 13.5, lineHeight: 1.55, color: "var(--mm-text-2)" }}>{whyFit}</p>
+            <p style={{ margin: "6px 0 0", fontSize: "var(--tm-fs-body)", lineHeight: 1.55, color: "var(--mm-text-2)" }}>{whyFit}</p>
           </div>
         )}
 
@@ -131,8 +131,8 @@ export function JobDetailSheet({
             <div style={{ display: "flex", flexDirection: "column", marginTop: 4 }}>
               {matched.map((name, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid var(--mm-hair)" }}>
-                  <span style={{ color: "var(--mm-good)", fontSize: 11 }}>✓</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{name}</span>
+                  <span style={{ color: "var(--mm-good)", fontSize: "var(--tm-fs-caption)" }}>✓</span>
+                  <span style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600, flex: 1 }}>{name}</span>
                 </div>
               ))}
             </div>
@@ -150,18 +150,18 @@ export function JobDetailSheet({
                 const count = upvotes.countFor(name)
                 return (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid var(--mm-hair)" }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</span>
+                    <span style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</span>
                     <button
                       onClick={() => upvotes.toggle({ skill_key: name }, row.id)}
                       aria-pressed={on}
                       aria-label={`Upvote ${name} to practice`}
                       className="mm-press-sm"
                       style={{
-                        height: 24, minWidth: 40, padding: "0 10px", borderRadius: 99,
+                        height: 24, minWidth: 40, padding: "0 10px", borderRadius: 10,
                         border: `1px solid ${on ? "var(--mm-accent)" : "rgba(255,255,255,0.09)"}`,
                         background: on ? "rgba(79,199,246,0.08)" : "transparent",
                         color: on ? "var(--mm-accent)" : "var(--mm-text-3)",
-                        fontSize: 10.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flex: "none",
+                        fontSize: "var(--tm-fs-caption)", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", flex: "none",
                       }}
                     >
                       ▲{count > 0 ? ` ${count}` : ""}
@@ -193,9 +193,9 @@ export function JobDetailSheet({
             </button>
           </>
         ) : null}
-        <button onClick={onTailor} className="mm-press" style={{ flex: 1, height: 42, borderRadius: 13, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-0.01em" }}>Tailor CV</button>
+        <button onClick={onTailor} className="mm-press" style={{ flex: 1, height: 42, borderRadius: 10, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: "var(--tm-fs-body)", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-0.01em" }}>Tailor CV</button>
         {hasApply && (
-          <button onClick={onApply} className="mm-press-sm" style={{ height: 42, padding: "0 14px", borderRadius: 13, border: "1px solid rgba(255,255,255,0.09)", background: "transparent", color: "var(--mm-text)", fontSize: 13, fontWeight: 650, cursor: "pointer", fontFamily: "inherit", flex: "none" }}>{applyLabel} ↗</button>
+          <button onClick={onApply} className="mm-press-sm" style={{ height: 42, padding: "0 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.09)", background: "transparent", color: "var(--mm-text)", fontSize: "var(--tm-fs-body)", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", flex: "none" }}>{applyLabel} ↗</button>
         )}
       </div>
     </BottomSheet>
@@ -203,9 +203,9 @@ export function JobDetailSheet({
 }
 
 const sectionLabel: React.CSSProperties = {
-  fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", color: "var(--mm-faint)", textTransform: "uppercase",
+  fontSize: "var(--tm-fs-caption)", fontWeight: 600, letterSpacing: "0.08em", color: "var(--mm-faint)", textTransform: "uppercase",
 }
 const footBtn: React.CSSProperties = {
-  width: 42, height: 42, borderRadius: 13, border: "1px solid rgba(255,255,255,0.09)", background: "transparent",
+  width: 42, height: 42, borderRadius: 10, border: "1px solid rgba(255,255,255,0.09)", background: "transparent",
   display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flex: "none",
 }

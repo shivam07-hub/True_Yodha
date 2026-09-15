@@ -54,8 +54,8 @@ export function GradeBadge({ grade }: { grade?: string | null }) {
         background: "transparent",
         color: tone,
         fontFamily: "var(--tm-font-mono)",
-        fontSize: 13,
-        fontWeight: 700,
+        fontSize: "var(--tm-fs-body)",
+        fontWeight: 600,
         letterSpacing: "0.02em",
       }}
     >
@@ -73,13 +73,13 @@ export function VerdictPill({ recommendation }: { recommendation?: string | null
         display: "inline-flex",
         alignItems: "center",
         padding: "3px 10px",
-        borderRadius: 999,
+        borderRadius: 10,
         border: `1px solid ${tone}`,
         background: "transparent",
         color: tone,
         fontFamily: "var(--tm-font-mono)",
-        fontSize: 11,
-        fontWeight: 700,
+        fontSize: "var(--tm-fs-caption)",
+        fontWeight: 600,
         textTransform: "uppercase",
         letterSpacing: "0.08em",
       }}
@@ -102,9 +102,9 @@ export function LegitimacyBadge({ tier, reason }: { tier?: string | null; reason
     <span
       title={reason || undefined}
       style={{
-        display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 999,
+        display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 10,
         border: `1px solid ${tone}`, background: "transparent", color: tone,
-        fontFamily: "var(--tm-font-mono)", fontSize: 11, fontWeight: 700,
+        fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", fontWeight: 600,
         textTransform: "uppercase", letterSpacing: "0.06em",
       }}
     >
@@ -116,7 +116,7 @@ export function LegitimacyBadge({ tier, reason }: { tier?: string | null; reason
 export function ArchetypeChip({ archetype }: { archetype?: string | null }) {
   if (!archetype) return null
   return (
-    <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-muted)", padding: "3px 8px", borderRadius: 6, background: "var(--tm-int-bg-wash)" }}>
+    <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-muted)", padding: "3px 8px", borderRadius: 6, background: "var(--tm-int-bg-wash)" }}>
       {archetype}
     </span>
   )
@@ -158,13 +158,13 @@ function AxisBar({ label, value, invert }: { label: string; value: number | null
         : "var(--tm-danger)"
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <div style={{ width: 64, fontSize: 11, fontFamily: "var(--tm-font-mono)", color: "var(--tm-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+      <div style={{ width: 64, fontSize: "var(--tm-fs-caption)", fontFamily: "var(--tm-font-mono)", color: "var(--tm-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
         {label}
       </div>
-      <div style={{ flex: 1, height: 6, borderRadius: 999, background: "var(--tm-border)", overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${pct}%`, background: tone, borderRadius: 999, transition: "width 500ms var(--tm-ease)" }} />
+      <div style={{ flex: 1, height: 6, borderRadius: 10, background: "var(--tm-border)", overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${pct}%`, background: tone, borderRadius: 10, transition: "width 500ms var(--tm-ease)" }} />
       </div>
-      <div style={{ width: 30, textAlign: "right", fontSize: 11, fontFamily: "var(--tm-font-mono)", color: tone }}>
+      <div style={{ width: 30, textAlign: "right", fontSize: "var(--tm-fs-caption)", fontFamily: "var(--tm-font-mono)", color: tone }}>
         {v == null ? "—" : v.toFixed(1)}
       </div>
     </div>
@@ -185,12 +185,12 @@ function PointList({ title, points, tone }: { title: string; points: string[]; t
   if (!points.length) return null
   return (
     <div>
-      <div style={{ fontSize: 11, fontWeight: 700, color: tone, fontFamily: "var(--tm-font-mono)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+      <div style={{ fontSize: "var(--tm-fs-caption)", fontWeight: 600, color: tone, fontFamily: "var(--tm-font-mono)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
         {title}
       </div>
       <ul style={{ margin: 0, paddingLeft: 16, display: "flex", flexDirection: "column", gap: 4 }}>
         {points.map((p, i) => (
-          <li key={i} style={{ fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.5 }}>{p}</li>
+          <li key={i} style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", lineHeight: 1.5 }}>{p}</li>
         ))}
       </ul>
     </div>
@@ -242,16 +242,16 @@ export function JobMatchDetail({ job, onClose }: { job: JobMatch; onClose: () =>
       >
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-interactive)", marginBottom: 4 }}>
+            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-interactive)", marginBottom: 4 }}>
               {job.company || "Unknown company"}
             </div>
-            <h3 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.25 }}>{job.title}</h3>
+            <h3 style={{ margin: 0, fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.25 }}>{job.title}</h3>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            style={{ background: "transparent", border: "none", color: "var(--tm-interactive-rest)", fontSize: 22, cursor: "pointer", lineHeight: 1 }}
+            style={{ background: "transparent", border: "none", color: "var(--tm-interactive-rest)", fontSize: "var(--tm-fs-heading)", cursor: "pointer", lineHeight: 1 }}
           >
             ×
           </button>
@@ -263,23 +263,23 @@ export function JobMatchDetail({ job, onClose }: { job: JobMatch; onClose: () =>
           <LegitimacyBadge tier={job.legitimacy_tier} reason={job.legitimacy_reason} />
           <ArchetypeChip archetype={job.archetype} />
           {job.overall_score != null ? (
-            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 12, color: "var(--tm-text-muted)" }}>
+            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-muted)" }}>
               {job.overall_score.toFixed(1)}/5.0 overall
             </span>
           ) : null}
-          <span style={{ marginLeft: "auto", fontFamily: "var(--tm-font-mono)", fontSize: 12, color: "var(--tm-text-faint)" }}>
+          <span style={{ marginLeft: "auto", fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
             {Math.round(job.overlap_score)}% skill overlap
           </span>
         </div>
 
         {!hasBrain ? (
-          <p style={{ marginTop: 16, fontSize: 13, color: "var(--tm-text-faint)" }}>
+          <p style={{ marginTop: 16, fontSize: "var(--tm-fs-body)", color: "var(--tm-text-faint)" }}>
             Deep evaluation not available yet for this role. Refresh your matches to run the Matching Brain.
           </p>
         ) : (
           <>
             {job.summary ? (
-              <p style={{ marginTop: 14, fontSize: 14, color: "var(--tm-text)", lineHeight: 1.6 }}>{job.summary}</p>
+              <p style={{ marginTop: 14, fontSize: "var(--tm-fs-body)", color: "var(--tm-text)", lineHeight: 1.6 }}>{job.summary}</p>
             ) : null}
 
             <div style={{ marginTop: 16 }}>
@@ -288,10 +288,10 @@ export function JobMatchDetail({ job, onClose }: { job: JobMatch; onClose: () =>
 
             {job.application_angle ? (
               <div style={{ marginTop: 16, padding: "12px 14px", borderRadius: 10, background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--tm-interactive)", fontFamily: "var(--tm-font-mono)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+                <div style={{ fontSize: "var(--tm-fs-caption)", fontWeight: 600, color: "var(--tm-interactive)", fontFamily: "var(--tm-font-mono)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
                   How to position
                 </div>
-                <p style={{ margin: 0, fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.6 }}>{job.application_angle}</p>
+                <p style={{ margin: 0, fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", lineHeight: 1.6 }}>{job.application_angle}</p>
               </div>
             ) : null}
 

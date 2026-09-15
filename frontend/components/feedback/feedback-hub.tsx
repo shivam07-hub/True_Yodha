@@ -147,10 +147,10 @@ export function FeedbackHub({
                 <HubGlyph size={14} />
               </span>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>Feedback hub</div>
+                <div style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600 }}>Feedback hub</div>
                 <div
                   style={{
-                    fontSize: 10,
+                    fontSize: "var(--tm-fs-caption)",
                     color: "var(--tm-text-faint)",
                     letterSpacing: "0.06em",
                     textTransform: "uppercase",
@@ -182,7 +182,7 @@ export function FeedbackHub({
                   background: tab === t.id ? "var(--tm-int-bg-wash)" : "transparent",
                   border: `1px solid ${tab === t.id ? "var(--tm-int-border)" : "transparent"}`,
                   color: tab === t.id ? "var(--tm-interactive)" : "var(--tm-text-muted)",
-                  fontSize: 13,
+                  fontSize: "var(--tm-fs-body)",
                   fontWeight: tab === t.id ? 600 : 400,
                   cursor: "pointer",
                   textAlign: "left",
@@ -199,13 +199,13 @@ export function FeedbackHub({
             style={{
               padding: 14,
               borderTop: "1px solid var(--tm-border-soft)",
-              fontSize: 10,
+              fontSize: "var(--tm-fs-caption)",
               color: "var(--tm-text-faint)",
               lineHeight: 1.6,
             }}
           >
             <div className="eyebrow">Response time</div>
-            <div className="mono" style={{ color: "var(--tm-interactive)", fontSize: 18, fontWeight: 700, marginTop: 4 }}>
+            <div className="mono" style={{ color: "var(--tm-interactive)", fontSize: "var(--tm-fs-heading)", fontWeight: 600, marginTop: 4 }}>
               14h
             </div>
             <div style={{ marginTop: 2 }}>median · 1 human reads</div>
@@ -227,12 +227,12 @@ export function FeedbackHub({
             }}
           >
             <div>
-              <h2 style={{ fontSize: 22, fontWeight: 600, color: "var(--tm-text)", margin: 0 }}>
+              <h2 style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--tm-text)", margin: 0 }}>
                 {tab === "new" && (sent ? "Report sent" : "Send feedback")}
                 {tab === "reports" && "Your reports"}
                 {tab === "shipped" && "Shipped from feedback"}
               </h2>
-              <div style={{ marginTop: 4, fontSize: 12, color: "var(--tm-text-faint)" }}>
+              <div style={{ marginTop: 4, fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
                 {tab === "new" && !sent && "We read every report. Keep it short and clear."}
                 {tab === "reports" && "Track status. Replies arrive when we have follow-ups."}
                 {tab === "shipped" && "Public log of what user signal turned into."}
@@ -250,7 +250,7 @@ export function FeedbackHub({
                 border: "1px solid var(--tm-border-soft)",
                 color: "var(--tm-text-faint)",
                 cursor: "pointer",
-                fontSize: 16,
+                fontSize: "var(--tm-fs-heading)",
                 lineHeight: 1,
                 display: "grid",
                 placeItems: "center",

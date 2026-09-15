@@ -62,7 +62,7 @@
   border: 0;
   cursor: pointer;
   font: inherit;
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   line-height: 1.35;
   letter-spacing: -0.003em;
   color: var(--tm-text);
@@ -112,7 +112,7 @@
   background: transparent;
   border: 0;
   font: inherit;
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   line-height: 1.35;
   color: var(--tm-text);
   padding: 7px 13px;
@@ -163,7 +163,7 @@
   border: 1px dashed var(--pf-stroke);
   border-radius: var(--tm-radius-pill);
   font: inherit;
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   line-height: 1.35;
   text-align: left;
   cursor: pointer;
@@ -174,7 +174,7 @@
 }
 .pf-chip-add::before {
   content: "+";
-  font-size: 14px;
+  font-size: var(--tm-fs-body);
   line-height: 1;
   opacity: 0.75;
 }
@@ -263,7 +263,7 @@
 .pf-chips .tm-rolepick-trigger {
   border-color: var(--pf-stroke);
   color: var(--tm-text-muted);
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   padding: 7px 13px;
 }
 .pf-chips .tm-rolepick-trigger:hover:not(:disabled) {

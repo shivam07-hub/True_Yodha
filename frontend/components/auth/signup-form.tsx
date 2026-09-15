@@ -115,7 +115,7 @@ export function SignupForm({ surface, showLoginLink = true, onEmailTaken }: Prop
         display: "flex", alignItems: "center", gap: 10, margin: "2px 0",
       }}>
         <div style={{ flex: 1, height: 1, background: "var(--tm-border-soft)" }} />
-        <span style={{ fontSize: 12, color: "var(--tm-text-faint)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+        <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
           or
         </span>
         <div style={{ flex: 1, height: 1, background: "var(--tm-border-soft)" }} />
@@ -142,7 +142,7 @@ export function SignupForm({ surface, showLoginLink = true, onEmailTaken }: Prop
             onClick={() => { setError(null); setMode("password") }}
             style={{
               background: "none", border: "none", color: "var(--tm-text-faint)",
-              fontSize: 13, cursor: "pointer", padding: 0, textAlign: "center", marginTop: 4,
+              fontSize: "var(--tm-fs-body)", cursor: "pointer", padding: 0, textAlign: "center", marginTop: 4,
             }}
           >
             <span style={{ color: "var(--tm-interactive)" }}>Use email and password</span>
@@ -152,14 +152,14 @@ export function SignupForm({ surface, showLoginLink = true, onEmailTaken }: Prop
 
       {error && (
         <p role="alert" style={{
-          fontSize: 13, color: "var(--tm-danger)",
+          fontSize: "var(--tm-fs-body)", color: "var(--tm-danger)",
           padding: "8px 12px", borderRadius: 8,
           background: "var(--tm-danger-wash)",
           border: "1px solid rgba(251,113,133,0.25)",
         }}>{error}</p>
       )}
 
-      <p style={{ fontSize: 11, color: "var(--tm-text-faint)", lineHeight: 1.55, textAlign: "center", margin: "2px 0 0", maxWidth: 420 }}>
+      <p style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", lineHeight: 1.55, textAlign: "center", margin: "2px 0 0", maxWidth: 420 }}>
         By creating an account, you agree to our{" "}
         <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "var(--tm-interactive)", textDecoration: "none" }}>Terms</a>{" "}
         and consent to Myro processing your email, uploaded CV, extracted skills, and saved jobs to provide the Service — including processing by our AI providers. You can withdraw consent or delete your data anytime from Settings. See our{" "}
@@ -170,7 +170,7 @@ export function SignupForm({ surface, showLoginLink = true, onEmailTaken }: Prop
         display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center",
         gap: 8, marginTop: 4,
       }}>
-        <span style={{ fontSize: 12, color: "var(--tm-text-faint)", lineHeight: 1.55 }}>
+        <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", lineHeight: 1.55 }}>
           Free. Private. Yours.
         </span>
         <a
@@ -190,7 +190,7 @@ export function SignupForm({ surface, showLoginLink = true, onEmailTaken }: Prop
 
       {showLoginLink && surface === "page" && (
         <p style={{
-          marginTop: 4, textAlign: "center", fontSize: 13, color: "var(--tm-text-faint)",
+          marginTop: 4, textAlign: "center", fontSize: "var(--tm-fs-body)", color: "var(--tm-text-faint)",
         }}>
           Already have an account?{" "}
           <Link

@@ -21,22 +21,22 @@
   box-shadow: 0 0 10px var(--tm-accent); animation: up-move-dot 2s ease-in-out infinite;
 }
 @keyframes up-move-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.7); } }
-.up-move-name { font-size: 34px; line-height: 1.1; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 10px; }
-.up-move-body { font-size: 15px; color: var(--tm-text-muted); line-height: 1.5; margin: 0 0 8px; max-width: 480px; }
+.up-move-name { font-size: var(--tm-fs-display); line-height: 1.1; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 10px; }
+.up-move-body { font-size: var(--tm-fs-body); color: var(--tm-text-muted); line-height: 1.5; margin: 0 0 8px; max-width: 480px; }
 .up-move-body b { color: var(--tm-text); }
 .up-move-reason {
-  font-size: 13px; color: var(--tm-text-faint); margin: 0 0 24px;
+  font-size: var(--tm-fs-body); color: var(--tm-text-faint); margin: 0 0 24px;
   display: inline-flex; align-items: center; gap: 7px;
 }
 .up-move-reason span { color: var(--tm-text-muted); font-weight: 600; }
 
 .up-move-path { max-width: 440px; margin-bottom: 8px; }
-.up-move-path-cap { margin-top: 7px; display: flex; justify-content: space-between; gap: 8px; font-size: 10px; letter-spacing: 0.03em; color: var(--tm-text-faint); }
+.up-move-path-cap { margin-top: 7px; display: flex; justify-content: space-between; gap: 8px; font-size: var(--tm-fs-caption); letter-spacing: 0.03em; color: var(--tm-text-faint); }
 .up-move-path-cap b { color: var(--tm-warning); }
 
 .up-move-r { display: flex; flex-direction: column; align-items: flex-end; gap: 14px; min-width: 200px; flex-shrink: 0; }
-.up-move-cta { height: 56px; padding: 0 30px; border-radius: var(--tm-radius-lg); font-size: 17px; white-space: nowrap; box-shadow: 0 0 28px var(--tm-accent-glow); }
-.up-move-tiers { display: flex; align-items: center; justify-content: center; gap: 7px; font-family: var(--tm-font-mono); font-size: 13px; color: var(--tm-warning); }
+.up-move-cta { height: 56px; padding: 0 30px; border-radius: var(--tm-radius-lg); font-size: var(--tm-fs-heading); white-space: nowrap; box-shadow: 0 0 28px var(--tm-accent-glow); }
+.up-move-tiers { display: flex; align-items: center; justify-content: center; gap: 7px; font-family: var(--tm-font-mono); font-size: var(--tm-fs-body); color: var(--tm-warning); }
 
 /* ── shared rung path (hero variant) — row variant styled in practice-climb.css ── */
 .up-rung-path { position: relative; }
@@ -48,7 +48,7 @@
 .up-rung {
   width: 52px; height: 44px; border-radius: 11px;
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--tm-font-mono); font-size: 13px; font-weight: 700;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-body); font-weight: 600;
   border: 1px solid var(--tm-border); color: var(--tm-text-faint); background: transparent;
   cursor: default;
 }
@@ -70,7 +70,7 @@
 @media (max-width: 768px) {
   .up-move { flex-direction: column; align-items: stretch; gap: 20px; padding: 22px; }
   .up-move-l { min-width: 0; }
-  .up-move-name { font-size: 26px; }
+  .up-move-name { font-size: var(--tm-fs-title); }
   .up-move-r { align-items: stretch; min-width: 0; }
   .up-move-cta { width: 100%; }
   .up-rung { width: 44px; }

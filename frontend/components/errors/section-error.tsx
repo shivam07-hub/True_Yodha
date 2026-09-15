@@ -32,7 +32,7 @@ const btn: CSSProperties = {
   border: "1px solid var(--tm-border)",
   background: "var(--tm-surface)",
   color: "var(--tm-interactive)",
-  fontSize: 12,
+  fontSize: "var(--tm-fs-caption)",
   cursor: "pointer",
   fontFamily: "var(--tm-font-sans)",
 }
@@ -52,11 +52,11 @@ export function SectionError({
 
   return (
     <div role="alert" style={wrap}>
-      <span style={{ fontSize: 13, color: "var(--tm-text-muted)", fontFamily: "var(--tm-font-sans)" }}>
+      <span style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", fontFamily: "var(--tm-font-sans)" }}>
         {label ? `Couldn't load ${label}.` : copy.short}
       </span>
       {ref && (
-        <span style={{ fontSize: 11, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", userSelect: "all" }}>
+        <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", userSelect: "all" }}>
           {ref}
         </span>
       )}

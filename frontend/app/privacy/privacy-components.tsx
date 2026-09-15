@@ -58,7 +58,7 @@ export function Section({ id, n, title, children }: { id: string; n: string; tit
           display: "inline-flex", alignItems: "center", justifyContent: "center",
           width: 28, height: 28, borderRadius: "50%",
           background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)",
-          color: "var(--tm-interactive)", fontSize: 11, fontWeight: 700, flexShrink: 0,
+          color: "var(--tm-interactive)", fontSize: "var(--tm-fs-caption)", fontWeight: 600, flexShrink: 0,
         }}>
           {n}
         </span>

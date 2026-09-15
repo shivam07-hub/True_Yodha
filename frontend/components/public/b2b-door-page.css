@@ -34,7 +34,7 @@
   font-size: var(--tm-fs-caption);
   line-height: 1.1;
 }
-.tm-b2b-strap { color: var(--tm-interactive); font-weight: 700; }
+.tm-b2b-strap { color: var(--tm-interactive); font-weight: 600; }
 .tm-b2b-headline,
 .tm-b2b-section-head h2,
 .tm-b2b-bottom h2,
@@ -67,7 +67,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border-radius: 999px;
+  border-radius: var(--tm-button-radius);
   border: 1px solid var(--tm-border-soft);
   background: rgba(255, 255, 255, 0.03);
 }
@@ -86,7 +86,7 @@
   text-transform: uppercase;
   letter-spacing: var(--tm-tracking-caps);
 }
-.tm-b2b-metric dd { margin: 0; font-size: var(--tm-fs-heading); line-height: 1.15; font-weight: 700; }
+.tm-b2b-metric dd { margin: 0; font-size: var(--tm-fs-heading); line-height: 1.15; font-weight: 600; }
 .tm-b2b-panel,
 .tm-b2b-bottom {
   border: 1px solid var(--tm-border-soft);
@@ -115,7 +115,7 @@
 }
 .tm-b2b-panel-label,
 .tm-b2b-live,
-.tm-b2b-step-index { color: var(--tm-text-faint); font-weight: 700; }
+.tm-b2b-step-index { color: var(--tm-text-faint); font-weight: 600; }
 .tm-b2b-live { white-space: nowrap; }
 .tm-b2b-live-dot {
   width: 8px;
@@ -144,12 +144,12 @@
 }
 .tm-b2b-row-score {
   padding: 8px 10px;
-  border-radius: 999px;
+  border-radius: var(--tm-button-radius);
   color: var(--tm-interactive);
   background: var(--tm-int-bg-wash);
   border: 1px solid var(--tm-int-border-soft);
   font-size: var(--tm-fs-caption);
-  font-weight: 700;
+  font-weight: 600;
 }
 .tm-b2b-bullets { padding: 0; margin: 0; list-style: none; }
 .tm-b2b-bullets li {
@@ -173,8 +173,8 @@
   border: 1px solid var(--tm-interactive);
   background: var(--tm-interactive);
   color: var(--tm-interactive-fg);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--tm-fs-body);
+  font-weight: 600;
   text-decoration: none;
   transition:
     transform var(--tm-dur-fast) var(--tm-ease),
@@ -224,7 +224,7 @@
   .tm-b2b-feature-grid,
   .tm-b2b-bottom { grid-template-columns: 1fr; }
   .tm-b2b-panel,
-  .tm-b2b-bottom { padding: 18px; border-radius: 16px; }
+  .tm-b2b-bottom { padding: 18px; border-radius: var(--tm-button-radius); }
   .tm-b2b-metric { min-width: calc(50% - 6px); }
   .tm-b2b-button { width: 100%; }
 }

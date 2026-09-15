@@ -27,15 +27,15 @@ export function JourneyStrip() {
       {STEPS.map((step, i) => (
         <div key={step.label} style={{ display: "flex", alignItems: "center" }}>
           {i > 0 && (
-            <span aria-hidden="true" style={{ fontSize: 9, color: "var(--tm-border)", margin: "0 5px", lineHeight: 1 }}>→</span>
+            <span aria-hidden="true" style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-border)", margin: "0 5px", lineHeight: 1 }}>→</span>
           )}
           <Link
             href={step.href}
             style={{
-              fontSize: 10, fontWeight: 600, letterSpacing: "0.04em",
+              fontSize: "var(--tm-fs-caption)", fontWeight: 600, letterSpacing: "0.04em",
               color: "var(--tm-text-faint)", whiteSpace: "nowrap",
               textDecoration: "none",
-              padding: "2px 8px", borderRadius: 99,
+              padding: "2px 8px", borderRadius: 10,
               background: "rgba(255,255,255,0.03)",
               border: "1px solid var(--tm-border-soft)",
               transition: "all 0.15s var(--tm-ease)",

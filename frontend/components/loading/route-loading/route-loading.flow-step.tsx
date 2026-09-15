@@ -52,8 +52,8 @@ export function FlowStepLoading({
               margin: 0,
               color: "var(--tm-text)",
               fontFamily: "var(--tm-font-sans)",
-              fontSize: 24,
-              fontWeight: 700,
+              fontSize: "var(--tm-fs-title)",
+              fontWeight: 600,
               letterSpacing: "var(--tm-tracking-tight)",
             }}
           >
@@ -64,7 +64,7 @@ export function FlowStepLoading({
               margin: "4px 0 0",
               color: "var(--tm-text-faint)",
               fontFamily: "var(--tm-font-mono)",
-              fontSize: 11,
+              fontSize: "var(--tm-fs-caption)",
               letterSpacing: "0.12em",
               textTransform: "uppercase",
             }}

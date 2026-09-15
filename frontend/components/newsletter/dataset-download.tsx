@@ -18,10 +18,10 @@ export function DatasetDownload({ slug, dataset }: DatasetDownloadProps) {
       style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14, padding: "18px 22px" }}
     >
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)" }}>
+        <div style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "var(--tm-text)" }}>
           {dataset.name}
         </div>
-        <div style={{ fontSize: 12, color: "var(--tm-text-faint)", marginTop: 2 }}>
+        <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", marginTop: 2 }}>
           Aggregate data · CSV · CC&nbsp;BY&nbsp;4.0 — reuse with attribution to Myro
         </div>
       </div>

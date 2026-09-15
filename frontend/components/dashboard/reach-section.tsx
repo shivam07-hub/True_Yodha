@@ -12,6 +12,7 @@
 import * as React from "react"
 import { useQuery, useMutation } from "@tanstack/react-query"
 import { jobs as jobsApi, type ReachPack } from "@/lib/api"
+import { ReachLog } from "@/components/reach/reach-log"
 import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
 import { useXPStore } from "@/store/xpStore"
 
@@ -119,10 +120,18 @@ export function ReachSection({ job, token, active }: { job: ReachJobRef; token: 
   const pack = packState.data?.pack ?? buy.data?.pack ?? null
   const purchased = !!pack
 
-  // No searches to offer and nothing purchased → no section. The backend
-  // already degrades unreliable role parses to a company-level search; when
-  // even that is impossible, absence beats a dead-end row.
-  if (!search.isLoading && searches.length === 0 && !purchased) return null
+  // No searches and nothing purchased: still show the send ledger. Path 3 is
+  // the user logging a person they found, which does not need a search URL.
+  if (!search.isLoading && searches.length === 0 && !purchased) {
+    return (
+      <div className="db-dsec">
+        <div className="db-dsec-head">
+          <span className="db-label">Reach the people</span>
+        </div>
+        <ReachLog token={token} jobId={job.job_id} company={job.company} />
+      </div>
+    )
+  }
 
   return (
     <div className="db-dsec">
@@ -198,6 +207,8 @@ export function ReachSection({ job, token, active }: { job: ReachJobRef; token: 
           ) : null}
         </div>
       )}
+
+      <ReachLog token={token} jobId={job.job_id} company={job.company} />
     </div>
   )
 }

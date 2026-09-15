@@ -55,7 +55,7 @@
   border: 1px solid var(--tm-border-soft);
   background: var(--tm-surface);
   color: var(--tm-text-muted);
-  font-size: 20px;
+  font-size: var(--tm-fs-heading);
   line-height: 1;
   cursor: pointer;
   display: flex;
@@ -87,7 +87,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--tm-text-faint);
@@ -104,7 +104,7 @@
 .tm-signup-modal__title {
   margin: 0;
   font-family: var(--tm-font-display);
-  font-size: 28px;
+  font-size: var(--tm-fs-title);
   font-weight: 600;
   line-height: 1.18;
   letter-spacing: -0.02em;
@@ -118,7 +118,7 @@
 
 .tm-signup-modal__lead {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--tm-fs-body);
   line-height: 1.6;
   color: var(--tm-text-muted);
 }
@@ -129,10 +129,10 @@
   gap: 8px;
   align-self: flex-start;
   padding: 6px 10px;
-  border-radius: 999px;
+  border-radius: var(--tm-button-radius);
   background: var(--tm-int-bg-wash);
   border: 1px solid var(--tm-int-border);
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text);
   letter-spacing: 0.01em;
 }
@@ -146,7 +146,7 @@
 .tm-signup-modal__toggle {
   margin: 0;
   text-align: center;
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   color: var(--tm-text-faint);
 }
 
@@ -189,10 +189,10 @@
 }
 
 .tm-signup-modal__aside-eyebrow {
-  font-size: 11px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--tm-text-faint);
 }
 
@@ -207,7 +207,7 @@
   border: 1px solid var(--tm-border-soft);
   background: var(--tm-surface);
   color: var(--tm-text-muted);
-  font-size: 18px;
+  font-size: var(--tm-fs-heading);
   line-height: 1;
   cursor: pointer;
   align-items: center;
@@ -249,7 +249,7 @@
 
 .tm-signup-modal__concept h4 {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--tm-fs-body);
   font-weight: 600;
   color: var(--tm-text);
   letter-spacing: -0.005em;
@@ -257,14 +257,14 @@
 
 .tm-signup-modal__concept p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   line-height: 1.55;
   color: var(--tm-text-muted);
 }
 
 .tm-signup-modal__trust {
   margin-top: auto;
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-faint);
   line-height: 1.5;
 }
@@ -305,7 +305,7 @@
     display: flex;
   }
   .tm-signup-modal__title {
-    font-size: 24px;
+    font-size: var(--tm-fs-title);
   }
 }
 

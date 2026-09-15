@@ -68,7 +68,7 @@ export function FilterBar({ groups = [], toggles = [], trailing }: Props) {
                 onClick={() => g.onChange(opt.id)}
                 style={{
                   display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  width: 28, height: 26, borderRadius: 999,
+                  width: 28, height: 26, borderRadius: 10,
                   border: "none",
                   background: active ? "var(--tm-int-bg-wash)" : "transparent",
                   color: active ? "var(--tm-interactive)" : "var(--tm-text-faint)",
@@ -95,7 +95,7 @@ export function FilterBar({ groups = [], toggles = [], trailing }: Props) {
           onClick={() => t.onChange(!t.value)}
           style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center",
-            width: 32, height: 30, borderRadius: 999,
+            width: 32, height: 30, borderRadius: 10,
             background: t.value ? "var(--tm-int-bg-wash)" : "var(--tm-surface-2)",
             border: `1px solid ${t.value ? "var(--tm-int-border)" : "var(--tm-border-soft)"}`,
             color: t.value ? "var(--tm-interactive)" : "var(--tm-text-faint)",

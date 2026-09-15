@@ -28,7 +28,15 @@ from app.repositories.connections import ConnectionsRepository, get_token_connec
 from app.repositories.cv import CVVersionsRepository, CVVersionWriteSpec, get_token_cv_repository
 from app.repositories.cv_dump import CvDumpRepository, get_cv_dump_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
-from app.services import career_projection, career_reservoir, cv_compose, jd_coverage, role_dedup
+from app.services import (
+    career_projection,
+    career_reservoir,
+    cv_compose,
+    forward_pass,
+    jd_coverage,
+    job_history,
+    role_dedup,
+)
 from app.services.llm_provider import get_blocking_judgment_provider
 from app.services.connections_import import looks_like_connections_csv, parse_connections_csv
 from app.services.cv_structured_shape import has_content
@@ -191,12 +199,32 @@ class ProfileRole(BaseModel):
     stories: list[ProfileStory]
 
 
+class StoryQuestion(BaseModel):
+    """One bullet's open question — the same object the job room asks (#13 L3)."""
+    story_id: str
+    title: str
+    role_label: str = ""
+    pointer: str = ""
+    kinds: list[str] = Field(default_factory=list)
+    missing: list[str] = Field(default_factory=list)
+    prompt: str = ""
+
+
 class ProfileView(BaseModel):
     roles: list[ProfileRole]
     highlights: list[ProfileStory]
     competencies: list[str]
     story_count: int
     pending_inflows: int
+    #: The standing completion queue. Capped for payload weight; the totals
+    #: beside it are the honest count, and the list refills as it is worked.
+    questions: list[StoryQuestion] = Field(default_factory=list)
+    questions_total: int = 0
+    questions_set_aside: int = 0
+    #: The two asks overlap — a bullet can be missing both — so both are counted
+    #: here and neither may be derived from the other.
+    missing_number: int = 0
+    missing_story: int = 0
 
 
 @router.get("/reservoir/profile", response_model=ProfileView)
@@ -204,13 +232,23 @@ def reservoir_profile(
     user: CurrentUser = Depends(get_current_user),
     repo: CareerReservoirRepository = Depends(get_career_reservoir_repository),
 ) -> ProfileView:
+    # A returning user whose CV predates the upload bridge has an empty reservoir
+    # and nothing for the completion queue to ask about. Opening Stories is the
+    # other occasion that brings them forward — claim-gated, enqueue-only.
+    forward_pass.on_cv_read(user.id)
     career_reservoir.retry_stale_ingests(repo, user.id)  # heal dead ingest jobs
     roles = repo.list_roles(user.id)
     career_reservoir.maybe_enqueue_role_dedup(user.id, roles)  # lazy #38 sweep
     stories = repo.list_stories(user.id)
     pointers = repo.story_pointers(user.id, [str(s["id"]) for s in stories])
+    inflow = repo.ingest_status(user.id)
     view = career_reservoir.build_profile_view(
-        roles, stories, pointers, pending_inflows=repo.ingest_status(user.id)["pending"],
+        roles, stories, pointers,
+        pending_inflows=inflow["pending"],
+        # A question whose answer is already in the ingest must not be asked
+        # again while it lands — "never asked twice" (#13 L3) has to survive a
+        # page reload, so it is resolved from the ledger, not from the client.
+        awaiting_upgrade=inflow["awaiting_upgrade"],
     )
     # Duplicate questions and receipts live in the review space (ADR-0023),
     # which shows the story and role queues together: GET /cv/reservoir/review.
@@ -313,10 +351,9 @@ async def project_reservoir(
     if not baseline or not has_content(baseline.get("cv_structured")):
         raise HTTPException(status.HTTP_409_CONFLICT, "Upload a CV first.")
 
-    rows = jobs_repo.get_jobs_by_ids([body.job_id])
-    if not rows:
+    job = job_history.listing_document(jobs_repo, user.id, body.job_id)
+    if not job:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Job not found.")
-    job = rows[0]
 
     roles = repo.list_roles(user.id)
     stories = repo.list_stories(user.id)
@@ -402,9 +439,8 @@ async def jd_coverage_for_job(
     the CV must never read "Missing"). The panel that drives the tailoring
     interview AND the Preparations room. Cached per (user, job) in
     job_deepenings — stable requirements between visits; `refresh` recomputes."""
-    rows = jobs_repo.get_jobs_by_ids([body.job_id])
-    if not rows:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Job not found.")
+    job = job_history.listing_document(jobs_repo, user.id, body.job_id)
+    jd_text = (job or {}).get("job_description") or ""
 
     def _respond(res: jd_coverage.CoverageResult, cached: bool, computed_at: str) -> JDCoverageResponse:
         return JDCoverageResponse(
@@ -421,11 +457,13 @@ async def jd_coverage_for_job(
         )
 
     result, cached, computed_at = await jd_coverage.assess_for_job(
-        user.id, body.job_id, rows[0].get("job_description") or "",
+        user.id, body.job_id, jd_text,
         jobs_repo, (cv_repo.latest_baseline(user.id) or {}).get("cv_structured") or {},
         get_blocking_judgment_provider(),
         refresh=body.refresh,
     )
+    if not result.requirements and job is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Job not found.")
     return _respond(result, cached=cached, computed_at=computed_at)
 
 

@@ -42,7 +42,7 @@ export function ViewTriadToggle({ page, value, onChange, compact = false, ariaLa
         display: "inline-flex",
         background: "var(--tm-surface-2)",
         border: "1px solid var(--tm-border-soft)",
-        borderRadius: 999,
+        borderRadius: 10,
         padding: 3,
         gap: 2,
       }}
@@ -62,24 +62,24 @@ export function ViewTriadToggle({ page, value, onChange, compact = false, ariaLa
             style={{
               display: "inline-flex", alignItems: "center", gap: 6,
               padding: compact ? "5px 9px" : "5px 12px",
-              borderRadius: 999,
+              borderRadius: 10,
               border: "none",
               background: active ? "var(--tm-int-bg-wash)" : "transparent",
               color: active ? "var(--tm-interactive)" : "var(--tm-text-faint)",
               fontFamily: "inherit",
-              fontSize: 12,
-              fontWeight: active ? 700 : 600,
+              fontSize: "var(--tm-fs-caption)",
+              fontWeight: active? 600 : 600,
               cursor: "pointer",
               transition: "background 120ms var(--tm-ease), color 120ms var(--tm-ease)",
             }}
           >
-            <span aria-hidden style={{ fontSize: 11 }}>{semantics.glyph}</span>
+            <span aria-hidden style={{ fontSize: "var(--tm-fs-caption)" }}>{semantics.glyph}</span>
             {!compact && <span>{label}</span>}
             {live === v && (
               <span
                 aria-hidden
                 style={{
-                  width: 6, height: 6, borderRadius: 999,
+                  width: 6, height: 6, borderRadius: 10,
                   background: "var(--tm-interactive)",
                   boxShadow: "0 0 7px var(--tm-int-bg-hover)",
                   animation: "tm-pv-pulse 1.6s ease-in-out infinite",

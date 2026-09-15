@@ -38,9 +38,9 @@ export default function OfflinePage() {
         }
       `}</style>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/brand/icon-192.png" alt="Myro" width={64} height={64} style={{ borderRadius: 16 }} />
-      <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>You&rsquo;re offline</h1>
-      <p className="myro-offline-sub" style={{ fontSize: 15, lineHeight: 1.5, margin: 0, maxWidth: 320 }}>
+      <img src="/brand/icon-192.png" alt="Myro" width={64} height={64} style={{ borderRadius: 10 }} />
+      <h1 style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 600, margin: 0 }}>You&rsquo;re offline</h1>
+      <p className="myro-offline-sub" style={{ fontSize: "var(--tm-fs-body)", lineHeight: 1.5, margin: 0, maxWidth: 320 }}>
         Myro needs a connection to score your CV and pull live job matches. Reconnect and try again.
       </p>
     </main>

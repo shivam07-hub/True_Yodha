@@ -10,7 +10,7 @@ const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.ur
 
 const weave = read("components/cv/builder/tailor-weave.tsx")
 const gate = read("components/cv/builder/use-tailor-gate.ts")
-const market = read("components/market/jobs-tab.tsx")
+const market = read("components/market/market-jobs-column.tsx")
 
 const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "")
 

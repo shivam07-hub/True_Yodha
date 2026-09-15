@@ -63,32 +63,32 @@
   box-shadow: 0 0 0 4px var(--tm-int-bg-wash);
   animation: csp-pop 360ms var(--tm-ease, cubic-bezier(0.2, 0.8, 0.2, 1));
 }
-.csp-ring-num { font-size: 36px; font-weight: 700; color: var(--tm-text); }
+.csp-ring-num { font-size: var(--tm-fs-display); font-weight: 600; color: var(--tm-text); }
 @keyframes csp-pop { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-.csp-done-tier { font-size: 16px; font-weight: 650; color: var(--tm-text); }
-.csp-done-next { font-size: 13px; color: var(--tm-text-muted); }
+.csp-done-tier { font-size: var(--tm-fs-heading); font-weight: 600; color: var(--tm-text); }
+.csp-done-next { font-size: var(--tm-fs-body); color: var(--tm-text-muted); }
 /* Reveal beat (#34 S4) — verdict leads with the path forward; strong/weak name
    the extremes; the CTA count is the real number of fixes, no fabricated delta. */
 .csp-done-verdict {
-  margin: 4px 0 2px; max-width: 40ch; font-size: 13.5px; line-height: 1.55;
+  margin: 4px 0 2px; max-width: 40ch; font-size: var(--tm-fs-body); line-height: 1.55;
   color: var(--tm-text-muted); text-align: center;
 }
 .csp-done-swx { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 2px 0; }
 .csp-done-sw {
-  font: 600 11px var(--tm-font-mono); padding: 3px 9px; border-radius: 6px;
+  font: 600 var(--tm-fs-caption) var(--tm-font-mono); padding: 3px 9px; border-radius: 6px;
 }
 .csp-done-sw.is-strong { background: var(--tm-success-wash); color: var(--tm-success); }
 .csp-done-sw.is-weak { background: var(--tm-warning-wash); color: var(--tm-warning); }
 .csp-done-method {
-  font-size: 12px;
-  font-weight: 650;
+  font-size: var(--tm-fs-caption);
+  font-weight: 600;
   color: var(--tm-interactive, var(--tm-accent));
   text-decoration: none;
 }
 .csp-done-method:hover { text-decoration: underline; }
 .csp-done-cta {
   margin-top: 6px;
-  font-size: 14px; font-weight: 600;
+  font-size: var(--tm-fs-body); font-weight: 600;
   padding: 10px 18px; border-radius: var(--tm-radius);
   background: var(--tm-int-bg-wash); border: 1px solid var(--tm-int-border);
   color: var(--tm-interactive, var(--tm-accent)); text-decoration: none;
@@ -102,7 +102,7 @@
 }
 .csp-done-download {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  font-size: 14px; font-weight: 700; font-family: inherit;
+  font-size: var(--tm-fs-body); font-weight: 600; font-family: inherit;
   padding: 11px 20px; border-radius: var(--tm-radius);
   background: var(--tm-interactive); border: 1px solid var(--tm-interactive);
   color: var(--tm-interactive-fg); text-decoration: none; cursor: pointer;
@@ -111,7 +111,7 @@
 .csp-done-download:hover:not(:disabled) { opacity: 0.88; }
 .csp-done-download:disabled { opacity: 0.5; cursor: default; }
 .csp-done-cta-secondary {
-  font-size: 13px; font-weight: 600;
+  font-size: var(--tm-fs-body); font-weight: 600;
   color: var(--tm-text-muted); text-decoration: none;
 }
 .csp-done-cta-secondary:hover { color: var(--tm-interactive, var(--tm-accent)); }
@@ -122,17 +122,17 @@
   width: 44px; height: 44px; border-radius: 50%;
   display: grid; place-items: center;
   background: var(--tm-danger-wash, rgba(248,113,113,0.12));
-  color: var(--tm-danger, #f87171); font-size: 20px; font-weight: 700;
+  color: var(--tm-danger, #f87171); font-size: var(--tm-fs-heading); font-weight: 600;
 }
-.csp-fail-title { font-size: 15px; font-weight: 650; color: var(--tm-text); }
-.csp-fail-detail { font-size: 13px; color: var(--tm-text-muted); line-height: 1.5; margin: 4px 0 0; }
+.csp-fail-title { font-size: var(--tm-fs-body); font-weight: 600; color: var(--tm-text); }
+.csp-fail-detail { font-size: var(--tm-fs-body); color: var(--tm-text-muted); line-height: 1.5; margin: 4px 0 0; }
 .csp-fail-refund {
-  font-size: 11px; font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-caption); font-family: var(--tm-font-mono);
   color: var(--tm-success, #22d3a8); margin-top: 4px;
 }
 .csp-retry {
   margin-top: 6px;
-  font-size: 14px; font-weight: 600;
+  font-size: var(--tm-fs-body); font-weight: 600;
   padding: 9px 18px; border-radius: var(--tm-radius);
   background: transparent; border: 1px solid var(--tm-border);
   color: var(--tm-text); cursor: pointer;

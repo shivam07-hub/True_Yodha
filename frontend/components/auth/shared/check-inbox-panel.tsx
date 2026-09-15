@@ -44,19 +44,19 @@ export function CheckInboxPanel({ email, redirectTo, onChangeEmail }: Props) {
       <div className="tm-auth-check-inbox__icon" aria-hidden="true">✉</div>
       <div>
         <h3 style={{
-          margin: 0, fontSize: 18, fontWeight: 700, color: "var(--tm-text)",
+          margin: 0, fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--tm-text)",
           letterSpacing: "-0.01em",
         }}>
           Check your inbox
         </h3>
         <p style={{
-          margin: "6px 0 0", fontSize: 14, color: "var(--tm-text-muted)", lineHeight: 1.55,
+          margin: "6px 0 0", fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", lineHeight: 1.55,
         }}>
           A sign-in link is on its way to <strong style={{ color: "var(--tm-text)" }}>{email}</strong>.
           It expires in 10 minutes.
         </p>
       </div>
-      <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>
+      <div style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text-faint)" }}>
         Didn&apos;t arrive?{" "}
         <button
           type="button"
@@ -71,12 +71,12 @@ export function CheckInboxPanel({ email, redirectTo, onChangeEmail }: Props) {
           Change email
         </button>
       </div>
-      <div style={{ fontSize: 12, color: "var(--tm-text-faint)", marginTop: 6 }}>
+      <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", marginTop: 6 }}>
         Tip: check spam, or whitelist <code>noreply@himyro.com</code>.
       </div>
       {note && (
         <p role="status" style={{
-          fontSize: 13, color: "var(--tm-interactive-text)", marginTop: 4,
+          fontSize: "var(--tm-fs-body)", color: "var(--tm-interactive-text)", marginTop: 4,
         }}>{note}</p>
       )}
     </div>

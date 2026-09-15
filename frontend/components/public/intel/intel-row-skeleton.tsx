@@ -15,7 +15,7 @@ export function IntelRowSkeleton({ variant = "company" }: { variant?: "company" 
       <div className="tm-intel-job-row tm-intel-skel">
         <div className="tm-intel-job-head">
           <div className="tm-intel-skel-bar tm-intel-skel-pulse" style={{ width: "60%", height: 14 }} />
-          <div className="tm-intel-skel-bar tm-intel-skel-pulse" style={{ width: 72, height: 18, borderRadius: 99 }} />
+          <div className="tm-intel-skel-bar tm-intel-skel-pulse" style={{ width: 72, height: 18, borderRadius: 10 }} />
         </div>
         <div className="tm-intel-job-sub" style={{ marginTop: 8 }}>
           <div className="tm-intel-skel-bar tm-intel-skel-pulse" style={{ width: "40%", height: 11 }} />

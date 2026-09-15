@@ -35,7 +35,7 @@ export function AccountLegalLinks() {
         alignItems: "center",
         gap: "4px 8px",
         padding: "10px 12px 4px",
-        fontSize: 11,
+        fontSize: "var(--tm-fs-caption)",
         lineHeight: 1.5,
         color: "var(--tm-text-faint)",
       }}

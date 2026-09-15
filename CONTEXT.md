@@ -543,6 +543,27 @@ Two halves:
 
 ---
 
+## Reach Target
+
+A person the **user nominated** for outreach (ADR-0018 Path 3). Not a scrape.
+The user pasted a LinkedIn `/in/{vanity}` URL they opened in their own session
+and typed the name they read there. Myro stores that nomination, fills Path 2
+copy when a Reach Pack exists, and records user-confirmed states:
+`queued → sent → followed_up → replied | stopped`. Follow-up is due three days
+after `sent`. `job_id` is optional so the desk can hold cold-reach prospects
+with no collected job.
+
+**Invariants**
+
+- Myro never fetches the profile, never sends, never holds LinkedIn credentials.
+- A search URL, Sales Nav URL, or company page is not a Reach Target.
+- The user marks sent / replied. There is no scheduled or unattended send.
+- Table `reach_targets`, own-only RLS. Cap 80 per user.
+
+Surfaces: job Reach section (`ReachLog`), Collections desk strip, `/reach`.
+
+---
+
 ## CV Version Writer Seam
 
 `CVVersionsRepository.create(spec: CVVersionWriteSpec)` is the single seam through which CV Versions enter the database. Every endpoint that produces a version — upload, save playground, polish, edit — reduces to building a spec and calling this method. The repository owns:
@@ -1027,9 +1048,11 @@ answer computed in the client off a separate 100-id pulse batch.
 **The vocabulary** (use these exact words in code and copy): a **Collection** is
 one user's whole record; an **Entry** is one job in it, one per `(user, job)`,
 always; a **Stage** is where that entry is — `found · saved · tailored ·
-applied · closed`; an **Origin** is who put it there — `myro` / `you` /
+applied`; an **Origin** is who put it there — `myro` / `you` /
 `extension`; **Liveness** is whether the ad is still up — `live` / `uncertain` /
-`down`; an entry is **settled** when it needs nothing from the user right now.
+`down`. A `down` listing is **not an entry**. The user gets one
+`listing_vanished` notification and the card is gone. The tailored CV stays in
+CV history. An unanswered apply intent is deleted with the listing.
 
 **Invariants**
 
@@ -1042,12 +1065,10 @@ applied · closed`; an **Origin** is who put it there — `myro` / `you` /
   It is read from match-stack membership, not from the `source` string —
   `source` cannot answer it (see above). `isMyroSource` / `isExtSource` /
   `filterChip` are deleted; chips filter on `stage`.
-- **LIVENESS IS AN ATTRIBUTE, NOT A STAGE.** A dead ad demotes `found` and
-  `saved` to `closed` and stops there. `tailored` and `applied` keep their
-  stage, their Prep room and their CV — the listing coming down is the EXPECTED
-  outcome of applying, and 7 prod rows (3 of them mid-interview) had been filed
-  into the graveyard chip for succeeding. A closed listing on a live stage shows
-  a pulse line, never a demotion.
+- **A DEAD LISTING IS NOT AN ENTRY.** `found`, `saved`, `tailored`, and
+  `applied` all drop. The CV remains. One inbox row (`listing_vanished`) tells
+  people who were still on it that it vanished; people who already applied are
+  not pinged. There is no Closed chip.
 - **NEVER ADVANCE A STAGE ON THE USER'S BEHALF** (the pre-flight's *never mark a
   line kept*, one surface over). An apply click writes a `job_apply_intents`
   row, which is an INTENT; only the user's own answer writes `applied`. An
@@ -1345,8 +1366,11 @@ Whether a job we surface still exists. Two triggers, one truth — every verdict
 
 **Liveness is not freshness.** `last_seen` records when the scraper last *ingested* a row, not when anyone confirmed it exists — while the scraper does not re-crawl, `last_seen` carries no liveness information at all and must not be rendered as if it does.
 
-**Unload.** `listing_confidence=closed` starts a one-hour clock (`quarantine_until` / `deletion_eligible_at`). Only `closed` unloads, never `likely_closed`. The verifier writes a `job_archive_v1` bundle (the same JSON + CSV shape as the 2026-07-15 / 2026-08-13 laptop unloads) to a local `job_unloads/` tree, then `retire_closed_jobs` deletes those ids. Nothing is written to Supabase Storage. Railway skips unload unless `JOB_UNLOAD_ARCHIVE_DIR` points at a real disk. User history is snapshotted into `job_applications` / `cv_versions` first. A scrape that sees the posting again writes it back as live. Restore from `backend/`: `python -m scripts.restore_job_archive path/to/archive_dir`. The scraper does not delete rows on publish.
+**Unload.** Any gone-signal writes `listing_confidence=closed` and starts a one-hour clock (`quarantine_until` / `deletion_eligible_at`): one complete scrape miss, last_seen older than 30 days, verifier close (strong or weak), or a user report that the apply link is dead. `likely_closed` is leftover enum, not a holding pen. The card leaves Collection immediately. After the hour, the verifier writes a `job_archive_v1` bundle to a local `job_unloads/` tree, then `retire_closed_jobs` deletes those ids. Child DELETE triggers that maintain `job_verification_interest` do not run after the job row is gone (that derived row CASCADEs). Nothing is written to Supabase Storage. Railway skips unload unless `JOB_UNLOAD_ARCHIVE_DIR` points at a real disk. User history is snapshotted into `job_applications` / `cv_versions` first. A scrape that sees the posting again writes it back as live. Restore from `backend/`: `python -m scripts.restore_job_archive path/to/archive_dir`. The scraper does not delete rows on publish.
 
+## Tracked Listing
+
+The JD a user is already working — distinct from a live marketplace row. Feed and match ask "is this still recommendable?" and read `jobs` under live-only RLS. Prep, coverage, weave, and the day-of brief ask "what is this room about?" and read a Tracked Listing: the live row when RLS still shows it, otherwise `job_applications.job_snapshot`. `job_history.listing_document` is the one lookup. A closed posting must not blank Evidence while the user is still preparing for the call.
 
 ## Target Location
 

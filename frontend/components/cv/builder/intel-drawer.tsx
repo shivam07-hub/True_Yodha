@@ -64,7 +64,7 @@ export function IntelDrawer({
         <div className="cvb-drawer-head">
           <div>
             <div className="eyebrow" style={{ color: "var(--tm-interactive)" }}>jd intel</div>
-            <div style={{ fontSize: 14, color: "var(--tm-text)", marginTop: 4 }}>{jobLabel}</div>
+            <div style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text)", marginTop: 4 }}>{jobLabel}</div>
           </div>
           <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close drawer">
             <Icon name="x" size={14}/>
@@ -75,7 +75,7 @@ export function IntelDrawer({
           <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 4px" }}>
             <ScoreGauge value={score} size={140}/>
           </div>
-          <div style={{ textAlign: "center", fontSize: 11.5, color: "var(--tm-text-faint)" }}>
+          <div style={{ textAlign: "center", fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
             <span style={{ color: fitColor }}>{fitLabel}</span>{" · "}
             <span>Main CV {baseScore}%</span>
           </div>
@@ -84,7 +84,7 @@ export function IntelDrawer({
             <h4>matched · {matched.length}</h4>
             <div className="cvb-kw-chips">
               {matched.length === 0
-                ? <span style={{ fontSize: 11.5, color: "var(--tm-text-faint)" }}>None yet.</span>
+                ? <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>None yet.</span>
                 : matched.map(k => (
                   <span key={k.kw} className="cvb-kw-chip match" title={k.weight ? `weight ${k.weight}` : undefined}>
                     <span className="dot"/>{formatKeywordChipLabel(k.kw)}
@@ -100,8 +100,8 @@ export function IntelDrawer({
                 ? matched.length === 0
                   // No JD skills mapped at all → not "covered", just unknown.
                   // (Without this guard a 0% match falsely reads as success.)
-                  ? <span style={{ fontSize: 11.5, color: "var(--tm-text-faint)" }}>No JD skills mapped for this job yet.</span>
-                  : <span style={{ fontSize: 11.5, color: "var(--tm-success)" }}>All JD keywords covered.</span>
+                  ? <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>No JD skills mapped for this job yet.</span>
+                  : <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-success)" }}>All JD keywords covered.</span>
                 : missing.map(k => (
                   <span key={k.kw} className="cvb-kw-chip miss" title={k.weight ? `weight ${k.weight}` : undefined}>
                     <span className="dot"/>{formatKeywordChipLabel(k.kw)}
@@ -109,7 +109,7 @@ export function IntelDrawer({
                 ))}
             </div>
             {missing.length > 0 && (
-              <div style={{ fontSize: 11.5, color: "var(--tm-text-faint)", lineHeight: 1.55 }}>
+              <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", lineHeight: 1.55 }}>
                 <Link href="/practice?view=map" style={{ color: "var(--tm-interactive-text)", textDecoration: "none" }}>
                   Practice these gaps →
                 </Link>{" "}
@@ -126,7 +126,7 @@ export function IntelDrawer({
                 borderRadius: 6,
                 background: "var(--tm-surface)",
                 border: "1px solid var(--tm-border-soft)",
-                fontSize: 11.5,
+                fontSize: "var(--tm-fs-caption)",
                 lineHeight: 1.65,
                 color: "var(--tm-text-muted)",
                 maxHeight: 260,
@@ -141,11 +141,11 @@ export function IntelDrawer({
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {threadVersions.map(v => (
                 <div key={v.id} style={{
-                  display: "flex", alignItems: "center", gap: 8, fontSize: 11.5,
+                  display: "flex", alignItems: "center", gap: 8, fontSize: "var(--tm-fs-caption)",
                   color: selectedVId === v.id ? "var(--tm-interactive)" : "var(--tm-text-muted)",
                 }}>
                   <KindDot kind={v.kind} inline/>
-                  <span className="mono" style={{ fontSize: 11 }}>{formatGlobalVersionLabel(v)}</span>
+                  <span className="mono" style={{ fontSize: "var(--tm-fs-caption)" }}>{formatGlobalVersionLabel(v)}</span>
                   <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {v.kind === "baseline_upload"
                       ? "Main CV"
@@ -155,7 +155,7 @@ export function IntelDrawer({
                             : v.kind === "deterministic" ? "Tailored CV"
                             : v.kind))}
                   </span>
-                  <span className="mono" style={{ fontSize: 10.5, color: "var(--tm-text-faint)" }}>
+                  <span className="mono" style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
                     {timeAgo(v.created_at)}
                   </span>
                 </div>

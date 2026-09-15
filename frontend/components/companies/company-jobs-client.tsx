@@ -138,19 +138,19 @@ export function CompanyJobsClient({
         <div style={{ maxWidth: 860, margin: "0 auto", position: "relative" }}>
           <Link
             href="/companies"
-            style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-interactive-rest)", textDecoration: "none", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 20 }}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", color: "var(--tm-interactive-rest)", textDecoration: "none", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 20 }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-interactive)" }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-interactive-rest)" }}
           >
             ← All companies
           </Link>
-          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-interactive)", marginBottom: 8 }}>
+          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-interactive)", marginBottom: 8 }}>
             LIVE JOB LISTINGS
           </div>
-          <h1 style={{ margin: 0, fontSize: 36, fontWeight: 700, letterSpacing: "-0.025em", color: "var(--tm-text)", lineHeight: 1 }}>
+          <h1 style={{ margin: 0, fontSize: "var(--tm-fs-display)", fontWeight: 600, letterSpacing: "-0.025em", color: "var(--tm-text)", lineHeight: 1 }}>
             {companyName} jobs &amp; hiring signals
           </h1>
-          <div style={{ marginTop: 10, fontFamily: "var(--tm-font-mono)", fontSize: 12, color: "var(--tm-text-faint)" }}>
+          <div style={{ marginTop: 10, fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
             {total > 0
               ? `${formatCount(total)} open role${total !== 1 ? "s" : ""} indexed`
               : "No recent roles indexed"}
@@ -166,15 +166,15 @@ export function CompanyJobsClient({
         <CompanySkillDemandPanel companyName={companyName} />
 
         {/* Question-style H2 — structural clarity for crawlers + AI answer engines. */}
-        <h2 style={{ margin: "0 0 18px", fontSize: 18, fontWeight: 600, color: "var(--tm-text)" }}>
+        <h2 style={{ margin: "0 0 18px", fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--tm-text)" }}>
           What roles is {companyName} hiring for right now?
         </h2>
 
         {jobs.length === 0 ? (
           <div style={{ textAlign: "center", padding: "80px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-            <div style={{ fontSize: 48, opacity: 0.08, color: "var(--tm-interactive)" }}>◎</div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)" }}>No recent roles tracked for {companyName}</div>
-            <div style={{ fontSize: 13, color: "var(--tm-text-faint)", maxWidth: 300, lineHeight: 1.6 }}>
+            <div style={{ fontSize: "var(--tm-fs-hero)", opacity: 0.08, color: "var(--tm-interactive)" }}>◎</div>
+            <div style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--tm-text)" }}>No recent roles tracked for {companyName}</div>
+            <div style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text-faint)", maxWidth: 300, lineHeight: 1.6 }}>
               Our scrapers check regularly. Roles appear here as they&apos;re indexed.
             </div>
             <Button nativeButton={false} render={<Link href="/companies" />} variant="solid" size="md" style={{ marginTop: 8 }}>
@@ -224,8 +224,8 @@ export function CompanyJobsClient({
         <div style={{ marginTop: 48, padding: "28px 32px", background: "var(--tm-surface)", border: "1px solid var(--tm-int-border)", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16, position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 0% 50%, var(--tm-int-bg-wash), transparent 50%)", pointerEvents: "none" }} />
           <div style={{ position: "relative" }}>
-            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)", marginBottom: 4 }}>See how you match {companyName} roles</div>
-            <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>Upload your CV. Get a Myro Score + skill gap for every role.</div>
+            <div style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "var(--tm-text)", marginBottom: 4 }}>See how you match {companyName} roles</div>
+            <div style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text-faint)" }}>Upload your CV. Get a Myro Score + skill gap for every role.</div>
           </div>
           <Button
             nativeButton={false}
@@ -246,7 +246,7 @@ export function CompanyJobsClient({
 
         {/* Internal linking — show crawlers/AI how this page connects to the rest
             of the site (Mueller: "internal links that show how content fits"). */}
-        <nav aria-label="Explore more on Myro" style={{ marginTop: 48, paddingTop: 24, borderTop: "1px solid var(--tm-border-soft)", display: "flex", flexWrap: "wrap", gap: 18, fontSize: 13 }}>
+        <nav aria-label="Explore more on Myro" style={{ marginTop: 48, paddingTop: 24, borderTop: "1px solid var(--tm-border-soft)", display: "flex", flexWrap: "wrap", gap: 18, fontSize: "var(--tm-fs-body)" }}>
           <Link href="/companies" style={{ color: "var(--tm-interactive-rest)", textDecoration: "none", fontWeight: 600 }}>All companies hiring →</Link>
           <Link href="/intel" style={{ color: "var(--tm-interactive-rest)", textDecoration: "none", fontWeight: 600 }}>Live job-market intel →</Link>
           <Link href="/newsletter" style={{ color: "var(--tm-interactive-rest)", textDecoration: "none", fontWeight: 600 }}>Hiring-trend newsletter →</Link>

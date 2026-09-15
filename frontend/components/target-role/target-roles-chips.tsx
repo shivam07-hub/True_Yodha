@@ -40,7 +40,7 @@ const CHIP: React.CSSProperties = {
   borderRadius: "var(--tm-radius-pill)",
   background: "var(--tm-surface)",
   border: "1px solid var(--tm-border)",
-  fontSize: 12,
+  fontSize: "var(--tm-fs-caption)",
   color: "var(--tm-text)",
   maxWidth: "100%",
 }
@@ -65,7 +65,7 @@ const STANDING: React.CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
   gap: 5,
-  fontSize: 12,
+  fontSize: "var(--tm-fs-caption)",
   fontFamily: "var(--tm-font-mono)",
   textDecoration: "none",
 }

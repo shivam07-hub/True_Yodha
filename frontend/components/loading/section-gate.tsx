@@ -58,7 +58,7 @@ export function SectionGate({
             style={{
               marginTop: 12,
               textAlign: "center",
-              fontSize: 12,
+              fontSize: "var(--tm-fs-caption)",
               letterSpacing: "0.01em",
               color: "var(--tm-text-muted)",
               fontFamily: "var(--tm-font-sans)",

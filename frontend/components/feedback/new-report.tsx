@@ -34,14 +34,14 @@ function ContextRow({ label, value, mono = true }: { label: string; value: strin
         borderBottom: "1px dashed var(--tm-border-soft)",
       }}
     >
-      <span className="eyebrow" style={{ fontSize: 10 }}>
+      <span className="eyebrow" style={{ fontSize: "var(--tm-fs-caption)" }}>
         {label}
       </span>
       <span
         className="tm-feedback-context-value"
         style={{
           fontFamily: mono ? "var(--tm-font-mono)" : "inherit",
-          fontSize: 12,
+          fontSize: "var(--tm-fs-caption)",
           color: "var(--tm-text-muted)",
           textAlign: "right",
           maxWidth: "65%",
@@ -225,8 +225,8 @@ export function NewReport({
                   fontFamily: "inherit",
                 }}
               >
-                <div style={{ fontSize: 12, fontWeight: 600 }}>{s.label}</div>
-                <div style={{ fontSize: 11, opacity: 0.75, marginTop: 1 }}>{s.desc}</div>
+                <div style={{ fontSize: "var(--tm-fs-caption)", fontWeight: 600 }}>{s.label}</div>
+                <div style={{ fontSize: "var(--tm-fs-caption)", opacity: 0.75, marginTop: 1 }}>{s.desc}</div>
               </button>
             ))}
           </div>
@@ -251,7 +251,7 @@ export function NewReport({
             border: "1px solid var(--tm-border-soft)",
             color: area ? "var(--tm-text)" : "var(--tm-text-muted)",
             fontFamily: "inherit",
-            fontSize: 13,
+            fontSize: "var(--tm-fs-body)",
           }}
         >
           <option value="">Not sure / not listed</option>
@@ -277,7 +277,7 @@ export function NewReport({
             background: "rgba(255,255,255,0.025)",
             border: "1px solid var(--tm-border-soft)",
             color: "var(--tm-text)",
-            fontSize: 13,
+            fontSize: "var(--tm-fs-body)",
             outline: "none",
             transition: "border-color 160ms",
             fontFamily: "inherit",
@@ -299,7 +299,7 @@ export function NewReport({
           <span>Details</span>
           <span
             className="tm-feedback-paste-hint"
-            style={{ textTransform: "none", letterSpacing: 0, fontSize: 11, color: "var(--tm-text-faint)" }}
+            style={{ textTransform: "none", letterSpacing: 0, fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}
           >
             Cmd+V to paste a screenshot
           </span>
@@ -316,7 +316,7 @@ export function NewReport({
             background: "rgba(255,255,255,0.025)",
             border: "1px solid var(--tm-border-soft)",
             color: "var(--tm-text)",
-            fontSize: 13,
+            fontSize: "var(--tm-fs-body)",
             outline: "none",
             resize: "vertical",
             minHeight: 110,
@@ -351,8 +351,8 @@ export function NewReport({
                 border: `1px solid ${pinnedTarget ? "var(--tm-warning)" : "var(--tm-border-soft)"}`,
                 color: pinnedTarget ? "var(--tm-warning)" : "var(--tm-text-muted)",
                 padding: "3px 10px",
-                borderRadius: 99,
-                fontSize: 11,
+                borderRadius: 10,
+                fontSize: "var(--tm-fs-caption)",
                 cursor: "pointer",
                 fontFamily: "inherit",
                 display: "inline-flex",
@@ -382,7 +382,7 @@ export function NewReport({
               background: "var(--tm-warning-wash)",
               border: "1px solid var(--tm-warning)",
               color: "var(--tm-warning)",
-              fontSize: 12,
+              fontSize: "var(--tm-fs-caption)",
             }}
           >
             <span
@@ -404,7 +404,7 @@ export function NewReport({
                 border: "none",
                 color: "var(--tm-warning)",
                 cursor: "pointer",
-                fontSize: 14,
+                fontSize: "var(--tm-fs-body)",
               }}
             >
               ×
@@ -440,7 +440,7 @@ export function NewReport({
                 padding: "16px 0",
                 cursor: "pointer",
                 color: "var(--tm-text-faint)",
-                fontSize: 12,
+                fontSize: "var(--tm-fs-caption)",
               }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -487,12 +487,12 @@ export function NewReport({
                       right: 4,
                       width: 18,
                       height: 18,
-                      borderRadius: 99,
+                      borderRadius: 10,
                       border: "none",
                       background: "rgba(0,0,0,0.7)",
                       color: "#fff",
                       cursor: "pointer",
-                      fontSize: 12,
+                      fontSize: "var(--tm-fs-caption)",
                       lineHeight: 1,
                     }}
                   >
@@ -508,7 +508,7 @@ export function NewReport({
                   display: "grid",
                   placeItems: "center",
                   color: "var(--tm-text-faint)",
-                  fontSize: 20,
+                  fontSize: "var(--tm-fs-heading)",
                   cursor: "pointer",
                 }}
               >
@@ -519,7 +519,7 @@ export function NewReport({
           )}
         </div>
         {screenshots.length > 0 && (
-          <div style={{ marginTop: 6, fontSize: 10, color: "var(--tm-text-faint)" }}>
+          <div style={{ marginTop: 6, fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
             Images stay private to this session — we record only names for triage. Full upload is on the v2 roadmap.
           </div>
         )}
@@ -543,7 +543,7 @@ export function NewReport({
               gap: 10,
               cursor: "pointer",
               listStyle: "none",
-              fontSize: 12,
+              fontSize: "var(--tm-fs-caption)",
               color: "var(--tm-text-muted)",
             }}
           >
@@ -554,7 +554,7 @@ export function NewReport({
               </svg>
             </span>
             <span className="eyebrow" style={{ flex: 1 }}>Auto-attached context</span>
-            <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+            <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
               Always included · helps us reproduce
             </span>
           </summary>
@@ -579,7 +579,7 @@ export function NewReport({
             background: "var(--tm-danger-wash)",
             border: "1px solid var(--tm-danger)",
             color: "var(--tm-danger)",
-            fontSize: 12,
+            fontSize: "var(--tm-fs-caption)",
           }}
         >
           {error}
@@ -603,7 +603,7 @@ export function NewReport({
             alignItems: "center",
             gap: 10,
             cursor: "pointer",
-            fontSize: 12,
+            fontSize: "var(--tm-fs-caption)",
             color: "var(--tm-text-muted)",
           }}
         >
@@ -615,7 +615,7 @@ export function NewReport({
             style={{
               width: 32,
               height: 18,
-              borderRadius: 99,
+              borderRadius: 10,
               background: emailMe ? c.color : "var(--tm-border)",
               position: "relative",
               transition: "background 160ms",
@@ -650,7 +650,7 @@ export function NewReport({
           {c.triageHint && (
             <span
               className="tm-feedback-triage-hint"
-              style={{ fontSize: 11, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)" }}
+              style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)" }}
             >
               {c.triageHint}
             </span>
@@ -665,7 +665,7 @@ export function NewReport({
               border: "none",
               background: canSubmit && !mutation.isPending ? c.color : "var(--tm-surface-2)",
               color: canSubmit && !mutation.isPending ? "var(--tm-interactive-fg)" : "var(--tm-text-faint)",
-              fontSize: 13,
+              fontSize: "var(--tm-fs-body)",
               fontWeight: 600,
               cursor: canSubmit && !mutation.isPending ? "pointer" : "not-allowed",
               boxShadow: canSubmit && !mutation.isPending ? `0 0 18px ${c.color}66` : "none",
@@ -680,7 +680,7 @@ export function NewReport({
             }}
           >
             {mutation.isPending ? "Sending…" : c.submitVerb}
-            <span style={{ fontSize: 14 }}>→</span>
+            <span style={{ fontSize: "var(--tm-fs-body)" }}>→</span>
           </button>
         </div>
       </div>

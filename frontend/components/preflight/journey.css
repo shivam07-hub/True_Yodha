@@ -52,7 +52,6 @@
    reading face back. */
 .pf-said {
   font-family: var(--tm-font-sans);
-  font-style: italic;
   letter-spacing: 0;
 }
 

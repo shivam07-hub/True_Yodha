@@ -33,7 +33,7 @@ const MODE_LABEL: Record<string, string> = { onsite: "On-site", hybrid: "Hybrid"
 
 export function SkillChip({ label }: { label: string }) {
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", padding: "3px 9px", borderRadius: 999, fontSize: 11, background: "var(--tm-surface-2, var(--tm-surface))", border: "1px solid var(--tm-border-soft)", color: "var(--tm-text-muted)", whiteSpace: "nowrap" }}>
+    <span style={{ display: "inline-flex", alignItems: "center", padding: "3px 9px", borderRadius: 10, fontSize: "var(--tm-fs-caption)", background: "var(--tm-surface-2, var(--tm-surface))", border: "1px solid var(--tm-border-soft)", color: "var(--tm-text-muted)", whiteSpace: "nowrap" }}>
       {label}
     </span>
   )
@@ -46,10 +46,10 @@ export function LocationLine({ job }: { job: JobFeedItem }) {
   const cities = (job.locations ?? []).filter(c => c && c.trim())
   if (!loc && cities.length === 0 && !showMode) return null
   return (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--tm-text-muted)", flexWrap: "wrap" }}>
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", flexWrap: "wrap" }}>
       {cities.length > 0 ? cities.map(c => <span key={c}>{c}</span>) : loc ? <span>{loc}</span> : null}
       {showMode ? (
-        <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.04em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 999, border: "1px solid var(--tm-border-soft)", color: "var(--tm-text-faint)" }}>
+        <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", letterSpacing: "0.04em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 10, border: "1px solid var(--tm-border-soft)", color: "var(--tm-text-faint)" }}>
           {MODE_LABEL[mode!] ?? mode}
         </span>
       ) : null}

@@ -119,16 +119,16 @@
 
 .lp-stage-num {
   font-family: var(--lp-mono);
-  font-size: 11px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.12em;
   color: var(--lp-faint);
 }
 
-.lp-stage-title { font-size: 17px; font-weight: 700; line-height: 1.3; color: var(--lp-text); }
+.lp-stage-title { font-size: var(--tm-fs-heading); font-weight: 600; line-height: 1.3; color: var(--lp-text); }
 
 .lp-stage-meta {
   margin: 7px 0 0;
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   line-height: 1.55;
   color: var(--lp-muted);
   text-wrap: pretty;
@@ -218,7 +218,7 @@
   justify-self: end;
   max-width: 360px;
   text-align: right;
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   line-height: 1.6;
   color: var(--lp-faint);
   padding-right: 8px;
@@ -229,9 +229,8 @@
 
 .lp-roadmap-line {
   margin: 40px 0 0;
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   color: var(--lp-faint);
-  font-style: italic;
 }
 
 /* ── Sample readout — now a standalone section after Proof ──── */
@@ -260,7 +259,7 @@
 
 .lp-readout-version {
   font-family: var(--lp-mono);
-  font-size: 11px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--lp-faint);
@@ -270,18 +269,18 @@
 .lp-readout-score { display: flex; align-items: baseline; gap: 5px; }
 .lp-readout-score-num {
   font-family: var(--lp-mono);
-  font-size: 38px;
-  font-weight: 700;
+  font-size: var(--tm-fs-hero);
+  font-weight: 600;
   color: var(--lp-accent-text);
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
-.lp-readout-score-denom { font-family: var(--lp-mono); font-size: 13px; color: var(--lp-faint); }
+.lp-readout-score-denom { font-family: var(--lp-mono); font-size: var(--tm-fs-body); color: var(--lp-faint); }
 
 .lp-readout-verdict {
   max-width: 280px;
   text-align: right;
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   line-height: 1.55;
   color: var(--lp-muted);
   margin: 0;
@@ -297,7 +296,7 @@
 
 .lp-readout-col-title {
   font-family: var(--lp-mono);
-  font-size: 11px;
+  font-size: var(--tm-fs-caption);
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -308,13 +307,13 @@
 
 .lp-readout-items { display: flex; flex-direction: column; gap: 16px; }
 
-.lp-readout-skill { font-size: 15px; font-weight: 600; color: var(--lp-text); }
+.lp-readout-skill { font-size: var(--tm-fs-body); font-weight: 600; color: var(--lp-text); }
 
 .lp-readout-tags { display: flex; align-items: center; gap: 7px; margin-top: 4px; flex-wrap: wrap; }
 
 .lp-readout-tag {
   font-family: var(--lp-mono);
-  font-size: 10px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 2px 8px;
@@ -328,9 +327,9 @@
   background: rgba(245, 158, 11, 0.08);
 }
 
-.lp-readout-note-sm { font-size: 12.5px; color: var(--lp-faint); }
+.lp-readout-note-sm { font-size: var(--tm-fs-caption); color: var(--lp-faint); }
 
-.lp-readout-note { margin: 4px 0 0; font-size: 13px; line-height: 1.55; color: var(--lp-muted); text-wrap: pretty; }
+.lp-readout-note { margin: 4px 0 0; font-size: var(--tm-fs-body); line-height: 1.55; color: var(--lp-muted); text-wrap: pretty; }
 
 .lp-readout-bar span { transition: width 700ms var(--lp-ease); }
 
@@ -350,7 +349,7 @@
 .lp-readout-unlock-copy {
   margin: 0;
   flex: 1 1 320px;
-  font-size: 14px;
+  font-size: var(--tm-fs-body);
   line-height: 1.55;
   color: var(--lp-text);
   text-wrap: pretty;
@@ -364,8 +363,8 @@
   background: var(--lp-accent);
   color: var(--lp-accent-fg);
   font-family: var(--lp-font);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--tm-fs-body);
+  font-weight: 600;
   cursor: pointer;
   transition: filter var(--lp-dur) var(--lp-ease);
 }
@@ -397,7 +396,7 @@
   padding: 8px 16px;
   border-radius: 8px;
   font-family: var(--lp-font);
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   font-weight: 600;
   color: var(--lp-muted);
   cursor: pointer;
@@ -423,7 +422,7 @@
 .lp-cv-sub {
   margin: 8px 0 0;
   max-width: 520px;
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   line-height: 1.55;
   color: var(--lp-muted);
 }

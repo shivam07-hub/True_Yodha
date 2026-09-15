@@ -45,10 +45,10 @@ export function AuthPageShell({ title, subtitle, children, footerCopy, aside }: 
             </div>
             <div style={{
               fontFamily: "var(--tm-font-display)",
-              fontSize: 30, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1,
+              fontSize: "var(--tm-fs-display)", fontWeight: 600, color: "var(--tm-text)", lineHeight: 1,
             }}>Myro</div>
             <div style={{
-              fontSize: 12, fontWeight: 600, color: "var(--tm-text-faint)",
+              fontSize: "var(--tm-fs-caption)", fontWeight: 600, color: "var(--tm-text-faint)",
               letterSpacing: "0.08em", textTransform: "uppercase", marginTop: 6,
             }}>
               career intelligence
@@ -63,12 +63,12 @@ export function AuthPageShell({ title, subtitle, children, footerCopy, aside }: 
             boxShadow: "var(--tm-shadow-2)",
           }}>
             <h1 style={{
-              fontSize: "var(--tm-fs-title)", lineHeight: "var(--tm-lh-title)", fontWeight: 700, color: "var(--tm-text)",
+              fontSize: "var(--tm-fs-title)", lineHeight: "var(--tm-lh-title)", fontWeight: 600, color: "var(--tm-text)",
               marginBottom: subtitle ? 6 : 16, letterSpacing: 0,
             }}>{title}</h1>
             {subtitle && (
               <p style={{
-                fontSize: 14.5, lineHeight: 1.55, color: "var(--tm-text-muted)",
+                fontSize: "var(--tm-fs-body)", lineHeight: 1.55, color: "var(--tm-text-muted)",
                 marginBottom: 18,
               }}>{subtitle}</p>
             )}
@@ -77,7 +77,7 @@ export function AuthPageShell({ title, subtitle, children, footerCopy, aside }: 
 
           {footerCopy && (
             <p style={{
-              marginTop: 18, textAlign: "center", fontSize: 13,
+              marginTop: 18, textAlign: "center", fontSize: "var(--tm-fs-body)",
               color: "var(--tm-text-faint)",
             }}>{footerCopy}</p>
           )}

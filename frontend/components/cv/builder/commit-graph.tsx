@@ -63,20 +63,20 @@ export function CommitRow({ v, isCurrentBaseline, selected, onSelect, drawTop, d
       <span style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
         <span style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
           <span className="mono" style={{
-            fontSize: 12.5, fontWeight: 500,
+            fontSize: "var(--tm-fs-caption)", fontWeight: 500,
             color: selected ? "var(--tm-interactive)" : "var(--tm-text)",
             whiteSpace: "nowrap",
           }}>{title}</span>
         </span>
         <span style={{
-          fontSize: 11, color: "var(--tm-text-faint)",
+          fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)",
           whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
         }}>
           <span className="mono">{formatGlobalVersionLabel(v)}</span>
           {" · "}{context}
         </span>
       </span>
-      <span className="mono" style={{ fontSize: 10.5, color: "var(--tm-text-faint)", whiteSpace: "nowrap" }}>
+      <span className="mono" style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", whiteSpace: "nowrap" }}>
         {timeAgo(v.created_at)}
       </span>
     </button>

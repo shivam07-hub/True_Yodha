@@ -94,35 +94,28 @@ def test_an_applied_entry_outranks_a_tailored_one():
     assert out.entries[0].status == "interviewing"
 
 
-# ── liveness is an attribute, not a stage ────────────────────────────────────
+# ── a dead listing is not an entry ───────────────────────────────────────────
 
-def test_a_dead_listing_closes_found_and_saved():
+def test_a_dead_listing_is_not_in_the_collection():
     for confidence in ("closed", "likely_closed"):
-        out = resolve(match_rows=[match("j1", jobs=job(listing_confidence=confidence))])
-        assert out.entries[0].stage == "closed"
-        assert out.entries[0].liveness == "down"
-
-
-def test_a_dead_listing_never_demotes_tailored_or_applied():
-    """7 prod rows — 3 of them mid-interview — had been filed into the graveyard
-    chip for succeeding. The ad coming down is what applying LOOKS like."""
-    dead = job(listing_confidence="closed")
-    applied = resolve(applications=[application("j1", status="interviewing", jobs=dead)])
-    assert applied.entries[0].stage == "applied"
-    assert applied.entries[0].liveness == "down"
-
-    tailored = resolve(
-        applications=[application("j1", jobs=dead)],
-        tailored_by_job={"j1": {"id": 5, "kind": "deterministic"}},
-    )
-    assert tailored.entries[0].stage == "tailored"
+        found = resolve(match_rows=[match("j1", jobs=job(listing_confidence=confidence))])
+        assert found.entries == []
+        applied = resolve(
+            applications=[application("j1", status="interviewing", jobs=job(listing_confidence=confidence))]
+        )
+        assert applied.entries == []
+        tailored = resolve(
+            applications=[application("j1", jobs=job(listing_confidence=confidence))],
+            tailored_by_job={"j1": {"id": 5, "kind": "deterministic"}},
+        )
+        assert tailored.entries == []
 
 
 def test_is_active_false_is_down_on_its_own():
     """16 prod rows carry listing_confidence='closed' with is_active still true,
     and the inverse exists — reading one column alone disagrees with the sweep."""
     out = resolve(match_rows=[match("j1", jobs=job(is_active=False, listing_confidence="active"))])
-    assert out.entries[0].liveness == "down"
+    assert out.entries == []
 
 
 def test_an_unverified_listing_is_uncertain_not_down():
@@ -230,10 +223,9 @@ def test_landing_falls_through_to_the_furthest_work_when_nothing_asks():
     assert out.landing == "applied"
 
 
-def test_closed_entries_never_ask():
+def test_a_closed_listing_does_not_hold_landing():
     out = resolve(applications=[application("j1", jobs=job(listing_confidence="closed"))])
-    assert out.entries[0].stage == "closed"
-    assert out.entries[0].needs_user is False
+    assert out.entries == []
     assert out.landing == "found"
 
 

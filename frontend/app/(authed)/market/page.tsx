@@ -5,9 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query"
 import { jobs, users } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import { shortHeatmapSkillLabel } from "@/lib/heatmap-labels"
 import type { CareerBand, JobLocationFilters } from "@/lib/api"
-import { HeatmapTab } from "@/components/market/heatmap-tab"
 import { MarketJobsTab } from "@/components/market/jobs-tab"
 import { MissionHeroRail } from "@/components/mission-control/mission-hero-rail"
 import { MatchesRefreshBanner } from "@/components/jobs/matches-refresh-banner"
@@ -94,12 +92,6 @@ function IntelPageInner() {
     () => profileData?.target_roles ?? [],
     [profileData?.target_roles]
   )
-  const cvReadiness = useMemo<"ready" | "missing" | "processing" | "failed">(() => {
-    if (!token) return "ready"
-    if (profileData?.has_cv) return "ready"
-    return profileData?.cv_readiness ?? "missing"
-  }, [token, profileData?.cv_readiness, profileData?.has_cv])
-  const cvReadyForPersonalization = cvReadiness === "ready"
   const browseFilters = useMemo<FeedFilters>(() => {
     const rawMinimum = Number(searchParams.get("min_skills") || 0)
     return {
@@ -170,7 +162,6 @@ function IntelPageInner() {
   // Needed by company-signal controls; starts with the demand stage so it is
   // warm before company signals render.
   const following = useFollowCompany(token, { enabled: demandEnabled })
-  const followedCompanies = following.companies
 
   // Explored career bands persist on the profile — shared by both surfaces so
   // the filters sheet behaves identically wherever it is opened.
@@ -214,72 +205,43 @@ function IntelPageInner() {
   if (activeTab === "heatmap") return null
 
   return (
-    <>
-      <div className="tm-intel-page" style={{ padding: "32px 36px 64px", maxWidth: 1480, margin: "0 auto" }}>
-       <div className="mc-workspace">
-        <aside className="mc-ws-rail">
+    <div className="tm-intel-page tm-feed-page">
+      <MarketJobsTab
+        token={token ?? ""}
+        hasCv={!!profileData?.has_cv}
+        targetRoles={targetRoles}
+        chipCountMap={chipCountMap}
+        selectedCluster={selectedCluster}
+        onSelectCluster={(roleDomain) => updateBrowse({ filters: { ...browseFilters, roleDomain } })}
+        initialFilters={browseFilters}
+        initialQuery={browseQuery}
+        onFiltersChange={(filters) => updateBrowse({ filters })}
+        onQueryChange={(q) => updateBrowse({ q })}
+        initialSkillFacet={jobSkillFacet}
+        onSkillFacetChange={(skill) => updateBrowse({ skill })}
+        exploredCareerBands={profileData?.explored_career_bands ?? []}
+        onExploredCareerBandsChange={onExploredCareerBandsChange}
+        targetLocations={profileData?.target_locations ?? []}
+        followCompany={following}
+        analyticsEnabled={analyticsEnabled}
+        demandEnabled={demandEnabled}
+        onFeedSettled={onFeedSettled}
+        onDemandSettled={onDemandSettled}
+        onAnalyticsSettled={onAnalyticsSettled}
+        header={
+          <>
+            {token && j0Settled ? <MatchesRefreshBanner token={token} /> : null}
+            <MarketTailorCoach enabled={!!profileData?.onboarding_complete} />
+          </>
+        }
+        railHead={
           <MissionHeroRail
             token={heroEnabled ? token : null}
             onSettled={onHeroSettled}
           />
-        </aside>
-        <div className="mc-ws-main">
-        {/* Match staleness + coin-charged recompute — relocated from the retired
-            /home dashboard; Jobs is the browse surface, so discovery mechanics
-            live here. Renders nothing while matches are fresh. */}
-        {token && j0Settled ? <MatchesRefreshBanner token={token} /> : null}
-        {activeTab === "jobs" ? (
-          <>
-            <MarketTailorCoach enabled={!!profileData?.onboarding_complete} />
-            <MarketJobsTab
-            token={token ?? ""}
-            hasCv={!!profileData?.has_cv}
-            targetRoles={targetRoles}
-            chipCountMap={chipCountMap}
-            selectedCluster={selectedCluster}
-            onSelectCluster={(roleDomain) => updateBrowse({ filters: { ...browseFilters, roleDomain } })}
-            initialFilters={browseFilters}
-            initialQuery={browseQuery}
-            onFiltersChange={(filters) => updateBrowse({ filters })}
-            onQueryChange={(q) => updateBrowse({ q })}
-            initialSkillFacet={jobSkillFacet}
-            onSkillFacetChange={(skill) => updateBrowse({ skill })}
-            exploredCareerBands={profileData?.explored_career_bands ?? []}
-            onExploredCareerBandsChange={onExploredCareerBandsChange}
-            targetLocations={profileData?.target_locations ?? []}
-            followCompany={following}
-            analyticsEnabled={analyticsEnabled}
-            demandEnabled={demandEnabled}
-            onFeedSettled={onFeedSettled}
-            onDemandSettled={onDemandSettled}
-            onAnalyticsSettled={onAnalyticsSettled}
-          />
-          </>
-        ) : (
-          <HeatmapTab
-            token={token ?? null}
-            cvReadyForPersonalization={cvReadyForPersonalization}
-            cvReadiness={cvReadiness}
-            cvUploadErrorCode={profileData?.cv_upload_error_code ?? null}
-            followedCompanies={followedCompanies}
-            followCompany={following}
-            selectedCluster={selectedCluster}
-            targetRoles={targetRoles}
-            targetLocations={profileData?.target_locations ?? []}
-            locFilters={locFilters}
-            paramSkill={jobSkillFacet}
-            onBackToJobs={() => updateBrowse({ tab: "jobs" })}
-            onPersonalise={() => updateBrowse({ tab: "jobs" })}
-            onViewSkillJobs={(skill) => {
-              updateBrowse({ tab: "jobs", skill })
-            }}
-            formatSkillLabel={shortHeatmapSkillLabel}
-          />
-        )}
-        </div>
-       </div>
-      </div>
-    </>
+        }
+      />
+    </div>
   )
 }
 

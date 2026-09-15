@@ -80,10 +80,10 @@ export default function TermsPage() {
           </svg>
         </div>
         <div style={{ position: "relative", zIndex: 1, maxWidth: "var(--tm-content-max)", margin: "0 auto" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-interactive)", marginBottom: 12 }}>
+          <div style={{ fontSize: "var(--tm-fs-caption)", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-interactive)", marginBottom: 12 }}>
             Legal
           </div>
-          <h1 style={{ fontSize: "clamp(1.75rem, 4.5vw, 3rem)", fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1, margin: "0 0 12px", color: "var(--tm-text)" }}>
+          <h1 style={{ fontSize: "var(--tm-fs-hero)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.1, margin: "0 0 12px", color: "var(--tm-text)" }}>
             Terms of Service
           </h1>
           <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-muted)", margin: 0 }}>
@@ -115,7 +115,7 @@ export default function TermsPage() {
             </details>
 
             <div className="hidden lg:block" style={{ position: "sticky", top: 32 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 12 }}>
+              <div style={{ fontSize: "var(--tm-fs-caption)", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 12 }}>
                 Contents
               </div>
               <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 1 }}>
@@ -141,7 +141,7 @@ export default function TermsPage() {
                 <path d="M9 12l2 2 4-4" stroke="var(--tm-interactive)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               <div>
-                <p style={{ fontWeight: 700, color: "var(--tm-interactive)", margin: "0 0 4px", fontSize: "var(--tm-fs-body)" }}>Myro is not an employer or recruiter.</p>
+                <p style={{ fontWeight: 600, color: "var(--tm-interactive)", margin: "0 0 4px", fontSize: "var(--tm-fs-body)" }}>Myro is not an employer or recruiter.</p>
                 <p style={{ margin: 0, fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-muted)", lineHeight: 1.5 }}>
                   We are a software tool. We do not guarantee jobs, interviews, or responses. Every hiring decision belongs to the employer — see Section 08.
                 </p>

@@ -35,13 +35,13 @@ export function WeaknessSpotlight({ weakest, token }: { weakest: WeakDomain; tok
       position: "relative",
       zIndex: 1,
     }}>
-      <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-danger)", fontWeight: 700, marginBottom: 8 }}>
+      <div style={{ fontSize: "var(--tm-fs-caption)", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-danger)", fontWeight: 600, marginBottom: 8 }}>
         Biggest Opportunity
       </div>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "var(--tm-text)", marginBottom: 4 }}>{weakest.domain}</div>
-          <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>
+          <div style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--tm-text)", marginBottom: 4 }}>{weakest.domain}</div>
+          <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
             <span style={{ color: "var(--tm-danger)", fontWeight: 600 }}>{weakest.avg}%</span>
             {" · "}{weakest.skillCount} skills
             {weakest.noProofCount > 0 && <span style={{ color: "var(--tm-warning)" }}> · {weakest.noProofCount} need proof</span>}
@@ -54,7 +54,7 @@ export function WeaknessSpotlight({ weakest, token }: { weakest: WeakDomain; tok
             disabled={isPending || logged}
             style={{
               padding: "7px 14px", borderRadius: "var(--tm-radius-sm)",
-              fontSize: 12, fontWeight: 600, fontFamily: "inherit",
+              fontSize: "var(--tm-fs-caption)", fontWeight: 600, fontFamily: "inherit",
               background: logged ? "transparent" : "var(--tm-interactive)",
               color: logged ? "var(--tm-success)" : "var(--tm-interactive-fg)",
               border: `1px solid ${logged ? "var(--tm-success)" : "var(--tm-interactive)"}`,
@@ -66,7 +66,7 @@ export function WeaknessSpotlight({ weakest, token }: { weakest: WeakDomain; tok
           </button>
           <Link href="/cv" style={{
             padding: "7px 14px", borderRadius: "var(--tm-radius-sm)",
-            fontSize: 12, fontWeight: 600,
+            fontSize: "var(--tm-fs-caption)", fontWeight: 600,
             background: "transparent",
             color: "var(--tm-interactive-rest)",
             border: "1px solid var(--tm-border-soft)",

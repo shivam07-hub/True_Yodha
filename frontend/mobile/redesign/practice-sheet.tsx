@@ -70,18 +70,18 @@ export function PracticeSheet() {
     <BottomSheet open={practiceOpen} onClose={closePractice} label="Practice">
       <div style={{ padding: "0 18px 18px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-          <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--mm-text)" }}>Practice</span>
-          {metaBits && <span style={{ fontSize: 11.5, color: "var(--mm-faint)" }}>{metaBits}</span>}
+          <span style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 600, letterSpacing: "-0.02em", color: "var(--mm-text)" }}>Practice</span>
+          {metaBits && <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--mm-faint)" }}>{metaBits}</span>}
         </div>
 
         <div style={{ marginTop: 12, background: "var(--mm-inset)", border: "1px solid var(--mm-hair)", borderRadius: 14, padding: 14 }}>
-          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", color: "var(--mm-accent)", textTransform: "uppercase" }}>
+          <div style={{ fontSize: "var(--tm-fs-caption)", fontWeight: 600, letterSpacing: "0.08em", color: "var(--mm-accent)", textTransform: "uppercase" }}>
             Your next set
           </div>
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.01em", marginTop: 4, color: "var(--mm-text)" }}>
+          <div style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 600, letterSpacing: "-0.01em", marginTop: 4, color: "var(--mm-text)" }}>
             {next ? `${next.display_name} · L${nextLevel}` : "You're all caught up"}
           </div>
-          <div style={{ fontSize: 12.5, color: "var(--mm-muted)", marginTop: 3, lineHeight: 1.5 }}>
+          <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--mm-muted)", marginTop: 3, lineHeight: 1.5 }}>
             {next
               ? "10 questions · untimed · pass 8/10 to bank +50 coins and record the level."
               : "No open levels right now — upload a fresh CV or check back after new roles land."}
@@ -95,7 +95,7 @@ export function PracticeSheet() {
                     key={l}
                     style={{
                       flex: 1, height: 26, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 11, fontWeight: 700,
+                      fontSize: "var(--tm-fs-caption)", fontWeight: 600,
                       background: on ? "var(--mm-accent-wash)" : "transparent",
                       color: on ? "var(--mm-accent)" : "var(--mm-dim)",
                       border: `1px solid ${on ? "rgba(79,199,246,0.3)" : "var(--mm-border)"}`,
@@ -112,7 +112,7 @@ export function PracticeSheet() {
             className="mm-press"
             style={{
               width: "100%", height: 40, marginTop: 12, borderRadius: 12, border: "none",
-              background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 13.5, fontWeight: 700,
+              background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: "var(--tm-fs-body)", fontWeight: 600,
               cursor: "pointer", fontFamily: "inherit",
             }}
           >
@@ -120,7 +120,7 @@ export function PracticeSheet() {
           </button>
         </div>
 
-        <div style={{ fontSize: 11.5, color: "var(--mm-dim)", marginTop: 10, textAlign: "center" }}>
+        <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--mm-dim)", marginTop: 10, textAlign: "center" }}>
           Closing gaps here raises your fit on real roles.
         </div>
       </div>

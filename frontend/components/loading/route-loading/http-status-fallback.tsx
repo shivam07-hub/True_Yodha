@@ -40,7 +40,7 @@ const retryBtn: React.CSSProperties = {
   border: "1px solid var(--tm-border)",
   background: "var(--tm-surface)",
   color: "var(--tm-interactive)",
-  fontSize: 12,
+  fontSize: "var(--tm-fs-caption)",
   cursor: "pointer",
   fontFamily: "var(--tm-font-sans)",
 }
@@ -75,12 +75,12 @@ export function FailureFallback({ error, onRetry }: { error: unknown; onRetry?: 
 
   return (
     <div role="alert" style={base}>
-      <span style={{ fontSize: 13 }}>{copy.title}</span>
+      <span style={{ fontSize: "var(--tm-fs-body)" }}>{copy.title}</span>
       {kind === "rateLimited" && (
-        <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>Retry in {countdown}s</span>
+        <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>Retry in {countdown}s</span>
       )}
       {ref && (
-        <span style={{ fontSize: 11, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", userSelect: "all" }}>
+        <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", userSelect: "all" }}>
           {ref}
         </span>
       )}

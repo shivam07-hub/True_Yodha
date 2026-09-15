@@ -3755,6 +3755,28 @@ class JobsRepository:
         attach_jobs([row], self._db, "job_title, company_name, job_description")
         return row
 
+    def get_application_job_snapshot(
+        self, user_id: str, job_id: str
+    ) -> dict[str, Any] | None:
+        """The JD copied onto this user's application — not a live feed lookup.
+
+        Marketplace RLS hides closed listings from ``get_jobs_by_ids``. Prep
+        still needs the document they started against. Empty JSON is None.
+        """
+        row = safe_read(
+            self._db.table("job_applications")
+            .select("job_snapshot")
+            .eq("user_id", user_id)
+            .eq("job_id", job_id)
+            .maybe_single(),
+            default=None,
+            context="application_job_snapshot",
+        )
+        snapshot = (row or {}).get("job_snapshot")
+        if isinstance(snapshot, dict) and snapshot:
+            return dict(snapshot)
+        return None
+
     def dismiss_saved_job(self, user_id: str, job_id: str) -> bool:
         """Remove saved intent + record Not Interested in one RLS-scoped RPC.
 

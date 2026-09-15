@@ -13,6 +13,7 @@ same trust model as memory_distiller) — user_id is always an explicit filter.
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import Depends
@@ -37,6 +38,24 @@ _ID_CHUNK = 60
 _PAGE = 1000
 
 
+def _processed_after(stamp: Any, since: datetime) -> bool:
+    """True when a `processed_at` string is at or after `since`.
+
+    Parsed, never string-compared: PostgREST has returned both `+00:00` and `Z`
+    offsets for the same column, and a lexicographic test silently answers False
+    for the whole window when the two spellings disagree.
+    """
+    if not stamp:
+        return False
+    try:
+        moment = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment >= since
+
+
 class CareerReservoirRepository:
     def __init__(self, db: Client):
         self._db = db
@@ -55,13 +74,18 @@ class CareerReservoirRepository:
     # ── roles ────────────────────────────────────────────────────────────────
 
     def list_roles(self, user_id: str) -> list[dict[str, Any]]:
-        return safe_read(
-            self._db.table("career_roles")
+        # Paged, and `id` is the tiebreak: `created_at` is not unique, and a
+        # non-unique sort key lets PostgREST hand back the same row twice across
+        # page boundaries while skipping another. Live max is 97 roles for one
+        # user — a third of the way to nothing, but the forward pass is about to
+        # bank 393 more people through this read.
+        return self._paged(
+            lambda: self._db.table("career_roles")
             .select("*")
             .eq("user_id", user_id)
-            .order("created_at", desc=False),
-            default=[],
-            context="career_roles_list",
+            .order("created_at", desc=False)
+            .order("id"),
+            "career_roles_list",
         )
 
     def add_role(self, user_id: str, role: dict[str, Any]) -> dict[str, Any]:
@@ -90,14 +114,17 @@ class CareerReservoirRepository:
     # ── stories ──────────────────────────────────────────────────────────────
 
     def list_stories(self, user_id: str, *, include_archived: bool = False) -> list[dict[str, Any]]:
-        query = self._db.table("career_stories").select("*").eq("user_id", user_id)
-        if not include_archived:
-            query = query.eq("status", "active")
-        return safe_read(
-            query.order("created_at", desc=False),
-            default=[],
-            context="career_stories_list",
-        )
+        def build() -> Any:
+            query = self._db.table("career_stories").select("*").eq("user_id", user_id)
+            if not include_archived:
+                query = query.eq("status", "active")
+            return query.order("created_at", desc=False).order("id")
+
+        # `story_pointers` below pages because a dropped pointer is a CV bullet
+        # that vanishes. This is that read's PARENT: a story truncated here takes
+        # its pointers with it, and nothing says so. Live max is 153 active
+        # stories for one user, from 50 inflows.
+        return self._paged(build, "career_stories_list")
 
     def add_story(self, user_id: str, story: dict[str, Any]) -> dict[str, Any]:
         payload = {
@@ -169,16 +196,18 @@ class CareerReservoirRepository:
     def story_embeddings(self, user_id: str) -> list[dict[str, Any]]:
         """(id, embedding) of active stories that HAVE an embedding — the in-Python
         dedup candidate set (user story counts are small; no ANN RPC needed)."""
-        rows = safe_read(
-            self._db.table("career_stories")
+        # A truncated candidate set does not fail — it silently stops proposing
+        # the folds whose stories fell off the end, so a duplicate the judge would
+        # have caught simply never comes up again.
+        return self._paged(
+            lambda: self._db.table("career_stories")
             .select("id, embedding")
             .eq("user_id", user_id)
             .eq("status", "active")
-            .not_.is_("embedding", "null"),
-            default=[],
-            context="career_stories_embeddings",
+            .not_.is_("embedding", "null")
+            .order("id"),
+            "career_stories_embeddings",
         )
-        return rows
 
     # ── story-linked pointers (cv_points) ────────────────────────────────────
 
@@ -347,18 +376,107 @@ class CareerReservoirRepository:
             on_conflict="user_id,role_a,role_b",
         ).execute()
 
-    def ingest_status(self, user_id: str) -> dict[str, int]:
-        """Pending vs processed FILE-class inflow counts (the toggle's progress line)."""
-        rows = safe_read(
-            self._db.table("cv_dump_entries")
-            .select("id, processed_at")
+    def ingest_status(self, user_id: str) -> dict[str, Any]:
+        """Pending vs processed inflow counts, plus the stories a banked answer is
+        still on its way into.
+
+        `payload` rides the same read rather than a second one: these rows are
+        already being scanned to count them, and the payload of an inflow is a
+        handful of ids. `awaiting_upgrade` is what stops the completion queue
+        (#13 L3) asking a question whose answer is sitting in the ingest — the
+        one way that surface could ask twice, and the reason it is resolved from
+        the ledger rather than from a client that does not survive a reload.
+        """
+        # Two invariants ride on this count, and both fail SILENTLY on a
+        # truncated read: the Stories tab stops polling when `pending` reads 0
+        # while an ingest is still running, and a lost `awaiting_upgrade` id lets
+        # the completion queue re-ask a question whose answer is mid-ingest —
+        # the one way #13 L3's "never asked twice" can break.
+        rows = self._paged(
+            lambda: self._db.table("cv_dump_entries")
+            .select("id, processed_at, payload")
             .eq("user_id", user_id)
-            .in_("kind", list(INFLOW_KINDS)),
-            default=[],
-            context="career_ingest_status",
+            .in_("kind", list(INFLOW_KINDS))
+            .order("id"),
+            "career_ingest_status",
+        )
+        pending = [r for r in rows if not r.get("processed_at")]
+        awaiting = {
+            str((r.get("payload") or {}).get("upgrades_story_id") or "")
+            for r in pending
+        }
+        awaiting.discard("")
+        return {
+            "pending": len(pending),
+            "processed": len(rows) - len(pending),
+            "awaiting_upgrade": awaiting,
+        }
+
+    def forward_pass_status(
+        self, user_id: str, *, since: datetime,
+    ) -> dict[str, Any]:
+        """What the CV view needs to say "Myro is updating your CV", and nothing more.
+
+        Deliberately NOT `ingest_status`. That read carries every inflow payload
+        so the completion queue can resolve `awaiting_upgrade`, and it is paid on
+        `/cv/reservoir/profile` — a read that already loads every story, every
+        pointer and every role. This one rides the DEFAULT `/cv` view, which is
+        the busiest authed read on the platform, so it selects three columns and
+        derives two booleans from them.
+
+        `banked_recently` is why a reload does not lose the moment. The panel
+        appears while an ingest is in flight; without this the user who refreshes
+        thirty seconds later sees their CV and no sign that anything happened.
+        A `file` inflow processed inside the window IS that sign, and it expires
+        on its own — no flag, no column, nothing to drift.
+
+        Any `file` inflow counts, not just the forward pass's own: a user who
+        dumped a CV by hand has done the same thing by a different door and has
+        the same questions waiting.
+        """
+        rows = self._paged(
+            lambda: self._db.table("cv_dump_entries")
+            .select("id, kind, processed_at")
+            .eq("user_id", user_id)
+            .in_("kind", list(INFLOW_KINDS))
+            .order("id"),
+            "career_forward_pass_status",
         )
         pending = sum(1 for r in rows if not r.get("processed_at"))
-        return {"pending": pending, "processed": len(rows) - pending}
+        banked_recently = any(
+            r.get("kind") == "file" and _processed_after(r.get("processed_at"), since)
+            for r in rows
+        )
+        return {"pending": pending, "banked_recently": banked_recently}
+
+    # ── the completion queue's one piece of stored state (#13 L3) ────────────
+
+    def set_completion_declined(
+        self, user_id: str, story_id: str, declined: bool,
+    ) -> dict[str, Any] | None:
+        """"There is no number for this one." ADR-0016 forbids inventing the
+        number a bullet is missing, so this has to be an answer the user can
+        actually give — otherwise the queue never reaches zero."""
+        stamp = datetime.now(timezone.utc).isoformat() if declined else None
+        result = (
+            self._db.table("career_stories")
+            .update({"completion_declined_at": stamp})
+            .eq("user_id", user_id)
+            .eq("id", story_id)
+            .execute()
+        )
+        return (result.data or [None])[0]
+
+    def clear_completion_declines(self, user_id: str) -> int:
+        """Ask me again — every bullet the user set aside comes back."""
+        result = (
+            self._db.table("career_stories")
+            .update({"completion_declined_at": None})
+            .eq("user_id", user_id)
+            .not_.is_("completion_declined_at", "null")
+            .execute()
+        )
+        return len(result.data or [])
 
 
 def get_career_reservoir_repository(db: Client = Depends(get_user_db)) -> CareerReservoirRepository:
