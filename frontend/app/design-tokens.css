@@ -228,7 +228,7 @@
   --tm-content-max:   1280px;
   --tm-public-content-max: 1180px;
   /* Feed = r/popular: 732 column + 316 right rail. Workspace rail stays 360
-     (Prep v2 lock — the four pips). Templates own page inset, not a 1280 blob. */
+     (Prep + CV). Templates own page inset, not a 1280 blob. */
   --tm-feed-col:      732px;
   --tm-feed-rail:     316px;
   --tm-workspace-rail: 360px;

@@ -1,3 +1,6 @@
+@import "./cv-workstation-rail.css";
+@import "./cv-workstation-chrome.css";
+
 /* ── CV workstation — hierarchy redesign ─────────────────────────────────────
    Handoff: "CV Playground — hierarchy", approved direction 2a (built on 1c).
    Supersedes the rail structure on PublicPlayground, MasterWorkspace and
@@ -8,22 +11,22 @@
    row all rendered at 12–13.5px in --tm-text. Four ranks now, and no two share
    a size + weight + colour:
 
-     1  the next action      17/700 sans, --tm-text        (one accent-ringed
+     1  the next action      heading/600 sans, --tm-text   (one accent-ringed
                                                             card; the only
                                                             full-width button)
-     2  the CV bullet        16/1.6 sans, --tm-cv-line     (largest body text
+     2  the CV bullet        --tm-fs-cv-line, --tm-cv-line (largest body text
                                                             in the product)
-     3  rail issue rows      12.5/600 sans, --tm-text
-     4  provenance / counts  10 mono, --tm-text-faint, uppercase, .06–.12em
+     3  rail issue rows      caption/600 sans, --tm-text
+     4  provenance / counts  caption mono, --tm-text-faint, uppercase
 
    Severity is one custom property (--cvw-sev) set by [data-sev], so the gutter,
    the row wash, the offender underline and the triage tile all read the same
    value and can never drift apart.
 
    Two size notes, both deliberate:
-   · the triage numerals are --tm-fs-stat (24px) where the handoff drew 28. The
-     scale has no 28 rung; free-typing one to match a mock is how a scale dies.
-   · provenance is --tm-fs-micro (10px) inside the handoff's 9.5–10.5 band. */
+   · the triage numerals are --tm-fs-title (24px) where the handoff drew 28.
+     The scale has no 28 rung; free-typing one to match a mock is how a scale dies.
+   · provenance is --tm-fs-caption. */
 
 /* ── severity ── */
 .cvb-v2 [data-sev="blocking"]  { --cvw-sev: var(--tm-danger); }
@@ -44,7 +47,7 @@
 .cvw-seg-btn {
   border: 0; background: transparent; cursor: pointer;
   padding: 6px 16px; border-radius: 6px;
-  font-family: var(--tm-font-sans); font-size: var(--tm-fs-ui-sm); font-weight: 600;
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-caption); font-weight: 600;
   letter-spacing: 0.06em; text-transform: uppercase; color: var(--tm-text-muted);
   transition: background var(--tm-dur-fast) var(--tm-ease), color var(--tm-dur-fast) var(--tm-ease);
 }
@@ -54,7 +57,7 @@
 
 .cvw-fill { display: flex; align-items: center; gap: 10px; margin-left: auto; min-width: 0; }
 .cvw-fill-stats {
-  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro);
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption);
   letter-spacing: 0.06em; color: var(--tm-text-faint); white-space: nowrap;
 }
 .cvw-fill-bar {
@@ -73,7 +76,7 @@
 .cvw-sec {
   display: flex; align-items: center; gap: 8px;
   margin: 22px 2px 8px;
-  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 600;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-weight: 600;
   letter-spacing: 0.12em; text-transform: uppercase; color: var(--tm-interactive-text);
 }
 .cvw-sec .cvw-drag { opacity: 1; flex: none; }
@@ -88,11 +91,11 @@
   font-family: var(--tm-font-sans); font-size: var(--tm-fs-heading); font-weight: 600;
   letter-spacing: -0.01em; color: var(--tm-cv-line);
 }
-.cvw-idrole { margin-top: 2px; font-size: var(--tm-fs-meta); color: var(--tm-text-muted); }
+.cvw-idrole { margin-top: 2px; font-size: var(--tm-fs-body); color: var(--tm-text-muted); }
 .cvw-idgrid {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 4px 24px; margin-top: 12px;
-  font-family: var(--tm-font-mono); font-size: var(--tm-fs-ui-sm); color: var(--tm-text-muted);
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); color: var(--tm-text-muted);
 }
 
 .cvw-rolehead {
@@ -104,10 +107,10 @@
   font-family: var(--tm-font-sans); font-size: var(--tm-fs-body); font-weight: 600;
   color: var(--tm-text); min-width: 0;
 }
-.cvw-roleco { font-size: var(--tm-fs-ui-sm); color: var(--tm-text-muted); min-width: 0; }
+.cvw-roleco { font-size: var(--tm-fs-caption); color: var(--tm-text-muted); min-width: 0; }
 .cvw-roledates {
   margin-left: auto; flex: none;
-  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); color: var(--tm-text-faint);
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); color: var(--tm-text-faint);
 }
 
 /* ── rank 2 · the bullet row ──
@@ -126,7 +129,7 @@
   font-family: var(--tm-font-sans); font-size: var(--tm-fs-cv-line); font-weight: 400;
   line-height: 1.6; color: var(--tm-cv-line); white-space: pre-wrap; word-break: break-word;
 }
-.cvw-linetext.mono { font-family: var(--tm-font-mono); font-size: var(--tm-fs-meta); }
+.cvw-linetext.mono { font-family: var(--tm-font-mono); font-size: var(--tm-fs-body); }
 /* The offending phrase, underlined in its own severity. Inset shadow rather
    than text-decoration: it survives a wrap and never touches the glyphs.
    `background: none` is load-bearing — <mark> ships a solid yellow highlight in
@@ -143,7 +146,7 @@
 
 .cvw-verdict {
   flex: none; padding: 16px 20px 0 0;
-  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 600;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-weight: 600;
   letter-spacing: 0.06em; color: var(--cvw-sev, var(--tm-text-faint));
   background: none; border: 0; white-space: nowrap;
 }
@@ -161,7 +164,7 @@ button.cvw-verdict:focus-visible { outline: 2px solid var(--tm-accent-ring); out
 @media (hover: none) { .cvw-lineacts { opacity: 1; } }
 .cvw-lineact {
   border: 0; background: none; cursor: pointer; padding: 3px 7px; border-radius: 6px;
-  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro);
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption);
   letter-spacing: 0.06em; text-transform: uppercase; color: var(--tm-text-faint);
 }
 .cvw-lineact:hover { color: var(--tm-text); background: var(--tm-surface-2); }
@@ -180,7 +183,7 @@ button.cvw-verdict:focus-visible { outline: 2px solid var(--tm-accent-ring); out
 .cvw-hidden-chrome { margin: 24px 2px 8px; }
 .cvw-hidden-count {
   border: 0; background: none; cursor: pointer; padding: 0;
-  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 600;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-weight: 600;
   letter-spacing: 0.12em; text-transform: uppercase; color: var(--tm-text-faint);
 }
 .cvw-hidden-count:hover { color: var(--tm-text); }
@@ -189,7 +192,7 @@ button.cvw-verdict:focus-visible { outline: 2px solid var(--tm-accent-ring); out
 }
 .cvw-hidden-list li {
   display: flex; align-items: baseline; gap: 12px;
-  font-size: var(--tm-fs-ui-sm); color: var(--tm-text-muted);
+  font-size: var(--tm-fs-caption); color: var(--tm-text-muted);
 }
 .cvw-hidden-text { flex: 1; min-width: 0; }
 .cvw-hidden-list .cvw-lineact { opacity: 1; }
@@ -212,16 +215,16 @@ button.cvw-verdict:focus-visible { outline: 2px solid var(--tm-accent-ring); out
 }
 .cvw-rw-head { display: flex; align-items: baseline; gap: 10px; }
 .cvw-rw-label {
-  flex: 1; font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 700;
+  flex: 1; font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-weight: 600;
   letter-spacing: 0.12em; text-transform: uppercase; color: var(--tm-interactive-text);
 }
 .cvw-rw-count {
-  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro);
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption);
   letter-spacing: 0.06em; color: var(--tm-text-faint);
 }
 .cvw-rw-text {
   margin: 10px 0 0;
-  font-family: var(--tm-font-sans); font-size: var(--tm-fs-prose); font-weight: 600;
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-heading); font-weight: 600;
   line-height: 1.5; color: var(--tm-text);
 }
 .cvw-rw-text b { color: var(--tm-interactive-text); font-weight: 600; }
@@ -230,7 +233,7 @@ button.cvw-verdict:focus-visible { outline: 2px solid var(--tm-accent-ring); out
 .cvw-rw-primary {
   border: 0; cursor: pointer; background: var(--tm-interactive); color: var(--tm-interactive-fg);
   padding: 10px 18px; border-radius: var(--tm-button-radius, 10px);
-  font-family: var(--tm-font-sans); font-size: var(--tm-fs-ui); font-weight: 600;
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-body); font-weight: 600;
   transition: background var(--tm-dur-fast) var(--tm-ease);
 }
 .cvw-rw-primary:hover { background: var(--tm-interactive-hover); }
@@ -238,28 +241,28 @@ button.cvw-verdict:focus-visible { outline: 2px solid var(--tm-accent-ring); out
 .cvw-rw-ghost {
   border: 1px solid var(--tm-border); background: transparent; color: var(--tm-text); cursor: pointer;
   padding: 10px 16px; border-radius: var(--tm-button-radius, 10px);
-  font-family: var(--tm-font-sans); font-size: var(--tm-fs-ui); font-weight: 600;
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-body); font-weight: 600;
 }
 .cvw-rw-ghost:hover { border-color: var(--tm-int-border); }
 .cvw-rw-discard {
   margin-left: auto; border: 0; background: none; cursor: pointer; padding: 6px 2px;
-  font-family: var(--tm-font-sans); font-size: var(--tm-fs-ui-sm); color: var(--tm-text-muted);
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-caption); color: var(--tm-text-muted);
 }
 .cvw-rw-discard:hover { color: var(--tm-text); }
 .cvw-rw-error { margin: 10px 0 0; font-size: var(--tm-fs-caption); color: var(--tm-danger); }
-.cvw-rw-ask { margin: 10px 0 0; font-size: var(--tm-fs-meta); line-height: 1.5; color: var(--tm-text); }
+.cvw-rw-ask { margin: 10px 0 0; font-size: var(--tm-fs-body); line-height: 1.5; color: var(--tm-text); }
 .cvw-rw-input {
   width: 100%; margin-top: 8px; resize: vertical;
   background: var(--tm-surface); border: 1px solid var(--tm-border);
   border-radius: var(--tm-radius, 6px); padding: 8px 10px; color: var(--tm-text);
-  font-family: var(--tm-font-sans); font-size: var(--tm-fs-meta);
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-body);
 }
 .cvw-rw-input:focus { outline: none; border-color: var(--tm-interactive); }
 .cvw-rw-angles { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .cvw-rw-angle {
   border: 1px solid var(--tm-border); background: transparent; cursor: pointer;
-  padding: 4px 10px; border-radius: 999px; color: var(--tm-text-muted);
-  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro);
+  padding: 4px 10px; border-radius: var(--tm-button-radius); color: var(--tm-text-muted);
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption);
   letter-spacing: 0.06em; text-transform: uppercase;
 }
 .cvw-rw-angle[aria-selected="true"] {
@@ -277,468 +280,13 @@ button.cvw-verdict:focus-visible { outline: 2px solid var(--tm-accent-ring); out
 }
 .cvw-empty-copy {
   flex: 1; min-width: 0;
-  font-family: var(--tm-font-sans); font-size: var(--tm-fs-meta); font-style: italic;
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-body);
   color: var(--tm-text-faint);
 }
 .cvw-empty-add {
-  flex: none; font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 700;
+  flex: none; font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-weight: 600;
   letter-spacing: 0.06em; color: var(--cvw-sev, var(--tm-interactive-text));
 }
 .cvw-empty:hover { border-color: var(--cvw-sev, var(--tm-interactive)); }
 .cvw-empty:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: 2px; }
 
-/* ── rail ── */
-.cvw-railtabs {
-  flex: none; display: flex; gap: 8px; padding: 12px 14px;
-  border-bottom: 1px solid var(--tm-border-soft);
-}
-.cvw-railtab {
-  flex: 1; cursor: pointer; padding: 10px 8px; border-radius: var(--tm-radius-lg, 8px);
-  border: 1px solid var(--tm-border); background: transparent; color: var(--tm-text-muted);
-  font-family: var(--tm-font-sans); font-size: var(--tm-fs-ui); font-weight: 600;
-  white-space: nowrap;
-  transition: background var(--tm-dur-fast) var(--tm-ease), color var(--tm-dur-fast) var(--tm-ease);
-}
-.cvw-railtab:hover { color: var(--tm-text); }
-.cvw-railtab[aria-selected="true"] {
-  background: var(--tm-surface-2); border-color: var(--tm-border); color: var(--tm-text);
-}
-.cvw-railtab:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: 2px; }
-
-/* triage numerals — three equal tiles over a 2px severity top-border */
-.cvw-triage { flex: none; display: grid; grid-template-columns: repeat(3, 1fr); }
-.cvw-tile {
-  border: 0; border-top: 2px solid var(--cvw-sev); background: transparent; cursor: pointer;
-  padding: 10px 12px 10px; text-align: left;
-  border-right: 1px solid var(--tm-border-soft);
-  transition: background var(--tm-dur-fast) var(--tm-ease);
-}
-.cvw-tile:last-child { border-right: 0; }
-.cvw-tile:hover { background: var(--tm-surface-2); }
-.cvw-tile[aria-pressed="true"] { background: color-mix(in oklab, var(--cvw-sev) 12%, transparent); }
-.cvw-tile:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: -2px; }
-.cvw-tile-n {
-  display: block; font-family: var(--tm-font-mono); font-size: var(--tm-fs-heading); font-weight: 600;
-  line-height: 1; font-variant-numeric: tabular-nums; color: var(--cvw-sev);
-}
-.cvw-tile[data-empty="true"] .cvw-tile-n { color: var(--tm-text-faint); }
-.cvw-tile-label {
-  display: block; margin-top: 8px;
-  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 600;
-  letter-spacing: 0.12em; text-transform: uppercase; color: var(--tm-text-faint);
-}
-
-/* the queue — one row per issue, 3px 1fr auto */
-.cvw-queue { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; }
-.cvw-issue {
-  display: grid; grid-template-columns: 3px minmax(0, 1fr) auto;
-  align-items: center; column-gap: 12px; width: 100%; text-align: left;
-  border: 1px solid transparent; border-radius: var(--tm-radius-lg, 8px);
-  background: var(--tm-surface-2); cursor: pointer; overflow: hidden;
-  transition: border-color var(--tm-dur-fast) var(--tm-ease);
-}
-.cvw-issue:hover { border-color: var(--tm-border); }
-.cvw-issue:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: 2px; }
-/* The queue row is a <button>, so its children are inline by default and the
-   rank-3 title ran into the rank-4 provenance on one line. Two ranks must never
-   share a line — that IS the defect this redesign exists to remove. */
-.cvw-issue-body { display: block; padding: 12px 0; min-width: 0; }
-.cvw-issue-title {
-  display: block;
-  font-family: var(--tm-font-sans); font-size: var(--tm-fs-ui-sm); font-weight: 600;
-  line-height: 1.35; color: var(--tm-text);
-}
-.cvw-issue-prov {
-  display: block; margin-top: 5px;
-  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro);
-  letter-spacing: 0.08em; text-transform: uppercase; color: var(--tm-text-faint);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.cvw-issue-act {
-  flex: none; padding-right: 14px;
-  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 700;
-  letter-spacing: 0.06em; color: var(--tm-text-faint);
-}
-.cvw-issue[data-active="true"] {
-  --cvw-sev: var(--tm-interactive);
-  border-color: var(--tm-interactive);
-  background: var(--tm-int-bg-wash);
-}
-.cvw-issue[data-active="true"] .cvw-issue-act {
-  text-transform: uppercase; color: var(--tm-interactive-text);
-}
-.cvw-issue-dot {
-  width: 8px; height: 8px; border-radius: 50%; background: var(--tm-interactive);
-  margin-right: 14px;
-}
-
-/* passing ATS checks collapse into one strip */
-.cvw-ats {
-  margin: 6px 14px 14px; border-radius: var(--tm-radius-lg, 8px);
-  border: 1px solid var(--tm-success-border);
-  background: var(--tm-success-wash);
-}
-.cvw-ats-head {
-  display: flex; align-items: center; gap: 8px; width: 100%; cursor: pointer;
-  border: 0; background: none; padding: 11px 13px; text-align: left;
-}
-.cvw-ats-title {
-  flex: 1; font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 700;
-  letter-spacing: 0.06em; color: var(--tm-success);
-}
-.cvw-ats-more {
-  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); color: var(--tm-text-muted);
-  text-decoration: underline; text-underline-offset: 2px;
-}
-.cvw-ats-list {
-  display: flex; flex-direction: column; gap: 6px; padding: 0 13px 12px;
-  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); color: var(--tm-text-muted);
-}
-
-/* rail footer — the actions the toolbar gave up (Tailor / Restructure) */
-.cvw-railfoot {
-  margin-top: auto; flex: none; display: flex; flex-direction: column; gap: 8px;
-  padding: 12px 14px; border-top: 1px solid var(--tm-border-soft);
-}
-.cvw-railfoot-btn {
-  display: flex; align-items: center; gap: 8px; width: 100%; cursor: pointer;
-  border: 1px solid var(--tm-int-border); background: var(--tm-int-bg-wash);
-  color: var(--tm-interactive-text); padding: 10px 12px;
-  border-radius: var(--tm-radius-lg, 8px);
-  font-family: var(--tm-font-sans); font-size: var(--tm-fs-ui-sm); font-weight: 600;
-}
-.cvw-railfoot-btn:hover { background: var(--tm-int-bg-hover); }
-.cvw-railfoot-btn.plain {
-  border-color: var(--tm-border); background: transparent; color: var(--tm-text-muted);
-}
-.cvw-railfoot-btn.plain:hover { color: var(--tm-text); border-color: var(--tm-int-border); }
-.cvw-railfoot-cost {
-  margin-left: auto; font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro);
-  color: var(--tm-text-faint);
-}
-
-/* ── zero states (2b) ── */
-.cvw-clear {
-  flex: none; display: flex; align-items: center; gap: 10px; min-height: 34px;
-  padding: 0 14px; background: var(--tm-success-wash);
-  border-bottom: 1px solid var(--tm-success-border);
-}
-.cvw-clear-title {
-  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 700;
-  letter-spacing: 0.06em; color: var(--tm-success);
-}
-.cvw-clear-count {
-  flex: 1; font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); color: var(--tm-text-muted);
-}
-.cvw-clear-review {
-  border: 0; background: none; cursor: pointer; padding: 4px 0;
-  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); color: var(--tm-text-muted);
-  text-decoration: underline; text-underline-offset: 3px;
-}
-.cvw-clear-review:hover { color: var(--tm-text); }
-
-.cvw-terminal {
-  margin: 14px; padding: 26px 22px; text-align: center;
-  border: 1px solid var(--tm-success-border); border-radius: var(--tm-radius-xl, 8px);
-  background: var(--tm-success-wash);
-}
-.cvw-terminal-mark {
-  width: 52px; height: 52px; margin: 0 auto 16px; border-radius: 50%;
-  display: grid; place-items: center;
-  background: color-mix(in oklab, var(--tm-success) 18%, transparent);
-  color: var(--tm-success); font-size: var(--tm-fs-heading);
-}
-.cvw-terminal-title {
-  font-family: var(--tm-font-sans); font-size: var(--tm-fs-prose); font-weight: 700;
-  color: var(--tm-text);
-}
-.cvw-terminal-sub { margin: 8px 0 0; font-size: var(--tm-fs-meta); line-height: 1.5; color: var(--tm-text-muted); }
-.cvw-terminal-score {
-  display: flex; align-items: baseline; justify-content: center; gap: 8px; margin: 18px 0;
-}
-.cvw-terminal-num {
-  font-family: var(--tm-font-mono); font-size: var(--tm-fs-numeral); font-weight: 700;
-  line-height: 1; font-variant-numeric: tabular-nums; color: var(--tm-success);
-}
-.cvw-terminal-cap {
-  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); color: var(--tm-text-faint);
-}
-.cvw-terminal-cta {
-  width: 100%; border: 0; cursor: pointer;
-  background: var(--tm-interactive); color: var(--tm-interactive-fg);
-  padding: 14px 0; border-radius: var(--tm-button-radius, 10px);
-  font-family: var(--tm-font-sans); font-size: var(--tm-fs-ui-lg); font-weight: 600;
-  transition: background var(--tm-dur-fast) var(--tm-ease);
-}
-.cvw-terminal-cta:hover { background: var(--tm-interactive-hover); }
-.cvw-terminal-cta:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.cvw-invite {
-  display: flex; align-items: center; gap: 14px; margin: 0 14px 14px;
-  padding: 14px 16px; text-align: left;
-  border: 1px dashed var(--tm-border); border-radius: var(--tm-radius-xl, 8px);
-  background: transparent; cursor: pointer;
-}
-.cvw-invite:hover { border-color: var(--tm-int-border); }
-.cvw-invite-copy { flex: 1; min-width: 0; font-size: var(--tm-fs-meta); line-height: 1.5; color: var(--tm-text-muted); }
-.cvw-invite-go {
-  flex: none; font-family: var(--tm-font-mono); font-size: var(--tm-fs-ui-sm); font-weight: 700;
-  color: var(--tm-interactive-text);
-}
-
-/* ── mobile (1f) ──
-   The CV scrolls full-height, severity becomes a chip row under the header
-   (a 3px gutter is doing less work at this size), and the next action is
-   pinned to the bottom with a 48px-min primary. */
-.cvw-chips { display: none; }
-.cvw-donow { display: none; }
-
-@media (max-width: 900px) {
-  .cvw-toolbar { position: static; padding: 10px 14px; }
-  .cvw-fill-stats { display: none; }
-  /* The chip row IS the triage at this size — three 24px tiles do not fit at
-     375px, and showing both would be the same count said twice. */
-  .cvw-triage { display: none; }
-  /* Room for the pinned do-now card, which is fixed and out of flow. */
-  .cvb-v2 { padding-bottom: 156px; }
-
-  .cvw-chips {
-    position: sticky; top: 0; z-index: 18;
-    display: flex; gap: 8px; padding: 10px 14px;
-    background: var(--tm-surface); border-bottom: 1px solid var(--tm-border-soft);
-    overflow-x: auto; scrollbar-width: none;
-  }
-  .cvw-chips::-webkit-scrollbar { display: none; }
-  .cvw-chip {
-    flex: none; display: inline-flex; align-items: center; gap: 7px; min-height: 32px;
-    padding: 0 12px; border-radius: 999px; cursor: pointer;
-    border: 1px solid transparent;
-    background: color-mix(in oklab, var(--cvw-sev) 14%, transparent);
-    color: var(--cvw-sev);
-    font-family: var(--tm-font-mono); font-size: var(--tm-fs-ui-sm); font-weight: 600;
-  }
-  .cvw-chip::before {
-    content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor;
-  }
-  .cvw-chip[data-empty="true"] { background: var(--tm-surface-2); color: var(--tm-text-faint); }
-  .cvw-chip[data-empty="true"]::before { display: none; }
-  .cvw-chip[aria-pressed="true"] { border-color: currentColor; }
-
-  /* The role head is three facts in one row; at 375px that squeezed the title
-     into three words per line. Title takes the row, company + dates share the
-     next one. */
-  .cvw-rolehead { flex-wrap: wrap; padding: 12px 14px; }
-  .cvw-roletitle { flex: 1 1 100%; }
-  .cvw-roledates { margin-left: auto; }
-
-  /* Verdict drops under the line. Pointers stay a list, not cards. */
-  .cvw-line {
-    grid-template-columns: 3px minmax(0, 1fr);
-    column-gap: 12px;
-  }
-  .cvw-verdict { grid-column: 2; padding: 0 14px 14px 4px; text-align: left; }
-  .cvw-v-wide { display: none; }
-  .cvw-v-dense { display: inline; }
-  .cvw-linebody { padding-bottom: 8px; }
-
-  .cvw-donow {
-    position: fixed; left: 0; right: 0; z-index: 27;
-    bottom: calc(var(--tm-mobile-bottomnav-h, 0px) + env(safe-area-inset-bottom));
-    display: block; padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
-    background: var(--tm-surface); border-top: 1px solid var(--tm-border-soft);
-  }
-  .cvw-donow-head { display: flex; align-items: baseline; gap: 10px; }
-  .cvw-donow-eyebrow {
-    flex: 1; font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 700;
-    letter-spacing: 0.12em; text-transform: uppercase; color: var(--tm-interactive-text);
-  }
-  .cvw-donow-count {
-    font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); color: var(--tm-text-faint);
-  }
-  .cvw-donow-title {
-    margin-top: 6px;
-    font-family: var(--tm-font-sans); font-size: var(--tm-fs-prose); font-weight: 700;
-    line-height: 1.3; color: var(--tm-text);
-  }
-  .cvw-donow-cta {
-    width: 100%; min-height: 48px; margin-top: 12px; border: 0; cursor: pointer;
-    background: var(--tm-interactive); color: var(--tm-interactive-fg);
-    border-radius: var(--tm-button-radius, 10px);
-    font-family: var(--tm-font-sans); font-size: var(--tm-fs-ui-lg); font-weight: 600;
-  }
-
-  /* The rewrite is a bottom sheet on a phone, not an inline card — an inline
-     card under line 9 of 15 puts the primary button below the fold. */
-  .cvw-rw {
-    position: fixed; left: 0; right: 0; z-index: 40;
-    bottom: 0; margin: 0; border-radius: 14px 14px 0 0;
-    border-bottom: 0; background: var(--tm-surface);
-    padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
-    box-shadow: 0 -12px 32px color-mix(in oklab, var(--tm-scrim) 60%, transparent);
-    max-height: 76dvh; overflow-y: auto;
-  }
-  .cvw-rw::before {
-    content: ""; display: block; width: 44px; height: 4px; margin: 0 auto 14px;
-    border-radius: 2px; background: var(--tm-border);
-  }
-  .cvw-rw-foot { flex-direction: column; align-items: stretch; }
-  .cvw-rw-primary { min-height: 48px; }
-  .cvw-rw-discard { margin-left: 0; text-align: center; }
-  .cvw-railfoot { margin-top: 16px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cvw-fill-bar > span { transition: none; }
-}
-
-/* the active queue row points at the pane rather than repeating the address */
-.cvw-issue-open { color: var(--tm-interactive-text); }
-
-/* a jumped-to line pulses once, so a rail click lands somewhere visible */
-@keyframes cvw-pulse {
-  from { box-shadow: inset 0 0 0 2px var(--tm-interactive); }
-  to   { box-shadow: inset 0 0 0 2px transparent; }
-}
-.cvw-line.cvw-pulse { animation: cvw-pulse 1.2s var(--tm-ease); }
-@media (prefers-reduced-motion: reduce) { .cvw-line.cvw-pulse { animation: none; } }
-
-/* The quieter of the two header actions. Download is the primary everywhere —
-   it is what the user came for and it cannot misfire. Apply opens an external
-   page and arms the capture prompt, so it asks for a deliberate second look. */
-.cvb-v2-secondarybtn {
-  flex: none; cursor: pointer; white-space: nowrap;
-  border: 1px solid var(--tm-border); background: transparent; color: var(--tm-text);
-  padding: 10px 16px; border-radius: var(--tm-button-radius, 10px);
-  font-family: var(--tm-font-sans); font-size: var(--tm-fs-ui); font-weight: 600;
-  transition: border-color var(--tm-dur-fast) var(--tm-ease);
-}
-.cvb-v2-secondarybtn:hover { border-color: var(--tm-int-border); }
-.cvb-v2-secondarybtn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-
-/* Education / certification entries edit in place, but the CV is paper, not a
-   form: the field is invisible until the user reaches for it. Without this the
-   two closing sections render as a stack of boxed inputs and the document stops
-   looking like the thing a recruiter receives. */
-.cvw-card .cvw-idgrid .cvw-edit,
-.cvw-card > .cvw-line > .cvw-linebody > .cvw-edit {
-  background: transparent; border-color: transparent;
-  padding: 4px 6px; margin: 0 -6px;
-}
-.cvw-card .cvw-idgrid .cvw-edit:hover,
-.cvw-card > .cvw-line > .cvw-linebody > .cvw-edit:hover {
-  border-color: var(--tm-border-soft);
-}
-.cvw-card .cvw-idgrid .cvw-edit:focus,
-.cvw-card > .cvw-line > .cvw-linebody > .cvw-edit:focus {
-  background: var(--tm-surface-2); border-color: var(--tm-interactive);
-}
-
-/* ── SHEET tab ──
-   The A4 sheet is a fixed 816px artifact — it has to be, because it IS the
-   thing the server renders to PDF (ADR-0020). Dropped into a column narrower
-   than that it clipped, on every surface. `zoom` (not transform) shrinks it AND
-   reserves the right height, keyed off the column's own width. Screen only:
-   print keeps the full-size sheet from cv-builder.css, so the download is
-   untouched. `width` defeats the ≤720px reflow that would fight the zoom. */
-@media screen {
-  .cvb-v2-editorbody > .cvb-scope { container-type: inline-size; }
-  .cvb-v2-editorbody > .cvb-scope .cvb-pdf-page {
-    width: 816px !important;
-    zoom: min(1, 100cqw / 816px);
-  }
-}
-
-/* ── the brief: what's wrong, why, and what good looks like ──
-   Free and instant. It renders in two places — expanded under a rail row, and
-   as the first phase of the card under the line — because a user arrives at a
-   fix from either side and both owe the same answer before spending a model
-   call. Rank-wise the example is the loudest thing here: it is what most people
-   act on, and acting on it costs nothing. */
-.cvw-brief {
-  padding: 14px 16px 16px;
-  border-top: 1px solid var(--tm-border-soft);
-  background: var(--tm-surface);
-}
-.cvw-rw .cvw-brief { border-top: 0; background: none; padding: 12px 0 0; }
-
-.cvw-brief-head {
-  margin: 0;
-  font-family: var(--tm-font-sans); font-size: var(--tm-fs-meta); font-weight: 600;
-  line-height: 1.45; color: var(--tm-text);
-}
-.cvw-brief-why {
-  margin: 10px 0 0; padding: 0; list-style: none;
-  display: flex; flex-direction: column; gap: 5px;
-}
-.cvw-brief-why li {
-  position: relative; padding-left: 14px;
-  font-size: var(--tm-fs-caption); line-height: 1.5; color: var(--tm-text-muted);
-}
-.cvw-brief-why li::before {
-  content: ""; position: absolute; left: 2px; top: 8px;
-  width: 4px; height: 4px; border-radius: 50%; background: var(--cvw-sev, var(--tm-text-faint));
-}
-
-.cvw-brief-eg {
-  margin: 12px 0 0; border-radius: var(--tm-radius, 6px);
-  background: var(--tm-surface-2); overflow: hidden;
-}
-.cvw-brief-eg-head {
-  padding: 8px 12px 0;
-  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 700;
-  letter-spacing: 0.12em; text-transform: uppercase; color: var(--tm-text-faint);
-}
-.cvw-brief-eg-row {
-  display: grid; grid-template-columns: 64px minmax(0, 1fr);
-  gap: 10px; margin: 0; padding: 10px 12px;
-  font-size: var(--tm-fs-caption); line-height: 1.5;
-}
-.cvw-brief-eg-row.is-before { color: var(--tm-text-faint); }
-.cvw-brief-eg-row.is-before span:last-child { text-decoration: line-through; text-decoration-color: var(--tm-text-disabled); }
-.cvw-brief-eg-row.is-after {
-  color: var(--tm-text);
-  border-top: 1px solid var(--tm-border-faint);
-  background: color-mix(in oklab, var(--tm-success) 8%, transparent);
-}
-.cvw-brief-eg-tag {
-  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 700;
-  letter-spacing: 0.08em; text-transform: uppercase; color: var(--tm-text-faint);
-  padding-top: 1px;
-}
-.cvw-brief-eg-row.is-after .cvw-brief-eg-tag { color: var(--tm-success); }
-
-.cvw-brief-acts { display: flex; align-items: center; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
-.cvw-brief-acts .cvw-rw-primary,
-.cvw-brief-acts .cvw-rw-ghost { padding: 8px 14px; font-size: var(--tm-fs-ui-sm); }
-
-.cvw-issue-wrap {
-  border: 1px solid transparent; border-radius: var(--tm-radius-lg, 8px);
-  background: var(--tm-surface-2); overflow: hidden;
-}
-.cvw-issue-wrap:has(.cvw-issue[data-active="true"]) { border-color: var(--tm-interactive); }
-.cvw-issue-wrap .cvw-issue { border: 0; border-radius: 0; }
-
-@media (max-width: 900px) {
-  .cvw-brief-eg-row { grid-template-columns: 1fr; gap: 4px; }
-  .cvw-brief-acts .cvw-rw-primary { flex: 1 1 100%; min-height: 44px; }
-}
-
-/* When a fix is open, its phrase is the loud one. A line can carry marks from
-   two different findings, and reading a brief about a missing number while an
-   unrelated phrase sits underlined is its own small lie. */
-.cvw-line[data-focus="true"] .cvw-off {
-  box-shadow: inset 0 -3px 0 color-mix(in oklab, var(--tm-text-faint) 30%, transparent);
-}
-.cvw-line[data-focus="true"] .cvw-off.is-active {
-  box-shadow: inset 0 -3px 0 var(--tm-interactive);
-}
-
-/* "1 of 2 on this line" — steps to the other fix on the same bullet. */
-.cvw-rw-step {
-  border: 0; background: none; cursor: pointer; padding: 2px 0;
-  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro);
-  letter-spacing: 0.06em; color: var(--tm-interactive-text);
-  text-decoration: underline; text-underline-offset: 3px;
-}
-.cvw-rw-step:hover { color: var(--tm-text); }

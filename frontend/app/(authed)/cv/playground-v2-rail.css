@@ -1,0 +1,200 @@
+/* ── right rail ── */
+.cvb-v2-rail {
+  position: sticky; top: 64px;
+  height: calc(100dvh - var(--tm-desktop-nav-h, 0px) - 64px);
+  display: flex; flex-direction: column; min-height: 0; background: var(--tm-surface);
+}
+.cvb-v2-railtabs {
+  flex: none; display: flex; gap: 6px; padding: 10px 14px;
+  border-bottom: 1px solid var(--tm-border-soft);
+}
+.cvb-v2-railtabs .cvb-v2-tabbtn { flex: 1; }
+.cvb-v2-railbody { flex: 1; overflow-y: auto; min-height: 0; }
+.cvb-v2-railpane { padding: 16px 14px 24px; display: flex; flex-direction: column; gap: 10px; }
+.cvb-v2-rail-lede { margin: 0; padding: 0 2px; font-size: var(--tm-fs-caption); line-height: 1.5; color: var(--tm-text-muted); }
+
+/* skills tab — levelled requirements checklist */
+.cvb-v2-skillshead { display: flex; align-items: baseline; gap: 8px; padding: 0 2px 4px; }
+.cvb-v2-skillshead-title { font: 600 var(--tm-fs-body) var(--tm-font-sans); color: var(--tm-text); flex: 1; }
+.cvb-v2-skillshead-count { font-size: var(--tm-fs-caption); color: var(--tm-text-muted); }
+.cvb-v2-skillshead-count b { color: var(--tm-success); font-weight: 600; }
+.cvb-v2-skillrow {
+  border: 1px solid var(--tm-border-soft); background: var(--tm-surface); border-radius: 10px;
+  padding: 10px 12px; display: flex; gap: 10px; align-items: flex-start;
+}
+.cvb-v2-skillicon {
+  flex: none; width: 20px; height: 20px; border-radius: 50%;
+  display: grid; place-items: center; font-size: var(--tm-fs-caption); font-weight: 600;
+}
+.cvb-v2-skillicon.covered { background: var(--tm-success-wash); color: var(--tm-success); }
+.cvb-v2-skillicon.partial { background: var(--tm-warning-wash); color: var(--tm-warning-text, var(--tm-warning)); }
+.cvb-v2-skillicon.missing { background: var(--tm-danger-wash); color: var(--tm-danger-text, var(--tm-danger)); }
+.cvb-v2-skillbody { flex: 1; min-width: 0; }
+.cvb-v2-skillname { font: 600 var(--tm-fs-body) var(--tm-font-sans); color: var(--tm-text); display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.cvb-v2-skilllvl {
+  font-size: var(--tm-fs-caption); font-weight: 600; color: var(--tm-text-faint);
+  border: 1px solid var(--tm-border-soft); background: var(--tm-surface-2);
+  padding: 1px 7px; border-radius: var(--tm-button-radius); white-space: nowrap;
+}
+.cvb-v2-skillnote { margin-top: 2px; font-size: var(--tm-fs-caption); line-height: 1.45; color: var(--tm-text-muted); }
+.cvb-v2-skillact {
+  flex: none; border: 1px solid var(--tm-int-border); background: transparent;
+  color: var(--tm-interactive-text); font: 600 var(--tm-fs-caption) var(--tm-font-sans);
+  padding: 5px 9px; border-radius: var(--tm-radius); cursor: pointer; text-decoration: none;
+  transition: background var(--tm-dur-fast) var(--tm-ease);
+}
+.cvb-v2-skillact:hover { background: var(--tm-int-bg-wash); }
+.cvb-v2-skillempty { padding: 14px 2px; font-size: var(--tm-fs-caption); color: var(--tm-text-faint); text-align: center; }
+
+/* preview tab — delta banner + WYSIWYG sheet */
+.cvb-v2-deltabanner {
+  border: 1px solid var(--tm-success-border); background: var(--tm-success-wash);
+  border-radius: var(--tm-radius-card); padding: 12px 14px; display: flex; align-items: center; gap: 12px;
+}
+.cvb-v2-deltabanner-nums { font-size: var(--tm-fs-body); font-weight: 600; color: var(--tm-success); white-space: nowrap; }
+.cvb-v2-deltabanner-copy { font-size: var(--tm-fs-caption); line-height: 1.4; color: var(--tm-text); }
+
+.cvb-v2-sheet {
+  background: var(--tm-surface); border: 1px solid var(--tm-border); border-radius: 6px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07); padding: 26px 28px;
+}
+.cvb-v2-sheet-name { font: 600 var(--tm-fs-heading) var(--tm-font-sans); color: var(--tm-text); letter-spacing: -0.01em; }
+.cvb-v2-sheet-meta { margin-top: 2px; font-size: var(--tm-fs-caption); color: var(--tm-text-muted); }
+.cvb-v2-sheet-summary { margin: 12px 0 0; font-size: var(--tm-fs-caption); line-height: 1.55; color: var(--tm-text); }
+.cvb-v2-sheet-role { margin-top: 16px; }
+.cvb-v2-sheet-rolehead {
+  display: flex; align-items: baseline; gap: 6px;
+  border-bottom: 1px solid var(--tm-border-soft); padding-bottom: 3px;
+}
+.cvb-v2-sheet-roletitle { font: 600 var(--tm-fs-caption) var(--tm-font-sans); color: var(--tm-text); }
+.cvb-v2-sheet-roleco { font-size: var(--tm-fs-caption); color: var(--tm-text-muted); flex: 1; min-width: 0; }
+.cvb-v2-sheet-dates { margin-left: auto; font-size: var(--tm-fs-caption); color: var(--tm-text-faint); white-space: nowrap; }
+.cvb-v2-sheet-bullets { margin: 7px 0 0; padding-left: 16px; display: flex; flex-direction: column; gap: 5px; }
+.cvb-v2-sheet-bullets li { font-size: var(--tm-fs-caption); line-height: 1.55; color: var(--tm-text); }
+.cvb-v2-sheet-skills { margin: 6px 0 0; font-size: var(--tm-fs-caption); line-height: 1.55; color: var(--tm-text); }
+.cvb-v2-sheet.compact { padding: 20px 22px; }
+.cvb-v2-sheet.compact .cvb-v2-sheet-name { font-size: var(--tm-fs-body); }
+.cvb-v2-sheet.compact .cvb-v2-sheet-bullets li,
+.cvb-v2-sheet.compact .cvb-v2-sheet-skills,
+.cvb-v2-sheet.compact .cvb-v2-sheet-summary { font-size: var(--tm-fs-caption); }
+
+.cvb-v2-previewfoot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cvb-v2-pagefill { font-size: var(--tm-fs-caption); color: var(--tm-text-faint); }
+.cvb-v2-applywide {
+  border: none; background: var(--tm-interactive); color: var(--tm-interactive-fg);
+  font: 600 var(--tm-fs-body) var(--tm-font-sans); padding: 12px 0; border-radius: var(--tm-radius-lg); cursor: pointer;
+  width: 100%; transition: background var(--tm-dur-fast) var(--tm-ease);
+}
+.cvb-v2-applywide:hover { background: var(--tm-interactive-hover); }
+.cvb-v2-applywide:disabled { opacity: 0.4; cursor: not-allowed; }
+.cvb-v2-applywide.grow { width: auto; flex: 2; padding: 11px 16px; }
+
+/* apply modal */
+.cvb-v2-applymodal { max-width: 580px; width: calc(100vw - 32px); padding: 22px 24px; }
+.cvb-v2-applyhead { display: flex; align-items: center; gap: 10px; }
+.cvb-v2-applytitle { font: 600 var(--tm-fs-heading) var(--tm-font-sans); color: var(--tm-text); flex: 1; }
+.cvb-v2-applylede { margin: 4px 0 0; font-size: var(--tm-fs-caption); line-height: 1.5; color: var(--tm-text-muted); }
+.cvb-v2-applyscore {
+  display: flex; align-items: center; gap: 14px; margin-top: 14px;
+  background: var(--tm-surface-2); border-radius: 10px; padding: 12px 14px;
+}
+.cvb-v2-applyscore-num { font: 600 var(--tm-fs-heading) var(--tm-font-mono); color: var(--tm-text); }
+.cvb-v2-applyscore-100 { font-size: var(--tm-fs-caption); color: var(--tm-text-faint); font-weight: 400; }
+.cvb-v2-applyscore-cap { font: 400 var(--tm-fs-caption) var(--tm-font-sans); color: var(--tm-text-muted); }
+.cvb-v2-applyscore-spacer { flex: 1; }
+.cvb-v2-applysheetwrap { margin-top: 14px; max-height: 46vh; overflow-y: auto; border-radius: 6px; }
+.cvb-v2-applyfoot { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.cvb-v2-appliedstate { text-align: center; padding: 26px 10px; }
+.cvb-v2-appliedcheck {
+  width: 52px; height: 52px; margin: 0 auto; border-radius: 50%;
+  background: var(--tm-success-wash); border: 1px solid var(--tm-success-border);
+  color: var(--tm-success); font-size: var(--tm-fs-title); display: grid; place-items: center;
+}
+.cvb-v2-appliedtitle { margin-top: 14px; font: 600 var(--tm-fs-heading) var(--tm-font-sans); color: var(--tm-text); }
+.cvb-v2-appliedsub { margin: 6px 0 18px; font-size: var(--tm-fs-caption); line-height: 1.6; color: var(--tm-text-muted); }
+.cvb-v2-appliedsub b { color: var(--tm-success); }
+
+/* bottom nav — mobile only */
+.cvb-v2-bottomnav { display: none; }
+
+/* ── mobile (≤900px) ──
+   The shared header + split collapse here for every surface. The pane-SWITCHING
+   rules below are scoped to `.cvb-v2--onboarding`: that surface still runs a
+   two-pane bottom nav (Edit / Skills). The CV workstation does not — its
+   data-tab is edit|sheet, so an unscoped `[data-tab="edit"] .cvb-v2-rail
+   { display:none }` would delete the rail on every phone. Workstation mobile
+   lives in cv-workstation.css (chips + pinned do-now, handoff 1f). */
+@media (max-width: 900px) {
+  /* Three rows, each one whole thing: [back · score · ⋯] / [the job] /
+     [the two actions]. Left to wrap on its own the header produced a truncated
+     "Growth I", a full-width pill, and a lone ⋯ on a third line. */
+  .cvb-v2-head { top: 0; flex-wrap: wrap; gap: 8px 10px; padding: 10px 14px; }
+  .cvb-v2-crumb { order: 1; width: 34px; height: 34px; }
+  .cvb-v2-brand, .cvb-v2-headrule, .cvb-v2-savestate { display: none; }
+  .cvb-v2-headspacer { order: 2; }
+  .cvb-v2-score { order: 3; }
+  .cvb-v2-score-bar { width: 110px; }
+  .cvb-v2-head .cvb-pgc-overflow { order: 4; }
+  .cvb-v2-jobline, .cvb-v2-jobline--edit, .cvb-v2-jobedit {
+    order: 5; flex: 1 1 100%; min-width: 0;
+  }
+  .cvb-v2-reqpill { order: 6; flex: 1 1 100%; text-align: center; }
+  .cvb-v2-applybtn { order: 7; flex: 2; padding: 11px 13px; min-height: 44px; }
+  .cvb-v2-secondarybtn { order: 8; flex: 1; padding: 11px 13px; min-height: 44px; }
+
+  .cvb-v2-main { grid-template-columns: 1fr; }
+  .cvb-v2-editor { border-right: none; }
+  .cvb-v2-toolbar { position: static; padding: 10px 14px; flex-wrap: wrap; }
+  .cvb-v2-editorbody { padding: 14px; }
+
+  .cvb-v2-rail { position: static; height: auto; }
+  .cvb-v2-railbody { overflow: visible; }
+
+  /* Onboarding only: one pane at a time, driven by its own bottom nav. */
+  .cvb-v2--onboarding .cvb-v2-railtabs { display: none; }
+  .cvb-v2--onboarding[data-tab="skills"] .cvb-v2-editor { display: none; }
+  .cvb-v2--onboarding[data-tab="edit"] .cvb-v2-rail { display: none; }
+
+  /* Static row inside StickyOnboardingActionBar's own fixed container — NOT a
+     second fixed element. It was pinned at `bottom: 7rem`, a hardcoded guess
+     at that bar's content-driven height, and it guessed 105px short: the skill
+     list scrolled through the gap between the two, so the tabs read as a strip
+     dropped on the list rather than part of the bottom cluster. */
+  .cvb-v2-bottomnav {
+    display: flex; gap: 4px; padding: 8px 10px;
+    border-bottom: 1px solid var(--tm-border-soft);
+  }
+  .cvb-v2-bottomnav .cvb-v2-tabbtn { flex: 1; padding: 9px 0; min-height: 44px; }
+
+  .cvb-v2-applyfoot .cvb-v2-applywide.grow { flex: 1 1 100%; }
+}
+
+/* Onboarding skill confirm: the sticky action bar stays at the bottom, and on
+   mobile the CV / Skills tabs ride inside it as its top row. */
+.cvb-v2--onboarding { padding-bottom: 7rem; }
+.cvb-v2--onboarding .cvb-v2-rail { height: calc(100dvh - 64px - 7rem); }
+@media (max-width: 900px) {
+  /* One reserve for the whole bottom cluster (tabs + action row + safe area).
+     Over-reserving only leaves blank page after the last row; under-reserving
+     hides a control, so this errs long deliberately. */
+  .cvb-v2.cvb-v2--onboarding { padding-bottom: calc(11rem + env(safe-area-inset-bottom)); }
+  .cvb-v2--onboarding .cvb-v2-rail { height: auto; }
+}
+.cvb-upload-continue {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--tm-border-soft);
+  color: var(--tm-text-muted);
+  font-size: var(--tm-fs-caption);
+}
+
+@media (max-width: 480px) {
+  .cvb-upload-continue {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
