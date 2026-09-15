@@ -5,9 +5,8 @@ This file says what is **true today**. It is short on purpose.
 History is in [ARCHIVE.md](ARCHIVE.md). Detail is in the files mapped below.
 If something here is wrong, fix it in the commit that proves it wrong.
 
-**`AGENTS.md` and `CLAUDE.md` are the same file.** Codex and Claude read this one.
-They used to be two, they drifted, and Codex spent months without standing
-approval to commit or to apply migrations because of it.
+**`AGENTS.md` and `CLAUDE.md` are the same file.** They used to be two, they
+drifted, and Codex spent months without standing approval to commit because of it.
 
 ---
 
@@ -18,22 +17,39 @@ approval to commit or to apply migrations because of it.
 > that job, prepare for the job till the call comes, repeat.
 > — Shivam, 2026-09-13
 
-**Why this is worth owning commercially: [POSITIONING.md](POSITIONING.md).**
-Every step produces verified data nobody else holds. Asset-rich, product-poor
-(mean asset 6.6, mean product 1.0). Two verified payments; one partner
-integration carries 37% of users.
+**Why this is worth owning commercially: [POSITIONING.md](POSITIONING.md).** Every
+step produces verified data nobody else holds. Asset-rich, product-poor (mean
+asset 6.6, mean product 1.0). Two payments; one partner carries 37% of users.
 
 **It is a loop, and `repeat` is load-bearing.** If a task does not make one of
 the seven steps better, or the next pass richer than the last, it needs a reason.
 
-The loop has started to accumulate. Upload enqueues a reservoir ingest
-(`a191350a`) and one real signup has now run through it — 3 stories for a user
-who had none, all three with no number in them, which is why a CV line is banked
-as a start and not an answer (#13, `cb51d83b` + `97f42192`). 4 of ~821 users have
-a story. Matching still reads zero Career Stories (#14); rehearsal has 0 runs.
-The remaining call — promote the gap loop out of prep rooms that 328 of 397
-CV-holders never open — is [BACKLOG.md](BACKLOG.md) TIER 3 #12, unpicked. Reach
-numbers: [FEATURE_LOOP_REGISTRY.md](docs/FEATURE_LOOP_REGISTRY.md).
+The loop has started to accumulate: upload banks the CV (`a191350a`, 4 real
+signups through it) and a CV line is banked as a start, not an answer (#13). 7 of
+~884 users have a story; the other 394 CV-holders come forward when they return,
+never by a backfill. Matching still reads zero Career Stories (#14); rehearsal
+has 0 runs. Reach: [FEATURE_LOOP_REGISTRY.md](docs/FEATURE_LOOP_REGISTRY.md).
+
+---
+
+## THE FORWARD PASS — never backfill
+
+> A user who comes back finds the platform we have now; a user who never comes
+> back costs us nothing.
+
+When a capability ships after the data it needs, the people who came earlier are
+**brought forward the moment they next arrive**, not migrated while they are
+away. Same cost per user, paid only for users who are there; evidence arrives one
+user at a time; a bug lands on one person, not everyone at once.
+
+- **A sweep may finish work a user started. It never starts work they did not** —
+  the whole line between a heal and a backfill wearing a cron's clothes.
+- **Claim first, check cheap, enqueue only.** Never paid for on the read the user
+  is waiting on; never run twice; the record it ran is the work's own artefact.
+- **Put the door on a path the cohort walks, and state the reach number.** A pass
+  on a surface nobody opens is a dead end with a timer.
+
+Every pass is in `backend/app/services/forward_pass.py`; `PASSES` answers "what is a returning user behind on".
 
 ---
 
@@ -62,6 +78,8 @@ numbers: [FEATURE_LOOP_REGISTRY.md](docs/FEATURE_LOOP_REGISTRY.md).
 - **Never hardcode keys.** `.env` only, never committed.
 - **Root-cause only.** No try/except, type cast or `|| undefined` to make a
   symptom disappear. If the trade-off is unclear, ask before writing code.
+- **Never backfill.** Existing users are brought forward when they return —
+  see THE FORWARD PASS.
 - **Delete on the way past.** If your change makes code unreachable, remove it
   in the same commit — never as a follow-up item.
 - **No dead ends. A surface nothing links to is not shipped.** If the link is
@@ -108,10 +126,10 @@ worker. A test upload on dev writes to production data. Full map: [INFRA.md](INF
 | **Every loop + its production reach number** | [FEATURE_LOOP_REGISTRY.md](docs/FEATURE_LOOP_REGISTRY.md) |
 | Beta feedback closure state | `docs/beta-testing/closure-ledger/` |
 
-Two graphify outputs exist; only `_frontend` is the code. `/docs` and `.claude/`
-are gitignored — a NEW file under either is invisible. Put new docs at the repo
-root. Exception: `docs/adr/` (seven ADRs, held by `test_adr_numbering.py`).
-Skills are local shortcuts, never a place to keep knowledge.
+Only `graphify-out/GRAPH_REPORT_frontend.md` is the code. `/docs` and `.claude/`
+are gitignored — a NEW file under either is invisible, so put new docs at the
+repo root; exception `docs/adr/` (held by `test_adr_numbering.py`). Skills are
+local shortcuts, never a place to keep knowledge.
 
 ---
 
@@ -129,12 +147,12 @@ uploaded → 387 scored → 261 matched → 70 collected → 14 tailored.**
 | Phone | Layout swept; `/dev/phone` is the 375 lab; real-device QA owed (#42). |
 | Read capacity | Software closed; paid DB compute gate blocks launch (#16). |
 
-After stage one: Job Tracks (gate written `4e8fca46`), Myro Ops slices 3–5
-(blocked on the scraper), the Chrome extension, tailoring as the obvious next
-step. Evidence bank has no surface — grill first, #45 artboard 2a.
+After stage one: Job Tracks (gate `4e8fca46`), Myro Ops slices 3–5 (blocked on
+the scraper), the Chrome extension, tailoring as the obvious next step. Evidence
+bank has no surface — grill first, #45 artboard 2a. Promoting the gap loop out
+of prep rooms is BACKLOG #12, unpicked.
 
-Standing: 113 beta items unverified (built ≠ closed). ₹99 Job-Switch Plan is
-the only revenue item and is offered nowhere — Shivam's call.
+Standing: 113 beta items unverified (built ≠ closed); ₹99 Job-Switch Plan is the only revenue item and is offered nowhere — Shivam's call.
 
 ---
 

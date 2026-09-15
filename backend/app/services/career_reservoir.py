@@ -35,6 +35,15 @@ JOB_TYPE_INGEST = "story_ingest"
 # The CV a user uploads at step 1 of the loop. Its own source label because the
 # foreign-document guard must not run on it — see `_ingest_entry`.
 ONBOARDING_CV_SOURCE = "onboarding_cv"
+# The same document, reached a different way: a user who uploaded before the
+# bridge existed, brought forward when they next open their CV (`forward_pass`).
+BASELINE_BANK_SOURCE = "baseline_bank"
+# Inflows that ARE the user's own uploaded CV, by construction. The
+# foreign-document guard must not run on these — at upload time the baseline's
+# `cv_structured` is still null, so the guard judges on the profile name alone
+# and one token mismatch reads as `foreign`. A bulk dump can carry someone
+# else's CV; the document we ourselves stored for this user cannot.
+OWN_CV_SOURCES = frozenset({ONBOARDING_CV_SOURCE, BASELINE_BANK_SOURCE})
 
 
 # ── pure helpers ─────────────────────────────────────────────────────────────
@@ -240,7 +249,13 @@ def build_profile_view(
 
 # ── ingest orchestration (Work Lane handler) ─────────────────────────────────
 
-def bank_uploaded_cv(user_id: str, raw_text: str, baseline_version_id: int | None) -> str | None:
+def bank_uploaded_cv(
+    user_id: str,
+    raw_text: str,
+    baseline_version_id: int | None,
+    *,
+    source: str = ONBOARDING_CV_SOURCE,
+) -> str | None:
     """Step 1 of the loop finally reaches the reservoir.
 
     An uploaded CV is the richest document a user ever hands Myro, and until now
@@ -262,7 +277,7 @@ def bank_uploaded_cv(user_id: str, raw_text: str, baseline_version_id: int | Non
         from app.database import get_supabase_admin
 
         row = CvDumpRepository(get_supabase_admin()).add(
-            user_id, text, source=ONBOARDING_CV_SOURCE, kind="file",
+            user_id, text, source=source, kind="file",
             payload={"baseline_version_id": baseline_version_id},
         )
         entry_id = str(row.get("id") or "")
@@ -271,7 +286,8 @@ def bank_uploaded_cv(user_id: str, raw_text: str, baseline_version_id: int | Non
             return None
         enqueue_ingest(user_id, entry_id)
         logger.info(
-            "metric reservoir.cv_banked user=%s entry=%s chars=%d", user_id, entry_id, len(text),
+            "metric reservoir.cv_banked user=%s entry=%s chars=%d source=%s",
+            user_id, entry_id, len(text), source,
         )
         return entry_id
     except Exception as exc:  # noqa: BLE001 — an upload must not fail on the reservoir
@@ -448,7 +464,7 @@ async def _ingest_entry(payload: dict[str, Any], allow_retry: bool) -> None:
     # the 397 upload users have a profile name, i.e. an active guard with nothing
     # to match against. A bulk dump can carry someone else's CV; an upload
     # through the user's own account cannot.
-    if entry.get("source") != ONBOARDING_CV_SOURCE and reservoir_identity.classify_entry(entry, user_id) == "foreign":
+    if entry.get("source") not in OWN_CV_SOURCES and reservoir_identity.classify_entry(entry, user_id) == "foreign":
         repo.mark_skipped(user_id, entry_id, entry.get("payload"), "foreign_owner")
         logger.warning(
             "metric reservoir.foreign_doc_skipped user=%s entry=%s file=%s",

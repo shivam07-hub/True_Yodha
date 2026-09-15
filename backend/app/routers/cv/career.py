@@ -32,6 +32,7 @@ from app.services import (
     career_projection,
     career_reservoir,
     cv_compose,
+    forward_pass,
     jd_coverage,
     job_history,
     role_dedup,
@@ -231,6 +232,10 @@ def reservoir_profile(
     user: CurrentUser = Depends(get_current_user),
     repo: CareerReservoirRepository = Depends(get_career_reservoir_repository),
 ) -> ProfileView:
+    # A returning user whose CV predates the upload bridge has an empty reservoir
+    # and nothing for the completion queue to ask about. Opening Stories is the
+    # other occasion that brings them forward — claim-gated, enqueue-only.
+    forward_pass.on_cv_read(user.id)
     career_reservoir.retry_stale_ingests(repo, user.id)  # heal dead ingest jobs
     roles = repo.list_roles(user.id)
     career_reservoir.maybe_enqueue_role_dedup(user.id, roles)  # lazy #38 sweep

@@ -357,14 +357,24 @@ measured Free/Nano database ceiling, not unfinished application work.
     This matters because `fold_plan` unions metrics, skills and inflows but never
     merges `narrative` — so today the loser's STAR text is simply archived.
 
-    **Backfill LAST, and still not yet.** The 397 existing baselines would mint
-    ~3,200 thin stories. Two of the three preconditions are now met — the bridge
-    has run for real, and the completion loop exists — but the third has not:
-    **nobody has answered a completion question yet.** Backfilling before one
-    real answer has gone round would mint thousands of questions against a loop
-    never once exercised by a user. Order from here: one authed answer end to end
-    → then backfill, newest cohort first, measuring stories-per-user before
-    widening.
+    **The backfill is RETIRED, not deferred (Shivam, 2026-09-15). ✅ Replaced by
+    a forward pass, `backend/app/services/forward_pass.py`.** Myro does not
+    backfill: the 394 CV-holders whose upload predates the bridge are banked when
+    they next open their CV or the Stories tab, one at a time, claim-gated and
+    enqueue-only. Same cost per user, spent only on users who are there, and a
+    bug lands on one person rather than 394. The 137 dormant accounts are never
+    touched, which is the correct spend on someone who is not coming back. The
+    rule is now an ABSOLUTE RULE in [CLAUDE.md](CLAUDE.md) § THE FORWARD PASS.
+
+    ⚠️ The trap this nearly walked into: the foreign-document guard judges on the
+    profile name plus the baseline's contact block, so a banked baseline would
+    have read as `foreign` and been dropped in silence — exactly the failure #12
+    found. `OWN_CV_SOURCES` now carries both own-CV sources, not one.
+
+    Reach to watch: `forward_pass.baseline_banked` in the logs, and
+    `select count(distinct user_id) from cv_dump_entries where source =
+    'baseline_bank'`. 257 of the 394 touched a CV in the last 90 days, so that
+    is the population this can reach without anyone being migrated.
 
     Original finding:
 
