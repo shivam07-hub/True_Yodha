@@ -237,3 +237,43 @@ def test_every_paged_read_carries_a_unique_tiebreak():
     repo2, db2 = _repo(10)
     repo2.list_roles("u1")
     assert db2.order_cols[-1] == "id"
+
+
+# ── the heal, and when it is paid for ────────────────────────────────────────
+
+class _StubRepo:
+    def __init__(self, pending):
+        self._pending = pending
+        self.healed = 0
+
+    def forward_pass_status(self, _user_id, *, since):
+        return {"pending": self._pending, "banked_recently": False}
+
+
+def _route(pending, monkeypatch):
+    from app.routers.cv import reservoir_status as mod
+
+    repo = _StubRepo(pending)
+    monkeypatch.setattr(
+        mod.career_reservoir, "retry_stale_ingests",
+        lambda r, _u: setattr(r, "healed", r.healed + 1),
+    )
+
+    class _User:
+        id = "u1"
+    return mod.reservoir_status(user=_User(), repo=repo), repo
+
+
+def test_a_pending_ingest_is_healed_while_the_panel_watches_it(monkeypatch):
+    """The panel polls every 4s; a job lost to a worker redeploy is otherwise
+    only re-enqueued by the hourly sweep, so the pulse runs for an hour."""
+    out, repo = _route(1, monkeypatch)
+    assert out.pending == 1
+    assert repo.healed == 1
+
+
+def test_nothing_pending_pays_nothing(monkeypatch):
+    """The heal reads `pending_entries`. This route exists to be cheap, so it is
+    paid only in the rare, short state where it can do anything."""
+    out, repo = _route(0, monkeypatch)
+    assert repo.healed == 0

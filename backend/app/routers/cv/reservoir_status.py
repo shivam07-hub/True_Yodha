@@ -27,6 +27,7 @@ from app.repositories.career_reservoir import (
     CareerReservoirRepository,
     get_career_reservoir_repository,
 )
+from app.services import career_reservoir
 
 router = APIRouter()
 
@@ -50,4 +51,16 @@ def reservoir_status(
     repo: CareerReservoirRepository = Depends(get_career_reservoir_repository),
 ) -> ReservoirStatus:
     since = datetime.now(timezone.utc) - timedelta(hours=RECENT_WINDOW_HOURS)
-    return ReservoirStatus(**repo.forward_pass_status(user.id, since=since))
+    status = repo.forward_pass_status(user.id, since=since)
+
+    # Heal a dead ingest while the panel is watching it, exactly as the Stories
+    # tab does on its own read. Without this the panel is the one surface that
+    # can pulse for an hour: it polls every four seconds, and a job lost to a
+    # worker redeploy is only re-enqueued by the hourly sweep. `retry_stale_ingests`
+    # was written for this cadence (per-entry 15-minute debounce, enqueue
+    # idempotent on the entry id), and it is paid ONLY while something is
+    # genuinely pending — which is the rare, short state this read exists for.
+    if status["pending"] > 0:
+        career_reservoir.retry_stale_ingests(repo, user.id)
+
+    return ReservoirStatus(**status)
