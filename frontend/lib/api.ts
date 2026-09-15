@@ -1565,6 +1565,16 @@ export interface CareerProfile {
   missing_number: number
   missing_story: number
 }
+/** The default /cv view's poll while Myro brings a returning user forward.
+ *  Myro does not backfill: a CV uploaded before a capability existed is banked
+ *  the first time its owner opens their CV, and this is what lets that say so. */
+export interface ReservoirStatus {
+  /** Inflows still being read. > 0 means a spinner is honest. */
+  pending: number
+  /** A CV finished landing in the last 24h — its questions are worth showing
+   *  even though nothing is in flight any more. This is what survives a reload. */
+  banked_recently: boolean
+}
 export interface ReviewStory {
   id: string
   title: string
@@ -2108,6 +2118,14 @@ export const cv = {
   career: {
     profile: (token: string) =>
       request<CareerProfile>("/cv/reservoir/profile", {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    /** Three columns, polled from the default /cv view while an ingest runs.
+     *  Deliberately NOT `profile` — that read loads every role, story and
+     *  pointer, and polling it from the busiest authed page every four seconds
+     *  would undo the read-path budget it was written to respect. */
+    reservoirStatus: (token: string) =>
+      request<ReservoirStatus>("/cv/reservoir/status", {
         headers: { Authorization: `Bearer ${token}` },
       }),
     /** Multipart by design (files) — bypasses request()'s forced JSON header. */

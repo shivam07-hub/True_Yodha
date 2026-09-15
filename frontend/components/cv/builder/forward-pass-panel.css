@@ -1,0 +1,80 @@
+/* "Myro is updating your CV" on the default /cv view.
+
+   Deliberately quieter than the surfaces around it. This panel appears without
+   being asked for — a returning user opened their CV, not a progress report —
+   so it reads as a note on the page, never a card competing with the CV. It is
+   also temporary by construction: it is gone 24h after the ingest lands. */
+
+.tm-fwp {
+  border: 1px solid var(--tm-border-soft);
+  border-left: 2px solid var(--tm-interactive);
+  border-radius: var(--tm-radius);
+  background: var(--tm-bg-inset);
+  padding: 12px 14px;
+  margin: 0 0 16px;
+}
+
+/* ── in flight ────────────────────────────────────────────────────────── */
+
+.tm-fwp-live {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-family: var(--tm-font-mono);
+  font-size: 11px;
+  color: var(--tm-text-muted);
+}
+.tm-fwp-pulse {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tm-interactive);
+  animation: tm-fwp-pulse 1.6s ease-in-out infinite;
+}
+@keyframes tm-fwp-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.35; transform: scale(0.7); }
+}
+
+/* ── landed ───────────────────────────────────────────────────────────── */
+
+.tm-fwp-head { margin: 0 0 12px; }
+
+.tm-fwp-kicker {
+  margin: 0 0 2px;
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+
+.tm-fwp-title {
+  margin: 0;
+  font-size: var(--tm-fs-heading);
+  font-weight: 600;
+  color: var(--tm-text);
+}
+
+/* The queue arrives already boxed (.tm-sqn). Two nested insets read as a bug,
+   so it drops its own frame here and keeps only its two-column shape. */
+.tm-fwp .tm-sqn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0 0 10px;
+}
+
+.tm-fwp-link {
+  display: inline-block;
+  font-family: var(--tm-font-mono);
+  font-size: 11px;
+  color: var(--tm-interactive);
+  text-decoration: none;
+}
+.tm-fwp-link:hover { text-decoration: underline; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-fwp-pulse { animation: none; }
+}

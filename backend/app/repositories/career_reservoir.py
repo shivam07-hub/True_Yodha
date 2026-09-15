@@ -38,6 +38,24 @@ _ID_CHUNK = 60
 _PAGE = 1000
 
 
+def _processed_after(stamp: Any, since: datetime) -> bool:
+    """True when a `processed_at` string is at or after `since`.
+
+    Parsed, never string-compared: PostgREST has returned both `+00:00` and `Z`
+    offsets for the same column, and a lexicographic test silently answers False
+    for the whole window when the two spellings disagree.
+    """
+    if not stamp:
+        return False
+    try:
+        moment = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment >= since
+
+
 class CareerReservoirRepository:
     def __init__(self, db: Client):
         self._db = db
@@ -378,6 +396,43 @@ class CareerReservoirRepository:
             "processed": len(rows) - len(pending),
             "awaiting_upgrade": awaiting,
         }
+
+    def forward_pass_status(
+        self, user_id: str, *, since: datetime,
+    ) -> dict[str, Any]:
+        """What the CV view needs to say "Myro is updating your CV", and nothing more.
+
+        Deliberately NOT `ingest_status`. That read carries every inflow payload
+        so the completion queue can resolve `awaiting_upgrade`, and it is paid on
+        `/cv/reservoir/profile` — a read that already loads every story, every
+        pointer and every role. This one rides the DEFAULT `/cv` view, which is
+        the busiest authed read on the platform, so it selects three columns and
+        derives two booleans from them.
+
+        `banked_recently` is why a reload does not lose the moment. The panel
+        appears while an ingest is in flight; without this the user who refreshes
+        thirty seconds later sees their CV and no sign that anything happened.
+        A `file` inflow processed inside the window IS that sign, and it expires
+        on its own — no flag, no column, nothing to drift.
+
+        Any `file` inflow counts, not just the forward pass's own: a user who
+        dumped a CV by hand has done the same thing by a different door and has
+        the same questions waiting.
+        """
+        rows = self._paged(
+            lambda: self._db.table("cv_dump_entries")
+            .select("id, kind, processed_at")
+            .eq("user_id", user_id)
+            .in_("kind", list(INFLOW_KINDS))
+            .order("id"),
+            "career_forward_pass_status",
+        )
+        pending = sum(1 for r in rows if not r.get("processed_at"))
+        banked_recently = any(
+            r.get("kind") == "file" and _processed_after(r.get("processed_at"), since)
+            for r in rows
+        )
+        return {"pending": pending, "banked_recently": banked_recently}
 
     # ── the completion queue's one piece of stored state (#13 L3) ────────────
 
