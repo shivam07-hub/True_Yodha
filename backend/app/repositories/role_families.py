@@ -146,3 +146,33 @@ class RoleFamiliesRepository:
             {"p_family": family, "p_query": query, "p_limit": limit},
         ).execute()
         return response.data or []
+
+    def core_skills(self, families: list[str]) -> dict[str, list[str]]:
+        """The vocabulary each direction is graded against (`direction_fit`).
+
+        One indexed read over the 337-row snapshot, returning the twelve most
+        demanded skill names per family. It is a snapshot column rather than a
+        live aggregate because the aggregate is the expensive half: ranking
+        `role_family_profile` per request measured 15ms for three families and
+        grows with the corpus, while this read is the same shape as every other
+        label read on the page.
+
+        A family missing from the snapshot is absent from the result — the
+        caller grades against what exists and reads the rest as unknown, never
+        as "nothing fits".
+        """
+        if not families:
+            return {}
+        rows = (
+            self._db.table("role_family_labels")
+            .select("family, core_skills")
+            .in_("family", families)
+            .execute()
+            .data
+            or []
+        )
+        return {
+            str(row["family"]): [str(s) for s in (row.get("core_skills") or [])]
+            for row in rows
+            if row.get("family")
+        }
