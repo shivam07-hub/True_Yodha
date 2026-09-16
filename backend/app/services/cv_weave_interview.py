@@ -25,7 +25,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.services import embeddings
+from app.services import embeddings, story_questions
 from app.services.career_reservoir import cosine
 from app.services.jd_coverage import CoverageItem
 
@@ -43,6 +43,10 @@ class InterviewOption:
     label: str                   # the story title / CV line itself
     detail: str = ""             # canonical pointer / host-role label
     story_id: str | None = None
+    #: What this story's bullet is still missing, in the user's terms — the same
+    #: question the Stories queue asks about it (#13 L3). Empty when the bullet
+    #: already stands on its own.
+    asks: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -109,12 +113,14 @@ async def build_interview(
         return []
 
     # A weak ask already carries the classifier's matched story — it leads.
+    lead_story_ids: set[str] = set()
     for q, item in zip(questions, unproven):
         if item.status == "weak" and item.story_id:
             q.options.append(InterviewOption(
                 kind="story", label=item.story_title or "Your story",
                 detail=item.story_pointer, story_id=item.story_id,
             ))
+            lead_story_ids.add(item.story_id)
 
     try:
         qvecs = await embeddings.embed_texts([q.requirement for q in questions])
@@ -174,6 +180,7 @@ async def build_interview(
         q.options = q.options[:MAX_OPTIONS]
 
     # Upgrade story options' detail to their canonical CV pointer where one exists.
+    wanted_pointers |= lead_story_ids
     if repo is not None and wanted_pointers:
         try:
             pointers = _canonical_pointers(repo, user_id, list(wanted_pointers))
@@ -183,6 +190,18 @@ async def build_interview(
                         o.detail = pointers[o.story_id]
         except Exception as exc:  # noqa: BLE001
             logger.info("cv_weave_interview: pointer join failed (%s)", exc.__class__.__name__)
+
+    # One question, two places (#13 L3). A `weak` ask is weak because the story
+    # standing as its evidence was never properly told, so the interview names
+    # the fact that would close it — the same fact the Stories queue asks for,
+    # answered into the same story either way. Silent when the bullet is whole.
+    for q in questions:
+        for o in q.options:
+            story = stories.get(o.story_id or "")
+            if story is None or not o.detail:
+                continue
+            _kinds, missing = story_questions.ask_for(story, o.detail)
+            o.asks = missing
 
     return questions
 

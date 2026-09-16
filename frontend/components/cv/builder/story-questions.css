@@ -1,0 +1,153 @@
+/* The standing completion queue — one bullet's missing fact at a time.
+   Deliberately the same two-column shape as the duplicate review space beside
+   it (.tm-sri): both are "questions Myro cannot answer alone", so they must not
+   read as two different kinds of object. Collapses to one column at 640. */
+
+.tm-sqn {
+  display: grid;
+  grid-template-columns: minmax(0, 150px) minmax(0, 1fr);
+  gap: 16px;
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius);
+  background: var(--tm-bg-inset);
+  padding: 14px 16px;
+  margin: 0 0 16px;
+}
+
+/* ── the rail ─────────────────────────────────────────────────────────── */
+
+.tm-sqn-rail {
+  border-right: 1px solid var(--tm-border);
+  padding-right: 14px;
+}
+.tm-sqn-rail-head {
+  margin: 0 0 6px;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+.tm-sqn-rail-head.done { margin-top: 14px; }
+
+.tm-sqn-count {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: var(--tm-fs-caption);
+  color: var(--tm-text-muted);
+}
+.tm-sqn-count.live { color: var(--tm-text); }
+.tm-sqn-n { font-family: var(--tm-font-mono); }
+.tm-sqn-count.live .tm-sqn-n { color: var(--tm-interactive); }
+
+/* ── the question ─────────────────────────────────────────────────────── */
+
+.tm-sqn-q {
+  margin: 0;
+  font-size: var(--tm-fs-body);
+  font-weight: 500;
+  color: var(--tm-text);
+}
+.tm-sqn-of {
+  margin: 2px 0 10px;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  color: var(--tm-text-faint);
+}
+
+/* The bullet being asked about IS the echo of the question — Myro never
+   rewrites the user's sentence back at them to set one up. */
+.tm-sqn-bullet {
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius-sm);
+  background: var(--tm-bg);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+.tm-sqn-bullet-role {
+  margin: 0 0 4px;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  color: var(--tm-text-faint);
+}
+.tm-sqn-bullet-line {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  font-size: var(--tm-fs-caption);
+  line-height: 1.45;
+  color: var(--tm-text);
+}
+.tm-sqn-diamond {
+  flex: none;
+  color: var(--tm-interactive);
+}
+
+
+.tm-sqn-label {
+  display: block;
+  margin: 0 0 4px;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+.tm-sqn-composer {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius-sm);
+  background: var(--tm-bg);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: var(--tm-fs-caption);
+  line-height: 1.5;
+  color: var(--tm-text);
+}
+.tm-sqn-composer:focus-visible {
+  outline: 2px solid var(--tm-interactive);
+  outline-offset: 1px;
+}
+
+.tm-sqn-hint {
+  margin: 6px 0 10px;
+  font-size: var(--tm-fs-micro);
+  color: var(--tm-text-faint);
+}
+
+.tm-sqn-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.tm-sqn-clear {
+  margin: 0;
+  font-size: var(--tm-fs-caption);
+  color: var(--tm-text-muted);
+}
+.tm-sqn-err {
+  margin: 8px 0 0;
+  font-size: var(--tm-fs-caption);
+  color: var(--tm-danger-text);
+}
+
+@media (max-width: 640px) {
+  .tm-sqn { grid-template-columns: minmax(0, 1fr); }
+  .tm-sqn-rail {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 14px;
+    border-right: none;
+    border-bottom: 1px solid var(--tm-border);
+    padding: 0 0 10px;
+  }
+  .tm-sqn-rail-head, .tm-sqn-rail-head.done { margin: 0; align-self: center; }
+  .tm-sqn-count { margin: 0; gap: 6px; }
+}

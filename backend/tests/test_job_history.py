@@ -1,6 +1,6 @@
 from typing import Any
 
-from app.services.job_history import attach_jobs, hydrate_job_snapshot
+from app.services.job_history import attach_jobs, hydrate_job_snapshot, listing_document
 
 
 def test_live_job_wins_over_snapshot() -> None:
@@ -126,3 +126,53 @@ def test_attach_jobs_skips_lookup_when_no_rows_have_job_ids() -> None:
 
     assert db.queries == []
     assert rows[0].get("jobs") is None
+
+
+# ── listing_document ─────────────────────────────────────────────────────────
+# Prep / coverage / weave ask "what JD is this user working?", not "is this
+# still on the marketplace". Live RLS hides closed rows; the application
+# snapshot is the document they already started against.
+
+
+class _ListingRepo:
+    def __init__(
+        self,
+        *,
+        live: dict[str, Any] | None = None,
+        snapshot: dict[str, Any] | None = None,
+    ) -> None:
+        self.live = live
+        self.snapshot = snapshot
+
+    def get_jobs_by_ids(self, _ids: list[str]) -> list[dict[str, Any]]:
+        return [self.live] if self.live else []
+
+    def get_application_job_snapshot(self, _user_id: str, _job_id: str) -> dict[str, Any] | None:
+        return self.snapshot
+
+
+def test_listing_document_prefers_live_row() -> None:
+    repo = _ListingRepo(
+        live={"job_description": "Live JD", "job_title": "Live title"},
+        snapshot={"job_description": "Old JD", "job_title": "Old title"},
+    )
+
+    job = listing_document(repo, "u1", "j1")
+
+    assert job == {"job_description": "Live JD", "job_title": "Live title"}
+
+
+def test_listing_document_uses_snapshot_when_live_row_is_hidden() -> None:
+    repo = _ListingRepo(
+        snapshot={"job_description": "Banked JD", "job_title": "PM", "company_name": "Novartis"},
+    )
+
+    job = listing_document(repo, "u1", "j1")
+
+    assert job is not None
+    assert job["job_description"] == "Banked JD"
+    assert job["company_name"] == "Novartis"
+
+
+def test_listing_document_none_when_unknown() -> None:
+    assert listing_document(_ListingRepo(), "u1", "j1") is None

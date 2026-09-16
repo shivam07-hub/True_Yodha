@@ -20,11 +20,11 @@
 
 .sb-lede {
   margin: 0 0 14px;
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   line-height: 1.5;
   color: var(--tm-reading-ink);
 }
-.sb-lede strong { color: var(--tm-text); font-weight: 700; }
+.sb-lede strong { color: var(--tm-text); font-weight: 600; }
 
 .sb-domains {
   list-style: none;
@@ -42,14 +42,14 @@
   gap: 12px;
 }
 .sb-row-name {
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   font-weight: 600;
   color: var(--tm-text);
 }
 .sb-row-score {
   font-family: var(--tm-font-mono);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--tm-fs-body);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--tm-text);
 }
@@ -57,14 +57,14 @@
 .sb-bar {
   margin-top: 6px;
   height: 5px;
-  border-radius: 999px;
+  border-radius: var(--tm-button-radius);
   background: var(--tm-border-soft);
   overflow: hidden;
 }
 .sb-bar-fill {
   display: block;
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--tm-button-radius);
   background: var(--tm-text-muted);
   transition: width 700ms cubic-bezier(0.4, 0, 0.2, 1), background-color 700ms linear;
 }
@@ -81,7 +81,7 @@
   align-items: center;
   gap: 8px;
   margin-top: 8px;
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   font-weight: 600;
   color: var(--tm-interactive-rest);
   text-decoration: none;
@@ -92,13 +92,13 @@
 
 .sb-gain {
   font-family: var(--tm-font-mono);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: var(--tm-fs-caption);
+  font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--data-1);
   background: color-mix(in srgb, var(--data-1) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--data-1) 30%, transparent);
-  border-radius: 999px;
+  border-radius: var(--tm-button-radius);
   padding: 1px 7px;
   white-space: nowrap;
 }
@@ -111,7 +111,7 @@
 }
 .sb-empty-label {
   font-family: var(--tm-font-mono);
-  font-size: 10px;
+  font-size: var(--tm-fs-caption);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -119,7 +119,7 @@
 }
 .sb-empty-note {
   margin: 6px 0 10px;
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   line-height: 1.45;
   color: var(--tm-text-muted);
 }
@@ -129,12 +129,12 @@
   gap: 6px;
 }
 .sb-chip {
-  font-size: 11px;
+  font-size: var(--tm-fs-caption);
   font-weight: 600;
   color: var(--tm-text-muted);
   background: var(--tm-surface-2, var(--tm-bg));
   border: 1px solid var(--tm-border-soft);
-  border-radius: 999px;
+  border-radius: var(--tm-button-radius);
   padding: 3px 10px;
 }
 /* The overflow count: a real number, styled quieter than a real domain chip
@@ -147,7 +147,7 @@
 .sb-empty-cta {
   display: inline-block;
   margin-top: 12px;
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   font-weight: 600;
   color: var(--tm-interactive-rest);
   text-decoration: none;
@@ -161,7 +161,7 @@
 .sb--selector .sb-chip-select {
   min-height: 36px;
   padding: 0 12px;
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   font-weight: 600;
   color: var(--tm-interactive-rest);
   background: transparent;
@@ -186,7 +186,7 @@
 .sb-method {
   display: inline-block;
   margin-top: 16px;
-  font-size: 11px;
+  font-size: var(--tm-fs-caption);
   font-weight: 500;
   color: var(--tm-text-muted);
   text-decoration: underline;

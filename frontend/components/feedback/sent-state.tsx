@@ -43,8 +43,8 @@ export function SentState({
         </svg>
       </div>
       <div>
-        <div style={{ fontSize: 24, fontWeight: 600, color: "var(--tm-text)" }}>Signal received.</div>
-        <div style={{ marginTop: 6, fontSize: 13, color: "var(--tm-text-muted)" }}>
+        <div style={{ fontSize: "var(--tm-fs-title)", fontWeight: 600, color: "var(--tm-text)" }}>Signal received.</div>
+        <div style={{ marginTop: 6, fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)" }}>
           A human reads every dispatch. {c.triageHint}.
         </div>
       </div>
@@ -58,7 +58,7 @@ export function SentState({
             background: "transparent",
             border: "1px solid var(--tm-border)",
             color: "var(--tm-text-muted)",
-            fontSize: 12,
+            fontSize: "var(--tm-fs-caption)",
             cursor: "pointer",
             fontFamily: "inherit",
           }}
@@ -74,7 +74,7 @@ export function SentState({
             background: "var(--tm-interactive)",
             color: "var(--tm-interactive-fg)",
             border: "none",
-            fontSize: 12,
+            fontSize: "var(--tm-fs-caption)",
             fontWeight: 600,
             cursor: "pointer",
             fontFamily: "inherit",

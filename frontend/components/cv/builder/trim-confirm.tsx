@@ -41,7 +41,7 @@ export function TrimConfirm({ cv, hiddenItems, pageFill, toggleItem, onDownload,
       <div className="cvb-modal" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
         <div className="cvb-modal-head">Spills onto {pageFill.pages} pages</div>
         <div className="cvb-modal-body" style={{ padding: 18 }}>
-          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "var(--tm-text-muted)" }}>
+          <p style={{ margin: 0, fontSize: "var(--tm-fs-body)", lineHeight: 1.6, color: "var(--tm-text-muted)" }}>
             Recruiters skim one page. Auto-trim hides your lowest-impact bullets until it fits — or download as-is.
           </p>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 18, flexWrap: "wrap" }}>

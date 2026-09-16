@@ -16,7 +16,7 @@ export function HowMyroWorks() {
       <h2 id="how-myro-works-heading" className="nl-callout-title" style={{ margin: "0 0 8px" }}>
         Turn this market data into your next move
       </h2>
-      <p style={{ fontSize: 14, color: "var(--tm-text-muted)", lineHeight: 1.65, margin: 0 }}>
+      <p style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", lineHeight: 1.65, margin: 0 }}>
         Myro reads your CV and scores it across 10 career domains against live hiring demand —
         the same data behind this issue. You get your Myro Score, the roles you can land now, and
         the exact skills to close the gap.{" "}

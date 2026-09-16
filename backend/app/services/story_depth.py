@@ -57,20 +57,34 @@ def is_told(story: dict[str, Any]) -> bool:
     return depth_of(story) == "told"
 
 
+def pointer_carries_measure(text: str, metrics: list[dict[str, Any]] | None) -> bool:
+    """Whether this bullet can show how big the work was.
+
+    A number anywhere in the bullet OR a recorded metric on the story counts: the
+    extractor weaves the metric into the pointer, but a user's own phrasing may
+    carry it as words while the story holds it structurally.
+
+    Its own predicate because two readers need exactly this question and must not
+    answer it differently — `missing_from_pointer` below, and the completion queue
+    in `story_questions`, which asks the user for the number when it is absent.
+    """
+    return bool(_HAS_DIGIT.search(" ".join((text or "").split())) or metrics)
+
+
 def missing_from_pointer(text: str, metrics: list[dict[str, Any]] | None) -> list[str]:
     """What this bullet still needs to be whole, in the user's terms. Empty means
     it already reads like a strong CV line.
 
-    The measure check accepts a number anywhere in the bullet OR a recorded
-    metric on the story: the extractor weaves the metric into the pointer, but a
-    user's own phrasing may carry it as words the story also holds structurally.
+    Note the two kinds of gap this returns, because they are not equally
+    actionable: the measure is a fact only the user holds, while the word band is
+    an edit. `story_questions` asks for the first and never for the second.
     """
     bullet = " ".join((text or "").split())
     gaps: list[str] = []
     if not bullet:
         return ["the bullet itself"]
     words = len(bullet.split())
-    if not (_HAS_DIGIT.search(bullet) or metrics):
+    if not pointer_carries_measure(bullet, metrics):
         gaps.append("a number — how big, how much, how many")
     if words < POINTER_MIN_WORDS:
         gaps.append("what you actually did to get there")

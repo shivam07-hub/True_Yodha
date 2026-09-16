@@ -32,29 +32,29 @@
   border-bottom: 1px solid var(--tm-border-faint);
 }
 .tw-head-title {
-  font-family: var(--tm-font-sans); font-size: 14px; font-weight: 600;
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-body); font-weight: 600;
   letter-spacing: -0.01em; color: var(--tm-text);
   display: flex; align-items: center; gap: 8px; white-space: nowrap;
 }
 .tw-head-job {
   flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-family: var(--tm-font-mono); font-size: 10.5px; letter-spacing: 0.04em;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); letter-spacing: 0.04em;
   text-transform: uppercase; color: var(--tm-text-faint);
 }
 .tw-x {
   flex: none; width: 30px; height: 30px; border-radius: var(--tm-radius);
   border: 1px solid transparent; background: transparent; cursor: pointer;
-  color: var(--tm-text-faint); font-size: 15px; line-height: 1;
+  color: var(--tm-text-faint); font-size: var(--tm-fs-body); line-height: 1;
 }
 .tw-x:hover { background: var(--tm-surface-2); color: var(--tm-text); }
 
 .tw-stage { flex: 1; min-height: 320px; overflow-y: auto; padding: 30px 34px 24px; }
 
-.tw-err { font-size: var(--tm-fs-ui-sm); color: var(--tm-danger-text); margin: 6px 0 10px; }
+.tw-err { font-size: var(--tm-fs-caption); color: var(--tm-danger-text); margin: 6px 0 10px; }
 .tw-loom-retry { margin-top: 16px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 
 .tw-btn {
-  font-family: var(--tm-font-sans); font-size: 13px; font-weight: 600;
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-body); font-weight: 600;
   border-radius: var(--tm-radius); padding: 9px 16px; cursor: pointer;
   border: 1px solid transparent; transition: filter 120ms ease, background 120ms ease;
   display: inline-flex; align-items: center; gap: 7px;
@@ -66,11 +66,11 @@
 .tw-btn-ghost:hover:not(:disabled) { background: var(--tm-surface-2); }
 
 /* ── act: interview ────────────────────────────────────────────────────── */
-.tw-int-count { font-size: 11px; color: var(--tm-text-faint); font-variant-numeric: tabular-nums; margin-bottom: 10px; }
+.tw-int-count { font-size: var(--tm-fs-caption); color: var(--tm-text-faint); font-variant-numeric: tabular-nums; margin-bottom: 10px; }
 .mono { font-family: var(--tm-font-mono); }
 .tw-int-status {
-  display: inline-flex; padding: 2px 8px; border-radius: 999px; margin-bottom: 10px;
-  font-family: var(--tm-font-mono); font-size: 10px; font-weight: 600;
+  display: inline-flex; padding: 2px 8px; border-radius: var(--tm-button-radius); margin-bottom: 10px;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-weight: 600;
   letter-spacing: 0.05em; text-transform: uppercase;
 }
 .tw-int-status[data-v="weak"] { background: var(--tm-warning-wash); color: var(--tm-warning-text); }
@@ -81,7 +81,7 @@
 }
 
 .tw-opts { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
-.tw-opts-label { font-size: 12.5px; color: var(--tm-text-muted); margin: 0 0 2px; }
+.tw-opts-label { font-size: var(--tm-fs-caption); color: var(--tm-text-muted); margin: 0 0 2px; }
 .tw-opt {
   text-align: left; cursor: pointer;
   border: 1px solid var(--tm-border-faint); border-radius: var(--tm-radius);
@@ -94,7 +94,7 @@
   flex: none; width: 18px; height: 18px; margin-top: 1px;
   display: grid; place-items: center;
   border: 1.5px solid var(--tm-border); border-radius: 5px;
-  font-size: 12px; line-height: 1; color: var(--tm-interactive-fg);
+  font-size: var(--tm-fs-caption); line-height: 1; color: var(--tm-interactive-fg);
   background: transparent; transition: background 120ms ease, border-color 120ms ease;
 }
 .tw-opt-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
@@ -105,19 +105,28 @@
   background: var(--tm-interactive); border-color: var(--tm-interactive);
 }
 .tw-opt-kind {
-  font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase;
+  font-size: var(--tm-fs-caption); letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--tm-accent-text);
 }
-.tw-opt-label { font-size: 13px; font-weight: 600; color: var(--tm-text); line-height: 1.4; }
+.tw-opt-label { font-size: var(--tm-fs-body); font-weight: 600; color: var(--tm-text); line-height: 1.4; }
 .tw-opt-detail {
-  font-size: 12px; color: var(--tm-text-muted); line-height: 1.45;
+  font-size: var(--tm-fs-caption); color: var(--tm-text-muted); line-height: 1.45;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+/* What this bullet is still missing — the same ask the Stories queue carries
+   (#13 L3). Quieter than the line itself: it explains why the ask is weak, it
+   is not the thing being picked. */
+.tw-opt-asks { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.tw-opt-ask {
+  border: 1px solid var(--tm-border); border-radius: var(--tm-button-radius); padding: 0 7px;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); line-height: 15px;
+  color: var(--tm-text-faint);
 }
 
 .tw-probe {
   border-left: 2px solid var(--tm-interactive); border-radius: 0 var(--tm-radius) var(--tm-radius) 0;
   background: var(--tm-int-bg-wash); color: var(--tm-text);
-  font-size: var(--tm-fs-ui-sm); line-height: 1.5; padding: 10px 12px; margin: 0 0 12px;
+  font-size: var(--tm-fs-caption); line-height: 1.5; padding: 10px 12px; margin: 0 0 12px;
 }
 
 .tw-composer {
@@ -128,7 +137,7 @@
   line-height: 1.5; margin-bottom: 6px;
 }
 .tw-composer:focus-visible { outline: 2px solid var(--tm-accent-text); outline-offset: 1px; border-color: transparent; }
-.tw-int-hint { font-size: 10.5px; color: var(--tm-text-faint); margin: 0 0 14px; }
+.tw-int-hint { font-size: var(--tm-fs-caption); color: var(--tm-text-faint); margin: 0 0 14px; }
 .tw-int-actions { display: flex; gap: 10px; align-items: center; }
 
 /* ── act: loom (the signature) ─────────────────────────────────────────── */
@@ -140,32 +149,32 @@
 .tw-review { display: flex; flex-direction: column; gap: 16px; }
 .tw-review-strip { display: flex; align-items: center; gap: 6px; }
 .tw-review-dot {
-  width: 8px; height: 8px; border-radius: 999px; background: var(--tm-border-soft);
+  width: 8px; height: 8px; border-radius: var(--tm-button-radius); background: var(--tm-border-soft);
   transition: background 200ms ease, transform 200ms ease;
 }
 .tw-review-dot[data-state="now"]  { background: var(--tm-accent-text); transform: scale(1.25); }
 .tw-review-dot[data-state="done"] { background: var(--tm-success); }
-.tw-review-count { margin-left: 8px; font-size: 10.5px; color: var(--tm-text-faint); font-variant-numeric: tabular-nums; }
+.tw-review-count { margin-left: 8px; font-size: var(--tm-fs-caption); color: var(--tm-text-faint); font-variant-numeric: tabular-nums; }
 
 .tw-role {
   border: 1px solid var(--tm-border-faint); border-radius: var(--tm-radius);
   background: var(--tm-bg-inset); padding: 16px 18px;
 }
 .tw-role-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
-.tw-role-title { font-size: 14.5px; font-weight: 600; letter-spacing: -0.01em; color: var(--tm-text); }
-.tw-role-co { font-family: var(--tm-font-mono); font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--tm-text-faint); }
-.tw-role-why { font-size: 12.5px; line-height: 1.5; color: var(--tm-text-muted); margin: 0 0 12px; }
+.tw-role-title { font-size: var(--tm-fs-body); font-weight: 600; letter-spacing: -0.01em; color: var(--tm-text); }
+.tw-role-co { font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); letter-spacing: 0.04em; text-transform: uppercase; color: var(--tm-text-faint); }
+.tw-role-why { font-size: var(--tm-fs-caption); line-height: 1.5; color: var(--tm-text-muted); margin: 0 0 12px; }
 
 .tw-role-lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 .tw-role-line { display: grid; grid-template-columns: 14px 1fr; gap: 9px; }
-.tw-role-mark { color: var(--tm-accent-text); font-size: 9px; line-height: 2.1; }
+.tw-role-mark { color: var(--tm-accent-text); font-size: var(--tm-fs-caption); line-height: 2.1; }
 .tw-role-linebody { min-width: 0; }
 .tw-role-text { font-size: var(--tm-fs-cv-line); line-height: 1.55; color: var(--tm-text); margin: 0 0 5px; }
 
 .tw-prov { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
 .tw-prov-chip {
-  font-family: var(--tm-font-mono); font-size: 9.5px; letter-spacing: 0.03em;
-  padding: 2px 7px; border-radius: 999px; border: 1px solid var(--tm-border-faint);
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); letter-spacing: 0.03em;
+  padding: 2px 7px; border-radius: var(--tm-button-radius); border: 1px solid var(--tm-border-faint);
   background: var(--tm-surface-2); color: var(--tm-text-muted);
   max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -178,20 +187,20 @@ button.tw-prov-chip:hover { color: var(--tm-text); border-color: var(--tm-int-bo
   border-left: 2px solid var(--tm-border-soft);
   display: flex; flex-direction: column; gap: 5px;
 }
-.tw-was-list li { font-size: 12px; line-height: 1.5; color: var(--tm-text-faint); }
+.tw-was-list li { font-size: var(--tm-fs-caption); line-height: 1.5; color: var(--tm-text-faint); }
 
 .tw-dropped { margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--tm-border-faint); }
 .tw-dropped-label {
-  font-family: var(--tm-font-mono); font-size: 9.5px; letter-spacing: 0.06em;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--tm-text-faint);
 }
 .tw-dropped ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.tw-dropped li { font-size: 12px; line-height: 1.5; color: var(--tm-text-faint); text-decoration: line-through; text-decoration-color: var(--tm-border); }
+.tw-dropped li { font-size: var(--tm-fs-caption); line-height: 1.5; color: var(--tm-text-faint); text-decoration: line-through; text-decoration-color: var(--tm-border); }
 
 .tw-review-actions { display: flex; justify-content: flex-end; gap: 10px; }
 .tw-back {
   align-self: flex-start; background: none; border: none; cursor: pointer;
-  font-size: 12px; color: var(--tm-text-faint); padding: 0;
+  font-size: var(--tm-fs-caption); color: var(--tm-text-faint); padding: 0;
 }
 .tw-back:hover { color: var(--tm-text); }
 
@@ -208,21 +217,21 @@ button.tw-prov-chip:hover { color: var(--tm-text); border-color: var(--tm-int-bo
   display: inline-flex; align-items: center; gap: 7px;
   border: none; border-radius: 8px; cursor: pointer;
   background: var(--tm-interactive); color: var(--tm-interactive-fg);
-  font: 600 12.5px var(--tm-font-sans); padding: 8px 14px;
+  font: 600 var(--tm-fs-caption) var(--tm-font-sans); padding: 8px 14px;
   transition: background var(--tm-dur-fast) var(--tm-ease);
   white-space: nowrap;
 }
 .tw-cta:hover { background: var(--tm-interactive-hover); }
 .tw-cta-cost {
-  font-family: var(--tm-font-mono); font-size: 10px; font-weight: 700;
-  padding: 1px 6px; border-radius: 999px;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-weight: 600;
+  padding: 1px 6px; border-radius: var(--tm-button-radius);
   background: color-mix(in srgb, var(--tm-interactive-fg) 18%, transparent);
 }
 
 /* ── rail "Job fit" tab (CoveragePanel — moved from mentor-walk.css) ───── */
 .tw-dot {
-  width: 15px; height: 15px; border-radius: 999px; margin-top: 1px;
-  display: grid; place-items: center; font-size: 9px; font-weight: 700;
+  width: 15px; height: 15px; border-radius: var(--tm-button-radius); margin-top: 1px;
+  display: grid; place-items: center; font-size: var(--tm-fs-caption); font-weight: 600;
   line-height: 1; flex: none;
 }
 .tw-dot[data-v="covered"] { background: var(--tm-success-wash); color: var(--tm-success-text); }
@@ -232,8 +241,8 @@ button.tw-prov-chip:hover { color: var(--tm-text); border-color: var(--tm-int-bo
 .cvb-cov { display: flex; flex-direction: column; gap: 10px; padding: 4px 2px; }
 .cvb-cov-summary { display: flex; flex-wrap: wrap; gap: 6px; }
 .cvb-cov-stat {
-  font-family: var(--tm-font-mono); font-size: 10.5px; font-weight: 600;
-  letter-spacing: 0.02em; padding: 3px 8px; border-radius: 999px;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-weight: 600;
+  letter-spacing: 0.02em; padding: 3px 8px; border-radius: var(--tm-button-radius);
   font-variant-numeric: tabular-nums;
 }
 .cvb-cov-stat[data-v="covered"] { background: var(--tm-success-wash); color: var(--tm-success-text); }
@@ -245,14 +254,14 @@ button.tw-prov-chip:hover { color: var(--tm-text); border-color: var(--tm-int-bo
   width: 100%; text-align: left; cursor: pointer; background: transparent;
   border: 1px solid transparent; border-radius: var(--tm-radius); padding: 8px 9px;
   display: grid; grid-template-columns: 16px 1fr; gap: 9px; align-items: start;
-  font-family: var(--tm-font-sans); font-size: 12px; line-height: 1.35; color: var(--tm-text-muted);
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-caption); line-height: 1.35; color: var(--tm-text-muted);
   transition: background 120ms ease, color 120ms ease;
 }
 .cvb-cov-row:hover { background: var(--tm-surface-2); color: var(--tm-text); }
 .cvb-cov-row.is-static { cursor: default; }
 .cvb-cov-row.is-static:hover { background: transparent; color: var(--tm-text-muted); }
 .cvb-cov-row-req { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.cvb-cov-empty { padding: 24px 12px; text-align: center; color: var(--tm-text-muted); font-size: 12.5px; line-height: 1.5; gap: 12px; }
+.cvb-cov-empty { padding: 24px 12px; text-align: center; color: var(--tm-text-muted); font-size: var(--tm-fs-caption); line-height: 1.5; gap: 12px; }
 .cvb-cov-skel { height: 34px; border-radius: var(--tm-radius); background: var(--tm-surface-2); opacity: 0.6; animation: tw-skel 1.3s ease-in-out infinite; }
 .cvb-cov-skel:nth-child(2) { animation-delay: 0.1s } .cvb-cov-skel:nth-child(3) { animation-delay: 0.2s }
 .cvb-cov-skel:nth-child(4) { animation-delay: 0.3s } .cvb-cov-skel:nth-child(5) { animation-delay: 0.4s }

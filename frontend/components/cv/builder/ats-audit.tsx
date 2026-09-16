@@ -33,7 +33,7 @@ export function AtsAudit({
           <Icon name="sparkle" size={14} style={{ color: "var(--tm-interactive)" }} />
           <span className="eyebrow" style={{ color: "var(--tm-interactive)" }}>ATS &amp; AI audit</span>
         </div>
-        <span className="mono" style={{ fontSize: 10.5, color: allPass ? "var(--tm-success)" : "var(--tm-warning)" }}>
+        <span className="mono" style={{ fontSize: "var(--tm-fs-caption)", color: allPass ? "var(--tm-success)" : "var(--tm-warning)" }}>
           passes {passed} / {total} checks
         </span>
       </div>
@@ -57,7 +57,7 @@ function AuditRow({ check, onFix }: { check: AtsCheck; onFix?: (target: AtsFixTa
   const canFix = !ok && check.fix && onFix
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--tm-text-muted)" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-muted)" }}>
       <span style={{
         width: 16, height: 16, borderRadius: 4, flexShrink: 0,
         background: tone.wash, border: `1px solid ${tone.border}`,

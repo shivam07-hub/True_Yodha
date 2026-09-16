@@ -137,7 +137,7 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
             aria-label="Swipe down to close"
             style={{ padding: "8px 0 8px", display: "flex", justifyContent: "center", touchAction: "none", cursor: "grab" }}
           >
-            <div style={{ width: 36, height: 4, borderRadius: 99, background: "var(--tm-border)" }} />
+            <div style={{ width: 36, height: 4, borderRadius: 10, background: "var(--tm-border)" }} />
           </div>
         )}
 
@@ -149,7 +149,7 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
               <CompanyTile name={company} size="xl" />
-              <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--tm-text)", letterSpacing: "-0.02em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+              <h2 style={{ margin: 0, fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--tm-text)", letterSpacing: "-0.02em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
                 {company}
               </h2>
             </div>
@@ -157,29 +157,29 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
               type="button"
               onClick={onClose}
               aria-label="Close drawer"
-              style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid transparent", background: "transparent", color: "var(--tm-interactive-rest)", fontSize: 20, cursor: "pointer", lineHeight: 1, flexShrink: 0 }}
+              style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid transparent", background: "transparent", color: "var(--tm-interactive-rest)", fontSize: "var(--tm-fs-heading)", cursor: "pointer", lineHeight: 1, flexShrink: 0 }}
             >
               ✕
             </button>
           </div>
 
           {/* Mini stat row */}
-          <div style={{ display: "flex", gap: 14, marginTop: 12, fontSize: 12, color: "var(--tm-text-muted)" }}>
+          <div style={{ display: "flex", gap: 14, marginTop: 12, fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-muted)" }}>
             <span style={{ fontFamily: "var(--tm-font-mono)" }}>
               <span style={{ color: "var(--tm-text-faint)" }}>RATING </span>
-              <span style={{ color: "var(--tm-text)", fontWeight: 700 }}>
+              <span style={{ color: "var(--tm-text)", fontWeight: 600 }}>
                 {rating != null ? `${rating.toFixed(1)}★` : "—"}
               </span>
             </span>
             <span style={{ fontFamily: "var(--tm-font-mono)" }}>
               <span style={{ color: "var(--tm-text-faint)" }}>GHOST </span>
-              <span style={{ color: ghostPct != null && ghostPct > 40 ? "var(--tm-danger)" : "var(--tm-text)", fontWeight: 700 }}>
+              <span style={{ color: ghostPct != null && ghostPct > 40 ? "var(--tm-danger)" : "var(--tm-text)", fontWeight: 600 }}>
                 {ghostPct != null ? `${ghostPct}%` : "—"}
               </span>
             </span>
             <span style={{ fontFamily: "var(--tm-font-mono)" }}>
               <span style={{ color: "var(--tm-text-faint)" }}>OPEN </span>
-              <span style={{ color: "var(--tm-text)", fontWeight: 700 }}>{companyJobs.length}</span>
+              <span style={{ color: "var(--tm-text)", fontWeight: 600 }}>{companyJobs.length}</span>
             </span>
           </div>
         </div>
@@ -191,14 +191,14 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
 
           {/* Saved jobs section */}
           <div style={{ marginTop: 22 }}>
-            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
+            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
               Your saved jobs · {companyJobs.length}
             </div>
             {applicationsQuery.isLoading && (
-              <div style={{ fontSize: 12, color: "var(--tm-text-faint)", padding: "10px 0" }}>Loading…</div>
+              <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", padding: "10px 0" }}>Loading…</div>
             )}
             {!applicationsQuery.isLoading && companyJobs.length === 0 && (
-              <div style={{ padding: 18, border: "1px dashed var(--tm-border-soft)", borderRadius: 8, textAlign: "center", fontSize: 12, color: "var(--tm-text-faint)" }}>
+              <div style={{ padding: 18, border: "1px dashed var(--tm-border-soft)", borderRadius: 8, textAlign: "center", fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
                 No saved jobs at {company} yet.
               </div>
             )}
@@ -215,10 +215,10 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
                     color: "var(--tm-text)",
                   }}
                 >
-                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <div style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {app.title}
                   </div>
-                  <div style={{ fontSize: 11, color: "var(--tm-text-faint)", textTransform: "capitalize" }}>
+                  <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", textTransform: "capitalize" }}>
                     stage · {app.status.replace("_", " ")}
                   </div>
                 </button>
@@ -229,7 +229,7 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
           {/* More companies — same recommendation module as the public page */}
           {relatedCompanies.length > 0 && (
             <div style={{ marginTop: 22 }}>
-              <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
+              <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
                 More companies hiring
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -241,11 +241,11 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
                     style={{
                       display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12,
                       padding: "8px 10px", borderRadius: "var(--tm-radius-sm)",
-                      color: "var(--tm-text)", textDecoration: "none", fontSize: 13,
+                      color: "var(--tm-text)", textDecoration: "none", fontSize: "var(--tm-fs-body)",
                     }}
                   >
                     <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
-                    <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)", flexShrink: 0 }}>
+                    <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", flexShrink: 0 }}>
                       {formatCount(c.count)} open
                     </span>
                   </Link>
@@ -262,7 +262,7 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
             onClick={onClose}
             style={{
               display: "inline-flex", alignItems: "center", gap: 6,
-              fontSize: 12, fontWeight: 600, color: "var(--tm-interactive)", textDecoration: "none",
+              fontSize: "var(--tm-fs-caption)", fontWeight: 600, color: "var(--tm-interactive)", textDecoration: "none",
             }}
           >
             See reviews + funnel →

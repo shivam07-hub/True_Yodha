@@ -21,14 +21,14 @@ export function ProfileSkeleton() {
         <Skeleton
           style={{
             height: 380,
-            borderRadius: 16,
+            borderRadius: 10,
             border: "1px solid var(--tm-border)",
           }}
         />
         <Skeleton
           style={{
             height: 380,
-            borderRadius: 16,
+            borderRadius: 10,
             border: "1px solid var(--tm-border)",
           }}
         />

@@ -153,10 +153,10 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-interactive)" }}>
+            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-interactive)" }}>
               {step === 1 ? ADD_JOB_LABEL : "Confirm skills"}
             </div>
-            <div style={{ fontSize: 18, fontWeight: 600, color: "var(--tm-text)", marginTop: 4 }}>
+            <div style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--tm-text)", marginTop: 4 }}>
               {step === 1 ? "Save a job from anywhere" : `${company || "Company"} — ${role}`}
             </div>
           </div>
@@ -183,14 +183,14 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 3v9l6 3" /></svg>
               </span>
               <span style={{ minWidth: 0, flex: 1 }}>
-                <span style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "var(--tm-text)" }}>
+                <span style={{ display: "block", fontSize: "var(--tm-fs-caption)", fontWeight: 600, color: "var(--tm-text)" }}>
                   Save jobs in one click from LinkedIn
                 </span>
-                <span style={{ display: "block", fontSize: 11, color: "var(--tm-text-muted)", marginTop: 1 }}>
+                <span style={{ display: "block", fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-muted)", marginTop: 1 }}>
                   Skip the paste — the Myro extension reads the posting for you
                 </span>
               </span>
-              <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 600, color: "var(--tm-interactive-rest)" }}>
+              <span style={{ flexShrink: 0, fontSize: "var(--tm-fs-caption)", fontWeight: 600, color: "var(--tm-interactive-rest)" }}>
                 Get it →
               </span>
             </a>
@@ -229,10 +229,10 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v14M6 9l6-6 6 6M5 21h14" /></svg>
                 </span>
                 <span style={{ minWidth: 0 }}>
-                  <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--tm-text)" }}>
+                  <span style={{ display: "block", fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "var(--tm-text)" }}>
                     {parsing ? "Reading the posting…" : parsedFrom ? `Loaded from ${parsedFrom}` : "Upload PDF, Word, or a screenshot"}
                   </span>
-                  <span style={{ display: "block", fontSize: 11, color: "var(--tm-text-muted)", marginTop: 2 }}>
+                  <span style={{ display: "block", fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-muted)", marginTop: 2 }}>
                     {parsing ? "Reading company, role & description" : "We read the company, role & skills for you"}
                   </span>
                 </span>
@@ -273,7 +273,7 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
                     key={s}
                     onClick={() => setStatus(s)}
                     style={{
-                      padding: "5px 12px", borderRadius: 99, fontSize: 12, fontFamily: "inherit", cursor: "pointer",
+                      padding: "5px 12px", borderRadius: 10, fontSize: "var(--tm-fs-caption)", fontFamily: "inherit", cursor: "pointer",
                       background: status === s ? "var(--tm-interactive)" : "rgba(255,255,255,0.03)",
                       border: status === s ? "1px solid var(--tm-interactive)" : "1px solid var(--tm-border)",
                       color: status === s ? "var(--tm-interactive-fg)" : "var(--tm-interactive-rest)",
@@ -284,7 +284,7 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
                 ))}
               </div>
             </Field>
-            {error && <div style={{ fontSize: 12, color: "var(--tm-danger)" }}>{error}</div>}
+            {error && <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-danger)" }}>{error}</div>}
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
               <Button variant="neutral" size="sm" onClick={() => handleSave({ skipSkills: true })} loading={busy}>
                 Save
@@ -311,11 +311,11 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
               onToggle={(label) => toggleSet(secondarySel, label, setSecondarySel)}
             />
             {preview.warnings.length > 0 && (
-              <div style={{ fontSize: 12, color: "var(--tm-warning)" }}>
+              <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-warning)" }}>
                 {preview.warnings.join(" · ")}
               </div>
             )}
-            {error && <div style={{ fontSize: 12, color: "var(--tm-danger)" }}>{error}</div>}
+            {error && <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-danger)" }}>{error}</div>}
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
               <Button variant="neutral" size="sm" onClick={() => setStep(1)}>← Back</Button>
               <Button variant="solid" size="sm" onClick={() => handleSave()} disabled={busy}>
@@ -338,7 +338,7 @@ function toggleSet(current: Set<string>, label: string, setter: (s: Set<string>)
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div style={{ fontSize: 12, color: "var(--tm-text-faint)", marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", marginBottom: 6 }}>{label}</div>
       {children}
     </div>
   )
@@ -355,7 +355,7 @@ function Input({ value, onChange, placeholder }: { value: string; onChange: (v: 
         padding: "8px 10px", borderRadius: 6,
         background: "rgba(255,255,255,0.03)",
         border: "1px solid var(--tm-border)",
-        color: "var(--tm-text)", fontSize: 13, fontFamily: "inherit",
+        color: "var(--tm-text)", fontSize: "var(--tm-fs-body)", fontFamily: "inherit",
         outline: "none",
       }}
     />
@@ -373,10 +373,10 @@ function SkillSection({
   if (skills.length === 0) {
     return (
       <div>
-        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 6 }}>
+        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 6 }}>
           {title}
         </div>
-        <div style={{ fontSize: 12, color: "var(--tm-text-faint)", fontStyle: "italic" }}>
+        <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", fontStyle: "normal" }}>
           none detected
         </div>
       </div>
@@ -384,7 +384,7 @@ function SkillSection({
   }
   return (
     <div>
-      <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>
+      <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>
         {title}
       </div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -395,7 +395,7 @@ function SkillSection({
               key={s.label}
               onClick={() => onToggle(s.label)}
               style={{
-                padding: "5px 10px", borderRadius: 99, fontSize: 12, fontFamily: "inherit", cursor: "pointer",
+                padding: "5px 10px", borderRadius: 10, fontSize: "var(--tm-fs-caption)", fontFamily: "inherit", cursor: "pointer",
                 background: on ? "var(--tm-int-bg-wash)" : "rgba(255,255,255,0.025)",
                 border: `1px solid ${on ? "var(--tm-int-border)" : "var(--tm-border)"}`,
                 color: on ? "var(--tm-interactive)" : "var(--tm-interactive-rest)",
@@ -414,7 +414,7 @@ const textareaStyle: React.CSSProperties = {
   width: "100%", boxSizing: "border-box",
   background: "rgba(255,255,255,0.03)",
   border: "1px solid var(--tm-border)", borderRadius: 6,
-  padding: "8px 10px", fontSize: 13, color: "var(--tm-text)",
+  padding: "8px 10px", fontSize: "var(--tm-fs-body)", color: "var(--tm-text)",
   fontFamily: "inherit", resize: "vertical", outline: "none",
 }
 

@@ -31,7 +31,7 @@ export function NotesEditor({ initial, onSave, saveState = "idle" }: Props) {
       <button
         onClick={(e) => { e.stopPropagation(); setOpen(true) }}
         style={{
-          fontSize: 11, color: "var(--tm-text-faint)",
+          fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)",
           background: "transparent", border: "none", padding: "4px 0",
           cursor: "pointer", fontFamily: "inherit",
         }}
@@ -55,7 +55,7 @@ export function NotesEditor({ initial, onSave, saveState = "idle" }: Props) {
           width: "100%", marginTop: 6,
           background: "rgba(255,255,255,0.03)",
           border: "1px solid var(--tm-border)", borderRadius: 6,
-          padding: "6px 8px", fontSize: 12,
+          padding: "6px 8px", fontSize: "var(--tm-fs-caption)",
           color: "var(--tm-text)", fontFamily: "inherit",
           resize: "vertical", outline: "none", boxSizing: "border-box",
         }}
@@ -64,7 +64,7 @@ export function NotesEditor({ initial, onSave, saveState = "idle" }: Props) {
         <div
           role="status"
           style={{
-            fontSize: 11, marginTop: 4,
+            fontSize: "var(--tm-fs-caption)", marginTop: 4,
             color: saveState === "failed" ? "var(--tm-danger)" : "var(--tm-text-faint)",
           }}
         >

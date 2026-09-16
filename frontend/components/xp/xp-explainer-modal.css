@@ -11,11 +11,11 @@
   }
 
   .tm-xp-explainer-header-title h2 {
-    font-size: 17px !important;
+    font-size: var(--tm-fs-heading) !important;
   }
 
   .tm-xp-explainer-header-title p {
-    font-size: 12px !important;
+    font-size: var(--tm-fs-caption) !important;
     line-height: 1.4 !important;
   }
 

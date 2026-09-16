@@ -159,7 +159,7 @@ export function AccentField({
           justifyContent: "center",
           background: "var(--tm-bg)",
           color: "var(--tm-text-muted)",
-          fontSize: 13,
+          fontSize: "var(--tm-fs-body)",
           letterSpacing: "0.04em",
           fontFamily: "var(--tm-font-sans, system-ui, sans-serif)",
           ...style,
@@ -184,7 +184,7 @@ export function AccentField({
     <div
       ref={fieldRef}
       className={className}
-      style={{ position: "relative", borderRadius: 16, ...style }}
+      style={{ position: "relative", borderRadius: 10, ...style }}
     >
       {rim}
       {dots}

@@ -30,7 +30,7 @@ export function BandPercentileLine({ band, topPercent, className }: Props) {
   if (!label) return null
   const styled = !className
   return (
-    <p className={className} style={styled ? { margin: 0, fontSize: 13, color: "var(--tm-text-muted)" } : undefined}>
+    <p className={className} style={styled ? { margin: 0, fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)" } : undefined}>
       ahead of <strong style={styled ? { color: "var(--tm-accent-text)" } : undefined}>{aheadOf}%</strong>{" "}
       of {label} candidates
     </p>

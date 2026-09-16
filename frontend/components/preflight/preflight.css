@@ -156,7 +156,7 @@
   padding: 0 16px;
   border-radius: 10px;
   font-family: inherit;
-  font-size: var(--tm-fs-ui);
+  font-size: var(--tm-fs-body);
   font-weight: 600;
   cursor: pointer;
   border: 1px solid transparent;
@@ -205,7 +205,7 @@
 .pf-typing-dot {
   width: 6px;
   height: 6px;
-  border-radius: 99px;
+  border-radius: var(--tm-button-radius);
   background: var(--tm-interactive);
   animation: pf-think 1200ms var(--tm-ease) infinite;
 }
@@ -264,7 +264,7 @@
 
 .pf-topic {
   padding: 7px 13px;
-  border-radius: 999px;
+  border-radius: var(--tm-button-radius);
   border: 1px solid var(--pf-stroke);
   background: transparent;
   color: var(--tm-text);

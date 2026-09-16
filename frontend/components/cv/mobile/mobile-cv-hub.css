@@ -21,15 +21,15 @@
 .tm-mcv-hub-head h1,
 .tm-mcv-applications h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: var(--tm-fs-title);
   line-height: 1.15;
-  font-weight: 650;
+  font-weight: 600;
   color: var(--tm-text);
 }
 .tm-mcv-hub-head p {
   margin: 4px 0 0;
   color: var(--tm-text-muted);
-  font-size: 14px;
+  font-size: var(--tm-fs-body);
   line-height: 1.4;
 }
 
@@ -45,13 +45,13 @@
   align-items: center;
   gap: 8px;
   margin: 0;
-  font-size: 17px;
+  font-size: var(--tm-fs-heading);
   line-height: 1.3;
-  font-weight: 650;
+  font-weight: 600;
 }
 .tm-mcv-main > header span {
   color: var(--tm-text-muted);
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
 }
 
 .tm-mcv-preview-button {
@@ -102,9 +102,9 @@
 .tm-mcv-library { margin-top: 28px; }
 .tm-mcv-library > h2 {
   margin: 0 0 10px;
-  font-size: 20px;
+  font-size: var(--tm-fs-heading);
   line-height: 1.3;
-  font-weight: 650;
+  font-weight: 600;
 }
 .tm-mcv-library-empty {
   display: flex;
@@ -133,8 +133,8 @@
 .tm-mcv-version-group > summary::-webkit-details-marker { display: none; }
 .tm-mcv-version-group > summary:focus-visible { outline: 2px solid var(--tm-interactive); outline-offset: 2px; }
 .tm-mcv-version-group > summary > span { display: flex; flex-direction: column; min-width: 0; }
-.tm-mcv-version-group strong { font-size: 15px; line-height: 1.35; color: var(--tm-text); }
-.tm-mcv-version-group small { margin-top: 3px; font-size: 12px; color: var(--tm-text-muted); }
+.tm-mcv-version-group strong { font-size: var(--tm-fs-body); line-height: 1.35; color: var(--tm-text); }
+.tm-mcv-version-group small { margin-top: 3px; font-size: var(--tm-fs-caption); color: var(--tm-text-muted); }
 .tm-mcv-version-group[open] > summary > svg { transform: rotate(180deg); }
 
 .tm-mcv-version-list { padding: 0 0 8px 12px; }

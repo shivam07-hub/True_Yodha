@@ -60,7 +60,7 @@
   margin: 0 0 20px;
   font-family: var(--tm-font-display);
   font-size: clamp(2rem, 5vw, 3rem);
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.1;
   color: var(--tm-text);
   letter-spacing: -0.02em;
@@ -97,7 +97,7 @@
 .tx-stats-dot {
   margin: 0 14px;
   color: var(--tm-border);
-  font-size: 18px;
+  font-size: var(--tm-fs-heading);
   line-height: 1;
   user-select: none;
 }
@@ -105,7 +105,7 @@
 .tx-stat-n {
   font-family: var(--tm-font-display);
   font-size: var(--tm-fs-title);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--tm-accent-text);
   letter-spacing: -0.01em;
 }
@@ -190,7 +190,7 @@
   border: none;
   border-radius: 50%;
   color: var(--tm-text-muted);
-  font-size: 14px;
+  font-size: var(--tm-fs-body);
   cursor: pointer;
   line-height: 1;
   padding: 0;
@@ -374,7 +374,7 @@
 .tx-cluster-domain-name {
   font-family: var(--tm-font-display);
   font-size: var(--tm-fs-heading);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--tm-text);
 }
 
@@ -419,7 +419,7 @@
 }
 
 .tx-cluster-chevron {
-  font-size: 10px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-faint);
   flex-shrink: 0;
   width: 10px;
@@ -508,7 +508,7 @@
   margin: 0 0 12px;
   font-family: var(--tm-font-display);
   font-size: var(--tm-fs-title);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--tm-text);
   letter-spacing: -0.01em;
 }
@@ -561,7 +561,7 @@
   margin: 0;
   font-family: var(--tm-font-display);
   font-size: var(--tm-fs-heading);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--tm-text);
 }
 
@@ -581,7 +581,7 @@
 
 .tx-demand-badge {
   font-family: var(--tm-font-mono);
-  font-size: 9px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   padding: 1px 5px;

@@ -6,7 +6,7 @@ import { FAQPricing } from "./faq-pricing"
 export function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
     <section id={id} style={{ marginBottom: 60, scrollMarginTop: 76 }}>
-      <h2 style={{ margin: "0 0 14px", fontSize: 21, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--tm-text)" }}>
+      <h2 style={{ margin: "0 0 14px", fontSize: "var(--tm-fs-heading)", fontWeight: 600, letterSpacing: "-0.02em", color: "var(--tm-text)" }}>
         {title}
       </h2>
       {children}
@@ -16,7 +16,7 @@ export function Section({ id, title, children }: { id: string; title: string; ch
 
 export function P({ children }: { children: React.ReactNode }) {
   return (
-    <p style={{ margin: "0 0 12px", fontSize: 15, lineHeight: 1.75, color: "var(--tm-text-muted)" }}>
+    <p style={{ margin: "0 0 12px", fontSize: "var(--tm-fs-body)", lineHeight: 1.75, color: "var(--tm-text-muted)" }}>
       {children}
     </p>
   )
@@ -25,10 +25,10 @@ export function P({ children }: { children: React.ReactNode }) {
 export function Detail({ summary = "Technical detail", children }: { summary?: string; children: React.ReactNode }) {
   return (
     <details style={{ marginTop: 14, borderRadius: 8, border: "1px solid var(--tm-border-soft)", padding: "10px 14px", background: "var(--tm-surface)" }}>
-      <summary style={{ cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--tm-interactive)", fontFamily: "var(--tm-font-mono)", letterSpacing: "0.05em", textTransform: "uppercase", userSelect: "none" }}>
+      <summary style={{ cursor: "pointer", fontSize: "var(--tm-fs-caption)", fontWeight: 600, color: "var(--tm-interactive)", fontFamily: "var(--tm-font-mono)", letterSpacing: "0.05em", textTransform: "uppercase", userSelect: "none" }}>
         {summary}
       </summary>
-      <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.75, color: "var(--tm-text-faint)" }}>
+      <div style={{ marginTop: 10, fontSize: "var(--tm-fs-body)", lineHeight: 1.75, color: "var(--tm-text-faint)" }}>
         {children}
       </div>
     </details>
@@ -56,14 +56,14 @@ export function CVReadingSection() {
         {EVIDENCE_ROWS.map(ev => (
           <div key={ev.label} style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 8, padding: "12px 14px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 7 }}>
-              <span style={{ fontWeight: 700, fontSize: 13, color: "var(--tm-text)", minWidth: 52 }}>{ev.label}</span>
-              <div style={{ flex: 1, height: 3, background: "var(--tm-hover)", borderRadius: 99, overflow: "hidden" }}>
-                <div style={{ width: ev.pct, height: "100%", background: "var(--tm-interactive)", borderRadius: 99 }} />
+              <span style={{ fontWeight: 600, fontSize: "var(--tm-fs-body)", color: "var(--tm-text)", minWidth: 52 }}>{ev.label}</span>
+              <div style={{ flex: 1, height: 3, background: "var(--tm-hover)", borderRadius: 10, overflow: "hidden" }}>
+                <div style={{ width: ev.pct, height: "100%", background: "var(--tm-interactive)", borderRadius: 10 }} />
               </div>
-              <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)" }}>{ev.strength}</span>
+              <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>{ev.strength}</span>
             </div>
-            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-interactive)", marginBottom: 4 }}>{ev.example}</div>
-            <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>{ev.desc}</div>
+            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", color: "var(--tm-interactive)", marginBottom: 4 }}>{ev.example}</div>
+            <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>{ev.desc}</div>
           </div>
         ))}
       </div>
@@ -96,13 +96,13 @@ export function SkillLevelsSection() {
       <div style={{ display: "flex", flexDirection: "column", gap: 6, margin: "16px 0" }}>
         {LEVEL_ROWS.map(lvl => (
           <div key={lvl.from} style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 8, padding: "10px 14px" }}>
-            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 12, color: "var(--tm-text-faint)", width: 52 }}>{lvl.from}</span>
-            <span style={{ color: "var(--tm-text-faint)", fontSize: 12 }}>→</span>
-            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 12, color: "var(--tm-interactive)", width: 52 }}>{lvl.to}</span>
-            <span style={{ fontSize: 13, color: "var(--tm-text-muted)", flex: 1 }}>
+            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", width: 52 }}>{lvl.from}</span>
+            <span style={{ color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-caption)" }}>→</span>
+            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", color: "var(--tm-interactive)", width: 52 }}>{lvl.to}</span>
+            <span style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", flex: 1 }}>
               {lvl.sessions} practice session{lvl.sessions > 1 ? "s" : ""} at this level
             </span>
-            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)" }}>{lvl.total}</span>
+            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>{lvl.total}</span>
           </div>
         ))}
       </div>
@@ -123,7 +123,7 @@ export function MatchingSection() {
         Once your CV is processed, Myro searches its job database for openings that best match
         your skill profile. Matching happens in three steps:
       </P>
-      <ol style={{ paddingLeft: 18, margin: "12px 0 14px", display: "flex", flexDirection: "column", gap: 10, fontSize: 15, color: "var(--tm-text-muted)", lineHeight: 1.7 }}>
+      <ol style={{ paddingLeft: 18, margin: "12px 0 14px", display: "flex", flexDirection: "column", gap: 10, fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", lineHeight: 1.7 }}>
         <li>
           <strong style={{ color: "var(--tm-text)" }}>Skill tagging</strong> — every job in the
           database is tagged with the skills it requires. Primary skills are core requirements;
@@ -170,11 +170,11 @@ export function XPSection() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12, margin: "16px 0" }}>
         {[{ heading: "You earn", rows: EARN_ROWS }, { heading: "You spend", rows: SPEND_ROWS }].map(col => (
           <div key={col.heading} style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 10, padding: "14px 16px" }}>
-            <div style={{ fontSize: 10, fontFamily: "var(--tm-font-mono)", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>{col.heading}</div>
+            <div style={{ fontSize: "var(--tm-fs-caption)", fontFamily: "var(--tm-font-mono)", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>{col.heading}</div>
             {col.rows.map(([label, val]) => (
-              <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 8, marginBottom: 8, borderBottom: "1px solid var(--tm-border-soft)", fontSize: 13, gap: 8 }}>
+              <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 8, marginBottom: 8, borderBottom: "1px solid var(--tm-border-soft)", fontSize: "var(--tm-fs-body)", gap: 8 }}>
                 <span style={{ color: "var(--tm-text-muted)" }}>{label}</span>
-                <span style={{ fontFamily: "var(--tm-font-mono)", color: col.heading === "You earn" ? "var(--tm-success)" : "var(--tm-text-faint)", fontSize: 12, whiteSpace: "nowrap" }}>{val}</span>
+                <span style={{ fontFamily: "var(--tm-font-mono)", color: col.heading === "You earn" ? "var(--tm-success)" : "var(--tm-text-faint)", fontSize: "var(--tm-fs-caption)", whiteSpace: "nowrap" }}>{val}</span>
               </div>
             ))}
           </div>
@@ -219,15 +219,15 @@ export function DataSection() {
       <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "16px 0" }}>
         {DATA_ROWS.map(row => (
           <div key={row.label} style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 8, padding: "12px 14px" }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tm-text)", marginBottom: 4 }}>{row.label}</div>
-            <div style={{ fontSize: 13, color: "var(--tm-text-faint)", lineHeight: 1.65 }}>{row.detail}</div>
+            <div style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "var(--tm-text)", marginBottom: 4 }}>{row.label}</div>
+            <div style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text-faint)", lineHeight: 1.65 }}>{row.detail}</div>
           </div>
         ))}
       </div>
       <P>
         Any email works. Your public identity is your Myro handle.
       </P>
-      <Link href="/privacy" style={{ fontSize: 13, color: "var(--tm-interactive)", textDecoration: "none" }}>
+      <Link href="/privacy" style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-interactive)", textDecoration: "none" }}>
         Read the full privacy policy →
       </Link>
     </Section>
@@ -257,10 +257,10 @@ export function FAQSection() {
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
         {FAQ_ITEMS.map(([q, a]) => (
           <details key={q} style={{ borderRadius: 8, border: "1px solid var(--tm-border-soft)", padding: "12px 14px", background: "var(--tm-surface)" }}>
-            <summary style={{ cursor: "pointer", fontSize: 14, fontWeight: 600, color: "var(--tm-text)", userSelect: "none" }}>
+            <summary style={{ cursor: "pointer", fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "var(--tm-text)", userSelect: "none" }}>
               {q}
             </summary>
-            <div style={{ marginTop: 10, fontSize: 14, lineHeight: 1.7, color: "var(--tm-text-muted)" }}>
+            <div style={{ marginTop: 10, fontSize: "var(--tm-fs-body)", lineHeight: 1.7, color: "var(--tm-text-muted)" }}>
               {a}
             </div>
           </details>

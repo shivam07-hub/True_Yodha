@@ -21,7 +21,7 @@ export function ExtensionConnectStatus({ message }: { message: string }) {
       <p
         style={{
           maxWidth: 320,
-          fontSize: 14,
+          fontSize: "var(--tm-fs-body)",
           lineHeight: 1.55,
           color: "var(--tm-text-muted)",
           fontFamily: "var(--tm-font-sans)",

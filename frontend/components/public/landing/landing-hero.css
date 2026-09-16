@@ -15,7 +15,7 @@
 .lp-hero-kicker {
   margin: 0 0 14px;
   font-family: var(--lp-mono);
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -33,7 +33,7 @@
   color: var(--lp-text);
   white-space: nowrap;
   font-size: clamp(18px, 3.55vw, 52px);
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.03;
 }
 
@@ -92,7 +92,7 @@
 .lp-path-eyebrow {
   margin: 0;
   font-family: var(--lp-mono);
-  font-size: 11px;
+  font-size: var(--tm-fs-caption);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -104,14 +104,14 @@
   color: var(--lp-text);
   white-space: nowrap;
   font-size: clamp(19px, 2vw, 24px);
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.1;
 }
 
 .lp-path-body {
   margin: 0;
   color: var(--lp-muted);
-  font-size: 14px;
+  font-size: var(--tm-fs-body);
   line-height: 1.5;
   text-wrap: pretty;
 }
@@ -122,7 +122,7 @@
   gap: 6px;
   margin-top: 4px;
   font-family: var(--lp-mono);
-  font-size: 13px;
+  font-size: var(--tm-fs-body);
   font-weight: 600;
   color: var(--lp-accent-text);
   text-decoration: none;
@@ -158,9 +158,9 @@
 .lp-stat-num {
   color: var(--lp-text);
   font-family: var(--lp-mono);
-  font-size: 24px;
+  font-size: var(--tm-fs-title);
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.1;
 }
 
@@ -171,7 +171,7 @@
 .lp-stat-lbl {
   margin-top: 5px;
   color: var(--lp-faint);
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
 }
 
 .lp-stat-link {
@@ -198,8 +198,8 @@
 .lp-stat-oss-num {
   color: var(--lp-accent-text);
   font-family: var(--lp-mono);
-  font-size: 24px;
-  font-weight: 700;
+  font-size: var(--tm-fs-title);
+  font-weight: 600;
   line-height: 1.1;
 }
 
@@ -237,6 +237,6 @@
 
   .lp-stat-num,
   .lp-stat-oss-num {
-    font-size: 21px;
+    font-size: var(--tm-fs-title);
   }
 }

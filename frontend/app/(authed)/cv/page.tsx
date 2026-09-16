@@ -551,14 +551,14 @@ function CVPage() {
                 padding: 48, textAlign: "center",
                 color: "var(--tm-text-faint)",
                 border: "1px dashed var(--tm-border-soft)",
-                borderRadius: 16,
+                borderRadius: 10,
                 background: "var(--tm-surface)",
               }}>
                 <Icon name="file" size={28} style={{ color: "var(--tm-interactive)", marginBottom: 12 }}/>
-                <div style={{ fontSize: 16, color: "var(--tm-text)", marginBottom: 6 }}>
+                <div style={{ fontSize: "var(--tm-fs-heading)", color: "var(--tm-text)", marginBottom: 6 }}>
                   {uploadBusy ? "Your CV is with Myro" : "No CV yet"}
                 </div>
-                <div style={{ fontSize: 12, color: "var(--tm-text-muted)" }}>
+                <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-muted)" }}>
                   {uploadBusy
                     ? "Your score lands here the moment it is ready."
                     : "Myro reads it, scores it, and tailors a copy for each job you save."}
@@ -701,7 +701,7 @@ function CVPage() {
                   borderLeft: "2px solid var(--tm-interactive)",
                   borderRadius: "var(--tm-radius-sm)",
                   background: "var(--tm-int-bg-subtle)",
-                  fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.55,
+                  fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", lineHeight: 1.55,
                 }}>
                   <div style={{ fontWeight: 600, color: "var(--tm-text)", marginBottom: 6 }}>
                     No skills found — try this, then re-upload:
@@ -757,7 +757,7 @@ function CVPage() {
                   marginTop: 10, padding: "8px 12px",
                   border: "1px solid var(--tm-border-soft)",
                   borderRadius: "var(--tm-radius-sm)",
-                  color: "var(--tm-text)", fontSize: 12,
+                  color: "var(--tm-text)", fontSize: "var(--tm-fs-caption)",
                 }}>
                   <div>{displayedUploadError}</div>
                   {displayedUploadError.toLowerCase().startsWith("out of tokens") && (
@@ -766,7 +766,7 @@ function CVPage() {
                       onClick={() => router.push("/practice")}
                       style={{
                         marginTop: 8, padding: 0, background: "none", border: "none",
-                        color: "var(--tm-interactive)", fontSize: 12, cursor: "pointer",
+                        color: "var(--tm-interactive)", fontSize: "var(--tm-fs-caption)", cursor: "pointer",
                         textDecoration: "underline",
                       }}
                     >
@@ -783,7 +783,7 @@ function CVPage() {
                   border: "1px solid var(--tm-int-border)",
                   background: "var(--tm-int-bg-wash)",
                 }}>
-                  <div style={{ fontSize: 12, color: "var(--tm-text)", marginBottom: 8 }}>
+                  <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text)", marginBottom: 8 }}>
                     Still blocked after multiple tries? Open alternate submission fallback.
                   </div>
                   <button
@@ -796,7 +796,7 @@ function CVPage() {
                       border: "none",
                       background: "var(--tm-interactive)",
                       color: "var(--tm-interactive-fg)",
-                      fontSize: 12,
+                      fontSize: "var(--tm-fs-caption)",
                       fontWeight: 600,
                       cursor: fallbackSubmitting ? "not-allowed" : "pointer",
                       opacity: fallbackSubmitting ? 0.72 : 1,
@@ -805,10 +805,10 @@ function CVPage() {
                     {fallbackSubmitting ? "Opening fallback…" : "Get alternate submission link"}
                   </button>
                   {fallbackError && (
-                    <div style={{ marginTop: 8, fontSize: 12, color: "var(--tm-danger)" }}>{fallbackError}</div>
+                    <div style={{ marginTop: 8, fontSize: "var(--tm-fs-caption)", color: "var(--tm-danger)" }}>{fallbackError}</div>
                   )}
                   {fallbackReceipt && (
-                    <div style={{ marginTop: 8, fontSize: 12, color: "var(--tm-text)" }}>
+                    <div style={{ marginTop: 8, fontSize: "var(--tm-fs-caption)", color: "var(--tm-text)" }}>
                       Ticket {fallbackReceipt.support_token} created.{" "}
                       <a
                         href={fallbackReceipt.alternate_submission_url}

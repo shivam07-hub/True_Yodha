@@ -11,7 +11,7 @@
   width: 100%; resize: vertical; min-height: 44px;
   background: var(--tm-surface-2); border: 1px solid var(--tm-int-border);
   border-radius: var(--tm-radius-sm); color: var(--tm-text);
-  font-family: inherit; font-size: 13px; line-height: 1.6; padding: 10px 12px;
+  font-family: inherit; font-size: var(--tm-fs-body); line-height: 1.6; padding: 10px 12px;
   outline: none;
 }
 .tm-cmt-input::placeholder { color: var(--tm-text-faint); }
@@ -21,35 +21,35 @@
   align-self: flex-end; height: 32px; padding: 0 16px;
   border-radius: var(--tm-radius-pill); border: 1px solid var(--tm-interactive);
   background: var(--tm-interactive); color: var(--tm-interactive-fg);
-  font-family: inherit; font-size: 12px; font-weight: 750; cursor: pointer;
+  font-family: inherit; font-size: var(--tm-fs-caption); font-weight: 600; cursor: pointer;
 }
 .tm-cmt-add:disabled { opacity: 0.5; cursor: default; background: rgba(255, 255, 255, 0.06); border-color: var(--tm-border-soft); color: var(--tm-text-faint); }
 
-.tm-cmt-empty { font-size: 12px; color: var(--tm-text-faint); line-height: 1.55; }
+.tm-cmt-empty { font-size: var(--tm-fs-caption); color: var(--tm-text-faint); line-height: 1.55; }
 
 .tm-cmt-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
 .tm-cmt-item {
   padding: 10px 12px; border-radius: var(--tm-radius-sm);
   border: 1px solid var(--tm-border-soft); background: rgba(255, 255, 255, 0.02);
 }
-.tm-cmt-body { margin: 0; font-size: 13px; line-height: 1.55; color: var(--tm-text); white-space: pre-wrap; word-break: break-word; }
+.tm-cmt-body { margin: 0; font-size: var(--tm-fs-body); line-height: 1.55; color: var(--tm-text); white-space: pre-wrap; word-break: break-word; }
 .tm-cmt-foot { display: flex; align-items: center; gap: 10px; margin-top: 7px; }
 .tm-cmt-author {
-  font-size: 11px; font-weight: 700; color: var(--tm-interactive-rest);
+  font-size: var(--tm-fs-caption); font-weight: 600; color: var(--tm-interactive-rest);
   text-decoration: none; letter-spacing: 0.01em;
 }
 .tm-cmt-author:hover { color: var(--tm-interactive); text-decoration: underline; }
 .tm-cmt-author-anon { color: var(--tm-text-faint); font-weight: 600; cursor: default; }
-.tm-cmt-time { font-family: var(--tm-font-mono); font-size: 10px; color: var(--tm-text-faint); margin-right: auto; }
+.tm-cmt-time { font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); color: var(--tm-text-faint); margin-right: auto; }
 
-.tm-cmt-signin { font-size: 12px; color: var(--tm-text-faint); line-height: 1.55; }
-.tm-cmt-signin-link { color: var(--tm-interactive-rest); font-weight: 700; text-decoration: none; }
+.tm-cmt-signin { font-size: var(--tm-fs-caption); color: var(--tm-text-faint); line-height: 1.55; }
+.tm-cmt-signin-link { color: var(--tm-interactive-rest); font-weight: 600; text-decoration: none; }
 .tm-cmt-signin-link:hover { color: var(--tm-interactive); text-decoration: underline; }
-.tm-cmt-error { font-size: 12px; color: var(--tm-danger, #d66); line-height: 1.5; }
+.tm-cmt-error { font-size: var(--tm-fs-caption); color: var(--tm-danger, #d66); line-height: 1.5; }
 .tm-cmt-icon {
   width: 24px; height: 24px; border-radius: var(--tm-radius-sm);
   border: 1px solid transparent; background: transparent; color: var(--tm-text-faint);
-  font-size: 12px; cursor: pointer; line-height: 1;
+  font-size: var(--tm-fs-caption); cursor: pointer; line-height: 1;
 }
 .tm-cmt-icon:hover { color: var(--tm-interactive); border-color: var(--tm-border-soft); background: var(--tm-int-bg-wash); }
 .tm-cmt-icon:disabled { opacity: 0.4; cursor: default; }
@@ -59,11 +59,11 @@
 .tm-cmt-save {
   height: 30px; padding: 0 14px; border-radius: var(--tm-radius-sm);
   border: 1px solid var(--tm-interactive); background: var(--tm-interactive);
-  color: var(--tm-interactive-fg); font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+  color: var(--tm-interactive-fg); font-family: inherit; font-size: var(--tm-fs-caption); font-weight: 600; cursor: pointer;
 }
 .tm-cmt-save:disabled { opacity: 0.5; cursor: default; }
 .tm-cmt-ghost {
   height: 30px; padding: 0 14px; border-radius: var(--tm-radius-sm);
   border: 1px solid var(--tm-border-soft); background: transparent;
-  color: var(--tm-interactive-rest); font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  color: var(--tm-interactive-rest); font-family: inherit; font-size: var(--tm-fs-caption); font-weight: 600; cursor: pointer;
 }

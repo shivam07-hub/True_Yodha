@@ -20,7 +20,6 @@ export const STAGE_CHIPS: ReadonlyArray<{ key: CollectionStage; label: string }>
   // lived on /cv, so the surface that owns "download the CV" never showed it.
   { key: "tailored", label: "Tailored" },
   { key: "applied", label: "Applied" },
-  { key: "closed", label: "Closed" },
 ]
 
 export interface CollectionView {

@@ -1,0 +1,199 @@
+/* ── rail ── */
+.cvw-railtabs {
+  flex: none; display: flex; gap: 8px; padding: 12px 14px;
+  border-bottom: 1px solid var(--tm-border-soft);
+}
+.cvw-railtab {
+  flex: 1; cursor: pointer; padding: 10px 8px; border-radius: var(--tm-radius-lg, 8px);
+  border: 1px solid var(--tm-border); background: transparent; color: var(--tm-text-muted);
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-body); font-weight: 600;
+  white-space: nowrap;
+  transition: background var(--tm-dur-fast) var(--tm-ease), color var(--tm-dur-fast) var(--tm-ease);
+}
+.cvw-railtab:hover { color: var(--tm-text); }
+.cvw-railtab[aria-selected="true"] {
+  background: var(--tm-surface-2); border-color: var(--tm-border); color: var(--tm-text);
+}
+.cvw-railtab:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: 2px; }
+
+/* triage numerals — three equal tiles over a 2px severity top-border */
+.cvw-triage { flex: none; display: grid; grid-template-columns: repeat(3, 1fr); }
+.cvw-tile {
+  border: 0; border-top: 2px solid var(--cvw-sev); background: transparent; cursor: pointer;
+  padding: 10px 12px 10px; text-align: left;
+  border-right: 1px solid var(--tm-border-soft);
+  transition: background var(--tm-dur-fast) var(--tm-ease);
+}
+.cvw-tile:last-child { border-right: 0; }
+.cvw-tile:hover { background: var(--tm-surface-2); }
+.cvw-tile[aria-pressed="true"] { background: color-mix(in oklab, var(--cvw-sev) 12%, transparent); }
+.cvw-tile:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: -2px; }
+.cvw-tile-n {
+  display: block; font-family: var(--tm-font-mono); font-size: var(--tm-fs-heading); font-weight: 600;
+  line-height: 1; font-variant-numeric: tabular-nums; color: var(--cvw-sev);
+}
+.cvw-tile[data-empty="true"] .cvw-tile-n { color: var(--tm-text-faint); }
+.cvw-tile-label {
+  display: block; margin-top: 8px;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--tm-text-faint);
+}
+
+/* the queue — one row per issue, 3px 1fr auto */
+.cvw-queue { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; }
+.cvw-issue {
+  display: grid; grid-template-columns: 3px minmax(0, 1fr) auto;
+  align-items: center; column-gap: 12px; width: 100%; text-align: left;
+  border: 1px solid transparent; border-radius: var(--tm-radius-lg, 8px);
+  background: var(--tm-surface-2); cursor: pointer; overflow: hidden;
+  transition: border-color var(--tm-dur-fast) var(--tm-ease);
+}
+.cvw-issue:hover { border-color: var(--tm-border); }
+.cvw-issue:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: 2px; }
+/* The queue row is a <button>, so its children are inline by default and the
+   rank-3 title ran into the rank-4 provenance on one line. Two ranks must never
+   share a line — that IS the defect this redesign exists to remove. */
+.cvw-issue-body { display: block; padding: 12px 0; min-width: 0; }
+.cvw-issue-title {
+  display: block;
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-caption); font-weight: 600;
+  line-height: 1.35; color: var(--tm-text);
+}
+.cvw-issue-prov {
+  display: block; margin-top: 5px;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption);
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--tm-text-faint);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cvw-issue-act {
+  flex: none; padding-right: 14px;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-weight: 600;
+  letter-spacing: 0.06em; color: var(--tm-text-faint);
+}
+.cvw-issue[data-active="true"] {
+  --cvw-sev: var(--tm-interactive);
+  border-color: var(--tm-interactive);
+  background: var(--tm-int-bg-wash);
+}
+.cvw-issue[data-active="true"] .cvw-issue-act {
+  text-transform: uppercase; color: var(--tm-interactive-text);
+}
+.cvw-issue-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--tm-interactive);
+  margin-right: 14px;
+}
+
+/* passing ATS checks collapse into one strip */
+.cvw-ats {
+  margin: 6px 14px 14px; border-radius: var(--tm-radius-lg, 8px);
+  border: 1px solid var(--tm-success-border);
+  background: var(--tm-success-wash);
+}
+.cvw-ats-head {
+  display: flex; align-items: center; gap: 8px; width: 100%; cursor: pointer;
+  border: 0; background: none; padding: 11px 13px; text-align: left;
+}
+.cvw-ats-title {
+  flex: 1; font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-weight: 600;
+  letter-spacing: 0.06em; color: var(--tm-success);
+}
+.cvw-ats-more {
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); color: var(--tm-text-muted);
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.cvw-ats-list {
+  display: flex; flex-direction: column; gap: 6px; padding: 0 13px 12px;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); color: var(--tm-text-muted);
+}
+
+/* rail footer — the actions the toolbar gave up (Tailor / Restructure) */
+.cvw-railfoot {
+  margin-top: auto; flex: none; display: flex; flex-direction: column; gap: 8px;
+  padding: 12px 14px; border-top: 1px solid var(--tm-border-soft);
+}
+.cvw-railfoot-btn {
+  display: flex; align-items: center; gap: 8px; width: 100%; cursor: pointer;
+  border: 1px solid var(--tm-int-border); background: var(--tm-int-bg-wash);
+  color: var(--tm-interactive-text); padding: 10px 12px;
+  border-radius: var(--tm-radius-lg, 8px);
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-caption); font-weight: 600;
+}
+.cvw-railfoot-btn:hover { background: var(--tm-int-bg-hover); }
+.cvw-railfoot-btn.plain {
+  border-color: var(--tm-border); background: transparent; color: var(--tm-text-muted);
+}
+.cvw-railfoot-btn.plain:hover { color: var(--tm-text); border-color: var(--tm-int-border); }
+.cvw-railfoot-cost {
+  margin-left: auto; font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption);
+  color: var(--tm-text-faint);
+}
+
+/* ── zero states (2b) ── */
+.cvw-clear {
+  flex: none; display: flex; align-items: center; gap: 10px; min-height: 34px;
+  padding: 0 14px; background: var(--tm-success-wash);
+  border-bottom: 1px solid var(--tm-success-border);
+}
+.cvw-clear-title {
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-weight: 600;
+  letter-spacing: 0.06em; color: var(--tm-success);
+}
+.cvw-clear-count {
+  flex: 1; font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); color: var(--tm-text-muted);
+}
+.cvw-clear-review {
+  border: 0; background: none; cursor: pointer; padding: 4px 0;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); color: var(--tm-text-muted);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.cvw-clear-review:hover { color: var(--tm-text); }
+
+.cvw-terminal {
+  margin: 14px; padding: 26px 22px; text-align: center;
+  border: 1px solid var(--tm-success-border); border-radius: var(--tm-radius-xl, 8px);
+  background: var(--tm-success-wash);
+}
+.cvw-terminal-mark {
+  width: 52px; height: 52px; margin: 0 auto 16px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: color-mix(in oklab, var(--tm-success) 18%, transparent);
+  color: var(--tm-success); font-size: var(--tm-fs-heading);
+}
+.cvw-terminal-title {
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-heading); font-weight: 600;
+  color: var(--tm-text);
+}
+.cvw-terminal-sub { margin: 8px 0 0; font-size: var(--tm-fs-body); line-height: 1.5; color: var(--tm-text-muted); }
+.cvw-terminal-score {
+  display: flex; align-items: baseline; justify-content: center; gap: 8px; margin: 18px 0;
+}
+.cvw-terminal-num {
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-display); font-weight: 600;
+  line-height: 1; font-variant-numeric: tabular-nums; color: var(--tm-success);
+}
+.cvw-terminal-cap {
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); color: var(--tm-text-faint);
+}
+.cvw-terminal-cta {
+  width: 100%; border: 0; cursor: pointer;
+  background: var(--tm-interactive); color: var(--tm-interactive-fg);
+  padding: 14px 0; border-radius: var(--tm-button-radius, 10px);
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-body); font-weight: 600;
+  transition: background var(--tm-dur-fast) var(--tm-ease);
+}
+.cvw-terminal-cta:hover { background: var(--tm-interactive-hover); }
+.cvw-terminal-cta:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.cvw-invite {
+  display: flex; align-items: center; gap: 14px; margin: 0 14px 14px;
+  padding: 14px 16px; text-align: left;
+  border: 1px dashed var(--tm-border); border-radius: var(--tm-radius-xl, 8px);
+  background: transparent; cursor: pointer;
+}
+.cvw-invite:hover { border-color: var(--tm-int-border); }
+.cvw-invite-copy { flex: 1; min-width: 0; font-size: var(--tm-fs-body); line-height: 1.5; color: var(--tm-text-muted); }
+.cvw-invite-go {
+  flex: none; font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-weight: 600;
+  color: var(--tm-interactive-text);
+}
+

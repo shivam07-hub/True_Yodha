@@ -44,7 +44,7 @@ export function CompanyAvatar({ name, size = 32 }: { name: string; size?: number
         width: size, height: size,
         background: `linear-gradient(135deg, ${color}38, ${color}18)`,
         border: `1px solid ${color}55`,
-        fontSize: size <= 24 ? 10 : 12,
+        fontSize: "var(--tm-fs-caption)",
         color,
       }}
     >

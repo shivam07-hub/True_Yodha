@@ -63,7 +63,7 @@ test("ONE door — the complaint is a landing inside Myro Search, not a rival to
   assert.match(search, /openRefreshGate\("say"\)/)
 
   for (const [name, file] of [
-    ["desktop feed", "components/market/jobs-tab.tsx"],
+    ["desktop feed", "components/market/market-jobs-column.tsx"],
     ["mobile feed", "mobile/redesign/jobs-surface.tsx"],
   ] as const) {
     const src = read(file)

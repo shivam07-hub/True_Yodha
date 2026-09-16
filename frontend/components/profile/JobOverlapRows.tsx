@@ -32,7 +32,7 @@ export function JobOverlapRows({ rows }: JobOverlapRowsProps) {
         style={{
           margin: 0,
           marginBottom: 12,
-          fontSize: 11,
+          fontSize: "var(--tm-fs-caption)",
           letterSpacing: "0.12em",
           textTransform: "uppercase",
           color: "var(--tm-text-faint)",
@@ -56,7 +56,7 @@ export function JobOverlapRows({ rows }: JobOverlapRowsProps) {
             <div style={{ minWidth: 0 }}>
               <div
                 style={{
-                  fontSize: 13,
+                  fontSize: "var(--tm-fs-body)",
                   color: "var(--tm-text)",
                   whiteSpace: "nowrap",
                   overflow: "hidden",
@@ -65,13 +65,13 @@ export function JobOverlapRows({ rows }: JobOverlapRowsProps) {
               >
                 {row.role ?? "—"}
               </div>
-              <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+              <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
                 {row.company_name ?? ""}
               </div>
             </div>
             <div
               style={{
-                fontSize: 12,
+                fontSize: "var(--tm-fs-caption)",
                 color: "var(--tm-interactive)",
                 fontVariantNumeric: "tabular-nums",
                 minWidth: 56,
@@ -83,7 +83,7 @@ export function JobOverlapRows({ rows }: JobOverlapRowsProps) {
             </div>
             <div
               style={{
-                fontSize: 12,
+                fontSize: "var(--tm-fs-caption)",
                 color: "var(--tm-text-faint)",
                 fontVariantNumeric: "tabular-nums",
                 minWidth: 56,

@@ -19,7 +19,7 @@ from app.deps import Principal, get_principal
 from app.repositories.cv import CVVersionsRepository, get_token_cv_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.security import redact_sensitive_text
-from app.services import jd_coverage, prep_brief as prep_brief_service, xp_policy, xp_service
+from app.services import jd_coverage, job_history, prep_brief as prep_brief_service, xp_policy, xp_service
 from app.services.llm_provider import LLMProvider, get_blocking_judgment_provider
 
 router = APIRouter()
@@ -91,10 +91,9 @@ async def create_prep_brief(
         balance = await xp_service.get_xp_balance(user_id)
         return PrepBriefResponse(purchased=True, brief=cached, new_coin_balance=balance)
 
-    jobs_meta = repo.get_jobs_by_ids([job_id])
-    if not jobs_meta:
+    meta = job_history.listing_document(repo, user_id, job_id)
+    if not meta:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
-    meta = jobs_meta[0]
     role = meta.get("job_title") or ""
     company = meta.get("company_name") or ""
     jd_text = meta.get("job_description") or ""

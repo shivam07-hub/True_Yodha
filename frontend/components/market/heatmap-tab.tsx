@@ -182,7 +182,7 @@ export function HeatmapTab({
           authed shell does not render. */}
       <SectorBand />
       {onBackToJobs ? (
-        <button type="button" onClick={onBackToJobs} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--tm-interactive)", fontSize: 13, fontWeight: 600, marginBottom: 20 }}>
+        <button type="button" onClick={onBackToJobs} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--tm-interactive)", fontSize: "var(--tm-fs-body)", fontWeight: 600, marginBottom: 20 }}>
           <span aria-hidden>&lt;-</span> Back to jobs
         </button>
       ) : null}

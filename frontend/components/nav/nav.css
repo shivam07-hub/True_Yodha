@@ -8,8 +8,8 @@
 /* ── Brand: Myro wordmark (beta pill retired 2026-07-23) ────────────── */
 .tm-topbar-wordmark {
   font-family: var(--tm-font-sans);
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--tm-fs-heading);
+  font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--tm-text);
 }
@@ -51,7 +51,7 @@
 
 .tm-topbar-count {
   font-family: var(--tm-font-mono);
-  font-size: 10.5px;
+  font-size: var(--tm-fs-caption);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   color: var(--tm-text-muted);
@@ -80,7 +80,7 @@
 }
 .tm-score-chip-num {
   font-family: var(--tm-font-mono);
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--tm-text);
@@ -125,7 +125,7 @@
 }
 .tm-next-chip-key {
   font-family: var(--tm-font-mono);
-  font-size: 9px;
+  font-size: var(--tm-fs-caption);
   font-weight: 600;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -133,7 +133,7 @@
   flex-shrink: 0;
 }
 .tm-next-chip-label {
-  font-size: 12.5px;
+  font-size: var(--tm-fs-caption);
   font-weight: 550;
   color: var(--tm-text);
   white-space: nowrap;
@@ -142,7 +142,7 @@
 }
 .tm-next-chip:hover .tm-next-chip-label { color: var(--tm-interactive); }
 .tm-next-chip-arrow {
-  font-size: 11px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
   flex-shrink: 0;
 }

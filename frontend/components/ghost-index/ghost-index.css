@@ -201,7 +201,7 @@
   padding: 12px 16px;
   text-align: left;
   border-bottom: 1px solid var(--tm-border-faint);
-  font-size: var(--tm-fs-ui);
+  font-size: var(--tm-fs-body);
   line-height: 1.4;
   vertical-align: baseline;
 }

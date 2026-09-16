@@ -72,7 +72,7 @@ export function MagicLinkInput({
       </div>
       {error && (
         <p role="alert" style={{
-          marginTop: 8, fontSize: 13, color: "var(--tm-danger)", lineHeight: 1.45,
+          marginTop: 8, fontSize: "var(--tm-fs-body)", color: "var(--tm-danger)", lineHeight: 1.45,
         }}>{error}</p>
       )}
     </form>

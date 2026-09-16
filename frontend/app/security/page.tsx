@@ -72,10 +72,10 @@ export default function SecurityPage() {
           </svg>
         </div>
         <div style={{ position: "relative", zIndex: 1, maxWidth: "var(--tm-content-max)", margin: "0 auto" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-interactive)", marginBottom: 12 }}>
+          <div style={{ fontSize: "var(--tm-fs-caption)", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-interactive)", marginBottom: 12 }}>
             Trust
           </div>
-          <h1 style={{ fontSize: "clamp(1.75rem, 4.5vw, 3rem)", fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1, margin: "0 0 12px", color: "var(--tm-text)" }}>
+          <h1 style={{ fontSize: "var(--tm-fs-hero)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.1, margin: "0 0 12px", color: "var(--tm-text)" }}>
             Security
           </h1>
           <p style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", margin: 0, maxWidth: 560, lineHeight: 1.6 }}>
@@ -107,7 +107,7 @@ export default function SecurityPage() {
             </details>
 
             <div className="hidden lg:block" style={{ position: "sticky", top: 32 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 12 }}>
+              <div style={{ fontSize: "var(--tm-fs-caption)", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 12 }}>
                 Contents
               </div>
               <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 1 }}>

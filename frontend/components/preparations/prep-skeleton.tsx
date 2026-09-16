@@ -122,7 +122,7 @@ export function PrepSkeleton() {
                 <Skeleton style={{ width: "70%", height: 22, borderRadius: 6 }} />
                 <Skeleton style={{ width: 220, height: 13, borderRadius: 4, marginTop: 6 }} />
               </div>
-              <Skeleton style={{ width: 96, height: 30, borderRadius: 999, flexShrink: 0 }} />
+              <Skeleton style={{ width: 96, height: 30, borderRadius: 10, flexShrink: 0 }} />
             </div>
             <Skeleton style={{ height: 116, borderRadius: 10, marginTop: 18 }} />
             <div className="prp-steps">

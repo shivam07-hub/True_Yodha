@@ -50,18 +50,52 @@ class _Query:
     def select(self, _cols: str):
         return self
 
-    def in_(self, _col: str, _ids: list[str]):
+    def eq(self, *_args):
+        return self
+
+    def lte(self, *_args):
+        return self
+
+    def order(self, *_args):
+        return self
+
+    def limit(self, *_args):
+        return self
+
+    def in_(self, col: str, ids: list[str]):
+        self.db.filters.append((self.table, col, list(ids)))
+        return self
+
+    def update(self, payload: dict):
+        self.db.updates.append((self.table, payload))
+        return self
+
+    def insert(self, payload):
+        self.db.inserts.append((self.table, payload))
         return self
 
     def execute(self):
         if self.table == "jobs":
-            return type("R", (), {"data": [{"job_id": "j1", "job_title": "Role"}]})()
+            return type(
+                "R",
+                (),
+                {
+                    "data": [{
+                        "job_id": "j1",
+                        "job_title": "Role",
+                        "last_verified_live_at": "2026-09-01T00:00:00+00:00",
+                    }]
+                },
+            )()
         return type("R", (), {"data": [{"job_id": "j1", "skill_id": 1}]})()
 
 
 class _Db:
     def __init__(self) -> None:
         self.rpc_calls: list[tuple[str, dict]] = []
+        self.updates: list[tuple[str, dict]] = []
+        self.inserts: list[tuple[str, object]] = []
+        self.filters: list[tuple[str, str, list[str]]] = []
 
     def rpc(self, name: str, params: dict) -> _Rpc:
         return _Rpc(self, name, params)
@@ -80,7 +114,20 @@ def test_archive_then_retire_writes_files_before_delete(tmp_path: Path) -> None:
     )
 
     assert deleted == 1
-    assert db.rpc_calls[0][0] == "list_unload_candidates"
+    assert db.updates == [("job_applications", {"match_id": None})]
+    assert db.inserts == [(
+        "job_listing_observations",
+        [{
+            "job_id": "j1",
+            "observer": "scraper",
+            "result": "seen_live",
+            "strength": "strong",
+            "observed_at": "2026-09-01T00:00:00+00:00",
+            "evidence": {"source": "retire_freeze"},
+            "verifier_version": "thin-ledger-v1",
+        }],
+    )]
+    assert ("job_applications", "job_id", ["j1"]) in db.filters
     assert db.rpc_calls[-1] == (
         "retire_closed_jobs",
         {"p_limit": 10, "p_job_ids": ["j1"]},
@@ -92,18 +139,16 @@ def test_archive_then_retire_writes_files_before_delete(tmp_path: Path) -> None:
 
 def test_archive_then_retire_is_a_no_op_when_nothing_is_due() -> None:
     class Empty(_Db):
-        def rpc(self, name: str, params: dict) -> _Rpc:
-            self.rpc_calls.append((name, params))
+        def table(self, name: str) -> _Query:
+            class NoneDue(_Query):
+                def execute(self):
+                    return type("R", (), {"data": []})()
 
-            class Reply:
-                def execute(self_inner):
-                    return type("X", (), {"data": []})()
-
-            return Reply()
+            return NoneDue(self, name)
 
     db = Empty()
     assert archive_then_retire(db, limit=50) == 0  # type: ignore[arg-type]
-    assert db.rpc_calls == [("list_unload_candidates", {"p_limit": 50})]
+    assert db.rpc_calls == []
 
 
 def test_archive_then_retire_does_not_delete_when_disk_write_fails(tmp_path: Path) -> None:

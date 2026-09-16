@@ -58,9 +58,9 @@ export function ScoreRing({ score, onExpand, expanded, controls }: ScoreRingProp
       </svg>
       <div>
         <div className="tm-label-caps" style={{ marginBottom: 3 }}>Myro Score</div>
-        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)" }}>{tier.label}</div>
+        <div style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "var(--tm-text)" }}>{tier.label}</div>
         {tier.next !== null && (
-          <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 3 }}>
+          <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", marginTop: 3 }}>
             Next <span style={{ color: "var(--data-1)", fontWeight: 600 }}>{tier.next}</span> · {tier.nextLabel}
           </div>
         )}

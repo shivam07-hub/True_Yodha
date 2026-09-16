@@ -32,7 +32,7 @@
 
 .sr-eyebrow {
   font-family: var(--lp-mono);
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   font-weight: 500;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -41,9 +41,9 @@
 
 .sr-title {
   margin: 12px 0 0;
-  font-size: 24px;
+  font-size: var(--tm-fs-title);
   line-height: 1.2;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--tm-text);
   text-wrap: balance;

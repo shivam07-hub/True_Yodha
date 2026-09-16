@@ -15,6 +15,7 @@ import type { ApplicationResponse, CVStructured, CVVersion, UserProfile } from "
 import { CvTabView } from "./cv-tab-view"
 import { MemoryPanel } from "./memory-panel"
 import { ReservoirProfile } from "./reservoir-profile"
+import { ForwardPassPanel } from "./forward-pass-panel"
 import { FlowRibbon } from "./flow-ribbon"
 import { I, LIcon } from "./library-icons"
 import { MobileCVHub } from "../mobile/mobile-cv-hub"
@@ -139,6 +140,10 @@ export function LibraryView({
           {/* ── CV view: the Main CV, or a per-job tailored copy ────────── */}
           {view === "cv" && (
             <div className="tm-lib-doc">
+              {/* Myro does not backfill — it brings a returning user forward when
+                  they open their CV. That happens on THIS view, so it says so on
+                  this view, and hands over the questions it raised. */}
+              <ForwardPassPanel token={token} />
               {isNewUser && <WorkspaceIntroCard />}
               <CvTabView
                 token={token}

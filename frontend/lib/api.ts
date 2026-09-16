@@ -1533,6 +1533,20 @@ export interface CareerProfileRole {
   kind: "work" | "education" | "leadership" | "volunteer" | "other"
   stories: CareerStory[]
 }
+/** One bullet's open question. The SAME object the job room asks when a job
+ *  needs that bullet (#13 L3) — answering in either place improves the one
+ *  story, so it is never asked twice. */
+export interface StoryQuestion {
+  story_id: string
+  title: string
+  role_label: string
+  pointer: string
+  /** "number" = no figure anywhere; "substance" = never actually told. */
+  kinds: ("number" | "substance")[]
+  /** What is missing, in the user's terms. */
+  missing: string[]
+  prompt: string
+}
 export interface CareerProfile {
   roles: CareerProfileRole[]
   /** Role-less stories: accolades, olympiads, competitions. */
@@ -1541,6 +1555,25 @@ export interface CareerProfile {
   story_count: number
   /** Dumped files still being read — poll while > 0. */
   pending_inflows: number
+  /** The standing completion queue, capped; `questions_total` is the real count. */
+  questions: StoryQuestion[]
+  questions_total: number
+  /** Bullets the user said have no number to give — ADR-0016 forbids inventing one. */
+  questions_set_aside: number
+  /** The two asks OVERLAP — a bullet can be missing both — so never derive one
+   *  of these from the other and the total. */
+  missing_number: number
+  missing_story: number
+}
+/** The default /cv view's poll while Myro brings a returning user forward.
+ *  Myro does not backfill: a CV uploaded before a capability existed is banked
+ *  the first time its owner opens their CV, and this is what lets that say so. */
+export interface ReservoirStatus {
+  /** Inflows still being read. > 0 means a spinner is honest. */
+  pending: number
+  /** A CV finished landing in the last 24h — its questions are worth showing
+   *  even though nothing is in flight any more. This is what survives a reload. */
+  banked_recently: boolean
 }
 export interface ReviewStory {
   id: string
@@ -1617,6 +1650,9 @@ export interface WeaveOption {
   label: string
   detail: string
   story_id: string | null
+  /** What this story's bullet is still missing — the same ask the Stories
+   *  completion queue carries (#13 L3). Empty when it already stands alone. */
+  asks: string[]
 }
 export interface WeaveQuestion {
   requirement: string
@@ -2084,6 +2120,14 @@ export const cv = {
       request<CareerProfile>("/cv/reservoir/profile", {
         headers: { Authorization: `Bearer ${token}` },
       }),
+    /** Three columns, polled from the default /cv view while an ingest runs.
+     *  Deliberately NOT `profile` — that read loads every role, story and
+     *  pointer, and polling it from the busiest authed page every four seconds
+     *  would undo the read-path budget it was written to respect. */
+    reservoirStatus: (token: string) =>
+      request<ReservoirStatus>("/cv/reservoir/status", {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
     /** Multipart by design (files) — bypasses request()'s forced JSON header. */
     ingest: async (token: string, files: File[], text?: string): Promise<CareerIngestResponse> => {
       const form = new FormData()
@@ -2111,6 +2155,33 @@ export const cv = {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify({ story_a: storyA, story_b: storyB, verdict }),
+      }),
+    /** Answer one bullet's completion question. `final` skips the single probe.
+     *  A `follow_up` back means nothing was banked yet. */
+    answerStory: (token: string, storyId: string, answer: string, final = false) =>
+      request<{ follow_up: string | null; entry_id: string | null }>(
+        `/cv/reservoir/stories/${encodeURIComponent(storyId)}/answer`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ answer, final }),
+        },
+      ),
+    /** "No number to give" — some work genuinely has none, and Myro may not
+     *  invent it (ADR-0016), so the queue has to be finishable. */
+    setAsideStory: (token: string, storyId: string, aside = true) =>
+      request<{ aside: boolean }>(
+        `/cv/reservoir/stories/${encodeURIComponent(storyId)}/set-aside`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ aside }),
+        },
+      ),
+    reopenQuestions: (token: string) =>
+      request<{ reopened: number }>("/cv/reservoir/questions/reopen", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
       }),
     promotePhrasing: (token: string, pointId: string) =>
       request<{ ok: boolean }>(`/cv/reservoir/phrasings/${encodeURIComponent(pointId)}/promote`, {
@@ -3966,6 +4037,32 @@ export interface ReachPackResponse {
   new_coin_balance: number | null
 }
 
+/** ADR-0018 Path 3 — a person the user nominated, not a scrape. */
+export type ReachTargetStatus = "queued" | "sent" | "followed_up" | "replied" | "stopped"
+
+export interface ReachTarget {
+  id: string
+  job_id: string | null
+  profile_url: string
+  display_name: string
+  company: string | null
+  role_title: string | null
+  status: ReachTargetStatus
+  connect_note: string
+  followup_note: string
+  referral_ask: string
+  sent_at: string | null
+  followup_due_at: string | null
+  replied_at: string | null
+  due: boolean
+  created_at: string | null
+}
+
+export interface ReachTargetList {
+  targets: ReachTarget[]
+  due_count: number
+}
+
 // Preparations room day-of brief (30 coins, charge-on-success, replay free).
 export interface PrepBriefLead {
   story: string
@@ -4530,6 +4627,36 @@ export const jobs = {
     request<ReachPackResponse>(`/jobs/${encodeURIComponent(jobId)}/reach/pack`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
+    }),
+  listReachTargets: (token: string, opts?: { jobId?: string | null; due?: boolean }) => {
+    const q = new URLSearchParams()
+    if (opts?.jobId) q.set("job_id", opts.jobId)
+    if (opts?.due) q.set("due", "true")
+    const suffix = q.toString() ? `?${q.toString()}` : ""
+    return request<ReachTargetList>(`/jobs/reach/targets${suffix}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  },
+  createReachTarget: (
+    token: string,
+    body: {
+      profile_url: string
+      display_name: string
+      company?: string | null
+      role_title?: string | null
+      job_id?: string | null
+    },
+  ) =>
+    request<ReachTarget>(`/jobs/reach/targets`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    }),
+  advanceReachTarget: (token: string, targetId: string, action: "sent" | "followed_up" | "replied" | "stopped") =>
+    request<ReachTarget>(`/jobs/reach/targets/${encodeURIComponent(targetId)}/advance`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action }),
     }),
   /** Purchased-state for a job's day-of brief — no charge (UI gate). */
   getPrepBrief: (token: string, jobId: string) =>

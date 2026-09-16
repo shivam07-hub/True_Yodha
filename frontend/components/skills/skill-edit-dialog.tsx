@@ -113,7 +113,7 @@ export function SkillEditDialog({ skill, token, open, onClose, onSaved }: Props)
                   onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--tm-border-soft)"; e.currentTarget.style.background = "rgba(255,255,255,0.02)" }}
                 >
                   <div className="tm-label-caps" style={{ marginBottom: 4, color: "var(--tm-interactive)" }}>{c.label}</div>
-                  <div style={{ fontSize: 12, lineHeight: 1.55, color: "var(--tm-text-muted)" }}>{c.text}</div>
+                  <div style={{ fontSize: "var(--tm-fs-caption)", lineHeight: 1.55, color: "var(--tm-text-muted)" }}>{c.text}</div>
                 </button>
               ))}
             </div>
@@ -131,7 +131,7 @@ export function SkillEditDialog({ skill, token, open, onClose, onSaved }: Props)
               rows={5}
               style={{
                 width: "100%", padding: "12px 14px",
-                fontFamily: "var(--tm-font-body)", fontSize: 13, lineHeight: 1.6,
+                fontFamily: "var(--tm-font-body)", fontSize: "var(--tm-fs-body)", lineHeight: 1.6,
                 color: "var(--tm-text)",
                 background: "rgba(255,255,255,0.04)",
                 border: `1px solid ${keywordMissing ? "var(--tm-warning)" : "var(--tm-border-soft)"}`,
@@ -141,7 +141,7 @@ export function SkillEditDialog({ skill, token, open, onClose, onSaved }: Props)
               }}
             />
             {keywordMissing && (
-              <div style={{ fontSize: 11, color: "var(--tm-warning)", display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-warning)", display: "flex", alignItems: "center", gap: 6 }}>
                 <span>⚠</span>
                 <span>
                   &ldquo;{skill.display_name}&rdquo; no longer appears in this bullet — the skill may drop unless an LLM-detected synonym is present.
@@ -150,7 +150,7 @@ export function SkillEditDialog({ skill, token, open, onClose, onSaved }: Props)
             )}
             <div style={{
               marginTop: 6, padding: "10px 12px",
-              fontSize: 12, lineHeight: 1.55, color: "var(--tm-text)",
+              fontSize: "var(--tm-fs-caption)", lineHeight: 1.55, color: "var(--tm-text)",
               background: "var(--tm-int-bg-subtle)",
               border: "1px solid var(--tm-int-border)",
               borderLeft: "3px solid var(--tm-interactive)",
@@ -158,13 +158,13 @@ export function SkillEditDialog({ skill, token, open, onClose, onSaved }: Props)
               fontFamily: "var(--tm-font-mono)",
             }}>
               <div className="tm-label-caps" style={{ marginBottom: 4, color: "var(--tm-interactive)" }}>Currently in your CV</div>
-              {original || <em style={{ fontStyle: "italic", color: "var(--tm-text-faint)" }}>No evidence text on file</em>}
+              {original || <span style={{ color: "var(--tm-text-faint)" }}>No evidence text on file</span>}
             </div>
           </div>
         )}
 
         {save.isError && (
-          <div role="alert" style={{ fontSize: 11, color: "var(--tm-danger)", marginTop: 4 }}>
+          <div role="alert" style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-danger)", marginTop: 4 }}>
             {save.error instanceof Error ? save.error.message : "Save failed"}
           </div>
         )}

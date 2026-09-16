@@ -299,14 +299,14 @@ function TargetJobsPanel({ applications, isLoading, onOpen }: TargetJobsPanelPro
           <Icon name="target" size={14} style={{ color: "var(--tm-interactive)" }}/>
           <span className="eyebrow">target jobs · create tailored CV</span>
         </div>
-        <span className="mono" style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+        <span className="mono" style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
           {applications.length} active
         </span>
       </div>
 
       <div className="cvb-right-col-body">
         {isLoading && (
-          <div style={{ padding: 18, fontSize: 12, color: "var(--tm-text-faint)" }}>
+          <div style={{ padding: 18, fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
             Loading saved jobs…
           </div>
         )}
@@ -336,7 +336,7 @@ function TargetJobsPanel({ applications, isLoading, onOpen }: TargetJobsPanelPro
             href="/market"
             style={{
               marginTop: 8, padding: 12, border: "1px dashed var(--tm-border-soft)",
-              borderRadius: 8, textAlign: "center", fontSize: 11.5, color: "var(--tm-text-faint)",
+              borderRadius: 8, textAlign: "center", fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)",
               textDecoration: "none", display: "block",
             }}
           >
@@ -356,15 +356,15 @@ function TargetJobCard({ app, onOpen }: TargetJobCardProps) {
     <button type="button" className="cvb-job-card" onClick={onOpen}>
       <div style={{ minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-          <span style={{ fontWeight: 600, fontSize: 13, color: "var(--tm-text)" }}>
+          <span style={{ fontWeight: 600, fontSize: "var(--tm-fs-body)", color: "var(--tm-text)" }}>
             {app.company ?? "Unknown"}
           </span>
-          <span className="mono" style={{ fontSize: 10.5, color: "var(--tm-text-faint)" }}>
+          <span className="mono" style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
             · {timeAgo(app.created_at)}
           </span>
         </div>
-        <div style={{ fontSize: 12, color: "var(--tm-text-muted)" }}>{app.title}</div>
-        <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 3, textTransform: "capitalize" }}>
+        <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-muted)" }}>{app.title}</div>
+        <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", marginTop: 3, textTransform: "capitalize" }}>
           stage · {app.status.replace("_", " ")}
         </div>
       </div>
@@ -374,7 +374,7 @@ function TargetJobCard({ app, onOpen }: TargetJobCardProps) {
             <span className="mono tabnum">v{app.cv_badge.version_number}</span> CV
           </span>
         )}
-        <span style={{ fontSize: 11, color: "var(--tm-interactive)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+        <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-interactive)", display: "inline-flex", alignItems: "center", gap: 4 }}>
           Tailor CV <Icon name="arrow-right" size={11}/>
         </span>
       </div>
@@ -410,10 +410,10 @@ function CVInlineViewer({ version, cv, contact, onClose, onOpenJob, focusSkill }
             <Icon name="chevron-right" size={12} style={{ transform: "rotate(180deg)" }}/>
           </Button>
           <KindDot kind={version.kind} inline/>
-          <span className="mono" style={{ fontSize: 13, color: "var(--tm-interactive)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span className="mono" style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-interactive)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {titleLabel}
           </span>
-          <span className="cvb-pill" style={{ fontSize: 10, flexShrink: 0 }}>{kindLabel}</span>
+          <span className="cvb-pill" style={{ fontSize: "var(--tm-fs-caption)", flexShrink: 0 }}>{kindLabel}</span>
         </div>
         {!isMaster && version.job_id && (
           <Button
@@ -428,7 +428,7 @@ function CVInlineViewer({ version, cv, contact, onClose, onOpenJob, focusSkill }
       </div>
 
       <div style={{ padding: "6px 14px 4px", borderBottom: "1px solid var(--tm-border-soft)" }}>
-        <span style={{ fontSize: 11, color: "var(--tm-text-faint)", fontFamily: "var(--cvb-font-mono)" }}>
+        <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", fontFamily: "var(--cvb-font-mono)" }}>
           {isMaster
             ? "Main CV · source for every tailored copy"
             : `${version.company_name ?? "Company"} · ${version.job_title ?? "Job"}`}

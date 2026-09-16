@@ -44,8 +44,8 @@ export function AccountDeletionPanel({ token }: { token: string | null }) {
             color: "var(--tm-danger)",
             cursor: "pointer",
             font: "inherit",
-            fontSize: 12,
-            fontWeight: 700,
+            fontSize: "var(--tm-fs-caption)",
+            fontWeight: 600,
             padding: "9px 14px",
           }}
         >
@@ -64,7 +64,7 @@ export function AccountDeletionPanel({ token }: { token: string | null }) {
         padding: 14,
       }}
     >
-      <label htmlFor="delete-account-confirm" style={{ color: "var(--tm-text)", fontSize: 12 }}>
+      <label htmlFor="delete-account-confirm" style={{ color: "var(--tm-text)", fontSize: "var(--tm-fs-caption)" }}>
         Type DELETE to permanently erase your account, CVs, activity, and profile.
       </label>
       <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
@@ -94,8 +94,8 @@ export function AccountDeletionPanel({ token }: { token: string | null }) {
             color: "white",
             cursor: busy ? "wait" : "pointer",
             font: "inherit",
-            fontSize: 12,
-            fontWeight: 700,
+            fontSize: "var(--tm-fs-caption)",
+            fontWeight: 600,
             opacity: busy || confirmation !== "DELETE" ? 0.45 : 1,
             padding: "9px 14px",
           }}
@@ -122,7 +122,7 @@ export function AccountDeletionPanel({ token }: { token: string | null }) {
           Cancel
         </button>
       </div>
-      {error && <div role="alert" style={{ color: "var(--tm-danger)", fontSize: 12, marginTop: 10 }}>{error}</div>}
+      {error && <div role="alert" style={{ color: "var(--tm-danger)", fontSize: "var(--tm-fs-caption)", marginTop: 10 }}>{error}</div>}
     </div>
   )
 }

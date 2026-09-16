@@ -4,7 +4,7 @@
    thing on the page that acts. */
 
 .awr {
-  max-width: 640px;
+  max-width: var(--tm-reading-measure);
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -14,7 +14,7 @@
   margin: 0;
   font-family: var(--tm-font-display);
   font-size: var(--tm-fs-title);
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--tm-text);
   text-wrap: balance;
@@ -32,7 +32,7 @@
   margin: 10px 0 0;
   font-family: var(--tm-font-display);
   font-size: var(--tm-fs-heading);
-  font-weight: 500;
+  font-weight: 600;
   color: var(--tm-text);
 }
 
@@ -43,7 +43,7 @@
   flex-direction: column;
   gap: 8px;
   font-family: var(--tm-font-sans);
-  font-size: var(--tm-fs-meta);
+  font-size: var(--tm-fs-body);
   line-height: 1.55;
   color: var(--tm-text-muted);
 }
@@ -52,7 +52,7 @@
 .awr-quiet {
   margin: 0;
   font-family: var(--tm-font-sans);
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   line-height: 1.55;
   color: var(--tm-text-muted);
 }
@@ -60,7 +60,7 @@
 .awr-meta {
   margin: 0;
   font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-micro);
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--tm-text-muted);
@@ -75,7 +75,7 @@
 
 .awr-price {
   font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-numeral);
+  font-size: var(--tm-fs-display);
   font-variant-numeric: tabular-nums;
   line-height: 1;
   color: var(--tm-text);
@@ -83,7 +83,7 @@
 
 .awr-slots {
   font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-micro);
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--tm-text-muted);
@@ -96,7 +96,7 @@
 .awr-error {
   margin: 0;
   font-family: var(--tm-font-sans);
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   color: var(--tm-danger);
 }
 
@@ -107,7 +107,7 @@
   flex-direction: column;
   gap: 14px;
   font-family: var(--tm-font-reading);
-  font-size: var(--tm-fs-prose);
+  font-size: var(--tm-fs-reading);
   line-height: 1.7;
   color: var(--tm-text);
 }
@@ -127,7 +127,7 @@
 
 .awr-sent dt {
   font-family: var(--tm-font-sans);
-  font-size: var(--tm-fs-micro);
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--tm-text-muted);
@@ -137,7 +137,7 @@
 .awr-sent dd {
   margin: 0;
   font-family: var(--tm-font-sans);
-  font-size: var(--tm-fs-meta);
+  font-size: var(--tm-fs-body);
   line-height: 1.55;
   color: var(--tm-text);
   white-space: pre-wrap;
@@ -160,13 +160,13 @@
 
 .awr-label {
   font-family: var(--tm-font-sans);
-  font-size: var(--tm-fs-ui);
+  font-size: var(--tm-fs-body);
   color: var(--tm-text);
 }
 
 .awr-hint {
   font-family: var(--tm-font-sans);
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-caption);
   line-height: 1.45;
   color: var(--tm-text-muted);
 }
@@ -175,7 +175,7 @@
   width: 100%;
   resize: vertical;
   font-family: var(--tm-font-sans);
-  font-size: var(--tm-fs-ui);
+  font-size: var(--tm-fs-body);
   line-height: 1.5;
 }
 

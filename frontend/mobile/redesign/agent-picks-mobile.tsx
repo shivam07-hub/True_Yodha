@@ -112,10 +112,10 @@ export function MobileAgentPicks({
   return (
     <div className="mm-root">
       <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "2px 2px 2px" }}>
-        <span aria-hidden style={{ color: "var(--mm-accent)", fontSize: 14 }}>✦</span>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--mm-text)" }}>Myro Agent Picks</h2>
+        <span aria-hidden style={{ color: "var(--mm-accent)", fontSize: "var(--tm-fs-body)" }}>✦</span>
+        <h2 style={{ margin: 0, fontSize: "var(--tm-fs-body)", fontWeight: 600, letterSpacing: "-0.02em", color: "var(--mm-text)" }}>Myro Agent Picks</h2>
       </div>
-      <p style={{ margin: "3px 2px 12px", fontSize: 11.5, color: "var(--mm-faint)", lineHeight: 1.45 }}>
+      <p style={{ margin: "3px 2px 12px", fontSize: "var(--tm-fs-caption)", color: "var(--mm-faint)", lineHeight: 1.45 }}>
         Hand-vetted by Myro’s career brain for your level, goals and city. Start here.
       </p>
 
@@ -125,10 +125,10 @@ export function MobileAgentPicks({
           return (
             <div key={pick.job_id} style={{ display: "flex", flexDirection: "column", gap: 7, borderLeft: `2px solid ${tier === "bullseye" ? "var(--mm-accent)" : "rgba(255,255,255,0.14)"}`, paddingLeft: 10 }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, borderRadius: 99, fontSize: 10.5, fontWeight: 700, fontFamily: "var(--mm-mono, ui-monospace, monospace)", color: tier === "bullseye" ? "var(--mm-accent-fg)" : "var(--mm-text-3)", background: tier === "bullseye" ? "var(--mm-accent)" : "var(--mm-raise-1)", flex: "none" }}>{pick.agent_rank}</span>
-                <p style={{ margin: 0, flex: 1, fontSize: 12.5, color: "var(--mm-text-3)", lineHeight: 1.45 }}>{pick.agent_comment}</p>
+                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, borderRadius: 10, fontSize: "var(--tm-fs-caption)", fontWeight: 600, fontFamily: "var(--mm-mono, ui-monospace, monospace)", color: tier === "bullseye" ? "var(--mm-accent-fg)" : "var(--mm-text-3)", background: tier === "bullseye" ? "var(--mm-accent)" : "var(--mm-raise-1)", flex: "none" }}>{pick.agent_rank}</span>
+                <p style={{ margin: 0, flex: 1, fontSize: "var(--tm-fs-caption)", color: "var(--mm-text-3)", lineHeight: 1.45 }}>{pick.agent_comment}</p>
                 {TIER_LABEL[tier] ? (
-                  <span style={{ fontSize: 9.5, letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "var(--mm-mono, ui-monospace, monospace)", color: tier === "bullseye" ? "var(--mm-accent)" : "var(--mm-dim)", flex: "none" }}>{TIER_LABEL[tier]}</span>
+                  <span style={{ fontSize: "var(--tm-fs-caption)", letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "var(--mm-mono, ui-monospace, monospace)", color: tier === "bullseye" ? "var(--mm-accent)" : "var(--mm-dim)", flex: "none" }}>{TIER_LABEL[tier]}</span>
                 ) : null}
               </div>
               <SwipeCard
@@ -147,11 +147,11 @@ export function MobileAgentPicks({
       </div>
 
       <div style={{ margin: "16px 0 4px", paddingTop: 14, borderTop: "1px dashed rgba(255,255,255,0.12)" }}>
-        <p style={{ margin: 0, fontSize: 11.5, color: "var(--mm-dim)", lineHeight: 1.5 }}>
+        <p style={{ margin: 0, fontSize: "var(--tm-fs-caption)", color: "var(--mm-dim)", lineHeight: 1.5 }}>
           {context === "collections" ? (
-            <><strong style={{ color: "var(--mm-muted)", fontWeight: 700 }}>Those are Myro’s picks for you.</strong> Your saved jobs are below.</>
+            <><strong style={{ color: "var(--mm-muted)", fontWeight: 600 }}>Those are Myro’s picks for you.</strong> Your saved jobs are below.</>
           ) : (
-            <><strong style={{ color: "var(--mm-muted)", fontWeight: 700 }}>Agent picks end here.</strong> More roles below are algorithm-matched on skill overlap, not hand-checked — save what fits.</>
+            <><strong style={{ color: "var(--mm-muted)", fontWeight: 600 }}>Agent picks end here.</strong> More roles below are algorithm-matched on skill overlap, not hand-checked — save what fits.</>
           )}
         </p>
       </div>

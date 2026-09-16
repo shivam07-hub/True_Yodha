@@ -6,7 +6,7 @@
  * shape of the screen being loaded:
  *   1 loading.tsx served CVPlaygroundSkeleton — two EQUAL panes and a row of
  *     version tabs, mirroring a layout that was replaced months ago (the real
- *     split is 1fr / 400px and has no version tabs). It also keyed only off
+ *     split is 1fr / --tm-workspace-rail and has no version tabs). It also keyed only off
  *     `jobId`, so `/cv?edit=1` got the LIBRARY skeleton on the way to the
  *     workstation.
  *   2 page.tsx's `bootstrapping` gate served CvSkeleton — page head + one card.
@@ -17,14 +17,13 @@
  * A skeleton earns its place by holding the shape the content will take. Four
  * that disagree are worse than none: each hand-off is a visible relayout, and
  * the user reads relayout as "it broke and restarted". This mirrors the real
- * shell — 64px header, the EDIT/SHEET toolbar, the CV column, the 400px rail
+ * shell — 64px header, the EDIT/SHEET toolbar, the CV column, the 360 rail
  * with its triage tiles — so the mount is a fill, not a jump.
  */
 import { Skeleton } from "@/components/ui/skeleton"
 import { SkeletonSkin } from "@/components/loading/skeleton-skin"
 import { CVMobileWorkstationSkeleton } from "@/components/loading/mobile-page-skeletons"
 
-const RAIL_W = 400
 const LINE_WIDTHS = ["96%", "88%", "72%", "94%", "63%", "90%", "78%"]
 
 export function CVWorkstationSkeleton() {
@@ -51,7 +50,7 @@ export function CVWorkstationSkeleton() {
         <Skeleton style={{ width: 118, height: 38, borderRadius: 10 }} />
       </div>
 
-      <div style={{ flex: 1, display: "grid", gridTemplateColumns: `minmax(0, 1fr) ${RAIL_W}px` }}>
+      <div style={{ flex: 1, display: "grid", gridTemplateColumns: "minmax(0, 1fr) var(--tm-workspace-rail)" }}>
         <section style={{ borderRight: "1px solid var(--tm-border-soft)" }}>
           {/* toolbar — EDIT / SHEET + the page-fill meter */}
           <div style={{

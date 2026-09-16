@@ -45,7 +45,7 @@ export function DocsPage() {
       <div style={{ borderBottom: "1px solid var(--tm-border-soft)", padding: "48px 32px 36px", position: "relative", overflow: "hidden", flexShrink: 0 }}>
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% 0%, var(--tm-int-bg-wash), transparent 60%)", pointerEvents: "none" }} />
         <div style={{ maxWidth: 820, margin: "0 auto", position: "relative" }}>
-          <h1 style={{ margin: 0, fontSize: 36, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1, color: "var(--tm-text)" }}>
+          <h1 style={{ margin: 0, fontSize: "var(--tm-fs-display)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.1, color: "var(--tm-text)" }}>
             Methodology &amp; documentation
           </h1>
         </div>
@@ -56,14 +56,14 @@ export function DocsPage() {
 
         {/* Sticky TOC — desktop only (hidden < 768px via docs-page.css) */}
         <nav aria-label="Page sections" className="docs-toc">
-          <div style={{ fontSize: 10, fontFamily: "var(--tm-font-mono)", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>
+          <div style={{ fontSize: "var(--tm-fs-caption)", fontFamily: "var(--tm-font-mono)", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>
             On this page
           </div>
           {TOC.map(s => (
             <a
               key={s.id}
               href={`#${s.id}`}
-              style={{ fontSize: 13, color: "var(--tm-interactive-rest)", textDecoration: "none", padding: "4px 0", fontFamily: "var(--tm-font-mono)", transition: "color 120ms" }}
+              style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-interactive-rest)", textDecoration: "none", padding: "4px 0", fontFamily: "var(--tm-font-mono)", transition: "color 120ms" }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-interactive)" }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-interactive-rest)" }}
             >
@@ -84,10 +84,10 @@ export function DocsPage() {
 
           {/* CTA */}
           <div style={{ borderTop: "1px solid var(--tm-border-soft)", paddingTop: 40, textAlign: "center" }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: "var(--tm-text)", marginBottom: 8, letterSpacing: "-0.02em" }}>
+            <div style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--tm-text)", marginBottom: 8, letterSpacing: "-0.02em" }}>
               Choose your match.
             </div>
-            <p style={{ fontSize: 14, color: "var(--tm-text-faint)", marginBottom: 20, margin: "0 0 20px" }}>
+            <p style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text-faint)", marginBottom: 20, margin: "0 0 20px" }}>
               One CV in. A tailored version for every role — you decide which to send.
             </p>
             <Link
@@ -95,10 +95,10 @@ export function DocsPage() {
               style={{
                 display: "inline-block",
                 padding: "12px 28px",
-                borderRadius: 99,
+                borderRadius: 10,
                 background: "var(--tm-interactive)",
                 color: "var(--tm-interactive-fg)",
-                fontSize: 14,
+                fontSize: "var(--tm-fs-body)",
                 fontWeight: 600,
                 textDecoration: "none",
               }}

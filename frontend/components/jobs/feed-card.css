@@ -9,7 +9,7 @@
   padding: 15px 18px;
   background: var(--tm-surface);
   border: 1px solid var(--tm-border-soft);
-  border-radius: var(--tm-radius-lg, 16px);
+  border-radius: var(--tm-radius-card);
   cursor: pointer;
   text-align: left;
   width: 100%;
@@ -45,10 +45,10 @@
    role line. This is what makes a job read as ONE object across every surface. */
 .fc-card.fc-compact { padding: 14px 16px; gap: 8px; }
 .fc-chead { display: flex; align-items: center; gap: 10px; }
-.fc-chead .fc-role { flex: 1 1 auto; min-width: 0; font-size: 15px; }
+.fc-chead .fc-role { flex: 1 1 auto; min-width: 0; font-size: var(--tm-fs-body); }
 .fc-chead-fit,
 .fc-chead-actions { flex-shrink: 0; display: inline-flex; align-items: center; }
-.fc-compact .fc-loc { font-size: 12.5px; }
+.fc-compact .fc-loc { font-size: var(--tm-fs-caption); }
 .fc-loc-age { color: var(--tm-text-faint); }
 
 /* ── main row: monogram · body · fit ──────────────────────────────────────────
@@ -73,7 +73,7 @@
   width: 34px; height: 34px; border-radius: 10px;
   background: var(--fc-logo-bg, var(--tm-surface-2, var(--tm-surface)));
   border: 1px solid transparent;
-  font-family: var(--tm-font-sans, inherit); font-size: 14px; font-weight: 700;
+  font-family: var(--tm-font-sans, inherit); font-size: var(--tm-fs-body); font-weight: 600;
   color: var(--fc-logo-ink, var(--tm-text-muted)); text-transform: uppercase;
 }
 
@@ -83,11 +83,11 @@
 /* Company name = identity, NOT the action (aligned accent-budget 2026-07-23):
    the accent is reserved for signal rings / active segment / the one primary
    CTA. Ink at rest; the crawlable link reveals the accent only on hover. */
-.fc-co { font-size: 14px; font-weight: 500; color: var(--tm-text); min-width: 0; }
+.fc-co { font-size: var(--tm-fs-body); font-weight: 500; color: var(--tm-text); min-width: 0; }
 a.fc-co:hover { color: var(--tm-interactive); }
 .fc-age {
   margin-left: auto; flex-shrink: 0;
-  font-size: 12px; font-weight: 500;
+  font-size: var(--tm-fs-caption); font-weight: 500;
   color: var(--tm-text-muted);
 }
 /* Inline-fit header (market pill): company · time · skills cluster left, no gap —
@@ -97,26 +97,26 @@ a.fc-co:hover { color: var(--tm-interactive); }
 
 .fc-role {
   margin: 0; font-weight: 600; color: var(--tm-text);
-  font-size: 17px; line-height: 1.3; letter-spacing: -0.01em;
+  font-size: var(--tm-fs-heading); line-height: 1.3; letter-spacing: -0.01em;
 }
 
 /* Location leads the meta (it's the load-bearing fact on a saved job) — stronger
    ink than the muted skill chips below. The mode pill keeps its own quiet tone. */
-.fc-loc { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 13px; color: var(--tm-text); }
+.fc-loc { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: var(--tm-fs-body); color: var(--tm-text); }
 .fc-loc-mode {
-  font-size: 11px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase;
-  padding: 2px 8px; border-radius: 999px; border: 1px solid var(--tm-border-soft); color: var(--tm-text-muted);
+  font-size: var(--tm-fs-caption); font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: var(--tm-button-radius); border: 1px solid var(--tm-border-soft); color: var(--tm-text-muted);
 }
 
 .fc-meta { display: flex; flex-wrap: wrap; gap: 6px; }
 .fc-metachip {
-  font-size: 11.5px; font-weight: 500;
-  padding: 2px 9px; border-radius: 999px; border: 1px solid var(--tm-border-soft); color: var(--tm-text-muted);
+  font-size: var(--tm-fs-caption); font-weight: 500;
+  padding: 2px 9px; border-radius: var(--tm-button-radius); border: 1px solid var(--tm-border-soft); color: var(--tm-text-muted);
 }
 
 /* the reading line — clamped on row cards, free on immersive */
 .fc-snip {
-  margin: 2px 0 0; font-size: 14px; line-height: 1.62; color: var(--tm-text-muted);
+  margin: 2px 0 0; font-size: var(--tm-fs-body); line-height: 1.62; color: var(--tm-text-muted);
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
 
@@ -145,7 +145,7 @@ a.fc-co:hover { color: var(--tm-interactive); }
 .fc-chip {
   flex: 0 0 auto;
   display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px 9px; border-radius: 999px; font-size: 11px;
+  padding: 3px 9px; border-radius: var(--tm-button-radius); font-size: var(--tm-fs-caption);
   background: var(--tm-surface-2, var(--tm-surface)); border: 1px solid var(--tm-border-soft); color: var(--tm-text-muted);
 }
 .fc-chip-name { white-space: nowrap; }
@@ -198,13 +198,13 @@ a.fc-co:hover { color: var(--tm-interactive); }
 /* Number-tier fallback (un-ranked card, no verdict). */
 .fc-ring.fit-strong .fc-ring-arc { stroke: var(--tm-success, var(--tm-interactive)); }
 .fc-ring.fit-mid .fc-ring-arc { stroke: var(--tm-text-muted); }
-.fc-ring-num { font-size: 12px; font-weight: 700; fill: var(--tm-text); }
+.fc-ring-num { font-size: var(--tm-fs-caption); font-weight: 600; fill: var(--tm-text); }
 
 /* Match Verdict word under the ring — the ONE number + the verdict word, one
    template every surface reads. Caption scale, tone-coloured by verdict. */
 .fc-fit-score { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; }
 .fc-verdict {
-  font-size: var(--tm-fs-caption); font-weight: 700; letter-spacing: 0.04em;
+  font-size: var(--tm-fs-caption); font-weight: 600; letter-spacing: 0.04em;
   text-transform: uppercase; line-height: 1; white-space: nowrap;
 }
 /* Tone tracks the ring hue above — worth_it was the "orange 84" leak: it used
@@ -219,11 +219,11 @@ a.fc-co:hover { color: var(--tm-interactive); }
    state stays quiet. Sans, not mono. */
 .fc-fitpill {
   display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
-  font-size: 12px; font-weight: 600; color: var(--tm-text-faint);
+  font-size: var(--tm-fs-caption); font-weight: 600; color: var(--tm-text-faint);
 }
 .fc-fitpill-on {
   color: var(--tm-success-text, var(--tm-success));
-  background: var(--tm-success-wash); padding: 4px 10px; border-radius: 999px;
+  background: var(--tm-success-wash); padding: 4px 10px; border-radius: var(--tm-button-radius);
 }
 .fc-fitpill-nudge { color: var(--tm-interactive-rest, var(--tm-interactive)); text-decoration: none; }
 
@@ -238,7 +238,7 @@ a.fc-co:hover { color: var(--tm-interactive); }
   display: inline-flex; align-items: center; gap: 6px;
   padding: 6px 11px; border-radius: 9px;
   border: 1px solid var(--tm-border-soft); background: transparent;
-  color: var(--tm-text-muted); font-size: 12.5px; font-weight: 500;
+  color: var(--tm-text-muted); font-size: var(--tm-fs-caption); font-weight: 500;
   font-family: inherit; cursor: pointer; white-space: nowrap;
   transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
 }
@@ -251,10 +251,10 @@ a.fc-co:hover { color: var(--tm-interactive); }
 .fc-rail-panel {
   margin-top: 10px; padding-top: 10px;
   border-top: 1px solid var(--tm-border-soft);
-  font-size: 13.5px; line-height: 1.55; color: var(--tm-text-muted);
+  font-size: var(--tm-fs-body); line-height: 1.55; color: var(--tm-text-muted);
 }
 .fc-rail-panel h4 {
-  margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  margin: 0 0 6px; font-size: var(--tm-fs-caption); font-weight: 600; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--tm-text); font-family: var(--tm-font-mono, inherit);
 }
 .fc-rail-panel p { margin: 0 0 8px; color: var(--tm-text); }
@@ -264,7 +264,7 @@ a.fc-co:hover { color: var(--tm-interactive); }
 .fc-rail-panel h4 .fc-rail-grade {
   margin-left: 8px; padding: 1px 6px; border-radius: 4px;
   border: 1px solid var(--tm-border); color: var(--tm-text-muted);
-  font-size: var(--tm-fs-micro, 10px); letter-spacing: 0.04em;
+  font-size: var(--tm-fs-caption); letter-spacing: 0.04em;
 }
 .fc-rail-panel ul { margin: 6px 0 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; }
 .fc-rail-panel .fc-rail-jd { max-height: 220px; overflow-y: auto; white-space: pre-wrap; color: var(--tm-text-muted); }
@@ -273,12 +273,21 @@ a.fc-co:hover { color: var(--tm-interactive); }
 .fc-rail-reach a {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 9px 2px; border-bottom: 1px solid var(--tm-border-soft);
-  color: var(--tm-text); text-decoration: none; font-size: 13px;
+  color: var(--tm-text); text-decoration: none; font-size: var(--tm-fs-body);
 }
 .fc-rail-reach a:last-child { border-bottom: none; }
 .fc-rail-reach a:hover { color: var(--tm-interactive); }
-.fc-rail-reach .fc-rail-reach-kind { color: var(--tm-text-faint); font-size: 11px; white-space: nowrap; }
-.fc-rail-loading { color: var(--tm-text-muted); font-size: 13px; }
+.fc-rail-reach .fc-rail-reach-kind { color: var(--tm-text-faint); font-size: var(--tm-fs-caption); white-space: nowrap; }
+.fc-rail-desk {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: var(--tm-fs-caption);
+  color: var(--tm-interactive);
+  text-decoration: none;
+  cursor: pointer;
+}
+.fc-rail-desk:hover { text-decoration: underline; }
+.fc-rail-loading { color: var(--tm-text-muted); font-size: var(--tm-fs-body); }
 
 /* Verified trust stamp — lift it from the faintest line to a live signal (it's
    the differentiator). A small success dot precedes the positive stamp; the
@@ -305,12 +314,12 @@ a.fc-co:hover { color: var(--tm-interactive); }
 
 /* ── immersive (tall single-screen mobile card — Inshorts read) ───────────── */
 .fc-immersive {
-  min-height: 72vh; padding: 22px 20px; border-radius: 18px;
+  min-height: 72vh; padding: 22px 20px; border-radius: var(--tm-radius-card);
   will-change: transform; user-select: none;
 }
-.fc-immersive .fc-role { font-size: 21px; line-height: 1.25; }
-.fc-immersive .fc-co { font-size: 15px; }
-.fc-immersive .fc-snip { -webkit-line-clamp: unset; font-size: 15px; line-height: 1.65; flex: 1 1 auto; }
+.fc-immersive .fc-role { font-size: var(--tm-fs-heading); line-height: 1.25; }
+.fc-immersive .fc-co { font-size: var(--tm-fs-body); }
+.fc-immersive .fc-snip { -webkit-line-clamp: unset; font-size: var(--tm-fs-body); line-height: 1.65; flex: 1 1 auto; }
 .fc-immersive .fc-body { gap: 8px; }
 .fc-immersive .fc-actions { margin-top: auto; }
 

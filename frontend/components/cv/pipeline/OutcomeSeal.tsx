@@ -28,7 +28,7 @@ export function OutcomeSeal({ outcome, inline }: Props) {
     border: `1px solid ${color}`,
     borderRadius: 4,
     fontFamily: "var(--tm-font-serif, var(--tm-font-mono))",
-    fontSize: 11, letterSpacing: "0.18em",
+    fontSize: "var(--tm-fs-caption)", letterSpacing: "0.18em",
     textTransform: "uppercase",
     color, background: isOffer ? "rgba(212,175,55,0.08)" : "transparent",
   }

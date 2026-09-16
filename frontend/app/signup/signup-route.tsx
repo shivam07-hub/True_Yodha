@@ -41,7 +41,7 @@ export function SignupRoute() {
               <p
                 style={{
                   marginTop: 14,
-                  fontSize: 13.5,
+                  fontSize: "var(--tm-fs-body)",
                   lineHeight: 1.55,
                   color: "var(--tm-text-muted)",
                 }}

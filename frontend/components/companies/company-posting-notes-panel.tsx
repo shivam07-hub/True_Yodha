@@ -48,7 +48,7 @@ export function CompanyPostingNotesPanel({ companyName }: { companyName: string 
 
   if (isFetchingPostingNotes) {
     return (
-      <div role="status" style={{ marginTop: 24, color: "var(--tm-text-faint)", fontSize: 13 }}>
+      <div role="status" style={{ marginTop: 24, color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-body)" }}>
         Loading role notes…
       </div>
     )
@@ -63,11 +63,11 @@ export function CompanyPostingNotesPanel({ companyName }: { companyName: string 
         <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
           {postingNotes.map((n, i) => (
             <li key={`${n.job_id}-${i}`} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--tm-border-soft)", background: "rgba(255,255,255,0.02)" }}>
-              <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: "var(--tm-text)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{n.body}</p>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 7, fontSize: 11, color: "var(--tm-text-faint)" }}>
+              <p style={{ margin: 0, fontSize: "var(--tm-fs-body)", lineHeight: 1.55, color: "var(--tm-text)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{n.body}</p>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 7, fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
                 {n.role && <span style={{ fontWeight: 600, color: "var(--tm-text-soft, var(--tm-text-faint))" }}>{n.role}</span>}
                 {n.author_ninja_name ? (
-                  <Link href={`/profile/${n.author_ninja_name}`} style={{ color: "var(--tm-interactive-rest)", fontWeight: 700, textDecoration: "none" }}>{n.author_ninja_name}</Link>
+                  <Link href={`/profile/${n.author_ninja_name}`} style={{ color: "var(--tm-interactive-rest)", fontWeight: 600, textDecoration: "none" }}>{n.author_ninja_name}</Link>
                 ) : (
                   <span>A Myro user</span>
                 )}
@@ -81,7 +81,7 @@ export function CompanyPostingNotesPanel({ companyName }: { companyName: string 
 
   if (isPostingNotesError) {
     return (
-      <div role="alert" style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 12, color: "var(--tm-text-faint)", fontSize: 13 }}>
+      <div role="alert" style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 12, color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-body)" }}>
         <span>Role notes could not be loaded.</span>
         <Button type="button" variant="solid" size="sm" onClick={() => void refetchPostingNotes()}>
           Try again
@@ -91,7 +91,7 @@ export function CompanyPostingNotesPanel({ companyName }: { companyName: string 
   }
 
   return (
-    <div style={{ marginTop: 24, color: "var(--tm-text-faint)", fontSize: 13 }}>
+    <div style={{ marginTop: 24, color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-body)" }}>
       No notes have been shared on individual roles yet.
     </div>
   )

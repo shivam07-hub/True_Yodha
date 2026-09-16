@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 from app.deps import Principal, get_principal
 from app.repositories.cv import CVRepository, get_token_cv_repository
-from app.services import background, cv_compose, cv_skill_edit, cv_workflow
+from app.services import background, cv_compose, cv_skill_edit, cv_workflow, forward_pass
 
 router = APIRouter()
 
@@ -76,6 +76,10 @@ def get_cv_structured(
     cv_repo: CVRepository = Depends(get_token_cv_repository),
 ) -> CVStructuredResponse:
     """Return stored cv_structured. Durable Answer — never a model."""
+    # The user came back to their CV. Bring them up to whatever Myro has learned
+    # to do since they last uploaded — claim-gated, enqueue-only, and it cannot
+    # change this response (see services/forward_pass: Myro does not backfill).
+    forward_pass.on_cv_read(principal.id)
     payload = cv_workflow.get_stored_cv_structured(cv_repo, principal.id)
     if payload is None:
         raise HTTPException(

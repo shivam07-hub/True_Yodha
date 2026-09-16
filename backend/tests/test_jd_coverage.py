@@ -223,6 +223,133 @@ def test_router_never_caches_empty_parse(monkeypatch):
         app.dependency_overrides.clear()
 
 
+def test_router_reads_snapshot_when_live_listing_is_hidden(monkeypatch):
+    """Prep keeps going after the marketplace hides a closed listing.
+
+    Evidence is work on a job the user already started, not a live-feed lookup.
+    RLS on `jobs` returns no row; the application snapshot still has the JD.
+    """
+    from fastapi.testclient import TestClient
+
+    from app.deps import CurrentUser, get_current_user
+    from app.main import app
+    from app.repositories.jobs import get_token_jobs_repository
+
+    class _Repo:
+        def __init__(self):
+            self.deepenings: dict[str, str] = {}
+            self.assessed_jd = ""
+
+        def get_jobs_by_ids(self, _ids):
+            return []
+
+        def get_application_job_snapshot(self, _u, _j):
+            return {"job_description": "A long enough job description prose here.", "job_title": "PM"}
+
+        def get_deepening(self, _u, _j, key):
+            return self.deepenings.get(key)
+
+        def upsert_deepening(self, _u, _j, key, text):
+            self.deepenings[key] = text
+
+    async def _assess(user_id, jd_text, provider, cv_bullets=None):
+        repo.assessed_jd = jd_text
+        return _sample_result()
+
+    monkeypatch.setattr(jd_coverage, "assess", _assess)
+    repo = _Repo()
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email="t@e.com", token="tok")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    from app.repositories.cv import get_token_cv_repository
+    app.dependency_overrides[get_token_cv_repository] = lambda: type("CVRepo", (), {"latest_baseline": staticmethod(lambda _u: None)})()
+    try:
+        resp = TestClient(app).post("/cv/jd-coverage", json={"job_id": "j1"})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert len(body["requirements"]) == 2
+        assert repo.assessed_jd.startswith("A long enough job description")
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_router_serves_cached_coverage_when_listing_and_snapshot_are_gone(monkeypatch):
+    """A banked panel still renders if the live row and the snapshot are both gone."""
+    from fastapi.testclient import TestClient
+
+    from app.deps import CurrentUser, get_current_user
+    from app.main import app
+    from app.repositories.jobs import get_token_jobs_repository
+
+    class _Repo:
+        def __init__(self):
+            self.deepenings = {jd_coverage.CACHE_PROMPT_KEY: jd_coverage.result_to_payload(_sample_result())}
+
+        def get_jobs_by_ids(self, _ids):
+            return []
+
+        def get_application_job_snapshot(self, _u, _j):
+            return None
+
+        def get_deepening(self, _u, _j, key):
+            return self.deepenings.get(key)
+
+        def upsert_deepening(self, _u, _j, key, text):
+            self.deepenings[key] = text
+
+    async def _assess(user_id, jd_text, provider, cv_bullets=None):
+        raise AssertionError("cache must answer — do not re-parse a missing JD")
+
+    monkeypatch.setattr(jd_coverage, "assess", _assess)
+    repo = _Repo()
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email="t@e.com", token="tok")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    from app.repositories.cv import get_token_cv_repository
+    app.dependency_overrides[get_token_cv_repository] = lambda: type("CVRepo", (), {"latest_baseline": staticmethod(lambda _u: None)})()
+    try:
+        resp = TestClient(app).post("/cv/jd-coverage", json={"job_id": "j1"})
+        assert resp.status_code == 200
+        assert resp.json()["cached"] is True
+        assert len(resp.json()["requirements"]) == 2
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_router_404_when_job_is_unknown(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from app.deps import CurrentUser, get_current_user
+    from app.main import app
+    from app.repositories.jobs import get_token_jobs_repository
+
+    class _Repo:
+        def get_jobs_by_ids(self, _ids):
+            return []
+
+        def get_application_job_snapshot(self, _u, _j):
+            return None
+
+        def get_deepening(self, _u, _j, key):
+            return None
+
+        def upsert_deepening(self, _u, _j, key, text):
+            pass
+
+    async def _assess(user_id, jd_text, provider, cv_bullets=None):
+        return jd_coverage.CoverageResult()
+
+    monkeypatch.setattr(jd_coverage, "assess", _assess)
+    repo = _Repo()
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email="t@e.com", token="tok")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    from app.repositories.cv import get_token_cv_repository
+    app.dependency_overrides[get_token_cv_repository] = lambda: type("CVRepo", (), {"latest_baseline": staticmethod(lambda _u: None)})()
+    try:
+        resp = TestClient(app).post("/cv/jd-coverage", json={"job_id": "missing"})
+        assert resp.status_code == 404
+    finally:
+        app.dependency_overrides.clear()
+
+
 # ── L1: a CV line is a start, not an answer (BACKLOG #13, 2026-09-13) ────────
 
 def _hit(sim, told):

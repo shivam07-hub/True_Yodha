@@ -260,7 +260,7 @@ export default async function IssuePage({ params }: Props) {
 
         {/* Spoke → pillar link (hub-and-spoke cluster) */}
         {pillar ? (
-          <p style={{ fontSize: 14, color: "var(--tm-text-muted)", marginTop: 32 }}>
+          <p style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", marginTop: 32 }}>
             Built on{" "}
             <Link href={`/newsletter/${pillar.slug}`} style={{ color: "var(--tm-interactive)", textDecoration: "none" }}>
               {pillar.title}
@@ -272,13 +272,13 @@ export default async function IssuePage({ params }: Props) {
         {/* Pillar → spokes list (this issue is the hub) */}
         {spokes.length > 0 ? (
           <div style={{ marginTop: 32, paddingTop: 24, borderTop: "1px solid var(--tm-border-soft)" }}>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
+            <div style={{ fontSize: "var(--tm-fs-caption)", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
               More from this week
             </div>
             <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
               {spokes.map((s) => (
                 <li key={s.slug}>
-                  <Link href={`/newsletter/${s.slug}`} style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)", textDecoration: "none" }}>
+                  <Link href={`/newsletter/${s.slug}`} style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "var(--tm-text)", textDecoration: "none" }}>
                     {s.title} →
                   </Link>
                 </li>

@@ -30,7 +30,7 @@ function CardBlock({ height, opacity = 1 }: { height: number; opacity?: number }
     <div
       style={{
         height,
-        borderRadius: 16,
+        borderRadius: 10,
         border: "1px solid var(--tm-border-faint)",
         background: "var(--tm-surface)",
         padding: 14,
@@ -125,7 +125,7 @@ export function ProfileMobileSkeleton() {
           alignItems: "center",
           gap: 14,
           padding: 14,
-          borderRadius: 16,
+          borderRadius: 10,
           border: "1px solid var(--tm-border-faint)",
           background: "var(--tm-surface)",
         }}
@@ -221,6 +221,22 @@ export function GenericMobileSkeleton() {
       <Skeleton style={{ height: 84, borderRadius: 14 }} />
       <Skeleton style={{ height: 132, borderRadius: 14 }} />
       <Skeleton style={{ height: 132, borderRadius: 14 }} />
+    </div>
+  )
+}
+
+/** /reach desk on a phone — stacked form, then queue rows. */
+export function ReachMobileSkeleton() {
+  return (
+    <div style={PAGE}>
+      <Skeleton style={{ width: 72, height: 11, borderRadius: 4 }} />
+      <Skeleton style={{ width: 120, height: 26, borderRadius: 8 }} />
+      <Skeleton style={{ height: 36, borderRadius: 8 }} />
+      <Skeleton style={{ height: 36, borderRadius: 8 }} />
+      <Skeleton style={{ height: 36, borderRadius: 8 }} />
+      {[0, 1, 2].map((i) => (
+        <CardBlock key={i} height={88} opacity={1 - i * 0.18} />
+      ))}
     </div>
   )
 }

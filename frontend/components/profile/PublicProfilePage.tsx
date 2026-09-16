@@ -88,7 +88,7 @@ export function PublicProfilePage({ initial, shareUrl }: PublicProfilePageProps)
           <p
             style={{
               margin: 0,
-              fontSize: 11,
+              fontSize: "var(--tm-fs-caption)",
               letterSpacing: "0.16em",
               textTransform: "uppercase",
               color: "var(--tm-text-faint)",
@@ -99,7 +99,7 @@ export function PublicProfilePage({ initial, shareUrl }: PublicProfilePageProps)
           <h1
             style={{
               margin: "4px 0 0",
-              fontSize: 26,
+              fontSize: "var(--tm-fs-title)",
               fontWeight: 600,
               letterSpacing: "-0.01em",
             }}
@@ -128,7 +128,7 @@ export function PublicProfilePage({ initial, shareUrl }: PublicProfilePageProps)
             gap: 16,
             padding: 20,
             border: "1px solid var(--tm-border)",
-            borderRadius: 16,
+            borderRadius: 10,
             background: "var(--tm-surface-2)",
           }}
         >
@@ -136,7 +136,7 @@ export function PublicProfilePage({ initial, shareUrl }: PublicProfilePageProps)
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <ScoreRing score={Math.round(score)} />
             {tier ? (
-              <span style={{ fontSize: 12, color: "var(--tm-text-faint)", letterSpacing: "0.04em" }}>{tier}</span>
+              <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", letterSpacing: "0.04em" }}>{tier}</span>
             ) : null}
           </div>
           <CountersStrip
@@ -154,7 +154,7 @@ export function PublicProfilePage({ initial, shareUrl }: PublicProfilePageProps)
             justifyContent: "center",
             padding: 20,
             border: "1px solid var(--tm-border)",
-            borderRadius: 16,
+            borderRadius: 10,
             background: "var(--tm-surface-2)",
             minHeight: 320,
           }}
@@ -192,7 +192,7 @@ function CountersStrip({ forge, diary, tracker }: { forge: number; diary: number
       style={{
         display: "flex",
         gap: 20,
-        fontSize: 11,
+        fontSize: "var(--tm-fs-caption)",
         color: "var(--tm-text-faint)",
         letterSpacing: "0.08em",
         textTransform: "uppercase",

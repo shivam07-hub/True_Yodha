@@ -55,7 +55,7 @@ export function StatusPicker({ current, onPick, onClose, asSheet }: Props) {
       )}
       <div ref={ref} style={wrap}>
         {asSheet && (
-          <div style={{ width: 36, height: 4, borderRadius: 99, background: "var(--tm-border)", margin: "0 auto 16px" }} />
+          <div style={{ width: 36, height: 4, borderRadius: 10, background: "var(--tm-border)", margin: "0 auto 16px" }} />
         )}
         <SectionHeader label="Stages" />
         {(APPLICATION_STAGES as StageKey[]).map(s => (
@@ -87,7 +87,7 @@ export function StatusPicker({ current, onPick, onClose, asSheet }: Props) {
 function SectionHeader({ label }: { label: string }) {
   return (
     <div style={{
-      fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase",
+      fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", letterSpacing: "0.12em", textTransform: "uppercase",
       color: "var(--tm-text-faint)", padding: "8px 10px 6px",
     }}>
       {label}
@@ -109,7 +109,7 @@ function Row({
         border: "1px solid transparent",
         color: active ? "var(--tm-interactive)" : terminal ? "var(--tm-text-muted)" : "var(--tm-text)",
         cursor: active ? "default" : "pointer",
-        textAlign: "left", fontSize: 14, fontFamily: "inherit",
+        textAlign: "left", fontSize: "var(--tm-fs-body)", fontFamily: "inherit",
         transition: "background 100ms ease",
       }}
       onMouseEnter={e => { if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.03)" }}
@@ -117,7 +117,7 @@ function Row({
     >
       <span style={{ width: 14, color: active ? "var(--tm-interactive)" : "var(--tm-text-faint)" }}>{marker}</span>
       <span style={{ flex: 1 }}>{label}</span>
-      {active && <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>current</span>}
+      {active && <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>current</span>}
     </button>
   )
 }

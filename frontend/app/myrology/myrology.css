@@ -111,23 +111,23 @@ html:has(.myrology-root) body {
 }
 .myrology-root .topbar-nav { display: flex; gap: 4px; flex: 1; justify-content: center; flex-wrap: wrap; }
 .myrology-root .tn {
-  padding: 7px 14px; border-radius: 99px; font-size: 14px; font-weight: 500;
+  padding: 7px 14px; border-radius: var(--tm-button-radius); font-size: var(--tm-fs-body); font-weight: 500;
   color: var(--tm-text-muted); transition: all 120ms var(--tm-ease, ease); border: 1px solid transparent;
 }
 .myrology-root .tn:hover { color: var(--tm-text); background: var(--tm-hover); }
 .myrology-root .tn.active { color: var(--my-amethyst); background: var(--my-amethyst-wash); border-color: var(--my-amethyst-ring); }
 .myrology-root .tn-sub { color: var(--my-amethyst); }
 .myrology-root .topbar-xp {
-  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 99px;
-  background: var(--my-amethyst-wash); border: 1px solid var(--my-amethyst-ring); color: var(--my-amethyst); font-size: 14px;
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: var(--tm-button-radius);
+  background: var(--my-amethyst-wash); border: 1px solid var(--my-amethyst-ring); color: var(--my-amethyst); font-size: var(--tm-fs-body);
 }
-.myrology-root .topbar-xp .mono { font-weight: 700; }
+.myrology-root .topbar-xp .mono { font-weight: 600; }
 .myrology-root .wm { display: inline-flex; align-items: center; gap: 12px; }
 .myrology-root .wm-stack { display: flex; flex-direction: column; line-height: 1; gap: 4px; }
-.myrology-root .wm-name { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; color: var(--tm-text); }
+.myrology-root .wm-name { font-size: var(--tm-fs-heading); font-weight: 600; letter-spacing: -0.01em; color: var(--tm-text); }
 .myrology-root .wm-dot { margin: 0 8px; color: var(--tm-text-faint); }
 .myrology-root .wm-sub { color: var(--my-amethyst); font-weight: 500; }
-.myrology-root .wm-tag { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--tm-text-muted); }
+.myrology-root .wm-tag { font-size: var(--tm-fs-caption); letter-spacing: 0.12em; text-transform: uppercase; color: var(--tm-text-muted); }
 
 .myrology-root .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; display: inline-block; }
 .myrology-root .dot.pulse { animation: my-pulse 1.8s var(--tm-ease, ease) infinite; }
@@ -136,18 +136,18 @@ html:has(.myrology-root) body {
 /* ── Hero ────────────────────────────────────────────────────── */
 .myrology-root .my-hero { text-align: center; padding: 24px 0 8px; position: relative; }
 .myrology-root .my-hero-eyebrow {
-  display: inline-flex; align-items: center; gap: 10px; padding: 6px 14px; border-radius: 99px;
+  display: inline-flex; align-items: center; gap: 10px; padding: 6px 14px; border-radius: var(--tm-button-radius);
   background: var(--my-amethyst-wash); border: 1px solid var(--my-amethyst-ring); color: var(--my-amethyst);
-  font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 600; margin-bottom: 28px;
+  font-size: var(--tm-fs-body); letter-spacing: 0.16em; text-transform: uppercase; font-weight: 600; margin-bottom: 28px;
 }
-.myrology-root .my-hero-h { margin: 0 0 18px; font-size: 60px; line-height: 1.02; letter-spacing: -0.025em; font-weight: 600; }
+.myrology-root .my-hero-h { margin: 0 0 18px; font-size: var(--tm-fs-hero); line-height: 1.02; letter-spacing: -0.025em; font-weight: 600; }
 .myrology-root .my-hero-h .hi { display: block; color: var(--tm-text); font-weight: 500; opacity: 0.85; }
-.myrology-root .my-hero-h .en { display: block; color: var(--my-amethyst); font-weight: 700; text-shadow: 0 0 32px var(--my-amethyst-glow); }
-.myrology-root .my-hero-sub { margin: 0 auto; max-width: 640px; font-size: 20px; color: var(--tm-text); line-height: 1.6; }
+.myrology-root .my-hero-h .en { display: block; color: var(--my-amethyst); font-weight: 600; text-shadow: 0 0 32px var(--my-amethyst-glow); }
+.myrology-root .my-hero-sub { margin: 0 auto; max-width: 640px; font-size: var(--tm-fs-heading); color: var(--tm-text); line-height: 1.6; }
 
 /* ── Section blocks ──────────────────────────────────────────── */
 .myrology-root .block { margin-top: 40px; }
-.myrology-root .block-eyebrow { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--tm-text-muted); font-weight: 600; margin-bottom: 14px; }
+.myrology-root .block-eyebrow { font-size: var(--tm-fs-body); letter-spacing: 0.16em; text-transform: uppercase; color: var(--tm-text-muted); font-weight: 600; margin-bottom: 14px; }
 
 /* ── Cosmic radar ────────────────────────────────────────────── */
 .myrology-root .cosmic-svg { width: 100%; max-width: 460px; aspect-ratio: 1; display: block; margin: 0 auto; filter: drop-shadow(0 0 24px var(--my-amethyst-glow)); position: relative; z-index: 1; }
@@ -155,9 +155,9 @@ html:has(.myrology-root) body {
 .myrology-root .cosmic-svg .ring-grid { stroke: rgba(176,132,255,0.10); stroke-width: 0.6; fill: none; }
 .myrology-root .cosmic-svg .ring-fill { fill: rgba(176,132,255,0.12); stroke: var(--my-amethyst); stroke-width: 1.5; }
 .myrology-root .cosmic-svg .ring-node { fill: var(--my-amethyst); }
-.myrology-root .cosmic-svg .ring-label { font-family: var(--tm-font-mono); font-size: 11px; fill: var(--tm-text-muted); letter-spacing: 0.06em; text-transform: uppercase; }
-.myrology-root .cosmic-svg .ring-glyph { font-family: var(--tm-font-mono); font-size: 15px; fill: var(--my-amethyst); }
-.myrology-root .cosmic-svg .ring-center { fill: var(--tm-text); font-family: var(--tm-font-mono); font-size: 13px; letter-spacing: 0.12em; }
+.myrology-root .cosmic-svg .ring-label { font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); fill: var(--tm-text-muted); letter-spacing: 0.06em; text-transform: uppercase; }
+.myrology-root .cosmic-svg .ring-glyph { font-family: var(--tm-font-mono); font-size: var(--tm-fs-body); fill: var(--my-amethyst); }
+.myrology-root .cosmic-svg .ring-center { fill: var(--tm-text); font-family: var(--tm-font-mono); font-size: var(--tm-fs-body); letter-spacing: 0.12em; }
 
 .myrology-root .cosmic-readings { display: flex; flex-direction: column; gap: 12px; }
 .myrology-root .reading {
@@ -166,11 +166,11 @@ html:has(.myrology-root) body {
 }
 .myrology-root .reading-glyph {
   width: 28px; height: 28px; border-radius: 50%; background: var(--my-amethyst-wash); border: 1px solid var(--my-amethyst-ring);
-  display: grid; place-items: center; color: var(--my-amethyst); font-family: var(--tm-font-mono); font-size: 16px;
+  display: grid; place-items: center; color: var(--my-amethyst); font-family: var(--tm-font-mono); font-size: var(--tm-fs-heading);
 }
-.myrology-root .reading-name { font-size: 15px; color: var(--tm-text); font-weight: 600; }
-.myrology-root .reading-meta { font-size: 13px; color: var(--tm-text-muted); margin-top: 2px; }
-.myrology-root .reading-val { font-size: 14px; color: var(--my-amethyst); font-family: var(--tm-font-mono); font-weight: 600; }
+.myrology-root .reading-name { font-size: var(--tm-fs-body); color: var(--tm-text); font-weight: 600; }
+.myrology-root .reading-meta { font-size: var(--tm-fs-body); color: var(--tm-text-muted); margin-top: 2px; }
+.myrology-root .reading-val { font-size: var(--tm-fs-body); color: var(--my-amethyst); font-family: var(--tm-font-mono); font-weight: 600; }
 
 /* ── Responsive ──────────────────────────────────────────────── */
 /* Only the rules THIS file declares. `.price-row`, `.bridge` and `.bridge-cta`
@@ -179,10 +179,10 @@ html:has(.myrology-root) body {
    the offer section never collapsed. They now live beside the rules they
    override — see the bottom of myrology-offer.css. */
 @media (max-width: 1100px) {
-  .myrology-root .my-hero-h { font-size: 50px; }
+  .myrology-root .my-hero-h { font-size: var(--tm-fs-hero); }
 }
 @media (max-width: 720px) {
   .myrology-root .m-main { padding: 24px 20px 32px; }
   .myrology-root .topbar { flex-direction: column; gap: 12px; align-items: flex-start; }
-  .myrology-root .my-hero-h { font-size: 40px; }
+  .myrology-root .my-hero-h { font-size: var(--tm-fs-hero); }
 }

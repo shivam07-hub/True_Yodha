@@ -47,13 +47,13 @@ export function JobReadinessPanel({ token, jobId }: { token: string; jobId: stri
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {/* Headline: the number + a plain reading of it. */}
       <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-        <span style={{ fontSize: 26, fontWeight: 700, color: tone, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>{matchPct}%</span>
-        <span style={{ fontSize: 12.5, color: "var(--tm-text-muted)" }}>
+        <span style={{ fontSize: "var(--tm-fs-title)", fontWeight: 600, color: tone, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>{matchPct}%</span>
+        <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-muted)" }}>
           skill match — you have {have.length} of {data.total_required} required
         </span>
       </div>
-      <div style={{ height: 4, borderRadius: 999, background: "var(--tm-border)", overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${matchPct}%`, borderRadius: 999, background: tone, transition: "width 600ms var(--tm-ease, ease)" }} />
+      <div style={{ height: 4, borderRadius: 10, background: "var(--tm-border)", overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${matchPct}%`, borderRadius: 10, background: tone, transition: "width 600ms var(--tm-ease, ease)" }} />
       </div>
 
       {have.length > 0 ? (
@@ -100,8 +100,8 @@ function ForgeGapChip({ skill, jobId }: { skill: SkillGapItem; jobId: string }) 
   )
 }
 
-const MUTED: React.CSSProperties = { margin: 0, fontSize: 12.5, color: "var(--tm-text-muted)" }
-const LABEL: React.CSSProperties = { fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }
+const MUTED: React.CSSProperties = { margin: 0, fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-muted)" }
+const LABEL: React.CSSProperties = { fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }
 const CHIP_ROW: React.CSSProperties = { display: "flex", flexWrap: "wrap", gap: 6 }
-const CHIP: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 999, fontSize: 11, border: "1px solid var(--tm-border-soft)" }
-const LINK_BTN: React.CSSProperties = { background: "none", border: "none", padding: 0, color: "var(--tm-interactive)", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }
+const CHIP: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 10, fontSize: "var(--tm-fs-caption)", border: "1px solid var(--tm-border-soft)" }
+const LINK_BTN: React.CSSProperties = { background: "none", border: "none", padding: 0, color: "var(--tm-interactive)", fontSize: "var(--tm-fs-caption)", fontWeight: 600, cursor: "pointer" }

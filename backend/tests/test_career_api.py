@@ -44,6 +44,7 @@ class _FakeReservoirRepo:
         self.pointers = pointers or []
         self.pending = pending
         self.patches: list[tuple[str, dict]] = []
+        self.declined: list[tuple[str, bool]] = []
 
     def list_roles(self, user_id):
         return self.roles
@@ -55,7 +56,26 @@ class _FakeReservoirRepo:
         return [p for p in self.pointers if str(p.get("story_id")) in set(story_ids)]
 
     def ingest_status(self, user_id):
-        return {"pending": self.pending, "processed": 0}
+        return {
+            "pending": self.pending, "processed": 0,
+            "awaiting_upgrade": getattr(self, "awaiting_upgrade", set()),
+        }
+
+    def set_completion_declined(self, user_id, story_id, declined):
+        self.declined.append((story_id, declined))
+        for s in self.stories:
+            if str(s["id"]) == story_id:
+                s["completion_declined_at"] = "2026-09-14T00:00:00Z" if declined else None
+                return s
+        return None
+
+    def clear_completion_declines(self, user_id):
+        n = 0
+        for s in self.stories:
+            if s.get("completion_declined_at"):
+                s["completion_declined_at"] = None
+                n += 1
+        return n
 
     # role-dedup (#38) contract
     def merge_proposals(self, user_id):
@@ -89,6 +109,9 @@ class _FakeJobsRepo:
 
     def get_jobs_by_ids(self, ids):
         return [self.job] if self.job else []
+
+    def get_application_job_snapshot(self, user_id, job_id):
+        return None
 
     def get_deepening(self, user_id, job_id, prompt_key):
         return self.deepening
@@ -422,3 +445,157 @@ class _FakeCoverageJobsRepo:
 
     def list_coverage_rows(self, user_id, prompt_key):
         return []
+
+
+# ── the standing completion queue (#13 L3) ────────────────────────────────────
+
+_NO_NUMBER = (
+    "Analyzed patient data using SQL, Excel, and Power BI to inform development "
+    "of a physiotherapy device, translating findings into actionable insights"
+)
+
+
+def _queue_repo(**over) -> _FakeReservoirRepo:
+    """One told-but-numberless story — the exact shape the upload bridge mints."""
+    story = {
+        "id": "s1", "role_id": "r1", "status": "active", "kind": "project",
+        "title": "Patient data analysis", "metrics": [], "skills": [],
+        "narrative": {"situation": "s", "task": "t", "action": "a"},
+        "created_at": "2026-09-13T00:00:00Z",
+    }
+    story.update(over)
+    return _FakeReservoirRepo(
+        roles=[{"id": "r1", "company": "Medtronic", "title": "Analyst", "kind": "work",
+                "status": "active", "created_at": "2026-01-01T00:00:00Z"}],
+        stories=[story],
+        pointers=[{"id": "p1", "story_id": "s1", "text": _NO_NUMBER,
+                   "is_canonical": True, "status": "active", "ordering": 0}],
+    )
+
+
+def test_profile_carries_the_completion_queue(monkeypatch):
+    monkeypatch.setattr(career_reservoir, "retry_stale_ingests", lambda repo, uid: None)
+    monkeypatch.setattr(career_reservoir, "maybe_enqueue_role_dedup", lambda uid, roles: None)
+    _override(reservoir=_queue_repo())
+    with TestClient(app) as client:
+        body = client.get("/cv/reservoir/profile", headers=_H).json()
+    assert body["questions_total"] == 1
+    assert body["missing_number"] == 1
+    q = body["questions"][0]
+    assert q["story_id"] == "s1"
+    assert q["kinds"] == ["number"]
+    assert q["role_label"] == "Analyst · Medtronic"
+    assert q["pointer"] == _NO_NUMBER
+
+
+def test_a_question_being_answered_right_now_is_not_asked_again(monkeypatch):
+    """Never asked twice survives a reload, because the ledger says so."""
+    monkeypatch.setattr(career_reservoir, "retry_stale_ingests", lambda repo, uid: None)
+    monkeypatch.setattr(career_reservoir, "maybe_enqueue_role_dedup", lambda uid, roles: None)
+    repo = _queue_repo()
+    repo.awaiting_upgrade = {"s1"}
+    _override(reservoir=repo)
+    with TestClient(app) as client:
+        body = client.get("/cv/reservoir/profile", headers=_H).json()
+    assert body["questions"] == []
+    assert body["questions_total"] == 0
+
+
+def test_answering_a_bullet_banks_an_inflow_against_that_story(monkeypatch):
+    enqueued: list[str] = []
+    monkeypatch.setattr(career_reservoir, "enqueue_ingest", lambda uid, eid: enqueued.append(eid))
+    dump, repo = _FakeDumpRepo(), _queue_repo()
+    _override(dump=dump, reservoir=repo)
+    with TestClient(app) as client:
+        resp = client.post(
+            "/cv/reservoir/stories/s1/answer",
+            json={"answer": "We covered 4,200 patients across 3 clinics and cut review time by half."},
+            headers=_H,
+        )
+    assert resp.status_code == 200
+    assert resp.json()["entry_id"] == "e1"
+    assert enqueued == ["e1"]
+    row = dump.rows[0]
+    assert row["kind"] == "answer"
+    assert row["source"] == "story_completion"
+    # This is the whole point: the ingest folds it into the SAME story.
+    assert row["payload"]["upgrades_story_id"] == "s1"
+    assert row["payload"]["via"] == "stories"
+
+
+def test_a_thin_answer_gets_one_probe_before_it_is_banked():
+    dump, repo = _FakeDumpRepo(), _queue_repo()
+    _override(dump=dump, reservoir=repo)
+    with TestClient(app) as client:
+        resp = client.post(
+            "/cv/reservoir/stories/s1/answer",
+            json={"answer": "It was a big project for us."}, headers=_H,
+        )
+    assert resp.status_code == 200
+    assert resp.json()["follow_up"]
+    assert resp.json()["entry_id"] is None
+    assert dump.rows == []
+
+
+def test_skipping_the_probe_still_banks_the_answer(monkeypatch):
+    monkeypatch.setattr(career_reservoir, "enqueue_ingest", lambda uid, eid: None)
+    dump, repo = _FakeDumpRepo(), _queue_repo()
+    _override(dump=dump, reservoir=repo)
+    with TestClient(app) as client:
+        resp = client.post(
+            "/cv/reservoir/stories/s1/answer",
+            json={"answer": "It was a big project for us.", "final": True}, headers=_H,
+        )
+    assert resp.status_code == 200
+    assert resp.json()["entry_id"] == "e1"
+
+
+def test_an_answer_cannot_be_grafted_onto_a_story_you_do_not_own():
+    dump, repo = _FakeDumpRepo(), _queue_repo()
+    _override(dump=dump, reservoir=repo)
+    with TestClient(app) as client:
+        resp = client.post(
+            "/cv/reservoir/stories/someone-else/answer",
+            json={"answer": "We covered 4,200 patients across three clinics."}, headers=_H,
+        )
+    assert resp.status_code == 404
+    assert dump.rows == []
+
+
+def test_set_aside_takes_a_bullet_out_of_the_queue_and_counts_it(monkeypatch):
+    monkeypatch.setattr(career_reservoir, "retry_stale_ingests", lambda repo, uid: None)
+    monkeypatch.setattr(career_reservoir, "maybe_enqueue_role_dedup", lambda uid, roles: None)
+    repo = _queue_repo()
+    _override(reservoir=repo)
+    with TestClient(app) as client:
+        assert client.post("/cv/reservoir/stories/s1/set-aside", json={}, headers=_H).status_code == 200
+        body = client.get("/cv/reservoir/profile", headers=_H).json()
+    assert repo.declined == [("s1", True)]
+    assert body["questions"] == []
+    assert body["questions_set_aside"] == 1
+
+
+def test_reopen_brings_every_set_aside_bullet_back(monkeypatch):
+    monkeypatch.setattr(career_reservoir, "retry_stale_ingests", lambda repo, uid: None)
+    monkeypatch.setattr(career_reservoir, "maybe_enqueue_role_dedup", lambda uid, roles: None)
+    repo = _queue_repo(completion_declined_at="2026-09-14T00:00:00Z")
+    _override(reservoir=repo)
+    with TestClient(app) as client:
+        assert client.post("/cv/reservoir/questions/reopen", headers=_H).json()["reopened"] == 1
+        body = client.get("/cv/reservoir/profile", headers=_H).json()
+    assert body["questions_total"] == 1
+    assert body["questions_set_aside"] == 0
+
+
+def test_answering_a_set_aside_bullet_un_sets_it_aside(monkeypatch):
+    monkeypatch.setattr(career_reservoir, "enqueue_ingest", lambda uid, eid: None)
+    dump = _FakeDumpRepo()
+    repo = _queue_repo(completion_declined_at="2026-09-14T00:00:00Z")
+    _override(dump=dump, reservoir=repo)
+    with TestClient(app) as client:
+        client.post(
+            "/cv/reservoir/stories/s1/answer",
+            json={"answer": "We covered 4,200 patients across 3 clinics and halved review time."},
+            headers=_H,
+        )
+    assert repo.declined == [("s1", False)]

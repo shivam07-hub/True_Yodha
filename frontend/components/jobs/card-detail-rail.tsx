@@ -158,6 +158,9 @@ function ReachPanel({ token, jobId, job }: { token: string; jobId: string; job: 
           </a>
         ))}
       </div>
+      <Link href={`/reach?jobId=${encodeURIComponent(jobId)}`} className="fc-rail-desk">
+        Log who you reached
+      </Link>
     </>
   )
 }
@@ -187,10 +190,10 @@ function JdPanel({ token, jobId, job }: { token: string; jobId: string; job: Job
       <h4>Job description</h4>
       <div className="fc-rail-jd">{text}</div>
       {needsFull && full.isLoading ? (
-        <p style={{ color: "var(--tm-text-faint)", fontSize: 12, marginTop: 6 }}>Loading the rest…</p>
+        <p style={{ color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-caption)", marginTop: 6 }}>Loading the rest…</p>
       ) : null}
       {needsFull && full.isError ? (
-        <p style={{ color: "var(--tm-text-faint)", fontSize: 12, marginTop: 6 }}>
+        <p style={{ color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-caption)", marginTop: 6 }}>
           Showing the opening section — the full description didn’t load.
         </p>
       ) : null}

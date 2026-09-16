@@ -84,7 +84,7 @@ export function DiaryPanel({
       }}>
         {/* Header */}
         <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid var(--tm-border-soft)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.14em", color: "var(--tm-text-faint)" }}>
+          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", letterSpacing: "0.14em", color: "var(--tm-text-faint)" }}>
             ◈ JOURNAL
           </div>
           <button
@@ -92,7 +92,7 @@ export function DiaryPanel({
             aria-label="Close journal"
             className="tm-control-focus"
             onClick={onClose}
-            style={{ background: "none", border: "none", color: "var(--tm-interactive-rest)", fontSize: 16, cursor: "pointer", padding: "2px 6px", lineHeight: 1, borderRadius: 4 }}
+            style={{ background: "none", border: "none", color: "var(--tm-interactive-rest)", fontSize: "var(--tm-fs-heading)", cursor: "pointer", padding: "2px 6px", lineHeight: 1, borderRadius: 4 }}
           >
             ✕
           </button>
@@ -102,7 +102,7 @@ export function DiaryPanel({
         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
           {/* Zone 1 — Journal */}
           <div style={{ padding: "16px 18px" }}>
-            <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>
+            <div style={{ fontSize: "var(--tm-fs-caption)", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>
               Today&apos;s thoughts
             </div>
             <textarea
@@ -114,7 +114,7 @@ export function DiaryPanel({
                 width: "100%", minHeight: 100, resize: "none",
                 background: "var(--tm-surface-2)", border: "1px solid var(--tm-border)",
                 borderRadius: "var(--tm-radius-sm)", color: "var(--tm-text)",
-                fontSize: 13, lineHeight: 1.65, padding: "10px 12px",
+                fontSize: "var(--tm-fs-body)", lineHeight: 1.65, padding: "10px 12px",
                 fontFamily: "inherit", outline: "none",
                 transition: "border-color var(--tm-dur) var(--tm-ease)",
                 boxSizing: "border-box",
@@ -126,12 +126,12 @@ export function DiaryPanel({
 
           {/* Divider + Zone 2 — Skill cart */}
           <div style={{ margin: "0 18px", borderTop: "1px solid var(--tm-border-soft)", paddingTop: 14 }}>
-            <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
+            <div style={{ fontSize: "var(--tm-fs-caption)", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
               Skill cart · Skills to practice this week
             </div>
 
             {cartSkills.length === 0 ? (
-              <div style={{ fontSize: 12, color: "var(--tm-text-faint)", padding: "8px 0" }}>
+              <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", padding: "8px 0" }}>
                 No skills in cart — add from gaps below
               </div>
             ) : (
@@ -142,8 +142,8 @@ export function DiaryPanel({
                     padding: "7px 10px", borderRadius: "var(--tm-radius-sm)",
                     background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)",
                   }}>
-                    <span style={{ flex: 1, fontSize: 13, color: "var(--tm-text)", fontWeight: 500 }}>{skill.skill_name}</span>
-                    <span style={{ fontSize: 10, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", flexShrink: 0 }}>
+                    <span style={{ flex: 1, fontSize: "var(--tm-fs-body)", color: "var(--tm-text)", fontWeight: 500 }}>{skill.skill_name}</span>
+                    <span style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", flexShrink: 0 }}>
                       L{skill.level_from}→L{skill.level_to}
                     </span>
                     <button
@@ -151,7 +151,7 @@ export function DiaryPanel({
                       aria-label={`Remove ${skill.skill_name} from diary cart`}
                       className="tm-control-focus"
                       onClick={() => onRemoveSkill(skill.skill_name)}
-                      style={{ background: "none", border: "none", color: "var(--tm-interactive-rest)", cursor: "pointer", fontSize: 12, padding: "0 2px", lineHeight: 1, flexShrink: 0 }}
+                      style={{ background: "none", border: "none", color: "var(--tm-interactive-rest)", cursor: "pointer", fontSize: "var(--tm-fs-caption)", padding: "0 2px", lineHeight: 1, flexShrink: 0 }}
                     >
                       ×
                     </button>
@@ -163,7 +163,7 @@ export function DiaryPanel({
             {/* Quick-add from gaps */}
             {gapSkills.length > 0 && (
               <div>
-                <div style={{ fontSize: 10, color: "var(--tm-text-faint)", marginBottom: 6 }}>
+                <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", marginBottom: 6 }}>
                   Add from gaps{activeCompany ? ` — ${activeCompany}` : ""}
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
@@ -174,7 +174,7 @@ export function DiaryPanel({
                         <span
                           key={g.skill}
                           style={{
-                            padding: "4px 10px", borderRadius: 999, fontSize: 11,
+                            padding: "4px 10px", borderRadius: 10, fontSize: "var(--tm-fs-caption)",
                             background: "var(--tm-int-bg-wash)",
                             border: "1px solid var(--tm-int-border)",
                             color: "var(--tm-interactive)",
@@ -192,7 +192,7 @@ export function DiaryPanel({
                         className="tm-control-focus"
                         onClick={() => onAddSkill({ skill_name: g.skill, level_from: g.user_level, level_to: g.required_level, company: activeCompany ?? undefined })}
                         style={{
-                          padding: "4px 10px", borderRadius: 999, fontSize: 11, fontFamily: "inherit", cursor: "pointer",
+                          padding: "4px 10px", borderRadius: 10, fontSize: "var(--tm-fs-caption)", fontFamily: "inherit", cursor: "pointer",
                           background: "rgba(255,255,255,0.03)",
                           border: "1px solid var(--tm-border-soft)",
                           color: "var(--tm-text-faint)",
@@ -216,7 +216,7 @@ export function DiaryPanel({
                 width: "100%", padding: "11px 0", borderRadius: "var(--tm-radius)",
                 background: entryText.trim() ? "var(--tm-interactive)" : "rgba(255,255,255,0.06)",
                 border: "none", color: entryText.trim() ? "var(--tm-interactive-fg)" : "var(--tm-text-faint)",
-                fontSize: 13, fontWeight: 700, cursor: entryText.trim() && !submitting ? "pointer" : "default",
+                fontSize: "var(--tm-fs-body)", fontWeight: 600, cursor: entryText.trim() && !submitting ? "pointer" : "default",
                 fontFamily: "inherit", transition: "all var(--tm-dur) var(--tm-ease)",
                 boxShadow: entryText.trim() ? "0 0 16px var(--tm-int-border)" : "none",
                 opacity: submitting ? 0.7 : 1,
@@ -229,20 +229,20 @@ export function DiaryPanel({
           {/* Past entries */}
           {recentEntries.length > 0 && (
             <div style={{ padding: "0 18px 20px", borderTop: "1px solid var(--tm-border-soft)", paddingTop: 14 }}>
-              <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
+              <div style={{ fontSize: "var(--tm-fs-caption)", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
                 Recent entries
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {recentEntries.slice(0, 3).map((entry) => (
                   <div key={entry.id} style={{ padding: "10px 12px", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)" }}>
-                    <div style={{ fontSize: 10, color: "var(--tm-text-faint)", marginBottom: 4 }}>{entry.log_date}</div>
-                    <p style={{ fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.55, margin: 0, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as never }}>
+                    <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", marginBottom: 4 }}>{entry.log_date}</div>
+                    <p style={{ fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-muted)", lineHeight: 1.55, margin: 0, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as never }}>
                       {entry.entry_text}
                     </p>
                     {entry.skills_delta.length > 0 && (
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
                         {entry.skills_delta.map((sd) => (
-                          <span key={sd.taxonomy_key} style={{ padding: "1px 7px", borderRadius: 999, background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)", fontSize: 10, color: "var(--tm-interactive)" }}>
+                          <span key={sd.taxonomy_key} style={{ padding: "1px 7px", borderRadius: 10, background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)", fontSize: "var(--tm-fs-caption)", color: "var(--tm-interactive)" }}>
                             {sd.taxonomy_key} +{sd.xp_added}
                           </span>
                         ))}

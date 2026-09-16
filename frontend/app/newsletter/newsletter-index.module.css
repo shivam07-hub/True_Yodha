@@ -18,7 +18,7 @@
 }
 
 .copy {
-  max-width: 720px;
+  max-width: var(--tm-reading-measure);
 }
 
 /* Topic Clusters live BESIDE the "Myro Letters" title (not lower in the rail),
@@ -36,7 +36,7 @@
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 18px;
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--tm-text-muted);
@@ -56,8 +56,8 @@
 .panelKicker {
   margin: 0;
   color: var(--tm-interactive);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--tm-fs-caption);
+  font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -66,7 +66,7 @@
   margin: 8px 0 10px;
   color: var(--tm-text);
   font-family: var(--tm-font-reading);
-  font-size: 46px;
+  font-size: var(--tm-fs-hero);
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1;
@@ -104,8 +104,8 @@
   min-height: 42px;
   padding: 0 18px;
   border-radius: var(--tm-radius);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--tm-fs-body);
+  font-weight: 600;
   text-decoration: none;
 }
 
@@ -147,13 +147,13 @@
 .sectionHead h2 {
   margin: 0;
   color: var(--tm-text);
-  font-size: 18px;
+  font-size: var(--tm-fs-heading);
   line-height: 1.2;
 }
 
 .sectionHead span {
   color: var(--tm-text-faint);
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -182,13 +182,13 @@
 .empty h2 {
   margin: 0 0 8px;
   color: var(--tm-text);
-  font-size: 18px;
+  font-size: var(--tm-fs-heading);
 }
 
 .empty p {
   margin: 0 0 20px;
   color: var(--tm-text-muted);
-  font-size: 14px;
+  font-size: var(--tm-fs-body);
   line-height: 1.55;
 }
 
@@ -197,10 +197,6 @@
    (.mastheadAside), the newsletter's section taxonomy, beside the title. */
 
 @media (min-width: 1024px) {
-  .copy h1 {
-    font-size: 52px;
-  }
-
   .grid {
     grid-template-columns: minmax(0, 1fr) 320px;
     gap: 40px;
@@ -232,9 +228,5 @@
   .shell {
     padding-top: 26px;
     padding-bottom: 52px;
-  }
-
-  .copy h1 {
-    font-size: 38px;
   }
 }
