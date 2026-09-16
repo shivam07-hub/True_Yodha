@@ -2298,7 +2298,7 @@ class JobsRepository:
         """
         pick_rows = (
             self._db.table("user_agent_job_picks")
-            .select("job_id, agent_rank, tier, comment")
+            .select("job_id, agent_rank, tier, comment, direction")
             .eq("user_id", user_id)
             .order("agent_rank")
             .execute()
@@ -2334,6 +2334,7 @@ class JobsRepository:
             item = self._feed_shape_row(jr, skill_keys, [])
             item["agent_rank"] = pr.get("agent_rank")
             item["agent_tier"] = pr.get("tier")
+            item["agent_direction"] = pr.get("direction")
             item["agent_comment"] = pr.get("comment") or ""
             out.append(item)
         return out
@@ -2413,6 +2414,7 @@ class JobsRepository:
                 "job_id": str(p["job_id"]),
                 "agent_rank": int(p["agent_rank"]),
                 "tier": p.get("tier"),
+                "direction": p.get("direction"),
                 "comment": p["comment"],
                 "scrape_batch": scrape_batch,
             }
@@ -3155,6 +3157,9 @@ class JobsRepository:
                 "location_country, location_mode, location_quality, locations, apply_url, "
                 "job_summary, job_description, "
                 "date_posted, seniority_level, work_mode, min_years_experience, max_years_experience, "
+                # `main_skills` is what `direction_fit` grades the pick gate on. One array
+                # on a select this read already makes, so the grade costs no round trip.
+                "main_skills, "
                 "first_seen, last_seen, is_active, listing_confidence, last_verified_live_at)"
             )
             .eq("user_id", user_id)

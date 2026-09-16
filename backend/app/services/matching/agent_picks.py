@@ -22,14 +22,34 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from app.repositories.role_families import RoleFamiliesRepository
 from app.services.job_intelligence_policy import is_recommendable_listing
+from app.services.matching import direction_fit, targeting
 
 logger = logging.getLogger(__name__)
 
 # Editorial gate — only genuinely-strong evals become picks (never padded).
-STRONG_SCORE = 3.5          # user_job_matches.overall_score is 0–5 (match_credibility floor)
+# 4.0, not the 3.5 credibility floor (Shivam, 2026-09-16). Upstream career-ops
+# applies at 4.0 and calls 3.5–3.9 "decent but not ideal, apply only if you have
+# a specific reason"; a band that says "apply to these" cannot be built out of
+# roles whose own verdict is a shrug. The feed keeps 3.5 for its verdict word —
+# that answers "how good is this", a different question from "should you spend
+# an application on it".
+PICK_SCORE = 4.0            # user_job_matches.overall_score is 0–5
 BULLSEYE_SCORE = 4.3        # a pick this strong is a "bullseye", else "strong"
 MAX_PICKS = 8               # the band is a shortlist, not a second feed
+
+# Aspiration outranks the score, and the score orders within it (Shivam's call,
+# 2026-09-16: "closest match to the user's CV and the aspiration he fed in").
+# The brain score already carries CV fit; the direction carries what the user
+# asked for, so a lexicographic sort says the aspiration decides and the CV
+# breaks ties. No quota either way: when nothing on-direction clears the bar,
+# off-direction picks fill the band and each says so on its face.
+#
+# `unknown` sits BETWEEN the two on purpose. It means we could not grade — the
+# user named no direction, or the listing names no skills — and a job must be
+# neither demoted nor promoted on missing data.
+_DIRECTION_RANK = {"on_direction": 2, "unknown": 1, "off_direction": 0}
 _APPLY_VERDICTS = {"Apply", "Negotiate"}
 # Career-Ops' current blocked legitimacy verdict plus legacy persisted values.
 # Keep the older vocabulary readable so historical match rows remain safe.
@@ -41,19 +61,26 @@ def _tier_for(score: float) -> str:
 
 
 def select_agent_picks(
-    stack: list[dict[str, Any]], *, scrape_batch: int | None = None
+    stack: list[dict[str, Any]],
+    *,
+    scrape_batch: int | None = None,
+    vocabulary: frozenset[str] = frozenset(),
 ) -> list[dict[str, Any]]:
     """Pure selection: durable match rows → ranked pick dicts (no I/O).
 
-    A row qualifies only if the brain rated it STRONG (score ≥ 3.5 + an
-    Apply/Negotiate verdict), it isn't legitimacy-flagged junk, its job is still
-    active, and it carries a real grounded summary to quote. Ranked by brain
-    score (overlap as tie-break), capped at MAX_PICKS.
+    A row qualifies only if the brain rated it a real apply (score ≥ PICK_SCORE
+    + an Apply/Negotiate verdict), it isn't legitimacy-flagged junk, its job is
+    still active, and it carries a real grounded summary to quote.
+
+    `vocabulary` is the user's direction, as the skills it demands
+    (`direction_fit.vocabulary`). Empty — no direction chosen, or a snapshot
+    that cannot grade it — leaves every pick `unknown` and the order falls back
+    to the brain score alone, which is exactly the old behaviour.
     """
-    qualified: list[tuple[float, float, dict[str, Any]]] = []
+    qualified: list[tuple[int, float, float, dict[str, Any]]] = []
     for row in stack:
         score = row.get("overall_score")
-        if score is None or float(score) < STRONG_SCORE:
+        if score is None or float(score) < PICK_SCORE:
             continue
         if row.get("recommendation") not in _APPLY_VERDICTS:
             continue
@@ -71,23 +98,47 @@ def select_agent_picks(
         job_id = str(row.get("job_id") or "")
         if not job_id:
             continue
+        skills = job.get("main_skills")
+        fit = direction_fit.grade(skills if isinstance(skills, (list, tuple)) else None, vocabulary)
         qualified.append((
+            _DIRECTION_RANK.get(fit.verdict, 1),
             float(score),
             float(row.get("overlap_score") or 0),
-            {"job_id": job_id, "comment": comment, "_score": float(score)},
+            {"job_id": job_id, "comment": comment, "_score": float(score), "direction": fit.verdict},
         ))
 
-    qualified.sort(key=lambda t: (t[0], t[1]), reverse=True)
+    qualified.sort(key=lambda t: (t[0], t[1], t[2]), reverse=True)
     picks: list[dict[str, Any]] = []
-    for rank, (_score, _overlap, pick) in enumerate(qualified[:MAX_PICKS], start=1):
+    for rank, (_dir_rank, _score, _overlap, pick) in enumerate(qualified[:MAX_PICKS], start=1):
         picks.append({
             "job_id": pick["job_id"],
             "agent_rank": rank,
             "tier": _tier_for(pick["_score"]),
             "comment": pick["comment"],
+            "direction": pick["direction"],
             "scrape_batch": scrape_batch,
         })
     return picks
+
+
+def _direction_vocabulary(repo: Any, user_id: str) -> frozenset[str]:
+    """The skills this user's directions demand, for the pick gate.
+
+    Fail-soft on purpose: a vocabulary we cannot read grades every pick
+    `unknown`, which orders them by brain score alone. Losing the direction
+    ordering is a worse band; losing the band is a worse product.
+    """
+    try:
+        families = list(targeting.for_ranking(repo, user_id).ranking_profile().get("target_roles") or [])
+        if not families:
+            return frozenset()
+        core = RoleFamiliesRepository(repo.client).core_skills(families)
+        return direction_fit.vocabulary(core, families)
+    except Exception as exc:  # noqa: BLE001 — documented degradation, never a lost band
+        logger.warning(
+            "metric agent_picks.direction_vocabulary_failed user=%s error=%s", user_id, exc
+        )
+        return frozenset()
 
 
 def regenerate_for_user(
@@ -100,10 +151,13 @@ def regenerate_for_user(
     the latest brain verdicts. Best-effort by contract — the caller swallows;
     a pick-gen failure must never break the recompute or the notification."""
     stack = repo.get_user_match_stack(user_id)
-    picks = select_agent_picks(stack, scrape_batch=scrape_batch)
+    picks = select_agent_picks(
+        stack, scrape_batch=scrape_batch, vocabulary=_direction_vocabulary(repo, user_id)
+    )
     written = repo.replace_agent_picks(user_id, picks, scrape_batch)
+    on_direction = sum(1 for p in picks if p.get("direction") == "on_direction")
     logger.info(
-        "metric agent_picks.regen user=%s candidates=%d picks=%d",
-        user_id, len(stack), written,
+        "metric agent_picks.regen user=%s candidates=%d picks=%d on_direction=%d",
+        user_id, len(stack), written, on_direction,
     )
     return written

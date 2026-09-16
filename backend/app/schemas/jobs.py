@@ -710,6 +710,12 @@ class AgentPickItem(JobFeedItem):
     agent_rank: int
     agent_tier: str | None = None  # 'bullseye' | 'strong' | 'reach'
     agent_comment: str = ""        # the brain's why-it-fits, shown on the card
+    #: How this pick graded against the user's direction when the set was cut
+    #: (`matching/direction_fit`): on_direction | off_direction | unknown. NULL on
+    #: rows cut before 20260916, which read as unknown — the honest answer for a
+    #: pick nobody graded, and the reason the card shows no tag rather than a
+    #: wrong one.
+    agent_direction: str | None = None
 
 
 class AgentPicksResponse(BaseModel):
