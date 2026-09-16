@@ -39,6 +39,23 @@ PICK_SCORE = 4.0            # user_job_matches.overall_score is 0–5
 BULLSEYE_SCORE = 4.3        # a pick this strong is a "bullseye", else "strong"
 MAX_PICKS = 8               # the band is a shortlist, not a second feed
 
+# A thin band is filled with REACH, and reach is on-direction only.
+#
+# Measured 2026-09-16 over users who have a direction: the 3.5 floor gave 24 of
+# them a band, the 4.0 bar gives 6. A bar that empties three bands in four is
+# right about what a pick MEANS and wrong about what the surface should then do
+# — Match Verdict already holds the rule that no strong match must not become an
+# empty hand. So when fewer than MIN_PICKS clear 4.0, the band is topped up to
+# MIN_PICKS from roles that are ON DIRECTION at 3.5-3.99, tiered `reach` (a word
+# the card already renders).
+#
+# Off-direction and ungradable rows never fill. The fill's whole promise is "at
+# least this is the work you asked for"; filling it with a role we cannot say
+# that about would make the tier a lie and hand back the Data Engineer this gate
+# exists to stop.
+REACH_SCORE = 3.5           # the credibility floor — below it nothing is shown at all
+MIN_PICKS = 3               # a band thinner than this is topped up, never padded past it
+
 # Aspiration outranks the score, and the score orders within it (Shivam's call,
 # 2026-09-16: "closest match to the user's CV and the aspiration he fed in").
 # The brain score already carries CV fit; the direction carries what the user
@@ -72,15 +89,22 @@ def select_agent_picks(
     + an Apply/Negotiate verdict), it isn't legitimacy-flagged junk, its job is
     still active, and it carries a real grounded summary to quote.
 
+    When fewer than MIN_PICKS clear that bar, the band is topped up with
+    on-direction roles at REACH_SCORE..PICK_SCORE, tiered `reach`. They always
+    sit below every real pick, and a row that is off-direction or ungradable is
+    never used to fill.
+
     `vocabulary` is the user's direction, as the skills it demands
     (`direction_fit.vocabulary`). Empty — no direction chosen, or a snapshot
     that cannot grade it — leaves every pick `unknown` and the order falls back
-    to the brain score alone, which is exactly the old behaviour.
+    to the brain score alone, which is exactly the old behaviour. Nothing can
+    fill in that state, because nothing can be shown to be on direction.
     """
     qualified: list[tuple[int, float, float, dict[str, Any]]] = []
+    reach: list[tuple[float, float, dict[str, Any]]] = []
     for row in stack:
         score = row.get("overall_score")
-        if score is None or float(score) < PICK_SCORE:
+        if score is None or float(score) < REACH_SCORE:
             continue
         if row.get("recommendation") not in _APPLY_VERDICTS:
             continue
@@ -100,20 +124,37 @@ def select_agent_picks(
             continue
         skills = job.get("main_skills")
         fit = direction_fit.grade(skills if isinstance(skills, (list, tuple)) else None, vocabulary)
-        qualified.append((
-            _DIRECTION_RANK.get(fit.verdict, 1),
-            float(score),
-            float(row.get("overlap_score") or 0),
-            {"job_id": job_id, "comment": comment, "_score": float(score), "direction": fit.verdict},
-        ))
+        candidate = {
+            "job_id": job_id,
+            "comment": comment,
+            "_score": float(score),
+            "direction": fit.verdict,
+        }
+        if float(score) >= PICK_SCORE:
+            qualified.append((
+                _DIRECTION_RANK.get(fit.verdict, 1),
+                float(score),
+                float(row.get("overlap_score") or 0),
+                candidate,
+            ))
+        elif fit.is_on_direction:
+            reach.append((float(score), float(row.get("overlap_score") or 0), candidate))
 
     qualified.sort(key=lambda t: (t[0], t[1], t[2]), reverse=True)
+    chosen: list[tuple[dict[str, Any], str]] = [
+        (pick, _tier_for(pick["_score"])) for *_rank, pick in qualified[:MAX_PICKS]
+    ]
+    if len(chosen) < MIN_PICKS:
+        reach.sort(key=lambda t: (t[0], t[1]), reverse=True)
+        for _score, _overlap, pick in reach[: MIN_PICKS - len(chosen)]:
+            chosen.append((pick, "reach"))
+
     picks: list[dict[str, Any]] = []
-    for rank, (_dir_rank, _score, _overlap, pick) in enumerate(qualified[:MAX_PICKS], start=1):
+    for rank, (pick, tier) in enumerate(chosen, start=1):
         picks.append({
             "job_id": pick["job_id"],
             "agent_rank": rank,
-            "tier": _tier_for(pick["_score"]),
+            "tier": tier,
             "comment": pick["comment"],
             "direction": pick["direction"],
             "scrape_batch": scrape_batch,

@@ -178,3 +178,73 @@ def test_the_apply_bar_is_four() -> None:
     assert agent_picks.PICK_SCORE == 4.0
     stack = [_row("just_under", score=3.99), _row("at_bar", score=4.0)]
     assert [p["job_id"] for p in agent_picks.select_agent_picks(stack)] == ["at_bar"]
+
+
+# ── a thin band is topped up with on-direction reach ─────────────────────────
+
+def test_thin_band_tops_up_with_on_direction_reach() -> None:
+    stack = [
+        _row("pick", score=4.4, main_skills=["Regional Sales", "Sales Process"]),
+        _row("reach", score=3.8, main_skills=["Market Share", "Sales Process"]),
+    ]
+    picks = agent_picks.select_agent_picks(stack, vocabulary=SALES)
+    assert [p["job_id"] for p in picks] == ["pick", "reach"]
+    assert [p["tier"] for p in picks] == ["bullseye", "reach"]
+    assert [p["direction"] for p in picks] == ["on_direction", "on_direction"]
+
+
+def test_reach_never_fills_with_a_role_off_your_direction() -> None:
+    stack = [
+        _row("pick", score=4.4, main_skills=["Regional Sales", "Sales Process"]),
+        _row("off", score=3.9, main_skills=["Welding", "Forklift"]),
+    ]
+    picks = agent_picks.select_agent_picks(stack, vocabulary=SALES)
+    assert [p["job_id"] for p in picks] == ["pick"]
+
+
+def test_reach_never_fills_with_a_role_we_could_not_grade() -> None:
+    stack = [
+        _row("pick", score=4.4, main_skills=["Regional Sales", "Sales Process"]),
+        _row("ungradable", score=3.9, main_skills=None),
+    ]
+    assert [p["job_id"] for p in agent_picks.select_agent_picks(stack, vocabulary=SALES)] == ["pick"]
+
+
+def test_without_a_direction_nothing_can_fill() -> None:
+    stack = [_row("pick", score=4.4), _row("under", score=3.9)]
+    assert [p["job_id"] for p in agent_picks.select_agent_picks(stack)] == ["pick"]
+
+
+def test_a_band_that_is_not_thin_is_never_padded() -> None:
+    on = ["Regional Sales", "Sales Process"]
+    stack = [
+        _row("p1", score=4.6, main_skills=on),
+        _row("p2", score=4.4, main_skills=on),
+        _row("p3", score=4.2, main_skills=on),
+        _row("r1", score=3.9, main_skills=on),
+    ]
+    picks = agent_picks.select_agent_picks(stack, vocabulary=SALES)
+    assert [p["job_id"] for p in picks] == ["p1", "p2", "p3"]
+
+
+def test_fill_stops_at_min_picks() -> None:
+    on = ["Regional Sales", "Sales Process"]
+    stack = [_row(f"r{i}", score=3.9 - i * 0.01, main_skills=on) for i in range(6)]
+    picks = agent_picks.select_agent_picks(stack, vocabulary=SALES)
+    assert len(picks) == agent_picks.MIN_PICKS
+    assert {p["tier"] for p in picks} == {"reach"}
+
+
+def test_a_reach_fill_still_needs_a_grounded_reason() -> None:
+    on = ["Regional Sales", "Sales Process"]
+    stack = [
+        _row("pick", score=4.4, main_skills=on),
+        _row("no_why", score=3.9, main_skills=on, summary="  "),
+    ]
+    assert [p["job_id"] for p in agent_picks.select_agent_picks(stack, vocabulary=SALES)] == ["pick"]
+
+
+def test_nothing_below_the_credibility_floor_is_ever_shown() -> None:
+    on = ["Regional Sales", "Sales Process"]
+    stack = [_row("weak", score=3.4, main_skills=on)]
+    assert agent_picks.select_agent_picks(stack, vocabulary=SALES) == []
