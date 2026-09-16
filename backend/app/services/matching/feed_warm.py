@@ -24,7 +24,7 @@ from typing import Any
 
 from app.services import llm_ranker, onboarding_service
 from app.services.llm_provider import LLMProvider
-from app.services.matching import on_demand, ranking, targeting
+from app.services.matching import direction_fit, on_demand, ranking, targeting
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +32,51 @@ logger = logging.getLogger(__name__)
 # purpose (CEO decision): a real "top picks" set, not the whole feed. Everything
 # below stays fast deterministic overlap.
 SHORTLIST_SIZE = 10
+
+# How deep the warm looks before choosing its ten. The brain still rates ten; this
+# only widens what they are chosen FROM, so the direction can decide which ten.
+#
+# It costs no extra database work on the path that matters: the `fit` sort already
+# shapes a bounded candidate set in Python (`_FEED_PERSONAL_CAP` = 500) and
+# paginates it there, so asking for thirty rows instead of ten reads the same rows
+# and returns twenty more shaped ones.
+SHORTLIST_POOL = 3 * SHORTLIST_SIZE
+
+
+def direction_first(
+    rows: list[dict[str, Any]],
+    vocabulary: frozenset[str],
+    *,
+    limit: int = SHORTLIST_SIZE,
+) -> list[str]:
+    """Choose which cards the brain rates: the work the user asked for, first.
+
+    The warm writes 86% of all verdicts (982 of 1,141 measured 2026-09-11) and
+    chose its ten by the feed's fit order, which is led by skill overlap with the
+    CV — so 2% of them landed on the direction the user actually chose. Grading
+    is free here: every feed row already carries `main_skills`, and the direction
+    vocabulary is one indexed snapshot read.
+
+    Within each group the feed's own order is kept — this decides WHICH cards get
+    a verdict, never how the feed is ordered. An empty vocabulary grades
+    everything unknown and returns the feed's order untouched, which is exactly
+    the old behaviour.
+    """
+    graded = direction_fit.grade_all(rows, vocabulary)
+
+    def _rank(pair: tuple[int, dict[str, Any]]) -> tuple[int, int]:
+        position, row = pair
+        fit = graded.get(str(row.get("job_id") or ""))
+        return (0 if fit is not None and fit.is_on_direction else 1, position)
+
+    ids: list[str] = []
+    for _position, row in sorted(enumerate(rows), key=_rank):
+        job_id = str(row.get("job_id") or "")
+        if job_id and job_id not in ids:
+            ids.append(job_id)
+        if len(ids) >= limit:
+            break
+    return ids
 
 
 def _user_skill_map(skill_rows: list[dict[str, Any]]) -> dict[str, int]:

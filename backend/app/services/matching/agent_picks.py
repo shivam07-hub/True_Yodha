@@ -22,7 +22,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from app.repositories.role_families import RoleFamiliesRepository
 from app.services.job_intelligence_policy import is_recommendable_listing
 from app.services.matching import direction_fit, targeting
 
@@ -167,26 +166,6 @@ def select_agent_picks(
     return picks
 
 
-def _direction_vocabulary(repo: Any, user_id: str) -> frozenset[str]:
-    """The skills this user's directions demand, for the pick gate.
-
-    Fail-soft on purpose: a vocabulary we cannot read grades every pick
-    `unknown`, which orders them by brain score alone. Losing the direction
-    ordering is a worse band; losing the band is a worse product.
-    """
-    try:
-        families = list(targeting.for_ranking(repo, user_id).ranking_profile().get("target_roles") or [])
-        if not families:
-            return frozenset()
-        core = RoleFamiliesRepository(repo.client).core_skills(families)
-        return direction_fit.vocabulary(core, families)
-    except Exception as exc:  # noqa: BLE001 — documented degradation, never a lost band
-        logger.warning(
-            "metric agent_picks.direction_vocabulary_failed user=%s error=%s", user_id, exc
-        )
-        return frozenset()
-
-
 def regenerate_for_user(
     repo: Any, user_id: str, *, scrape_batch: int | None = None
 ) -> int:
@@ -197,9 +176,11 @@ def regenerate_for_user(
     the latest brain verdicts. Best-effort by contract — the caller swallows;
     a pick-gen failure must never break the recompute or the notification."""
     stack = repo.get_user_match_stack(user_id)
-    picks = select_agent_picks(
-        stack, scrape_batch=scrape_batch, vocabulary=_direction_vocabulary(repo, user_id)
+    brief = targeting.for_ranking(repo, user_id)
+    vocabulary = targeting.direction_vocabulary(
+        repo, brief.ranking_profile().get("target_roles")
     )
+    picks = select_agent_picks(stack, scrape_batch=scrape_batch, vocabulary=vocabulary)
     written = repo.replace_agent_picks(user_id, picks, scrape_batch)
     on_direction = sum(1 for p in picks if p.get("direction") == "on_direction")
     logger.info(

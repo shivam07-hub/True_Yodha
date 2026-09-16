@@ -202,3 +202,48 @@ def test_a_shortlist_cached_under_the_current_context_still_costs_nothing(monkey
     warmed = asyncio.run(feed_warm.warm_feed_shortlist(repo, object(), "u1", ["a", "b", "c"]))  # type: ignore[arg-type]
     assert warmed == 0
     assert repo.persisted == []
+
+
+# ── which ten get a verdict (ADR-0022 direction fit) ─────────────────────────
+
+_SALES = frozenset({"regional sales", "sales process"})
+
+
+def _feed_row(job_id: str, skills: list[str] | None = None) -> dict[str, object]:
+    return {"job_id": job_id, "main_skills": skills}
+
+
+def test_the_direction_chooses_which_cards_are_rated() -> None:
+    rows = [
+        _feed_row("overlap1", ["Welding"]),
+        _feed_row("overlap2", ["Forklift"]),
+        _feed_row("on1", ["Regional Sales", "Sales Process"]),
+    ]
+    assert feed_warm.direction_first(rows, _SALES, limit=2) == ["on1", "overlap1"]
+
+
+def test_the_feeds_own_order_is_kept_inside_each_group() -> None:
+    on = ["Regional Sales", "Sales Process"]
+    rows = [
+        _feed_row("off1", ["Welding"]),
+        _feed_row("on1", on),
+        _feed_row("off2", ["Forklift"]),
+        _feed_row("on2", on),
+    ]
+    assert feed_warm.direction_first(rows, _SALES, limit=4) == ["on1", "on2", "off1", "off2"]
+
+
+def test_without_a_direction_the_feed_order_stands() -> None:
+    rows = [_feed_row("a"), _feed_row("b"), _feed_row("c")]
+    assert feed_warm.direction_first(rows, frozenset(), limit=2) == ["a", "b"]
+
+
+def test_rows_without_an_id_are_skipped_and_ids_are_not_repeated() -> None:
+    rows = [_feed_row(""), _feed_row("a"), _feed_row("a"), _feed_row("b")]
+    assert feed_warm.direction_first(rows, frozenset(), limit=10) == ["a", "b"]
+
+
+def test_the_pool_is_wider_than_what_gets_rated() -> None:
+    # The brain still rates SHORTLIST_SIZE; the pool only widens what they are
+    # chosen from, and costs no extra DB work on the fit path.
+    assert feed_warm.SHORTLIST_POOL > feed_warm.SHORTLIST_SIZE

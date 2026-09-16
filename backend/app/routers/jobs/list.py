@@ -16,7 +16,7 @@ from app.repositories.jobs import (
 from app.repositories.search_queries import SearchQueriesRepository
 from app.services.concurrent_reads import run_concurrently
 from app.services.llm_provider import LLMProvider, get_blocking_judgment_provider
-from app.services.matching import feed_warm
+from app.services.matching import feed_warm, targeting
 from app.services.matching.filter_spec import FilterSpec
 from app.services.matching.job_query import JobQuery
 from app.services.job_refresh import user_has_live_refresh
@@ -723,7 +723,7 @@ async def warm_feed(
         # The brain ranks the fit-top shortlist regardless of the user's chosen sort
         # lens — "Best fit" is the surface the warm powers.
         sort="fit", min_skill_matches=0, following_only=following_only, include_stretch=include_stretch,
-        browse_scope=browse_scope, page=1, page_size=feed_warm.SHORTLIST_SIZE,
+        browse_scope=browse_scope, page=1, page_size=feed_warm.SHORTLIST_POOL,
     )
     page_result = JobQuery.feed(
         repo,
@@ -736,7 +736,14 @@ async def warm_feed(
         exclude_job_ids=scope.exclude_ids,
         followed_companies=scope.followed,
     )
-    candidate_ids = [str(r["job_id"]) for r in page_result["rows"] if r.get("job_id")]
+    # WHICH ten get a verdict is the direction's call, not the overlap sort's.
+    # The rows are already in hand and already carry `main_skills`; the vocabulary
+    # is one indexed read of the labels snapshot, and failing to read it simply
+    # leaves the feed's own order (`direction_first` with an empty vocabulary is
+    # the identity).
+    candidate_ids = feed_warm.direction_first(
+        page_result["rows"], targeting.direction_vocabulary(repo, scope.target_roles)
+    )
     try:
         warmed = await feed_warm.warm_feed_shortlist(repo, provider, uid, candidate_ids)
     except Exception:
