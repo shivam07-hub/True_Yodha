@@ -32,6 +32,7 @@ from typing import Any
 
 from supabase import Client
 
+from app.services import reader_voice
 from app.services.llm_provider import LLMProvider, LLMProviderError
 
 logger = logging.getLogger(__name__)
@@ -85,6 +86,13 @@ def preferred_locations(profile: dict[str, Any]) -> str:
 # `deal_breakers` two lines below already had the honest form: a named absence
 # ("none specified") plus a rule saying what to do about it. This mirrors it.
 NO_TARGET_ROLES = "not set"
+
+#: What the brain is TOLD, versioned. `onboarding_service.eval_context_key` hashes
+#: this, so moving it re-rates every cached verdict the next time its user runs a
+#: Search — the forward pass, not a backfill. Bump it when the prompt's rules or
+#: its output shape change; leave it alone for wording that cannot change an
+#: answer. v2 (2026-09-16): the direction rule + `pick_reason`.
+PROMPT_VERSION = "v2-direction"
 
 
 def build_system_prompt(profile: dict[str, Any], cv_markdown: str) -> str:
@@ -148,6 +156,8 @@ Rules:
 - If the posting clearly violates a stated deal-breaker, recommendation MUST be "Skip" and the summary must name the deal-breaker. ("none specified" means no hard filters.)
 - Judge growth_fit against the candidate's career goal, and frame application_angle around their superpower when stated.
 - If overall_score < 3.5, recommendation MUST be "Skip" and summary must say why not to apply.
+- PAST SKILLS QUALIFY A CANDIDATE; THEY DO NOT SET THEIR DIRECTION. A posting that leans on skills from the candidate's past while moving them away from the target roles above is at best a deliberate pivot: say so in the summary, and do not let old skills alone carry role_fit. A candidate whose CV shows SQL and whose target is sales is not a data engineer.
+- Apply is a recommendation to spend an application. Use "Apply" only at 4.0+; 3.5-3.9 is "Negotiate" at best — worth a look for a specific reason, not a role to lead with.
 
 Respond ONLY with valid JSON, no prose outside it, matching exactly:
 {{
@@ -159,6 +169,7 @@ Respond ONLY with valid JSON, no prose outside it, matching exactly:
   "culture_fit": float,
   "risk_score": float,
   "summary": "2-3 sentence honest summary",
+  "pick_reason": "ONE or TWO sentences said TO the candidate, in second person",
   "strengths": ["...", "..."],
   "concerns": ["...", "..."],
   "recommendation": "Apply|Negotiate|Skip",
@@ -169,7 +180,14 @@ Respond ONLY with valid JSON, no prose outside it, matching exactly:
   "level_strategy": "one sentence on level fit + how to play it",
   "personalization": "2-3 sentences tailoring THIS candidate's application, grounded in the CV",
   "star_pointers": ["real CV project/achievement to cite", "..."]
-}}"""
+}}
+
+`pick_reason` is the ONLY field the candidate reads themselves, and it is written TO them:
+- Address them as "you" and "your". NEVER "the candidate", "they", "their", "this person" — a single slip turns their own shortlist into a file being discussed about them, and the line is DELETED before they see it.
+- Say the specific thing that makes this job worth their time, and the one thing that does not. Name a skill, a title or a city — never "strong alignment" or "great opportunity".
+- If it moves them away from the target roles above, say that in plain words.
+- No filler: no "leverage", "robust", "seamless", "landscape", "showcase", "in today's".
+- Two sentences maximum. It sits on a card."""
 
 
 def build_job_context(job: dict[str, Any]) -> str:
@@ -399,7 +417,29 @@ def parse_eval(text: str) -> dict[str, Any] | None:
         "level_strategy": (str(obj["level_strategy"]).strip()[:400] or None) if obj.get("level_strategy") else None,
         "personalization": (str(obj["personalization"]).strip()[:1000] or None) if obj.get("personalization") else None,
         "star_pointers": [str(s).strip()[:160] for s in (obj.get("star_pointers") or []) if str(s).strip()][:4],
+        "pick_reason": _reader_line(obj.get("pick_reason")),
     }
+
+
+def _reader_line(value: Any) -> str | None:
+    """The one line the reader sees — or nothing.
+
+    `reader_voice` is the project's single owner of how Myro addresses a reader,
+    and its verdict is enforcement, not advice: a line that talks ABOUT the
+    reader is dropped, not rewritten. Rewriting it here would put a second voice
+    rule in the codebase, and the model regenerates the line on the next eval
+    anyway. A dropped line leaves the card on `summary`, which is where it is
+    today.
+    """
+    text = str(value or "").strip()
+    if not text:
+        return None
+    text = text[:400]
+    violations = reader_voice.violations(text)
+    if violations:
+        logger.info("metric llm_ranker.pick_reason_rejected reasons=%s", ",".join(violations))
+        return None
+    return text
 
 
 # ── LLM call (per job) ─────────────────────────────────────────────────────────
@@ -574,6 +614,7 @@ def persist_matches(
             "legitimacy_reason": ev.get("legitimacy_reason"),
             "level_strategy": ev.get("level_strategy"),
             "personalization": ev.get("personalization"),
+            "pick_reason": ev.get("pick_reason"),
             "star_pointers": ev.get("star_pointers") or [],
             "is_recommended": is_recommended,
             "baseline_version_id": baseline_version_id,

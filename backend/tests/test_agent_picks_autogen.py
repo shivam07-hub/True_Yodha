@@ -18,12 +18,14 @@ def _row(
     active: bool = True,
     listing_confidence: str = "active",
     main_skills: list[str] | None = None,
+    pick_reason: str | None = None,
 ) -> dict[str, Any]:
     return {
         "job_id": job_id,
         "overall_score": score,
         "recommendation": rec,
         "summary": summary,
+        "pick_reason": pick_reason,
         "overlap_score": overlap,
         "legitimacy_tier": tier,
         "jobs": {
@@ -248,3 +250,13 @@ def test_nothing_below_the_credibility_floor_is_ever_shown() -> None:
     on = ["Regional Sales", "Sales Process"]
     stack = [_row("weak", score=3.4, main_skills=on)]
     assert agent_picks.select_agent_picks(stack, vocabulary=SALES) == []
+
+
+def test_the_band_quotes_the_line_written_to_the_reader() -> None:
+    stack = [_row("j1", score=4.5, pick_reason="Your renewals work is most of this JD.")]
+    assert agent_picks.select_agent_picks(stack)[0]["comment"] == "Your renewals work is most of this JD."
+
+
+def test_a_row_rated_before_the_v2_prompt_keeps_its_old_line() -> None:
+    stack = [_row("j1", score=4.5, summary="Solid overlap on lifecycle work.")]
+    assert agent_picks.select_agent_picks(stack)[0]["comment"] == "Solid overlap on lifecycle work."

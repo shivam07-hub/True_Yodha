@@ -116,7 +116,12 @@ def select_agent_picks(
         job = row.get("jobs") or {}
         if not is_recommendable_listing(job):
             continue
-        comment = (row.get("summary") or "").strip()
+        # The line the reader sees. `pick_reason` is written TO them and checked
+        # by reader_voice; `summary` is the evaluator writing ABOUT them, which
+        # is what 13 of the 30 live picks were quoting on 2026-09-11 ("the
+        # candidate's technical skills"). Rows rated before the v2 prompt have no
+        # pick_reason and keep the old line until they are re-rated.
+        comment = (row.get("pick_reason") or "").strip() or (row.get("summary") or "").strip()
         if not comment:  # no grounded "why" → never fabricate one; drop the pick
             continue
         job_id = str(row.get("job_id") or "")

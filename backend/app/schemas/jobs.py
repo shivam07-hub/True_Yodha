@@ -116,6 +116,10 @@ class MatchEval(BaseModel):
     level_strategy: str | None = None       # level fit + how to play it
     personalization: str | None = None      # how THIS candidate tailors their application
     star_pointers: list[str] = []           # the candidate's own STAR stories to cite (no-fab)
+    #: The one line written TO the reader (second person, reader_voice-checked).
+    #: NULL on rows rated before the v2 prompt — the card falls back to `summary`
+    #: until that row is re-rated, which happens when its inputs move.
+    pick_reason: str | None = None
 
     # ── Match Verdict ─────────────────────────────────────────────────────────
     # The whole "how good is this, what should they do" decision, behind three
