@@ -1,17 +1,20 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { RequestBoard } from "@/components/career-path/skill-path-requests"
 import {
   addCertificateHref,
+  isLivePath,
+  requestQueue,
   SENIORITY_LABEL,
+  sortStoryCards,
+  storyBands,
   type BandSkillMap,
   type CareerSkillPath,
   type SkillPathCard,
 } from "@/lib/career-skill-path"
-import { useLearningPathRequest, useLearningPathWithdraw } from "@/lib/hooks/use-career-skill-path"
 import "./skill-path-maps.css"
 
 const STATE_LABEL = {
@@ -32,23 +35,25 @@ function sharePct(card: SkillPathCard): number {
   return Math.min(100, Math.round((100 * (card.demand?.skill_job_count ?? 0)) / total))
 }
 
+function storyAction(card: SkillPathCard) {
+  if (card.certificate_status === "issued" && card.verification_id) {
+    return { href: addCertificateHref(card.verification_id), label: "Add to CV" }
+  }
+  if (isLivePath(card)) {
+    return {
+      href: `/practice?skill=${encodeURIComponent(card.display_name)}`,
+      label: "Practise",
+    }
+  }
+  return null
+}
+
 function SkillCard({ card }: { card: SkillPathCard }) {
-  const request = useLearningPathRequest()
-  const withdraw = useLearningPathWithdraw()
-  const [flash, setFlash] = useState<string | null>(null)
   const demand = card.demand
   const exact = demand
     ? `${demand.skill_job_count} of ${demand.band_job_count} roles in this band`
     : null
-
-  async function onRequest() {
-    try {
-      const res = await request.mutateAsync(card.taxonomy_key)
-      setFlash(res.message)
-    } catch {
-      setFlash("Couldn’t record that request. Try again.")
-    }
-  }
+  const action = storyAction(card)
 
   return (
     <article className="csp-card">
@@ -78,44 +83,19 @@ function SkillCard({ card }: { card: SkillPathCard }) {
           </div>
         ) : null}
       </div>
-      <div className="csp-actions">
-        {card.certificate_status === "issued" && card.verification_id ? (
-          <Button size="sm" render={<Link href={addCertificateHref(card.verification_id)} />}>
-            Add to CV
+      {action ? (
+        <div className="csp-actions">
+          <Button size="sm" render={<Link href={action.href} />}>
+            {action.label}
           </Button>
-        ) : card.ladder_complete && card.next_practice_level ? (
-          <Button size="sm" render={<Link href={`/practice?skill=${encodeURIComponent(card.display_name)}`} />}>
-            Practise
-          </Button>
-        ) : card.request_status === "recorded" || flash ? (
-          <>
-            <p className="csp-note" role="status">
-              {flash ?? "Demand recorded, we’ll let you know as soon as the assessment is live."}
-            </p>
-            <button type="button" className="csp-withdraw" onClick={() => withdraw.mutate(card.taxonomy_key)}>
-              Withdraw request
-            </button>
-          </>
-        ) : card.request_status === "fulfilled" ? (
-          <Button size="sm" render={<Link href={`/practice?skill=${encodeURIComponent(card.display_name)}`} />}>
-            Practise
-          </Button>
-        ) : (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={request.isPending}
-            onClick={() => void onRequest()}
-          >
-            Request this learning path
-          </Button>
-        )}
-      </div>
+        </div>
+      ) : null}
     </article>
   )
 }
 
 function BandMap({ map }: { map: BandSkillMap }) {
+  const cards = sortStoryCards(map.cards)
   return (
     <section className={`csp-band${map.kind === "anchor" ? " is-anchor" : ""}`} aria-labelledby={`csp-${map.kind}`}>
       <div className="csp-band-head">
@@ -126,11 +106,11 @@ function BandMap({ map }: { map: BandSkillMap }) {
           <p className="csp-band-count">{map.job_count}</p>
         ) : null}
       </div>
-      {map.cards.length === 0 ? (
+      {cards.length === 0 ? (
         <p className="csp-empty">No skills meet the demand threshold in this band.</p>
       ) : (
         <div className="csp-cards">
-          {map.cards.map((card) => <SkillCard key={card.taxonomy_key} card={card} />)}
+          {cards.map((item) => <SkillCard key={item.taxonomy_key} card={item} />)}
         </div>
       )}
     </section>
@@ -152,9 +132,8 @@ export function SkillPathMaps({ path }: { path: CareerSkillPath }) {
           Role family · {family}. {SENIORITY_LABEL[snap.seniority]} · {places}.
         </p>
       </header>
-      {path.lower ? <BandMap map={path.lower} /> : null}
-      {path.anchor ? <BandMap map={path.anchor} /> : null}
-      {path.higher ? <BandMap map={path.higher} /> : null}
+      {storyBands(path).map((map) => <BandMap key={map.kind} map={map} />)}
+      <RequestBoard cards={requestQueue(path)} />
     </div>
   )
 }

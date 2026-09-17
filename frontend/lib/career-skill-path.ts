@@ -100,6 +100,46 @@ export function sortAnchorCards(cards: readonly SkillPathCard[]): SkillPathCard[
   })
 }
 
+/** A path the user can act on now: practise, or add a certificate to the CV. */
+export function isLivePath(card: SkillPathCard): boolean {
+  if (card.certificate_status === "issued" && card.verification_id) return true
+  if (card.ladder_complete && card.next_practice_level) return true
+  return card.request_status === "fulfilled"
+}
+
+/** Your band, then the lower neighbour, then the next. Missing bands stay out. */
+export function storyBands(path: CareerSkillPath): BandSkillMap[] {
+  return [path.anchor, path.lower, path.higher].filter(
+    (map): map is BandSkillMap => map != null,
+  )
+}
+
+/** Live paths first; demand order from the server is kept inside each group. */
+export function sortStoryCards(cards: readonly SkillPathCard[]): SkillPathCard[] {
+  return [...cards].sort((a, b) => {
+    const liveA = isLivePath(a) ? 0 : 1
+    const liveB = isLivePath(b) ? 0 : 1
+    return liveA - liveB
+  })
+}
+
+/**
+ * Skills the story already named that we cannot teach yet.
+ * Unique by taxonomy key; your band wins when the same skill appears twice.
+ */
+export function requestQueue(path: CareerSkillPath): SkillPathCard[] {
+  const seen = new Set<string>()
+  const queued: SkillPathCard[] = []
+  for (const map of storyBands(path)) {
+    for (const item of map.cards) {
+      if (isLivePath(item) || seen.has(item.taxonomy_key)) continue
+      seen.add(item.taxonomy_key)
+      queued.push(item)
+    }
+  }
+  return queued
+}
+
 export const careerSkillPath = {
   get: (token: string) =>
     backendRequest<CareerSkillPath>("/career-skill-path", {

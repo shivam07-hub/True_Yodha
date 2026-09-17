@@ -31,25 +31,28 @@ function PracticePageInner() {
   const gapParam = searchParams.get("gap")
   const skillParam = searchParams.get("skill")
   const practiceJobId = searchParams.get("jobId")
+  const inSession = Boolean(gapParam || skillParam)
 
-  const clearGap = useCallback(() => {
+  const clearSession = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString())
     params.delete("gap")
+    params.delete("skill")
+    params.delete("jobId")
     const qs = params.toString()
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
   }, [searchParams, pathname, router])
 
   const { data: userSkills } = useQuery({
     queryKey: dataKeys.userSkills(), queryFn: () => users.mySkills(token!),
-    enabled: !!token, staleTime: 5 * 60 * 1000,
+    enabled: !!token && inSession, staleTime: 5 * 60 * 1000,
   })
   const { data: scoreData, isLoading: scoreLoading } = useQuery({
     queryKey: dataKeys.scores(), queryFn: () => scores.me(token!),
-    enabled: !!token, staleTime: 5 * 60 * 1000, retry: false,
+    enabled: !!token && inSession, staleTime: 5 * 60 * 1000, retry: false,
   })
   const { data: profile } = useQuery({
     queryKey: dataKeys.profile(), queryFn: () => users.me(token!),
-    enabled: !!token, staleTime: 5 * 60 * 1000,
+    enabled: !!token && inSession, staleTime: 5 * 60 * 1000,
   })
 
   const skills = userSkills ?? EMPTY_SKILLS
@@ -72,20 +75,21 @@ function PracticePageInner() {
     return []
   }, [path.data, profile])
 
-  if (!ready || scoreLoading) return <PracticeSkeleton />
+  if (!ready) return <PracticeSkeleton />
+  if (inSession && scoreLoading) return <PracticeSkeleton />
 
   return (
     <RequiresCV surface="skills">
       <RequiresCareerTarget>
         <div className="tm-page-enter">
-          {path.data && !path.data.needs_target ? <SkillPathMaps path={path.data} /> : null}
-          {token && (
+          {!inSession && path.data && !path.data.needs_target ? <SkillPathMaps path={path.data} /> : null}
+          {token && inSession && (
             <UpskillingView
               token={token}
               gapJobId={gapParam}
               focusSkill={skillParam}
               originJobId={practiceJobId}
-              onClearGap={clearGap}
+              onClearGap={clearSession}
               onNavigate={href => router.push(href)}
               onBack={goBack}
               totalScore={totalScore}
