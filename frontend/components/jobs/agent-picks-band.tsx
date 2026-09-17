@@ -6,45 +6,26 @@ import { jobs as jobsApi, type AgentPickItem, type JobFeedItem } from "@/lib/api
 import { JobCard } from "@/components/market/job-card"
 import { JobDetailDrawer } from "@/components/market/job-detail-drawer"
 import { NotInterestedUndo } from "@/components/jobs/not-interested-undo"
+import { AgentPickLede } from "@/components/jobs/agent-pick-lede"
 import { agentPicksQueryKey } from "@/lib/jobs/job-triage-cache"
 import { useAgentPickTriage } from "@/components/jobs/use-agent-pick-triage"
 import "./agent-picks-band.css"
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Myro Agent Picks — an editorial NOTE above whatever list follows, never a
-   second card. Rank, comment and tier sit above the SURFACE'S OWN card, so a
-   pick reads as one of the things around it that Myro has underlined.
+   Myro Agent Picks — the surface's own card, carrying Myro's reason for the
+   pick INSIDE it (`lede`). The reason used to sit above the card with its own
+   rank marker and a tier pill, so one job read as two objects and the pill made
+   a second claim about how good it was, beside a ring already making that claim.
 
    On /market that card is the undecided JobCard (Skip · Save · Share) used
    below the divider. Inside the Ops folder it is the collection row, because
    the job there is already collected — leaving Save as the hero would have put
    "Save" and "Tailor CV" on one screen as peers for the same decision. The
    surface supplies its card through `renderCard`; the band never picks one for
-   a surface it does not belong to.
+   a surface it does not belong to. A surface that supplies its own card owns
+   where the reason goes, and Collections already opens each pick on Why — so the
+   lede rides the market card only, and no surface says the same thing twice.
    ══════════════════════════════════════════════════════════════════════════ */
-
-const TIER_LABEL: Record<string, string> = {
-  bullseye: "Bullseye",
-  strong: "Strong",
-  reach: "Reach",
-}
-
-function AgentPickNote({ pick, children }: { pick: AgentPickItem; children: React.ReactNode }) {
-  const tier = (pick.agent_tier ?? "").toLowerCase()
-  return (
-    <div className={`tm-agentpick tier-${tier}`}>
-      <div className="tm-agentpick-note">
-        <span className="tm-agentpick-rank" aria-label={`Pick ${pick.agent_rank}`}>{pick.agent_rank}</span>
-        <p className="tm-agentpick-why">{pick.agent_comment}</p>
-        {/* The tier pill is dropped once the card carries a verdict ring — two
-            words for "how good" on one card is the collision the Jobs face
-            locked out, and the ring is the one that speaks everywhere. */}
-        {TIER_LABEL[tier] ? <span className="tm-agentpick-tier">{TIER_LABEL[tier]}</span> : null}
-      </div>
-      {children}
-    </div>
-  )
-}
 
 export interface AgentPicksBandProps {
   token: string
@@ -101,7 +82,7 @@ export function AgentPicksBand({
 
       <div className="tm-agentpicks-list">
         {cards.map(({ pick, card }) => (
-          <AgentPickNote key={pick.job_id} pick={pick}>
+          <React.Fragment key={pick.job_id}>
             {card ?? (
               <JobCard
                 job={pick}
@@ -109,9 +90,10 @@ export function AgentPicksBand({
                 onOpen={() => setOpenJob(pick)}
                 onSave={() => triage.save(pick)}
                 onSkip={() => triage.skip(pick)}
+                lede={<AgentPickLede pick={pick} />}
               />
             )}
-          </AgentPickNote>
+          </React.Fragment>
         ))}
       </div>
 

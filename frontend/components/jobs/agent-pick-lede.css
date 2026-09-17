@@ -1,0 +1,45 @@
+/* The pick's own line, inside the card it is about.
+
+   Its own file, not feed-card.css: the phone band renders this over a card that
+   never imports the feed card's stylesheet, and a class styled on one surface
+   and bare on the other is the bug that ships as "it looks fine on my screen".
+   Token-only, so it lands on both surfaces and both themes. */
+
+.tm-pick-lede {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding-bottom: 12px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--tm-border-faint);
+}
+
+/* Not interactive: no accent, no hover. The Four-Signal rule reserves both for
+   things you can click. */
+.tm-pick-lede-rank {
+  flex: 0 0 auto;
+  font-size: var(--tm-fs-caption);
+  color: var(--tm-text-faint);
+  white-space: nowrap;
+}
+
+.tm-pick-lede-why {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--tm-fs-body);
+  line-height: 1.55;
+  color: var(--tm-text);
+}
+
+/* The exception, marked once. A pivot is a fact about the job, not a warning
+   about it, so it carries no status colour. */
+.tm-pick-lede-tag {
+  flex: 0 0 auto;
+  font-size: var(--tm-fs-caption);
+  font-weight: 500;
+  padding: 2px 9px;
+  border-radius: var(--tm-button-radius);
+  border: 1px solid var(--tm-border-soft);
+  color: var(--tm-text-muted);
+}

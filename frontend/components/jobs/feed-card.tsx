@@ -147,10 +147,14 @@ export interface FeedCardProps {
   onOpen?: () => void
   /** Spread onto the <article> — swipe transform + pointer handlers (immersive). */
   articleProps?: React.HTMLAttributes<HTMLElement>
+  /** The card's first line, above the identity row — Myro speaking about THIS
+   *  card (Agent Picks). A pick used to render its reason as a separate object
+   *  above the card, which read as two things about one job. */
+  lede?: React.ReactNode
 }
 
 export function FeedCard({
-  data, fit, fitSize, badges, pulse, actions, rail, confirm, allowGapActions = true, variant = "row", open, leaving, extraClass = "", onOpen, articleProps,
+  data, fit, fitSize, badges, pulse, actions, rail, confirm, allowGapActions = true, variant = "row", open, leaving, extraClass = "", onOpen, articleProps, lede,
 }: FeedCardProps) {
   const age = ageLabel(data.ageIso)
   const exp = experienceLabel(data.minYears, data.maxYears)
@@ -203,6 +207,7 @@ export function FeedCard({
         : {})}
       {...articleProps}
     >
+      {lede}
       <div className="fc-main">
         {/* Identity tile — dropped in compact density (company is the context). */}
         {compact ? null : data.company ? (

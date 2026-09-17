@@ -3804,6 +3804,11 @@ export interface AgentPickItem extends JobFeedItem {
   agent_rank: number
   agent_tier?: "bullseye" | "strong" | "reach" | string | null
   agent_comment: string
+  /** How this pick graded against the direction the user chose, when the set was
+   *  cut (backend `matching/direction_fit`). `null` on sets cut before the grade
+   *  existed, which reads the same as `unknown`: no tag, because nobody graded
+   *  it and a guess would be worse than silence. */
+  agent_direction?: "on_direction" | "off_direction" | "unknown" | null
 }
 
 export interface AgentPicksResponse {

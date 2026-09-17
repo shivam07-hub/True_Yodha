@@ -92,7 +92,7 @@ export function CardBrainBadges({ job }: { job: JobFeedItem }) {
 // ── the card (web list) ──────────────────────────────────────────────────────
 
 export function JobCard({
-  job, pulse, hasCv, onOpen, onSave, onSkip,
+  job, pulse, hasCv, onOpen, onSave, onSkip, lede,
 }: {
   job: JobFeedItem
   pulse?: JobPulse
@@ -100,6 +100,8 @@ export function JobCard({
   onOpen: () => void
   onSave: () => void
   onSkip: () => void
+  /** Agent Picks pass Myro's reason for the pick; the feed passes nothing. */
+  lede?: React.ReactNode
 }) {
   return (
     <FeedCard
@@ -110,6 +112,7 @@ export function JobCard({
       badges={<CardBrainBadges job={job} />}
       pulse={<PulseRow pulse={pulse} bare />}
       actions={<TriageButtons job={job} onSave={onSave} onSkip={onSkip} />}
+      lede={lede}
     />
   )
 }
