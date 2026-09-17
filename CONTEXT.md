@@ -365,6 +365,24 @@ row.
   future native clients. Canonical applications and feedback events remain the
   source of truth.
 
+## Company Demand Pulse
+
+The public, per-company hiring index: live role count, weekly inflow, freshness,
+sparkline, and the 0-100 pulse. A corpus aggregate (Tier 0). Identity is the
+company name folded for case and whitespace. The request path looks up
+`company_pulse_snapshot`; it never scans `jobs`.
+
+**Avoid:** Job Pulse (that is per-listing intelligence), "pulse cache", treating
+the compare strip as a live jobs query.
+
+**Invariants**
+
+- `pulse` is `None` when a company has no live roles — never a fabricated 0.
+- Refresh runs on ingest through the snapshot lease, same rail as Company
+  Directory. Stale is stamped by `refreshed_at`, not by a per-request scan.
+- Formula (`compute_pulse`, sparkline) lives in one Python module. SQL only
+  aggregates the three raw markers.
+
 ## Scoped Skill Demand
 
 The count of **active jobs in the user's location scope whose skill set includes skill S**. The unit behind the market rail's "Skill-demand movers" — each mover badge is this number, and clicking a mover filters the triage feed by the same skill.

@@ -294,14 +294,13 @@ refreshes, concurrent stale hits refresh at most once, a failed background
 refresh is logged not silent, a broken Redis connection fails open to direct
 compute).
 
-Migrated: `/public/stats`, `fetch_indexable_companies`, `fetch_company_pulse`
-— the three named in the original saturation alerts (`/jobs/companies/pulse`
-hit 10,915ms cold on prod). `fetch_company_pulse`'s cache key is now
-order-normalized (`sorted({casefold})`); the OLD per-process cache keyed on
-`frozenset(names)` but returned whatever order the FIRST caller for that set
-had asked in — a second caller requesting the same companies in a different
-order got a cache hit in the wrong order. `shared_cache` fixed this as a
-byproduct of normalizing the key, not as a separate change.
+Migrated: `/public/stats`, `fetch_indexable_companies`, Company Demand Pulse
+(`/jobs/companies/pulse` is now `company_pulse_snapshot`, not a Redis-cached
+jobs scan). `indexable_companies` remains on shared_cache around the directory
+RPC. The OLD pulse per-process cache keyed on `frozenset(names)` but returned
+whatever order the FIRST caller for that set had asked in — a second caller
+requesting the same companies in a different order got a cache hit in the
+wrong order. The snapshot lookup preserves caller order in Python.
 
 **Still on the old per-process-dict pattern, not yet migrated:**
 `_analytics_cache`, `_search_cache` (superseded in spirit by `job_search_index`
@@ -1435,11 +1434,9 @@ a number exists.**
 
 **P4 · Tier-0 the two public aggregates.** — *`indexable_companies` shipped
 `2703ee27` (3,257ms → 1.28ms, 13,054 buffers → 493). `/jobs/companies/pulse`
-is still open and is the harder half: `fetch_company_pulse` caches per
-REQUESTED COMPANY SET, so every distinct set is its own cold fill, and it
-reads every job row for those companies through a PostgREST `.in_()` that
-grows with the request. It wants a per-company snapshot so any set is a
-lookup.* `/jobs/companies/pulse` and
+shipped as Company Demand Pulse snapshot `company_pulse_snapshot` (request path
+is one indexed IN() lookup; ingest refresh writes the rows). Formula stays in
+Python.* `/jobs/companies/pulse` and
 `/jobs/companies/indexable` are pure aggregates over public data with no
 per-user component, and they are what evicts the cache under the funnel.
 Snapshot table refreshed on ingest — the `/public/stats` pattern, playbook fix
@@ -1485,8 +1482,7 @@ and are unchanged after it.
 | Partner SSO retry loop root-caused | 27.7% of all alert lines | `0bdc8ef5` |
 | Six pipeline RPCs revoked from `anon` | queue-drain with no auth | `3d7e46fd` |
 
-**Still open:** CV-chain instrumentation (P3), `/jobs/companies/pulse` (P4's
-harder half), the J0 hop re-derivation (P5), and §15 rows 1, 2, 3, 5, 6, 7, 8.
+**Still open:** CV-chain instrumentation (P3), the J0 hop re-derivation (P5), and §15 rows 1, 2, 3, 5, 6, 7, 8.
 
 **OWED, outward-facing:** 24 Finlatics seats are stranded in `pending_connect`
 with expired tokens. The bug that stranded them is fixed, but they cannot
