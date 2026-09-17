@@ -23,7 +23,7 @@ Establish a **platform-shell seam**: one seam (`AppShell`) picks the chrome adap
 - `lib/api`, `mobile/viewport.ts` constants, domain types.
 
 **Platform surfaces** (one each, independent):
-- **Web** — `components/shell/web-chrome.tsx` (`WebChrome`): the desktop top bar (brand, nav, forge chip/popover, XP pill, account menu, settings/sign-out/myrology). Web chrome CSS stays in `app/globals.css`.
+- **Web** — `components/shell/authed-top-strip.tsx` (`AuthedTopStrip`): the one logged-in top strip (brand, nav, score/next chips, account menu, settings/sign-out/myrology). `components/shell/web-chrome.tsx` (`WebChrome`) was retired and renamed here. Web chrome CSS stays in `app/globals.css`.
 - **Mobile** — `mobile/shell.tsx` (`MobileTopBar`, `MobileBottomNav`, `MobileProfileSheet`) + `ForgeXpPill`. The native APK reuses these + `useShellModel`, never `WebChrome`/`AppShell`.
 
 **`AppShell` is now a thin seam**: `useShellModel()` + shared overlays (`ForgeClockDriver`, `XPGateModal`, `XpExplainerModal`, `FeedbackHub`/`FeedbackFAB`, `ParticleBg`) + `{isDesktop && <WebChrome/>}` + the mobile bars. **Visibility stays CSS/gate-driven exactly as before** — no mount-strategy change → no first-paint flash.
@@ -44,7 +44,7 @@ The naïve "separate everything web vs mobile" would also (C3) lift `useViewport
 
 ## Consequences
 
-- A mobile-chrome change touches `mobile/shell.tsx` / `ForgeXpPill` only; a web-chrome change touches `components/shell/web-chrome.tsx` only. No shared file holds both.
+- A mobile-chrome change touches `mobile/shell.tsx` only; a web-chrome change touches `components/shell/authed-top-strip.tsx` only. No shared file holds both.
 - `useShellModel` is unit-testable without rendering chrome.
 - Web build behaviour is byte-identical (same gating, same CSS).
 - The APK's shared-core surface is now explicit: `useShellModel` + `lib/api` + `mobile/*` + domain types.

@@ -11,6 +11,7 @@ because pytest is in the five gates every agent runs.
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
 
 ADR_DIR = Path(__file__).resolve().parents[2] / "docs" / "adr"
@@ -72,40 +73,69 @@ def _repo_root() -> Path:
     return ADR_DIR.parents[1]
 
 
-def _basenames() -> set[str]:
-    skip = {"node_modules", ".venv", ".next", ".git", "__pycache__", "graphify-out"}
-    names: set[str] = set()
-    for path in _repo_root().rglob("*"):
-        if path.is_file() and not skip & set(path.parts):
-            names.add(path.name)
-    return names
+def _tracked_relpaths() -> set[str]:
+    """The clone a CI runner has — not this laptop's worktrees or gitignored graph."""
+    result = subprocess.run(
+        ["git", "-C", str(_repo_root()), "ls-files"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return {line.strip().replace("\\", "/") for line in result.stdout.splitlines() if line.strip()}
 
 
-def _resolves(cited: str, names: set[str]) -> bool:
-    root = _repo_root()
-    if any((root / prefix / cited).exists() for prefix in _ROOTS):
+def _tracked_names(relpaths: set[str]) -> set[str]:
+    return {Path(path).name for path in relpaths}
+
+
+def _prefixed(cited: str) -> list[str]:
+    return [f"{prefix}/{cited}" if prefix else cited for prefix in _ROOTS]
+
+
+def _resolves(cited: str, relpaths: set[str], names: set[str]) -> bool:
+    if any(candidate in relpaths for candidate in _prefixed(cited)):
         return True
-    # A bare filename is prose, and its basename existing anywhere is enough.
-    return cited.rsplit("/", 1)[-1] in names
+    # Bare filename is prose. A path with directories must be that path, not
+    # a same-named file in a worktree or another folder.
+    return "/" not in cited and cited in names
 
 
 def _paragraphs(text: str) -> list[str]:
     return [block for block in text.split("\n\n") if block.strip()]
 
 
+def test_a_path_only_in_a_worktree_does_not_satisfy_a_citation() -> None:
+    relpaths = {"frontend/components/shell/authed-top-strip.tsx"}
+    names = _tracked_names(relpaths)
+    assert _resolves("components/shell/web-chrome.tsx", relpaths, names) is False
+    assert _resolves("components/shell/authed-top-strip.tsx", relpaths, names) is True
+
+
+def test_a_gitignored_artifact_does_not_satisfy_a_citation() -> None:
+    assert _resolves("graphify-out/GRAPH_REPORT_frontend.md", set(), set()) is False
+
+
+def test_a_bare_filename_matches_a_tracked_basename() -> None:
+    relpaths = {"frontend/lib/views/triad.ts"}
+    names = _tracked_names(relpaths)
+    assert _resolves("triad.ts", relpaths, names) is True
+    assert _resolves("other/triad.ts", relpaths, names) is False
+
+
 def test_no_adr_points_at_a_file_that_is_not_there():
-    names = _basenames()
+    relpaths = _tracked_relpaths()
+    names = _tracked_names(relpaths)
     broken: list[str] = []
     for path in sorted(ADR_DIR.glob("*.md")):
         for block in _paragraphs(path.read_text()):
             excused = any(word in block.lower() for word in _EXCUSED)
             for cited in _PATH.findall(block):
-                if cited.startswith("/") or _resolves(cited, names) or excused:
+                if cited.startswith("/") or _resolves(cited, relpaths, names) or excused:
                     continue
                 broken.append(f"{path.name}: `{cited}`")
     assert not broken, (
-        "an ADR cites a path that does not exist, and its paragraph does not say "
-        f"so: {broken}"
+        "an ADR cites a path that is not in the git tree, and its paragraph "
+        f"does not say so: {broken}"
     )
 
 
