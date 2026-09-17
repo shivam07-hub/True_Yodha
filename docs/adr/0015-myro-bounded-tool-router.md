@@ -4,6 +4,14 @@
 **Date:** 2026-06-05
 **Related:** ADR-0008 (durable background work / provider budget), MYRO_TUTOR_DESIGN.md
 
+> **Renamed 2026-09-17.** "Myro Tutor" is **Myro Mentor**: `services/mentor.py`,
+> `mentor_grounding.py`, `mentor_retriever.py`, `mentor_learn.py`, and the live
+> design doc [MYRO_MENTOR.md](../../MYRO_MENTOR.md) at the repo root. The word
+> "tutor" appears nowhere in the code. `MYRO_TUTOR_DESIGN.md`, cited below as
+> Related, does not exist and has not for some time — the decision stands, its
+> pointer did not.
+
+
 ## Decision
 
 Each Myro turn is handled by a **bounded tool-router**: a cheap intent classifier routes to

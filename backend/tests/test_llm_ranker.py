@@ -88,6 +88,7 @@ def test_persist_matches_writes_5axis_fields() -> None:
     assert row["llm_explanation"] == "Strong strategy fit."
     assert row["strengths"] == ["GTM depth"]
     assert row["concerns"] == ["Comp unclear"]
+    assert row["eval_outcome"] == "ok"
 
 
 def test_persist_matches_writes_6block_strategy() -> None:
@@ -138,6 +139,7 @@ def test_persist_matches_unevaluated_job_gets_null_brain_fields() -> None:
     assert row["recommendation"] is None
     assert row["strengths"] == []
     assert row["overlap_score"] == 50.0
+    assert "eval_outcome" not in row
 
 
 def test_persist_matches_ranks_evaluated_before_unevaluated() -> None:
@@ -346,7 +348,8 @@ def test_evaluate_all_fires_on_progress_per_job(monkeypatch) -> None:
     import asyncio
 
     async def fake_eval(job, system_prompt, provider):
-        return {"overall_score": 1.0, "summary": "ok"}
+        from app.services.model_outcome import ModelOutcome
+        return ModelOutcome.ok({"overall_score": 1.0, "summary": "ok"})
 
     monkeypatch.setattr(llm_ranker, "evaluate_job", fake_eval)
     monkeypatch.setattr(llm_ranker, "build_system_prompt", lambda *a, **k: "sys")
@@ -608,3 +611,56 @@ def test_a_real_target_still_reaches_the_model_verbatim():
 
     assert "Data and Analytics, Sales" in prompt
     assert f"target roles: {NO_TARGET_ROLES}" not in prompt
+
+
+# ── pick_reason: the one line the reader reads ───────────────────────────────
+
+def _eval_json(pick_reason: str) -> str:
+    return (
+        '{"overall_score": 4.2, "grade": "A", "role_fit": 4.0, "comp_fit": 4.0, '
+        '"growth_fit": 4.0, "culture_fit": 4.0, "risk_score": 1.0, '
+        '"summary": "The candidate has strong overlap here.", '
+        f'"pick_reason": "{pick_reason}", '
+        '"recommendation": "Apply"}'
+    )
+
+
+def test_a_reader_line_written_to_you_is_kept() -> None:
+    parsed = llm_ranker.parse_eval(_eval_json("Your renewals work is most of this JD. It is in Gurugram, which you asked for."))
+    assert parsed is not None
+    assert parsed["pick_reason"].startswith("Your renewals work")
+
+
+def test_a_line_that_talks_about_the_reader_is_dropped_not_shipped() -> None:
+    parsed = llm_ranker.parse_eval(_eval_json("The candidate has strong data skills for this role."))
+    assert parsed is not None
+    assert parsed["pick_reason"] is None
+    # the rest of the verdict survives — one bad line is not a lost evaluation
+    assert parsed["overall_score"] == 4.2
+    assert parsed["recommendation"] == "Apply"
+
+
+def test_third_person_pronouns_are_dropped_too() -> None:
+    parsed = llm_ranker.parse_eval(_eval_json("They would bring their sales experience to this team."))
+    assert parsed["pick_reason"] is None
+
+
+def test_machine_filler_is_dropped() -> None:
+    parsed = llm_ranker.parse_eval(_eval_json("You can leverage your skills in this evolving space."))
+    assert parsed["pick_reason"] is None
+
+
+def test_a_missing_reader_line_is_none_not_empty_string() -> None:
+    parsed = llm_ranker.parse_eval(
+        '{"overall_score": 4.2, "recommendation": "Apply", "summary": "ok"}'
+    )
+    assert parsed["pick_reason"] is None
+
+
+# ── the prompt carries the direction rule ────────────────────────────────────
+
+def test_the_prompt_says_past_skills_do_not_set_direction() -> None:
+    prompt = llm_ranker.build_system_prompt({"target_roles": ["Sales Management"]}, "CV text")
+    assert "PAST SKILLS QUALIFY A CANDIDATE; THEY DO NOT SET THEIR DIRECTION" in prompt
+    assert "pick_reason" in prompt
+    assert 'Use "Apply" only at 4.0+' in prompt

@@ -30,12 +30,6 @@ Do not use `https://www.linkedin.com/company/himyro/admin/`; LinkedIn currently
 redirects that slug to an unavailable page. The durable working company path is
 the numeric page ID above for **HiMyro Career Intelligence**.
 
-## X Pause
-
-As of 2026-06-03, pause all X drafting, scheduling and posting. The `@himyro`
-account is suspended and Shivam has appealed. Resume X only after Shivam confirms
-the account is restored.
-
 ## LinkedIn Native-First Rule
 
 Default LinkedIn company-page posts should keep engagement inside LinkedIn:
@@ -44,8 +38,6 @@ Default LinkedIn company-page posts should keep engagement inside LinkedIn:
 - use the newsletter OG image or a native stat card instead of a link preview
 - keep copy compact, human, and lightly edited; avoid list-like AI formatting
 - use measured facts from the newsletter, but do not over-stack metrics
-
-Do not generate X drafts while the X pause is active.
 
 ## Environment
 

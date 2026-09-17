@@ -10,12 +10,13 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { cv as cvApi, type WeaveProposal } from "@/lib/api"
-import { firstUndecidedIndex } from "@/lib/cv/tailor-order"
+import { buildSteps } from "@/lib/cv/weave-steps"
 import { useXPStore } from "@/store/xpStore"
 import { WeaveLoom } from "./mentor-thinking"
 import { TailorInterview } from "./tailor-interview"
 import { useTailorGateRefresh } from "./use-tailor-gate"
-import { WeaveRoleCard } from "./weave-role-card"
+import { useWeaveLanding } from "./use-weave-landing"
+import { WeaveReview } from "./weave-review"
 
 type Act = "loom" | "interview" | "review"
 
@@ -30,6 +31,9 @@ interface TailorWeaveProps {
   coverageSettled: boolean
   coverageFailed?: boolean
   onRetryCoverage?: () => void
+  /** What the paper says today — shown as the "was" on the extras card. */
+  currentSummary?: string
+  currentSkillsLine?: string
   onApplied: (versionId: number) => void
   onClose: () => void
 }
@@ -37,6 +41,7 @@ interface TailorWeaveProps {
 export function TailorWeave({
   token, jobId, company, jobTitle, loomRoles, cost = 50,
   coverageSettled, coverageFailed = false, onRetryCoverage,
+  currentSummary = "", currentSkillsLine = "",
   onApplied, onClose,
 }: TailorWeaveProps) {
   const [act, setAct] = useState<Act>("loom")
@@ -51,10 +56,13 @@ export function TailorWeave({
   const [probe, setProbe] = useState<string | null>(null)
   const [answers, setAnswers] = useState<{ requirement: string; text: string }[]>([])
 
-  const [rIdx, setRIdx] = useState(0)
-  const [acceptedIds, setAcceptedIds] = useState<number[]>([])
-  const [decidedIds, setDecidedIds] = useState<number[]>([])
-  const [originals, setOriginals] = useState<Set<number>>(() => new Set())
+  const steps = useMemo(() => buildSteps(proposal), [proposal])
+  const refreshTrackGate = useTailorGateRefresh()
+  const landing = useWeaveLanding({
+    token, jobId, steps,
+    onApplied: versionId => { onApplied(versionId); refreshTrackGate() },
+  })
+
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
@@ -77,17 +85,16 @@ export function TailorWeave({
   useEffect(() => {
     if (seeded.current || !existing.isSuccess || !currentProposal) return
     seeded.current = true
-    const dec = existing.data.decided_roles ?? []
     setProposal(currentProposal)
     setStale(false)
-    setAcceptedIds(existing.data.accepted_roles ?? [])
-    setDecidedIds(dec)
-    setRIdx(firstUndecidedIndex(
-      currentProposal.roles.filter(r => r.changed).map(r => r.role_index),
-      dec,
-    ))
+    landing.seed({
+      steps: buildSteps(currentProposal),
+      acceptedRoles: existing.data.accepted_roles ?? [],
+      decidedRoles: existing.data.decided_roles ?? [],
+      extrasDecided: Boolean(existing.data.extras_decided),
+    })
     setAct("review")
-  }, [existing.isSuccess, currentProposal, existing.data])
+  }, [existing.isSuccess, currentProposal, existing.data, landing])
 
   const interview = useQuery({
     queryKey: ["cv-weave-interview", jobId],
@@ -99,8 +106,6 @@ export function TailorWeave({
   })
   const questions = interview.data?.questions ?? []
 
-  const refreshTrackGate = useTailorGateRefresh()
-
   const runWeave = useMutation({
     mutationFn: (opts: { refresh: boolean }) => cvApi.weave.run(token, jobId, answers, opts),
     onMutate: () => { setError(null); setAct("loom") },
@@ -110,7 +115,7 @@ export function TailorWeave({
       }
       setProposal(res.proposal)
       setStale(res.stale)
-      setRIdx(0); setAcceptedIds([]); setDecidedIds([]); setOriginals(new Set())
+      landing.reset()
       setAct("review")
     },
     onError: (e: Error) => {
@@ -122,33 +127,6 @@ export function TailorWeave({
   const bankAnswer = useMutation({
     mutationFn: (body: { requirement: string; answer: string; final: boolean }) =>
       cvApi.weave.answer(token, { requirement: body.requirement, answer: body.answer, jobId, final: body.final }),
-  })
-
-  const applyWeave = useMutation({
-    mutationFn: (land: {
-      accepted: number[]
-      decided: number[]
-      roleIndex: number
-      action: "take" | "keep" | "undo"
-      originalPointers: number[]
-      close: boolean
-    }) =>
-      cvApi.weave.apply(token, jobId, land.accepted, {
-        decidedRoles: land.decided,
-        roleIndex: land.roleIndex,
-        action: land.action,
-        originalPointers: land.originalPointers,
-      }),
-    onSuccess: (res, land) => {
-      onApplied(res.version_id)
-      refreshTrackGate()
-      setAcceptedIds(land.accepted)
-      setDecidedIds(land.decided)
-      if (land.close) onClose()
-      else if (land.action === "undo") setRIdx(i => Math.max(0, i - 1))
-      else setRIdx(i => i + 1)
-    },
-    onError: (e: Error) => setError(e.message),
   })
 
   const weaveMutate = runWeave.mutate
@@ -188,9 +166,6 @@ export function TailorWeave({
     interview.error, act, weaving, weaveMutate,
   ])
 
-  useEffect(() => { setOriginals(new Set()) }, [rIdx])
-
-  const changedRoles = useMemo(() => (proposal?.roles ?? []).filter(r => r.changed), [proposal])
 
   const loomLines = useMemo(() => [
     "Reading the job's language",
@@ -220,33 +195,6 @@ export function TailorWeave({
         setAnswers(prev => [...prev, { requirement: q.requirement, text }])
         advanceInterview()
       },
-    })
-  }
-
-  function decide(action: "take" | "keep") {
-    const role = changedRoles[rIdx]
-    if (!role || applyWeave.isPending) return
-    const accepted = action === "take"
-      ? [...acceptedIds.filter(i => i !== role.role_index), role.role_index]
-      : acceptedIds.filter(i => i !== role.role_index)
-    const decided = [...decidedIds.filter(i => i !== role.role_index), role.role_index]
-    applyWeave.mutate({
-      accepted, decided, roleIndex: role.role_index, action,
-      originalPointers: action === "take" ? Array.from(originals) : [],
-      close: rIdx >= changedRoles.length - 1,
-    })
-  }
-
-  function undoLast() {
-    if (rIdx <= 0 || applyWeave.isPending) return
-    const prev = changedRoles[rIdx - 1]
-    applyWeave.mutate({
-      accepted: acceptedIds.filter(i => i !== prev.role_index),
-      decided: decidedIds.filter(i => i !== prev.role_index),
-      roleIndex: prev.role_index,
-      action: "undo",
-      originalPointers: [],
-      close: false,
     })
   }
 
@@ -297,41 +245,19 @@ export function TailorWeave({
             />
           )}
 
-          {act === "review" && proposal && changedRoles[rIdx] && (
-            <div className="tw-review">
-              <div className="tw-review-strip mono" aria-label="Roles">
-                {changedRoles.map((r, i) => (
-                  <span key={r.role_index} className="tw-review-dot" data-state={i < rIdx ? "done" : i === rIdx ? "now" : "todo"} />
-                ))}
-                <span className="tw-review-count">{rIdx + 1} / {changedRoles.length} roles</span>
-              </div>
-              <WeaveRoleCard
-                role={changedRoles[rIdx]}
-                originalIndexes={originals}
-                onToggleOriginal={i => setOriginals(prev => {
-                  const next = new Set(prev)
-                  if (next.has(i)) next.delete(i)
-                  else next.add(i)
-                  return next
-                })}
-              />
-              {error && <p className="tw-err" role="alert">{error}</p>}
-              <div className="tw-review-actions">
-                <button
-                  type="button" className="tw-btn tw-btn-ghost"
-                  disabled={applyWeave.isPending}
-                  onClick={() => decide("keep")}
-                >Keep mine</button>
-                <button
-                  type="button" className="tw-btn tw-btn-primary"
-                  disabled={applyWeave.isPending}
-                  onClick={() => decide("take")}
-                >Take this</button>
-              </div>
-              {rIdx > 0 && (
-                <button type="button" className="tw-back" disabled={applyWeave.isPending} onClick={undoLast}>← Back</button>
-              )}
-            </div>
+          {act === "review" && proposal && (
+            <WeaveReview
+              steps={steps}
+              idx={landing.idx}
+              originals={landing.originals}
+              currentSummary={currentSummary}
+              currentSkillsLine={currentSkillsLine}
+              error={error ?? landing.error}
+              onToggleOriginal={landing.toggleOriginal}
+              onDecide={landing.decide}
+              onBack={landing.undoLast}
+              onDone={onClose}
+            />
           )}
         </div>
       </div>

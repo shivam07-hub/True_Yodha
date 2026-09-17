@@ -1,6 +1,6 @@
 "use client"
 
-import type { CSSProperties } from "react"
+import type { CSSProperties, ReactNode } from "react"
 import type { MobileJobRow } from "./job-model"
 import { SWIPE_SETTLE, useCardSwipe } from "./use-card-swipe"
 
@@ -21,6 +21,7 @@ export function SwipeCard({
   onSkip,
   onShare,
   shared,
+  lede,
 }: {
   row: MobileJobRow
   first: boolean
@@ -30,6 +31,8 @@ export function SwipeCard({
   onSkip: () => void
   onShare: () => void
   shared: boolean
+  /** Agent Picks pass Myro's reason for the pick; the feed passes nothing. */
+  lede?: ReactNode
 }) {
   const swipe = useCardSwipe({ onSave, onSkip })
   const anim = hint && first ? "mm-peekHint 1.7s cubic-bezier(0.32,0.72,0,1) 0.7s 1" : "mm-screenIn 260ms cubic-bezier(0.16,1,0.3,1) both"
@@ -61,6 +64,7 @@ export function SwipeCard({
           animation: anim,
         }}
       >
+        {lede}
         <div style={{ display: "flex", gap: 11 }}>
           <div style={{ width: 38, height: 38, borderRadius: 11, background: row.logoBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "#fff", flex: "none" }}>{row.coInitial}</div>
           <div style={{ flex: 1, minWidth: 0 }}>

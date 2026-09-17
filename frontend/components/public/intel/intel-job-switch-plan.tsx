@@ -37,7 +37,7 @@ export function IntelJobSwitchPlan() {
 
         <div className="tm-intel-plan-foot">
           <p className="tm-intel-plan-price">
-            <strong>₹99</strong> to start <span>intro price</span>
+            <strong>₹199</strong> / month <span>engagement</span>
           </p>
           <Link href="/signup" className="tm-intel-plan-cta">
             Start with your free score <ArrowRight size={16} strokeWidth={1.5} aria-hidden />

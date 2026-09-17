@@ -1,10 +1,8 @@
-from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pytest
 from postgrest.exceptions import APIError
 
-from app.repositories import jobs as jobs_module
 from app.repositories.jobs import JobsRepository
 from app.routers.jobs.list import get_indexable_companies
 from app.services import shared_cache
@@ -12,22 +10,19 @@ from app.services.background import debounce
 from app.services.company_pulse import (
     SERIES_DAYS,
     build_series,
+    build_series_from_histogram,
     compute_pulse,
+    sort_key_for,
 )
 
 
 def setup_function() -> None:
-    # fetch_company_pulse / fetch_indexable_companies now route through the
-    # shared, cross-replica cache (ARCHITECTURE_READ_PATH.md S3) instead of a
-    # per-process dict — clear its (test-env) local-dict fallback and the
-    # single-flight claims between tests so one test's cache entry can't
+    # fetch_indexable_companies routes through the shared, cross-replica cache
+    # (ARCHITECTURE_READ_PATH.md S3) — clear its (test-env) local-dict fallback
+    # and the single-flight claims between tests so one test's cache entry can't
     # leak into the next.
     shared_cache._LOCAL_CACHE.clear()
     debounce._LOCAL_CLAIMS.clear()
-
-
-def _marker(days_ago: int) -> int:
-    return int((datetime.now(timezone.utc) - timedelta(days=days_ago)).strftime("%Y%m%d"))
 
 
 def test_no_open_roles_is_none_not_zero() -> None:
@@ -90,55 +85,14 @@ def test_series_ignores_out_of_window_offsets() -> None:
     assert build_series([-1, 99, 3]) == build_series([3])
 
 
-# ── Repository DB-scan → pulse mapping ──────────────────────────────────────
+def test_histogram_matches_offset_series() -> None:
+    hist = [0] * SERIES_DAYS
+    hist[0] = 3
+    assert build_series_from_histogram(hist) == build_series([0, 0, 0])
 
 
-def _pulse_rows(monkeypatch, rows: list[dict[str, Any]]):
-    monkeypatch.setattr(jobs_module, "fetch_all_rows", lambda *a, **k: rows)
-    repo = JobsRepository(db=object(), admin_db=object())  # type: ignore[arg-type]
-    return repo.fetch_company_pulse(["Acme", "Stale Co", "Ghost"])
-
-
-def test_fetch_company_pulse_maps_real_markers(monkeypatch) -> None:
-    rows = [
-        # Acme — 3 live roles; 2 first-seen within the last 7d.
-        {"company_name": "Acme", "first_seen": _marker(0), "last_seen": _marker(0)},
-        {"company_name": "  acme ", "first_seen": _marker(3), "last_seen": _marker(1)},  # case/space variant
-        {"company_name": "Acme", "first_seen": _marker(40), "last_seen": _marker(2)},
-        # Stale Co — last seen well beyond the freshness window → no live roles.
-        {"company_name": "Stale Co", "first_seen": _marker(50), "last_seen": _marker(40)},
-    ]
-    out = _pulse_rows(monkeypatch, rows)
-    by_name = {r["company_name"]: r for r in out}
-
-    acme = by_name["Acme"]
-    assert acme["open_roles"] == 3  # all three last_seen within 21d
-    assert acme["weekly_delta"] == 2  # first_seen 0d + 3d ago
-    assert acme["pulse"] is not None and 0 < acme["pulse"] <= 100
-    assert acme["last_seen_at"] is not None
-    assert len(acme["series"]) == SERIES_DAYS
-    assert any(v > 0 for v in acme["series"])  # real inflow shows
-
-    stale = by_name["Stale Co"]
-    assert stale["open_roles"] == 0
-    assert stale["pulse"] is None  # no live roles → no fabricated 0
-
-    ghost = by_name["Ghost"]
-    assert ghost["open_roles"] == 0
-    assert ghost["weekly_delta"] == 0
-    assert ghost["pulse"] is None
-    assert ghost["series"] == [0] * SERIES_DAYS
-
-
-def test_fetch_company_pulse_preserves_input_order(monkeypatch) -> None:
-    out = _pulse_rows(monkeypatch, [])
-    assert [r["company_name"] for r in out] == ["Acme", "Stale Co", "Ghost"]
-
-
-def test_fetch_company_pulse_empty_input_short_circuits() -> None:
-    repo = JobsRepository(db=object(), admin_db=object())  # type: ignore[arg-type]
-    assert repo.fetch_company_pulse([]) == []
-    assert repo.fetch_company_pulse(["  ", ""]) == []
+def test_sort_key_ignores_case_and_spacing() -> None:
+    assert sort_key_for("Bain & Company") == sort_key_for("bain  &  COMPANY")
 
 
 # ── Indexable-companies allowlist (SEO sitemap gate, GSC 2026-07-23) ─────────
@@ -229,70 +183,3 @@ def test_indexable_companies_marks_a_cold_cache_failure_unavailable() -> None:
 
     assert response.status == "unavailable"
     assert response.companies == []
-
-
-# ── Per-company cache identity (ARCHITECTURE_READ_PATH.md §16 P4) ────────────
-
-
-def _scan_counting_repo(monkeypatch) -> tuple[JobsRepository, list[list[str]]]:
-    """Repo whose every jobs scan is recorded, with the companies it scanned."""
-    scans: list[list[str]] = []
-
-    class _Q:
-        def __init__(self) -> None:
-            self.names: list[str] = []
-
-        def in_(self, _column: str, values: list[str]) -> "_Q":
-            self.names = list(values)
-            return self
-
-    def _fake_fetch_all_rows(_db, *, table, columns, query_builder):  # noqa: ANN001
-        query = query_builder(_Q())
-        scans.append(query.names)
-        return [
-            {"company_name": name, "first_seen": _marker(1), "last_seen": _marker(1)}
-            for name in query.names
-        ]
-
-    monkeypatch.setattr(jobs_module, "fetch_all_rows", _fake_fetch_all_rows)
-    return JobsRepository(db=object(), admin_db=object()), scans  # type: ignore[arg-type]
-
-
-def test_a_warm_company_is_not_rescanned_for_a_new_set(monkeypatch) -> None:
-    """The fix: a set is a lookup of its members, not its own cold fill.
-
-    Set-keyed caching meant a rail showing twelve companies shared nothing with
-    the same rail plus one, and each miss rescanned every job row for the whole
-    set — the 8,060-27,409ms evictor behind the correlated multi-route windows.
-    """
-    repo, scans = _scan_counting_repo(monkeypatch)
-
-    repo.fetch_company_pulse(["Acme", "Globex"])
-    assert scans == [["Acme", "Globex"]]
-
-    # Superset: only the genuinely new company may be scanned.
-    out = repo.fetch_company_pulse(["Acme", "Globex", "Initech"])
-    assert scans[1] == ["Initech"], (
-        f"a superset rescanned {scans[1]} — the cache is still keyed on the set, "
-        "so every distinct company set pays its own full scan."
-    )
-    assert [row["company_name"] for row in out] == ["Acme", "Globex", "Initech"]
-
-    # A fully warm subset must not touch the database at all.
-    before = len(scans)
-    subset = repo.fetch_company_pulse(["Globex", "Acme"])
-    assert len(scans) == before, "a fully cached subset still issued a scan"
-    assert [row["company_name"] for row in subset] == ["Globex", "Acme"]
-
-
-def test_pulse_cache_key_ignores_case_and_spacing() -> None:
-    assert jobs_module._pulse_cache_key("Bain & Company") == jobs_module._pulse_cache_key(
-        "bain  &  COMPANY"
-    )
-
-
-def test_caller_order_survives_a_partial_cache_hit(monkeypatch) -> None:
-    repo, _ = _scan_counting_repo(monkeypatch)
-    repo.fetch_company_pulse(["Globex"])
-    out = repo.fetch_company_pulse(["Initech", "Globex", "Acme"])
-    assert [row["company_name"] for row in out] == ["Initech", "Globex", "Acme"]

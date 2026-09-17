@@ -96,7 +96,7 @@ The resting color of a **clickable control that is not an accent CTA or accent l
 
 ## Theme Control
 
-The single surface (light/dark) switcher. `<ThemeControl>` (`components/ui/theme-control.tsx`) is the **canonical** control — there is exactly one place that knows how a user changes theme, rendered in all three homes: the account dropdown (`shell/web-chrome.tsx`), the mobile drawer (`mobile/shell.tsx`), and Settings → Appearance (`settings-modal.tsx`). Adding a new surface theme switch means rendering this primitive, never hand-rolling a segmented control.
+The single surface (light/dark) switcher. `<ThemeControl>` (`components/ui/theme-control.tsx`) is the **canonical** control — there is exactly one place that knows how a user changes theme, rendered in all three homes: the account dropdown (`shell/authed-top-strip.tsx`), the mobile drawer (`mobile/shell.tsx`), and Settings → Appearance (`settings-modal.tsx`). Adding a new surface theme switch means rendering this primitive, never hand-rolling a segmented control.
 
 **Boundary**
 
@@ -365,6 +365,24 @@ row.
   future native clients. Canonical applications and feedback events remain the
   source of truth.
 
+## Company Demand Pulse
+
+The public, per-company hiring index: live role count, weekly inflow, freshness,
+sparkline, and the 0-100 pulse. A corpus aggregate (Tier 0). Identity is the
+company name folded for case and whitespace. The request path looks up
+`company_pulse_snapshot`; it never scans `jobs`.
+
+**Avoid:** Job Pulse (that is per-listing intelligence), "pulse cache", treating
+the compare strip as a live jobs query.
+
+**Invariants**
+
+- `pulse` is `None` when a company has no live roles — never a fabricated 0.
+- Refresh runs on ingest through the snapshot lease, same rail as Company
+  Directory. Stale is stamped by `refreshed_at`, not by a per-request scan.
+- Formula (`compute_pulse`, sparkline) lives in one Python module. SQL only
+  aggregates the three raw markers.
+
 ## Scoped Skill Demand
 
 The count of **active jobs in the user's location scope whose skill set includes skill S**. The unit behind the market rail's "Skill-demand movers" — each mover badge is this number, and clicking a mover filters the triage feed by the same skill.
@@ -442,6 +460,24 @@ Two Tier-0 tables hold it — `role_family_scope` (family × seniority → job_c
 | person ↔ direction | their skills against the profile |
 | job ↔ direction | how many of the direction's characteristic skills the job asks for |
 | person ↔ next skill | closeness to skills they already hold × what the direction demands |
+
+## Direction Fit
+
+**A job fits a direction when it asks for at least two of that direction's twelve most-demanded skills.** The vocabulary is `role_family_labels.core_skills` (filled by `refresh_direction_core_skills` from the profile rows the label refresh already builds); the grade lives in ONE module, `matching/direction_fit.py`, and every surface that shows it reads that grade rather than deriving its own. Measured 76% precision / 40% reach against the bucket's 71% / 29% (BACKLOG #46 S4).
+
+**It is pure, and costs no read.** Both sides are already in memory: a job row carries `main_skills`, a direction's vocabulary is one `text[]` on the labels snapshot. Measured 2026-09-16 over the 3,000 most recently seen live jobs, grading `main_skills` against those twelve names finds **736 of the 780** jobs a full `job_skills` join finds for Business Operations and **256 of 260** for Sales Management. `top_skills` was tried first and found 102 and 24 — it ranks by tf-idf DISTINCTIVENESS and is capped at eight, so it names the skills that are rarest in the jobs it should be matching. Two arrays, two questions: `top_skills` says what is distinctive about a direction, `core_skills` says what it asks for.
+
+**Recall is not a verdict.** `jobs.role_family` survives as the cheap index that narrows 46,801 live rows into a pool; it never answers whether a job fits. That is what keeps ONE definition of fit while the corpus-wide precompute waits on the paid compute gate (#46 S4) — the half that ADR-0022 and #46 forbid shipping is a second *definition* of fit, not a second scale for the same one.
+
+**Unknown is a third state.** An empty vocabulary (no direction chosen, or a family the snapshot does not hold) and a listing naming no skills both read `unknown`, never `off_direction`. Absence is not a verdict, and an ungradable job must be neither hidden nor promoted on the strength of missing data.
+
+## Passed On
+
+**A direction the user rejected twice stops being picked.** `matching/passed_on` counts `personal / not_my_role` skips from `job_feedback_events` over 90 days, grades each skipped job against every direction (the same 2-of-12 rule as **Direction Fit**), and passes on the directions that reach two. Capped at twelve — past that the signal is "my direction is wrong", which is the Direction step's question, not this one's.
+
+**What it never does.** It never passes on a direction the user CHOSE: saying "not my role" inside your own target means the target may be wrong, and only the user changes that. It never passes on a SKILL either — stakeholder management belongs to IT Strategy and Sales Management both, so rejecting two tech roles that ask for it leaves every sales role that asks for it exactly where it was. Whole profiles are passed on, never the skills inside them. Grading is per direction, never against a union of them.
+
+**Visible and reversible.** The band names what it stopped picking, and "Show these again" (`DELETE /jobs/agent-picks/passed-on`) moves `user_profiles.passed_on_cleared_at` — the instant skips are counted from — while deleting none of the evidence. `passed_on_directions` is a snapshot the pick regen stamps so the band can name them without re-deriving; the rule stays in the module, the evidence stays in `job_feedback_events`. Three reads, all on the regen (a background path), fail-soft to "nothing is passed on" — which shows MORE jobs, the harmless side.
 
 ## Skill Level and Role Standing
 
@@ -562,6 +598,35 @@ with no collected job.
 
 Surfaces: job Reach section (`ReachLog`), Collections desk strip, `/reach`.
 
+**Not this:** LinkedIn Services inbound (strangers asking HiMyro to write a
+resume) is the opposite direction. Those requests become an Engagement Scene,
+not a Reach Target. Contract: [OFFERING.md](OFFERING.md).
+
+---
+
+## Engagement Scene
+
+The paid room for **Personalised Engagement** (₹199 / month, ENG1). Not a
+pricing card. One scene per subscriber:
+
+- the collected job (company, title — the prep room they are in)
+- the CV of record, read against that job
+- the skill path for that target
+- a named reviewer and a date (one human pass per billing month)
+
+**Doors.** LinkedIn Services *Resume Writing* inbound (`/job-switch-plan?utm_source=linkedin_services`), and Myro's last CTA (prep "Keep a person on this scene · ₹199 / month"). Same queue.
+Month 1 from LinkedIn **is** the resume they asked for, delivered in Myro.
+A month exists because conversion is theirs: if they have not got the job,
+they still need the scene. Myro does not sell the offer.
+
+**Invariants**
+
+- Not placement. Not unlimited rewrites. Not Myro sending LinkedIn mail.
+- Razorpay Subscriptions: `job_switch_plan` at 19900 paise. First charge
+  activates the scene; `subscription.charged` opens the next IST month's pass.
+  Live charges need `RAZORPAY_ENGAGEMENT_PLAN_ID`.
+- Full contract: [OFFERING.md](OFFERING.md).
+
 ---
 
 ## CV Version Writer Seam
@@ -648,6 +713,8 @@ A persisted match row (`user_job_matches` joined with `jobs`) is the matcher's d
 - `MatchEval` is **tolerant**: every field optional, unknown columns ignored. A newly-added persisted column never narrows the read or 500s the dashboard.
 - A *type* mismatch on a known eval field fails at this seam — one clear, tested boundary — not at the per-user response gate in production. The seam is the test surface (`test_job_match_response.py`).
 - `to_job_match` is the single reader of a match row. New consumers of match eval go through `MatchEval`, not raw dict `.get()`.
+- **Two lines, two audiences.** `summary` is the Career Ops evaluator writing ABOUT the candidate (internal); `pick_reason` is the one line written TO the reader, in second person, and `reader_voice.violations()` gates it at the parser — a dirty line is dropped, never rewritten, and the surface falls back to `summary` until that row is re-rated. Measured 2026-09-11: 13 of the 30 live Agent Picks were quoting a `summary` that called the reader "the candidate".
+- **The prompt is part of what the brain was told.** `llm_ranker.PROMPT_VERSION` rides in `eval_context_hash`, so a rule change that can move an answer re-rates the verdicts reasoned without it on their user's next Search. Bump it for rules and output shape, not for wording that cannot change an answer.
 
 ---
 
@@ -668,6 +735,7 @@ The single answer to "how good is this match for this user, and what should they
 - **No strong match ≠ empty hand.** When a user has no `strong` verdict, the surface shows the closest real jobs labelled `stretch` plus the 1–2 highest-leverage moves (Practice / CV) that would lift them to `strong` — never fabricated jobs (ADR-0001), never a dead empty state. The honest answer to the fresher-shown-senior-roles relevance pain.
 - The primary post-match action is **Tailor & apply** (why-you-fit → tailor the CV to this exact job via the Mentor retriever loop → apply); direct `Apply` stays one tap (never-block, per the CV journey north star).
 - The seam is the test surface (`test_job_match_response.py`): thresholds, the overlap gate, and the `checking` provisional path are tested once against `MatchEval` fixtures, not re-tested through each router or re-implemented per frontend surface.
+- **Agent Picks are gated on the apply bar and the direction, not on the feed's verdict word.** A pick needs `overall_score >= 4.0` with an Apply/Negotiate verdict (upstream career-ops applies at 4.0; 3.5-3.9 is "apply only for a specific reason"), and the band sorts by (direction, score, overlap) — the aspiration decides, the CV breaks ties, no quota either way. A band thinner than three is topped up from ON-DIRECTION rows at 3.5-3.99, tiered `reach`; off-direction and ungradable rows never fill. Measured 2026-09-16: the old 3.5 floor gave 24 targeted users a band and the 4.0 bar gives 6, which is why the top-up exists. Pick rows store the grade they were cut under and are never regraded — a pick set is a record of what was recommended.
 - **Agent Picks attach the same `_rank_feed_rows(..., reorder=False)` the feed uses.** They are gated on `STRONG_SCORE` and still used to ship as bare feed rows, so the card hid the judge behind an overlap pill. Editorial order (`agent_rank`) stays; a pick without a verdict is a bug. Grade does not sit on the Jobs face next to the ring — it is a second "how good" (`classifyMatch` grown back visually). `tests/test_job_match_router.py` and `frontend/tests/jobs-face-contract.test.ts` hold the line.
 
 ---
@@ -760,14 +828,14 @@ The single facade for "given a candidate pool + a targeting profile, produce ran
 
 ```py
 async def rank(profile, cv_markdown, jobs: RankCandidates, *, provider, use_brain=True, budget=None, ...) -> RankResult
-async def rank_one(profile, cv_markdown, job, provider) -> eval | None
+async def rank_one(profile, cv_markdown, job, provider) -> ModelOutcome
 ```
 
 **Invariants**
 - `ranking` **delegates, never reimplements** — it calls the same `get_top_matches` + `evaluate_all` in the same order as the old inline duo. Persistence stays in `llm_ranker.persist_matches`; `rank`/`rank_one` write nothing.
 - `RankResult.evaluations` is empty when the brain is skipped (`use_brain=False` / `provider is None`) or every eval failed — the deterministic overlap scores still stand alone, so a brain outage degrades to overlap-only matching rather than an empty feed.
 - `budget` caps how many of the shortlist reach the brain (cost control). `None` = brain the whole shortlist = the batch-compute behaviour. `rank_one` is the single-job on-demand path (a job opened/saved anywhere) whose result is **cached** into `user_job_matches` — never a per-request LLM call in bulk.
-- `RankCandidates.eval_cache_fetcher` (Backlog #36) lets `rank` skip any shortlist job already evaluated for this user — a job is brain-rated **once per `(user, job)`, ever** (permanent identity, migration 20260710), never re-paid on a later compute. Omit it for the old always-eval behaviour.
+- `RankCandidates.eval_cache_fetcher` (Backlog #36) lets `rank` skip any shortlist job already evaluated for this user — a job is brain-rated **once per `(user, job)`, ever** (permanent identity, migration 20260710), never re-paid on a later compute. A row whose **Model Outcome** is permanent (`malformed` / `invalid_input`) is also skipped, until `eval_context_hash` moves. Omit the fetcher for the old always-eval behaviour.
 - `compute_job_matches` (the batch compute — CV upload, paid Refresh, or scrape-triggered sweep) routes through `rank`; the exhausted/refund gates and candidate-id fetching stay in `jobs_workflow` (DB-coupled), unchanged. Its skip gate is **event-driven** (has-ever-matched + nothing-new-since), not calendar-driven.
 - **The model floor (F1) is owned inside `compute_job_matches`, not passed by callers.** Every judgment call (triage + eval) runs on `get_judgment_provider()` — the strong-only lane (see **Judgment provider** below). The `llm_provider` arg is a test-only override; no caller can put a small model on a ranking path.
 - **`RankCandidates.pool_augmenter`** (standardized matcher) unions the CandidatePool family selector onto the overlap pool *before* triage, keeping `rank` DB-agnostic (the caller supplies the callback). None → overlap-only pool.
@@ -908,8 +976,9 @@ The single read for "what Myro knows about what this user wants" — one module 
 - **`target_context_hash` is a SCOPING key, never a gate.** It answers "which direction was this verdict computed for" — the key `get_matches_for_context` and `get_current_credible_match` scope by. It is written whenever a baseline exists, even for a blank direction, because the reader (`onboarding_service.get_result`) has always hashed unconditionally and one key cannot have two production rules. It also does **not** appear in `evaluate_credibility`'s `credible` conjunction: absence of a bookkeeping field is not a verdict about a job (the same rule F3 applies to unreadable seniority and F4 to absent location meta). Until 2026-08-13 it did both jobs wrongly — NULL on 71% of rows, which made `get_matches_for_context` match nothing for **162 of 196 users holding 1,289 real match rows** (`_shortlist` reported "the market genuinely has no overlap") and made promotion impossible, so **153 users had brain-rated matches and exactly ONE had an `is_recommended` row** — withholding the "Tailor for {role} at {company}" primary action, the 10-minute-CV core loop, from 152 of them.
 - **Fill-empty-only.** A user-entered column value is never overwritten by memory — even a junk one; the modal is where the user fixes it.
 - **Prefill is draft-only.** Silent prefill lands in the modal's staging buffer; persistence happens only through the user's Run/Save action, so the distiller's propose-only lock on profile columns holds.
-- **The selected family is the write vocabulary, and its name is the title.** The picker supplies a corpus family; since `e2676160` it is stored as both `target_roles` and the visible `target_role_titles`, because the family's modal job title named twenty families "Custom Software Engineer". Titles a user typed on other paths are kept (the `20260909120000` backfill touched only corpus-label artifacts and empty slots). `targeting_write.derive` is the only derivation of the `target_roles` cluster union (shared by `save_target`, intent-chat, pre-flight, and `PUT /users/me/profile`). Title ILIKE is not a demand, aspiration, or selection path — the feed's role signal, the matcher's boost and the family selector all read `jobs.role_family` since `4cb20cfe`.
+- **The selected family is the write vocabulary, and its name is the title.** The picker supplies a corpus family; since `e2676160` it is stored as both `target_roles` and the visible `target_role_titles`, because the family's modal job title named twenty families "Custom Software Engineer". Titles a user typed on other paths are kept (the `20260909120000` backfill touched only corpus-label artifacts and empty slots). `targeting_write.derive` is the only derivation of the `target_roles` cluster union (shared by `save_target`, intent-chat, pre-flight, and `PUT /users/me/profile`). Title ILIKE is not a demand, aspiration, or selection path. The feed's role signal, the matcher's boost and the family selector read `jobs.role_family` as a RECALL index only (`4cb20cfe`); whether a job fits the direction is graded from skills — see **Direction Fit** — so the bucket never reaches a user as a verdict.
 - **Memory is fail-soft.** `list_active` degrades to `[]` (safe_read); a repo without a client (test fakes) carries no facts. Matching never breaks on the memory layer.
+- **`direction_vocabulary(repo, families)` is the one loader for what a direction demands** — the `core_skills` snapshot read that **Direction Fit** grades against. It lives here because it answers this module's question from the families the Brief already carries, and because both callers needed it: the pick gate and the `/market` warm. A router may not read it itself (the repository-client seam is a service's to cross, `test_workflow_seams`). Unreadable → empty → every job grades `unknown` and each caller keeps the order it had before.
 - **`jobs_repo.get_user_profile_targeting` is this module's private input.** A ranking path that calls it directly is memory-blind, and since a verdict is cached permanently per `(user, job)` (migration 20260710) that blindness is permanent — nothing re-rates it. `on_demand` and `feed_warm` did exactly that until 2026-08-13: **1,175 of 1,686 brain verdicts in prod (70%) were written without seeing a single fact the user had told Myro**. 308 (3 users, ~52 active notes each) were materially wrong; the rest belonged to users with no ranking-relevant facts, where blind and informed agree.
 - **Two keys, two questions.** `context_key` → `user_job_matches.target_context_hash` is a SCOPING key: which direction a verdict belongs to. `eval_context_key` → `user_job_matches.eval_context_hash` is a STALENESS key: what the brain was *told* — direction plus the `known_facts` block the prompt renders. Deliberately separate. Folding memory into the scoping key would invalidate an onboarding shortlist mid-read every time the distiller writes a fact; leaving it out of the staleness key would keep "brain-rated once per (user, job), ever" (migration 20260710) meaning a verdict reasoned before Myro read anything the user said can never be revisited. **All three skip gates** — `jobs_workflow` (the Search), `on_demand` (brain-on-open), `feed_warm` (the /market top-10) — ask `eval_matches_context`, one rule in one place; what each gate additionally requires of a row stays at its own call site (on-open also demands a real score, so a Provisional Match recomputes). A NULL key is *"we cannot tell"*, never *"still valid"* — which is what makes the next Search correct with no backfill. Cost lands only where inputs moved: a repeat Search with nothing changed is still a full cache hit. `UserMemoryRepository.list_active` orders by `(created_at desc, id)` so the fact order — and the 8-fact cap over it — is total; without the tiebreaker, tied timestamps (7 of 83 active facts in prod) would reshuffle the key and re-rate for nothing.
 - **The run records the direction it covered.** `user_profiles.last_match_context_hash`, stamped by `match_run.run_match` alone (same single-writer rule as `last_match_run_at`) from the key the compute actually ran under (`MatchComputeOutcome.context_key` — reported, never re-derived by the caller). Before it, `_shortlist` answered "was this direction searched?" with "did any run finish since the direction last changed?" — two different questions — so every unmatched context reported `empty`, *"the market genuinely has no overlap"*. The states are now split: `empty` (searched this direction, found nothing) vs `stale_direction` (a run finished, but for another direction — the user has matches, none for this target). `stale_direction` is **never auto-enqueued**; the surface asks for a Myro Ops Search, because the user pulls the run.
@@ -1301,7 +1370,20 @@ A Job Runner listens to lanes in priority order `[fast, bulk]` — RQ pops fast 
 
 A worker process (separate from the web process) that consumes Work Lanes fast-first. Run **2** for redundancy — one keeps serving while the other restarts/deploys. Each Runner caps its own in-flight jobs low; the true provider ceiling is the **Provider Budget**, not the per-Runner cap. Entry point `app/workers/jobs_compute_worker.py`, generalised from the job-refresh-only worker.
 
-**Retry policy** — 3 retries with growing backoff (~5s/15s/45s) on TRANSIENT failure only (provider-unavailable, 429 rate-limit, timeout, network). PERMANENT failures (no skills, scanned/short PDF, taxonomy-unmapped) fail fast + refund immediately with no retry.
+**Retry policy** — 3 retries with growing backoff (~5s/15s/45s) on TRANSIENT failure only (provider-unavailable, 429 rate-limit, timeout, network). PERMANENT failures (no skills, scanned/short PDF, taxonomy-unmapped, a **Model Outcome** of `malformed` or `invalid_input`) fail fast + refund immediately with no retry.
+
+## Model Outcome
+
+The classified result of one LLM completion on a named write. Four kinds, one module (`app/services/model_outcome.py`):
+
+- **`ok`** — parsed payload the caller can persist. The Durable Answer.
+- **`unavailable`** — provider/budget/network. The only TRANSIENT kind. Work Lane raises `TransientJobError` and RQ retries (ADR-0008). Never stored: the next open may try again.
+- **`malformed`** — the model answered and we cannot use it (no JSON, truncated JSON, no score). Same prompt will not heal. Stored as `user_job_matches.eval_outcome` so opening the job does not re-enqueue.
+- **`invalid_input`** — we must not call the model (scanned/short CV text). Stored the same way.
+
+`None` is not a kind. Collapsing every failure to `None` made `job_brain_eval` and `cv_structured_enrich` retry garbage until Work Lane exhaustion, then re-enqueue on the next open. Callers read `kind`; they do not guess from a missing value.
+
+A GET still never waits on a model. A permanent outcome is not a verdict: the surface stays on overlap / `body_text`. The skip gate is `eval_outcome` plus `eval_matches_context` — when the Targeting Brief moves, the write is allowed to run again.
 
 ## Provider Budget
 

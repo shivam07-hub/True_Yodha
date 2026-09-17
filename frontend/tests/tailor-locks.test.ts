@@ -84,3 +84,46 @@ test("hidden chrome lists the lines that left the paper", () => {
   assert.equal(lines.length, 1)
   assert.equal(lines[0]?.text, "Closed 12 deals.")
 })
+
+test("a card that reworded nothing says so, and drops its no-op provenance", () => {
+  const card = read("components/cv/builder/weave-role-card.tsx")
+  assert.match(card, /role\.edit_kind === "trim"/)
+  assert.match(card, /Nothing reworded\./)
+  // A verbatim line's "was" and "original" both resolve to itself — noise.
+  assert.match(card, /const verbatim = sources\.length === 1 && sources\[0\] === b\.text/)
+  assert.match(card, /b\.from_lines\.length > 0 && !verbatim/)
+  assert.match(card, /sources\.length > 0 && !verbatim/)
+})
+
+test("flipping a merged line back to original restores every line it merged", () => {
+  const card = read("components/cv/builder/weave-role-card.tsx")
+  // The preview renders the sources as separate lines...
+  assert.match(card, /originalLinesFor\(originalIndexes, i, sources\)/)
+  assert.match(card, /shown\.map\(/)
+  assert.doesNotMatch(card, /from_lines\.filter\(Boolean\)\.join\(" "\)/)
+  // ...and a Take writes them the same way.
+  const weave = readFileSync(
+    new URL("../../backend/app/services/cv_weave.py", import.meta.url), "utf8",
+  )
+  const take = weave.slice(weave.indexOf("def _take_bullets"), weave.indexOf("def land_extras"))
+  assert.match(take, /out\.extend\(from_lines/)
+  assert.doesNotMatch(take, /" "\.join\(from_lines\)/)
+})
+
+test("no list in the weave card is keyed by its own text", () => {
+  const card = read("components/cv/builder/weave-role-card.tsx")
+  assert.doesNotMatch(card, /key=\{t\}/, "two stories can share a title")
+  assert.doesNotMatch(card, /key=\{line\}/, "two dropped lines can be identical")
+})
+
+test("the answer endpoint reads its coverage row once, not twice", () => {
+  const router = readFileSync(
+    new URL("../../backend/app/routers/cv/weave.py", import.meta.url), "utf8",
+  )
+  const answer = router.slice(
+    router.indexOf("async def weave_answer"),
+    router.indexOf("@router.get(\"/weave/{job_id}\""),
+  )
+  const reads = answer.match(/get_deepening\(/g) ?? []
+  assert.equal(reads.length, 1, "one read serves both the upgrade lookup and the patch")
+})

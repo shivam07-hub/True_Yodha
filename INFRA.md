@@ -49,6 +49,23 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
 
 ---
 
+## RAZORPAY — Personalised Engagement (ENG1)
+
+`RAZORPAY_ENGAGEMENT_PLAN_ID` — id of the monthly plan created once in the
+Razorpay dashboard (amount **19900 paise**, period monthly, 12 cycles). Empty =
+engagement `create-order` returns 503. Set on **both** Railway backends
+(`mirror-backend-dev` and `mirror-backend-prod`). Prod charges wait on the
+`main` merge.
+
+`ENGAGEMENT_SALES_ENABLED` — kill-switch, default true. `false` refuses new
+checkouts; existing subscribers keep their scene until Razorpay stops charging.
+
+Webhook (same secret as today, `RAZORPAY_WEBHOOK_SECRET`) must also fire
+`subscription.charged`, `subscription.activated`, `subscription.cancelled`,
+`subscription.completed`, `subscription.halted`.
+
+---
+
 ## GOOGLE ONE TAP (FedCM) — code shipped, **config applied 2026-09-05**
 
 **Done, and where it lives:** Google Cloud project **`myro-495307` ("Myro")**,

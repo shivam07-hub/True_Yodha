@@ -197,6 +197,21 @@ button.tw-prov-chip:hover { color: var(--tm-text); border-color: var(--tm-int-bo
 .tw-dropped ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .tw-dropped li { font-size: var(--tm-fs-caption); line-height: 1.5; color: var(--tm-text-faint); text-decoration: line-through; text-decoration-color: var(--tm-border); }
 
+/* The CV-wide lines: their own card, so a summary is never landed unseen. */
+.tw-extra { margin-bottom: 14px; }
+.tw-extra:last-of-type { margin-bottom: 0; }
+.tw-extra-label {
+  display: block; font-size: var(--tm-fs-caption); letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--tm-text-faint); margin-bottom: 5px;
+}
+.tw-extra-was {
+  margin: 6px 0 0; padding-left: 10px; border-left: 2px solid var(--tm-border-soft);
+  font-size: var(--tm-fs-caption); line-height: 1.5; color: var(--tm-text-faint);
+}
+
+.tw-settled-title { margin: 0; font-size: var(--tm-fs-body); color: var(--tm-text); }
+.tw-settled-sub { margin: 6px 0 0; font-size: var(--tm-fs-caption); color: var(--tm-text-muted); }
+
 .tw-review-actions { display: flex; justify-content: flex-end; gap: 10px; }
 .tw-back {
   align-self: flex-start; background: none; border: none; cursor: pointer;

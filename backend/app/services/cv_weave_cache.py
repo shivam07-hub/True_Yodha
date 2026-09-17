@@ -22,6 +22,10 @@ class WeaveCache:
     applied_version_id: int | None = None
     accepted_roles: tuple[int, ...] = ()
     decided_roles: tuple[int, ...] = ()
+    #: The CV-wide lines are one more step in the same stepper — their Keep/Take
+    #: rides here so a reopened draft resumes on the right card.
+    extras_decided: bool = False
+    extras_accepted: bool = False
 
 
 def _ints(value: Any) -> tuple[int, ...]:
@@ -47,6 +51,8 @@ def load(raw: str | None) -> WeaveCache | None:
             applied_version_id=applied if isinstance(applied, int) else None,
             accepted_roles=_ints(data.get("accepted_roles")),
             decided_roles=_ints(data.get("decided_roles")),
+            extras_decided=bool(data.get("extras_decided")),
+            extras_accepted=bool(data.get("extras_accepted")),
         )
     if "fingerprint" in data:
         return WeaveCache(proposal=data)
@@ -59,14 +65,18 @@ def dump(
     applied_version_id: int | None = None,
     accepted_roles: list[int] | tuple[int, ...] | None = None,
     decided_roles: list[int] | tuple[int, ...] | None = None,
+    extras_decided: bool = False,
+    extras_accepted: bool = False,
 ) -> str:
     accepted = list(accepted_roles or ())
     decided = list(decided_roles or ())
-    if applied_version_id is None and not accepted and not decided:
+    if applied_version_id is None and not accepted and not decided and not extras_decided:
         return json.dumps(proposal)
     return json.dumps({
         "proposal": proposal,
         "applied_version_id": applied_version_id,
         "accepted_roles": accepted,
         "decided_roles": decided,
+        "extras_decided": extras_decided,
+        "extras_accepted": extras_accepted,
     })

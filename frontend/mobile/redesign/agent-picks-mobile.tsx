@@ -12,15 +12,18 @@ import { JobDetailSheet, type JobDetailData } from "./job-detail-sheet"
 import { ApplyCapturePromptMobile } from "./apply-capture-prompt"
 import { feedItemToRow } from "./job-model"
 import { SwipeCard } from "./swipe-card"
+import { SkipReasonChips } from "@/components/jobs/skip-reasons"
+import { MOBILE_REASON_CLASSES } from "./skip-reason-classes"
+import { AgentPickLede } from "@/components/jobs/agent-pick-lede"
 import { useMobileUI } from "./mobile-ui"
 
 /* ══════════════════════════════════════════════════════════════════════════
    MobileAgentPicks — the same undecided SwipeCard as the Jobs feed (Skip /
-   Share / Save, swipe-left = Skip, swipe-right = Save), with the editorial
-   note sitting above it. Not a heart-only Save card.
+   Share / Save, swipe-left = Skip, swipe-right = Save), carrying Myro's reason
+   for the pick INSIDE the card (`lede`), exactly as the desktop band does. The
+   reason used to sit above the card with its own rank marker and a tier word,
+   so one job read as two objects.
    ══════════════════════════════════════════════════════════════════════════ */
-
-const TIER_LABEL: Record<string, string> = { bullseye: "Bullseye", strong: "Strong", reach: "Reach" }
 
 export function MobileAgentPicks({
   token, context = "feed", onSave, onSkip,
@@ -92,7 +95,12 @@ export function MobileAgentPicks({
     triage.skip(pick)
     if (fromSheet) setOpenId(null)
     if (persistLocally) {
-      snack({ msg: "Hidden from your feed", action: "Undo", onAction: () => { triage.undo(); closeSnack() } })
+      snack({
+        msg: "Hidden from your feed",
+        action: "Undo",
+        onAction: () => { triage.undo(); closeSnack() },
+        slot: <SkipReasonChips token={token} jobId={pick.job_id} surface="market" {...MOBILE_REASON_CLASSES} />,
+      })
     }
   }
   const doShare = (pick: AgentPickItem) => {
@@ -120,30 +128,20 @@ export function MobileAgentPicks({
       </p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {picks.map((pick, i) => {
-          const tier = (pick.agent_tier ?? "").toLowerCase()
-          return (
-            <div key={pick.job_id} style={{ display: "flex", flexDirection: "column", gap: 7, borderLeft: `2px solid ${tier === "bullseye" ? "var(--mm-accent)" : "rgba(255,255,255,0.14)"}`, paddingLeft: 10 }}>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, borderRadius: 10, fontSize: "var(--tm-fs-caption)", fontWeight: 600, fontFamily: "var(--mm-mono, ui-monospace, monospace)", color: tier === "bullseye" ? "var(--mm-accent-fg)" : "var(--mm-text-3)", background: tier === "bullseye" ? "var(--mm-accent)" : "var(--mm-raise-1)", flex: "none" }}>{pick.agent_rank}</span>
-                <p style={{ margin: 0, flex: 1, fontSize: "var(--tm-fs-caption)", color: "var(--mm-text-3)", lineHeight: 1.45 }}>{pick.agent_comment}</p>
-                {TIER_LABEL[tier] ? (
-                  <span style={{ fontSize: "var(--tm-fs-caption)", letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "var(--mm-mono, ui-monospace, monospace)", color: tier === "bullseye" ? "var(--mm-accent)" : "var(--mm-dim)", flex: "none" }}>{TIER_LABEL[tier]}</span>
-                ) : null}
-              </div>
-              <SwipeCard
-                row={feedItemToRow(pick)}
-                first={i === 0}
-                hint={false}
-                onOpen={() => setOpenId(pick.job_id)}
-                onSave={() => doSave(pick)}
-                onSkip={() => doSkip(pick)}
-                onShare={() => doShare(pick)}
-                shared={sharedId === pick.job_id}
-              />
-            </div>
-          )
-        })}
+        {picks.map((pick, i) => (
+          <SwipeCard
+            key={pick.job_id}
+            row={feedItemToRow(pick)}
+            first={i === 0}
+            hint={false}
+            lede={<AgentPickLede pick={pick} />}
+            onOpen={() => setOpenId(pick.job_id)}
+            onSave={() => doSave(pick)}
+            onSkip={() => doSkip(pick)}
+            onShare={() => doShare(pick)}
+            shared={sharedId === pick.job_id}
+          />
+        ))}
       </div>
 
       <div style={{ margin: "16px 0 4px", paddingTop: 14, borderTop: "1px dashed rgba(255,255,255,0.12)" }}>

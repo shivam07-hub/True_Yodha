@@ -116,6 +116,10 @@ class MatchEval(BaseModel):
     level_strategy: str | None = None       # level fit + how to play it
     personalization: str | None = None      # how THIS candidate tailors their application
     star_pointers: list[str] = []           # the candidate's own STAR stories to cite (no-fab)
+    #: The one line written TO the reader (second person, reader_voice-checked).
+    #: NULL on rows rated before the v2 prompt — the card falls back to `summary`
+    #: until that row is re-rated, which happens when its inputs move.
+    pick_reason: str | None = None
 
     # ── Match Verdict ─────────────────────────────────────────────────────────
     # The whole "how good is this, what should they do" decision, behind three
@@ -710,11 +714,21 @@ class AgentPickItem(JobFeedItem):
     agent_rank: int
     agent_tier: str | None = None  # 'bullseye' | 'strong' | 'reach'
     agent_comment: str = ""        # the brain's why-it-fits, shown on the card
+    #: How this pick graded against the user's direction when the set was cut
+    #: (`matching/direction_fit`): on_direction | off_direction | unknown. NULL on
+    #: rows cut before 20260916, which read as unknown — the honest answer for a
+    #: pick nobody graded, and the reason the card shows no tag rather than a
+    #: wrong one.
+    agent_direction: str | None = None
 
 
 class AgentPicksResponse(BaseModel):
     picks: list[AgentPickItem]
     total: int = 0
+    #: Directions this user rejected twice, which the gate has stopped choosing
+    #: (`matching/passed_on`). Named on the band so the rule is visible and the
+    #: way back is one tap, never a state the user can only infer from absence.
+    passed_on: list[str] = []
 
 
 class FeedWarmResponse(BaseModel):
@@ -742,6 +756,9 @@ class MatchBrainResult(BaseModel):
     grade: str | None = None
     recommendation: str | None = None
     summary: str | None = None
+    #: The line written TO the reader (second person, reader_voice-checked). The
+    #: drawer prefers it and falls back to `summary` on rows rated before v2.
+    pick_reason: str | None = None
     application_angle: str | None = None
     role_fit: float | None = None
     comp_fit: float | None = None

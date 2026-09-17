@@ -3,7 +3,12 @@
 **Status:** Accepted
 **Date:** 2026-06-07
 **Supersedes:** the *label-uniformity* clause of ADR-0003 (the rule that the three triad views carry one user-facing string each, app-wide). ADR-0003's **semantics** (Intel / Map / Audit) and its sticky-pref + page-default machinery remain in force.
-**Related:** ADR-0003 (view triad), `memory/project_intel_map_audit_pattern.md`, `memory/project_skill_intel_redesign.md`, nav job-feed redesign (2026-06-01)
+**Related:** ADR-0003 (view triad), nav job-feed redesign (2026-06-01)
+
+> **Pointers corrected 2026-09-17.** This line used to cite two files under
+> `memory/`, which is gitignored agent memory: invisible to Codex, to a fresh
+> clone, and to every machine but one. Whatever they held that mattered is in
+> this ADR or it is lost; the decision does not depend on them.
 
 ---
 
@@ -16,11 +21,11 @@ ADR-0003 (2026-05-23) made **Intel / Map / Audit** the canonical 3-view triad an
 1. **The shared primitive has near-zero adoption.** `grep` for `ViewTriadToggle` / `useTriadView` across `frontend/`:
    - `components/ui/view-triad-toggle.tsx` (the definition itself)
    - `lib/hooks/use-results-sort.ts` — only *mirrors the pattern* in a comment; does not render the component.
-   - **No page mounts `<ViewTriadToggle>`.** Skills/Practice rolls a **bespoke** `PracticeViewToggle` (`components/skills/practice-view-toggle.tsx`, labels Practice/Map/Audit). CV, Tracker, and Home never adopted the triad component at all. ADR-0003's Phases 2–5 (Skills rewire, CV, Tracker, Home) **never shipped**.
+   - **No page mounts `<ViewTriadToggle>`.** Skills/Practice rolled a **bespoke** `PracticeViewToggle` (`components/skills/practice-view-toggle.tsx`) — a file this ADR's own implementation **deleted** (`6af9ed06`), which is what "restore the triad" meant in practice. The paragraph describes the world before it shipped. CV, Tracker, and Home never adopted the triad component at all. ADR-0003's Phases 2–5 (Skills rewire, CV, Tracker, Home) **never shipped**.
 
 2. **The `intel` label drifted.** `lib/views/triad.ts` now has `TRIAD.intel.label = "Live Job Data"`. That string is the **`/market` nav label** (job-feed redesign, 2026-06-01 — see `lib/nav-items.ts`) and appears hardcoded in 11 files (market, myro, tokens, newsletter, top-nav, footer, cv pipeline, playground, nav-items, YourMoveCard, triad.ts). The triad's `intel` *semantic* (signal density — high-throughput lists) got conflated with one specific surface (the public job-data feed).
 
-3. **The graph confirms these are different concepts.** `graphify-out/GRAPH_REPORT_frontend.md` (940 nodes · 50 communities) detects `components/public/intel` as a **separate community** from `components/skills` and `app/(authed)/forge`. The "intel = Live Job Data" surface and the "intel = your skills list" surface are structurally distinct in the codebase — so a single global label for the `intel` view cannot be correct on both.
+3. **The graph confirms these are different concepts.** The generated graphify report (`graphify-out/GRAPH_REPORT_frontend.md`, gitignored, regenerated locally) detects `components/public/intel` as a **separate community** from `components/skills` and `app/(authed)/forge`. The "intel = Live Job Data" surface and the "intel = your skills list" surface are structurally distinct in the codebase — so a single global label for the `intel` view cannot be correct on both.
 
 **The trigger.** The Skill-Intelligence redesign (`project_skill_intel_redesign`, commit `74ee48a`) needs to restore the triad on `/forge` (its first view = the user's **skills list**). Wiring it to the shared component would render that tab as **"Live Job Data"** — wrong. ADR-0003's own "What this preserves" section bet on a single label per view; that bet is the thing breaking.
 

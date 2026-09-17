@@ -12,12 +12,12 @@ import { test } from "node:test"
 
 import {
   factsFromGet,
-  firstUndecidedIndex,
   landingStep,
   overlayFor,
   willCharge,
   type TailorFacts,
 } from "../lib/cv/tailor-order"
+import { buildSteps, firstUndecidedStep, stepsRemaining } from "../lib/cv/weave-steps"
 
 const facts = (partial: Partial<TailorFacts>): TailorFacts => ({
   proposal: "none",
@@ -40,7 +40,17 @@ test("a current draft with no Keep/Take yet opens Accept", () => {
 
 test("abort after some Takes still opens Accept — the paper kept what landed", () => {
   assert.equal(landingStep(facts({ proposal: "current", acceptComplete: false })), "accept")
-  assert.equal(firstUndecidedIndex([0, 2, 4], [0, 2]), 2)
+  assert.equal(
+    firstUndecidedStep(
+      [
+        { kind: "role", role: { role_index: 0 } },
+        { kind: "role", role: { role_index: 2 } },
+        { kind: "role", role: { role_index: 4 } },
+      ] as never,
+      { decidedRoles: [0, 2], extrasDecided: false },
+    ),
+    2,
+  )
 })
 
 test("a stale draft opens Weave — the paper it was written for is gone", () => {
@@ -94,4 +104,43 @@ test("factsFromGet maps the weave GET without inventing a second record", () => 
   assert.deepEqual(factsFromGet({ purchased: true, stale: true, applied: true }, 0), {
     proposal: "stale", acceptComplete: true, closableGaps: 0,
   })
+})
+
+test("the summary card is a step — a draft holding it is not settled", () => {
+  const steps = buildSteps({
+    fingerprint: "f", summary: "New summary.", skills_line: null,
+    roles: [{ role_index: 0, changed: true }, { role_index: 1, changed: false }],
+    changed_roles: 1, requirements_total: 5, asks_unproven: 2, computed_at: "",
+  } as never)
+  assert.equal(steps.length, 2, "extras first, then the one changed role")
+  assert.equal(steps[0].kind, "extras")
+  assert.equal(
+    firstUndecidedStep(steps, { decidedRoles: [0], extrasDecided: false }),
+    0,
+    "every role decided but the summary unseen — the stepper opens on it",
+  )
+  assert.equal(firstUndecidedStep(steps, { decidedRoles: [0], extrasDecided: true }), 2)
+})
+
+test("stepsRemaining counts the CV-wide card alongside the roles", () => {
+  assert.equal(stepsRemaining([0, 1], [0], true, false), 2)
+  assert.equal(stepsRemaining([0, 1], [0, 1], true, false), 1)
+  assert.equal(stepsRemaining([0, 1], [0, 1], true, true), 0)
+  assert.equal(stepsRemaining([], [], false, false), 0)
+})
+
+test("factsFromGet is not settled while the summary card is unanswered", () => {
+  const open = factsFromGet({
+    purchased: true, applied: true, decided_roles: [0], extras_decided: false,
+    proposal: { roles: [{ changed: true, role_index: 0 }], summary: "New summary." },
+  }, 0)
+  assert.equal(open.acceptComplete, false)
+  assert.equal(landingStep(open), "accept")
+
+  const done = factsFromGet({
+    purchased: true, applied: true, decided_roles: [0], extras_decided: true,
+    proposal: { roles: [{ changed: true, role_index: 0 }], summary: "New summary." },
+  }, 0)
+  assert.equal(done.acceptComplete, true)
+  assert.equal(landingStep(done), "paper")
 })

@@ -115,15 +115,22 @@ class Settings(BaseSettings):
     # before the webhook is provisioned). This closes the "paid but the browser
     # never called verify-payment" gap (tab closed / network drop after capture).
     razorpay_webhook_secret: str = ""
+    # Razorpay Subscriptions plan for ₹199/month Personalised Engagement (ENG1).
+    # Created once in the Razorpay dashboard (period monthly, amount 19900 paise).
+    # Empty = create-order for the engagement product returns 503.
+    razorpay_engagement_plan_id: str = ""
+    # L6 kill-switch. False refuses new engagement checkouts; existing
+    # subscribers keep their scene until Razorpay stops charging.
+    engagement_sales_enabled: bool = True
 
     # Myrology — token guarding the internal booking-status transition endpoint
     # (PATCH /myrology/bookings/{id}/status). Lets the astrologer/ops advance a
     # booking requested -> confirmed -> done. Empty = the endpoint returns 503.
     myrology_admin_token: str = ""
 
-    # ₹99 Personalised Job-Switch Plan (#33). Review requests are emailed to the
-    # founder/HITL reviewer here (empty = persist-only, email skipped). The admin
-    # token guards the review-status transition endpoint (empty = endpoint 503).
+    # ₹199/month Personalised Engagement (ENG1). Reviewer email + admin token
+    # are the same HITL queue the ₹99 plan used. Empty email = persist-only.
+    # Empty token = delivery endpoint 503.
     job_switch_reviewer_email: str = ""
     job_switch_admin_token: str = ""
 

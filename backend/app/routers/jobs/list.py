@@ -6,6 +6,10 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, s
 from postgrest.exceptions import APIError
 
 from app.deps import Principal, get_principal
+from app.repositories.company_signals import (
+    CompanySignalsRepository,
+    get_company_signals_repository,
+)
 from app.repositories.jobs import (
     CompanySearchUnavailable,
     JobsRepository,
@@ -16,7 +20,7 @@ from app.repositories.jobs import (
 from app.repositories.search_queries import SearchQueriesRepository
 from app.services.concurrent_reads import run_concurrently
 from app.services.llm_provider import LLMProvider, get_blocking_judgment_provider
-from app.services.matching import feed_warm
+from app.services.matching import feed_warm, targeting
 from app.services.matching.filter_spec import FilterSpec
 from app.services.matching.job_query import JobQuery
 from app.services.job_refresh import user_has_live_refresh
@@ -157,7 +161,7 @@ def get_skill_heatmap(
 @router.get("/companies/pulse", response_model=CompanyPulseResponse)
 def get_company_pulse(
     companies: Annotated[str, Query(min_length=1)],
-    repo: JobsRepository = Depends(get_public_jobs_repository),
+    repo: CompanySignalsRepository = Depends(get_company_signals_repository),
 ) -> CompanyPulseResponse:
     """Demand pulse for a set of companies (Signal Thread S2). Public — the
     compare strip + directory read it. Capped at 20 companies (the compare-slot
@@ -165,7 +169,7 @@ def get_company_pulse(
     names = [c.strip() for c in companies.split(",") if c.strip()][:20]
     if not names:
         return CompanyPulseResponse(companies=[])
-    rows = repo.fetch_company_pulse(names)
+    rows = repo.pulse_for(names)
     return CompanyPulseResponse(companies=[CompanyPulseItem(**r) for r in rows])
 
 
@@ -723,7 +727,7 @@ async def warm_feed(
         # The brain ranks the fit-top shortlist regardless of the user's chosen sort
         # lens — "Best fit" is the surface the warm powers.
         sort="fit", min_skill_matches=0, following_only=following_only, include_stretch=include_stretch,
-        browse_scope=browse_scope, page=1, page_size=feed_warm.SHORTLIST_SIZE,
+        browse_scope=browse_scope, page=1, page_size=feed_warm.SHORTLIST_POOL,
     )
     page_result = JobQuery.feed(
         repo,
@@ -736,7 +740,14 @@ async def warm_feed(
         exclude_job_ids=scope.exclude_ids,
         followed_companies=scope.followed,
     )
-    candidate_ids = [str(r["job_id"]) for r in page_result["rows"] if r.get("job_id")]
+    # WHICH ten get a verdict is the direction's call, not the overlap sort's.
+    # The rows are already in hand and already carry `main_skills`; the vocabulary
+    # is one indexed read of the labels snapshot, and failing to read it simply
+    # leaves the feed's own order (`direction_first` with an empty vocabulary is
+    # the identity).
+    candidate_ids = feed_warm.direction_first(
+        page_result["rows"], targeting.direction_vocabulary(repo, scope.target_roles)
+    )
     try:
         warmed = await feed_warm.warm_feed_shortlist(repo, provider, uid, candidate_ids)
     except Exception:

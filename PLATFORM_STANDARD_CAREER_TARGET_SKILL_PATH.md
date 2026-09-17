@@ -113,6 +113,11 @@ servable, create one in-app notification through the existing notification
 inbox. Do not imply email, WhatsApp, or push until those channels exist and are
 opted into.
 
+This button is demand capture. It is **not** the commercial closer. The last
+CTA, once a job is on record, is ₹199 / month Personalised Engagement — a
+staffed scene, not a paywall on every incomplete ladder. Contract:
+[OFFERING.md](OFFERING.md).
+
 Learning progress remains in `skill_assessed_level`. It must not mutate
 CV-derived `user_skills`, score, or matching without the explicit certificate
 promotion flow below.

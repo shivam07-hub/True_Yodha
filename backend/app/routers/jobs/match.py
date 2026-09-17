@@ -207,7 +207,28 @@ def get_agent_picks(
     repo.record_recommendation_exposures(
         principal.id, rows, surface="agent_pick"
     )
-    return AgentPicksResponse(picks=[AgentPickItem(**row) for row in rows], total=len(rows))
+    return AgentPicksResponse(
+        picks=[AgentPickItem(**row) for row in rows],
+        total=len(rows),
+        # One read by primary key. The band names what it stopped picking; a rule
+        # the user can only infer from what is missing is not a rule they can
+        # argue with.
+        passed_on=repo.passed_on_directions(principal.id),
+    )
+
+
+@router.delete("/agent-picks/passed-on", status_code=status.HTTP_204_NO_CONTENT)
+def clear_passed_on(
+    principal: Principal = Depends(get_principal),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> None:
+    """"Show these again" — move the counting window, keep the evidence.
+
+    The skips stay exactly where they are; only the instant they are counted
+    from moves. Deleting them would lose what the user told us and leave the
+    next count wrong, and a decision the user cannot reverse is one they learn
+    not to make."""
+    repo.clear_passed_on(principal.id)
 
 
 @router.delete("/matches/{job_id}", status_code=status.HTTP_204_NO_CONTENT)

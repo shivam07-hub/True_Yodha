@@ -19,6 +19,8 @@ import { useApplyCapture } from "@/components/jobs/use-apply-capture"
 import { JobDetailSheet, type JobDetailData } from "./job-detail-sheet"
 import { ApplyCapturePromptMobile } from "./apply-capture-prompt"
 import { SwipeCard } from "./swipe-card"
+import { SkipReasonChips } from "@/components/jobs/skip-reasons"
+import { MOBILE_REASON_CLASSES } from "./skip-reason-classes"
 import { feedItemToRow } from "./job-model"
 import { MobileAgentPicks } from "./agent-picks-mobile"
 import { useMobileUI } from "./mobile-ui"
@@ -153,7 +155,12 @@ export function JobsSurface({
     setShowSwipeHint(false)
     triage(job, "skipped")
     if (fromSheet) setDetailId(null)
-    snack({ msg: "Hidden from your feed", action: "Undo", onAction: () => { undo(); closeSnack() } })
+    snack({
+      msg: "Hidden from your feed",
+      action: "Undo",
+      onAction: () => { undo(); closeSnack() },
+      slot: <SkipReasonChips token={token} jobId={job.job_id} surface="market" {...MOBILE_REASON_CLASSES} />,
+    })
   }
   const doShare = (job: JobFeedItem) => {
     const url = job.source_url ?? `${typeof window !== "undefined" ? window.location.origin : ""}/companies`

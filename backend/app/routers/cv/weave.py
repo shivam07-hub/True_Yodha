@@ -35,6 +35,7 @@ from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.security import redact_sensitive_text
 from app.services import (
     career_reservoir,
+    concurrent_reads,
     cv_compose,
     cv_weave,
     cv_weave_cache,
@@ -104,6 +105,9 @@ class WeaveRole(BaseModel):
     company: str
     changed: bool
     guarded: bool = False
+    #: What a Take would actually do: "trim" (lines dropped, nothing reworded)
+    #: or "rewrite". "none" never reaches a card.
+    edit_kind: str = "none"
     why: str = ""
     bullets: list[WeaveBullet]
     dropped_lines: list[str] = Field(default_factory=list)
@@ -146,16 +150,22 @@ class WeaveGetResponse(BaseModel):
     applied: bool = False
     accepted_roles: list[int] = Field(default_factory=list)
     decided_roles: list[int] = Field(default_factory=list)
+    extras_decided: bool = False
+    extras_accepted: bool = False
 
 
 class WeaveApplyRequest(BaseModel):
     job_id: str
     accepted_roles: list[int] = Field(default_factory=list)
     decided_roles: list[int] | None = None
-    accept_summary: bool = True
-    accept_skills_line: bool = True
+    # Default FALSE, both: silence must decide nothing. A CV-wide line lands
+    # only when the user was shown it and said yes.
+    accept_summary: bool = False
+    accept_skills_line: bool = False
     role_index: int | None = None
-    action: Literal["take", "keep", "undo"] | None = None
+    # "extras" decides the CV-wide summary / skills line — its own card in the
+    # stepper, never a passenger on a role's Keep/Take (ADR-0016).
+    action: Literal["take", "keep", "undo", "extras"] | None = None
     original_pointers: list[int] = Field(default_factory=list)
 
 
@@ -268,12 +278,17 @@ async def weave_answer(
             return WeaveAnswerResponse(follow_up=follow_up)
     requirement = " ".join(body.requirement.split()).strip()
     framed = f"Career experience — {requirement}:\n{answer}" if requirement else f"Career experience:\n{answer}"
+    # ONE read of the coverage row, for both the readers below. It used to be
+    # fetched twice per answer with identical arguments — the same shape that
+    # made `/jobs/matches` read its dismissed set twice (test_read_contract).
+    coverage_raw = (
+        jobs_repo.get_deepening(user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY)
+        if body.job_id and requirement else None
+    )
     # Which story was the user shown as evidence for this requirement? That is
     # the story their answer IMPROVES — resolved from our own cache, never from
     # the client. The ingest folds the new telling into it (see _ingest_entry).
-    upgrades = jd_coverage.story_for_requirement(
-        jobs_repo.get_deepening(user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY), requirement,
-    ) if body.job_id and requirement else None
+    upgrades = jd_coverage.story_for_requirement(coverage_raw, requirement) if coverage_raw else None
     row = dump_repo.add(
         user.id, framed, source="jd_gap_answer",
         kind="answer", payload={
@@ -288,11 +303,8 @@ async def weave_answer(
     # Flip the cached coverage row to covered NOW (deterministic, no LLM) so a
     # later interview never re-asks an answered question; the next real refresh
     # replaces the patch with the ingested story. Best-effort.
-    if body.job_id and requirement:
-        patched = jd_coverage.patch_requirement_answered(
-            jobs_repo.get_deepening(user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY),
-            requirement, answer,
-        )
+    if coverage_raw:
+        patched = jd_coverage.patch_requirement_answered(coverage_raw, requirement, answer)
         if patched:
             jobs_repo.upsert_deepening(user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY, patched)
     return WeaveAnswerResponse(entry_id=entry_id)
@@ -322,6 +334,8 @@ def get_weave(
         applied=cache.applied_version_id is not None or bool(cache.decided_roles),
         accepted_roles=list(cache.accepted_roles),
         decided_roles=list(cache.decided_roles),
+        extras_decided=cache.extras_decided,
+        extras_accepted=cache.extras_accepted,
     )
 
 
@@ -406,13 +420,27 @@ def apply_weave(
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
 ) -> WeaveApplyResponse:
     """Land Keep/Take on this job's working draft (Google Docs). The living
-    master is untouched; free — the weave run already paid."""
-    hit = _load_cache(jobs_repo, user.id, body.job_id)
+    master is untouched; free — the weave run already paid.
+
+    This runs on a click the user is watching, so its three independent reads go
+    out as ONE wave (read contract: 3 sections). The job row is NOT among them —
+    it feeds only the draft's title, which the draft already carries, so it is
+    read on the create path alone.
+    """
+    reads = concurrent_reads.run_concurrently(
+        {
+            "cache": lambda: _load_cache(jobs_repo, user.id, body.job_id),
+            "baseline": lambda: _baseline_or_409(cv_repo, user.id),
+            "draft": lambda: cv_repo.latest_job_draft(user.id, body.job_id),
+        },
+        label="cv.weave_apply",
+    )
+    hit = reads["cache"]
     if hit is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No tailored draft for this job yet.")
     proposal, _cache = hit
-    job = _job_or_404(jobs_repo, user.id, body.job_id)
-    baseline = _baseline_or_409(cv_repo, user.id)
+    baseline = reads["baseline"]
+    draft = reads["draft"]
     master = baseline.get("cv_structured") or {}
     if cv_weave.source_fingerprint(master) != proposal.fingerprint:
         raise HTTPException(
@@ -423,15 +451,29 @@ def apply_weave(
     decided = list(dict.fromkeys(
         body.decided_roles if body.decided_roles is not None else body.accepted_roles
     ))
-    draft = cv_repo.latest_job_draft(user.id, body.job_id)
     source = (draft.get("cv_structured") if draft else None) or master
-    if body.action and body.role_index is not None:
+    extras_decided = _cache.extras_decided
+    extras_accepted = _cache.extras_accepted
+    if body.action == "extras":
+        extras_decided = True
+        extras_accepted = body.accept_summary or body.accept_skills_line
+        composed = cv_weave.land_extras(
+            source, proposal.model_dump(), action="take", master=master,
+            accept_summary=body.accept_summary,
+            accept_skills_line=body.accept_skills_line,
+        )
+    elif body.action == "undo" and body.role_index is None:
+        # undo with no role is the extras card stepping back: the master's own
+        # top-of-CV lines return and the card re-opens undecided.
+        extras_decided = False
+        extras_accepted = False
+        composed = cv_weave.land_extras(
+            source, proposal.model_dump(), action="undo", master=master,
+        )
+    elif body.action and body.role_index is not None:
         composed = cv_weave.land_role(
             source, proposal.model_dump(), body.role_index,
             action=body.action, master=master,
-            accept_summary=body.accept_summary,
-            accept_skills_line=body.accept_skills_line,
-            extras=not bool(_cache.decided_roles),
             original_indexes=body.original_pointers,
         )
     else:
@@ -440,14 +482,17 @@ def apply_weave(
             accept_summary=body.accept_summary,
             accept_skills_line=body.accept_skills_line,
         )
-    title = f"Tailored with Mentor · {job.get('company_name') or job.get('job_title') or ''}".strip(" ·")
     body_text = cv_compose.render_deterministic(composed)
     if draft:
+        # The draft already carries its title — naming it again would cost a
+        # jobs read on every Keep/Take to rewrite the same string.
         version = cv_repo.update_job_draft(
             int(draft["id"]), user.id,
-            cv_structured=composed, body_text=body_text, title=title,
+            cv_structured=composed, body_text=body_text,
         )
     else:
+        job = _job_or_404(jobs_repo, user.id, body.job_id)
+        title = f"Tailored with Mentor · {job.get('company_name') or job.get('job_title') or ''}".strip(" ·")
         version = cv_repo.create(user.id, CVVersionWriteSpec(
             kind="deterministic",
             job_id=body.job_id,
@@ -464,6 +509,8 @@ def apply_weave(
             applied_version_id=vid,
             accepted_roles=accepted,
             decided_roles=decided,
+            extras_decided=extras_decided,
+            extras_accepted=extras_accepted,
         ),
     )
     return WeaveApplyResponse(version_id=vid)

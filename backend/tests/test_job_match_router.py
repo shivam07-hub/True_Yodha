@@ -14,8 +14,11 @@ class _FakeJobsRepo:
         agent_picks: list[dict] | None = None,
         dismissed_ids: list[str] | None = None,
         evals: dict[str, dict] | None = None,
+        passed_on: list[str] | None = None,
     ) -> None:
         self.dismissed: list[tuple[str, str]] = []
+        self._passed_on = passed_on or []
+        self.cleared_passed_on = False
         self._stack = stack or []
         self._new_jobs = new_jobs
         self._agent_picks = agent_picks or []
@@ -27,6 +30,13 @@ class _FakeJobsRepo:
 
     def get_agent_picks(self, user_id: str) -> list[dict]:
         return self._agent_picks
+
+    def passed_on_directions(self, user_id: str) -> list[str]:
+        return list(self._passed_on)
+
+    def clear_passed_on(self, user_id: str) -> None:
+        self._passed_on = []
+        self.cleared_passed_on = True
 
     def get_cached_match_evals(
         self, user_id: str, job_ids: list[str], *, full: bool = False
@@ -404,3 +414,20 @@ def test_refresh_paid_run_reports_the_balance_it_charged(monkeypatch) -> None:
     assert body["xp_charged"] == MATCH_RUN_COST
     assert body["new_coin_balance"] == 900
     assert charges == [("u1", MATCH_RUN_COST)]
+
+
+def test_the_band_names_the_directions_it_stopped_picking() -> None:
+    """A rule the user can only infer from what is missing is not one they can
+    argue with — so the band says it, and the way back is one call that keeps
+    every skip they made."""
+    repo = _FakeJobsRepo(agent_picks=[], passed_on=["Engineering & Data"])
+    app.dependency_overrides[get_principal] = lambda: Principal(id="u1")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    try:
+        with TestClient(app) as client:
+            assert client.get("/jobs/agent-picks").json()["passed_on"] == ["Engineering & Data"]
+            assert client.delete("/jobs/agent-picks/passed-on").status_code == 204
+            assert repo.cleared_passed_on is True
+            assert client.get("/jobs/agent-picks").json()["passed_on"] == []
+    finally:
+        app.dependency_overrides.clear()

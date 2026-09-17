@@ -227,10 +227,10 @@ def test_land_role_take_does_not_rewrite_a_sibling():
             {"role_index": 1, "changed": True, "bullets": [{"text": "Mentor 1."}]},
         ],
     }
-    out = cv_weave.land_role(draft, proposal, 1, action="take", master=CV, extras=False)
+    out = cv_weave.land_role(draft, proposal, 1, action="take", master=CV)
     assert out["experience"][0]["bullets"] == ["I reworded this after Take."]
     assert out["experience"][1]["bullets"] == ["Mentor 1."]
-    undone = cv_weave.land_role(out, proposal, 1, action="undo", master=CV, extras=False)
+    undone = cv_weave.land_role(out, proposal, 1, action="undo", master=CV)
     assert undone["experience"][1]["bullets"] == CV["experience"][1]["bullets"]
     assert undone["experience"][0]["bullets"] == ["I reworded this after Take."]
 
@@ -247,12 +247,39 @@ def test_land_role_original_pointer_puts_the_old_line_back():
         }],
     }
     out = cv_weave.land_role(
-        CV, proposal, 0, action="take", master=CV, extras=False, original_indexes=[0],
+        CV, proposal, 0, action="take", master=CV, original_indexes=[0],
     )
     assert out["experience"][0]["bullets"] == [
         "Generated $2M pipeline.",
         "Keep this Mentor line.",
     ]
+
+
+def test_original_on_a_MERGED_line_restores_both_lines_not_one_glued_one():
+    proposal = {
+        "summary": None, "skills_line": None,
+        "roles": [{
+            "role_index": 0, "changed": True,
+            "bullets": [{
+                "text": "One line that merged two.",
+                "from_lines": ["Grew pipeline 40%.", "Ran the EMEA desk."],
+            }],
+        }],
+    }
+    out = cv_weave.land_role(
+        CV, proposal, 0, action="take", master=CV, original_indexes=[0],
+    )
+    assert out["experience"][0]["bullets"] == [
+        "Grew pipeline 40%.",
+        "Ran the EMEA desk.",
+    ], "a merge un-merges — it must not land as a run-on"
+
+
+def test_the_why_is_addressed_to_the_reader_not_written_in_their_voice():
+    # The bullets are ghost-written first person; the rationale is Myro talking
+    # TO them. One system prompt serves both, so the split is stated in it.
+    assert '"you"' in cv_weave._TASK
+    assert 'never \"I\" or \"my\" there' in cv_weave._TASK
 
 
 def test_normalize_section_order_drops_unknown_and_fills_rest():
@@ -797,3 +824,128 @@ def test_a_whole_bullet_carries_no_ask_into_the_job_room(monkeypatch):
     )]
     questions = _run(cv_weave_interview.build_interview("u1", items, CV))
     assert questions[0].options[0].asks == []
+
+
+# ── the CV-wide lines: guarded, and never a passenger (ADR-0016) ──────────────
+
+def test_extras_guard_rejects_a_figure_the_user_never_stated():
+    own = "Generated over $500K in sales. Orchestrated migration of 50+ legacy datasets."
+    assert cv_weave.extras_guard_ok("GTM leader who sold $500K across cloud platforms.", own)
+    assert cv_weave.extras_guard_ok("GTM leader with no numbers at all.", own)
+    assert cv_weave.extras_guard_ok(None, own)
+    assert not cv_weave.extras_guard_ok("GTM leader with 12 years and $9M closed.", own)
+
+
+def test_build_proposal_drops_a_summary_that_mints_a_number():
+    parsed = {
+        "summary": "Ten years and $9M in closed revenue.",
+        "skills_line": "Sales, GTM, Pricing",
+        "roles": [{
+            "role_index": 1, "why": "w",
+            "bullets": [{"text": "Orchestrated migration of 50+ legacy datasets on Cloud.",
+                         "from": [0], "story_ids": [], "used_answer": False}],
+            "dropped": [],
+        }],
+    }
+    out = cv_weave.build_proposal(CV, parsed, [], [], [])
+    assert out is not None
+    assert out["summary"] is None, "a minted figure must not reach the card"
+    assert out["skills_line"] == "Sales, GTM, Pricing", "a clean extra survives"
+
+
+def test_land_role_never_touches_the_cv_wide_lines():
+    proposal = {
+        "summary": "Mentor's summary.", "skills_line": "Mentor, Skills",
+        "roles": [{"role_index": 0, "changed": True, "bullets": [{"text": "Mentor 0."}]}],
+    }
+    out = cv_weave.land_role(CV, proposal, 0, action="take", master=CV)
+    assert out["summary"] == "Old summary"
+    assert out["skills_line"] == "Sales, GTM"
+
+
+def test_land_extras_is_the_only_door_and_honours_each_answer():
+    proposal = {"summary": "Mentor's summary.", "skills_line": "Mentor, Skills", "roles": []}
+    taken = cv_weave.land_extras(
+        CV, proposal, action="take", master=CV,
+        accept_summary=True, accept_skills_line=True,
+    )
+    assert taken["summary"] == "Mentor's summary."
+    assert taken["skills_line"] == "Mentor, Skills"
+    kept = cv_weave.land_extras(CV, proposal, action="take", master=CV)
+    assert kept["summary"] == "Old summary"
+    assert kept["skills_line"] == "Sales, GTM"
+    # Undo puts the MASTER's own top-of-CV lines back, the way a role's does.
+    undone = cv_weave.land_extras(taken, proposal, action="undo", master=CV)
+    assert undone["summary"] == "Old summary"
+    assert undone["skills_line"] == "Sales, GTM"
+
+
+def test_cache_round_trips_the_extras_decision():
+    raw = cv_weave_cache.dump(
+        {"fingerprint": "abc"}, applied_version_id=7,
+        accepted_roles=[0], decided_roles=[0],
+        extras_decided=True, extras_accepted=False,
+    )
+    back = cv_weave_cache.load(raw)
+    assert back is not None
+    assert back.extras_decided is True
+    assert back.extras_accepted is False
+
+
+def test_a_bare_proposal_has_no_extras_decision_yet():
+    back = cv_weave_cache.load(cv_weave_cache.dump({"fingerprint": "abc"}))
+    assert back is not None
+    assert back.extras_decided is False
+
+
+# ── `changed` answers ONE question: is there something to decide ─────────────
+
+def test_edit_kind_separates_a_no_op_from_a_trim_from_a_rewrite():
+    old = ["Alpha line.", "Beta line.", "Gamma line."]
+    assert cv_weave.edit_kind(old, old, []) == "none"
+    assert cv_weave.edit_kind(old, ["Alpha line.", "Beta line."], [2]) == "trim"
+    assert cv_weave.edit_kind(old, ["Alpha line, reworded.", "Beta line."], [2]) == "rewrite"
+    # Reordering alone is still only a trim's shape — no wording moved.
+    assert cv_weave.edit_kind(old, ["Gamma line.", "Alpha line."], [1]) == "trim"
+
+
+def _parsed_for_role_zero(bullets, dropped):
+    return {
+        "summary": None, "skills_line": None,
+        "roles": [{
+            "role_index": 0, "why": "Puffery about a rework that did not happen.",
+            "bullets": [{"text": t, "from": [i], "story_ids": [], "used_answer": False}
+                        for i, t in enumerate(bullets)],
+            "dropped": dropped,
+        }],
+    }
+
+
+def test_a_role_handed_back_untouched_gets_no_card():
+    same = list(CV["experience"][0]["bullets"])
+    out = cv_weave.build_proposal(CV, _parsed_for_role_zero(same, []), [], [], [])
+    assert out is None, "nothing to decide anywhere — not a deliverable proposal"
+
+
+def test_a_pure_deletion_is_a_trim_and_loses_the_rework_rationale():
+    kept = [CV["experience"][0]["bullets"][0]]
+    out = cv_weave.build_proposal(CV, _parsed_for_role_zero(kept, [1]), [], [], [])
+    assert out is not None
+    role = out["roles"][0]
+    assert role["changed"] is True, "dropping a line IS a decision"
+    assert role["edit_kind"] == "trim"
+    assert role["why"] == "", "a trim must not carry a rewrite's rationale"
+    assert role["dropped_lines"] == [CV["experience"][0]["bullets"][1]]
+
+
+def test_a_real_rewrite_keeps_its_rationale():
+    out = cv_weave.build_proposal(
+        CV,
+        _parsed_for_role_zero(["Generated over $500K selling GCP, AWS and Azure to clients."], [1]),
+        [], [], [],
+    )
+    assert out is not None
+    role = out["roles"][0]
+    assert role["edit_kind"] == "rewrite"
+    assert role["why"].startswith("Puffery")
+    assert out["changed_roles"] == 1

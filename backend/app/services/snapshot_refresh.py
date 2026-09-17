@@ -26,6 +26,7 @@ REFRESH_TASKS = (
     "job_search",
     "role_families",
     "company_directory",
+    "company_pulse",
     "skill_closeness",
 )
 STATUS_MAX_AGE = timedelta(hours=48)
@@ -41,6 +42,7 @@ class SnapshotRefreshService:
         search_refresh: Callable[[], dict[str, Any]],
         role_family_refresh: Callable[[], dict[str, Any]],
         company_directory_refresh: Callable[[], dict[str, Any]],
+        company_pulse_refresh: Callable[[], dict[str, Any]],
         skill_closeness_refresh: Callable[[], dict[str, Any]],
     ) -> None:
         self._db = db
@@ -50,6 +52,7 @@ class SnapshotRefreshService:
             "job_search": search_refresh,
             "role_families": role_family_refresh,
             "company_directory": company_directory_refresh,
+            "company_pulse": company_pulse_refresh,
             "skill_closeness": skill_closeness_refresh,
         }
 
@@ -162,6 +165,16 @@ def build_snapshot_refresh_service() -> SnapshotRefreshService:
             result = {}
         return {"companies": int(result.get("companies", 0) or 0)}
 
+    def refresh_company_pulse() -> dict[str, Any]:
+        """Company Demand Pulse. The request path used to page every matching
+        jobs row; this writes one snapshot row per company instead."""
+        result = db.rpc("refresh_company_pulse", {}).execute().data
+        if isinstance(result, list):
+            result = result[0] if result else {}
+        if not isinstance(result, dict):
+            result = {}
+        return {"companies": int(result.get("companies", 0) or 0)}
+
     def refresh_skill_closeness() -> dict[str, Any]:
         """Which skills real jobs ask for together — the platform's one notion of
         "close". Counted across companies so a single employer's repeated template
@@ -188,6 +201,7 @@ def build_snapshot_refresh_service() -> SnapshotRefreshService:
         search_refresh=refresh_search,
         role_family_refresh=refresh_role_families,
         company_directory_refresh=refresh_company_directory,
+        company_pulse_refresh=refresh_company_pulse,
         skill_closeness_refresh=refresh_skill_closeness,
     )
 

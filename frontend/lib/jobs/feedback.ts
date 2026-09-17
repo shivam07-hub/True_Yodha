@@ -3,10 +3,26 @@ import { jobs, type FeedbackSurface, type PersonalReasonCode, type QualityReason
 /**
  * Job feedback taxonomy + firing helpers (Job Intelligence).
  *
- * Personal reasons train only the user's own ranking and never touch global
- * listing trust. Quality reasons move global confidence and are capped — they
- * live behind a deliberate "Report a problem" affordance, never the fast skip.
+ * Personal reasons are the user's own, and never touch global listing trust.
+ * "Not my role" is the one that acts: `matching/passed_on` counts it across a
+ * user's skips, and two inside 90 days stops Myro picking that direction (it
+ * will never drop a direction the user chose themselves). The rest are recorded
+ * and not yet read — which is what this comment used to claim about all of them
+ * while nothing read any of them.
+ *
+ * Quality reasons move global confidence and are capped — they live behind a
+ * deliberate "Report a problem" affordance, never the fast skip.
  */
+
+/**
+ * How long a "why?" stays on screen.
+ *
+ * The undo window is 6s on desktop and the snackbar 4.6s on the phone, which is
+ * right for a reflex ("undo that") and wrong for a decision. The reasons wrap to
+ * three rows at 375; a question that disappears while it is being read is worse
+ * than not asking, because the user learns the answer does not matter.
+ */
+export const REASON_PROMPT_MS = 10_000
 
 export const PERSONAL_REASONS: { code: PersonalReasonCode; label: string }[] = [
   { code: "not_my_role", label: "Not my role" },

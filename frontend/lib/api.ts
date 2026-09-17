@@ -1684,6 +1684,9 @@ export interface WeaveRole {
   changed: boolean
   /** Honesty guard rejected the rework — original lines kept. */
   guarded: boolean
+  /** What a Take does: "trim" drops lines without rewording any; "rewrite"
+   *  changes wording. "none" never reaches a card. */
+  edit_kind?: "none" | "trim" | "rewrite"
   why: string
   bullets: WeaveBullet[]
   dropped_lines: string[]
@@ -1714,6 +1717,9 @@ export interface WeaveGetResponse {
   applied?: boolean
   accepted_roles?: number[]
   decided_roles?: number[]
+  /** The summary / skills-line card has had its Keep or Take. */
+  extras_decided?: boolean
+  extras_accepted?: boolean
 }
 
 /** One remembered fact in the user_memory store (authored or distilled). */
@@ -2274,8 +2280,8 @@ export const cv = {
         acceptSummary?: boolean
         acceptSkillsLine?: boolean
         decidedRoles?: number[]
-        roleIndex?: number
-        action?: "take" | "keep" | "undo"
+        roleIndex?: number | null
+        action?: "take" | "keep" | "undo" | "extras"
         originalPointers?: number[]
       },
     ) =>
@@ -2285,8 +2291,9 @@ export const cv = {
         body: JSON.stringify({
           job_id: jobId, accepted_roles: acceptedRoles,
           decided_roles: opts?.decidedRoles ?? acceptedRoles,
-          accept_summary: opts?.acceptSummary ?? true,
-          accept_skills_line: opts?.acceptSkillsLine ?? true,
+          // Default FALSE: the CV-wide lines land only on their own card's yes.
+          accept_summary: opts?.acceptSummary ?? false,
+          accept_skills_line: opts?.acceptSkillsLine ?? false,
           role_index: opts?.roleIndex ?? null,
           action: opts?.action ?? null,
           original_pointers: opts?.originalPointers ?? [],
@@ -3804,11 +3811,19 @@ export interface AgentPickItem extends JobFeedItem {
   agent_rank: number
   agent_tier?: "bullseye" | "strong" | "reach" | string | null
   agent_comment: string
+  /** How this pick graded against the direction the user chose, when the set was
+   *  cut (backend `matching/direction_fit`). `null` on sets cut before the grade
+   *  existed, which reads the same as `unknown`: no tag, because nobody graded
+   *  it and a guess would be worse than silence. */
+  agent_direction?: "on_direction" | "off_direction" | "unknown" | null
 }
 
 export interface AgentPicksResponse {
   picks: AgentPickItem[]
   total: number
+  /** Directions the user rejected twice, which the pick gate has stopped
+   *  choosing. Named on the band so the rule is visible and reversible. */
+  passed_on?: string[]
 }
 
 /** On-demand single-job brain eval (Consolidation D) → POST /jobs/{id}/brain. */
@@ -3820,6 +3835,10 @@ export interface MatchBrainResult {
   grade?: string | null
   recommendation?: "Apply" | "Negotiate" | "Skip" | string | null
   summary?: string | null
+  /** The line written TO the reader, second person, checked by reader_voice on
+   *  the way in. Absent until the row is re-rated under the v2 prompt, when the
+   *  surface falls back to `summary`. */
+  pick_reason?: string | null
   application_angle?: string | null
   role_fit?: number | null
   comp_fit?: number | null
@@ -4392,6 +4411,13 @@ export const jobs = {
     request<AgentPicksResponse>(`/jobs/agent-picks`, {
       headers: { Authorization: `Bearer ${token}` },
     }),
+  /** "Show these again" — moves the window skips are counted from. Keeps every
+   *  reason the user gave; only stops the old ones deciding anything. */
+  clearPassedOn: (token: string) =>
+    request<void>(`/jobs/agent-picks/passed-on`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   skipJob: (token: string, jobId: string) =>
     request<void>(`/jobs/feed/${encodeURIComponent(jobId)}/skip`, {
       method: "POST",
@@ -4920,7 +4946,7 @@ export type BillingProduct = "xp_pack" | "myrology" | "job_switch_plan" | "ai_wo
 export const BILLING_PRODUCT_AMOUNT_PAISE: Record<BillingProduct, number> = {
   xp_pack: 9900,
   myrology: 29900,
-  job_switch_plan: 9900,
+  job_switch_plan: 19900,
   ai_workflow_audit: 99900,
 }
 
@@ -4929,11 +4955,13 @@ export interface RazorpayOrderResponse {
   amount: number
   currency: string
   product: string
+  subscription_id?: string
 }
 
 export interface RazorpayVerifyPayload {
   razorpay_payment_id: string
   razorpay_order_id: string
+  razorpay_subscription_id?: string
   razorpay_signature: string
 }
 
@@ -4996,10 +5024,11 @@ export interface JobSwitchPlan {
   reviews: JobSwitchPlanReview[]
   can_request_second_review: boolean
   window_open: boolean
+  subscription_status?: string
 }
 
 export const jobSwitchPlan = {
-  // null when the user hasn't purchased — the surface then shows the ₹99 offer.
+  // null when the user hasn't subscribed — the surface then shows the ₹199/month offer.
   get: (token: string) =>
     request<JobSwitchPlan | null>("/job-switch-plan", {
       headers: { Authorization: `Bearer ${token}` },

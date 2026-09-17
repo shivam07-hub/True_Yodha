@@ -1,6 +1,8 @@
 "use client"
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react"
+import type { ReactNode } from "react"
+import { REASON_PROMPT_MS } from "@/lib/jobs/feedback"
 
 /* ══════════════════════════════════════════════════════════════════════════
    MobileUIProvider — the two GLOBAL overlays of the mobile redesign: the
@@ -14,6 +16,11 @@ export interface SnackSpec {
   action?: string
   onAction?: () => void
   ms?: number
+  /** A row under the message — the skip reasons ask their question here. The
+   *  phone had no way to say WHY a job was wrong; the snackbar is already the
+   *  surface that owns "this just happened", so the question goes where the
+   *  answer is still in the user's head. */
+  slot?: ReactNode
 }
 
 interface MobileUICtx {
@@ -53,7 +60,9 @@ export function MobileUIProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const snack = useCallback((spec: SnackSpec) => {
-    const ms = spec.ms ?? 4600
+    // A snack that asks something stays long enough to be answered; one that
+    // only confirms keeps the short life it has always had.
+    const ms = spec.ms ?? (spec.slot ? REASON_PROMPT_MS : 4600)
     if (timer.current) clearTimeout(timer.current)
     setSnackState({ ...spec, scale: 1, tr: "none" })
     // Two RAFs so the compositor-only timer animates from full → empty.
@@ -97,6 +106,9 @@ export function MobileUIProvider({ children }: { children: React.ReactNode }) {
               </button>
             )}
           </div>
+          {snackState.slot ? (
+            <div style={{ padding: "0 14px 11px" }}>{snackState.slot}</div>
+          ) : null}
           <div style={{ height: 2, background: "var(--mm-accent)", transform: `scaleX(${snackState.scale})`, transformOrigin: "left", transition: snackState.tr }} />
         </div>
       )}

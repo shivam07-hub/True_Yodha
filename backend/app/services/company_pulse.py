@@ -7,10 +7,9 @@ signals (no fabrication, ADR-0016):
   * momentum  — how many of those are new this week (fresh inflow)
   * freshness — how recently we last saw the company in a crawl
 
-The repository supplies the three raw counts (from the jobs table's first_seen /
-last_seen scrape markers); this module owns only the normalisation + weighting
-so the formula is unit-testable without a database and can never disagree
-between the compare strip and the directory.
+The Company Demand Pulse snapshot supplies the three raw counts; this module
+owns only the normalisation + weighting so the formula is unit-testable without
+a database and can never disagree between the compare strip and the directory.
 
 Where a company has no live roles at all, `pulse` is None (syncing / no signal)
 rather than a fabricated 0 — the caller renders the em-dash state.
@@ -20,6 +19,8 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
 
 # A company with this many live roles saturates the volume component. Chosen so
 # the biggest MNCs (~a few hundred open roles) land near the top of the scale
@@ -91,6 +92,28 @@ def compute_pulse(
     return round(100 * score)
 
 
+def sort_key_for(company: str) -> str:
+    """Case- and whitespace-insensitive company identity.
+
+    "Bain & Company" and "bain  &  COMPANY" are the same Company Demand Pulse
+    row. Matches how scrape casings were already folded on the old scan path.
+    """
+    return " ".join(company.casefold().split())
+
+
+def build_series_from_histogram(per_day: list[int], *, days: int = SERIES_DAYS) -> list[int]:
+    """Sparkline from a `days`-length histogram of first-seen counts (oldest first)."""
+    padded = (list(per_day) + [0] * days)[:days]
+    series: list[int] = []
+    running = 0
+    for i in range(days):
+        running += padded[i]
+        if i - _SERIES_ROLLING >= 0:
+            running -= padded[i - _SERIES_ROLLING]
+        series.append(running)
+    return series
+
+
 def build_series(day_offsets: list[int], *, days: int = SERIES_DAYS) -> list[int]:
     """A `days`-length sparkline: each point is the count of roles first seen in
     the trailing 14 days as of that day. `day_offsets` are per-role integers in
@@ -102,11 +125,25 @@ def build_series(day_offsets: list[int], *, days: int = SERIES_DAYS) -> list[int
     for off in day_offsets:
         if 0 <= off < days:
             per_day[off] += 1
-    series: list[int] = []
-    running = 0
-    for i in range(days):
-        running += per_day[i]
-        if i - _SERIES_ROLLING >= 0:
-            running -= per_day[i - _SERIES_ROLLING]
-        series.append(running)
-    return series
+    return build_series_from_histogram(per_day, days=days)
+
+
+def project_item(
+    *,
+    company_name: str,
+    open_roles: int = 0,
+    weekly_delta: int = 0,
+    last_seen_at: datetime | None = None,
+    inflow_by_day: list[int] | None = None,
+    now: datetime,
+) -> dict[str, Any]:
+    """HTTP pulse row from snapshot fields. Ghost companies pass zeros."""
+    days_since = (now - last_seen_at).days if last_seen_at is not None else None
+    return {
+        "company_name": company_name,
+        "open_roles": open_roles,
+        "weekly_delta": weekly_delta,
+        "pulse": compute_pulse(open_roles, weekly_delta, days_since),
+        "series": build_series_from_histogram(inflow_by_day or [0] * SERIES_DAYS),
+        "last_seen_at": last_seen_at.isoformat() if last_seen_at else None,
+    }

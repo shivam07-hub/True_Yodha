@@ -41,8 +41,11 @@ fakes) yields no facts — matching never breaks on the memory layer.
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 _PROMPT_FACTS_CAP = 8
 _PREFILL_DEAL_BREAKERS_CAP = 4
@@ -134,6 +137,35 @@ class TargetingBrief:
 
 
 # ── constructors ─────────────────────────────────────────────────────────────
+
+def direction_vocabulary(jobs_repo: Any, families: list[str] | None) -> frozenset[str]:
+    """The skills a user's directions demand — the vocabulary `direction_fit`
+    grades against.
+
+    Lives here because it answers this module's question ("what does this user
+    want") from the same families the Brief already carries, and because two
+    callers needed it: the pick gate and the /market warm. A router cannot read
+    it itself — the repository client seam is a service's to cross
+    (`test_workflow_seams`).
+
+    Fail-soft by contract: an unreadable vocabulary grades every job `unknown`,
+    which degrades to the order each caller had before. Losing the direction is a
+    worse answer; raising is a lost band or a feed with no verdicts.
+    """
+    from app.repositories.role_families import RoleFamiliesRepository
+    from app.services.matching import direction_fit
+
+    names = [str(f).strip() for f in (families or []) if str(f).strip()]
+    if not names:
+        return frozenset()
+    try:
+        return direction_fit.vocabulary(
+            RoleFamiliesRepository(jobs_repo.client).core_skills(names), names
+        )
+    except Exception as exc:  # noqa: BLE001 — documented degradation, never a lost surface
+        logger.warning("metric targeting.direction_vocabulary_failed error=%s", exc)
+        return frozenset()
+
 
 def for_ranking(jobs_repo: Any, user_id: str) -> TargetingBrief:
     """Brief for the match pipeline. `jobs_repo` keeps owning the targeting

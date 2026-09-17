@@ -36,11 +36,11 @@ test("an existing plan shows its state instead of the price", () => {
   assert.match(LINE, /Your review is on the way/)
   assert.match(LINE, /Your plan/)
   const owned = LINE.split("if (!plan)")[1].split("const pending")[1]
-  assert.ok(!owned.includes("₹99"))
+  assert.ok(!owned.includes("₹199"))
 })
 
 test("the offer carries its price", () => {
-  assert.match(LINE, /₹99/)
+  assert.match(LINE, /₹199 \/ month/)
 })
 
 test("copy carries no prose em dash", () => {

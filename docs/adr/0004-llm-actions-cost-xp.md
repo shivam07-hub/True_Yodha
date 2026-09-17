@@ -2,7 +2,8 @@
 
 - **Status**: Accepted
 - **Date**: 2026-05-23
-- **Supersedes**: implicit time-based cooldown in `services/rate_limit.py` (`_COOLDOWN_DAYS = 3`) for CV uploads
+- **Supersedes**: implicit time-based cooldown in `services/rate_limit.py` (`_COOLDOWN_DAYS = 3`) for CV uploads — that file has since been deleted; the supersession is complete
+- **Amended 2026-09-17**: the currency is called **Coins** in the product and in `coin_ledger`; the code seam kept its original names (`xp_service`, `xp_policy`, `routers/xp.py`, `MATCH_RUN_COST`). Both are the same thing. The decision — every LLM-bearing action is charged, none is rate-limited by a clock — is unchanged, and every ADR below that says "XP" means Coins.
 - **Related**: XP1 (XP permanent), IH2 (follow-cost economy), XP7 (cart ephemeral), SE17 (poll-based async completion)
 
 ## Context

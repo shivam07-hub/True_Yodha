@@ -92,8 +92,16 @@ def eval_context_key(profile: dict[str, Any]) -> str:
     `UserMemoryRepository.list_active` now orders totally, so the order moves only
     when the facts do.
     """
+    # The prompt is part of what the brain was told. A rule change that can move
+    # an answer must invalidate the answers reasoned without it, or "rated once
+    # per (user, job), ever" (migration 20260710) means a verdict written under
+    # the old rules can never be revisited. Imported lazily: llm_ranker reaches
+    # back into this module for the key itself.
+    from app.services.llm_ranker import PROMPT_VERSION
+
     raw = json.dumps(
         [
+            PROMPT_VERSION,
             profile.get("baseline_version_id"),
             str(profile.get("target_role_title") or "").strip().casefold(),
             str(profile.get("target_seniority") or "any").strip().lower(),

@@ -30,3 +30,24 @@ test("the phone Jobs row does not reprint grade or a move sentence", () => {
   assert.match(body, /move: ""/)
   assert.doesNotMatch(body, /deriveMove/)
 })
+
+
+test("the drawer explains; it does not re-judge", () => {
+  const take = read("../components/jobs/myro-take.tsx")
+  const brain = read("../components/jobs/match-brain.tsx")
+
+  // The ring on the card is the one answer to "how good" (CONTEXT.md Match
+  // Verdict). The drawer used to restate it four more ways.
+  assert.doesNotMatch(take, /GradeBadge|VerdictPill|AxisBreakdown/)
+  assert.doesNotMatch(take, /overall_score\.toFixed/)
+  // ...and nothing else rendered them, so they went with it.
+  assert.doesNotMatch(brain, /export function (GradeBadge|VerdictPill|AxisBreakdown|JobMatchDetail)/)
+
+  // What the ring cannot say stays: what the role is, whether it is real, why,
+  // and how to apply.
+  assert.match(take, /ArchetypeChip/)
+  assert.match(take, /LegitimacyBadge/)
+  assert.match(take, /application_angle/)
+  // The reader's own line wins over the evaluator's internal summary.
+  assert.match(take, /r\.pick_reason \|\| r\.summary/)
+})

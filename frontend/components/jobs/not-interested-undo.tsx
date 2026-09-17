@@ -1,10 +1,9 @@
 "use client"
 
-import { useState } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
-import type { FeedbackSurface, PersonalReasonCode } from "@/lib/api"
-import { PERSONAL_REASONS, sendPersonalFeedback } from "@/lib/jobs/feedback"
+import type { FeedbackSurface } from "@/lib/api"
+import { SkipReasonChips } from "@/components/jobs/skip-reasons"
 
 interface Props {
   kind: "saved" | "skipped"
@@ -26,7 +25,6 @@ interface Props {
  * the only capture confirmation users see. A SKIP keeps its reason-chip flow.
  */
 export function NotInterestedUndo({ kind, jobId, token, onUndo, queuePosition, surface = "market" }: Props) {
-  const [reason, setReason] = useState<PersonalReasonCode | null>(null)
   const router = useRouter()
   if (typeof document === "undefined") return null
   // Portaled to <body> to escape the transformed .tm-page-enter / .tm-shell-enter
@@ -57,15 +55,14 @@ export function NotInterestedUndo({ kind, jobId, token, onUndo, queuePosition, s
             <span>Not interested</span>
             <button type="button" onClick={onUndo}>Undo</button>
           </div>
-          {reason ? <span className="tm-feed-toast-noted">Noted</span> : (
-            <div className="tm-feed-toast-reasons" aria-label="Why this job was not relevant">
-              {PERSONAL_REASONS.map((item) => (
-                <button key={item.code} type="button" className="tm-reason-chip" onClick={() => { sendPersonalFeedback(token, jobId, item.code, surface); setReason(item.code) }}>
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          )}
+          <SkipReasonChips
+            token={token}
+            jobId={jobId}
+            surface={surface}
+            rowClassName="tm-feed-toast-reasons"
+            chipClassName="tm-reason-chip"
+            notedClassName="tm-feed-toast-noted"
+          />
         </>
       )}
     </div>,

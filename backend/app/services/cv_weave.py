@@ -97,8 +97,10 @@ _TASK = (
     '"why": str, "bullets": [{"text": str, "from": [int], "story_ids": [str], '
     '"used_answer": bool}], "dropped": [int]}]}\n'
     "summary/skills_line: rewrite only when the job clearly calls for it, else "
-    "null. \"why\" = one plain sentence on what this role's rework does for the "
-    "candidate's chances. No prose outside the JSON."
+    "null. \"why\" = one plain sentence addressed TO the candidate as \"you\", "
+    "saying what this rework does for their chances. It is the ONLY field not "
+    "written in their voice — never \"I\" or \"my\" there, and never a restatement "
+    "of the bullets. No prose outside the JSON."
 )
 
 _SYSTEM = myro_voice.drafting_for_reader(_TASK)
@@ -255,6 +257,39 @@ def parse_weave_response(raw: str, blocks: list[dict[str, Any]]) -> dict | None:
     }
 
 
+def edit_kind(old_bullets: list[str], new_texts: list[str], dropped: list[int]) -> str:
+    """What this role's entry actually DOES to the paper — the question
+    `changed` used to answer badly.
+
+    `changed` meant "the model returned an entry for this role", so a role whose
+    lines came back verbatim still got a card, and a role whose only edit was a
+    deletion got one captioned as a rework. Two readers, one flag. Split:
+
+      none    — the same lines, in the same order. Nothing to decide.
+      trim    — every surviving line is a verbatim original; some were dropped.
+      rewrite — at least one line's wording changed.
+    """
+    if new_texts == old_bullets and not dropped:
+        return "none"
+    originals = set(old_bullets)
+    return "trim" if all(t in originals for t in new_texts) else "rewrite"
+
+
+def extras_guard_ok(text: str | None, allowed_text: str) -> bool:
+    """The honesty floor for the CV-WIDE lines (summary, skills line).
+
+    These have no source bullet to carry through, so `loses_metrics` and
+    `loses_substance` have nothing to compare against — the one law that still
+    bites is ADR-0016: a figure absent from the user's own material may not
+    appear. A failing extra is dropped from the proposal, so it is never shown
+    and never landed.
+    """
+    body = (text or "").strip()
+    if not body:
+        return True
+    return not gains_foreign_numbers("", body, allowed_text)
+
+
 def role_guard_ok(old_bullets: list[str], entry: dict[str, Any], allowed_text: str) -> bool:
     """The structural honesty floor, per role. Source = the old lines this entry
     claims (dropped lines excluded — dropping is allowed, mangling is not)."""
@@ -279,15 +314,20 @@ def build_proposal(
 ) -> dict | None:
     """Every experience role, in CV order, changed or not — the per-role accept
     stepper renders straight from this. Guard-failing roles fall back to their
-    original bullets (changed=False + guarded flag). None when not one role
-    survives AND there's no summary/skills change — a worthless artifact must
-    not be delivered (or charged for)."""
+    original bullets (changed=False + guarded flag), and so does a role the
+    model handed back untouched (`edit_kind` "none") — `changed` answers "is
+    there something here for the user to decide", nothing else. None when not
+    one role survives AND there's no summary/skills change — a worthless
+    artifact must not be delivered (or charged for)."""
     blocks = experience_blocks(cv_structured)
     titles = {s.id: s.title for s in stories}
     allowed_text = " ".join(
         [s.pointer + " " + s.result + " " + " ".join(s.metric_values) for s in stories]
         + [a.get("text") or "" for a in answers]
     )
+    # The CV's own lines count as the user's material for the CV-WIDE extras: a
+    # summary may restate a figure the CV already states, and nothing else.
+    own_material = " ".join([allowed_text] + [t for b in blocks for t in b["bullets"]])
     by_index = {e["role_index"]: e for e in parsed.get("roles") or []}
     roles_out: list[dict[str, Any]] = []
     changed_count = 0
@@ -299,14 +339,27 @@ def build_proposal(
             "company": b["company"],
             "changed": False,
             "guarded": False,
+            # "none" | "trim" | "rewrite" — what a Take would actually do.
+            "edit_kind": "none",
             "why": "",
             "bullets": [{"text": t, "from_lines": [], "story_titles": [], "used_answer": False} for t in b["bullets"]],
             "dropped_lines": [],
         }
         if entry and b["bullets"]:
             if role_guard_ok(b["bullets"], entry, allowed_text):
+                kind = edit_kind(b["bullets"], [nb["text"] for nb in entry["bullets"]], entry["dropped"])
+                if kind == "none":
+                    # The model handed back this role's own lines, untouched.
+                    # There is nothing here to decide — a card asking the user
+                    # to approve their own words is a step that costs trust.
+                    roles_out.append(base)
+                    continue
                 base["changed"] = True
-                base["why"] = entry["why"]
+                base["edit_kind"] = kind
+                # A trim reworded NOTHING, so the model's rework rationale would
+                # be describing work it did not do. The card states the fact
+                # instead, from the data.
+                base["why"] = entry["why"] if kind == "rewrite" else ""
                 base["bullets"] = [
                     {
                         "text": nb["text"],
@@ -322,12 +375,20 @@ def build_proposal(
                 base["guarded"] = True
                 logger.info("metric cv_weave.role_guard_failed role_index=%d", b["index"])
         roles_out.append(base)
-    if changed_count == 0 and not parsed.get("summary") and not parsed.get("skills_line"):
+    summary = parsed.get("summary")
+    if not extras_guard_ok(summary, own_material):
+        summary = None
+        logger.info("metric cv_weave.extras_guard_failed field=summary")
+    skills_line = parsed.get("skills_line")
+    if not extras_guard_ok(skills_line, own_material):
+        skills_line = None
+        logger.info("metric cv_weave.extras_guard_failed field=skills_line")
+    if changed_count == 0 and not summary and not skills_line:
         return None
     return {
         "fingerprint": source_fingerprint(cv_structured),
-        "summary": parsed.get("summary"),
-        "skills_line": parsed.get("skills_line"),
+        "summary": summary,
+        "skills_line": skills_line,
         "roles": roles_out,
         "changed_roles": changed_count,
         "requirements_total": len(coverage_items),
@@ -394,15 +455,48 @@ def compose_weave(
 
 
 def _take_bullets(entry: dict, original_indexes: set[int]) -> list[str]:
-    """Mentor's line, unless this pointer was flipped back to original."""
+    """Mentor's line, unless this pointer was flipped back to original.
+
+    A MERGED line restores as the several lines it merged, not as one glued
+    sentence. `from_lines` kept that structure all along; joining it with a
+    space was throwing it away and writing a run-on onto the CV — with no way
+    back, since the merge is the only record of what the lines were.
+    """
     out: list[str] = []
     for i, b in enumerate(entry.get("bullets") or []):
         if i in original_indexes:
             from_lines = [str(x) for x in (b.get("from_lines") or []) if str(x).strip()]
-            out.append(" ".join(from_lines) if from_lines else str(b.get("text") or ""))
+            out.extend(from_lines or [str(b.get("text") or "")])
         else:
             out.append(str(b.get("text") or ""))
     return out
+
+
+def land_extras(
+    cv_structured: dict,
+    proposal: dict,
+    *,
+    action: str,
+    master: dict,
+    accept_summary: bool = False,
+    accept_skills_line: bool = False,
+) -> dict:
+    """Land the CV-WIDE lines on the working draft.
+
+    Their own decision, never a passenger on a role's Keep/Take: a summary the
+    user has not read must not reach a CV a hiring manager will. `undo` puts the
+    master's own lines back, the same way a role's undo does.
+    """
+    next_cv = json.loads(json.dumps(cv_structured))
+    if action == "undo":
+        next_cv["summary"] = (master or {}).get("summary")
+        next_cv["skills_line"] = (master or {}).get("skills_line")
+        return next_cv
+    if accept_summary and proposal.get("summary"):
+        next_cv["summary"] = proposal["summary"]
+    if accept_skills_line and proposal.get("skills_line"):
+        next_cv["skills_line"] = proposal["skills_line"]
+    return next_cv
 
 
 def land_role(
@@ -412,15 +506,12 @@ def land_role(
     *,
     action: str,
     master: dict,
-    accept_summary: bool = True,
-    accept_skills_line: bool = True,
-    extras: bool = True,
     original_indexes: list[int] | None = None,
 ) -> dict:
     """Patch one role onto the working draft. Take writes Mentor's bullets
     (per-pointer original puts the old line back); undo restores the master's;
-    keep leaves the line. Extras land once, here, so abort never waits for a
-    final Save."""
+    keep leaves the line. Extras are NOT touched here — `land_extras` owns
+    them, on their own decision."""
     next_cv = json.loads(json.dumps(cv_structured))
     by_index = {r["role_index"]: r for r in proposal.get("roles") or []}
     blocks = next_cv.get("experience") or []
@@ -435,9 +526,4 @@ def land_role(
             blocks[role_index]["bullets"] = [
                 str(b) for b in (master_blocks[role_index].get("bullets") or [])
             ]
-    if extras:
-        if accept_summary and proposal.get("summary"):
-            next_cv["summary"] = proposal["summary"]
-        if accept_skills_line and proposal.get("skills_line"):
-            next_cv["skills_line"] = proposal["skills_line"]
     return next_cv

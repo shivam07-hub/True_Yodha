@@ -113,6 +113,7 @@ worker. A test upload on dev writes to production data. Full map: [INFRA.md](INF
 | Looking for | File |
 |---|---|
 | **Why we build this commercially — the bet, scored** | [POSITIONING.md](POSITIONING.md) |
+| **What we sell · last CTA · LinkedIn Services × Myro** | [OFFERING.md](OFFERING.md) |
 | Locked decisions + data model | [DECISIONS.md](DECISIONS.md) |
 | Servers, domains, env, DNS, deploy order | [INFRA.md](INFRA.md) |
 | Open work, in full | [BACKLOG.md](BACKLOG.md) |
@@ -152,7 +153,7 @@ the scraper), the Chrome extension, tailoring as the obvious next step. Evidence
 bank has no surface — grill first, #45 artboard 2a. Promoting the gap loop out
 of prep rooms is BACKLOG #12, unpicked.
 
-Standing: 113 beta items unverified (built ≠ closed); ₹99 Job-Switch Plan is the only revenue item and is offered nowhere — Shivam's call.
+Standing: 113 beta items unverified (built ≠ closed); last consumer CTA is ₹199/month Personalised Engagement ([OFFERING.md](OFFERING.md)). Checkout is a Razorpay subscription at 19900 paise; live charges need `RAZORPAY_ENGAGEMENT_PLAN_ID`.
 
 ---
 

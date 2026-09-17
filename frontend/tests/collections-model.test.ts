@@ -216,9 +216,12 @@ test("the picks band renders no chrome when every card is declined", () => {
   // Collections declines every pick until the record lands. The band used to
   // print its title, its promise and its closing divider over nothing.
   const band = read("../components/jobs/agent-picks-band.tsx")
-  assert.match(band, /if \(!cards\.length\) return null/)
+  assert.match(band, /if \(!cards\.length && !showPassedOn\) return null/)
+  // ...and the one thing that can now survive an empty card list is scoped to
+  // the surface that owns its cards, which Collections does not.
+  assert.match(band, /const showPassedOn = !renderCard && passedOn\.length > 0/)
   const buildAt = band.indexOf("const cards = picks")
-  const guardAt = band.indexOf("if (!cards.length) return null")
+  const guardAt = band.indexOf("if (!cards.length && !showPassedOn) return null")
   const headerAt = band.indexOf("tm-agentpicks-head")
   assert.ok(buildAt > -1 && guardAt > buildAt, "cards must be built before the guard")
   assert.ok(guardAt < headerAt, "the guard must run before the header renders")

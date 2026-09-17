@@ -2,9 +2,22 @@
 
 Status: accepted
 
-The `firecrawl_Supabase` jobs crawler remains an external operational codebase at `/Users/incognito/Mirror CV/firecrawl_Supabase`; Mirror will not bulk-copy that folder into the main app repo. Mirror owns the deep **Job Feed** module at `backend/app/services/job_feed/`, whose interface normalizes crawler rows, checks Lightcast taxonomy compatibility, produces quality reports, and writes through a Supabase upsert adapter.
+The `firecrawl_Supabase` jobs crawler remains an external operational codebase at `/Users/incognito/firecrawl_Supabase`; Mirror will not bulk-copy that folder into the main app repo. Mirror owns the deep **Job Feed** module at `backend/app/services/job_feed/`, whose interface normalizes crawler rows, checks Lightcast taxonomy compatibility, produces quality reports, and writes through a Supabase upsert adapter.
 
 This keeps the crawler's scraping cadence, local `.env`, generated dumps, Archon state, and Firecrawl-specific implementation outside production app code, while giving Mirror locality over the `public.jobs` contract that the product depends on. Future crawler improvements should either happen inside `firecrawl_Supabase` or cross the Job Feed seam through tested adapters; production matching, scoring, and Application Path code should depend on `public.jobs`, not crawler internals.
+
+## Amended 2026-09-17 — where scanning lives
+
+The crawler's path is the one above; it was recorded as `Mirror CV/firecrawl_Supabase`
+for months after the folder moved, which is the kind of decoy this ADR exists to stop.
+
+**Myro never calls a job board's API.** Company-portal scanning — the Greenhouse,
+Lever, Ashby, Workday, SmartRecruiters and ~50 other adapters, the ATS discovery
+probes, and `KNOWN_PORTALS.md` — lives in the crawler repo behind this same Job
+Feed seam. Upstream `career-ops` was audited there on 2026-07-12
+(`scraper/CAREER_OPS_AUDIT.md`): adopted as a provider reference, rejected as a
+pipeline, and seven India boards were promoted from it. A request to "add the
+career-ops portals" is a crawler change, not an app change.
 
 ## Considered Options
 

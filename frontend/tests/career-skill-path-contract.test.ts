@@ -3,11 +3,24 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 
-import { sortAnchorCards, type SkillPathCard } from "../lib/career-skill-path"
+import {
+  isLivePath,
+  requestQueue,
+  sortAnchorCards,
+  sortStoryCards,
+  storyBands,
+  type BandSkillMap,
+  type CareerSkillPath,
+  type SkillPathCard,
+} from "../lib/career-skill-path"
 
 const read = (p: string) => readFileSync(resolve(process.cwd(), p), "utf8")
 
-function card(taxonomy_key: string, state: SkillPathCard["state"]): SkillPathCard {
+function card(
+  taxonomy_key: string,
+  state: SkillPathCard["state"],
+  extra: Partial<SkillPathCard> = {},
+): SkillPathCard {
   return {
     skill_id: null,
     taxonomy_key,
@@ -22,6 +35,28 @@ function card(taxonomy_key: string, state: SkillPathCard["state"]): SkillPathCar
     verification_id: null,
     next_practice_level: null,
     request_status: "none",
+    ...extra,
+  }
+}
+
+function band(
+  kind: BandSkillMap["kind"],
+  seniority: BandSkillMap["seniority"],
+  cards: SkillPathCard[],
+): BandSkillMap {
+  return { kind, seniority, job_count: 10, cards }
+}
+
+function path(extra: Partial<CareerSkillPath> = {}): CareerSkillPath {
+  return {
+    needs_target: false,
+    snapshot: null,
+    lower: null,
+    anchor: null,
+    higher: null,
+    next_action: null,
+    target_flow: null,
+    ...extra,
   }
 }
 
@@ -75,4 +110,90 @@ test("anchor cards put not-evidenced gaps first", () => {
     "Sales",
     "Cross-Selling",
   ])
+})
+
+test("a live path is one the user can practise or add now", () => {
+  assert.equal(isLivePath(card("Sales", "not_evidenced")), false)
+  assert.equal(isLivePath(card("Sales", "not_evidenced", { request_status: "recorded" })), false)
+  assert.equal(
+    isLivePath(card("SQL", "not_evidenced", { ladder_complete: true, next_practice_level: 1 })),
+    true,
+  )
+  assert.equal(
+    isLivePath(card("SQL", "practised", { request_status: "fulfilled" })),
+    true,
+  )
+  assert.equal(
+    isLivePath(card("SQL", "practised", {
+      certificate_status: "issued",
+      verification_id: "abc",
+    })),
+    true,
+  )
+})
+
+test("story bands are your band, then lower, then next", () => {
+  const ordered = storyBands(path({
+    lower: band("lower", "mid", []),
+    higher: band("higher", "lead", []),
+    anchor: band("anchor", "senior", []),
+  }))
+  assert.deepEqual(ordered.map((item) => item.kind), ["anchor", "lower", "higher"])
+})
+
+test("story bands skip a missing neighbour", () => {
+  const ordered = storyBands(path({
+    higher: band("higher", "mid", []),
+    anchor: band("anchor", "entry", []),
+  }))
+  assert.deepEqual(ordered.map((item) => item.kind), ["anchor", "higher"])
+})
+
+test("story cards put live paths first and keep demand order inside each group", () => {
+  const ordered = sortStoryCards([
+    card("Sales", "not_evidenced"),
+    card("SQL", "not_evidenced", { ladder_complete: true, next_practice_level: 1 }),
+    card("Cross-Selling", "not_evidenced"),
+    card("Excel", "practised", { request_status: "fulfilled" }),
+  ])
+  assert.deepEqual(ordered.map((item) => item.taxonomy_key), [
+    "SQL",
+    "Excel",
+    "Sales",
+    "Cross-Selling",
+  ])
+})
+
+test("request queue is the leftover after the story, unique, your band first", () => {
+  const sales = card("Sales", "not_evidenced")
+  const sql = card("SQL", "not_evidenced", { ladder_complete: true, next_practice_level: 1 })
+  const comms = card("Communication", "on_cv")
+  const queued = requestQueue(path({
+    lower: band("lower", "mid", [card("Sales", "not_evidenced"), card("Cold Calling", "not_evidenced")]),
+    anchor: band("anchor", "senior", [sales, sql, comms]),
+    higher: band("higher", "lead", [card("Communication", "not_evidenced")]),
+  }))
+  assert.deepEqual(queued.map((item) => item.taxonomy_key), [
+    "Sales",
+    "Communication",
+    "Cold Calling",
+  ])
+})
+
+test("the practice story does not mix request CTAs into the band maps", () => {
+  const maps = read("components/career-path/skill-path-maps.tsx")
+  assert.match(maps, /storyBands\(path\)/)
+  assert.match(maps, /sortStoryCards/)
+  assert.match(maps, /RequestBoard/)
+  assert.doesNotMatch(maps, /Request this learning path/)
+  const requests = read("components/career-path/skill-path-requests.tsx")
+  assert.match(requests, /Request this learning path/)
+})
+
+test("practice home is the skill-path story; the climb opens only for a session", () => {
+  const practice = read("app/(authed)/practice/page.tsx")
+  assert.match(practice, /const inSession = Boolean\(gapParam \|\| skillParam\)/)
+  assert.match(practice, /inSession && \(/)
+  assert.match(practice, /<UpskillingView/)
+  assert.match(practice, /!inSession && path\.data/)
 })

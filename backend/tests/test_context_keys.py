@@ -116,3 +116,19 @@ def test_a_row_with_no_key_is_not_current() -> None:
     assert eval_matches_context({"eval_context_hash": None}, ctx) is False
     assert eval_matches_context({}, ctx) is False
     assert eval_matches_context(None, ctx) is False
+
+
+def test_the_prompt_version_is_part_of_what_the_brain_was_told(monkeypatch) -> None:
+    """A rule change must invalidate the verdicts reasoned without it.
+
+    Verdicts are permanent per (user, job) (migration 20260710), so without this
+    a row rated under the old prompt could never be revisited — the v2 direction
+    rule would apply to new jobs only, forever.
+    """
+    profile = {"baseline_version_id": 7, "target_role_title": "Sales Manager"}
+    before = eval_context_key(profile)
+
+    import app.services.llm_ranker as ranker
+
+    monkeypatch.setattr(ranker, "PROMPT_VERSION", "v3-test")
+    assert eval_context_key(profile) != before
