@@ -174,21 +174,27 @@ class CVVersionsRepository:
         attach_jobs([row], self._db, "job_title, company_name")
         return row
 
-    def latest_job_draft(self, user_id: str, job_id: str) -> dict[str, Any] | None:
-        """This job's deterministic working draft — the Google Docs document
-        Tailor Keep/Take patches in place. Not the company thread (that can
-        be a sibling job).
+    def job_document(self, user_id: str, job_id: str) -> dict[str, Any] | None:
+        """THE document for this job (ADR-0025) — one document per job.
 
-        No ``attach_jobs`` hydration: the one caller (weave apply) already holds
-        the job row it needs, and every Keep/Take paid for that second query on
-        a click the user is waiting on.
+        The newest row carrying this ``job_id``, of ANY kind. Newest revision is
+        the document, the way a shared doc works: whatever last wrote to this
+        job's paper IS this job's paper, and every writer seeds from it.
+
+        It used to filter ``kind='deterministic'`` and was named for the weave's
+        own draft. That made a polished or edited tailored CV invisible: the next
+        Keep/Take patched the pre-polish row and the polish was orphaned. A
+        master CV has no ``job_id``, so a baseline can never surface here.
+
+        No ``attach_jobs`` hydration: callers that need the job row already hold
+        it, and every Keep/Take paid for that second query on a click the user
+        is waiting on.
         """
         result = (
             self._db.table("cv_versions")
             .select("*")
             .eq("user_id", user_id)
             .eq("job_id", job_id)
-            .eq("kind", "deterministic")
             .order("user_version_number", desc=True)
             .limit(1)
             .execute()
@@ -580,20 +586,31 @@ class CVVersionsRepository:
         cv_structured: dict[str, Any],
         body_text: str,
         title: str | None = None,
+        hidden_items: list[str] | None = None,
+        section_order: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Patch this job's working draft in place — a Tailor Take is a Google
-        Docs save, not a new version row."""
+        """Patch this job's document in place — a write to a job's paper is a
+        Google Docs save, not a new version row (ADR-0025).
+
+        Scoped by ``job_id is not null`` rather than by kind: the document is
+        whatever kind last wrote to it, and a polished tailored CV must stay
+        patchable. A master CV has no ``job_id`` and so can never be reached.
+        """
         self._reject_redaction_tokens(cv_structured, body_text)
         self._reject_partial_structured(cv_structured, seam="cv_versions.update_job_draft")
         payload: dict[str, Any] = {"cv_structured": cv_structured, "body_text": body_text}
         if title is not None:
             payload["title"] = title
+        if hidden_items is not None:
+            payload["hidden_items"] = hidden_items
+        if section_order is not None:
+            payload["section_order"] = section_order
         result = (
             self._db.table("cv_versions")
             .update(payload)
             .eq("id", version_id)
             .eq("user_id", user_id)
-            .eq("kind", "deterministic")
+            .not_.is_("job_id", "null")
             .execute()
         )
         if not result.data:

@@ -147,11 +147,17 @@ def test_router_404_when_version_missing() -> None:
     assert exc.value.status_code == 404
 
 
-def test_router_400_on_immutable_snapshot() -> None:
+def test_a_polished_tailored_cv_is_still_this_job_s_document() -> None:
+    """ADR-0025 supersedes "a polished row is an immutable snapshot".
+
+    A polish does not hand the job to a different document — it IS the job's
+    document now. Refusing the autosave here is what stranded a user's layout
+    on the pre-polish row while the polished one stayed on screen.
+    """
     row = {**_det_row(), "kind": "polished"}
-    with pytest.raises(HTTPException) as exc:
-        _call(_FakeRepo(row), [])
-    assert exc.value.status_code == 400
+    repo = _FakeRepo(row)
+    _call(repo, ["exp_bullet:0:abc"])
+    assert repo.updated, "the polished document takes the layout write"
 
 
 def test_router_400_on_master_baseline() -> None:

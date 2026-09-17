@@ -424,14 +424,17 @@ def apply_weave(
 
     This runs on a click the user is watching, so its three independent reads go
     out as ONE wave (read contract: 3 sections). The job row is NOT among them —
-    it feeds only the draft's title, which the draft already carries, so it is
-    read on the create path alone.
+    it feeds only the document's title, which the document already carries, so it
+    is read on the create path alone.
+
+    The Take lands on this job's ONE document (ADR-0025) — whatever kind last
+    wrote to it — never on a sibling minted from the master.
     """
     reads = concurrent_reads.run_concurrently(
         {
             "cache": lambda: _load_cache(jobs_repo, user.id, body.job_id),
             "baseline": lambda: _baseline_or_409(cv_repo, user.id),
-            "draft": lambda: cv_repo.latest_job_draft(user.id, body.job_id),
+            "draft": lambda: cv_repo.job_document(user.id, body.job_id),
         },
         label="cv.weave_apply",
     )

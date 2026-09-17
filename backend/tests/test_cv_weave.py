@@ -475,7 +475,7 @@ class _CVRepo:
         }
         return self.draft
 
-    def latest_job_draft(self, _u, _j):
+    def job_document(self, _u, _j):
         return self.draft
 
     def update_job_draft(self, version_id, _u, *, cv_structured, body_text, title=None):

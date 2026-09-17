@@ -34,6 +34,34 @@ A CV Version is one row in `cv_versions`. Upload, polish, and an explicit new sa
 
 ---
 
+## Job Document
+
+**THE** CV for one `(user, job)`. Exactly one exists, and it is **defined, not stored**: the
+newest `cv_versions` row carrying that `job_id`, of any kind (ADR-0025). A `baseline_upload` has
+`job_id IS NULL`, so a master can never be one.
+
+Read it with `CVVersionsRepository.job_document`. Patch it in place with `update_job_draft`,
+which is scoped by `job_id IS NOT NULL` — never by `kind`.
+
+**The rules every reader and writer is held to**
+
+- Identity is read, never ranked. Nothing picks between candidate rows by kind or by guessing.
+- Every writer seeds from the job document. The master seeds it only when there is none yet.
+- Patch in place by default. A new row only for an act the user asked to be separate — a polish
+  or a structured edit, which keep provenance via `parent_version_id` — and that row then
+  BECOMES the job document.
+- `kind` is a lineage label, not identity.
+
+**Why it is named this and not "draft"**
+
+`latest_job_draft` was named for one writer's private draft and filtered to that writer's kind.
+Both were the bug: three writers minted `deterministic` rows for one job, and the reader picked
+between them by version number while ignoring every `polished` or `edited` row. A playground
+Save seeded from the untouched master overwrote a user's accepted Tailor lines in production
+(2026-08-30). The full account is in ADR-0025.
+
+---
+
 ## Company CV Thread
 
 The ordered set of CV Versions a user has authored against any job at a given company. The unit of CV identity the user actually cares about — "my Capgemini CV" — independent of which specific Capgemini role row in `job_applications` is being viewed.
