@@ -120,6 +120,21 @@ choice rather than a discovery. Still owed: a reviewer UI (the workbench is API
 plus token today), and an authed eyeball — no surface in this lane has ever been
 seen logged in.
 
+**Wave 4 — the ₹199 / month Personalised Engagement.** *Decided 2026-09-17.
+Checkout is in code (Razorpay Subscriptions at 19900 paise). Live charges wait
+on the Razorpay plan id.* The last consumer CTA is a subscription that staffs one
+scene (this CV × this job × this skill path) with one human pass per month.
+A month, not a "until you have the job" package: guidance is ours, conversion
+is theirs. Locked in [OFFERING.md](OFFERING.md) / ENG1.
+
+Why now, against "value, then usage, then price": the ₹99 Job-Switch Plan had
+zero purchases because it was a price on an unused surface. The live demand is
+already arriving on **LinkedIn Services as Resume Writing** — the same human
+work, a disconnected inbox. Wave 4 does not invent a buyer. It makes those two
+doors one queue, and stops selling that work as a ₹99 intro.
+
+The ₹999 audit stays a different buyer. It is not the closer.
+
 ---
 
 ## WHAT IS ACTUALLY NEXT
@@ -134,7 +149,7 @@ in August** once every "Upload CV" pointed at `/onboarding`.
 The flow is fixed. Nobody has gone back for the people it was fixed after. They
 are the warmest audience on the platform, they already handed over a CV, and
 reaching them needs no code. Everything downstream — matching, applying,
-tailoring, the ₹99 plan, the audit — is gated behind a target, and once someone
+tailoring, the ₹199 engagement, the audit — is gated behind a target, and once someone
 has one the machine works: 77% of them save a job and every saver progresses.
 
 ---
@@ -158,9 +173,11 @@ Four things that stop a wave. None is an engineering task.
 3. **Capacity is not launch-ready.** One shared Supabase project serves dev and
    prod, holding 1,118MB against a 500MB recommended tier size. A dataset API
    adds read load to that same instance. Paid compute is a prerequisite.
-4. **Built is not sold.** 113 beta feedback items are logged unverified, and the
-   ₹99 Job-Switch Plan is offered nowhere in the app. A shipped feature with no
-   surface earns nothing.
+4. **Built is not sold.** 113 beta feedback items are logged unverified. The
+   last consumer CTA is now ₹199/month Personalised Engagement
+   ([OFFERING.md](OFFERING.md)). Checkout is the subscription; live charges need
+   the Razorpay plan id. LinkedIn Services is taking Resume Writing requests into an
+   inbox Myro cannot see until they walk the tracked door.
 
 ---
 
@@ -176,11 +193,17 @@ from the footer — and from nowhere a logged-in user goes. Two genuine pieces o
 value, aimed at buyers who do not exist yet, invisible to the 768 people who do.
 Publishing is not delivering.
 
+What we **charge** for, which door it uses (Myro last CTA vs LinkedIn Services),
+and what the paid surface looks like: [OFFERING.md](OFFERING.md).
+
 Two failure modes this file exists to prevent:
 
 - **Building a second company by accident.** AI-ops retainers and org training
   are real revenue with a different cost structure, sales motion and hiring plan.
   They are flagged here, not scheduled. That is a founder's fork, not a ticket.
+  **LinkedIn Services Resume Writing is the same fork if fulfilment stays in
+  the LinkedIn inbox.** It joins Myro as a door, or it is a second company.
+  Contract: [OFFERING.md](OFFERING.md).
 - **Publishing a number we cannot defend.** Everything in the verification lane
   ships with its denominator, its method version, and what it does not cover.
   The first index metric we computed found every employer maximally guilty and

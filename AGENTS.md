@@ -10,5 +10,5 @@ migration backlog. Two files claiming to be the source of truth guarantees that
 outcome; one file removes it.
 
 Everything that was here is in the cockpit or the files it maps:
-[DECISIONS.md](DECISIONS.md) · [INFRA.md](INFRA.md) · [BACKLOG.md](BACKLOG.md) ·
-[ARCHIVE.md](ARCHIVE.md) · [CONTEXT.md](CONTEXT.md)
+[DECISIONS.md](DECISIONS.md) · [OFFERING.md](OFFERING.md) · [INFRA.md](INFRA.md) ·
+[BACKLOG.md](BACKLOG.md) · [ARCHIVE.md](ARCHIVE.md) · [CONTEXT.md](CONTEXT.md)

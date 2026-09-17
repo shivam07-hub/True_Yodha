@@ -1,8 +1,7 @@
-"""Tests for the ₹99 Personalised Job-Switch Plan (#33).
+"""Tests for Personalised Engagement (#33 / ENG1).
 
-Covers the review-window guards (B5/B6), the router contract, the admin-token
-gate, and the Razorpay fulfilment dispatch (entitlement → activate_plan). DB
-chains are monkeypatched — this asserts the lifecycle rules + wiring, not Supabase.
+Covers monthly pass guards, the router contract, the admin-token gate, and
+Razorpay fulfilment dispatch. DB chains are monkeypatched.
 """
 
 from __future__ import annotations
@@ -20,6 +19,7 @@ from app.main import app
 from app.routers import job_switch_plan as jsp_router
 from app.security import admin_auth
 from app.routers import payments as payments_router
+from app.services import job_switch_plan_draft as draft
 from app.services import job_switch_plan_service as svc
 from app.services import llm_provider as llm_mod
 
@@ -60,13 +60,13 @@ def test_request_second_review_window_closed(monkeypatch: pytest.MonkeyPatch) ->
     assert "window" in exc.value.detail.lower()
 
 
-def test_request_second_review_first_not_delivered(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_request_second_review_open_pass_blocks(monkeypatch: pytest.MonkeyPatch) -> None:
     reviews = [{"review_no": 1, "status": "in_progress"}]
     monkeypatch.setattr(svc, "get_plan_state", lambda uid: _state(reviews, window_open=True, can_second=False))
     with pytest.raises(HTTPException) as exc:
         svc.request_second_review("u1")
     assert exc.value.status_code == 409
-    assert "first review" in exc.value.detail.lower()
+    assert "already" in exc.value.detail.lower()
 
 
 def test_request_second_review_happy(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -83,6 +83,15 @@ def test_request_second_review_happy(monkeypatch: pytest.MonkeyPatch) -> None:
     review = svc.request_second_review("u1")
     assert opened == {"plan_id": "plan-1", "review_no": 2}
     assert review["review_no"] == 2
+
+
+def test_subscription_is_live_requires_a_razorpay_id() -> None:
+    assert svc.subscription_is_live(None) is False
+    assert svc.subscription_is_live({"status": "active"}) is False
+    assert svc.subscription_is_live({"razorpay_subscription_id": "sub_1"}) is True
+    assert svc.subscription_is_live(
+        {"razorpay_subscription_id": "sub_1", "subscription_status": "cancelled"}
+    ) is False
 
 
 # ── service: working-days SLA helper ─────────────────────────────────────────
@@ -173,7 +182,9 @@ def test_admin_endpoint_401_wrong_token(monkeypatch: pytest.MonkeyPatch) -> None
 def test_entitlement_dispatch_to_job_switch_plan(monkeypatch: pytest.MonkeyPatch) -> None:
     called: dict[str, Any] = {}
     monkeypatch.setattr(
-        payments_router.job_switch_plan_service, "activate_plan", lambda uid: called.update(uid=uid)
+        payments_router.job_switch_plan_service,
+        "activate_plan",
+        lambda uid, subscription_id=None: called.update(uid=uid),
     )
     monkeypatch.setattr(payments_router, "_unlock_myrology", lambda uid: called.update(myrology=uid))
 
@@ -184,7 +195,9 @@ def test_entitlement_dispatch_to_job_switch_plan(monkeypatch: pytest.MonkeyPatch
 def test_entitlement_dispatch_to_myrology(monkeypatch: pytest.MonkeyPatch) -> None:
     called: dict[str, Any] = {}
     monkeypatch.setattr(
-        payments_router.job_switch_plan_service, "activate_plan", lambda uid: called.update(plan=uid)
+        payments_router.job_switch_plan_service,
+        "activate_plan",
+        lambda uid, subscription_id=None: called.update(plan=uid),
     )
     monkeypatch.setattr(payments_router, "_unlock_myrology", lambda uid: called.update(uid=uid))
 
@@ -217,11 +230,11 @@ class _FakeProvider:
 
 def test_draft_review_note_grounds_on_user_skills(monkeypatch: pytest.MonkeyPatch) -> None:
     rows = [{"skills": {"display_name": "SQL"}, "proficiency_title": "Proficient"}]
-    monkeypatch.setattr(svc, "get_public_jobs_repository", lambda: _FakeRepo(rows))
+    monkeypatch.setattr(draft, "get_public_jobs_repository", lambda: _FakeRepo(rows))
     fake = _FakeProvider(reply="You already have SQL; build dbt next.")
-    monkeypatch.setattr(svc, "get_llm_provider", lambda: fake)
+    monkeypatch.setattr(draft, "get_llm_provider", lambda: fake)
     ctx = {"plan": {"id": "p1", "target_role": "Data Analyst"}, "user_id": "u1"}
-    out = asyncio.run(svc.draft_review_note(ctx))
+    out = asyncio.run(draft.draft_review_note(ctx))
     assert out == "You already have SQL; build dbt next."
     # The prompt is grounded in the real role + skills, never invented context.
     user_msg = fake.seen[-1]["content"]
@@ -229,10 +242,10 @@ def test_draft_review_note_grounds_on_user_skills(monkeypatch: pytest.MonkeyPatc
 
 
 def test_draft_review_note_failsoft_on_llm_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(svc, "get_public_jobs_repository", lambda: _FakeRepo([]))
-    monkeypatch.setattr(svc, "get_llm_provider", lambda: _FakeProvider(raise_exc=True))
+    monkeypatch.setattr(draft, "get_public_jobs_repository", lambda: _FakeRepo([]))
+    monkeypatch.setattr(draft, "get_llm_provider", lambda: _FakeProvider(raise_exc=True))
     ctx = {"plan": {"id": "p1", "target_role": "PM"}, "user_id": "u1"}
-    assert asyncio.run(svc.draft_review_note(ctx)) is None
+    assert asyncio.run(draft.draft_review_note(ctx)) is None
 
 
 def test_draft_endpoint_admin_gated_and_returns_draft(monkeypatch: pytest.MonkeyPatch) -> None:

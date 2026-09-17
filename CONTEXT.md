@@ -614,8 +614,7 @@ pricing card. One scene per subscriber:
 - the skill path for that target
 - a named reviewer and a date (one human pass per billing month)
 
-**Doors.** LinkedIn Services *Resume Writing* inbound, and Myro's last CTA
-(today still the ₹99 "Have this CV read against the job" line). Same queue.
+**Doors.** LinkedIn Services *Resume Writing* inbound (`/job-switch-plan?utm_source=linkedin_services`), and Myro's last CTA (prep "Keep a person on this scene · ₹199 / month"). Same queue.
 Month 1 from LinkedIn **is** the resume they asked for, delivered in Myro.
 A month exists because conversion is theirs: if they have not got the job,
 they still need the scene. Myro does not sell the offer.
@@ -623,8 +622,9 @@ they still need the scene. Myro does not sell the offer.
 **Invariants**
 
 - Not placement. Not unlimited rewrites. Not Myro sending LinkedIn mail.
-- Razorpay Subscriptions are not in code yet; checkout still charges the ₹99
-  one-shot `job_switch_plan`.
+- Razorpay Subscriptions: `job_switch_plan` at 19900 paise. First charge
+  activates the scene; `subscription.charged` opens the next IST month's pass.
+  Live charges need `RAZORPAY_ENGAGEMENT_PLAN_ID`.
 - Full contract: [OFFERING.md](OFFERING.md).
 
 ---

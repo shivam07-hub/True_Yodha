@@ -134,6 +134,10 @@ export function SkillPathMaps({ path }: { path: CareerSkillPath }) {
       </header>
       {storyBands(path).map((map) => <BandMap key={map.kind} map={map} />)}
       <RequestBoard cards={requestQueue(path)} />
+      <p className="csp-closer">
+        <Link href="/job-switch-plan">Keep a person on this path</Link>
+        <span>₹199 / month</span>
+      </p>
     </div>
   )
 }

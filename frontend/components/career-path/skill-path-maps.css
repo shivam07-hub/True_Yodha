@@ -184,3 +184,28 @@
   font-size: var(--tm-fs-meta);
   color: var(--tm-text-muted);
 }
+
+.csp-closer {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0;
+  font-size: var(--tm-fs-body);
+}
+
+.csp-closer a {
+  color: var(--tm-interactive);
+  text-decoration: none;
+}
+
+.csp-closer a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.csp-closer span {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--tm-text-muted);
+}

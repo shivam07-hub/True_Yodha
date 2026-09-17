@@ -6,6 +6,17 @@
 
 ---
 
+## SUPERSEDED 2026-09-17 — ₹99 Job-Switch Plan is no longer the closer
+
+The one-time ₹99 Personalised Job-Switch Plan (BACKLOG #33, two reviews / 120
+days) is retired as the closer. Checkout is ₹199 / month Personalised
+Engagement via Razorpay Subscriptions (`job_switch_plan` at 19900 paise).
+Locked in [OFFERING.md](OFFERING.md), ENG1 in [DECISIONS.md](DECISIONS.md).
+The parked ₹499 / year idea died with it. History of the ₹99 grill stays
+under BACKLOG #33. Live charges still need `RAZORPAY_ENGAGEMENT_PLAN_ID`.
+
+---
+
 ## CLOSED 2026-09-15 — twenty-one settled backlog items left the tracker
 
 Cleared from [BACKLOG.md](BACKLOG.md), which is meant to hold open work only. Each

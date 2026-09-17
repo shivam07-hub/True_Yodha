@@ -66,6 +66,7 @@ that starts after step 4 can only ever serve 14 people.
 | L9 | Referral → new user | **0** | **DEAD** |
 | L10 | Newsletter → signup | unattributed | **UNINSTRUMENTED** |
 | L11 | Coin economy → spend → unlock | 818 ledgered, 2 paid | **NOT A LOOP YET** |
+| L12 | LinkedIn Services → scene → subscribe | door in product, 0 charges | **BUILT, UNCHARGED** |
 
 ---
 
@@ -276,11 +277,24 @@ and `growth_attribution` exist; neither is wired to the newsletter.
 ### L11 — Coin economy → spend → unlock · **NOT A LOOP YET**
 
 All 818 users have a `coin_ledger` row (1,334 rows). **2 verified payments
-ever.** The ₹99 Job-Switch Plan and the ₹999 AI Workflow Audit are both built
-and neither is purchasable anywhere in the app.
+ever.** The ₹99 Job-Switch Plan is retired as the closer. The ₹999 AI Workflow
+Audit is built. The closer is ₹199/month Personalised Engagement
+([OFFERING.md](OFFERING.md), ENG1) — checkout is a Razorpay subscription.
+Live charges wait on `RAZORPAY_ENGAGEMENT_PLAN_ID`. LinkedIn Services Resume
+Writing inbound uses `/job-switch-plan?utm_source=linkedin_services`.
 
 Coins are currently an accounting record, not a loop: nothing the user does with
 them changes what happens next in a way that brings them back.
+
+---
+
+### L12 — LinkedIn Services → scene → subscribe · **BUILT, UNCHARGED**
+
+Inbound Resume Writing requests land on HiMyro Career Intelligence's LinkedIn
+Services page. The Myro door is `/job-switch-plan?utm_source=linkedin_services`
+(also `?from=linkedin_services`). Checkout opens a ₹199/month Razorpay
+subscription; month 1's pass is the resume they asked for, delivered in Myro.
+Reach is 0 until a real charge lands. Contract: [OFFERING.md](OFFERING.md).
 
 ---
 

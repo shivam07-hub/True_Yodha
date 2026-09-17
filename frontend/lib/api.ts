@@ -4943,7 +4943,7 @@ export type BillingProduct = "xp_pack" | "myrology" | "job_switch_plan" | "ai_wo
 export const BILLING_PRODUCT_AMOUNT_PAISE: Record<BillingProduct, number> = {
   xp_pack: 9900,
   myrology: 29900,
-  job_switch_plan: 9900,
+  job_switch_plan: 19900,
   ai_workflow_audit: 99900,
 }
 
@@ -4952,11 +4952,13 @@ export interface RazorpayOrderResponse {
   amount: number
   currency: string
   product: string
+  subscription_id?: string
 }
 
 export interface RazorpayVerifyPayload {
   razorpay_payment_id: string
   razorpay_order_id: string
+  razorpay_subscription_id?: string
   razorpay_signature: string
 }
 
@@ -5019,10 +5021,11 @@ export interface JobSwitchPlan {
   reviews: JobSwitchPlanReview[]
   can_request_second_review: boolean
   window_open: boolean
+  subscription_status?: string
 }
 
 export const jobSwitchPlan = {
-  // null when the user hasn't purchased — the surface then shows the ₹99 offer.
+  // null when the user hasn't subscribed — the surface then shows the ₹199/month offer.
   get: (token: string) =>
     request<JobSwitchPlan | null>("/job-switch-plan", {
       headers: { Authorization: `Bearer ${token}` },

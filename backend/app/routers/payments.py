@@ -19,14 +19,21 @@ from razorpay import errors as razorpay_errors
 from app.config import settings
 from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
-from app.services import ai_workflow_audit, job_switch_plan_service, xp_service
+from app.services import ai_workflow_audit, engagement_subscription as eng, job_switch_plan_service, xp_service
 
 CURRENCY = "INR"
 RAZORPAY_ORDER_TIMEOUT_SECONDS = 12
 
-# Webhook events that fulfil an order. `payment.captured` is the canonical
-# money-received signal and always carries the payment entity (order_id + id).
+# Webhook events that fulfil money received. `payment.captured` is the one-shot
+# path. Subscription charges use `subscription.charged` (first month and renewals).
 _HANDLED_WEBHOOK_EVENTS = {"payment.captured"}
+_SUBSCRIPTION_WEBHOOK_EVENTS = {
+    "subscription.charged",
+    "subscription.activated",
+    "subscription.cancelled",
+    "subscription.completed",
+    "subscription.halted",
+}
 
 
 @dataclass(frozen=True)
@@ -44,9 +51,9 @@ class Product:
 PRODUCTS: dict[str, Product] = {
     "xp_pack": Product(key="myro_xp_launch_pack", price_paise=9900, xp_amount=1000, kind="xp"),
     "myrology": Product(key="myro_myrology_unlock", price_paise=29900, xp_amount=0, kind="entitlement"),
-    # ₹99 Personalised Job-Switch Plan (#33). Entitlement → activates the living
-    # plan + auto-fires review 1 via job_switch_plan_service (fulfilment branch).
-    "job_switch_plan": Product(key="myro_job_switch_plan", price_paise=9900, xp_amount=0, kind="entitlement"),
+    # ₹199 / month Personalised Engagement (ENG1). Entitlement → staffs the
+    # scene and opens this month's human pass. Recurring charges renew the period.
+    "job_switch_plan": Product(key="myro_job_switch_plan", price_paise=19900, xp_amount=0, kind="entitlement"),
     # ₹999 AI Workflow Audit. A human reads the workflow the buyer actually runs
     # and writes them an answer, so intake is BOUNDED — see the availability
     # guard in create_order. It paywalls nothing that is free today.
@@ -82,11 +89,13 @@ class CreateOrderResponse(BaseModel):
     amount: int
     currency: str
     product: str
+    subscription_id: str | None = None
 
 
 class VerifyPaymentRequest(BaseModel):
     razorpay_payment_id: str | None = None
     razorpay_order_id: str | None = None
+    razorpay_subscription_id: str | None = None
     razorpay_signature: str | None = None
 
 
@@ -133,6 +142,11 @@ def _razorpay_client() -> razorpay.Client:
     )
     client.enable_retry(True)
     return client
+
+
+def _create_razorpay_subscription(payload: dict[str, Any]) -> dict[str, Any]:
+    client = _razorpay_client()
+    return client.subscription.create(payload, timeout=RAZORPAY_ORDER_TIMEOUT_SECONDS)
 
 
 def _create_razorpay_order(payload: dict[str, Any]) -> dict[str, Any]:
@@ -183,24 +197,21 @@ def _record_created_payment(
     receipt: str,
     xp_amount: int,
     product_key: str,
+    razorpay_subscription_id: str | None = None,
 ) -> None:
-    result = (
-        get_supabase_admin()
-        .table("billing_payments")
-        .insert(
-            {
-                "user_id": user_id,
-                "razorpay_order_id": razorpay_order_id,
-                "amount_paise": amount_paise,
-                "currency": currency,
-                "receipt": receipt,
-                "xp_amount": xp_amount,
-                "product": product_key,
-                "status": "created",
-            }
-        )
-        .execute()
-    )
+    row: dict[str, Any] = {
+        "user_id": user_id,
+        "razorpay_order_id": razorpay_order_id,
+        "amount_paise": amount_paise,
+        "currency": currency,
+        "receipt": receipt,
+        "xp_amount": xp_amount,
+        "product": product_key,
+        "status": "created",
+    }
+    if razorpay_subscription_id:
+        row["razorpay_subscription_id"] = razorpay_subscription_id
+    result = get_supabase_admin().table("billing_payments").insert(row).execute()
     if not result.data:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -215,6 +226,59 @@ def _find_payment_by_order(*, user_id: str, razorpay_order_id: str) -> dict[str,
         .select("*")
         .eq("user_id", user_id)
         .eq("razorpay_order_id", razorpay_order_id)
+        .maybe_single()
+        .execute()
+    )
+    return (result.data if result else None) or None
+
+
+def _find_payment_by_subscription_id(subscription_id: str) -> dict[str, Any] | None:
+    result = (
+        get_supabase_admin()
+        .table("billing_payments")
+        .select("*")
+        .eq("razorpay_subscription_id", subscription_id)
+        .order("created_at")
+        .limit(1)
+        .execute()
+    )
+    rows = (result.data if result else None) or []
+    return rows[0] if rows else None
+
+
+def _record_renewal_payment(
+    *,
+    user_id: str,
+    razorpay_order_id: str,
+    razorpay_payment_id: str,
+    razorpay_subscription_id: str,
+    amount_paise: int,
+    currency: str,
+    product_key: str,
+) -> None:
+    get_supabase_admin().table("billing_payments").insert(
+        {
+            "user_id": user_id,
+            "razorpay_order_id": razorpay_order_id,
+            "razorpay_payment_id": razorpay_payment_id,
+            "razorpay_subscription_id": razorpay_subscription_id,
+            "amount_paise": amount_paise,
+            "currency": currency,
+            "receipt": _default_receipt(),
+            "xp_amount": 0,
+            "product": product_key,
+            "status": "verified",
+            "verified_at": datetime.now(timezone.utc).isoformat(),
+        }
+    ).execute()
+
+
+def _find_payment_by_payment_id(razorpay_payment_id: str) -> dict[str, Any] | None:
+    result = (
+        get_supabase_admin()
+        .table("billing_payments")
+        .select("*")
+        .eq("razorpay_payment_id", razorpay_payment_id)
         .maybe_single()
         .execute()
     )
@@ -267,12 +331,13 @@ def _unlock_myrology(user_id: str) -> None:
     ).eq("id", user_id).execute()
 
 
-def _apply_entitlement(user_id: str, product: Product) -> None:
+def _apply_entitlement(user_id: str, product: Product, payment: dict[str, Any] | None = None) -> None:
     """Grant the effect of an entitlement product. Dispatches by product key so
     each entitlement owns its own fulfilment (Myrology unlock vs Job-Switch Plan
     activation). Runs inside the won-CAS path → exactly-once."""
     if product.key == PRODUCTS["job_switch_plan"].key:
-        job_switch_plan_service.activate_plan(user_id)
+        sub_id = str((payment or {}).get("razorpay_subscription_id") or "") or None
+        job_switch_plan_service.activate_plan(user_id, subscription_id=sub_id)
     elif product.key == PRODUCTS["ai_workflow_audit"].key:
         ai_workflow_audit.activate_audit(user_id)
     else:
@@ -288,13 +353,62 @@ async def _apply_fulfilment(user_id: str, product: Product, payment: dict[str, A
     verify path, the webhook, and webhook retries — never double-credit / double-grant.
     """
     if product.kind == "entitlement":
-        await run_in_threadpool(_apply_entitlement, user_id, product)
+        await run_in_threadpool(_apply_entitlement, user_id, product, payment)
         return await xp_service.get_xp_balance(user_id)
     xp_amount = int(payment.get("xp_amount") or product.xp_amount)
     return await xp_service.earn_xp(user_id, xp_amount)
 
 
-@router.post("/create-order", response_model=CreateOrderResponse)
+async def _create_engagement_subscription(
+    user_id: str,
+    product: Product,
+    currency: str,
+    receipt: str,
+) -> CreateOrderResponse:
+    eng.require_sale(open_pass_count=job_switch_plan_service.open_pass_count)
+    if await run_in_threadpool(job_switch_plan_service.has_active_subscription, user_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="You already have a live engagement.",
+        )
+    try:
+        sub = await run_in_threadpool(_create_razorpay_subscription, eng.subscription_payload())
+    except (razorpay_errors.BadRequestError, razorpay_errors.GatewayError, razorpay_errors.ServerError) as exc:
+        logger.warning("Razorpay subscription create failed reason=%s", type(exc).__name__)
+        raise _razorpay_error(exc) from exc
+    except requests.exceptions.RequestException as exc:
+        logger.error("Razorpay network failure reason=%s", type(exc).__name__)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Payment gateway is temporarily unavailable",
+        ) from exc
+    sub_id = sub.get("id")
+    if not sub_id:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Razorpay did not return a subscription id",
+        )
+    await run_in_threadpool(
+        _record_created_payment,
+        user_id=user_id,
+        razorpay_order_id=str(sub_id),
+        amount_paise=product.price_paise,
+        currency=currency,
+        receipt=receipt,
+        xp_amount=0,
+        product_key=product.key,
+        razorpay_subscription_id=str(sub_id),
+    )
+    return CreateOrderResponse(
+        order_id=str(sub_id),
+        amount=product.price_paise,
+        currency=currency,
+        product=product.key,
+        subscription_id=str(sub_id),
+    )
+
+
+@router.post("/create-order", response_model=CreateOrderResponse, response_model_exclude_none=True)
 async def create_order(
     body: CreateOrderRequest,
     principal: Principal = Depends(get_principal),
@@ -329,6 +443,9 @@ async def create_order(
     receipt = _default_receipt()
     if len(receipt) > 40:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Receipt must be 40 characters or fewer")
+
+    if product.key == PRODUCTS["job_switch_plan"].key:
+        return await _create_engagement_subscription(principal.id, product, currency, receipt)
 
     payload = {
         "amount": product.price_paise,
@@ -399,7 +516,15 @@ async def verify_payment(
     if not payment:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown payment order")
 
-    if not _signature_matches(body.razorpay_order_id, body.razorpay_payment_id, body.razorpay_signature):
+    secret = _clean_credential(settings.razorpay_key_secret)
+    sub_id = body.razorpay_subscription_id or payment.get("razorpay_subscription_id")
+    if sub_id:
+        signed = eng.subscription_signature_matches(
+            body.razorpay_payment_id, str(sub_id), body.razorpay_signature, secret
+        )
+    else:
+        signed = _signature_matches(body.razorpay_order_id, body.razorpay_payment_id, body.razorpay_signature)
+    if not signed:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Signature mismatch")
 
     product = _PRODUCT_BY_KEY.get(str(payment.get("product") or XP_PACK_PRODUCT))
@@ -457,6 +582,56 @@ async def _fulfilment_snapshot(user_id: str, product: Product) -> VerifyPaymentR
     )
 
 
+async def _reconcile_subscription_event(event: dict[str, Any], signature: str) -> WebhookAck:
+    charge = eng.parse_subscription_event(event)
+    if charge is None:
+        return WebhookAck(status="ignored")
+    if eng.is_stop_event(charge.event):
+        await run_in_threadpool(job_switch_plan_service.mark_subscription_stopped, charge.subscription_id)
+        return WebhookAck(status="stopped")
+    payment = await run_in_threadpool(_find_payment_by_subscription_id, charge.subscription_id)
+    if not payment:
+        logger.warning("metric webhook.unknown_subscription")
+        return WebhookAck(status="unknown_order")
+    product = _PRODUCT_BY_KEY.get(str(payment.get("product") or XP_PACK_PRODUCT))
+    if product is None:
+        return WebhookAck(status="unknown_product")
+    if payment.get("status") == "created":
+        if not charge.payment_id:
+            return WebhookAck(status="ignored")
+        updated = await run_in_threadpool(
+            _mark_payment_verified,
+            payment_row_id=payment["id"],
+            razorpay_payment_id=charge.payment_id,
+            razorpay_signature=f"webhook:{signature[:80]}",
+        )
+        if not updated:
+            return WebhookAck(status="already_verified")
+        await _apply_fulfilment(str(payment["user_id"]), product, payment)
+        return WebhookAck(status="reconciled")
+    if charge.payment_id and charge.payment_id == payment.get("razorpay_payment_id"):
+        return WebhookAck(status="already_verified")
+    if not charge.payment_id:
+        return WebhookAck(status="ignored")
+    already = await run_in_threadpool(_find_payment_by_payment_id, charge.payment_id)
+    if already:
+        return WebhookAck(status="already_verified")
+    order_id = charge.order_id or f"subcharge_{charge.payment_id}"
+    await run_in_threadpool(
+        _record_renewal_payment,
+        user_id=str(payment["user_id"]),
+        razorpay_order_id=order_id,
+        razorpay_payment_id=charge.payment_id,
+        razorpay_subscription_id=charge.subscription_id,
+        amount_paise=product.price_paise,
+        currency=CURRENCY,
+        product_key=product.key,
+    )
+    await run_in_threadpool(job_switch_plan_service.renew_period, str(payment["user_id"]))
+    logger.info("metric webhook.subscription_renewed sub=%s", charge.subscription_id)
+    return WebhookAck(status="renewed")
+
+
 class WebhookAck(BaseModel):
     status: str
 
@@ -496,6 +671,8 @@ async def razorpay_webhook(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Malformed webhook payload")
 
     event_type = event.get("event") if isinstance(event, dict) else None
+    if event_type in _SUBSCRIPTION_WEBHOOK_EVENTS:
+        return await _reconcile_subscription_event(event, x_razorpay_signature)
     if event_type not in _HANDLED_WEBHOOK_EVENTS:
         return WebhookAck(status="ignored")
 

@@ -1,54 +1,33 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { Suspense, useCallback, useEffect, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Compass, ArrowRight, CheckCircle2 } from "lucide-react"
-import { billing, jobSwitchPlan, type JobSwitchPlan } from "@/lib/api"
+import { jobSwitchPlan, type JobSwitchPlan } from "@/lib/api"
+import { captureAttribution } from "@/lib/attribution"
+import { startEngagementCheckout } from "@/lib/engagement-checkout"
 import { getAccessToken } from "@/lib/session"
-import { loadRazorpay } from "@/lib/razorpay"
 import { formatDate } from "@/lib/format"
 import "./job-switch-plan.css"
 
-/* ₹99 Personalised Job-Switch Plan surface (#33). Two states:
-   no plan → the ₹99 offer + Razorpay checkout; has plan → the living plan meta,
-   the two-review lifecycle (B6), and the on-demand second-review request. The
-   living SKILL content lives on Practice (/practice) — this page links there rather
-   than duplicating the gap engine. Razorpay loads only after checkout starts. */
-
 const POINTS = [
-  "A personalised plan built from the exact gaps between your CV and the role you want",
-  "A levelled path to close them — upskill or cross-skill, step by step",
-  "Two human reviews within 120 days — a real coach reads your plan, not just the algorithm",
+  "This job, this CV, this skill path. One scene, kept staffed.",
+  "A named reviewer makes one human pass each billing month.",
+  "Guidance is ours. Getting the job is yours. Cancel when you convert.",
 ]
-
-interface RazorpaySuccess {
-  razorpay_payment_id: string
-  razorpay_order_id: string
-  razorpay_signature: string
-}
-interface RazorpayOptions {
-  key: string
-  amount: number
-  currency: string
-  name: string
-  description: string
-  order_id: string
-  theme?: { color?: string }
-  modal?: { confirm_close?: boolean; ondismiss?: () => void }
-  handler: (r: RazorpaySuccess) => void
-}
-interface RazorpayInstance {
-  open: () => void
-  on: (e: "payment.failed", h: (r: { error?: { description?: string; reason?: string } }) => void) => void
-}
-type RazorpayCtor = new (o: RazorpayOptions) => RazorpayInstance
 
 type PayStatus = "idle" | "starting" | "verifying"
 
-export default function JobSwitchPlanPage() {
+function isLinkedInDoor(params: URLSearchParams) {
+  return params.get("from") === "linkedin_services" || params.get("utm_source") === "linkedin_services"
+}
+
+function JobSwitchPlanPage() {
   const router = useRouter()
-  const [plan, setPlan] = useState<JobSwitchPlan | null | undefined>(undefined) // undefined = loading
+  const params = useSearchParams()
+  const linkedInDoor = isLinkedInDoor(params)
+  const [plan, setPlan] = useState<JobSwitchPlan | null | undefined>(undefined)
   const [payStatus, setPayStatus] = useState<PayStatus>("idle")
   const [requesting, setRequesting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -56,26 +35,37 @@ export default function JobSwitchPlanPage() {
   const load = useCallback(async () => {
     const token = getAccessToken()
     if (!token) {
+      if (linkedInDoor) {
+        setPlan(null)
+        return
+      }
       router.push("/login")
       return
     }
     try {
       setPlan(await jobSwitchPlan.get(token))
     } catch {
-      setError("Couldn't load your plan. Refresh to retry.")
+      setError("Couldn't load your scene. Refresh to retry.")
       setPlan(null)
     }
-  }, [router])
+  }, [router, linkedInDoor])
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href)
+      if (linkedInDoor && !url.searchParams.get("utm_source")) {
+        url.searchParams.set("utm_source", "linkedin_services")
+      }
+      captureAttribution(url.toString())
+    }
     void load()
-  }, [load])
+  }, [load, linkedInDoor])
 
   const startCheckout = useCallback(() => {
     setError(null)
     const token = getAccessToken()
     if (!token) {
-      router.push("/login")
+      router.push(linkedInDoor ? "/signup?utm_source=linkedin_services" : "/login")
       return
     }
     const key = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
@@ -84,57 +74,24 @@ export default function JobSwitchPlanPage() {
       return
     }
     setPayStatus("starting")
-    void (async () => {
-      try {
-        const Razorpay = await loadRazorpay<RazorpayCtor>()
-        if (!Razorpay) {
-          setPayStatus("idle")
-          setError("Checkout isn't available right now. Please try again shortly.")
-          return
-        }
-        const order = await billing.createOrder(token, "job_switch_plan")
-        let completed = false
-        const checkout = new Razorpay({
-          key,
-          amount: order.amount,
-          currency: order.currency,
-          name: "Myro · Job-Switch Plan",
-          description: "Personalised Job-Switch Plan — intro",
-          order_id: order.order_id,
-          theme: { color: "#FF4C00" },
-          modal: { confirm_close: true, ondismiss: () => { if (!completed) setPayStatus("idle") } },
-          handler: (response) => {
-            completed = true
-            setPayStatus("verifying")
-            void (async () => {
-              try {
-                const verified = await billing.verifyPayment(token, response)
-                if (verified.job_switch_plan_active) {
-                  setPayStatus("idle")
-                  await load()
-                } else {
-                  setPayStatus("idle")
-                  setError("Payment captured but the plan didn't activate. Contact support — we'll sort it.")
-                }
-              } catch {
-                setPayStatus("idle")
-                setError("We couldn't confirm the payment. If you were charged it will reconcile shortly.")
-              }
-            })()
-          },
-        })
-        checkout.on("payment.failed", (r) => {
-          completed = true
-          setPayStatus("idle")
-          setError(r.error?.description || r.error?.reason || "Payment failed. Please retry.")
-        })
-        checkout.open()
-      } catch {
+    void startEngagementCheckout({
+      token,
+      key,
+      onVerifying: () => setPayStatus("verifying"),
+      onDismiss: () => setPayStatus("idle"),
+      onFailed: (message) => {
         setPayStatus("idle")
-        setError("Couldn't start checkout. Please retry.")
+        setError(message)
+      },
+    }).then(async (result) => {
+      if (result === "active") {
+        setPayStatus("idle")
+        await load()
+        return
       }
-    })()
-  }, [router, load])
+      if (result === "dismissed") setPayStatus("idle")
+    })
+  }, [router, load, linkedInDoor])
 
   const requestSecond = useCallback(async () => {
     const token = getAccessToken()
@@ -145,25 +102,28 @@ export default function JobSwitchPlanPage() {
       await jobSwitchPlan.requestReview(token)
       await load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't request the review.")
+      setError(e instanceof Error ? e.message : "Couldn't request the pass.")
     } finally {
       setRequesting(false)
     }
   }, [load])
 
+  const live = plan?.window_open !== false
+  const pending = plan?.reviews.find((r) => r.status !== "delivered")
+
   return (
     <div className="jsp-wrap">
-      <span className="jsp-kicker">Personalised Job-Switch Plan</span>
+      <span className="jsp-kicker">Personalised Engagement</span>
 
       {plan === undefined && <div className="jsp-skeleton" style={{ marginTop: 24 }} />}
 
       {plan === null && (
         <>
-          <h1 className="jsp-title">Close the gap to the job you want.</h1>
+          <h1 className="jsp-title">Keep a person on this scene.</h1>
           <p className="jsp-sub">
-            A guided path to make you the obvious hire. We don&apos;t place you — we close the gap
-            so you can. Your plan is ready instantly; a Myro coach adds a personalised review within
-            5 working days.
+            {linkedInDoor
+              ? "Month 1 is the resume you asked for, written against the job you name, delivered here."
+              : "A reviewer reads this CV against this job each month. We make you switch-ready. We do not place you."}
           </p>
           <div className="jsp-card">
             <ul className="jsp-points">
@@ -171,10 +131,10 @@ export default function JobSwitchPlanPage() {
             </ul>
             <div className="jsp-offer-foot">
               <span className="jsp-price">
-                <strong>₹99</strong> to start <span className="jsp-price-note">intro price</span>
+                <strong>₹199</strong> <span className="jsp-price-note">/ month</span>
               </span>
               <button className="jsp-btn" onClick={startCheckout} disabled={payStatus !== "idle"}>
-                {payStatus === "starting" ? "Opening checkout…" : payStatus === "verifying" ? "Confirming…" : "Start my plan"}
+                {payStatus === "starting" ? "Opening checkout…" : payStatus === "verifying" ? "Confirming…" : "Staff this scene"}
                 <ArrowRight size={16} strokeWidth={1.5} aria-hidden />
               </button>
             </div>
@@ -185,7 +145,7 @@ export default function JobSwitchPlanPage() {
 
       {plan && (
         <>
-          <h1 className="jsp-title">Your Job-Switch Plan.</h1>
+          <h1 className="jsp-title">{live ? "Your scene." : "This scene is no longer staffed."}</h1>
           <div className="jsp-card">
             <div className="jsp-meta-row">
               <div className="jsp-meta">
@@ -193,13 +153,13 @@ export default function JobSwitchPlanPage() {
                 <span className="jsp-meta-v">{plan.target_role || "Set in your job feed"}</span>
               </div>
               <div className="jsp-meta">
-                <span className="jsp-meta-k">Reviews used</span>
-                <span className="jsp-meta-v">{plan.reviews_used} / 2</span>
+                <span className="jsp-meta-k">Passes delivered</span>
+                <span className="jsp-meta-v">{plan.reviews_used}</span>
               </div>
               <div className="jsp-meta">
-                <span className="jsp-meta-k">Review window</span>
+                <span className="jsp-meta-k">This month</span>
                 <span className="jsp-meta-v">
-                  {plan.window_open ? `open until ${formatDate(plan.window_expires_at)}` : "closed"}
+                  {live ? `staffed until ${formatDate(plan.window_expires_at)}` : "cancelled"}
                 </span>
               </div>
             </div>
@@ -208,14 +168,14 @@ export default function JobSwitchPlanPage() {
           <div className="jsp-card">
             <div className="jsp-reviews">
               {plan.reviews.length === 0 && (
-                <p className="jsp-note">Your first review is being prepared.</p>
+                <p className="jsp-note">This month&apos;s pass is being prepared.</p>
               )}
               {plan.reviews.map((r) => (
                 <div className="jsp-review" key={r.id}>
                   <div className="jsp-review-head">
                     <span className="jsp-review-no">
                       {r.status === "delivered" && <CheckCircle2 size={15} strokeWidth={2} aria-hidden style={{ verticalAlign: "-2px", marginRight: 6 }} />}
-                      Review {r.review_no}
+                      Pass {r.review_no}
                     </span>
                     <span className="jsp-pill" data-status={r.status}>
                       {r.status === "in_progress" ? "in progress" : r.status}
@@ -224,32 +184,39 @@ export default function JobSwitchPlanPage() {
                   {r.status === "delivered" && r.review_text ? (
                     <p className="jsp-review-text">{r.review_text}</p>
                   ) : (
-                    <p className="jsp-review-sla">A Myro coach will respond by {formatDate(r.sla_due_at)}.</p>
+                    <p className="jsp-review-sla">A Myro reviewer will respond by {formatDate(r.sla_due_at)}.</p>
                   )}
                 </div>
               ))}
             </div>
 
             <div className="jsp-actions">
-              <button
-                className="jsp-btn"
-                onClick={requestSecond}
-                disabled={!plan.can_request_second_review || requesting}
-              >
-                {requesting ? "Requesting…" : "Request your second review"}
-              </button>
+              {live && (
+                <button
+                  className="jsp-btn"
+                  onClick={requestSecond}
+                  disabled={!plan.can_request_second_review || requesting}
+                >
+                  {requesting ? "Requesting…" : pending ? "Pass in progress" : "Request this month's pass"}
+                </button>
+              )}
               <Link className="jsp-btn jsp-btn-ghost" href="/practice">
                 <Compass size={16} strokeWidth={1.5} aria-hidden />
-                Work your plan in Practice
+                Work the path
               </Link>
             </div>
-            {!plan.can_request_second_review && plan.reviews_used < 2 && plan.window_open && (
-              <p className="jsp-note">Your second review unlocks once the first is delivered.</p>
-            )}
             {error && <p className="jsp-error">{error}</p>}
           </div>
         </>
       )}
     </div>
+  )
+}
+
+export default function JobSwitchPlanRoute() {
+  return (
+    <Suspense fallback={<div className="jsp-wrap"><div className="jsp-skeleton" style={{ marginTop: 24 }} /></div>}>
+      <JobSwitchPlanPage />
+    </Suspense>
   )
 }

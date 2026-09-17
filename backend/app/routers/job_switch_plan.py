@@ -1,11 +1,10 @@
-"""₹99 Personalised Job-Switch Plan — owner read + second-review request, plus
-the founder/HITL review-delivery endpoint (#33).
+"""₹99 Personalised Job-Switch Plan — owner read + monthly pass request, plus
+the founder/HITL review-delivery endpoint.
 
 Payment + activation live in routers/payments.py (a "job_switch_plan" entitlement
 product → job_switch_plan_service.activate_plan). This router is the post-purchase
-surface: read your plan + reviews, request the second review, and (token-gated)
-deliver a review. The living skill content is composed client-side from the
-existing skill surfaces — this returns plan meta + review lifecycle only.
+surface: read your scene + passes, request this month's pass, and (token-gated)
+deliver a review.
 """
 
 from __future__ import annotations
@@ -44,6 +43,7 @@ class PlanResponse(BaseModel):
     reviews: list[ReviewResponse]
     can_request_second_review: bool
     window_open: bool
+    subscription_status: str = "active"
 
 
 class ReviewStatusUpdate(BaseModel):
@@ -74,6 +74,7 @@ def _to_plan_response(state: dict) -> PlanResponse:
         ],
         can_request_second_review=bool(state["can_request_second_review"]),
         window_open=bool(state["window_open"]),
+        subscription_status=str(state.get("subscription_status") or plan.get("subscription_status") or "active"),
     )
 
 
