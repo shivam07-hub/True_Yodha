@@ -227,10 +227,10 @@ def test_land_role_take_does_not_rewrite_a_sibling():
             {"role_index": 1, "changed": True, "bullets": [{"text": "Mentor 1."}]},
         ],
     }
-    out = cv_weave.land_role(draft, proposal, 1, action="take", master=CV, extras=False)
+    out = cv_weave.land_role(draft, proposal, 1, action="take", master=CV)
     assert out["experience"][0]["bullets"] == ["I reworded this after Take."]
     assert out["experience"][1]["bullets"] == ["Mentor 1."]
-    undone = cv_weave.land_role(out, proposal, 1, action="undo", master=CV, extras=False)
+    undone = cv_weave.land_role(out, proposal, 1, action="undo", master=CV)
     assert undone["experience"][1]["bullets"] == CV["experience"][1]["bullets"]
     assert undone["experience"][0]["bullets"] == ["I reworded this after Take."]
 
@@ -247,7 +247,7 @@ def test_land_role_original_pointer_puts_the_old_line_back():
         }],
     }
     out = cv_weave.land_role(
-        CV, proposal, 0, action="take", master=CV, extras=False, original_indexes=[0],
+        CV, proposal, 0, action="take", master=CV, original_indexes=[0],
     )
     assert out["experience"][0]["bullets"] == [
         "Generated $2M pipeline.",
@@ -797,3 +797,75 @@ def test_a_whole_bullet_carries_no_ask_into_the_job_room(monkeypatch):
     )]
     questions = _run(cv_weave_interview.build_interview("u1", items, CV))
     assert questions[0].options[0].asks == []
+
+
+# ── the CV-wide lines: guarded, and never a passenger (ADR-0016) ──────────────
+
+def test_extras_guard_rejects_a_figure_the_user_never_stated():
+    own = "Generated over $500K in sales. Orchestrated migration of 50+ legacy datasets."
+    assert cv_weave.extras_guard_ok("GTM leader who sold $500K across cloud platforms.", own)
+    assert cv_weave.extras_guard_ok("GTM leader with no numbers at all.", own)
+    assert cv_weave.extras_guard_ok(None, own)
+    assert not cv_weave.extras_guard_ok("GTM leader with 12 years and $9M closed.", own)
+
+
+def test_build_proposal_drops_a_summary_that_mints_a_number():
+    parsed = {
+        "summary": "Ten years and $9M in closed revenue.",
+        "skills_line": "Sales, GTM, Pricing",
+        "roles": [{
+            "role_index": 1, "why": "w",
+            "bullets": [{"text": "Orchestrated migration of 50+ legacy datasets on Cloud.",
+                         "from": [0], "story_ids": [], "used_answer": False}],
+            "dropped": [],
+        }],
+    }
+    out = cv_weave.build_proposal(CV, parsed, [], [], [])
+    assert out is not None
+    assert out["summary"] is None, "a minted figure must not reach the card"
+    assert out["skills_line"] == "Sales, GTM, Pricing", "a clean extra survives"
+
+
+def test_land_role_never_touches_the_cv_wide_lines():
+    proposal = {
+        "summary": "Mentor's summary.", "skills_line": "Mentor, Skills",
+        "roles": [{"role_index": 0, "changed": True, "bullets": [{"text": "Mentor 0."}]}],
+    }
+    out = cv_weave.land_role(CV, proposal, 0, action="take", master=CV)
+    assert out["summary"] == "Old summary"
+    assert out["skills_line"] == "Sales, GTM"
+
+
+def test_land_extras_is_the_only_door_and_honours_each_answer():
+    proposal = {"summary": "Mentor's summary.", "skills_line": "Mentor, Skills", "roles": []}
+    taken = cv_weave.land_extras(
+        CV, proposal, action="take", master=CV,
+        accept_summary=True, accept_skills_line=True,
+    )
+    assert taken["summary"] == "Mentor's summary."
+    assert taken["skills_line"] == "Mentor, Skills"
+    kept = cv_weave.land_extras(CV, proposal, action="take", master=CV)
+    assert kept["summary"] == "Old summary"
+    assert kept["skills_line"] == "Sales, GTM"
+    # Undo puts the MASTER's own top-of-CV lines back, the way a role's does.
+    undone = cv_weave.land_extras(taken, proposal, action="undo", master=CV)
+    assert undone["summary"] == "Old summary"
+    assert undone["skills_line"] == "Sales, GTM"
+
+
+def test_cache_round_trips_the_extras_decision():
+    raw = cv_weave_cache.dump(
+        {"fingerprint": "abc"}, applied_version_id=7,
+        accepted_roles=[0], decided_roles=[0],
+        extras_decided=True, extras_accepted=False,
+    )
+    back = cv_weave_cache.load(raw)
+    assert back is not None
+    assert back.extras_decided is True
+    assert back.extras_accepted is False
+
+
+def test_a_bare_proposal_has_no_extras_decision_yet():
+    back = cv_weave_cache.load(cv_weave_cache.dump({"fingerprint": "abc"}))
+    assert back is not None
+    assert back.extras_decided is False

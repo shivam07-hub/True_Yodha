@@ -471,6 +471,14 @@ Two Tier-0 tables hold it — `role_family_scope` (family × seniority → job_c
 
 **Unknown is a third state.** An empty vocabulary (no direction chosen, or a family the snapshot does not hold) and a listing naming no skills both read `unknown`, never `off_direction`. Absence is not a verdict, and an ungradable job must be neither hidden nor promoted on the strength of missing data.
 
+## Passed On
+
+**A direction the user rejected twice stops being picked.** `matching/passed_on` counts `personal / not_my_role` skips from `job_feedback_events` over 90 days, grades each skipped job against every direction (the same 2-of-12 rule as **Direction Fit**), and passes on the directions that reach two. Capped at twelve — past that the signal is "my direction is wrong", which is the Direction step's question, not this one's.
+
+**What it never does.** It never passes on a direction the user CHOSE: saying "not my role" inside your own target means the target may be wrong, and only the user changes that. It never passes on a SKILL either — stakeholder management belongs to IT Strategy and Sales Management both, so rejecting two tech roles that ask for it leaves every sales role that asks for it exactly where it was. Whole profiles are passed on, never the skills inside them. Grading is per direction, never against a union of them.
+
+**Visible and reversible.** The band names what it stopped picking, and "Show these again" (`DELETE /jobs/agent-picks/passed-on`) moves `user_profiles.passed_on_cleared_at` — the instant skips are counted from — while deleting none of the evidence. `passed_on_directions` is a snapshot the pick regen stamps so the band can name them without re-deriving; the rule stays in the module, the evidence stays in `job_feedback_events`. Three reads, all on the regen (a background path), fail-soft to "nothing is passed on" — which shows MORE jobs, the harmless side.
+
 ## Skill Level and Role Standing
 
 **A skill's Level is the higher of what the CV evidences (`user_skills`) and what
@@ -589,6 +597,35 @@ with no collected job.
 - Table `reach_targets`, own-only RLS. Cap 80 per user.
 
 Surfaces: job Reach section (`ReachLog`), Collections desk strip, `/reach`.
+
+**Not this:** LinkedIn Services inbound (strangers asking HiMyro to write a
+resume) is the opposite direction. Those requests become an Engagement Scene,
+not a Reach Target. Contract: [OFFERING.md](OFFERING.md).
+
+---
+
+## Engagement Scene
+
+The paid room for **Personalised Engagement** (₹199 / month, ENG1). Not a
+pricing card. One scene per subscriber:
+
+- the collected job (company, title — the prep room they are in)
+- the CV of record, read against that job
+- the skill path for that target
+- a named reviewer and a date (one human pass per billing month)
+
+**Doors.** LinkedIn Services *Resume Writing* inbound, and Myro's last CTA
+(today still the ₹99 "Have this CV read against the job" line). Same queue.
+Month 1 from LinkedIn **is** the resume they asked for, delivered in Myro.
+A month exists because conversion is theirs: if they have not got the job,
+they still need the scene. Myro does not sell the offer.
+
+**Invariants**
+
+- Not placement. Not unlimited rewrites. Not Myro sending LinkedIn mail.
+- Razorpay Subscriptions are not in code yet; checkout still charges the ₹99
+  one-shot `job_switch_plan`.
+- Full contract: [OFFERING.md](OFFERING.md).
 
 ---
 

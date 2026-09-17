@@ -1714,6 +1714,9 @@ export interface WeaveGetResponse {
   applied?: boolean
   accepted_roles?: number[]
   decided_roles?: number[]
+  /** The summary / skills-line card has had its Keep or Take. */
+  extras_decided?: boolean
+  extras_accepted?: boolean
 }
 
 /** One remembered fact in the user_memory store (authored or distilled). */
@@ -2274,8 +2277,8 @@ export const cv = {
         acceptSummary?: boolean
         acceptSkillsLine?: boolean
         decidedRoles?: number[]
-        roleIndex?: number
-        action?: "take" | "keep" | "undo"
+        roleIndex?: number | null
+        action?: "take" | "keep" | "undo" | "extras"
         originalPointers?: number[]
       },
     ) =>
@@ -2285,8 +2288,9 @@ export const cv = {
         body: JSON.stringify({
           job_id: jobId, accepted_roles: acceptedRoles,
           decided_roles: opts?.decidedRoles ?? acceptedRoles,
-          accept_summary: opts?.acceptSummary ?? true,
-          accept_skills_line: opts?.acceptSkillsLine ?? true,
+          // Default FALSE: the CV-wide lines land only on their own card's yes.
+          accept_summary: opts?.acceptSummary ?? false,
+          accept_skills_line: opts?.acceptSkillsLine ?? false,
           role_index: opts?.roleIndex ?? null,
           action: opts?.action ?? null,
           original_pointers: opts?.originalPointers ?? [],

@@ -28,8 +28,13 @@ The product takes positions, not menus. This ADR enumerates the boundary — wha
 6. **Not a freelance / contracting marketplace.**
    No bidding, no escrow, no hour tracking. Myro is for people seeking jobs, not gigs.
 
-7. **Not a salary calculator.**
-   Salary data is downstream noise relative to the scarce resource (a tailored, scored CV). Deferred indefinitely; revisit when v2 explicit demand arrives.
+7. **Not a salary ESTIMATOR.** *(amended 2026-09-17, Shivam)*
+   Myro does not model or predict what a role pays. It may **show pay that a
+   source states** — the listing, or a public dataset imported for the purpose —
+   labelled with that source, the same rule every other figure on the platform
+   follows. The line is between reporting a number someone published and
+   inventing one. The original clause deferred all salary data indefinitely; that
+   is reopened, and nothing is built yet.
 
 8. **Not a public CV builder from scratch.**
    See "carve-out" below — this is the only exception that gets a v1 lane.

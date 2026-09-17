@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 **Date:** 2026-05-19
+**Amended:** 2026-09-17 — the product is **Myro Score**. This ADR predates the
+rename and says "Mirror" throughout; the decision is unchanged. The **table is
+still `mirror_scores`**, which is the trap worth knowing: the old name survives in
+the schema and nowhere else.
 **Context:** OQ4 — single source of truth for the Mirror Score
 
 ## Decision

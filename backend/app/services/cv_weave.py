@@ -255,6 +255,21 @@ def parse_weave_response(raw: str, blocks: list[dict[str, Any]]) -> dict | None:
     }
 
 
+def extras_guard_ok(text: str | None, allowed_text: str) -> bool:
+    """The honesty floor for the CV-WIDE lines (summary, skills line).
+
+    These have no source bullet to carry through, so `loses_metrics` and
+    `loses_substance` have nothing to compare against — the one law that still
+    bites is ADR-0016: a figure absent from the user's own material may not
+    appear. A failing extra is dropped from the proposal, so it is never shown
+    and never landed.
+    """
+    body = (text or "").strip()
+    if not body:
+        return True
+    return not gains_foreign_numbers("", body, allowed_text)
+
+
 def role_guard_ok(old_bullets: list[str], entry: dict[str, Any], allowed_text: str) -> bool:
     """The structural honesty floor, per role. Source = the old lines this entry
     claims (dropped lines excluded — dropping is allowed, mangling is not)."""
@@ -288,6 +303,9 @@ def build_proposal(
         [s.pointer + " " + s.result + " " + " ".join(s.metric_values) for s in stories]
         + [a.get("text") or "" for a in answers]
     )
+    # The CV's own lines count as the user's material for the CV-WIDE extras: a
+    # summary may restate a figure the CV already states, and nothing else.
+    own_material = " ".join([allowed_text] + [t for b in blocks for t in b["bullets"]])
     by_index = {e["role_index"]: e for e in parsed.get("roles") or []}
     roles_out: list[dict[str, Any]] = []
     changed_count = 0
@@ -322,12 +340,20 @@ def build_proposal(
                 base["guarded"] = True
                 logger.info("metric cv_weave.role_guard_failed role_index=%d", b["index"])
         roles_out.append(base)
-    if changed_count == 0 and not parsed.get("summary") and not parsed.get("skills_line"):
+    summary = parsed.get("summary")
+    if not extras_guard_ok(summary, own_material):
+        summary = None
+        logger.info("metric cv_weave.extras_guard_failed field=summary")
+    skills_line = parsed.get("skills_line")
+    if not extras_guard_ok(skills_line, own_material):
+        skills_line = None
+        logger.info("metric cv_weave.extras_guard_failed field=skills_line")
+    if changed_count == 0 and not summary and not skills_line:
         return None
     return {
         "fingerprint": source_fingerprint(cv_structured),
-        "summary": parsed.get("summary"),
-        "skills_line": parsed.get("skills_line"),
+        "summary": summary,
+        "skills_line": skills_line,
         "roles": roles_out,
         "changed_roles": changed_count,
         "requirements_total": len(coverage_items),
@@ -405,6 +431,33 @@ def _take_bullets(entry: dict, original_indexes: set[int]) -> list[str]:
     return out
 
 
+def land_extras(
+    cv_structured: dict,
+    proposal: dict,
+    *,
+    action: str,
+    master: dict,
+    accept_summary: bool = False,
+    accept_skills_line: bool = False,
+) -> dict:
+    """Land the CV-WIDE lines on the working draft.
+
+    Their own decision, never a passenger on a role's Keep/Take: a summary the
+    user has not read must not reach a CV a hiring manager will. `undo` puts the
+    master's own lines back, the same way a role's undo does.
+    """
+    next_cv = json.loads(json.dumps(cv_structured))
+    if action == "undo":
+        next_cv["summary"] = (master or {}).get("summary")
+        next_cv["skills_line"] = (master or {}).get("skills_line")
+        return next_cv
+    if accept_summary and proposal.get("summary"):
+        next_cv["summary"] = proposal["summary"]
+    if accept_skills_line and proposal.get("skills_line"):
+        next_cv["skills_line"] = proposal["skills_line"]
+    return next_cv
+
+
 def land_role(
     cv_structured: dict,
     proposal: dict,
@@ -412,15 +465,12 @@ def land_role(
     *,
     action: str,
     master: dict,
-    accept_summary: bool = True,
-    accept_skills_line: bool = True,
-    extras: bool = True,
     original_indexes: list[int] | None = None,
 ) -> dict:
     """Patch one role onto the working draft. Take writes Mentor's bullets
     (per-pointer original puts the old line back); undo restores the master's;
-    keep leaves the line. Extras land once, here, so abort never waits for a
-    final Save."""
+    keep leaves the line. Extras are NOT touched here — `land_extras` owns
+    them, on their own decision."""
     next_cv = json.loads(json.dumps(cv_structured))
     by_index = {r["role_index"]: r for r in proposal.get("roles") or []}
     blocks = next_cv.get("experience") or []
@@ -435,9 +485,4 @@ def land_role(
             blocks[role_index]["bullets"] = [
                 str(b) for b in (master_blocks[role_index].get("bullets") or [])
             ]
-    if extras:
-        if accept_summary and proposal.get("summary"):
-            next_cv["summary"] = proposal["summary"]
-        if accept_skills_line and proposal.get("skills_line"):
-            next_cv["skills_line"] = proposal["skills_line"]
     return next_cv

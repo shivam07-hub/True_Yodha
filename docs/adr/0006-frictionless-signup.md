@@ -17,7 +17,7 @@ Conclusion: anon trial is the wrong abstraction. Industry primitive = frictionle
 
 ## Decision
 
-Replace Backlog #13 (anon trial) with frictionless signup. 18 sub-decisions, summarised below. See companion `docs/grill-frictionless-signup-2026-05-24.md` for the full grilled reasoning per fork.
+Replace Backlog #13 (anon trial) with frictionless signup. 18 sub-decisions, summarised below. See companion `docs/grill-frictionless-signup-2026-05-24.md` (**never tracked** — `docs/` is gitignored except `docs/adr/`, so that transcript only ever existed on one laptop; this ADR is the whole record) for the full grilled reasoning per fork.
 
 ### Auth surface
 

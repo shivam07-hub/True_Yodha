@@ -1,5 +1,8 @@
 # Notice supersedes the saturation mailbox
 
+**Status:** Accepted
+**Date:** 2026-09-13
+
 The burst Resend mail (`Myro backend: read-latency saturation`) was a pager with no memory: 5 slow requests in 120s, 30-minute cooldown, then silence until the next burst. It could not tell a reopen from a new story, and it paged queue victims (`/users/me`) as if they were causes.
 
 We retired it. A **Notice** (CONTEXT.md) is the record — `cause_key`, not route. Failures 1–7 open a row live (no email). A daily GitHub Action harvests and sends one digest. Cursor authors the close. OpenRouter is the user-facing LLM path and is not in this loop.

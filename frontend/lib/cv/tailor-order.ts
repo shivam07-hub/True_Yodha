@@ -4,7 +4,10 @@
  * Pure. No React, no network. The playground used to always open the weave
  * overlay; a settled job (every changed role decided, no closable gaps)
  * should not. `landingStep` is the whole answer, the same way it is for Search.
+ *
+ * "Settled" is `weave-steps` arithmetic, not a second count kept here.
  */
+import { hasExtras, stepsRemaining } from "./weave-steps"
 
 export type TailorStep = "proof" | "weave" | "accept" | "gaps" | "paper"
 export type TailorOverlay = "weave" | "gaps" | null
@@ -24,16 +27,35 @@ export interface WeaveGetFacts {
   stale?: boolean
   applied?: boolean
   decided_roles?: number[]
-  proposal?: { roles: { changed: boolean }[] } | null
+  extras_decided?: boolean
+  proposal?: {
+    roles: { changed: boolean; role_index?: number }[]
+    summary?: string | null
+    skills_line?: string | null
+  } | null
 }
 
 export function factsFromGet(
   get: WeaveGetFacts | null | undefined,
   closableGaps: number | null,
 ): TailorFacts {
-  const changed = (get?.proposal?.roles ?? []).filter((r) => r.changed).length
-  const decided = get?.decided_roles?.length ?? 0
-  const acceptComplete = changed === 0 ? Boolean(get?.applied) : decided >= changed
+  const changedRoles = (get?.proposal?.roles ?? [])
+    .map((r, i) => (r.changed ? r.role_index ?? i : -1))
+    .filter((i) => i >= 0)
+  const extrasPresent = hasExtras(
+    get?.proposal?.summary ?? null,
+    get?.proposal?.skills_line ?? null,
+  )
+  // The summary card is a step like any role — a draft with it still unanswered
+  // is not settled, or the landing would skip past a line the user never saw.
+  const remaining = stepsRemaining(
+    changedRoles,
+    get?.decided_roles ?? [],
+    extrasPresent,
+    Boolean(get?.extras_decided),
+  )
+  const acceptComplete =
+    changedRoles.length === 0 && !extrasPresent ? Boolean(get?.applied) : remaining === 0
   if (!get?.purchased) {
     return { proposal: "none", acceptComplete, closableGaps }
   }
@@ -42,13 +64,6 @@ export function factsFromGet(
     acceptComplete,
     closableGaps,
   }
-}
-
-/** First changed role with no Keep/Take yet. `changed.length` means all decided. */
-export function firstUndecidedIndex(changedRoleIndexes: number[], decided: number[]): number {
-  const done = new Set(decided)
-  const at = changedRoleIndexes.findIndex((i) => !done.has(i))
-  return at === -1 ? changedRoleIndexes.length : at
 }
 
 export function landingStep(facts: TailorFacts): TailorStep {

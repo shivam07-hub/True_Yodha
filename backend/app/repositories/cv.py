@@ -177,7 +177,12 @@ class CVVersionsRepository:
     def latest_job_draft(self, user_id: str, job_id: str) -> dict[str, Any] | None:
         """This job's deterministic working draft — the Google Docs document
         Tailor Keep/Take patches in place. Not the company thread (that can
-        be a sibling job)."""
+        be a sibling job).
+
+        No ``attach_jobs`` hydration: the one caller (weave apply) already holds
+        the job row it needs, and every Keep/Take paid for that second query on
+        a click the user is waiting on.
+        """
         result = (
             self._db.table("cv_versions")
             .select("*")
@@ -189,11 +194,7 @@ class CVVersionsRepository:
             .execute()
         )
         row = (result.data or [None])[0]
-        if not row:
-            return None
-        row = self._normalized(row)
-        attach_jobs([row], self._db, "job_title, company_name")
-        return row
+        return self._normalized(row) if row else None
 
     def latest_for_thread_batch(
         self,

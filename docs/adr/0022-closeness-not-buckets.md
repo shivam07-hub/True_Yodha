@@ -36,5 +36,33 @@ direction is a named skill profile, not a container.
 - **Supersedes D2 of the 2026-07-31 role-family grill** ("families = the modal L2 cluster of
   each job's skills"). D2's premise holds for ranking a person against directions; it fails
   for placing a job.
-- `jobs.role_family` survives only as an internal step of the snapshot rebuild — never read
-  by a consumer, never maintained per row by a trigger.
+- `jobs.role_family` is not the answer to any fit question. It survives as a **recall
+  index** and nothing else — see the amendment below.
+
+## Amended 2026-09-17 — recall is not a verdict
+
+As accepted, this ADR said `role_family` was "never read by a consumer". That was
+untrue the day it was written and is untrue now: three consumers read it — the
+feed's role signal (`_role_match_score`), the matcher's boost (`job_matcher`),
+and the candidate-pool family selector (`get_candidate_job_ids_for_roles`). An
+accepted ADR that contradicts the code it governs teaches the next reader to
+trust neither.
+
+The rule it was reaching for, stated so it can be obeyed:
+
+- **Recall** — which jobs are worth looking at — may use the bucket. It is one
+  indexed equality over 46,801 rows, and being approximately right about what to
+  fetch costs nothing.
+- **A verdict** — does this job fit this person's direction — is always graded
+  from skills (`matching/direction_fit`: the job asks for 2 or more of the
+  direction's 12 most-demanded skills). Never the bucket, on any surface.
+
+Everything a user sees or the gate acts on is a verdict: the card's Pivot tag,
+the pick gate, the reach fill, the /market warm's shortlist, and `passed_on`.
+
+**What retires the column.** Grading the whole corpus per request measures
+5.8–23.2s on the shared instance (BACKLOG #46 S4), so recall stays indexed until
+the `role_family_pool(family, job_id, matched)` snapshot can be built — the same
+paid-compute gate as #16. When the selector and the feed signal both read that
+snapshot, `role_family`, `role_family_for_job` and `trg_refresh_job_role_family`
+retire together, and this amendment goes with them.
