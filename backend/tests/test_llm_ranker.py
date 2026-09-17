@@ -88,6 +88,7 @@ def test_persist_matches_writes_5axis_fields() -> None:
     assert row["llm_explanation"] == "Strong strategy fit."
     assert row["strengths"] == ["GTM depth"]
     assert row["concerns"] == ["Comp unclear"]
+    assert row["eval_outcome"] == "ok"
 
 
 def test_persist_matches_writes_6block_strategy() -> None:
@@ -138,6 +139,7 @@ def test_persist_matches_unevaluated_job_gets_null_brain_fields() -> None:
     assert row["recommendation"] is None
     assert row["strengths"] == []
     assert row["overlap_score"] == 50.0
+    assert "eval_outcome" not in row
 
 
 def test_persist_matches_ranks_evaluated_before_unevaluated() -> None:
@@ -346,7 +348,8 @@ def test_evaluate_all_fires_on_progress_per_job(monkeypatch) -> None:
     import asyncio
 
     async def fake_eval(job, system_prompt, provider):
-        return {"overall_score": 1.0, "summary": "ok"}
+        from app.services.model_outcome import ModelOutcome
+        return ModelOutcome.ok({"overall_score": 1.0, "summary": "ok"})
 
     monkeypatch.setattr(llm_ranker, "evaluate_job", fake_eval)
     monkeypatch.setattr(llm_ranker, "build_system_prompt", lambda *a, **k: "sys")

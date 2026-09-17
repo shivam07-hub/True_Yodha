@@ -18,6 +18,7 @@ from app.services.matching import match_run
 from app.services.background import TransientJobError
 from app.services.job_projection import last_monday
 from app.services.llm_provider import get_cv_skill_provider
+from app.services.model_outcome import retry_transient
 from app.services.xp_policy import CV_UPLOAD_XP_COST, CV_UPLOAD_XP_FLOOR
 from app.services.xp_service import InsufficientXPError, charge_or_raise, get_xp_balance, refund
 
@@ -642,17 +643,17 @@ async def _cv_structured_enrich_handler(
     payload: dict[str, Any], allow_retry: bool
 ) -> None:
     """Enrich CV layout after the latency-sensitive skill path is complete."""
-    structured = await cv_parser.reparse_structured_only(payload["raw_text"])
-    if structured is None:
-        if allow_retry:
-            raise TransientJobError("structured_cv_provider_unavailable")
+    outcome = await cv_parser.reparse_structured_only(payload["raw_text"])
+    retry_transient(outcome, allow_retry=allow_retry)
+    if outcome.kind != "ok" or not isinstance(outcome.value, dict):
         _log.warning(
-            "Structured CV enrichment unavailable for baseline=%s",
+            "Structured CV enrichment settled kind=%s baseline=%s",
+            outcome.kind,
             payload["baseline_version_id"],
         )
         return
     CVVersionsRepository(get_supabase_admin()).update_structured(
-        int(payload["baseline_version_id"]), structured
+        int(payload["baseline_version_id"]), outcome.value
     )
 
 

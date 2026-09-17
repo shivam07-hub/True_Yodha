@@ -22,6 +22,11 @@ from app.services import background, job_matcher, onboarding_service
 from app.services.llm_provider import LLMProvider, get_judgment_provider
 from app.services.match_credibility import evaluate_credibility
 from app.services.matching import ranking, targeting
+from app.services.model_outcome import (
+    ModelOutcome,
+    is_settled_permanent,
+    retry_transient,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -79,13 +84,13 @@ def _ranking_profile(repo: Any, user_id: str) -> dict[str, Any]:
 
 def stored_job_eval(repo: Any, user_id: str, job_id: str) -> dict[str, Any] | None:
     """Durable Answer for one job. Never a model."""
-    result, _profile = _stored_job_eval(repo, user_id, job_id)
+    result, _profile, _settled = _stored_job_eval(repo, user_id, job_id)
     return result
 
 
 def _stored_job_eval(
     repo: Any, user_id: str, job_id: str
-) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+) -> tuple[dict[str, Any] | None, dict[str, Any], bool]:
     jid = str(job_id)
     cached = repo.get_cached_match_evals(user_id, [jid], full=True).get(jid)
 
@@ -102,14 +107,14 @@ def _stored_job_eval(
     # computed before the user told Myro anything could never be revisited. Same
     # key, still free; different key, re-rate — the cost lands only where the
     # inputs actually moved. A score-less row is a Provisional Match, not a
-    # verdict, and always computes.
-    if (
-        cached
-        and cached.get("overall_score") is not None
-        and onboarding_service.eval_matches_context(cached, eval_ctx)
-    ):
-        return _brain_result(cached, cached=True), profile
-    return None, profile
+    # verdict, and always computes — unless a Model Outcome already settled
+    # permanently for this context (malformed / invalid_input).
+    if cached and onboarding_service.eval_matches_context(cached, eval_ctx):
+        if cached.get("overall_score") is not None:
+            return _brain_result(cached, cached=True), profile, False
+        if is_settled_permanent(cached):
+            return None, profile, True
+    return None, profile, False
 
 
 def enqueue_job_eval(user_id: str, job_id: str) -> None:
@@ -127,11 +132,13 @@ def open_job_eval(repo: Any, user_id: str, job_id: str) -> dict[str, Any] | None
     """Return the stored verdict, or enqueue the write and return None.
 
     Opening a job may start a named write. It must not wait on a model.
+    A permanent Model Outcome is not a verdict and does not enqueue again.
     """
-    stored = stored_job_eval(repo, user_id, job_id)
+    stored, _profile, settled = _stored_job_eval(repo, user_id, job_id)
     if stored is not None:
         return stored
-    enqueue_job_eval(user_id, job_id)
+    if not settled:
+        enqueue_job_eval(user_id, job_id)
     return None
 
 
@@ -140,15 +147,17 @@ async def ensure_job_eval(
     provider: LLMProvider,
     user_id: str,
     job_id: str,
+    *,
+    allow_retry: bool = False,
 ) -> dict[str, Any] | None:
     """Compute + cache the brain eval for one job if it is not already stored.
 
     The HTTP open path uses ``open_job_eval``. This is the named write the
-    worker runs. Returns ``None`` if the job doesn't exist or the brain fails
-    (the caller keeps showing deterministic overlap — degradation, not an error).
+    worker runs. Returns ``None`` if the job doesn't exist, the Model Outcome
+    is not ``ok``, or a permanent outcome already settled for this context.
     """
-    stored, profile = _stored_job_eval(repo, user_id, job_id)
-    if stored is not None:
+    stored, profile, settled = _stored_job_eval(repo, user_id, job_id)
+    if stored is not None or settled:
         return stored
 
     jid = str(job_id)
@@ -165,13 +174,22 @@ async def ensure_job_eval(
     job_skill_rows = repo.get_all_job_skill_rows(job_ids=[jid])
     shaped = _shape_single_job(meta_rows[0], job_skill_rows, user_skill_map)
 
-    ev = await ranking.rank_one(profile, profile.get("cv_markdown") or "", shaped, provider)
-    if ev is None:
-        logger.info("on_demand brain: eval failed/unavailable for job=%s", jid)
+    outcome = await ranking.rank_one(
+        profile, profile.get("cv_markdown") or "", shaped, provider
+    )
+    retry_transient(outcome, allow_retry=allow_retry)
+    if outcome.kind == "ok" and isinstance(outcome.value, dict):
+        _persist(repo, user_id, shaped, profile, outcome.value)
+        return _brain_result(outcome.value, cached=False)
+    if not outcome.retryable:
+        _persist_refusal(repo, user_id, shaped, profile, outcome)
+        logger.info(
+            "on_demand brain: settled kind=%s job=%s detail=%s",
+            outcome.kind, jid, outcome.detail,
+        )
         return None
-
-    _persist(repo, user_id, shaped, profile, ev)
-    return _brain_result(ev, cached=False)
+    logger.info("on_demand brain: eval unavailable for job=%s", jid)
+    return None
 
 
 @background.handler("job_brain_eval")
@@ -183,9 +201,9 @@ async def _job_brain_eval_handler(payload: dict[str, Any], allow_retry: bool) ->
     job_id = str(payload["job_id"])
     db = get_supabase_admin()
     repo = JobsRepository(db, db)
-    result = await ensure_job_eval(repo, get_judgment_provider(), user_id, job_id)
-    if result is None and allow_retry and repo.get_jobs_by_ids([job_id]):
-        raise background.TransientJobError("job_brain_eval_unavailable")
+    await ensure_job_eval(
+        repo, get_judgment_provider(), user_id, job_id, allow_retry=allow_retry
+    )
 
 
 def _persist(
@@ -224,7 +242,37 @@ def _persist(
         "baseline_version_id": profile.get("baseline_version_id"),
         "target_context_hash": credibility.context_hash,
         "eval_context_hash": onboarding_service.eval_context_key(profile),
+        "eval_outcome": "ok",
         "seniority_compatibility": credibility.seniority_compatibility,
         "computed_at": datetime.now(timezone.utc).isoformat(),
     }
     repo.upsert_single_match_eval(user_id, row)
+
+
+def _persist_refusal(
+    repo: Any,
+    user_id: str,
+    shaped: dict[str, Any],
+    profile: dict[str, Any],
+    outcome: ModelOutcome,
+) -> None:
+    """Record a permanent Model Outcome so the next open does not re-enqueue."""
+    credibility = evaluate_credibility(profile, shaped, None, None)
+    repo.upsert_single_match_eval(user_id, {
+        "user_id": user_id,
+        "job_id": shaped["job_id"],
+        "batch_week": str(last_monday()),
+        "overlap_score": shaped["overlap_score"],
+        "matched_skills": shaped.get("matched_skills") or [],
+        "missing_skills": shaped.get("missing_skills") or [],
+        "overall_score": None,
+        "grade": None,
+        "recommendation": None,
+        "is_recommended": False,
+        "baseline_version_id": profile.get("baseline_version_id"),
+        "target_context_hash": credibility.context_hash,
+        "eval_context_hash": onboarding_service.eval_context_key(profile),
+        "eval_outcome": outcome.kind,
+        "seniority_compatibility": credibility.seniority_compatibility,
+        "computed_at": datetime.now(timezone.utc).isoformat(),
+    })

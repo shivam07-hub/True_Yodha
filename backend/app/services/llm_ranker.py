@@ -34,6 +34,7 @@ from supabase import Client
 
 from app.services import reader_voice
 from app.services.llm_provider import LLMProvider, LLMProviderError
+from app.services.model_outcome import ModelOutcome
 
 logger = logging.getLogger(__name__)
 
@@ -448,8 +449,8 @@ async def evaluate_job(
     job: dict[str, Any],
     system_prompt: str,
     provider: LLMProvider,
-) -> dict[str, Any] | None:
-    """Evaluate one job. Returns parsed eval dict or None on failure."""
+) -> ModelOutcome:
+    """Evaluate one job. Returns a Model Outcome, never a collapsed None."""
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": build_job_context(job)},
@@ -458,11 +459,15 @@ async def evaluate_job(
         content = await provider.complete(messages, max_tokens=_MAX_TOKENS)
     except LLMProviderError:
         logger.error("Job eval providers failed for job=%s", job.get("job_id"))
-        return None
+        return ModelOutcome.unavailable("provider")
+    if not (content or "").strip():
+        logger.warning("LLM ranker: empty eval for job=%s", job.get("job_id"))
+        return ModelOutcome.malformed("empty")
     parsed = parse_eval(content)
-    if parsed is None:
+    if parsed is None or parsed.get("overall_score") is None:
         logger.warning("LLM ranker: unparseable eval for job=%s", job.get("job_id"))
-    return parsed
+        return ModelOutcome.malformed("unparseable")
+    return ModelOutcome.ok(parsed)
 
 
 RankProgressCb = Callable[[int, int, dict[str, Any]], None]
@@ -488,13 +493,14 @@ async def evaluate_all(
     async def _one(job: dict[str, Any]) -> tuple[str, dict[str, Any] | None]:
         nonlocal done
         async with sem:
-            ev = await evaluate_job(job, system_prompt, provider)
+            outcome = await evaluate_job(job, system_prompt, provider)
         done += 1  # single-threaded event loop → increment is atomic
         if on_progress is not None:
             try:
                 on_progress(done, total, job)
             except Exception:
                 logger.warning("rank on_progress callback failed", exc_info=True)
+        ev = outcome.value if outcome.kind == "ok" else None
         return str(job["job_id"]), ev
 
     results = await asyncio.gather(*(_one(j) for j in top_jobs))
@@ -585,7 +591,7 @@ def persist_matches(
         is_recommended = credibility.credible and recommended_by_track.get(track_id, 0) < 3
         if is_recommended:
             recommended_by_track[track_id] = recommended_by_track.get(track_id, 0) + 1
-        rows.append({
+        row = {
             "user_id": user_id,
             "job_id": jid,
             # Which of the user's searches found this. NULL = track 1 = the
@@ -622,7 +628,12 @@ def persist_matches(
             "eval_context_hash": eval_ctx,
             "seniority_compatibility": credibility.seniority_compatibility,
             "computed_at": now,
-        })
+        }
+        # Omit eval_outcome on a Provisional Match write so an upsert cannot
+        # erase a stored permanent Model Outcome (malformed / invalid_input).
+        if overall is not None:
+            row["eval_outcome"] = "ok"
+        rows.append(row)
 
     if rows:
         # Permanent per-(user,job) identity (Backlog #36 de-weekly; migration

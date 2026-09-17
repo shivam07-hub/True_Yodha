@@ -48,6 +48,7 @@ from app.services.cv_structured_shape import (  # noqa: F401
 from app.services.cv_explicit_skills import extract_explicit_skills, reconcile_skill_signals
 from app.security.personal_data import sanitize_cv_text_for_ai
 from app.services.llm_provider import LLMProvider, LLMProviderError, get_llm_provider
+from app.services.model_outcome import ModelOutcome
 from app.services.taxonomy_loader import _name_index, lookup_by_name
 
 # pymupdf (fitz) and python-docx are imported lazily inside the extract_* helpers
@@ -554,13 +555,13 @@ Rules:
   - Do NOT invent fields, dates, or bullets."""
 
 
-async def reparse_structured_only(raw_text: str) -> dict | None:
+async def reparse_structured_only(raw_text: str) -> ModelOutcome:
     """Re-parse existing cv_raw_text to fill cv_structured (lazy backfill).
 
-    Returns the validated structured payload or None on provider failure.
+    Returns a Model Outcome, never a collapsed None.
     """
     if not raw_text or len(raw_text.strip()) < _MIN_RAW_TEXT_LEN:
-        return None
+        return ModelOutcome.invalid_input("short_text")
 
     truncated = sanitize_cv_text_for_ai(raw_text)[:_CV_TEXT_CHAR_LIMIT]
     messages = [
@@ -582,10 +583,10 @@ async def reparse_structured_only(raw_text: str) -> dict | None:
         )
     except LLMProviderError:
         logger.error("Structured re-parse: all providers failed")
-        return None
+        return ModelOutcome.unavailable("provider")
 
     if not raw:
-        return None
+        return ModelOutcome.malformed("empty")
 
     if "```" in raw:
         match = re.search(r"```(?:json)?\s*(.+?)```", raw, flags=re.DOTALL)
@@ -598,7 +599,7 @@ async def reparse_structured_only(raw_text: str) -> dict | None:
             "Structured re-parse: no JSON object in %d-char response; head=%r",
             len(raw), raw[:200],
         )
-        return None
+        return ModelOutcome.malformed("no_json")
     try:
         parsed, _ = json.JSONDecoder().raw_decode(raw, start)
     except json.JSONDecodeError:
@@ -612,8 +613,11 @@ async def reparse_structured_only(raw_text: str) -> dict | None:
             not raw.rstrip().endswith("}"),
             raw[-200:],
         )
-        return None
+        return ModelOutcome.malformed("unparseable")
 
     if not isinstance(parsed, dict):
-        return None
-    return attach_contact(_validate_structured(parsed), raw_text)
+        return ModelOutcome.malformed("not_object")
+    payload = attach_contact(_validate_structured(parsed), raw_text)
+    if not isinstance(payload, dict):
+        return ModelOutcome.malformed("empty_structure")
+    return ModelOutcome.ok(payload)

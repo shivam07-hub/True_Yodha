@@ -96,7 +96,7 @@ The resting color of a **clickable control that is not an accent CTA or accent l
 
 ## Theme Control
 
-The single surface (light/dark) switcher. `<ThemeControl>` (`components/ui/theme-control.tsx`) is the **canonical** control — there is exactly one place that knows how a user changes theme, rendered in all three homes: the account dropdown (`shell/web-chrome.tsx`), the mobile drawer (`mobile/shell.tsx`), and Settings → Appearance (`settings-modal.tsx`). Adding a new surface theme switch means rendering this primitive, never hand-rolling a segmented control.
+The single surface (light/dark) switcher. `<ThemeControl>` (`components/ui/theme-control.tsx`) is the **canonical** control — there is exactly one place that knows how a user changes theme, rendered in all three homes: the account dropdown (`shell/authed-top-strip.tsx`), the mobile drawer (`mobile/shell.tsx`), and Settings → Appearance (`settings-modal.tsx`). Adding a new surface theme switch means rendering this primitive, never hand-rolling a segmented control.
 
 **Boundary**
 
@@ -828,14 +828,14 @@ The single facade for "given a candidate pool + a targeting profile, produce ran
 
 ```py
 async def rank(profile, cv_markdown, jobs: RankCandidates, *, provider, use_brain=True, budget=None, ...) -> RankResult
-async def rank_one(profile, cv_markdown, job, provider) -> eval | None
+async def rank_one(profile, cv_markdown, job, provider) -> ModelOutcome
 ```
 
 **Invariants**
 - `ranking` **delegates, never reimplements** — it calls the same `get_top_matches` + `evaluate_all` in the same order as the old inline duo. Persistence stays in `llm_ranker.persist_matches`; `rank`/`rank_one` write nothing.
 - `RankResult.evaluations` is empty when the brain is skipped (`use_brain=False` / `provider is None`) or every eval failed — the deterministic overlap scores still stand alone, so a brain outage degrades to overlap-only matching rather than an empty feed.
 - `budget` caps how many of the shortlist reach the brain (cost control). `None` = brain the whole shortlist = the batch-compute behaviour. `rank_one` is the single-job on-demand path (a job opened/saved anywhere) whose result is **cached** into `user_job_matches` — never a per-request LLM call in bulk.
-- `RankCandidates.eval_cache_fetcher` (Backlog #36) lets `rank` skip any shortlist job already evaluated for this user — a job is brain-rated **once per `(user, job)`, ever** (permanent identity, migration 20260710), never re-paid on a later compute. Omit it for the old always-eval behaviour.
+- `RankCandidates.eval_cache_fetcher` (Backlog #36) lets `rank` skip any shortlist job already evaluated for this user — a job is brain-rated **once per `(user, job)`, ever** (permanent identity, migration 20260710), never re-paid on a later compute. A row whose **Model Outcome** is permanent (`malformed` / `invalid_input`) is also skipped, until `eval_context_hash` moves. Omit the fetcher for the old always-eval behaviour.
 - `compute_job_matches` (the batch compute — CV upload, paid Refresh, or scrape-triggered sweep) routes through `rank`; the exhausted/refund gates and candidate-id fetching stay in `jobs_workflow` (DB-coupled), unchanged. Its skip gate is **event-driven** (has-ever-matched + nothing-new-since), not calendar-driven.
 - **The model floor (F1) is owned inside `compute_job_matches`, not passed by callers.** Every judgment call (triage + eval) runs on `get_judgment_provider()` — the strong-only lane (see **Judgment provider** below). The `llm_provider` arg is a test-only override; no caller can put a small model on a ranking path.
 - **`RankCandidates.pool_augmenter`** (standardized matcher) unions the CandidatePool family selector onto the overlap pool *before* triage, keeping `rank` DB-agnostic (the caller supplies the callback). None → overlap-only pool.
@@ -1370,7 +1370,20 @@ A Job Runner listens to lanes in priority order `[fast, bulk]` — RQ pops fast 
 
 A worker process (separate from the web process) that consumes Work Lanes fast-first. Run **2** for redundancy — one keeps serving while the other restarts/deploys. Each Runner caps its own in-flight jobs low; the true provider ceiling is the **Provider Budget**, not the per-Runner cap. Entry point `app/workers/jobs_compute_worker.py`, generalised from the job-refresh-only worker.
 
-**Retry policy** — 3 retries with growing backoff (~5s/15s/45s) on TRANSIENT failure only (provider-unavailable, 429 rate-limit, timeout, network). PERMANENT failures (no skills, scanned/short PDF, taxonomy-unmapped) fail fast + refund immediately with no retry.
+**Retry policy** — 3 retries with growing backoff (~5s/15s/45s) on TRANSIENT failure only (provider-unavailable, 429 rate-limit, timeout, network). PERMANENT failures (no skills, scanned/short PDF, taxonomy-unmapped, a **Model Outcome** of `malformed` or `invalid_input`) fail fast + refund immediately with no retry.
+
+## Model Outcome
+
+The classified result of one LLM completion on a named write. Four kinds, one module (`app/services/model_outcome.py`):
+
+- **`ok`** — parsed payload the caller can persist. The Durable Answer.
+- **`unavailable`** — provider/budget/network. The only TRANSIENT kind. Work Lane raises `TransientJobError` and RQ retries (ADR-0008). Never stored: the next open may try again.
+- **`malformed`** — the model answered and we cannot use it (no JSON, truncated JSON, no score). Same prompt will not heal. Stored as `user_job_matches.eval_outcome` so opening the job does not re-enqueue.
+- **`invalid_input`** — we must not call the model (scanned/short CV text). Stored the same way.
+
+`None` is not a kind. Collapsing every failure to `None` made `job_brain_eval` and `cv_structured_enrich` retry garbage until Work Lane exhaustion, then re-enqueue on the next open. Callers read `kind`; they do not guess from a missing value.
+
+A GET still never waits on a model. A permanent outcome is not a verdict: the surface stays on overlap / `body_text`. The skip gate is `eval_outcome` plus `eval_matches_context` — when the Targeting Brief moves, the write is allowed to run again.
 
 ## Provider Budget
 

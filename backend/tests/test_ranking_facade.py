@@ -10,6 +10,7 @@ import asyncio
 from typing import Any
 
 from app.services.matching import ranking
+from app.services.model_outcome import ModelOutcome
 
 
 def _candidates(**over: Any) -> ranking.RankCandidates:
@@ -240,6 +241,29 @@ def test_rank_ignores_cached_row_with_no_verdict(monkeypatch: Any) -> None:
     assert set(captured["ids"]) == {"j1", "j2"}  # both still reach the brain
 
 
+def test_rank_skips_permanent_model_outcome(monkeypatch: Any) -> None:
+    """A malformed/invalid_input row is settled. The brain must not run again."""
+    monkeypatch.setattr(ranking.job_matcher, "get_top_matches", lambda *_a, **_k: _two_top_jobs())
+    captured: dict[str, Any] = {}
+
+    async def _brain(_profile: Any, jobs: list[dict[str, Any]], _prov: Any, _cb: Any) -> dict[str, Any]:
+        captured["ids"] = [j["job_id"] for j in jobs]
+        return {}
+
+    monkeypatch.setattr(ranking.llm_ranker, "evaluate_all", _brain)
+
+    def _cache_fetcher(_job_ids: list[str]) -> dict[str, dict[str, Any]]:
+        return {"j1": {"overall_score": None, "eval_outcome": "malformed"}}
+
+    asyncio.run(
+        ranking.rank(
+            {}, "cv", _candidates(eval_cache_fetcher=_cache_fetcher), provider=object(), use_brain=True  # type: ignore[arg-type]
+        )
+    )
+
+    assert captured["ids"] == ["j2"]
+
+
 def test_rank_no_cache_fetcher_evaluates_everything(monkeypatch: Any) -> None:
     """Callers that omit eval_cache_fetcher (e.g. rank_one's caller) get the old
     always-eval behaviour — back-compat, no cache lookup attempted."""
@@ -264,10 +288,10 @@ def test_rank_one_delegates_to_evaluate_job(monkeypatch: Any) -> None:
         captured["cv"] = cv
         return "SYS"
 
-    async def _fake_eval(job: dict[str, Any], system_prompt: str, _prov: Any) -> dict[str, Any]:
+    async def _fake_eval(job: dict[str, Any], system_prompt: str, _prov: Any) -> ModelOutcome:
         captured["job"] = job["job_id"]
         captured["prompt"] = system_prompt
-        return {"overall_score": 3.9, "grade": "B+"}
+        return ModelOutcome.ok({"overall_score": 3.9, "grade": "B+"})
 
     monkeypatch.setattr(ranking.llm_ranker, "build_system_prompt", _fake_prompt)
     monkeypatch.setattr(ranking.llm_ranker, "evaluate_job", _fake_eval)
@@ -276,7 +300,8 @@ def test_rank_one_delegates_to_evaluate_job(monkeypatch: Any) -> None:
         ranking.rank_one({"target_roles": ["PM"]}, "CV TEXT", {"job_id": "jX"}, provider=object())  # type: ignore[arg-type]
     )
 
-    assert out == {"overall_score": 3.9, "grade": "B+"}
+    assert out.kind == "ok"
+    assert out.value == {"overall_score": 3.9, "grade": "B+"}
     assert captured == {"cv": "CV TEXT", "job": "jX", "prompt": "SYS"}
 
 

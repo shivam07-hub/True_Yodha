@@ -3157,7 +3157,7 @@ class JobsRepository:
         # The skip gates compare this to decide whether a cached verdict is still
         # the answer. Carried on the badge subset (not just `full`) because the
         # feed warmer reads the light one.
-        "eval_context_hash"
+        "eval_context_hash, eval_outcome"
     )
     _MATCH_EVAL_FULL_COLS = (
         _MATCH_EVAL_BADGE_COLS

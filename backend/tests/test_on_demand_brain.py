@@ -10,6 +10,7 @@ import asyncio
 from typing import Any
 
 from app.services.matching import on_demand
+from app.services.model_outcome import ModelOutcome
 from app.services.onboarding_service import eval_context_key
 
 # The key the code will derive for _FakeRepo's profile (baseline 7, no memory —
@@ -110,11 +111,13 @@ def test_open_enqueues_once_per_claim_window(monkeypatch: Any) -> None:
 def test_fresh_compute_persists_unrecommended(monkeypatch: Any) -> None:
     repo = _FakeRepo(cached=None)
 
-    async def _fake_rank_one(profile: dict[str, Any], cv: str, job: dict[str, Any], _prov: Any) -> dict[str, Any]:
+    async def _fake_rank_one(profile: dict[str, Any], cv: str, job: dict[str, Any], _prov: Any) -> ModelOutcome:
         assert cv == "CV"
         assert job["matched_skills"] == ["Python"]  # deterministic overlap computed
-        return {"overall_score": 3.8, "grade": "B+", "recommendation": "Apply",
-                "summary": "solid", "strengths": ["x"], "concerns": []}
+        return ModelOutcome.ok({
+            "overall_score": 3.8, "grade": "B+", "recommendation": "Apply",
+            "summary": "solid", "strengths": ["x"], "concerns": [],
+        })
 
     monkeypatch.setattr(on_demand.ranking, "rank_one", _fake_rank_one)
 
@@ -139,8 +142,8 @@ def test_missing_job_returns_none(monkeypatch: Any) -> None:
 def test_brain_failure_returns_none_no_persist(monkeypatch: Any) -> None:
     repo = _FakeRepo(cached=None)
 
-    async def _fail(*_a: Any, **_k: Any) -> None:
-        return None
+    async def _fail(*_a: Any, **_k: Any) -> ModelOutcome:
+        return ModelOutcome.unavailable()
 
     monkeypatch.setattr(on_demand.ranking, "rank_one", _fail)
 
@@ -153,8 +156,8 @@ def test_overlap_only_cache_recomputes(monkeypatch: Any) -> None:
     # A row exists but the brain never ran (overall_score is None) → recompute.
     repo = _FakeRepo(cached={"overall_score": None, "grade": None})
 
-    async def _fake_rank_one(*_a: Any, **_k: Any) -> dict[str, Any]:
-        return {"overall_score": 4.0, "grade": "A", "recommendation": "Apply"}
+    async def _fake_rank_one(*_a: Any, **_k: Any) -> ModelOutcome:
+        return ModelOutcome.ok({"overall_score": 4.0, "grade": "A", "recommendation": "Apply"})
 
     monkeypatch.setattr(on_demand.ranking, "rank_one", _fake_rank_one)
 
@@ -180,10 +183,12 @@ def test_brain_sees_memory_facts_via_targeting_brief(monkeypatch: Any) -> None:
     )
     seen: dict[str, Any] = {}
 
-    async def _capture(profile: dict[str, Any], _cv: str, _job: dict[str, Any], _prov: Any) -> dict[str, Any]:
+    async def _capture(profile: dict[str, Any], _cv: str, _job: dict[str, Any], _prov: Any) -> ModelOutcome:
         seen.update(profile)
-        return {"overall_score": 3.8, "grade": "B+", "recommendation": "Apply",
-                "summary": "s", "strengths": [], "concerns": []}
+        return ModelOutcome.ok({
+            "overall_score": 3.8, "grade": "B+", "recommendation": "Apply",
+            "summary": "s", "strengths": [], "concerns": [],
+        })
 
     monkeypatch.setattr(on_demand.ranking, "rank_one", _capture)
     asyncio.run(on_demand.ensure_job_eval(repo, object(), "u1", "j1"))  # type: ignore[arg-type]
@@ -197,10 +202,12 @@ def test_no_memory_is_not_an_error(monkeypatch: Any) -> None:
     repo = _FakeRepo(cached=None)
     seen: dict[str, Any] = {}
 
-    async def _capture(profile: dict[str, Any], _cv: str, _job: dict[str, Any], _prov: Any) -> dict[str, Any]:
+    async def _capture(profile: dict[str, Any], _cv: str, _job: dict[str, Any], _prov: Any) -> ModelOutcome:
         seen.update(profile)
-        return {"overall_score": 3.0, "grade": "B", "recommendation": "Apply",
-                "summary": "s", "strengths": [], "concerns": []}
+        return ModelOutcome.ok({
+            "overall_score": 3.0, "grade": "B", "recommendation": "Apply",
+            "summary": "s", "strengths": [], "concerns": [],
+        })
 
     monkeypatch.setattr(on_demand.ranking, "rank_one", _capture)
     asyncio.run(on_demand.ensure_job_eval(repo, object(), "u1", "j1"))  # type: ignore[arg-type]
@@ -221,10 +228,12 @@ def test_a_verdict_from_a_superseded_context_is_re_rated(monkeypatch: Any) -> No
     )
     called: list[str] = []
 
-    async def _fake_rank_one(_p: dict[str, Any], _cv: str, job: dict[str, Any], _prov: Any) -> dict[str, Any]:
+    async def _fake_rank_one(_p: dict[str, Any], _cv: str, job: dict[str, Any], _prov: Any) -> ModelOutcome:
         called.append(job["job_id"])
-        return {"overall_score": 2.4, "grade": "C", "recommendation": "Skip",
-                "summary": "fresh", "strengths": [], "concerns": []}
+        return ModelOutcome.ok({
+            "overall_score": 2.4, "grade": "C", "recommendation": "Skip",
+            "summary": "fresh", "strengths": [], "concerns": [],
+        })
 
     monkeypatch.setattr(on_demand.ranking, "rank_one", _fake_rank_one)
     out = asyncio.run(on_demand.ensure_job_eval(repo, object(), "u1", "j1"))  # type: ignore[arg-type]
@@ -252,9 +261,11 @@ def test_a_pre_key_verdict_re_rates(monkeypatch: Any) -> None:
     time of this change. NULL is not "still valid", it is "we cannot tell"."""
     repo = _FakeRepo(cached={"overall_score": 4.1, "grade": "A", "summary": "old"}, cached_ctx=None)
 
-    async def _fake_rank_one(*_a: Any, **_k: Any) -> dict[str, Any]:
-        return {"overall_score": 3.0, "grade": "B", "recommendation": "Apply",
-                "summary": "fresh", "strengths": [], "concerns": []}
+    async def _fake_rank_one(*_a: Any, **_k: Any) -> ModelOutcome:
+        return ModelOutcome.ok({
+            "overall_score": 3.0, "grade": "B", "recommendation": "Apply",
+            "summary": "fresh", "strengths": [], "concerns": [],
+        })
 
     monkeypatch.setattr(on_demand.ranking, "rank_one", _fake_rank_one)
     out = asyncio.run(on_demand.ensure_job_eval(repo, object(), "u1", "j1"))  # type: ignore[arg-type]

@@ -31,6 +31,7 @@ from typing import Any
 from app.services import job_matcher, llm_ranker
 from app.services.llm_provider import LLMProvider
 from app.services.llm_ranker import RankProgressCb
+from app.services.model_outcome import ModelOutcome, split_cached_evals
 
 # Called once with the triaged shortlist, before per-job reasoning. See `rank`.
 ShortlistCb = Callable[[list[dict[str, Any]]], None]
@@ -246,14 +247,14 @@ async def rank(
     else:
         brain_jobs = top_jobs if budget is None else top_jobs[: max(0, budget)]
 
-    cached_evals: dict[str, dict[str, Any]] = {}
+    fetched: dict[str, dict[str, Any]] = {}
     if jobs.eval_cache_fetcher is not None:
-        job_ids = [str(j["job_id"]) for j in brain_jobs]
-        cached_evals = jobs.eval_cache_fetcher(job_ids)
-    # A cached row must carry a real verdict (overall_score) to count as "already
-    # evaluated" — a stale overlap-only row (brain never ran) still needs rating.
-    cached_evals = {k: v for k, v in cached_evals.items() if v.get("overall_score") is not None}
-    uncached_jobs = [j for j in brain_jobs if str(j["job_id"]) not in cached_evals]
+        fetched = jobs.eval_cache_fetcher([str(j["job_id"]) for j in brain_jobs])
+    cached_evals, settled = split_cached_evals(fetched)
+    uncached_jobs = [
+        j for j in brain_jobs
+        if str(j["job_id"]) not in cached_evals and str(j["job_id"]) not in settled
+    ]
     if debug is not None:
         debug["brain_cache_hits"] = len(cached_evals)
         debug["brain_cache_misses"] = len(uncached_jobs)
@@ -274,15 +275,8 @@ async def rank_one(
     cv_markdown: str,
     job: dict[str, Any],
     provider: LLMProvider,
-) -> dict[str, Any] | None:
-    """On-demand single-job brain (Consolidation D: a job opened/saved anywhere).
-
-    ``job`` is a ``get_top_matches``-shaped dict (title/company/industry/location/
-    description/matched_skills/overlap_score). Returns a ``parse_eval()`` dict or
-    ``None`` on provider/parse failure. NOT a per-request bulk path — callers cache
-    the result into ``user_job_matches`` so the brain runs once per job, not once
-    per view.
-    """
+) -> ModelOutcome:
+    """On-demand single-job brain. Returns a Model Outcome, never a collapsed None."""
     eval_profile = _eval_profile(profile, cv_markdown)
     system_prompt = llm_ranker.build_system_prompt(eval_profile, eval_profile["cv_markdown"])
     return await llm_ranker.evaluate_job(job, system_prompt, provider)
