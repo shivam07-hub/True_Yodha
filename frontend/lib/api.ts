@@ -1684,6 +1684,9 @@ export interface WeaveRole {
   changed: boolean
   /** Honesty guard rejected the rework — original lines kept. */
   guarded: boolean
+  /** What a Take does: "trim" drops lines without rewording any; "rewrite"
+   *  changes wording. "none" never reaches a card. */
+  edit_kind?: "none" | "trim" | "rewrite"
   why: string
   bullets: WeaveBullet[]
   dropped_lines: string[]

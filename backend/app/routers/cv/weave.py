@@ -105,6 +105,9 @@ class WeaveRole(BaseModel):
     company: str
     changed: bool
     guarded: bool = False
+    #: What a Take would actually do: "trim" (lines dropped, nothing reworded)
+    #: or "rewrite". "none" never reaches a card.
+    edit_kind: str = "none"
     why: str = ""
     bullets: list[WeaveBullet]
     dropped_lines: list[str] = Field(default_factory=list)
@@ -275,12 +278,17 @@ async def weave_answer(
             return WeaveAnswerResponse(follow_up=follow_up)
     requirement = " ".join(body.requirement.split()).strip()
     framed = f"Career experience — {requirement}:\n{answer}" if requirement else f"Career experience:\n{answer}"
+    # ONE read of the coverage row, for both the readers below. It used to be
+    # fetched twice per answer with identical arguments — the same shape that
+    # made `/jobs/matches` read its dismissed set twice (test_read_contract).
+    coverage_raw = (
+        jobs_repo.get_deepening(user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY)
+        if body.job_id and requirement else None
+    )
     # Which story was the user shown as evidence for this requirement? That is
     # the story their answer IMPROVES — resolved from our own cache, never from
     # the client. The ingest folds the new telling into it (see _ingest_entry).
-    upgrades = jd_coverage.story_for_requirement(
-        jobs_repo.get_deepening(user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY), requirement,
-    ) if body.job_id and requirement else None
+    upgrades = jd_coverage.story_for_requirement(coverage_raw, requirement) if coverage_raw else None
     row = dump_repo.add(
         user.id, framed, source="jd_gap_answer",
         kind="answer", payload={
@@ -295,11 +303,8 @@ async def weave_answer(
     # Flip the cached coverage row to covered NOW (deterministic, no LLM) so a
     # later interview never re-asks an answered question; the next real refresh
     # replaces the patch with the ingested story. Best-effort.
-    if body.job_id and requirement:
-        patched = jd_coverage.patch_requirement_answered(
-            jobs_repo.get_deepening(user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY),
-            requirement, answer,
-        )
+    if coverage_raw:
+        patched = jd_coverage.patch_requirement_answered(coverage_raw, requirement, answer)
         if patched:
             jobs_repo.upsert_deepening(user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY, patched)
     return WeaveAnswerResponse(entry_id=entry_id)

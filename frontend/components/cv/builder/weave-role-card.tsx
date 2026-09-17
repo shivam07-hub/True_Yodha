@@ -15,6 +15,7 @@ export function WeaveRoleCard({
   onToggleOriginal: (i: number) => void
 }) {
   const [wasOpen, setWasOpen] = useState<number | null>(null)
+  const dropped = role.dropped_lines.length
 
   return (
     <div className="tw-role">
@@ -22,20 +23,31 @@ export function WeaveRoleCard({
         <span className="tw-role-title">{role.role || "Role"}</span>
         <span className="tw-role-co">{role.company}</span>
       </div>
-      {role.why && <p className="tw-role-why">{role.why}</p>}
+      {role.edit_kind === "trim" ? (
+        // A trim reworded nothing. Saying so is the only honest caption — the
+        // model's rework rationale would be describing work it did not do.
+        <p className="tw-role-why">
+          Nothing reworded. {dropped === 1 ? "One line" : `${dropped} lines`} left out for this job.
+        </p>
+      ) : role.why ? (
+        <p className="tw-role-why">{role.why}</p>
+      ) : null}
 
       <ul className="tw-role-lines">
         {role.bullets.map((b, i) => {
           const useOriginal = originalIndexes.has(i)
           const originalText = b.from_lines.filter(Boolean).join(" ")
           const shown = useOriginal && originalText ? originalText : b.text
+          // A line that came back verbatim has no provenance worth showing: the
+          // "was" and "original" controls would both resolve to itself.
+          const verbatim = originalText === b.text
           return (
             <li key={i} className="tw-role-line">
               <span className="tw-role-mark" aria-hidden="true">◆</span>
               <div className="tw-role-linebody">
                 <p className="tw-role-text">{shown}</p>
                 <div className="tw-prov">
-                  {b.from_lines.length > 0 && (
+                  {b.from_lines.length > 0 && !verbatim && (
                     <button
                       type="button"
                       className="tw-prov-chip tw-prov-was"
@@ -49,7 +61,7 @@ export function WeaveRoleCard({
                     <span key={t} className="tw-prov-chip">your story · {t}</span>
                   ))}
                   {b.used_answer && <span className="tw-prov-chip tw-prov-answer">your answer</span>}
-                  {originalText && (
+                  {originalText && !verbatim && (
                     <button
                       type="button"
                       className="tw-lineact"

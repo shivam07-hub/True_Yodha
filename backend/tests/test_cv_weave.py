@@ -869,3 +869,56 @@ def test_a_bare_proposal_has_no_extras_decision_yet():
     back = cv_weave_cache.load(cv_weave_cache.dump({"fingerprint": "abc"}))
     assert back is not None
     assert back.extras_decided is False
+
+
+# ── `changed` answers ONE question: is there something to decide ─────────────
+
+def test_edit_kind_separates_a_no_op_from_a_trim_from_a_rewrite():
+    old = ["Alpha line.", "Beta line.", "Gamma line."]
+    assert cv_weave.edit_kind(old, old, []) == "none"
+    assert cv_weave.edit_kind(old, ["Alpha line.", "Beta line."], [2]) == "trim"
+    assert cv_weave.edit_kind(old, ["Alpha line, reworded.", "Beta line."], [2]) == "rewrite"
+    # Reordering alone is still only a trim's shape — no wording moved.
+    assert cv_weave.edit_kind(old, ["Gamma line.", "Alpha line."], [1]) == "trim"
+
+
+def _parsed_for_role_zero(bullets, dropped):
+    return {
+        "summary": None, "skills_line": None,
+        "roles": [{
+            "role_index": 0, "why": "Puffery about a rework that did not happen.",
+            "bullets": [{"text": t, "from": [i], "story_ids": [], "used_answer": False}
+                        for i, t in enumerate(bullets)],
+            "dropped": dropped,
+        }],
+    }
+
+
+def test_a_role_handed_back_untouched_gets_no_card():
+    same = list(CV["experience"][0]["bullets"])
+    out = cv_weave.build_proposal(CV, _parsed_for_role_zero(same, []), [], [], [])
+    assert out is None, "nothing to decide anywhere — not a deliverable proposal"
+
+
+def test_a_pure_deletion_is_a_trim_and_loses_the_rework_rationale():
+    kept = [CV["experience"][0]["bullets"][0]]
+    out = cv_weave.build_proposal(CV, _parsed_for_role_zero(kept, [1]), [], [], [])
+    assert out is not None
+    role = out["roles"][0]
+    assert role["changed"] is True, "dropping a line IS a decision"
+    assert role["edit_kind"] == "trim"
+    assert role["why"] == "", "a trim must not carry a rewrite's rationale"
+    assert role["dropped_lines"] == [CV["experience"][0]["bullets"][1]]
+
+
+def test_a_real_rewrite_keeps_its_rationale():
+    out = cv_weave.build_proposal(
+        CV,
+        _parsed_for_role_zero(["Generated over $500K selling GCP, AWS and Azure to clients."], [1]),
+        [], [], [],
+    )
+    assert out is not None
+    role = out["roles"][0]
+    assert role["edit_kind"] == "rewrite"
+    assert role["why"].startswith("Puffery")
+    assert out["changed_roles"] == 1

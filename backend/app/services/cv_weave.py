@@ -255,6 +255,24 @@ def parse_weave_response(raw: str, blocks: list[dict[str, Any]]) -> dict | None:
     }
 
 
+def edit_kind(old_bullets: list[str], new_texts: list[str], dropped: list[int]) -> str:
+    """What this role's entry actually DOES to the paper — the question
+    `changed` used to answer badly.
+
+    `changed` meant "the model returned an entry for this role", so a role whose
+    lines came back verbatim still got a card, and a role whose only edit was a
+    deletion got one captioned as a rework. Two readers, one flag. Split:
+
+      none    — the same lines, in the same order. Nothing to decide.
+      trim    — every surviving line is a verbatim original; some were dropped.
+      rewrite — at least one line's wording changed.
+    """
+    if new_texts == old_bullets and not dropped:
+        return "none"
+    originals = set(old_bullets)
+    return "trim" if all(t in originals for t in new_texts) else "rewrite"
+
+
 def extras_guard_ok(text: str | None, allowed_text: str) -> bool:
     """The honesty floor for the CV-WIDE lines (summary, skills line).
 
@@ -294,9 +312,11 @@ def build_proposal(
 ) -> dict | None:
     """Every experience role, in CV order, changed or not — the per-role accept
     stepper renders straight from this. Guard-failing roles fall back to their
-    original bullets (changed=False + guarded flag). None when not one role
-    survives AND there's no summary/skills change — a worthless artifact must
-    not be delivered (or charged for)."""
+    original bullets (changed=False + guarded flag), and so does a role the
+    model handed back untouched (`edit_kind` "none") — `changed` answers "is
+    there something here for the user to decide", nothing else. None when not
+    one role survives AND there's no summary/skills change — a worthless
+    artifact must not be delivered (or charged for)."""
     blocks = experience_blocks(cv_structured)
     titles = {s.id: s.title for s in stories}
     allowed_text = " ".join(
@@ -317,14 +337,27 @@ def build_proposal(
             "company": b["company"],
             "changed": False,
             "guarded": False,
+            # "none" | "trim" | "rewrite" — what a Take would actually do.
+            "edit_kind": "none",
             "why": "",
             "bullets": [{"text": t, "from_lines": [], "story_titles": [], "used_answer": False} for t in b["bullets"]],
             "dropped_lines": [],
         }
         if entry and b["bullets"]:
             if role_guard_ok(b["bullets"], entry, allowed_text):
+                kind = edit_kind(b["bullets"], [nb["text"] for nb in entry["bullets"]], entry["dropped"])
+                if kind == "none":
+                    # The model handed back this role's own lines, untouched.
+                    # There is nothing here to decide — a card asking the user
+                    # to approve their own words is a step that costs trust.
+                    roles_out.append(base)
+                    continue
                 base["changed"] = True
-                base["why"] = entry["why"]
+                base["edit_kind"] = kind
+                # A trim reworded NOTHING, so the model's rework rationale would
+                # be describing work it did not do. The card states the fact
+                # instead, from the data.
+                base["why"] = entry["why"] if kind == "rewrite" else ""
                 base["bullets"] = [
                     {
                         "text": nb["text"],

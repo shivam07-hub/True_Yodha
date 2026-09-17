@@ -84,3 +84,25 @@ test("hidden chrome lists the lines that left the paper", () => {
   assert.equal(lines.length, 1)
   assert.equal(lines[0]?.text, "Closed 12 deals.")
 })
+
+test("a card that reworded nothing says so, and drops its no-op provenance", () => {
+  const card = read("components/cv/builder/weave-role-card.tsx")
+  assert.match(card, /role\.edit_kind === "trim"/)
+  assert.match(card, /Nothing reworded\./)
+  // A verbatim line's "was" and "original" both resolve to itself — noise.
+  assert.match(card, /const verbatim = originalText === b\.text/)
+  assert.match(card, /b\.from_lines\.length > 0 && !verbatim/)
+  assert.match(card, /originalText && !verbatim/)
+})
+
+test("the answer endpoint reads its coverage row once, not twice", () => {
+  const router = readFileSync(
+    new URL("../../backend/app/routers/cv/weave.py", import.meta.url), "utf8",
+  )
+  const answer = router.slice(
+    router.indexOf("async def weave_answer"),
+    router.indexOf("@router.get(\"/weave/{job_id}\""),
+  )
+  const reads = answer.match(/get_deepening\(/g) ?? []
+  assert.equal(reads.length, 1, "one read serves both the upgrade lookup and the patch")
+})
