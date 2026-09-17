@@ -1,0 +1,268 @@
+{
+  "issue": 20,
+  "out": "Myro Newsletter/Issue 020 - carousel",
+  "og_out": "frontend/public/newsletter/issue-020-og.png",
+  "foot": "6,270 tech openings · 220 employers · 9 Sept 2026",
+  "og": {
+    "series": "HIRING HEATMAP",
+    "h1": "<span style=\"color:var(--mint)\">45%</span> of India's tech openings are in Bengaluru. Pune is third.",
+    "bars": [
+      [
+        "Bengaluru",
+        45.2,
+        "45.2%"
+      ],
+      [
+        "Hyderabad",
+        17.2,
+        "17.2%"
+      ],
+      [
+        "Pune",
+        15.6,
+        "15.6%"
+      ],
+      [
+        "Chennai",
+        7.0,
+        "7.0%"
+      ],
+      [
+        "Delhi NCR",
+        5.1,
+        "5.1%"
+      ],
+      [
+        "Mumbai",
+        5.0,
+        "5.0%"
+      ]
+    ],
+    "max": 45.2,
+    "dim_from": 3,
+    "foot": "220+ mnc career pages · 6,270 tech openings · himyro.com"
+  },
+  "slides": [
+    {
+      "kind": "matrix",
+      "kicker": "India's 6,270 tech openings, by metro",
+      "cols": [
+        "SHARE",
+        "CS",
+        "ROOT",
+        "AI",
+        "ENTRY",
+        "SNR+"
+      ],
+      "rows": [
+        [
+          "Bengaluru",
+          [
+            [
+              "45.2",
+              2
+            ],
+            [
+              "15.4",
+              2
+            ],
+            [
+              "10.9",
+              0
+            ],
+            [
+              "7.2",
+              1
+            ],
+            [
+              "5.7",
+              0
+            ],
+            [
+              "74.4",
+              0
+            ]
+          ]
+        ],
+        [
+          "Hyderabad",
+          [
+            [
+              "17.2",
+              1
+            ],
+            [
+              "10.3",
+              1
+            ],
+            [
+              "21.8",
+              1
+            ],
+            [
+              "9.3",
+              1
+            ],
+            [
+              "4.7",
+              0
+            ],
+            [
+              "73.4",
+              0
+            ]
+          ]
+        ],
+        [
+          "Pune",
+          [
+            [
+              "15.6",
+              1
+            ],
+            [
+              "9.3",
+              0
+            ],
+            [
+              "25.8",
+              2
+            ],
+            [
+              "3.3",
+              0
+            ],
+            [
+              "4.2",
+              0
+            ],
+            [
+              "76.1",
+              0
+            ]
+          ]
+        ],
+        [
+          "Chennai",
+          [
+            [
+              "7.0",
+              0
+            ],
+            [
+              "5.0",
+              0
+            ],
+            [
+              "17.4",
+              1
+            ],
+            [
+              "2.3",
+              0
+            ],
+            [
+              "4.6",
+              0
+            ],
+            [
+              "70.5",
+              0
+            ]
+          ]
+        ],
+        [
+          "Delhi NCR",
+          [
+            [
+              "5.1",
+              0
+            ],
+            [
+              "15.3",
+              2
+            ],
+            [
+              "12.1",
+              0
+            ],
+            [
+              "11.8",
+              2
+            ],
+            [
+              "7.9",
+              1
+            ],
+            [
+              "68.5",
+              0
+            ]
+          ]
+        ],
+        [
+          "Mumbai",
+          [
+            [
+              "5.0",
+              0
+            ],
+            [
+              "5.1",
+              0
+            ],
+            [
+              "9.8",
+              0
+            ],
+            [
+              "4.4",
+              0
+            ],
+            [
+              "4.0",
+              0
+            ],
+            [
+              "69.2",
+              0
+            ]
+          ]
+        ]
+      ],
+      "note": "CS = computer science named · ROOT = root cause analysis named · ENTRY and SNR+ hold steady across all six metros"
+    },
+    {
+      "kind": "prose",
+      "kicker": "Where the jobs are",
+      "text": "Bengaluru, Hyderabad and Pune hold <span class=\"hl\">78%</span> of India's technology openings.<br><br>Bengaluru's 2,831 roles come from 120 employers, <b>23.6 each</b>. Pune's 977 come from 42 employers, <b>23.3 each</b>. Mumbai has 39 employers posting 8.1 roles each.<br><br>Bengaluru and Pune offices hire in bulk. A Mumbai technology office hires one or two at a time."
+    },
+    {
+      "kind": "prose",
+      "kicker": "Who is posting them",
+      "text": "Wipro and Accenture hold 39.1% of Bengaluru's technology openings. Hyderabad 51.0%. Pune 55.1%. Chennai <span class=\"hl\">56.8%</span>.<br><br>Wipro alone posts 353 of Pune's 977 roles.<br><br>Move to Pune or Chennai and you are joining <b>a services firm</b>."
+    },
+    {
+      "kind": "prose",
+      "kicker": "Build, or keep it running",
+      "text": "Bengaluru names computer science in 15.4% of its postings and root cause analysis in 10.9%.<br><br>Pune inverts it: computer science 9.3%, root cause analysis <span class=\"hl\">25.8%</span>.<br><br>Pune and Hyderabad ask for root cause analysis, software development life cycle, technical issues, performance tuning. Bengaluru asks for C++ and computer science fundamentals.<br><br><b>Same job title, different day.</b>"
+    },
+    {
+      "kind": "prose",
+      "kicker": "Where the AI work is",
+      "text": "<span class=\"hl\">11.8%</span> of Delhi NCR's technology postings name AI or machine learning, the densest share in India. Hyderabad 9.3%, Bengaluru 7.2%, Pune 3.3%.<br><br>NCR has 321 technology openings in all, so that is <b>38 roles</b>. Bengaluru's thinner 7.2% is <b>204</b>.<br><br>Best odds per posting: NCR. Most postings to apply to: Bengaluru."
+    },
+    {
+      "kind": "prose",
+      "kicker": "If you are a fresher",
+      "text": "Entry level is 5.7% of Bengaluru's postings. Hyderabad 4.7%. Pune 4.2%. Chennai 4.6%. Mumbai 4.0%. Delhi NCR 7.9%.<br><br>Senior and above takes <span class=\"hl\">68.5% to 76.1%</span> in all six.<br><br>Moving city multiplies the jobs in front of you by nine, and leaves your odds as a fresher where they started."
+    },
+    {
+      "kind": "cta",
+      "h1": "Practise the skills your city asks for.",
+      "sub": "We track the official career pages of MNCs and what skills they hire for, then build the repository you practise from.",
+      "pill": "himyro.com →",
+      "foot": "Free · himyro.com/signup"
+    }
+  ]
+}
