@@ -205,6 +205,12 @@ def regenerate_for_user(
         passed_on=rejected.vocabularies,
     )
     written = repo.replace_agent_picks(user_id, picks, scrape_batch)
+    # What the gate stopped choosing, for the band to name. Best-effort like the
+    # rest of this path: a failed stamp costs a label, never the picks.
+    try:
+        repo.set_passed_on_directions(user_id, sorted(rejected.families))
+    except Exception as exc:  # noqa: BLE001 — documented degradation
+        logger.warning("metric agent_picks.passed_on_stamp_failed user=%s error=%s", user_id, exc)
     on_direction = sum(1 for p in picks if p.get("direction") == "on_direction")
     logger.info(
         "metric agent_picks.regen user=%s candidates=%d picks=%d on_direction=%d",

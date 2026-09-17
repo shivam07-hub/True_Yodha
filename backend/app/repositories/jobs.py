@@ -2423,8 +2423,52 @@ class JobsRepository:
         self._admin_db.table("user_agent_job_picks").insert(rows).execute()
         return len(rows)
 
+    def passed_on_cleared_at(self, user_id: str) -> str | None:
+        """When this user last asked to see their passed-on directions again."""
+        row = safe_read(
+            self._db.table("user_profiles")
+            .select("passed_on_cleared_at")
+            .eq("id", user_id)
+            .maybe_single(),
+            default=None,
+            context="passed_on_cleared_at",
+        )
+        return (row or {}).get("passed_on_cleared_at")
+
+    def passed_on_directions(self, user_id: str) -> list[str]:
+        """What the pick gate last stopped choosing for this user. One read by
+        primary key; the rule that produced it lives in `matching/passed_on`."""
+        row = safe_read(
+            self._db.table("user_profiles")
+            .select("passed_on_directions")
+            .eq("id", user_id)
+            .maybe_single(),
+            default=None,
+            context="passed_on_directions",
+        )
+        return [str(f) for f in ((row or {}).get("passed_on_directions") or [])]
+
+    def set_passed_on_directions(self, user_id: str, families: list[str]) -> None:
+        """Record what the pick gate stopped choosing, for the band to name.
+
+        Written by the pick regen alone — the same single-writer rule the other
+        derived stamps on this row follow.
+        """
+        self._db.table("user_profiles").update(
+            {"passed_on_directions": families}
+        ).eq("id", user_id).execute()
+
+    def clear_passed_on(self, user_id: str) -> None:
+        """"Show these again": move the counting window, keep the evidence."""
+        self._db.table("user_profiles").update(
+            {
+                "passed_on_cleared_at": datetime.now(timezone.utc).isoformat(),
+                "passed_on_directions": [],
+            }
+        ).eq("id", user_id).execute()
+
     def recent_personal_feedback_job_ids(
-        self, user_id: str, *, reason_code: str, days: int, limit: int = 200
+        self, user_id: str, *, reason_code: str, days: int, limit: int = 200, since: str | None = None
     ) -> list[str]:
         """Jobs this user rejected for one personal reason, newest first.
 
@@ -2433,14 +2477,15 @@ class JobsRepository:
         rather than discovered as a wrong count later — and 200 skips in 90 days
         is already far past the point where the answer stops moving.
         """
-        since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        window_start = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        floor = max(window_start, since) if since else window_start
         rows = (
             self._db.table("job_feedback_events")
             .select("job_id, created_at")
             .eq("user_id", user_id)
             .eq("feedback_kind", "personal")
             .eq("reason_code", reason_code)
-            .gte("created_at", since)
+            .gte("created_at", floor)
             .order("created_at", desc=True)
             .limit(limit)
             .execute()

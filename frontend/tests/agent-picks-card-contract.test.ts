@@ -125,3 +125,19 @@ test("a question stays on screen longer than a confirmation", () => {
   assert.match(picks, /setPending\(null\), SKIP_UNDO_MS\)/)
   assert.match(picks, /setPending\(null\), UNDO_MS\)/)
 })
+
+
+test("the band names what it stopped picking, and the way back is reachable", () => {
+  const band = read("../components/jobs/agent-picks-band.tsx")
+
+  // A rule you can only infer from what is missing is not one you can argue
+  // with — and if the band hid itself when the rule emptied it, the undo would
+  // be unreachable at exactly the moment it is wanted.
+  assert.match(band, /passed_on/)
+  assert.match(band, /if \(!cards\.length && !showPassedOn\) return null/)
+  assert.match(band, /clearPassedOn/)
+  assert.match(band, /Show these again/)
+
+  // And it stops promising a hand-vetted shortlist over an empty band.
+  assert.match(band, /Nothing cleared the bar this scan/)
+})

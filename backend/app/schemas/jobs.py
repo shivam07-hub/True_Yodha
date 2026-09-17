@@ -725,6 +725,10 @@ class AgentPickItem(JobFeedItem):
 class AgentPicksResponse(BaseModel):
     picks: list[AgentPickItem]
     total: int = 0
+    #: Directions this user rejected twice, which the gate has stopped choosing
+    #: (`matching/passed_on`). Named on the band so the rule is visible and the
+    #: way back is one tap, never a state the user can only infer from absence.
+    passed_on: list[str] = []
 
 
 class FeedWarmResponse(BaseModel):

@@ -3814,6 +3814,9 @@ export interface AgentPickItem extends JobFeedItem {
 export interface AgentPicksResponse {
   picks: AgentPickItem[]
   total: number
+  /** Directions the user rejected twice, which the pick gate has stopped
+   *  choosing. Named on the band so the rule is visible and reversible. */
+  passed_on?: string[]
 }
 
 /** On-demand single-job brain eval (Consolidation D) → POST /jobs/{id}/brain. */
@@ -4399,6 +4402,13 @@ export const jobs = {
    *  sits above the algorithm feed. Empty list for users with no picks. */
   agentPicks: (token: string) =>
     request<AgentPicksResponse>(`/jobs/agent-picks`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** "Show these again" — moves the window skips are counted from. Keeps every
+   *  reason the user gave; only stops the old ones deciding anything. */
+  clearPassedOn: (token: string) =>
+    request<void>(`/jobs/agent-picks/passed-on`, {
+      method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     }),
   skipJob: (token: string, jobId: string) =>

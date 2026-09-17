@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { jobs as jobsApi, type AgentPickItem, type JobFeedItem } from "@/lib/api"
 import { JobCard } from "@/components/market/job-card"
 import { JobDetailDrawer } from "@/components/market/job-detail-drawer"
@@ -46,7 +46,12 @@ export function AgentPicksBand({
   token, hasCv = true, context = "feed", onSave, onSkip, renderCard,
 }: AgentPicksBandProps) {
   const [openJob, setOpenJob] = React.useState<AgentPickItem | null>(null)
+  const qc = useQueryClient()
   const triage = useAgentPickTriage({ token, onSave, onSkip })
+  const clearPassedOn = React.useCallback(
+    () => jobsApi.clearPassedOn(token).then(() => qc.invalidateQueries({ queryKey: agentPicksQueryKey(token) })),
+    [qc, token],
+  )
 
   const q = useQuery({
     queryKey: agentPicksQueryKey(token),
@@ -58,6 +63,7 @@ export function AgentPicksBand({
   })
 
   const picks = q.data?.picks ?? []
+  const passedOn = q.data?.passed_on ?? []
   // Build the cards BEFORE deciding whether there is a band. A surface that
   // supplies its own card may decline a pick (`renderCard` → null) — on
   // Collections, every pick is declined until the record lands — and the band
@@ -66,7 +72,16 @@ export function AgentPicksBand({
   const cards = picks
     .map((pick) => ({ pick, card: renderCard ? renderCard(pick) : null }))
     .filter((row) => !renderCard || row.card !== null)
-  if (!cards.length) return null
+  // The passed-on notice belongs to the surface whose band the rule emptied —
+  // the market, where this component owns its cards. A surface that supplies its
+  // own card (Collections) declines every pick until its record lands, and
+  // printing the notice there would be chrome over nothing, which is the exact
+  // regression the guard below exists to stop.
+  const showPassedOn = !renderCard && passedOn.length > 0
+  // No cards and nothing to explain → no band, as before. No cards BECAUSE the
+  // rule emptied it → the band still renders, or the rule is invisible and the
+  // way back is unreachable at the moment it is wanted.
+  if (!cards.length && !showPassedOn) return null
 
   return (
     <section className="tm-agentpicks" aria-label="Myro Agent picks">
@@ -76,10 +91,24 @@ export function AgentPicksBand({
           <h2>Myro Agent Picks</h2>
         </div>
         <p className="tm-agentpicks-sub">
-          Hand-vetted by Myro’s career brain for your level, goals and city. Start here.
+          {cards.length > 0
+            ? "Hand-vetted by Myro’s career brain for your level, goals and city. Start here."
+            : /* Promising a hand-vetted shortlist above an empty band is the
+                 apology-shaped state design-over-words exists to stop. Say what
+                 is true: nothing cleared the bar, and here is why. */
+              "Nothing cleared the bar this scan."}
         </p>
+        {showPassedOn ? (
+          <p className="tm-agentpicks-passed">
+            Not picking {passedOn.join(", ")} — you skipped that work twice.
+            <button type="button" className="tm-link" onClick={() => void clearPassedOn()}>
+              Show these again
+            </button>
+          </p>
+        ) : null}
       </header>
 
+      {cards.length === 0 ? null : (
       <div className="tm-agentpicks-list">
         {cards.map(({ pick, card }) => (
           <React.Fragment key={pick.job_id}>
@@ -96,7 +125,9 @@ export function AgentPicksBand({
           </React.Fragment>
         ))}
       </div>
+      )}
 
+      {cards.length === 0 ? null : (
       <div className="tm-agentpicks-divider" role="separator">
         <span className="tm-agentpicks-divider-line" aria-hidden />
         {context === "collections" ? (
@@ -114,6 +145,7 @@ export function AgentPicksBand({
           </p>
         )}
       </div>
+      )}
 
       {openJob ? (
         <JobDetailDrawer

@@ -134,8 +134,13 @@ def for_user(repo: Any, user_id: str, *, target_families: Sequence[str] = ()) ->
     from app.repositories.role_families import RoleFamiliesRepository
 
     try:
+        # A user who asked to see those directions again starts from that moment.
+        # The evidence stays; only the counting window moves.
         job_ids = repo.recent_personal_feedback_job_ids(
-            user_id, reason_code="not_my_role", days=WINDOW_DAYS
+            user_id,
+            reason_code="not_my_role",
+            days=WINDOW_DAYS,
+            since=repo.passed_on_cleared_at(user_id),
         )
         if len(job_ids) < PASS_THRESHOLD:
             return NOTHING_PASSED_ON

@@ -71,3 +71,14 @@
   color: var(--tm-text-muted);
   font-weight: 600;
 }
+
+/* What the gate stopped picking, and the way back. Named rather than left to be
+   inferred from absence: a rule the user cannot see is one they cannot argue
+   with, and one they cannot undo is one they learn not to trigger. */
+.tm-agentpicks-passed {
+  margin: 8px 0 0;
+  font-size: var(--tm-fs-caption);
+  line-height: 1.5;
+  color: var(--tm-text-muted);
+}
+.tm-agentpicks-passed .tm-link { margin-left: 6px; }
