@@ -90,9 +90,30 @@ test("a card that reworded nothing says so, and drops its no-op provenance", () 
   assert.match(card, /role\.edit_kind === "trim"/)
   assert.match(card, /Nothing reworded\./)
   // A verbatim line's "was" and "original" both resolve to itself — noise.
-  assert.match(card, /const verbatim = originalText === b\.text/)
+  assert.match(card, /const verbatim = sources\.length === 1 && sources\[0\] === b\.text/)
   assert.match(card, /b\.from_lines\.length > 0 && !verbatim/)
-  assert.match(card, /originalText && !verbatim/)
+  assert.match(card, /sources\.length > 0 && !verbatim/)
+})
+
+test("flipping a merged line back to original restores every line it merged", () => {
+  const card = read("components/cv/builder/weave-role-card.tsx")
+  // The preview renders the sources as separate lines...
+  assert.match(card, /originalLinesFor\(originalIndexes, i, sources\)/)
+  assert.match(card, /shown\.map\(/)
+  assert.doesNotMatch(card, /from_lines\.filter\(Boolean\)\.join\(" "\)/)
+  // ...and a Take writes them the same way.
+  const weave = readFileSync(
+    new URL("../../backend/app/services/cv_weave.py", import.meta.url), "utf8",
+  )
+  const take = weave.slice(weave.indexOf("def _take_bullets"), weave.indexOf("def land_extras"))
+  assert.match(take, /out\.extend\(from_lines/)
+  assert.doesNotMatch(take, /" "\.join\(from_lines\)/)
+})
+
+test("no list in the weave card is keyed by its own text", () => {
+  const card = read("components/cv/builder/weave-role-card.tsx")
+  assert.doesNotMatch(card, /key=\{t\}/, "two stories can share a title")
+  assert.doesNotMatch(card, /key=\{line\}/, "two dropped lines can be identical")
 })
 
 test("the answer endpoint reads its coverage row once, not twice", () => {

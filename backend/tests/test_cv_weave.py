@@ -255,6 +255,33 @@ def test_land_role_original_pointer_puts_the_old_line_back():
     ]
 
 
+def test_original_on_a_MERGED_line_restores_both_lines_not_one_glued_one():
+    proposal = {
+        "summary": None, "skills_line": None,
+        "roles": [{
+            "role_index": 0, "changed": True,
+            "bullets": [{
+                "text": "One line that merged two.",
+                "from_lines": ["Grew pipeline 40%.", "Ran the EMEA desk."],
+            }],
+        }],
+    }
+    out = cv_weave.land_role(
+        CV, proposal, 0, action="take", master=CV, original_indexes=[0],
+    )
+    assert out["experience"][0]["bullets"] == [
+        "Grew pipeline 40%.",
+        "Ran the EMEA desk.",
+    ], "a merge un-merges — it must not land as a run-on"
+
+
+def test_the_why_is_addressed_to_the_reader_not_written_in_their_voice():
+    # The bullets are ghost-written first person; the rationale is Myro talking
+    # TO them. One system prompt serves both, so the split is stated in it.
+    assert '"you"' in cv_weave._TASK
+    assert 'never \"I\" or \"my\" there' in cv_weave._TASK
+
+
 def test_normalize_section_order_drops_unknown_and_fills_rest():
     from app.services.cv_section_order import normalize_section_order
     assert normalize_section_order(["certs", "bogus", "summary"])[0] == "certs"

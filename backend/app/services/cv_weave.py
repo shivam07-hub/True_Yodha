@@ -97,8 +97,10 @@ _TASK = (
     '"why": str, "bullets": [{"text": str, "from": [int], "story_ids": [str], '
     '"used_answer": bool}], "dropped": [int]}]}\n'
     "summary/skills_line: rewrite only when the job clearly calls for it, else "
-    "null. \"why\" = one plain sentence on what this role's rework does for the "
-    "candidate's chances. No prose outside the JSON."
+    "null. \"why\" = one plain sentence addressed TO the candidate as \"you\", "
+    "saying what this rework does for their chances. It is the ONLY field not "
+    "written in their voice — never \"I\" or \"my\" there, and never a restatement "
+    "of the bullets. No prose outside the JSON."
 )
 
 _SYSTEM = myro_voice.drafting_for_reader(_TASK)
@@ -453,12 +455,18 @@ def compose_weave(
 
 
 def _take_bullets(entry: dict, original_indexes: set[int]) -> list[str]:
-    """Mentor's line, unless this pointer was flipped back to original."""
+    """Mentor's line, unless this pointer was flipped back to original.
+
+    A MERGED line restores as the several lines it merged, not as one glued
+    sentence. `from_lines` kept that structure all along; joining it with a
+    space was throwing it away and writing a run-on onto the CV — with no way
+    back, since the merge is the only record of what the lines were.
+    """
     out: list[str] = []
     for i, b in enumerate(entry.get("bullets") or []):
         if i in original_indexes:
             from_lines = [str(x) for x in (b.get("from_lines") or []) if str(x).strip()]
-            out.append(" ".join(from_lines) if from_lines else str(b.get("text") or ""))
+            out.extend(from_lines or [str(b.get("text") or "")])
         else:
             out.append(str(b.get("text") or ""))
     return out
