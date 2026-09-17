@@ -752,6 +752,9 @@ class MatchBrainResult(BaseModel):
     grade: str | None = None
     recommendation: str | None = None
     summary: str | None = None
+    #: The line written TO the reader (second person, reader_voice-checked). The
+    #: drawer prefers it and falls back to `summary` on rows rated before v2.
+    pick_reason: str | None = None
     application_angle: str | None = None
     role_fit: float | None = None
     comp_fit: float | None = None

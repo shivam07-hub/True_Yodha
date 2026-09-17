@@ -3825,6 +3825,10 @@ export interface MatchBrainResult {
   grade?: string | null
   recommendation?: "Apply" | "Negotiate" | "Skip" | string | null
   summary?: string | null
+  /** The line written TO the reader, second person, checked by reader_voice on
+   *  the way in. Absent until the row is re-rated under the v2 prompt, when the
+   *  surface falls back to `summary`. */
+  pick_reason?: string | null
   application_angle?: string | null
   role_fit?: number | null
   comp_fit?: number | null

@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 # Display subset the frontend patches onto its local job object.
 _BRAIN_FIELDS = (
-    "overall_score", "grade", "recommendation", "summary", "application_angle",
+    "overall_score", "grade", "recommendation", "summary", "pick_reason", "application_angle",
     "role_fit", "comp_fit", "growth_fit", "culture_fit", "risk_score",
     "strengths", "concerns", "archetype", "legitimacy_tier", "legitimacy_reason",
 )
