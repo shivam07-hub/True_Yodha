@@ -12,6 +12,8 @@ import { JobDetailSheet, type JobDetailData } from "./job-detail-sheet"
 import { ApplyCapturePromptMobile } from "./apply-capture-prompt"
 import { feedItemToRow } from "./job-model"
 import { SwipeCard } from "./swipe-card"
+import { SkipReasonChips } from "@/components/jobs/skip-reasons"
+import { MOBILE_REASON_CLASSES } from "./skip-reason-classes"
 import { AgentPickLede } from "@/components/jobs/agent-pick-lede"
 import { useMobileUI } from "./mobile-ui"
 
@@ -93,7 +95,12 @@ export function MobileAgentPicks({
     triage.skip(pick)
     if (fromSheet) setOpenId(null)
     if (persistLocally) {
-      snack({ msg: "Hidden from your feed", action: "Undo", onAction: () => { triage.undo(); closeSnack() } })
+      snack({
+        msg: "Hidden from your feed",
+        action: "Undo",
+        onAction: () => { triage.undo(); closeSnack() },
+        slot: <SkipReasonChips token={token} jobId={pick.job_id} surface="market" {...MOBILE_REASON_CLASSES} />,
+      })
     }
   }
   const doShare = (pick: AgentPickItem) => {

@@ -77,3 +77,51 @@ test("the lede carries its own stylesheet, because the phone never imports the f
   // on the other.
   assert.doesNotMatch(css, /#[0-9a-fA-F]{3,8}\b/)
 })
+
+
+test("both surfaces ask why a job was hidden, through one component", () => {
+  const shared = read("../components/jobs/skip-reasons.tsx")
+  const toast = read("../components/jobs/not-interested-undo.tsx")
+  const phonePicks = read("../mobile/redesign/agent-picks-mobile.tsx")
+  const phoneFeed = read("../mobile/redesign/jobs-surface.tsx")
+
+  // The phone collected no reasons at all, which is most of why 184 of 194
+  // skips carry none.
+  for (const [name, source] of [["phone picks", phonePicks], ["phone feed", phoneFeed]] as const) {
+    assert.match(source, /<SkipReasonChips/, `${name} must ask why`)
+  }
+  assert.match(toast, /<SkipReasonChips/, "desktop must ask through the same component")
+
+  // One taxonomy, one sender: a second copy is how two surfaces start meaning
+  // different things by the same chip.
+  assert.match(shared, /PERSONAL_REASONS/)
+  assert.match(shared, /sendPersonalFeedback/)
+  for (const source of [toast, phonePicks, phoneFeed]) {
+    assert.doesNotMatch(source, /PERSONAL_REASONS\.map/)
+  }
+
+  // The receipt says what the answer does, not that it was received.
+  assert.match(shared, /Myro stops picking that kind of work/)
+})
+
+test("a skip made in the Ops folder is not recorded as a market skip", () => {
+  const band = read("../components/jobs/agent-picks-band.tsx")
+  assert.match(band, /surface=\{context === "collections" \? "other" : "market"\}/)
+})
+
+
+test("a question stays on screen longer than a confirmation", () => {
+  const feedback = read("../lib/jobs/feedback.ts")
+  const feed = read("../components/market/use-job-feed.ts")
+  const picks = read("../components/jobs/use-agent-pick-triage.ts")
+  const mobile = read("../mobile/redesign/mobile-ui.tsx")
+
+  // One definition of "long enough to answer".
+  assert.match(feedback, /export const REASON_PROMPT_MS/)
+  for (const [name, source] of [["feed", feed], ["picks", picks], ["phone", mobile]] as const) {
+    assert.match(source, /REASON_PROMPT_MS/, `${name} must use the shared window`)
+  }
+  // A skip asks why; a save does not, and keeps the short reflex window.
+  assert.match(picks, /setPending\(null\), SKIP_UNDO_MS\)/)
+  assert.match(picks, /setPending\(null\), UNDO_MS\)/)
+})

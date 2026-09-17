@@ -90,3 +90,22 @@
   .mm-root *::before,
   .mm-root *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
 }
+
+/* ── skip reasons on the snackbar ──────────────────────────────────────────
+   The phone had no way to say why a job was wrong; the answer now decides which
+   directions Myro stops picking, so it is worth the row. Tap targets stay 32px
+   and the row wraps rather than scrolling sideways at 375. */
+.mm-reason-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.mm-reason-chip {
+  min-height: 32px;
+  padding: 5px 11px;
+  border-radius: var(--tm-button-radius);
+  border: 1px solid var(--mm-hair);
+  background: var(--mm-raise-1);
+  color: var(--mm-text-3);
+  font-size: var(--tm-fs-caption);
+  font-family: inherit;
+  cursor: pointer;
+}
+.mm-reason-chip:active { border-color: var(--mm-accent); color: var(--mm-text); }
+.mm-reason-noted { font-size: var(--tm-fs-caption); color: var(--mm-text-3); }

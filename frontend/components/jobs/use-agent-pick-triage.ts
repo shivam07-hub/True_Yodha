@@ -1,5 +1,6 @@
 "use client"
 
+import { REASON_PROMPT_MS } from "@/lib/jobs/feedback"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { jobs as jobsApi, type AgentPickItem, type JobFeedItem } from "@/lib/api"
@@ -10,6 +11,10 @@ import {
 } from "@/lib/jobs/job-triage-cache"
 
 const UNDO_MS = 6000
+// A skip asks why (`SkipReasonChips` rides the same toast), and a question needs
+// longer on screen than a reflex does. Undo stays available for as long as the
+// question does — the skip is already recorded either way.
+const SKIP_UNDO_MS = REASON_PROMPT_MS
 
 /**
  * Save / Skip for Agent Picks. When the Jobs feed passes its triage callbacks,
@@ -67,7 +72,7 @@ export function useAgentPickTriage({
     void jobsApi.skipJob(token, pick.job_id).catch(() => rollback())
     clearUndo()
     setPending({ kind: "skipped", jobId: pick.job_id })
-    undoTimer.current = setTimeout(() => setPending(null), UNDO_MS)
+    undoTimer.current = setTimeout(() => setPending(null), SKIP_UNDO_MS)
   }, [hide, onSkip, qc, token, rollback, clearUndo])
 
   const undo = useCallback(() => {

@@ -130,6 +130,12 @@ export function AgentPicksBand({
           jobId={triage.pending.jobId}
           token={token}
           onUndo={triage.undo}
+          // Where it actually happened. This band renders inside the Ops folder
+          // too, and the default said "market" for every skip made there — a
+          // reason is evidence, and evidence that misreports where it came from
+          // is worse than none. Collections is not one of the three named
+          // surfaces, so it is `other` rather than a nearby-sounding lie.
+          surface={context === "collections" ? "other" : "market"}
         />
       ) : null}
     </section>
