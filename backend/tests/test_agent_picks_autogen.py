@@ -260,3 +260,37 @@ def test_the_band_quotes_the_line_written_to_the_reader() -> None:
 def test_a_row_rated_before_the_v2_prompt_keeps_its_old_line() -> None:
     stack = [_row("j1", score=4.5, summary="Solid overlap on lifecycle work.")]
     assert agent_picks.select_agent_picks(stack)[0]["comment"] == "Solid overlap on lifecycle work."
+
+
+# ── what you said no to, twice ───────────────────────────────────────────────
+
+DATA = frozenset({"pyspark", "data pipelines", "etl"})
+
+
+def test_a_direction_you_rejected_twice_stops_showing_up() -> None:
+    stack = [
+        _row("data", score=4.6, main_skills=["PySpark", "Data Pipelines"]),
+        _row("sales", score=4.1, main_skills=["Regional Sales", "Sales Process"]),
+    ]
+    picks = agent_picks.select_agent_picks(stack, vocabulary=SALES, passed_on=[DATA])
+    assert [p["job_id"] for p in picks] == ["sales"]
+
+
+def test_your_own_direction_outranks_a_pattern_read_off_your_skips() -> None:
+    # A job that fits both your target and something you skipped twice stays: the
+    # direction you chose is a statement, the skips are an inference.
+    stack = [_row("both", score=4.4, main_skills=["Regional Sales", "Sales Process", "PySpark", "ETL"])]
+    picks = agent_picks.select_agent_picks(stack, vocabulary=SALES, passed_on=[DATA])
+    assert [p["job_id"] for p in picks] == ["both"]
+
+
+def test_a_reach_fill_cannot_smuggle_back_a_rejected_direction() -> None:
+    stack = [_row("data", score=3.9, main_skills=["PySpark", "Data Pipelines"])]
+    assert agent_picks.select_agent_picks(stack, vocabulary=DATA, passed_on=[DATA]) != []
+    # ...but when it is not the user's own direction, it is gone at every score.
+    assert agent_picks.select_agent_picks(stack, vocabulary=SALES, passed_on=[DATA]) == []
+
+
+def test_with_nothing_passed_on_the_band_is_unchanged() -> None:
+    stack = [_row("data", score=4.6, main_skills=["PySpark", "Data Pipelines"])]
+    assert [p["job_id"] for p in agent_picks.select_agent_picks(stack, vocabulary=SALES)] == ["data"]

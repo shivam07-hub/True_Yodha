@@ -2423,6 +2423,60 @@ class JobsRepository:
         self._admin_db.table("user_agent_job_picks").insert(rows).execute()
         return len(rows)
 
+    def recent_personal_feedback_job_ids(
+        self, user_id: str, *, reason_code: str, days: int, limit: int = 200
+    ) -> list[str]:
+        """Jobs this user rejected for one personal reason, newest first.
+
+        Indexed by `idx_job_feedback_events_user_created`. Capped: PostgREST
+        truncates a page SILENTLY at 1000 rows, so the bound is stated here
+        rather than discovered as a wrong count later — and 200 skips in 90 days
+        is already far past the point where the answer stops moving.
+        """
+        since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        rows = (
+            self._db.table("job_feedback_events")
+            .select("job_id, created_at")
+            .eq("user_id", user_id)
+            .eq("feedback_kind", "personal")
+            .eq("reason_code", reason_code)
+            .gte("created_at", since)
+            .order("created_at", desc=True)
+            .limit(limit)
+            .execute()
+            .data
+            or []
+        )
+        seen: list[str] = []
+        for row in rows:
+            job_id = str(row.get("job_id") or "")
+            if job_id and job_id not in seen:
+                seen.append(job_id)
+        return seen
+
+    def main_skills_by_ids(self, job_ids: list[str]) -> dict[str, list[str]]:
+        """job_id → the skills the listing names. Two columns, nothing else.
+
+        `get_jobs_by_ids` is the full metadata read and rides hot paths; widening
+        it to carry an array for one caller would put that payload on every one
+        of them.
+        """
+        if not job_ids:
+            return {}
+        rows = (
+            self._db.table("jobs")
+            .select("job_id, main_skills")
+            .in_("job_id", job_ids)
+            .execute()
+            .data
+            or []
+        )
+        return {
+            str(row["job_id"]): [str(s) for s in (row.get("main_skills") or [])]
+            for row in rows
+            if row.get("job_id")
+        }
+
     def user_target_locations(self, user_id: str) -> list[str]:
         """The user's saved multi-location preference (freeform labels).
 

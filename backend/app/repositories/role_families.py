@@ -176,3 +176,23 @@ class RoleFamiliesRepository:
             for row in rows
             if row.get("family")
         }
+
+    def all_core_skills(self) -> dict[str, list[str]]:
+        """Every direction's vocabulary — the corpus a skip is counted against.
+
+        One read of the 337-row snapshot. It is the whole table on purpose: the
+        question ("which directions does this job fit") has no scoping key, and
+        337 rows of twelve names is smaller than the job rows already in hand.
+        """
+        rows = (
+            self._db.table("role_family_labels")
+            .select("family, core_skills")
+            .execute()
+            .data
+            or []
+        )
+        return {
+            str(row["family"]): [str(s) for s in (row.get("core_skills") or [])]
+            for row in rows
+            if row.get("family") and row.get("core_skills")
+        }

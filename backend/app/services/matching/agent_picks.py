@@ -20,10 +20,10 @@ of the auto-set is a reserved power-user perk (later); today the brain owns it.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Sequence
 
 from app.services.job_intelligence_policy import is_recommendable_listing
-from app.services.matching import direction_fit, targeting
+from app.services.matching import direction_fit, passed_on as passed_on_read, targeting
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +81,7 @@ def select_agent_picks(
     *,
     scrape_batch: int | None = None,
     vocabulary: frozenset[str] = frozenset(),
+    passed_on: Sequence[frozenset[str]] = (),
 ) -> list[dict[str, Any]]:
     """Pure selection: durable match rows → ranked pick dicts (no I/O).
 
@@ -93,6 +94,11 @@ def select_agent_picks(
     sit below every real pick, and a row that is off-direction or ungradable is
     never used to fill.
 
+    `passed_on` holds the vocabulary of each direction the user has rejected
+    twice (`matching/passed_on`). A job that fits one is dropped — unless it also
+    fits the direction they chose, because their own target outranks a pattern
+    inferred from skips.
+
     `vocabulary` is the user's direction, as the skills it demands
     (`direction_fit.vocabulary`). Empty — no direction chosen, or a snapshot
     that cannot grade it — leaves every pick `unknown` and the order falls back
@@ -101,6 +107,7 @@ def select_agent_picks(
     """
     qualified: list[tuple[int, float, float, dict[str, Any]]] = []
     reach: list[tuple[float, float, dict[str, Any]]] = []
+    dropped_passed_on = 0
     for row in stack:
         score = row.get("overall_score")
         if score is None or float(score) < REACH_SCORE:
@@ -126,8 +133,11 @@ def select_agent_picks(
         job_id = str(row.get("job_id") or "")
         if not job_id:
             continue
-        skills = job.get("main_skills")
-        fit = direction_fit.grade(skills if isinstance(skills, (list, tuple)) else None, vocabulary)
+        skills = job.get("main_skills") if isinstance(job.get("main_skills"), (list, tuple)) else None
+        fit = direction_fit.grade(skills, vocabulary)
+        if not fit.is_on_direction and passed_on_read.is_passed_on(skills, passed_on):
+            dropped_passed_on += 1
+            continue
         candidate = {
             "job_id": job_id,
             "comment": comment,
@@ -153,6 +163,9 @@ def select_agent_picks(
         for _score, _overlap, pick in reach[: MIN_PICKS - len(chosen)]:
             chosen.append((pick, "reach"))
 
+    if dropped_passed_on:
+        logger.info("metric agent_picks.passed_on_dropped jobs=%d", dropped_passed_on)
+
     picks: list[dict[str, Any]] = []
     for rank, (pick, tier) in enumerate(chosen, start=1):
         picks.append({
@@ -166,6 +179,12 @@ def select_agent_picks(
     return picks
 
 
+def brief_families(repo: Any, user_id: str) -> list[str]:
+    """The directions this user is aiming at, through the one read that owns
+    them (the Targeting Brief), never the profile columns directly."""
+    return list(targeting.for_ranking(repo, user_id).ranking_profile().get("target_roles") or [])
+
+
 def regenerate_for_user(
     repo: Any, user_id: str, *, scrape_batch: int | None = None
 ) -> int:
@@ -176,11 +195,15 @@ def regenerate_for_user(
     the latest brain verdicts. Best-effort by contract — the caller swallows;
     a pick-gen failure must never break the recompute or the notification."""
     stack = repo.get_user_match_stack(user_id)
-    brief = targeting.for_ranking(repo, user_id)
-    vocabulary = targeting.direction_vocabulary(
-        repo, brief.ranking_profile().get("target_roles")
+    families = brief_families(repo, user_id)
+    vocabulary = targeting.direction_vocabulary(repo, families)
+    rejected = passed_on_read.for_user(repo, user_id, target_families=families)
+    picks = select_agent_picks(
+        stack,
+        scrape_batch=scrape_batch,
+        vocabulary=vocabulary,
+        passed_on=rejected.vocabularies,
     )
-    picks = select_agent_picks(stack, scrape_batch=scrape_batch, vocabulary=vocabulary)
     written = repo.replace_agent_picks(user_id, picks, scrape_batch)
     on_direction = sum(1 for p in picks if p.get("direction") == "on_direction")
     logger.info(
