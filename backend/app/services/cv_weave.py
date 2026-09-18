@@ -31,6 +31,7 @@ from typing import Any
 
 from app.services.cv_rewrite import gains_foreign_numbers, loses_metrics, loses_substance
 from app.services.cv_weave_interview import StoryMaterial
+from app.services.jd_brief import JobBrief, digest as brief_digest
 from app.services.jd_coverage import CoverageItem
 from app.services import myro_voice
 from app.services.llm_provider import LLMProvider, LLMProviderError, get_writer_provider
@@ -157,11 +158,23 @@ def _build_messages(
     blocks: list[dict[str, Any]],
     stories: list[StoryMaterial],
     answers: list[dict[str, str]],
+    brief: JobBrief | None = None,
 ) -> list[dict[str, str]]:
     parts = [
         f"Target job: {job_title or 'the role'} at {company or 'the company'}",
-        f"Job description:\n{(jd_text or '').strip()[:_MAX_JD_CHARS]}",
+    ]
+    # The understood JD leads, because the raw prose is truncated by POSITION and
+    # a job post keeps its non-negotiables at the bottom: a 7,404-char JD lost
+    # its whole Good-to-have block (the named target geographies, the years of
+    # SaaS, the CRM) to the cap while three paragraphs of aspiration survived.
+    facts = brief_digest(brief)
+    if facts:
+        parts.append(f"What this job screens on (the JD, boilerplate removed):\n{facts}")
+    parts += [
         f"What this job requires (parsed):\n{_requirements_digest(coverage_items)}",
+        # Still sent: the brief carries the facts, the prose carries the job's
+        # own LANGUAGE, and mirroring that language honestly is the task.
+        f"Job description:\n{(jd_text or '').strip()[:_MAX_JD_CHARS]}",
         f"The candidate's CV experience:\n{_blocks_digest(blocks)}",
     ]
     if stories:
@@ -407,6 +420,7 @@ async def weave(
     cv_structured: dict | None,
     stories: list[StoryMaterial],
     answers: list[dict[str, str]],
+    brief: JobBrief | None = None,
     provider: LLMProvider | None = None,
 ) -> dict | None:
     """One weave pass → the proposal dict, or None on provider/parse/guard-total
@@ -416,7 +430,9 @@ async def weave(
     if not any(b["bullets"] for b in blocks):
         return None
     provider = provider or get_writer_provider()
-    messages = _build_messages(job_title, company, jd_text, coverage_items, blocks, stories, answers)
+    messages = _build_messages(
+        job_title, company, jd_text, coverage_items, blocks, stories, answers, brief,
+    )
     try:
         raw = await provider.complete(messages, max_tokens=_MAX_TOKENS)
     except LLMProviderError:

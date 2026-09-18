@@ -40,6 +40,7 @@ from app.services import (
     cv_weave,
     cv_weave_cache,
     cv_weave_interview,
+    jd_brief,
     jd_coverage,
     job_history,
     xp_policy,
@@ -76,6 +77,9 @@ class WeaveInterviewRequest(BaseModel):
 class WeaveInterviewResponse(BaseModel):
     questions: list[WeaveQuestion]
     requirements_total: int
+    #: How many asks this JD leaves unproven — the TRUE count, which can exceed
+    #: `len(questions)`: the interview is capped (cv_weave_interview.MAX_QUESTIONS)
+    #: and the rest still reach the weave through the requirements digest.
     unproven: int
     cost: int = xp_policy.CV_WEAVE_XP_COST
 
@@ -205,6 +209,28 @@ async def _coverage_rows(
     return result.requirements
 
 
+async def _job_brief(
+    user_id: str, job_id: str, jd_text: str, jobs_repo: JobsRepository,
+) -> jd_brief.JobBrief | None:
+    """The JD understood once, boilerplate stripped, cached per job.
+
+    Read before write: a job already understood costs nothing. Fail-soft — a
+    provider miss leaves the weave on the raw prose, which is what it had before
+    this existed, so a bad minute never blocks a purchased weave.
+    """
+    cached = jd_brief.from_payload(
+        jobs_repo.get_deepening(user_id, job_id, jd_brief.CACHE_PROMPT_KEY)
+    )
+    if cached is not None:
+        return cached
+    brief = await jd_brief.assess(jd_text, get_blocking_judgment_provider())
+    if brief is not None:
+        jobs_repo.upsert_deepening(
+            user_id, job_id, jd_brief.CACHE_PROMPT_KEY, jd_brief.to_payload(brief),
+        )
+    return brief
+
+
 def _load_cache(
     jobs_repo: JobsRepository, user_id: str, job_id: str,
 ) -> tuple[WeaveProposal, cv_weave_cache.WeaveCache] | None:
@@ -255,7 +281,7 @@ async def weave_interview(
             for q in questions
         ],
         requirements_total=len(rows),
-        unproven=len(questions),
+        unproven=sum(1 for r in rows if r.status != "covered"),
     )
 
 
@@ -367,6 +393,7 @@ async def run_weave(
 
     jd_text = job.get("job_description") or ""
     rows = await _coverage_rows(user.id, body.job_id, jd_text, jobs_repo, cv_structured)
+    brief = await _job_brief(user.id, body.job_id, jd_text, jobs_repo)
     stories = await cv_weave_interview.gather_story_material(
         user.id, [r.requirement for r in rows] or [job.get("job_title") or ""],
     )
@@ -383,6 +410,7 @@ async def run_weave(
         cv_structured=cv_structured,
         stories=stories,
         answers=answers,
+        brief=brief,
     )
     if proposal is None:
         raise HTTPException(

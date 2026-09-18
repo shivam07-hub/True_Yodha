@@ -33,6 +33,13 @@ logger = logging.getLogger(__name__)
 
 OPTION_MIN = 0.40       # looser than coverage's WEAK_MIN — options are suggestions the user confirms
 MAX_OPTIONS = 3
+# The interview is a door, not a toll. It used to ask ONE question per unproven
+# ask, uncapped — a 14-requirement JD against a candidate with little banked
+# evidence meant 13 questions before a single tailored line appeared, which is a
+# wall in front of the one step the funnel needs (70 collected → 14 tailored).
+# The unasked requirements are NOT lost: every one of them reaches the weave in
+# the requirements digest and the JD brief. This caps what we make the user TYPE.
+MAX_QUESTIONS = 5
 MATERIAL_MIN = 0.35     # story material fed to the weave prompt
 MAX_MATERIAL = 12
 
@@ -105,9 +112,17 @@ async def build_interview(
     coverage_items: list[CoverageItem],
     cv_structured: dict | None,
 ) -> list[InterviewQuestion]:
-    """One question per unproven ask, each with up to MAX_OPTIONS mined candidates.
-    Degrades to option-less questions on any embedding/recall failure."""
+    """At most MAX_QUESTIONS of the unproven asks, each with up to MAX_OPTIONS
+    mined candidates. Degrades to option-less questions on any embedding/recall
+    failure.
+
+    `weak` asks lead: the classifier already found a story that is close but thin,
+    so one sentence from the user turns it into evidence. A `gap` needs the story
+    told from nothing, which is the expensive kind of question — those fill the
+    remaining slots, in the JD's own order of importance.
+    """
     unproven = [i for i in coverage_items if i.status != "covered"]
+    unproven = sorted(unproven, key=lambda i: 0 if i.status == "weak" else 1)[:MAX_QUESTIONS]
     questions = [InterviewQuestion(requirement=i.requirement, status=i.status) for i in unproven]
     if not questions:
         return []
