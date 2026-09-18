@@ -47,9 +47,7 @@ import { itemId, renderDeterministic } from "@/lib/cv-compose"
 import { printCvPage } from "@/lib/cv/print-cv"
 import { exportAnonSheetPdf } from "@/lib/cv/sheet-pdf"
 import { masterFilename } from "@/lib/cv/download-master"
-import {
-  IDEAL_CV_SPEC, estimateLines, pageFillFromLines, type PageFill,
-} from "@/lib/cv/page-fill"
+import { computeFill, type PageFill } from "@/lib/cv/page-fill"
 import { stashComposedCvText, getAnonSessionId } from "@/lib/anon-cv-stash"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import { AnonRestructureModal } from "./anon-restructure-modal"
@@ -128,7 +126,7 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
     [contact.name, contact.email],
   )
   const atsChecks = useMemo(() => runAtsChecks(cv, fakeProfile, filename), [cv, fakeProfile, filename])
-  const pageFill = useMemo<PageFill>(() => computePageFill(cv, hidden), [cv, hidden])
+  const pageFill = useMemo<PageFill>(() => computeFill(cv, hidden), [cv, hidden])
   // ONE scan per change, same hook as both authed surfaces.
   const diagnosis = useCvDiagnosis({ cv, hidden, atsChecks })
 
@@ -284,30 +282,3 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
   )
 }
 
-/** Deterministic one-page line-budget estimate over the VISIBLE content.
- *  Mirrors PlaygroundView's pageFill (DESIGN_cv_playground_redesign §5). */
-function computePageFill(cv: CVStructured, hidden: Set<string>): PageFill {
-  const cpl = IDEAL_CV_SPEC.charsPerLine
-  let lines = 3 // contact header
-  if (cv.summary && !hidden.has(itemId("summary", 0, cv.summary))) lines += 1 + estimateLines(cv.summary, cpl)
-  let expVisible = false
-  cv.experience.forEach((e, ei) => {
-    const kept = e.bullets.filter((b, bi) => !hidden.has(itemId("exp_bullet", ei * 100 + bi, b)))
-    if (kept.length) { expVisible = true; lines += 1 + kept.reduce((s, b) => s + estimateLines(b, cpl), 0) }
-  })
-  if (expVisible) lines += 1
-  let projVisible = false
-  cv.projects.forEach((p, pi) => {
-    const kept = p.bullets.filter((b, bi) => !hidden.has(itemId("proj_bullet", pi * 100 + bi, b)))
-    if (kept.length) { projVisible = true; lines += 1 + kept.reduce((s, b) => s + estimateLines(b, cpl), 0) }
-  })
-  if (projVisible) lines += 1
-  const eduVisible = cv.education
-    .map((ed, i) => ({ line: [ed.institution, ed.degree, ed.dates].filter(Boolean).join(" · "), i }))
-    .filter(({ line, i }) => !hidden.has(itemId("edu", i, line)))
-  if (eduVisible.length) lines += 1 + eduVisible.length
-  if (cv.skills_line && !hidden.has(itemId("skills_line", 0, cv.skills_line))) lines += 1 + estimateLines(cv.skills_line, cpl)
-  const certVisible = cv.certs.filter((c, i) => !hidden.has(itemId("cert", i, c)))
-  if (certVisible.length) lines += 1 + certVisible.length
-  return pageFillFromLines(lines)
-}

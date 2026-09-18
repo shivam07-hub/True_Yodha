@@ -23,7 +23,7 @@ import { jobs as jobsApi, cv as cvApi } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
 import { hiddenLineTexts } from "@/lib/cv/hidden-lines"
 import { dataKeys } from "@/lib/domain-data"
-import { IDEAL_CV_SPEC, estimateLines, pageFillFromLines, type PageFill } from "@/lib/cv/page-fill"
+import { computeFill, type PageFill } from "@/lib/cv/page-fill"
 import { matchScore, projectCoverage } from "./match-score"
 import { resolvePlaygroundCompany } from "./keyword-utils"
 
@@ -152,19 +152,10 @@ export function usePlaygroundModel(
     [visibleText],
   )
 
-  const pageFill: PageFill = useMemo(() => {
-    const cpl = IDEAL_CV_SPEC.charsPerLine
-    let lines = 3
-    if (cv.summary && !hiddenItems.has(itemId("summary", 0, cv.summary))) lines += 1 + estimateLines(cv.summary, cpl)
-    let expVisible = false
-    cv.experience.forEach((e, ei) => {
-      const kept = e.bullets.filter((b, bi) => !hiddenItems.has(itemId("exp_bullet", ei * 100 + bi, b)))
-      if (kept.length) { expVisible = true; lines += 1 + kept.reduce((s, b) => s + estimateLines(b, cpl), 0) }
-    })
-    if (expVisible) lines += 1
-    if (cv.skills_line && !hiddenItems.has(itemId("skills_line", 0, cv.skills_line))) lines += 1 + estimateLines(cv.skills_line, cpl)
-    return pageFillFromLines(lines)
-  }, [cv, hiddenItems])
+  const pageFill: PageFill = useMemo(
+    () => computeFill(cv, hiddenItems),
+    [cv, hiddenItems],
+  )
 
   const sheetContact = useMemo(() => ({
     name: cv.contact?.name?.trim() || profile?.full_name?.trim() || "Your name",

@@ -6,7 +6,10 @@ import {
   estimateLines,
   pageFillFromLines,
   pageFillBand,
+  computeFill,
 } from "../lib/cv/page-fill"
+import { itemId } from "../lib/cv-compose"
+import type { CVStructured } from "../lib/api"
 
 test("estimateLines: empty/whitespace costs zero lines", () => {
   assert.equal(estimateLines(""), 0)
@@ -60,4 +63,74 @@ test("pageFillFromLines: well over budget is the 'over' band", () => {
 test("pageFillFromLines: zero/negative lines is an empty page", () => {
   assert.deepEqual(pageFillFromLines(0), { ratio: 0, pct: 0, pages: 1, fits: true })
   assert.equal(pageFillFromLines(-5).fits, true)
+})
+
+
+// ── computeFill — ONE definition, over the WHOLE document ────────────────────
+// The signed-in workstation and the public preview each used to carry their own
+// copy. They diverged: the signed-in one counted identity + summary + experience
+// + skills and NOTHING else, so a populated projects section was invisible to the
+// meter that gates that user's download. These tests exist so the single
+// definition cannot quietly lose a section again.
+
+const bare: CVStructured = {
+  contact: {
+    name: "A", title: "", email: "", phone: "", location: "", linkedin: "",
+  },
+  summary: null,
+  experience: [],
+  projects: [],
+  education: [],
+  skills_line: null,
+  certs: [],
+}
+
+const withRole = (): CVStructured => ({
+  ...bare,
+  experience: [{ role: "PM", company: "Co", location: "", dates: "2020", bullets: ["Cut cost 20%"] }],
+})
+
+test("computeFill: an empty CV is just the contact header", () => {
+  assert.equal(computeFill(bare, new Set()).ratio * IDEAL_CV_SPEC.lineBudget, 3)
+})
+
+test("computeFill: a projects section is COUNTED (the signed-in meter's old blind spot)", () => {
+  const cv = withRole()
+  const before = computeFill(cv, new Set())
+  const after = computeFill(
+    { ...cv, projects: [{ name: "Myro", dates: "2026", bullets: ["Zero to 862 users"] }] },
+    new Set(),
+  )
+  assert.ok(after.ratio > before.ratio, "adding a project must raise the fill")
+})
+
+test("computeFill: education and certifications are COUNTED", () => {
+  const cv = withRole()
+  const before = computeFill(cv, new Set())
+  const withEdu = computeFill(
+    { ...cv, education: [{ institution: "IIM", degree: "MBA", grade: "", dates: "2024", location: "" }] },
+    new Set(),
+  )
+  const withCerts = computeFill({ ...cv, certs: ["AWS"] }, new Set())
+  assert.ok(withEdu.ratio > before.ratio, "education must raise the fill")
+  assert.ok(withCerts.ratio > before.ratio, "certifications must raise the fill")
+})
+
+test("computeFill: hiding a bullet lowers the fill", () => {
+  const cv = withRole()
+  const shown = computeFill(cv, new Set())
+  const hidden = computeFill(cv, new Set([itemId("exp_bullet", 0, "Cut cost 20%")]))
+  assert.ok(hidden.ratio < shown.ratio, "a hidden bullet must not be counted")
+})
+
+test("computeFill: identical CV and hidden set give one verdict for every surface", () => {
+  const cv: CVStructured = {
+    ...withRole(),
+    projects: [{ name: "Myro", dates: "2026", bullets: ["Zero to 862 users"] }],
+    education: [{ institution: "IIM", degree: "MBA", grade: "", dates: "2024", location: "" }],
+    skills_line: "Product, SQL",
+    certs: ["AWS"],
+  }
+  const hidden = new Set<string>()
+  assert.deepEqual(computeFill(cv, hidden), computeFill(cv, hidden))
 })
