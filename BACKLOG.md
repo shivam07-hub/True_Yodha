@@ -20,7 +20,7 @@ Item numbers are historical and carry no priority meaning.
 | Upload + download reliability on weak networks | #42, beta ledger | open |
 | Real-device authed QA on a phone | #42 | never done · APK blocker |
 | Read capacity under concurrent load | #16 | software closed; paid DB capacity gate blocks launch |
-| CV rewrite fabricates roles + deletes sections | #47, #53 | ⚠️ SEVERITY 1 · live in prod data · reach unmeasured |
+| CV rewrite destroys sections the schema can't hold | #47 = #48 | MEASURED: 5 users · path idle since 2026-08-05 · root cause is the closed schema |
 | Download gated by a page-fill meter that is wrong | #49 | blocks CVs that fit; passes CVs that spill |
 
 ### Stage 2 — job matching through Myro Ops (NEXT)
@@ -620,13 +620,21 @@ measured Free/Nano database ceiling, not unfinished application work.
 > quantified outcome**, structured for the role, verified to fit. The build reached
 > 18 bullets, 18/18 quantified — and **not one step of it was reachable from the UI.**
 
-47. **⚠️ SEVERITY 1 — the master-rewrite path fabricates employment history and deletes sections. Users are applying to jobs with CVs it damaged.** Three defects on one path, all in production data today:
+47. **⚠️ MEASURED 2026-09-18 — the master-rewrite path destroys any CV section the schema cannot hold. 5 users damaged, root cause is #48.**
 
-    - **Fabricated role.** `cv_versions` id 459 (v99, `deterministic`, 2026-07-14) contains `E.L.I.T.E Manager · Capgemini · Jul 2024 – May 2025` — a job the user never held — carrying the bullet for the IIM Lucknow Manfest-Varchasva festival. The same version promotes `Management Consulting Intern` to `Strategy Consultant · Accenture Strategy & Consulting`.
-    - **Model reasoning persisted as CV content.** id 454 (v96, **`baseline_upload` — a master**, 2026-07-12) has raw chain-of-thought in `body_text`: *"We need to maybe improve: … Avoid adding unverified info. But we can rephrase while staying truthful. … Safer:"* followed by a single truncated bullet where the experience section belongs.
-    - **Silent section deletion.** v38 (id 202, the original `pdf_upload`, 2026-06-01) carried `LEADERSHIP ROLES` (₹1 Cr+ budget, 100-member team, 70+ events, 30,000+ footfall) and `RECOGNITIONS & ACHIEVEMENTS` (state-level basketball, School Sports Captain, Armed Forces Scholarship). Both survived to v99. **v100 (id 461, titled "Master CV · rewrite", 2026-07-16) dropped them**, and every master since has been missing them — two months of applications sent without the strongest leadership evidence on the CV.
+    **The mechanism is a lossy round trip, NOT a model deleting things.** `backend/app/routers/cv/skill_edit.py:440` does `new_body_text = cv_skill_edit.render_baseline_text(new_structured)`, which is `cv_compose.render_deterministic` — it renders **only** the six keys in `CVStructured`. Any heading with no structured home cannot survive, and the regenerated text **overwrites the master's `body_text`**. That is why the damaged masters keep every role (roles have a field) while the body shrinks ~30%.
 
-    A rewrite may reword what a user wrote. It may never invent an employer, restate a title, or drop a section. Fix is a **write-side contract on the rewrite path**: role/company/title/date tuples are immutable across a rewrite, section count may not decrease, and any `body_text` matching model-deliberation markers is rejected, not stored. Sits next to [[feedback_schema_contract_on_write]] and [[feedback_absent_or_complete_never_half]]. Pairs with #54 (recovery).
+    **This makes #47 and #48 one item, not two.** No write-side contract fixes this while the schema has nowhere to put LEADERSHIP ROLES, RECOGNITIONS & ACHIEVEMENTS, CORE COMPETENCIES or PERSONAL DETAILS. Fix the schema first, or make the renderer preserve unknown sections verbatim.
+
+    **Measured reach** (all 410 uploaders scanned, method in this entry — re-run before trusting it):
+    - Rewrite path total: **77 versions, 6 users**, 2026-05-22 → **last run 2026-08-05**. It has not fired in six weeks. Still live in code.
+    - **Section loss: 5 users.** Of 338 users with a comparable first-vs-current master, 24 lost a heading; 19 of those were the user's own re-upload (their choice, not damage). The 5 rewrite-path cases lost, among others: `PROFESSIONAL EXPERIENCE` (two users), `AWARDS & ACTIVITIES`, `CERTIFICATIONS & ACHIEVEMENTS`, `LEADERSHIP ROLES`, `RECOGNITIONS & ACHIEVEMENTS`, `PERSONAL DETAILS`.
+    - **Model reasoning persisted as CV content: 1 user** (`33b66361-…`), 7 versions, 3 of them masters. id 454 (v96, `baseline_upload`) holds *"We need to maybe improve: … Avoid adding unverified info … Safer:"* in `body_text`. Every other candidate across 410 users was a false positive — "Large Language Models" listed as a skill.
+    - **Fabricated role: observed once, NOT reliably measurable.** id 459 (v99, `deterministic`) carries `E.L.I.T.E Manager · Capgemini · Jul 2024 – May 2025`, a job the user never held, with the IIM Lucknow festival bullet attached; the same version promotes `Management Consulting Intern` to `Strategy Consultant`. It is a **tailored** version, not a master, so it is a different path from the section loss above. Two detector attempts produced only false positives (curly-vs-straight apostrophes; tailored versions legitimately hiding bullets their predecessor showed). **Do not trust a count here until a sound detector exists.**
+
+    ⚠️ **Two wrong turns this measurement cost — do not repeat them.** (a) Postgres regex uses `\y` for a word boundary; `\b` is a backspace, so `\b(we|i)\b` silently matched nothing and the first sweep under-reported. (b) `substring(x from '…(group)…')` returns the FIRST capture group, not the match — a scan that looked like evidence of assistant-voice text in 8 users was actually returning the matched keyword alone, and all 8 were the skill "Large Language Models".
+
+    **Checked and CLEARED — not a data leak.** 13 colliding `body_text` hashes span 36 users, the worst being one named person's CV on **13 distinct gmail accounts** over 2026-08-02→05. `content_hash = sha256(raw_text)` (`cv_workflow.py:344`) and BOTH lookups that consume it — `find_by_content_hash` and `find_by_idempotency_key` — filter on `user_id`. There is no unscoped `content_hash` read anywhere in the backend. Identical hash therefore means identical uploaded text: a cohort uploading the same sample CV, almost certainly a demo or workshop group. No cross-user reuse path exists.
 
 48. **`CVStructured` has no `achievements` field, and the section list is a closed six-key tuple — so the one section every consulting CV requires cannot exist.** `summary · experience · projects · skills_line · education · certs` — `frontend/lib/api.ts:1237-1246`, `frontend/lib/cv/section-order.ts:8`, `backend/app/services/cv_section_order.py:12`. Headings are fixed by the `HEAD` map at `frontend/components/cv/builder/cv-paper-sections.tsx:52`, so "Achievements and Leadership", "Advisory and Agentic Pursuits" and "Skills and Courses" are all inexpressible. In the Amazon build all three had to be written outside the platform.
 
