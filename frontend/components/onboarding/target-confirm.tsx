@@ -281,13 +281,36 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
     setLocations([])
   }
 
+  /**
+   * Direction's terminal outcomes.
+   *
+   * `started` alone was half a signal. Every other phase in
+   * `cv_upload_phase_events` carries at least one terminal outcome; this one
+   * had 45 `started` rows and nothing else, so a save that threw and a person
+   * who walked away were the same row. 5 of the 26 people who have reached this
+   * step left without a target and the table could not say which kind of leaving
+   * it was.
+   *
+   * Emitted from `submit()` only — the one place the step can end on purpose.
+   */
   async function submit() {
     if (!canSubmit || !seniority) return
     setBusy(true); setError(null)
+    // The target either reached the database or it did not, and four things
+    // inside this `try` run AFTER it lands — the cache invalidation, the
+    // analytics event, the handoff, the navigation. A throw from any of them
+    // would otherwise be caught and recorded as a failed save, giving one
+    // attempt both a `succeeded` and a `failed` row. Two rows that contradict
+    // each other are worse than the none this step had.
+    let saved = false
     try {
       if (!ninjaClaimed) {
         const chosen = ninja.trim().toLowerCase()
         if (!NAME_RE.test(chosen)) {
+          // A real dead end, not a throw: the button was enabled (`ninjaOk` read
+          // the same regex), the name failed it, and nothing is saved. Without
+          // this it is indistinguishable from never pressing the button.
+          emitJourneyPhase(token, "direction", "failed", { reasonCode: "ninja_name_invalid" })
           setError("Myro name: 3–32 characters, lowercase letters, numbers, dashes.")
           setBusy(false)
           return
@@ -315,6 +338,13 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
         avoid,
         finish_onboarding: true,
       })
+      // After the write, before the navigation — the same order `confirm`
+      // uses. The target is in the database by this line; everything below is
+      // the app catching up with that fact.
+      saved = true
+      emitJourneyPhase(token, "direction", "succeeded", {
+        reasonCode: (result.families?.length ?? 0) === 0 ? "no_families" : null,
+      })
       trackEvent("onboarding_direction_confirmed", {
         band_count: bands.length,
         // 1 when they kept Myro's reading untouched, 0 when they corrected it —
@@ -330,7 +360,12 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
       router.replace("/market")
     } catch (reason) {
       setBusy(false)
-      setError(reason instanceof Error ? reason.message : "Could not save your direction.")
+      const detail = reason instanceof Error ? reason.message : "Could not save your direction."
+      // Only when nothing was written. Covers the two writes that can fail
+      // before the target lands: claiming the Myro name, and saving the target
+      // itself. Which one threw is in `errorDetail`.
+      if (!saved) emitJourneyPhase(token, "direction", "failed", { errorDetail: detail })
+      setError(detail)
     }
   }
 
