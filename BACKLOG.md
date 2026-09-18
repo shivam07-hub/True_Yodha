@@ -149,33 +149,34 @@ measured Free/Nano database ceiling, not unfinished application work.
 
 7. **#33 ₹199 Personalised Engagement — operator remaining** (ENG1 / [OFFERING.md](OFFERING.md)): checkout is Razorpay Subscriptions at 19900 paise / month; one human pass per IST billing month. Still owed by Shivam: create the Razorpay plan, set `RAZORPAY_ENGAGEMENT_PLAN_ID` + webhook events, reviewer email/token. LinkedIn door is `/job-switch-plan?utm_source=linkedin_services`. Do not keep ₹99 as a cheaper CTA.
 
-7b. **The tailor's "nothing is ever lost" promise silently does nothing.**
-    *Found 2026-09-13 tracing the upload bridge. Bounded fix, no decision needed.*
+7b. **✅ CLOSED 2026-09-18 — the tailor's reword now actually reaches the reservoir.**
+    The diagnosis was right and the evidence was worse than the note claimed:
+    `source="tailor"` had written **zero** rows in the life of the feature, and
+    `source="restructure"` — the same positional-anchor bug in `skill_edit.py` —
+    stopped at 28 rows on 2026-07-12, the day the last positional point was
+    current. Both callers had to GUESS an anchor that matched exactly or the
+    write silently did nothing.
+    Fixed by deleting the guess: `append_phrasing` no longer takes an anchor. It
+    finds the point by its TEXT and the new phrasing inherits the anchor that row
+    already carries, so it works for the live `story:{id}` shape and the frozen
+    positional one alike. Both callers lost their `_SECTION_TO_LIST` dance.
+    Held by `test_cv_job_draft_phrasing.py`.
 
-    `_mirror_job_reword_to_reservoir` (`routers/cv/versions.py`) is named for the
-    reservoir and does not write to it. It calls `append_phrasing` with a
-    **positional** anchor (`experience:3`), which matches on `role_anchor` plus
-    the exact prior text and **returns `false` without a word** when no row
-    matches. The 1,710 positional `cv_points` are a one-off backfill frozen
-    2026-06-24 → 07-12; nothing has written that shape since. So for every user
-    whose points are that backfill — or who has none — a job-specific reword is
-    dropped on the floor while the code claims it was banked.
+7c. **Two pointer shapes in `cv_points` — and the "frozen layer" half of this is
+    STALE.** *Decision, then a migration. Shivam's call — deleting is destructive.*
 
-    Two ways out, and they are the same decision as the dead layer below: point
-    the mirror at `story:{id}` so a reword becomes a real alternative phrasing on
-    the story, or delete the mirror and stop claiming it. Do not leave a function
-    whose name is the opposite of what it does.
+    Re-measured 2026-09-18: **2,235 rows, 198 users.** `source="migration"` is
+    1,682 rows, all positional, genuinely frozen since 2026-06-24.
+    `source="manual"` is 525 rows, all `story:{uuid}`, **last written
+    2026-09-17** — that layer is alive and growing, which the old note (407 rows,
+    3 users) predated. `source="restructure"` is 28 positional rows, dead since
+    2026-07-12.
 
-7c. **1,710 `cv_points` are a frozen layer no writer owns.** *Decision, then a
-    migration. Shivam's call — deleting is destructive.*
-
-    Two pointer shapes live in one table, told apart only by a string prefix:
-    `story:{uuid}` (407 rows, 3 users, live) and positional `experience:N` /
-    `projects:N` (1,710 rows, 185 users, last written 2026-07-12). No code path
-    writes positional any more. `story_pointers` scopes by `story_id`, so the
-    reservoir never double-counts them — they are inert, not dangerous — but they
-    are what makes 7b lie, and they are 81% of the table. Migrate onto stories or
-    retire them; either way, one shape.
+    The positional rows no longer make 7b lie — the mirror reads either shape now
+    — so this is no longer blocking anything. What remains is tidiness: 1,710
+    positional rows are 76% of the table and no writer owns them. `story_pointers`
+    scopes by `story_id`, so they are inert, not dangerous. Migrate onto stories
+    or retire them; either way, one shape. Not urgent.
 
 ### TIER 3 — needs a decision or a grill BEFORE code
 

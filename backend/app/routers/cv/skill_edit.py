@@ -359,7 +359,6 @@ async def rewrite_bullet_stream(
 
 
 # v2 reservoir: only experience/project bullets are points.
-_SECTION_TO_LIST = {"exp_bullet": "experience", "proj_bullet": "projects"}
 
 
 def _mirror_rewrite_to_reservoir(
@@ -372,12 +371,8 @@ def _mirror_rewrite_to_reservoir(
     """Dual-write the accepted rewrite into the experience reservoir as a new canonical
     phrasing of the point (shadow, best-effort). Never raises — the master write has
     already succeeded; a reservoir hiccup must not fail the user's accept."""
-    list_key = _SECTION_TO_LIST.get(located.section)
-    if not list_key:
-        return
-    anchor = f"{list_key}:{located.item_index}"
     try:
-        cv_repo.append_phrasing(user_id, anchor, old_text, new_text, source="restructure")
+        cv_repo.append_phrasing(user_id, old_text, new_text, source="restructure")
     except Exception:  # noqa: BLE001 — best-effort shadow mirror, never block the accept
         logger.info("reservoir append skipped (best-effort) for user=%s", user_id)
 

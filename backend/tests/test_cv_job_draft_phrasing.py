@@ -72,8 +72,14 @@ def _repo(sink: dict) -> CVVersionsRepository:
     return CVVersionsRepository(_DB(sink))  # type: ignore[arg-type]
 
 
-def _canonical_row() -> dict:
-    return {"id": 11, "point_key": "pk1", "section": "experience", "ordering": 2}
+def _canonical_row(anchor: str = "story:abc-123") -> dict:
+    """A live reservoir point. The anchor shape that is actually written today is
+    `story:{id}`; the positional `experience:N` shape is the frozen 2026-06
+    backfill, and callers guessing it is what made this mirror dead."""
+    return {
+        "id": 11, "point_key": "pk1", "section": "experience",
+        "ordering": 2, "role_anchor": anchor,
+    }
 
 
 # ── the repository rule ───────────────────────────────────────────────────────
@@ -82,19 +88,23 @@ def _canonical_row() -> dict:
 def test_alternate_phrasing_does_not_demote_the_master_wording() -> None:
     sink = {"canonical_rows": [_canonical_row()]}
     appended = _repo(sink).append_phrasing(
-        "u1", "experience:0", "Ran the migration", "Ran the Oracle cloud migration",
+        "u1", "Ran the migration", "Ran the Oracle cloud migration",
         source="tailor", canonical=False,
     )
     assert appended is True
     assert sink["inserted"][0]["is_canonical"] is False
     assert sink["inserted"][0]["text"] == "Ran the Oracle cloud migration"
+    # The new phrasing inherits the found point's OWN anchor. No caller supplies
+    # one: both used to build `experience:N`, which only the frozen backfill has,
+    # so `source="tailor"` wrote zero rows in the life of the feature.
+    assert sink["inserted"][0]["role_anchor"] == "story:abc-123"
     # The master's canonical phrasing is untouched — nothing was demoted.
     assert "updated" not in sink
 
 
 def test_master_rewrite_still_promotes_and_demotes() -> None:
     sink = {"canonical_rows": [_canonical_row()]}
-    _repo(sink).append_phrasing("u1", "experience:0", "Ran it", "Ran it, 40% faster")
+    _repo(sink).append_phrasing("u1", "Ran it", "Ran it, 40% faster")
     assert sink["inserted"][0]["is_canonical"] is True
     assert sink["updated"] == [{"is_canonical": False}]
 
@@ -136,8 +146,8 @@ class _FakeRepo:
             "created_at": "2026-09-01T00:00:00+00:00",
         }
 
-    def append_phrasing(self, user_id, anchor, old_text, new_text, source="restructure", *, canonical=True):
-        self.mirrored.append((anchor, old_text, new_text, source, canonical))
+    def append_phrasing(self, user_id, old_text, new_text, source="restructure", *, canonical=True):
+        self.mirrored.append((old_text, new_text, source, canonical))
         return True
 
 
@@ -163,8 +173,7 @@ def test_reword_mirrors_as_alternate_against_the_pre_patch_cv() -> None:
     repo = _FakeRepo()
     _call(repo, LinePhrasing(old_text="Ran the migration", new_text="Ran the Oracle cloud migration"))
     assert repo.patched is not None
-    anchor, old_text, new_text, source, canonical = repo.mirrored[0]
-    assert anchor == "experience:0"
+    old_text, new_text, source, canonical = repo.mirrored[0]
     assert (old_text, new_text) == ("Ran the migration", "Ran the Oracle cloud migration")
     assert (source, canonical) == ("tailor", False)
 
@@ -176,7 +185,13 @@ def test_structural_patch_without_a_reword_writes_no_reservoir_row() -> None:
     assert repo.mirrored == []
 
 
-def test_unlocatable_line_is_skipped_not_guessed() -> None:
-    repo = _FakeRepo()
-    _call(repo, LinePhrasing(old_text="A line this CV never held", new_text="Anything"))
-    assert repo.mirrored == []
+def test_a_line_with_no_point_behind_it_writes_nothing() -> None:
+    """The router used to locate the bullet itself and skip when it could not.
+    That decision now lives in ONE place — the repository, which looks the point
+    up by its text — so there is no second opinion to drift out of step."""
+    sink: dict = {"canonical_rows": []}
+    appended = _repo(sink).append_phrasing(
+        "u1", "A line this CV never held", "Anything", source="tailor", canonical=False,
+    )
+    assert appended is False
+    assert "inserted" not in sink

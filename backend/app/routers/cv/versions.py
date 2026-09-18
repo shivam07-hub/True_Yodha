@@ -31,7 +31,6 @@ from app.services import (
     cv_compose,
     cv_restructure,
     cv_section_order,
-    cv_skill_edit,
     xp_policy,
     xp_service,
 )
@@ -351,14 +350,9 @@ class JobDraftPatchRequest(BaseModel):
     phrasing: LinePhrasing | None = None
 
 
-# The reservoir holds experience/project bullets as points; nothing else.
-_SECTION_TO_LIST = {"exp_bullet": "experience", "proj_bullet": "projects"}
-
-
 def _mirror_job_reword_to_reservoir(
     cv_repo: CVVersionsRepository,
     user_id: str,
-    before: dict[str, Any],
     phrasing: LinePhrasing,
 ) -> None:
     """Keep a job-scoped reword as an ALTERNATE phrasing in the reservoir.
@@ -366,17 +360,14 @@ def _mirror_job_reword_to_reservoir(
     The master's wording does not move — this line was written for one JD. But a
     reword is often where the user remembers real work, so the text has to survive
     somewhere they can find it (Stories). Best-effort: the draft patch has already
-    landed and a reservoir hiccup must never fail it."""
-    located = cv_skill_edit.locate_bullet(before, phrasing.old_text)
-    if not isinstance(located, cv_skill_edit.BulletLocation):
-        return
-    list_key = _SECTION_TO_LIST.get(located.section)
-    if not list_key:
-        return
+    landed and a reservoir hiccup must never fail it.
+
+    It no longer locates the bullet first: the repository finds the point by its
+    text. Locating it here only ever produced a positional anchor that had to
+    match, and never did — `source="tailor"` had written zero rows."""
     try:
         cv_repo.append_phrasing(
             user_id,
-            f"{list_key}:{located.item_index}",
             phrasing.old_text,
             phrasing.new_text,
             source="tailor",
@@ -418,9 +409,7 @@ def patch_job_draft(
         cv_structured=body.cv_structured, body_text=body_text,
     )
     if body.phrasing:
-        _mirror_job_reword_to_reservoir(
-            cv_repo, user_id, version.get("cv_structured") or {}, body.phrasing,
-        )
+        _mirror_job_reword_to_reservoir(cv_repo, user_id, body.phrasing)
     return _to_response(row)
 
 

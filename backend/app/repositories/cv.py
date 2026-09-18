@@ -349,7 +349,6 @@ class CVVersionsRepository:
     def append_phrasing(
         self,
         user_id: str,
-        role_anchor: str,
         old_text: str,
         new_text: str,
         source: str = "restructure",
@@ -366,15 +365,24 @@ class CVVersionsRepository:
         ``canonical=False`` is the job-draft mirror: the user reworded this line for
         ONE job, so the master's wording must not move. The new text still enters the
         reservoir — as an alternate phrasing — because a reword often carries real new
-        material the user just remembered, and the inventory is where that survives."""
+        material the user just remembered, and the inventory is where that survives.
+
+        The point is found by its TEXT, and the new phrasing inherits the anchor the
+        found row already carries. Callers used to pass an anchor too, and both of
+        them built a POSITIONAL one (``experience:3``) that had to match exactly or
+        the write silently did nothing. Only the frozen 2026-06 backfill is anchored
+        that way; the live reservoir writes ``story:{id}``. The result was measurable:
+        `source="tailor"` had written ZERO rows in the life of the feature, and
+        `source="restructure"` stopped at 28 rows on 2026-07-12, the day the last
+        positional row was current. A caller that must guess a key to be heard will
+        eventually guess wrong and never be told."""
         new_text = (new_text or "").strip()
         if not new_text or new_text == (old_text or "").strip():
             return False
         found = (
             self._db.table("cv_points")
-            .select("id, point_key, section, ordering")
+            .select("id, point_key, section, ordering, role_anchor")
             .eq("user_id", user_id)
-            .eq("role_anchor", role_anchor)
             .eq("text", old_text)
             .eq("is_canonical", True)
             .eq("status", "active")
@@ -387,7 +395,9 @@ class CVVersionsRepository:
         self._db.table("cv_points").insert({
             "user_id": user_id,
             "point_key": row["point_key"],
-            "role_anchor": role_anchor,
+            # The found point's own anchor, whatever shape it is — never one the
+            # caller guessed.
+            "role_anchor": row.get("role_anchor"),
             "section": row["section"],
             "text": new_text,
             "source": source,
