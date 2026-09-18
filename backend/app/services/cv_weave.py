@@ -31,6 +31,7 @@ from typing import Any
 
 from app.services.cv_rewrite import gains_foreign_numbers, loses_metrics, loses_substance
 from app.services.cv_weave_interview import StoryMaterial
+from app.services.deepening_keys import DeepeningKey
 from app.services.jd_brief import JobBrief, digest as brief_digest
 from app.services.jd_coverage import CoverageItem
 from app.services import myro_voice
@@ -43,7 +44,7 @@ MAX_BULLET_CHARS = 320
 _MAX_TOKENS = 2400
 _MAX_JD_CHARS = 6000
 
-CACHE_PROMPT_KEY = "cv_weave"
+CACHE_PROMPT_KEY = DeepeningKey.CV_WEAVE
 
 
 # ── source shape ───────────────────────────────────────────────────────────────

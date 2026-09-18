@@ -33,11 +33,12 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.services.deepening_keys import DeepeningKey
 from app.services.llm_provider import LLMProvider, LLMProviderError
 
 logger = logging.getLogger("myro.jd_brief")
 
-CACHE_PROMPT_KEY = "jd_brief"
+CACHE_PROMPT_KEY = DeepeningKey.JD_BRIEF
 MAX_JD_CHARS = 16_000
 MAX_ITEMS = 10
 _MAX_TOKENS = 900

@@ -21,10 +21,11 @@ from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.security import redact_sensitive_text
 from app.services import jd_coverage, job_history, prep_brief as prep_brief_service, xp_policy, xp_service
 from app.services.llm_provider import LLMProvider, get_blocking_judgment_provider
+from app.services.deepening_keys import DeepeningKey
 
 router = APIRouter()
 
-_BRIEF_PROMPT_KEY = "prep_brief"
+_BRIEF_PROMPT_KEY = DeepeningKey.PREP_BRIEF
 
 
 class BriefLead(BaseModel):

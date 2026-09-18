@@ -18,6 +18,7 @@ from app.repositories.reach_targets import (
     ReachTargetsRepository,
     get_token_reach_targets_repository,
 )
+from app.services.deepening_keys import DeepeningKey
 from app.services.reach_target import (
     MAX_TARGETS_PER_USER,
     can_advance,
@@ -29,7 +30,10 @@ from app.services.reach_target import (
 
 router = APIRouter()
 
-_PACK_PROMPT_KEY = "reach_pack"
+# Imported, not retyped: this constant used to be declared privately in
+# BOTH reach modules, so renaming one would have left the other reading
+# an empty cache with no error.
+_PACK_PROMPT_KEY = DeepeningKey.REACH_PACK
 _ACTIONS = ("sent", "followed_up", "replied", "stopped")
 
 
