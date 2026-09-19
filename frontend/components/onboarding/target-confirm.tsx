@@ -72,6 +72,13 @@ function mayPropose(role: RoleFamily): boolean {
   return (role.matched_skills ?? []).some((skill) => wanted.has(skill))
 }
 
+/** A catch-all may be on the list. It may not sit first when a real family is there. */
+function withRealPrimary(picks: RoleFamily[]): RoleFamily[] {
+  const index = picks.findIndex((pick) => !pick.is_catch_all)
+  if (index <= 0) return picks
+  return [picks[index], ...picks.slice(0, index), ...picks.slice(index + 1)]
+}
+
 /** Five screens, in the order they narrow the search: the field bounds what can
  *  be suggested at all, the work defines it, the level bounds it, the place
  *  filters it, and the rest only colours it. */
@@ -84,7 +91,9 @@ const STEP_TITLE: Record<StepKey, string> = {
 export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }: Props) {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const [selected, setSelected] = useState<RoleFamily[]>(result.selected?.families ?? [])
+  const [selected, setSelected] = useState<RoleFamily[]>(
+    () => withRealPrimary(result.selected?.families ?? []),
+  )
   const [roleSearch, setRoleSearch] = useState("")
   const [showSearch, setShowSearch] = useState(false)
   const [locations, setLocations] = useState<string[]>(result.selected?.locations ?? [])
@@ -94,14 +103,12 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
    *  below, because the options may not be in this payload at all. */
   const [bands, setBands] = useState<CareerBand[]>(result.selected?.career_bands ?? [])
 
-  // Direction is the last onboarding step and had no telemetry either. Whether
-  // families were offered at all is the signal worth having: an empty picker is
-  // the same shape of dead end the confirm step just turned out to have.
+  // `confirm-skills` hands this screen `include_families=False`, so an empty
+  // `result.families` is the loading path, not an empty market. Tagging that
+  // as `no_families` made every Direction start look like a dead picker.
   useEffect(() => {
-    emitJourneyPhase(token, "direction", "started", {
-      reasonCode: (result.families?.length ?? 0) === 0 ? "no_families" : null,
-    })
-  }, [token, result.families])
+    emitJourneyPhase(token, "direction", "started")
+  }, [token])
   const [seniority, setSeniority] = useState<TargetSeniority | null>(
     result.selected?.seniority ?? result.seniority.value,
   )
@@ -269,14 +276,14 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
     setError(null)
     setSelected((current) => {
       const without = current.filter((pick) => pick.family !== family.family)
-      if (without.length !== current.length) return without
+      if (without.length !== current.length) return withRealPrimary(without)
       if (current.length >= MAX_ROLES) return current
       // A direction found outside your fields means the fields were wrong, not
       // that the pick is. Myro widens rather than refusing — which is also why
       // the search box is never band-scoped.
       const gained = (family.bands ?? []).filter((band) => !bands.includes(band))
       if (gained.length > 0) setBands([...bands, ...gained])
-      return [...current, family]
+      return withRealPrimary([...current, family])
     })
     setLocations([])
   }
@@ -342,9 +349,7 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
       // uses. The target is in the database by this line; everything below is
       // the app catching up with that fact.
       saved = true
-      emitJourneyPhase(token, "direction", "succeeded", {
-        reasonCode: (result.families?.length ?? 0) === 0 ? "no_families" : null,
-      })
+      emitJourneyPhase(token, "direction", "succeeded")
       trackEvent("onboarding_direction_confirmed", {
         band_count: bands.length,
         // 1 when they kept Myro's reading untouched, 0 when they corrected it —

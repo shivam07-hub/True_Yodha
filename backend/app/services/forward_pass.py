@@ -137,6 +137,73 @@ PASSES: tuple[tuple[str, Any], ...] = (
 )
 
 
+# Cheap skip for the /users/me door. The write path reads is_catch_all; this is
+# the seed from 20260909100000 plus the two prefixes that migration also marked.
+# A hand-edited flag the seed misses waits for a re-save.
+_SEEDED_BUCKETS = frozenset({
+    "Business Operations", "Business Management", "Business Solutions",
+    "Business Leadership", "Business Continuity", "Computer Science",
+    "Administrative Support and Clerical Tasks",
+    "Office and Productivity Equipment and Technology",
+    "Scripting Languages", "Query Languages",
+})
+
+
+def _clean_names(raw: Any) -> list[str]:
+    if not isinstance(raw, list):
+        return []
+    return [str(value).strip() for value in raw if str(value).strip()]
+
+
+def _looks_like_bucket(name: str) -> bool:
+    return name.startswith(("General ", "Other ")) or name in _SEEDED_BUCKETS
+
+
+def _needs_promote(names: list[str]) -> bool:
+    return (
+        len(names) >= 2
+        and _looks_like_bucket(names[0])
+        and any(not _looks_like_bucket(name) for name in names[1:])
+    )
+
+
+def on_profile_read(user_id: str, profile: dict[str, Any]) -> None:
+    """A catch-all cannot stay the main role. Fix it on the visit they already make.
+
+    `/users/me` is the shell on every authed page — the 23 people in this state
+    walk it. The cheap check is string-only, so everyone else pays nothing.
+    The write itself goes through `save_target`, so score and match refresh
+    the same way a Direction save does. Nothing is edited by hand.
+    """
+    titles = _clean_names(profile.get("target_role_titles"))
+    families = _clean_names(profile.get("target_roles"))
+    if not titles or not (_needs_promote(titles) or _needs_promote(families)):
+        return
+    if not _claim("promote_primary", user_id):
+        return
+    try:
+        from app.database import get_supabase_admin
+        from app.services.onboarding_service import save_target
+        from app.services.targeting_write import demote_catch_all_primary
+
+        kwargs: dict[str, Any] = {"role_titles": titles}
+        if families:
+            kwargs["role_families"] = families
+        save_target(get_supabase_admin(), user_id, **kwargs)
+        catch = {name for name in [*titles, *families] if _looks_like_bucket(name)}
+        promoted_titles = demote_catch_all_primary(titles, catch)
+        profile["target_role_titles"] = promoted_titles
+        profile["target_role_title"] = promoted_titles[0]
+        if families:
+            profile["target_roles"] = demote_catch_all_primary(families, catch)
+        logger.info("metric forward_pass.primary_promoted user=%s", user_id)
+    except Exception as exc:  # noqa: BLE001 — a read must never fail on a forward pass
+        logger.warning(
+            "metric forward_pass.failed pass=promote_primary user=%s reason=%s",
+            user_id, exc.__class__.__name__,
+        )
+
+
 def on_cv_read(user_id: str) -> None:
     """The user opened their CV. Bring them up to whatever we have since built.
 

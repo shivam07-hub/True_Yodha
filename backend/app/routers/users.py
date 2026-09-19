@@ -25,6 +25,7 @@ from app.schemas import (
     UserSkillsByDomainResponse,
 )
 from app.services import followed_companies
+from app.services import forward_pass
 from app.services import skill_correction, targeting_write
 from app.services.job_eligibility import (
     career_band_for_profile,
@@ -66,6 +67,9 @@ def get_me(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found.")
     profile["target_career_band"] = profile.get("target_career_band") or career_band_for_profile(profile) or None
     profile["target_seniority"] = reported_target_seniority(profile)
+    # Door the 23 people with a catch-all sitting first actually walk. String
+    # check only for everyone else — this endpoint is on every authed page.
+    forward_pass.on_profile_read(principal.id, profile)
     has_cv, skills_confirmed = reads["baseline"]
     profile["has_cv"] = has_cv
     profile["skills_confirmed"] = skills_confirmed

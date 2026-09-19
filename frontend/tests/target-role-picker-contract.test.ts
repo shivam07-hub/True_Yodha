@@ -43,6 +43,12 @@ test("a picker selection saves the family as both the title and the scope", () =
   assert.doesNotMatch(mutation, /role\.label/, "the modal job title is back in the write path")
 })
 
+test("a chip save reports the family, not the modal job title", () => {
+  const chips = read("components/target-role/target-roles-chips.tsx")
+  assert.match(chips, /onSaved\?\.\(\[role\.family\]\)/)
+  assert.doesNotMatch(chips, /onSaved\?\.\(\[role\.label\]\)/)
+})
+
 test("the pre-flight carries the family it resolved onto the order", () => {
   // Without this the title reaches `target_role_titles` and `derive()` keeps the
   // STORED family, because a family cannot be recovered from free text.

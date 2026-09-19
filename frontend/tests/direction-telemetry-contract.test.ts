@@ -99,3 +99,14 @@ test("Direction carries the same three outcomes the step before it does", () => 
     )
   }
 })
+
+test("an empty payload is not recorded as no families", () => {
+  // confirm-skills builds awaiting_target with include_families=False, so
+  // result.families is empty for every user finishing onboarding. That is
+  // loading, not a dead picker.
+  assert.doesNotMatch(
+    direction,
+    /result\.families[\s\S]{0,40}no_families/,
+    "no_families is back on the payload-empty path",
+  )
+})
