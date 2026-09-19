@@ -130,10 +130,32 @@ def bank_existing_baseline(user_id: str) -> bool:
         return False
 
 
+def drop_stray_cv_skills(user_id: str) -> bool:
+    """Employer-header and nameless-metric skills come off on the next CV visit.
+
+    Extraction now refuses them. People who uploaded before that still carry
+    them; opening the CV is the occasion. Claim + cheap check + enqueue — the
+    delete and recompute never run on the read they came for.
+    """
+    if not _claim("stray_skills", user_id):
+        return False
+    try:
+        from app.services.cv_stray_heal import enqueue_if_behind
+
+        return enqueue_if_behind(user_id)
+    except Exception as exc:  # noqa: BLE001 — a read must never fail on a forward pass
+        logger.warning(
+            "metric forward_pass.failed pass=stray_skills user=%s reason=%s",
+            user_id, exc.__class__.__name__,
+        )
+        return False
+
+
 #: Every pass the platform runs. One entry per capability that shipped after the
 #: data it needs — the list is the answer to "what is a returning user behind on".
 PASSES: tuple[tuple[str, Any], ...] = (
     ("baseline_bank", bank_existing_baseline),
+    ("stray_skills", drop_stray_cv_skills),
 )
 
 
