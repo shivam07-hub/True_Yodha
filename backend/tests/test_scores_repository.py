@@ -113,3 +113,30 @@ def test_get_all_band_scores_pages_past_the_postgrest_cap() -> None:
     assert db.ranges["user_profiles"] == [(0, 999), (1000, 1999)]
     assert out[-1] == ("mid", 1000.0)
 
+
+def test_get_all_band_scores_weights_peers_on_the_fly() -> None:
+    """A thin domain must not rank equal to a thick one just because stored totals did."""
+    scores = [
+        {
+            "user_id": "thin",
+            "total_score": 45.0,
+            "domain_scores": {"IT": 30.0, "Engineering": 60.0},
+            "domain_skill_counts": {"IT": 1, "Engineering": 1},
+        },
+        {
+            "user_id": "thick",
+            "total_score": 45.0,
+            "domain_scores": {"IT": 30.0, "Engineering": 60.0},
+            "domain_skill_counts": {"IT": 1, "Engineering": 9},
+        },
+    ]
+    profiles = [
+        {"id": "thin", "target_seniority": "mid"},
+        {"id": "thick", "target_seniority": "mid"},
+    ]
+    db = _PagingDB({"mirror_scores": scores, "user_profiles": profiles})
+
+    out = ScoresRepository(db).get_all_band_scores()
+
+    assert out == [("mid", 45.0), ("mid", 57.0)]
+

@@ -468,18 +468,18 @@ class ScoresRepository:
         ).execute()
 
     def get_all_band_scores(self) -> list[tuple[str, float]]:
-        """(raw target_seniority, total_score) for every scored user.
+        """(raw target_seniority, weighted total) for every scored user.
 
-        Feeds band-relative percentile: the caller resolves each raw seniority
-        to its band and ranks the subject against same-band peers. Two reads
-        joined in Python, paged past PostgREST's silent 1,000-row cap — an
-        unpaged select would freeze the peer pool at the first thousand as
-        signups cross that line.
+        Peer comparison uses the current formula from stored domain_scores and
+        domain_skill_counts — computed here, never written back. Rows with no
+        domain_scores keep their stored total.
         """
+        from app.services.scoring.formulas import compute_mirror_score
+
         scores = fetch_all_rows(
             self._db,
             table="mirror_scores",
-            columns="user_id, total_score",
+            columns="user_id, total_score, domain_scores, domain_skill_counts",
             query_builder=lambda q: q.order("user_id"),
         )
         profiles = fetch_all_rows(
@@ -492,10 +492,19 @@ class ScoresRepository:
         out: list[tuple[str, float]] = []
         for row in scores:
             uid = row.get("user_id")
-            total = row.get("total_score")
-            if uid is None or total is None:
+            if uid is None:
                 continue
-            out.append((str(seniority_by_id.get(uid) or ""), float(total)))
+            domains = row.get("domain_scores") or {}
+            counts = row.get("domain_skill_counts") or {}
+            if isinstance(domains, dict) and domains:
+                total = compute_mirror_score(
+                    domains, counts if isinstance(counts, dict) else {},
+                )
+            elif row.get("total_score") is not None:
+                total = float(row["total_score"])
+            else:
+                continue
+            out.append((str(seniority_by_id.get(uid) or ""), total))
         return out
 
     def append_score_history(self, user_id: str, total_score: float) -> None:

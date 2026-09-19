@@ -44,13 +44,25 @@ export function bandLabel(band: string | null | undefined): string {
   return BAND_LABELS[key] ?? ""
 }
 
+/** Chip standing. Skills page keeps "ahead of X%" — "top 67%" misleads there. */
+export const SCORE_FORMULA_VERSION = 2
+
+export function standingLine(
+  topPercent: number | null | undefined,
+  band: string | null | undefined,
+): string | null {
+  if (topPercent == null || topPercent < 1 || topPercent >= 100) return null
+  const label = bandLabel(band)
+  return label ? `Top ${topPercent}% of ${label}` : `Top ${topPercent}%`
+}
+
 export const SCORE_ENGINE_FACTS = {
   backendEntry: "backend/app/services/scoring/orchestrator.py::recompute_score",
   historicalEntry: "compute_and_persist_score was replaced by scoring facades in ADR 0002",
   clusterFormula:
     "min(level/target, 1) * (0.3 + 0.7 * log1p(user skills in cluster) / log1p(total skills in cluster))",
   domainFormula: "skill-count-weighted cluster mean * breadth bonus * 100",
-  totalScoreMethod: "mean_of_domains_with_evidence",
+  totalScoreMethod: "skill_count_weighted_mean_of_domains",
 } as const
 
 interface WorkedClusterInput {

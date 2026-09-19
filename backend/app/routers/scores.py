@@ -40,6 +40,7 @@ def _to_score_response(row: dict, band: str) -> MirrorScoreResponse:
         band=band,
         band_percentile=rank,
         top_percent=top_percent(rank) if rank is not None else None,
+        version=int(row.get("version") or 1),
     )
 
 

@@ -24,6 +24,7 @@ from app.services.scoring.percentile import percentile_rank
 from app.services.scoring.formulas import (
     _PROFICIENCY_TITLES,
     DEFAULT_TARGET_LEVEL,
+    SCORE_FORMULA_VERSION,
     _build_cluster_maps,
     best_evidence_by_key,
     build_skill_level_map,
@@ -205,7 +206,7 @@ def _score_math(
         if cluster:
             domain = cluster_to_domain.get(cluster, "General")
             domain_skill_counts[domain] = domain_skill_counts.get(domain, 0) + 1
-    total_score = compute_mirror_score(domain_scores)
+    total_score = compute_mirror_score(domain_scores, domain_skill_counts)
     gap_skills = compute_gap_skills(
         skill_level_map, skill_demand, aspiration_skills, skill_to_cluster,
         skill_closeness=skill_closeness,
@@ -245,21 +246,23 @@ def _persist_band_percentile(
 ) -> None:
     """Rank the user against same-band peers and persist mirror_scores.percentile.
 
-    Best-effort: percentile is a confidence garnish, never a gate — a population
-    read failure must not fail the score write. The band cutover script does the
-    full-population pass; this keeps the subject's own cell fresh on every
-    recompute at current scale.
+    Peer totals are the v2 formula computed from stored domain_scores ×
+    domain_skill_counts — nothing is written back to those rows. A token
+    client can only see its own score, so the population read uses the
+    service-role client; the subject's percentile write still goes through
+    `scores_repo` (their own row).
 
-    Only writes when the band has ≥2 peers. A caller with an RLS-scoped (token)
-    client can only see its own row, so ranking against a population of one is
-    meaningless — we skip and leave the last admin-computed value intact rather
-    than clobber it with a bogus 0.
+    Best-effort: percentile is a garnish, never a gate. Only writes when the
+    band has ≥2 peers.
     """
     try:
+        from app.database import get_supabase_admin
+
         band = target_seniority_for_profile({"target_seniority": seniority})
+        population = ScoresRepository(get_supabase_admin())
         peers = [
             total
-            for raw, total in scores_repo.get_all_band_scores()
+            for raw, total in population.get_all_band_scores()
             if target_seniority_for_profile({"target_seniority": raw}) == band
         ]
         if len(peers) < 2:
@@ -293,6 +296,7 @@ MIRROR_SCORE_COLUMNS = frozenset({
     "gap_skills",
     "rank_tier",
     "skills_assessed",
+    "version",
 })
 
 
@@ -309,6 +313,7 @@ def _persist_score(
         "gap_skills":      projection.gap_skills,
         "rank_tier":       projection.rank_tier,
         "skills_assessed": projection.skills_assessed,
+        "version":         SCORE_FORMULA_VERSION,
     }
     assert set(payload) == MIRROR_SCORE_COLUMNS, (
         "mirror_scores payload drifted from its declared columns: "

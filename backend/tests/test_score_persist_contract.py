@@ -108,6 +108,8 @@ def test_payload_matches_its_declared_columns() -> None:
         ),
     )
     assert set(written) == MIRROR_SCORE_COLUMNS
+    from app.services.scoring.formulas import SCORE_FORMULA_VERSION
+    assert written["version"] == SCORE_FORMULA_VERSION
 
 
 def test_write_failure_is_raised_not_swallowed() -> None:
