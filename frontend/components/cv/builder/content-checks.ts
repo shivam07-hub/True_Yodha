@@ -209,7 +209,9 @@ interface BulletUnit extends ContentBulletRef {
 
 /** Editor row id of a scannable unit — the same identity the playground's
  *  hidden set and jump anchors use, computed from FULL-CV indices. */
-export function unitIid(u: ContentBulletRef & { text: string }): string {
+/** Internal — the stable id for one bullet unit. No external callers; kept
+ *  un-exported so the module's surface stays the checks themselves. */
+function unitIid(u: ContentBulletRef & { text: string }): string {
   if (u.section === "summary") return itemId("summary", 0, u.text)
   const kind = u.section === "projects" ? "proj_bullet" : "exp_bullet"
   return itemId(kind, u.itemIndex * 100 + u.bulletIndex, u.text)

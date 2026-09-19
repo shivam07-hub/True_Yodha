@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.services import memory_recall
+from app.services.deepening_keys import DeepeningKey
 from app.services.llm_provider import LLMProvider, LLMProviderError
 
 logger = logging.getLogger("myro.jd_coverage")
@@ -268,7 +269,9 @@ async def rematch(
 # re-parse can shuffle phrasing between visits). Coverage only changes when the
 # user banks a new story, so consumers refresh explicitly, not per visit.
 
-CACHE_PROMPT_KEY = "jd_coverage"
+#: This store's key lives in the registry — see deepening_keys for why a
+#: literal at a call site is how a cache goes silently missing.
+CACHE_PROMPT_KEY = DeepeningKey.JD_COVERAGE
 
 
 STALE_KEY = "stale"

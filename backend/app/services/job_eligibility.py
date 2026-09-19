@@ -9,6 +9,8 @@ from __future__ import annotations
 import re
 from typing import Any, Literal
 
+from app.schemas.jobs import SeniorityCompat
+
 CareerBand = Literal[
     "engineering_data",
     "business_product_operations",
@@ -205,6 +207,7 @@ def job_is_eligible(
     job: dict[str, Any],
     *,
     include_stretch: bool = False,
+    admit_unreadable: bool = False,
 ) -> bool:
     """True only if the job is in an enabled Career Band and safe level range."""
     eligible = eligible_bands_for_profile(profile)
@@ -216,6 +219,7 @@ def job_is_eligible(
         target_seniority_for_profile(profile),
         seniority_for_job(job),
         include_stretch=include_stretch,
+        admit_unreadable=admit_unreadable,
     )
 
 
@@ -239,24 +243,42 @@ def job_is_browse_eligible(
     )
 
 
-def seniority_is_eligible(target: str, actual: str, *, include_stretch: bool = False) -> bool:
-    """Apply the strict default and explicit one-level stretch policy."""
+#: What "at level" means: own level and the one below. CONTEXT.md §Seniority Fit.
+_AT_LEVEL: dict[str, frozenset[str]] = {
+    "intern": frozenset({"intern", "entry"}),
+    "entry": frozenset({"intern", "entry"}),
+    "mid": frozenset({"entry", "mid"}),
+    "senior": frozenset({"mid", "senior"}),
+    "lead": frozenset({"senior", "lead"}),
+    "executive": frozenset({"lead", "executive"}),
+}
+
+
+def seniority_fit(target: str, actual: str) -> SeniorityCompat:
+    """THE reading of a job's level against a target — the gate admits by it and
+    the verdict grades by it. CONTEXT.md §Seniority Fit. Unreadable is `unknown`."""
     target = canonical_source_seniority(target)
-    if target not in SOURCE_SENIORITY:
-        return False
-    if actual not in _SENIORITY_RANK:
-        return False
-    allowed = {
-        "intern": {"intern", "entry"},
-        "entry": {"intern", "entry"},
-        "mid": {"entry", "mid"},
-        "senior": {"mid", "senior"},
-        "lead": {"senior", "lead"},
-        "executive": {"lead", "executive"},
-    }[target].copy()
-    if include_stretch and target != "executive":
-        allowed.add(next(level for level, rank in _SENIORITY_RANK.items() if rank == _SENIORITY_RANK[target] + 1))
-    return actual in allowed
+    actual = canonical_source_seniority(actual)
+    if target not in SOURCE_SENIORITY or not actual:
+        return "unknown"
+    return "compatible" if actual in _AT_LEVEL[target] else "incompatible"
+
+
+def seniority_is_eligible(
+    target: str, actual: str, *, include_stretch: bool = False, admit_unreadable: bool = False,
+) -> bool:
+    """Admission: `seniority_fit`, plus two opt-ins. CONTEXT.md §Seniority Fit.
+
+    `admit_unreadable` — Career Ops pool only; the brain reads the JD before
+    anything persists. Browse never passes it. `include_stretch` — the band
+    above, admitted but still graded `incompatible`.
+    """
+    fit = seniority_fit(target, actual)
+    if fit == "unknown":
+        # An unreadable TARGET (legacy `any`) still admits nothing.
+        return admit_unreadable and canonical_source_seniority(target) in SOURCE_SENIORITY
+    _below, above = adjacent_source_bands(target)
+    return fit == "compatible" or (include_stretch and canonical_source_seniority(actual) == above)
 
 
 def _career_band_from_title(title: str) -> CareerBand | str:

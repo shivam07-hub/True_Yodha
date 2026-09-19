@@ -63,9 +63,9 @@ export function ScoringSection() {
             domain. Result: 0-100 per domain.
           </li>
           <li>
-            <strong>Myro Score</strong> — the final score is the mean of domains where
-            your CV has evidence. Job-market demand shapes upgrade suggestions, not the
-            total score itself.
+            <strong>Myro Score</strong> — domains with evidence are averaged by how
+            many skills hold them up. A one-skill area does not count the same as a
+            deep one. Job-market demand shapes upgrade suggestions, not the total.
           </li>
         </ol>
       </Detail>

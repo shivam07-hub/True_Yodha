@@ -142,3 +142,23 @@ def test_the_facts_a_resuming_screen_needs_ride_along(monkeypatch) -> None:
     # The stored copy is not shipped either — a client cannot start trusting it again.
     assert "status" not in result
     assert "current_stage" not in result
+
+
+def test_a_file_billed_as_text_is_returned_as_an_upload(monkeypatch) -> None:
+    """The journey payload is the record. Heal before handing it out."""
+    monkeypatch.setattr(
+        "app.services.cv_entry_heal.heal_loaded",
+        lambda *_a, **_k: True,
+    )
+    _install(
+        monkeypatch,
+        profile=DIRECTED,
+        state={
+            "entry_mode": "description",
+            "accepted_file_metadata": {"name": "ada.pdf"},
+            "upload_job_id": "job-1",
+        },
+        baseline={"id": 7, "source": "text_describe"},
+    )
+    result = onboarding_service.journey_position(object(), "u1")
+    assert result["entry_mode"] == "uploaded_cv"

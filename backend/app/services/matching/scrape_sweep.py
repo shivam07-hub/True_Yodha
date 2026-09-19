@@ -23,7 +23,7 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from app.database import get_supabase_admin
+from app.database import get_supabase_admin_batch
 from app.repositories.jobs import JobsRepository
 from app.services.job_projection import last_monday
 from app.services import background
@@ -91,7 +91,7 @@ async def _scrape_match_recompute_handler(payload: dict[str, Any], allow_retry: 
     # The picks band stores the batch as an int stamp; a non-numeric/absent marker
     # means "no batch attribution", never a fabricated one.
     since_marker = int(raw_marker) if raw_marker.isdigit() else None
-    admin_db = get_supabase_admin()
+    admin_db = get_supabase_admin_batch()
     repo = JobsRepository(admin_db, admin_db)
     try:
         # The whole run — compute → Agent Picks regen → fresh-match notification —
@@ -108,6 +108,7 @@ async def _scrape_match_recompute_handler(payload: dict[str, Any], allow_retry: 
         )
     except Exception as exc:
         # Best-effort — a sweep recompute failing for one user must never break
-        # the sweep or retry-storm; log and move on (fire-and-forget, same
-        # posture as cv_workflow._trigger_initial_match_compute).
+        # the sweep or retry-storm; log and move on. Direction-save
+        # `_trigger_initial_match_compute` re-raises so RQ retries that one
+        # user; a sweep of many users must not.
         logger.warning("scrape_match_recompute failed for user=%s: %s", user_id, exc)

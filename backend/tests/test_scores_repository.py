@@ -5,7 +5,7 @@ from app.repositories.scores import ScoresRepository
 
 def _q(data: list[dict] | dict | None = None) -> MagicMock:
     q = MagicMock()
-    for method in ("select", "eq", "ilike", "limit", "range", "upsert", "insert", "update"):
+    for method in ("select", "eq", "ilike", "limit", "order", "range", "upsert", "insert", "update"):
         getattr(q, method).return_value = q
 
     list_result = MagicMock()
@@ -59,4 +59,84 @@ def test_get_recompute_inputs_maps_skill_levels_and_target_roles() -> None:
 
     assert result.skill_level_map == {"Python": 3, "SQL": 2}
     assert result.target_roles == ["Data Analyst", "ML Engineer"]
+
+
+class _Result:
+    def __init__(self, data: list[dict]) -> None:
+        self.data = data
+
+
+class _PagedQuery:
+    """PostgREST: a select without .range() silently returns the first 1000."""
+
+    def __init__(self, rows: list[dict], ranges: list[tuple[int, int]]) -> None:
+        self._rows = rows
+        self._ranges = ranges
+        self._range: tuple[int, int] | None = None
+
+    def select(self, _columns: str) -> "_PagedQuery":
+        return self
+
+    def order(self, _key: str) -> "_PagedQuery":
+        return self
+
+    def range(self, start: int, end: int) -> "_PagedQuery":
+        self._range = (start, end)
+        self._ranges.append((start, end))
+        return self
+
+    def execute(self) -> _Result:
+        if self._range is None:
+            return _Result(self._rows[:1000])
+        start, end = self._range
+        return _Result(self._rows[start : end + 1])
+
+
+class _PagingDB:
+    def __init__(self, tables: dict[str, list[dict]]) -> None:
+        self._tables = tables
+        self.ranges: dict[str, list[tuple[int, int]]] = {name: [] for name in tables}
+
+    def table(self, name: str) -> _PagedQuery:
+        return _PagedQuery(self._tables[name], self.ranges[name])
+
+
+def test_get_all_band_scores_pages_past_the_postgrest_cap() -> None:
+    scores = [{"user_id": f"u{i}", "total_score": float(i)} for i in range(1001)]
+    profiles = [{"id": f"u{i}", "target_seniority": "mid"} for i in range(1001)]
+    db = _PagingDB({"mirror_scores": scores, "user_profiles": profiles})
+
+    out = ScoresRepository(db).get_all_band_scores()
+
+    assert len(out) == 1001
+    assert db.ranges["mirror_scores"] == [(0, 999), (1000, 1999)]
+    assert db.ranges["user_profiles"] == [(0, 999), (1000, 1999)]
+    assert out[-1] == ("mid", 1000.0)
+
+
+def test_get_all_band_scores_weights_peers_on_the_fly() -> None:
+    """A thin domain must not rank equal to a thick one just because stored totals did."""
+    scores = [
+        {
+            "user_id": "thin",
+            "total_score": 45.0,
+            "domain_scores": {"IT": 30.0, "Engineering": 60.0},
+            "domain_skill_counts": {"IT": 1, "Engineering": 1},
+        },
+        {
+            "user_id": "thick",
+            "total_score": 45.0,
+            "domain_scores": {"IT": 30.0, "Engineering": 60.0},
+            "domain_skill_counts": {"IT": 1, "Engineering": 9},
+        },
+    ]
+    profiles = [
+        {"id": "thin", "target_seniority": "mid"},
+        {"id": "thick", "target_seniority": "mid"},
+    ]
+    db = _PagingDB({"mirror_scores": scores, "user_profiles": profiles})
+
+    out = ScoresRepository(db).get_all_band_scores()
+
+    assert out == [("mid", 45.0), ("mid", 57.0)]
 

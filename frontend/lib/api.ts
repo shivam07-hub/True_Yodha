@@ -3226,6 +3226,8 @@ export interface ScoreResponse {
   band_percentile?: number | null
   /** Presentation of the rank: "top {top_percent}% for {band}". Null until ranked. */
   top_percent?: number | null
+  /** 1 = equal-domain mean (gone). 2 = skill-count-weighted. */
+  version?: number
 }
 
 export interface ScoreMapResponse {

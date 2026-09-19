@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
+from app.services.cv_skill_evidence import header_spans, span_in_headers
 from app.services.taxonomy_loader import get_all_skills, lookup_by_name
 
 _TOKEN_RE = re.compile(r"(?u)[^\W_][\w+#./-]*")
@@ -121,8 +122,9 @@ def extract_explicit_skills(cv_text: str) -> list[dict[str, object]]:
 
     index, max_words = _alias_index()
     matches = list(_TOKEN_RE.finditer(cv_text))
-    normalized = [match.group(0).casefold().strip("-/") for match in matches]
+    normalized = [match.group(0).casefold().strip("-/.") for match in matches]
     found: dict[str, dict[str, object]] = {}
+    headers = header_spans(cv_text)
 
     for start in range(len(matches)):
         for width in range(min(max_words, len(matches) - start), 0, -1):
@@ -130,7 +132,10 @@ def extract_explicit_skills(cv_text: str) -> list[dict[str, object]]:
             if canonical is None or canonical in found:
                 continue
             end = start + width - 1
-            evidence = cv_text[matches[start].start() : matches[end].end()].strip()
+            span_start, span_end = matches[start].start(), matches[end].end()
+            if span_in_headers(span_start, span_end, headers):
+                continue
+            evidence = cv_text[span_start:span_end].strip()
             found[canonical] = {
                 "taxonomy_key": canonical,
                 "xp_awarded": 50,

@@ -20,6 +20,8 @@ Item numbers are historical and carry no priority meaning.
 | Upload + download reliability on weak networks | #42, beta ledger | open |
 | Real-device authed QA on a phone | #42 | never done · APK blocker |
 | Read capacity under concurrent load | #16 | software closed; paid DB capacity gate blocks launch |
+| CV rewrite destroys sections the schema can't hold | #47 = #48 | MEASURED: 5 users · path idle since 2026-08-05 · root cause is the closed schema |
+| Download gated by a page-fill meter that is wrong | #49 | blocks CVs that fit; passes CVs that spill |
 
 ### Stage 2 — job matching through Myro Ops (NEXT)
 
@@ -149,33 +151,34 @@ measured Free/Nano database ceiling, not unfinished application work.
 
 7. **#33 ₹199 Personalised Engagement — operator remaining** (ENG1 / [OFFERING.md](OFFERING.md)): checkout is Razorpay Subscriptions at 19900 paise / month; one human pass per IST billing month. Still owed by Shivam: create the Razorpay plan, set `RAZORPAY_ENGAGEMENT_PLAN_ID` + webhook events, reviewer email/token. LinkedIn door is `/job-switch-plan?utm_source=linkedin_services`. Do not keep ₹99 as a cheaper CTA.
 
-7b. **The tailor's "nothing is ever lost" promise silently does nothing.**
-    *Found 2026-09-13 tracing the upload bridge. Bounded fix, no decision needed.*
+7b. **✅ CLOSED 2026-09-18 — the tailor's reword now actually reaches the reservoir.**
+    The diagnosis was right and the evidence was worse than the note claimed:
+    `source="tailor"` had written **zero** rows in the life of the feature, and
+    `source="restructure"` — the same positional-anchor bug in `skill_edit.py` —
+    stopped at 28 rows on 2026-07-12, the day the last positional point was
+    current. Both callers had to GUESS an anchor that matched exactly or the
+    write silently did nothing.
+    Fixed by deleting the guess: `append_phrasing` no longer takes an anchor. It
+    finds the point by its TEXT and the new phrasing inherits the anchor that row
+    already carries, so it works for the live `story:{id}` shape and the frozen
+    positional one alike. Both callers lost their `_SECTION_TO_LIST` dance.
+    Held by `test_cv_job_draft_phrasing.py`.
 
-    `_mirror_job_reword_to_reservoir` (`routers/cv/versions.py`) is named for the
-    reservoir and does not write to it. It calls `append_phrasing` with a
-    **positional** anchor (`experience:3`), which matches on `role_anchor` plus
-    the exact prior text and **returns `false` without a word** when no row
-    matches. The 1,710 positional `cv_points` are a one-off backfill frozen
-    2026-06-24 → 07-12; nothing has written that shape since. So for every user
-    whose points are that backfill — or who has none — a job-specific reword is
-    dropped on the floor while the code claims it was banked.
+7c. **Two pointer shapes in `cv_points` — and the "frozen layer" half of this is
+    STALE.** *Decision, then a migration. Shivam's call — deleting is destructive.*
 
-    Two ways out, and they are the same decision as the dead layer below: point
-    the mirror at `story:{id}` so a reword becomes a real alternative phrasing on
-    the story, or delete the mirror and stop claiming it. Do not leave a function
-    whose name is the opposite of what it does.
+    Re-measured 2026-09-18: **2,235 rows, 198 users.** `source="migration"` is
+    1,682 rows, all positional, genuinely frozen since 2026-06-24.
+    `source="manual"` is 525 rows, all `story:{uuid}`, **last written
+    2026-09-17** — that layer is alive and growing, which the old note (407 rows,
+    3 users) predated. `source="restructure"` is 28 positional rows, dead since
+    2026-07-12.
 
-7c. **1,710 `cv_points` are a frozen layer no writer owns.** *Decision, then a
-    migration. Shivam's call — deleting is destructive.*
-
-    Two pointer shapes live in one table, told apart only by a string prefix:
-    `story:{uuid}` (407 rows, 3 users, live) and positional `experience:N` /
-    `projects:N` (1,710 rows, 185 users, last written 2026-07-12). No code path
-    writes positional any more. `story_pointers` scopes by `story_id`, so the
-    reservoir never double-counts them — they are inert, not dangerous — but they
-    are what makes 7b lie, and they are 81% of the table. Migrate onto stories or
-    retire them; either way, one shape.
+    The positional rows no longer make 7b lie — the mirror reads either shape now
+    — so this is no longer blocking anything. What remains is tidiness: 1,710
+    positional rows are 76% of the table and no writer owns them. `story_pointers`
+    scopes by `story_id`, so they are inert, not dangerous. Migrate onto stories
+    or retire them; either way, one shape. Not urgent.
 
 ### TIER 3 — needs a decision or a grill BEFORE code
 
@@ -605,6 +608,79 @@ measured Free/Nano database ceiling, not unfinished application work.
 15. **Job Card Lifecycle Loop (idea, parked 2026-05-27):** Netflix-style lifecycle model for every job card — track `posted_at`, `first_seen_on_platform_at`, `last_seen_on_platform_at`, `delisted_at`. Pair the job-side lifecycle with a user-side application-stage loop: once a user saves/applies, prompt + track stage transitions (saved → applied → screening → recruiter call → interview → final round → offer/reject) and the dwell time in each stage. Aggregate cross-user signal per company/role: median time-to-first-reply, median screening→interview gap, ghosting rate, offer rate, typical funnel shape. Surface back to users as "what to expect from this company" + sharpen our own match ranking + power a future newsletter/intel surface. Pick up when we redesign the job card to make the experience better — this loop is the data engine that justifies the new card layout. Touches: `jobs` schema (lifecycle timestamps), `job_applications` (already has `status` + `last_stage_changed_at` per Q7), new `application_stage_events` event log, a nudge/reminder cadence for stage updates, and an aggregation RPC for company funnel stats.
 
 17. **Legal hardening for 10k scale (DOCS DONE 2026-06-02, counsel sign-off open):** Entity now = **Myro Career Intelligence Private Limited** (renamed across terms/privacy). Payment T&C shipped on both money surfaces (XP billing modal + Myrology checkout carry Terms+Privacy consent line). Terms §07 **Payments, XP & Refunds** (XP = closed-loop credit, not RBI PPI; funds servers not jobs; Myro = distributor of company listings; **Cancellation & Refunds** — XP final, Myrology full-refund-before-delivery / non-refundable-after). India-compliance pass INTEGRATED via Legal Compliance Checker agent: **DPDP consent microcopy at signup** (`signup-form.tsx`), privacy §06 rights expanded (withdraw/nominate/erase), §03 purpose-limitation, §04 cross-border-transfer, §07 cookie-banner-not-required note, NEW privacy §11 **Grievance Redressal** (24h ack / 15-day SLA, IT Rules 2021), terms §08 operator/grievance disclosure, §10 fraud/gross-negligence carve-out, footer "Cancellation & Refunds"→/terms#payments (Razorpay live-key prereq). Razorpay is **LIVE** — prod backend (`mirror-backend-prod`) env `RAZORPAY_KEY_ID=rzp_live_SuJDCjSGSSkGAP` + secret, tested by Shivam 2026-06-03. Billing badge is key-derived → auto-shows "Secure checkout" (no test-mode warning) on prod. ⚠️ **Verify the matching frontend public key:** Vercel **production** env `NEXT_PUBLIC_RAZORPAY_KEY_ID` must = `rzp_live_…` (same pair as backend) or checkout signature mismatches. Dev backend has no Razorpay key (payments untestable on pre-prod unless test keys added). tsc/lint clean, pushed to `main`. Files: `frontend/app/terms/page.tsx`, `frontend/app/privacy/page.tsx` (+ `privacy-components.tsx`), `frontend/components/settings-modal.tsx`, `frontend/app/myrology/checkout.tsx` (+ `myrology.css`), `frontend/components/auth/signup-form.tsx`, `frontend/components/public/public-footer.tsx`. Memory: `project_payment_legal_terms`. **OPEN — NEEDS SHIVAM + COUNSEL (placeholders live in code, NOT autonomous):** (a) lawyer review of both docs; (b) **CIN number** → `[to be inserted]` in terms §08; (c) **named Grievance Officer** — section shows designation+`grievance@himyro.com` only, IT Rules want a named individual; confirm the `grievance@himyro.com` mailbox exists + is monitored (24h/15-day SLA is now a public commitment); (d) full registered office address (street+PIN, MCA record); (e) confirm Myro is **not** a Significant Data Fiduciary (so no statutory DPO; "Grievance Officer" label correct); (f) sign off INR 5,000 liability cap; (g) confirm Myrology refund mechanics match booking flow + final price (₹499 vs ₹200-300 intro); (h) EU/UK in-scope check (cookie note assumes auth-only cookies). Razorpay live-key activation needs Terms+Privacy+Refund pages visibly linked (done).
+
+---
+
+## CV WORKSTATION — GOLD-STANDARD GAP (opened 2026-09-18)
+
+> Found by building one CV end-to-end for a real JD (Amazon Sr. PM, RoW ATS Tech,
+> `ext_c59b57e74ff07bffb713`) against Shivam's own account `33b66361-…`, v111 → v116.
+> Every line below was verified in code or in `cv_versions` during that build.
+> The target these describe: a one-page CV where **every bullet leads with a
+> quantified outcome**, structured for the role, verified to fit. The build reached
+> 18 bullets, 18/18 quantified — and **not one step of it was reachable from the UI.**
+
+47. **⚠️ MEASURED 2026-09-18 — the master-rewrite path destroys any CV section the schema cannot hold. 5 users damaged, root cause is #48.**
+
+    **The mechanism is a lossy round trip, NOT a model deleting things.** `backend/app/routers/cv/skill_edit.py:440` does `new_body_text = cv_skill_edit.render_baseline_text(new_structured)`, which is `cv_compose.render_deterministic` — it renders **only** the six keys in `CVStructured`. Any heading with no structured home cannot survive, and the regenerated text **overwrites the master's `body_text`**. That is why the damaged masters keep every role (roles have a field) while the body shrinks ~30%.
+
+    **This makes #47 and #48 one item, not two.** No write-side contract fixes this while the schema has nowhere to put LEADERSHIP ROLES, RECOGNITIONS & ACHIEVEMENTS, CORE COMPETENCIES or PERSONAL DETAILS. Fix the schema first, or make the renderer preserve unknown sections verbatim.
+
+    **Measured reach** (all 410 uploaders scanned, method in this entry — re-run before trusting it):
+    - Rewrite path total: **77 versions, 6 users**, 2026-05-22 → **last run 2026-08-05**. It has not fired in six weeks. Still live in code.
+    - **Section loss: 5 users.** Of 338 users with a comparable first-vs-current master, 24 lost a heading; 19 of those were the user's own re-upload (their choice, not damage). The 5 rewrite-path cases lost, among others: `PROFESSIONAL EXPERIENCE` (two users), `AWARDS & ACTIVITIES`, `CERTIFICATIONS & ACHIEVEMENTS`, `LEADERSHIP ROLES`, `RECOGNITIONS & ACHIEVEMENTS`, `PERSONAL DETAILS`.
+    - **Model reasoning persisted as CV content: 1 user** (`33b66361-…`), 7 versions, 3 of them masters. id 454 (v96, `baseline_upload`) holds *"We need to maybe improve: … Avoid adding unverified info … Safer:"* in `body_text`. Every other candidate across 410 users was a false positive — "Large Language Models" listed as a skill.
+    - **Fabricated role: observed once, NOT reliably measurable.** id 459 (v99, `deterministic`) carries `E.L.I.T.E Manager · Capgemini · Jul 2024 – May 2025`, a job the user never held, with the IIM Lucknow festival bullet attached; the same version promotes `Management Consulting Intern` to `Strategy Consultant`. It is a **tailored** version, not a master, so it is a different path from the section loss above. Two detector attempts produced only false positives (curly-vs-straight apostrophes; tailored versions legitimately hiding bullets their predecessor showed). **Do not trust a count here until a sound detector exists.**
+
+    ⚠️ **Two wrong turns this measurement cost — do not repeat them.** (a) Postgres regex uses `\y` for a word boundary; `\b` is a backspace, so `\b(we|i)\b` silently matched nothing and the first sweep under-reported. (b) `substring(x from '…(group)…')` returns the FIRST capture group, not the match — a scan that looked like evidence of assistant-voice text in 8 users was actually returning the matched keyword alone, and all 8 were the skill "Large Language Models".
+
+    **Checked and CLEARED — not a data leak.** 13 colliding `body_text` hashes span 36 users, the worst being one named person's CV on **13 distinct gmail accounts** over 2026-08-02→05. `content_hash = sha256(raw_text)` (`cv_workflow.py:344`) and BOTH lookups that consume it — `find_by_content_hash` and `find_by_idempotency_key` — filter on `user_id`. There is no unscoped `content_hash` read anywhere in the backend. Identical hash therefore means identical uploaded text: a cohort uploading the same sample CV, almost certainly a demo or workshop group. No cross-user reuse path exists.
+
+48. **`CVStructured` has no `achievements` field, and the section list is a closed six-key tuple — so the one section every consulting CV requires cannot exist.** `summary · experience · projects · skills_line · education · certs` — `frontend/lib/api.ts:1237-1246`, `frontend/lib/cv/section-order.ts:8`, `backend/app/services/cv_section_order.py:12`. Headings are fixed by the `HEAD` map at `frontend/components/cv/builder/cv-paper-sections.tsx:52`, so "Achievements and Leadership", "Advisory and Agentic Pursuits" and "Skills and Courses" are all inexpressible. In the Amazon build all three had to be written outside the platform.
+
+    This is not only a labelling limit. With no neutral container, concurrent and entrepreneurial work has nowhere to go but `projects`, and **"Projects" demotes it** — a ₹2 Cr advisory engagement and a live product both read as side projects. The closed taxonomy forces a positioning error on exactly the users with the most interesting histories. Related: `CVProjectItem` is `{name, dates, bullets}` (`api.ts:1222`) with no `role` field, unlike `CVExperienceItem`, so "Founder & Product Manager" has to be jammed into `name`. Neither type carries a **company descriptor**, so unknown employers (Finlatics, Hitwicket, Myro) can never be explained to a recruiter.
+
+    Minimum fix: one user-titled section type with ordered entries, or at least `achievements` + a free-text heading per section. Additive migration; `normalize_section_order` already drops unknown keys, so old rows stay valid.
+
+49. **The page-fill meter is wrong in both directions and it gates the download.** `frontend/components/cv/builder/use-playground-model.ts:155-167` counts identity + `summary` + `experience` + `skills_line`. It never counts **projects, education or certs**. `playground-view.tsx:256` gates Download on `m.pageFill.fits`, and `trim-confirm.tsx` offers to auto-hide bullets on its verdict.
+
+    Measured twice in one session against a real Chrome print render:
+    - CV with a populated `projects` section: **meter 54%, truth 62%** of printable height — understated by 34 points, because it ignored the entire section.
+    - Final CV: **meter 110% ("spills onto 2 pages"), truth 1 page at 97% fill.** It would have blocked the download of a CV that fits, and offered to delete bullets to fix a problem that did not exist.
+
+    The model is `charsPerLine: 98, lineBudget: 50` (`frontend/lib/cv/page-fill.ts`) — a constant-width approximation that matches no real typography. The build also showed **line-height, not font-size, is the binding constraint** on one-page fit (10.1pt/1.22 fits; 10.0pt/1.24 does not), and nothing in the product exposes either. Fix: measure the real rendered height of the export DOM at the export's own page width, or drop the hard gate to a soft warning until it can.
+
+50. **Desktop cannot add a project or a role. Mobile can. Same account, same CV, capability split by viewport.** `ProjectsBody` returns `null` when `cv.projects.length === 0` (`cv-paper-sections.tsx:179-180`), and `EmptySection` — the only "add" affordance — is wired to exactly two sections, summary (`:102`) and skills (`:130`). Desktop has `onAddBullet(roleIndex, text)` and `onReorderRoles` but **no add-role, no delete-role, no move-between-sections**. Mobile has all of it: `mobile-cv-sections.tsx:105` (Add experience), `:139` (Add project), with delete and move. It is gated at `library-view.tsx:59` — `if (!isDesktop)`.
+
+    Inverse gap: desktop can drag-reorder **sections** (`cv-document.tsx:184`); mobile cannot. **Neither surface alone can build the target CV.** Compounding it, the mobile editor writes through `useMasterAutosave` to the **master**, not to the job-tailored version, so the one surface that can add a section edits the wrong document for a tailored CV.
+
+51. **The `unquantified` check measures digits, not impact — the label and the penalty both claim otherwise.** `content-checks.ts:150`: `QUANTITY_RE` matches any digit, `%`, currency symbol, number word or magnitude word. `isUnquantified` (`:155`) is its negation. The category is rendered as **"Unquantified impact"** (`:57`) and carries the **highest penalty in the system, 3 points** (`:70`) — "quantification is the highest-signal recruiter check". The rail title is "Put a number on this line".
+
+    Measured on the Amazon CV at its weakest draft: **the engine passed 13/13 bullets; an outcome-led review passed 4/13.** Two of the engine's passes were a **year** ("Robotics in Life Sciences **2030**") and a **count of framework levels** ("a **five**-level maturity framework") — neither is an outcome, neither is even a result. The `detail` string is the honest one: *"Add a number to show scale."* **Scale is not impact**, and that distinction is the whole difference between an ATS-clean CV and one that survives a bar-raiser.
+
+    Fix is a second, separate check — does the bullet contain a *result* (delta, outcome, adoption, money, time) as opposed to a *scope* number — not a wider regex. Keep "add a number" as the cheap check; add "this number describes how big the thing was, not what changed."
+
+52. **Empty `certs` leak a bare `CERTIFICATIONS` heading into every downloaded CV.** `frontend/lib/cv-compose.ts:177-184` pushes the heading whenever `keptCerts.length`, and `cv.certs.forEach` never filters blank strings. Shivam's master carries `certs: [""]`, so every CV he has downloaded ends with a `CERTIFICATIONS` heading and a lone `• `. Present in v111's stored `body_text`. One-line fix (`filter(c => c.trim())`), but it has been shipping in user-facing PDFs.
+
+53. **Nothing tells a user their CV lost something, and nothing lets them get it back.** Every version is stored in `cv_versions` with full `cv_structured` + `body_text`, and `cv_master_revisions` exists — but there is no diff between versions, no "this rewrite removed a section" notice, and no restore. Recovering Shivam's leadership and achievements content took a manual SQL walk back through 78 versions to v38. A user cannot do that, and has no reason to suspect they need to.
+
+    This is the recovery half of #47: that item stops the damage, this one surfaces and reverses what already happened. Per THE FORWARD PASS this is **a heal, not a backfill** — the diff is computed and offered when the user next opens their CV, on a surface the cohort already walks; nothing is rewritten while they are away. 407 users have uploaded a CV; how many were silently degraded by the rewrite path is **unmeasured and should be the first query**.
+
+54. **The gold CV needed nine screens the product does not run.** Each is cheap, deterministic, and each caught something real in the Amazon build:
+
+    | Screen | What it caught |
+    |---|---|
+    | CV location vs job location | CV said "Gurgaon, Delhi, Hyderabad"; the role is Bengaluru — an auto-filter risk before a human reads it |
+    | Header title vs employment titles | Header claimed "Product Manager"; no employment record carries that title |
+    | Date overlap across roles | Finlatics Jan 2019–Jul 2024 overlapped JLL and Capgemini with nothing marking it concurrent |
+    | Same figure restated | €500K, $500K and $2M+ across three bullets read as three wins; they are one claim |
+    | Figure contradicts an earlier version | Revenue baseline was `₹10L` in v38 and `₹0` in the current master |
+    | Duplicate achievement across roles | The RAG platform was written as two separate bullets under two different roles |
+    | Certification vs course | A course was about to be listed under CERTIFICATIONS — a claim Amazon verifies |
+    | Stale relative period | "50+ inbound requirements in 10 months" on a role 16 months old |
+    | JD term the CV never answers | The JD names "tradeoffs", "ambiguity" and "accounting"; the CV said none of them |
+
+    Seven of the nine are pure string/date comparisons over data already stored; two need the JD, which the platform already extracts (14 requirements were pulled for this job). None needs a model. These are the checks that move a CV from ATS-clean to interview-grade, and they are the reachable half of #51.
 
 ---
 

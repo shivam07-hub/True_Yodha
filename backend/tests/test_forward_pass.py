@@ -190,3 +190,52 @@ def test_a_gap_answer_does_not_count_as_a_banked_cv(wired):
     ledger_query = next(q for t, q in db.queries if t == "cv_dump_entries")
     assert "jd_gap_answer" not in ledger_query["source__in"]
     assert banked, "a gap-answer user is still owed their CV"
+
+
+def test_a_bucket_primary_is_promoted_on_the_next_visit(monkeypatch) -> None:
+    profile = {
+        "target_role_titles": ["Scripting Languages", "Software Development"],
+        "target_roles": ["Scripting Languages", "Software Development"],
+        "target_role_title": "Scripting Languages",
+    }
+    saved: list[dict[str, Any]] = []
+    monkeypatch.setattr(forward_pass.debounce, "claim", lambda *_a, **_k: True)
+    monkeypatch.setattr("app.database.get_supabase_admin", lambda: object())
+
+    def _save(_db: Any, user_id: str, **kwargs: Any) -> None:
+        assert user_id == "u1"
+        saved.append(kwargs)
+
+    monkeypatch.setattr("app.services.onboarding_service.save_target", _save)
+    forward_pass.on_profile_read("u1", profile)
+
+    assert saved == [{
+        "role_titles": ["Scripting Languages", "Software Development"],
+        "role_families": ["Scripting Languages", "Software Development"],
+    }]
+    assert profile["target_role_title"] == "Software Development"
+    assert profile["target_role_titles"][0] == "Software Development"
+    assert profile["target_roles"][0] == "Software Development"
+
+
+def test_a_real_primary_does_not_touch_the_write_path(monkeypatch) -> None:
+    profile = {
+        "target_role_titles": ["Software Development", "Scripting Languages"],
+        "target_roles": ["Software Development", "Scripting Languages"],
+    }
+    monkeypatch.setattr(
+        "app.services.onboarding_service.save_target",
+        lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("write path")),
+    )
+    forward_pass.on_profile_read("u1", profile)
+    assert profile["target_role_titles"][0] == "Software Development"
+
+
+def test_a_lone_bucket_is_left_alone(monkeypatch) -> None:
+    profile = {"target_role_titles": ["Scripting Languages"]}
+    monkeypatch.setattr(
+        "app.services.onboarding_service.save_target",
+        lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("write path")),
+    )
+    forward_pass.on_profile_read("u1", profile)
+    assert profile["target_role_titles"] == ["Scripting Languages"]

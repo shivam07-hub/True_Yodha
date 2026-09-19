@@ -97,7 +97,7 @@ export function TargetRolesChips({
 
   function chooseRole(role: RoleFamily) {
     edit.mutate(role, {
-      onSuccess: () => onSaved?.([role.label]),
+      onSuccess: () => onSaved?.([role.family]),
     })
   }
 

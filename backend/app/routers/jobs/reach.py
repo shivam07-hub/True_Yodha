@@ -26,10 +26,14 @@ from app.services import xp_policy, xp_service
 from app.services.connections_import import format_warm_connection
 from app.services.llm_provider import LLMProvider, get_llm_provider
 from app.services.reach_intel import ReachSearch, build_reach_intel
+from app.services.deepening_keys import DeepeningKey
 
 router = APIRouter()
 
-_PACK_PROMPT_KEY = "reach_pack"
+# Imported, not retyped: this constant used to be declared privately in
+# BOTH reach modules, so renaming one would have left the other reading
+# an empty cache with no error.
+_PACK_PROMPT_KEY = DeepeningKey.REACH_PACK
 
 
 class ReachSearchRequest(BaseModel):

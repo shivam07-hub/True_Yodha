@@ -46,6 +46,7 @@ from app.services.cv_structured_shape import (  # noqa: F401
     normalize_structured,
 )
 from app.services.cv_explicit_skills import extract_explicit_skills, reconcile_skill_signals
+from app.services.cv_skill_evidence import apply_cv_evidence_rules
 from app.security.personal_data import sanitize_cv_text_for_ai
 from app.services.llm_provider import LLMProvider, LLMProviderError, get_llm_provider
 from app.services.model_outcome import ModelOutcome
@@ -148,6 +149,7 @@ For each skill in "skills":
 Skill rules:
   - Include hard skills, tools, methodologies, AND human skills when evidenced
   - Skip generic filler ("Innovation", "Collaboration" alone) unless there is concrete evidence tied to a project/outcome
+  - Never extract a skill whose only evidence is an employer, school, job title, or a metric with no skill named
   - If the CV mentions a skill in multiple contexts, use the HIGHEST signal_type
   - Return 20–50 skills. Extract only what is evidenced — do not invent skills
   - Use proper Lightcast capitalisation (e.g. "Apache Spark", "Amazon Web Services (AWS)")
@@ -171,6 +173,7 @@ Rules:
 - mention = listed only; project = used in work/project; impact = measurable outcome; leadership = led team/design/architecture.
 - Keep the strongest signal when a skill appears more than once.
 - Extract only evidenced skills. Never infer or invent a skill.
+- Never extract a skill from an employer name, school, job title, or a metric that does not name the skill.
 - Return at most 50 skills. No prose or markdown fences."""
 
 
@@ -387,6 +390,18 @@ def _validate_and_normalize(raw_skills: list[dict]) -> list[dict]:
     return sorted(best_by_key.values(), key=lambda s: -s["xp_awarded"])[:_MAX_SKILLS]
 
 
+def _honest_skills(raw_text: str, deterministic: list, enriched: list) -> list:
+    """Literal floor plus model enrich, after dropping employer/metric strays.
+
+    Rules run on each source BEFORE reconcile so a high-XP invented receipt
+    cannot erase a skill the CV actually named.
+    """
+    return reconcile_skill_signals(
+        apply_cv_evidence_rules(deterministic, raw_text, _SIGNAL_XP),
+        apply_cv_evidence_rules(enriched, raw_text, _SIGNAL_XP),
+    )
+
+
 # ── Main entry points ─────────────────────────────────────────────────────────
 
 def extract_raw_text(file_bytes: bytes, file_type: str) -> str:
@@ -427,7 +442,7 @@ async def parse_cv_text(raw_text: str, provider: LLMProvider | None = None) -> d
     deterministic = extract_explicit_skills(raw_text)
     raw_skills, structured = await _llm_extract(raw_text, provider)
     enriched = _validate_and_normalize(raw_skills or [])
-    skills = reconcile_skill_signals(deterministic, enriched)
+    skills = _honest_skills(raw_text, deterministic, enriched)
     # A model outage with real deterministic skills in hand is a degraded read,
     # not a failure — callers fork on this to decide 503 vs. serve what we have.
     provider_failed = raw_skills is None and not skills
@@ -452,21 +467,22 @@ async def parse_cv_skills(raw_text: str, provider: LLMProvider | None = None) ->
     """
     deterministic = extract_explicit_skills(raw_text)
     if not raw_text or len(raw_text.strip()) < _MIN_RAW_TEXT_LEN:
+        skills = apply_cv_evidence_rules(deterministic, raw_text or "", _SIGNAL_XP)
         return {
-            "skills_detected": deterministic,
+            "skills_detected": skills,
             "cv_structured": None,
             "raw_text": raw_text,
-            "provider_failed": not bool(deterministic),
+            "provider_failed": not bool(skills),
             "provenance": {
                 "deterministic_skill_count": len(deterministic),
                 "llm_skill_count": 0,
-                "validated_skill_count": len(deterministic),
+                "validated_skill_count": len(skills),
             },
         }
 
     raw_skills, model_metadata = await _llm_extract_skills(raw_text, provider)
     enriched = _validate_and_normalize(raw_skills or [])
-    skills = reconcile_skill_signals(deterministic, enriched)
+    skills = _honest_skills(raw_text, deterministic, enriched)
     llm_failed = raw_skills is None
     return {
         "skills_detected": skills,
@@ -511,24 +527,7 @@ async def parse_cv(file_bytes: bytes, file_type: str, provider: LLMProvider | No
     else:
         raise ValueError(f"Unsupported file_type: {file_type!r}")
 
-    if len(raw_text) < _MIN_RAW_TEXT_LEN:
-        logger.warning("CV extracted text is too short (%d chars) — likely scanned", len(raw_text))
-        return {"skills_detected": [], "cv_structured": None, "raw_text": raw_text, "provider_failed": False}
-
-    raw_skills, structured = await _llm_extract(raw_text, provider)
-    provider_failed = raw_skills is None
-    skills = _validate_and_normalize(raw_skills or [])
-    logger.info(
-        "CV parsed: %d chars → %d raw → %d validated Lightcast skills (structured=%s, provider_failed=%s)",
-        len(raw_text), len(raw_skills or []), len(skills), structured is not None, provider_failed,
-    )
-
-    return {
-        "skills_detected": skills,
-        "cv_structured":   structured,
-        "raw_text":        raw_text,
-        "provider_failed": provider_failed,
-    }
+    return await parse_cv_text(raw_text, provider)
 
 
 # ── Structured re-parse (lazy backfill) ───────────────────────────────────────

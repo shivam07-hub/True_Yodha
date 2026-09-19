@@ -15,6 +15,7 @@ import "./redesign/redesign.css"
 import { SettingsModal, type Tab as SettingsTab } from "@/components/settings-modal"
 import { MyroLogo } from "@/components/myro-logo"
 import { NotificationBell } from "@/components/nav/notification-bell"
+import { ScoreChip } from "@/components/nav/score-chip"
 import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -175,7 +176,8 @@ export function MobileTopBar() {
         <MyroLogo size={24} decorative />
         <span style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 600, letterSpacing: "-0.02em", color: "var(--mm-text)" }}>Myro</span>
       </Link>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+        <ScoreChip />
         {/* Fresh-match notifications (Backlog #36) */}
         <NotificationBell />
         <button

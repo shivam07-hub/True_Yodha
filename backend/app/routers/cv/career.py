@@ -385,14 +385,27 @@ async def project_reservoir(
     if not result["included_ids"]:
         raise HTTPException(status.HTTP_409_CONFLICT, "No stories have pointers to project yet.")
 
-    version = cv_repo.create(user.id, CVVersionWriteSpec(
-        kind="deterministic",
-        job_id=body.job_id,
-        parent_version_id=int(baseline["id"]),
-        body_text=cv_compose.render_deterministic(result["cv_structured"]),
-        cv_structured=result["cv_structured"],
-        title=f"Reservoir projection · {job.get('company_name') or job.get('job_title') or ''}".strip(" ·"),
-    ))
+    title = f"Reservoir projection · {job.get('company_name') or job.get('job_title') or ''}".strip(" ·")
+    body_text = cv_compose.render_deterministic(result["cv_structured"])
+    # One document per job (ADR-0025): a projection REPLACES this job's paper,
+    # it does not file a rival copy beside it. Minting a sibling here is what
+    # left users with three near-identical CVs for one job and no way to tell
+    # which one the next Keep/Take would land on.
+    document = cv_repo.job_document(user.id, body.job_id)
+    if document is not None:
+        version = cv_repo.update_job_draft(
+            int(document["id"]), user.id,
+            cv_structured=result["cv_structured"], body_text=body_text, title=title,
+        )
+    else:
+        version = cv_repo.create(user.id, CVVersionWriteSpec(
+            kind="deterministic",
+            job_id=body.job_id,
+            parent_version_id=int(baseline["id"]),
+            body_text=body_text,
+            cv_structured=result["cv_structured"],
+            title=title,
+        ))
     return ProjectResponse(
         version_id=int(version["id"]),
         included=len(result["included_ids"]),

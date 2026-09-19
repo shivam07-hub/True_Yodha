@@ -175,7 +175,7 @@ def test_scrape_match_recompute_handler_forces_false_and_never_raises(monkeypatc
     initial-match trigger)."""
     captured: dict[str, Any] = {}
 
-    monkeypatch.setattr(scrape_sweep, "get_supabase_admin", lambda: object())
+    monkeypatch.setattr(scrape_sweep, "get_supabase_admin_batch", lambda: object())
     monkeypatch.setattr(scrape_sweep, "JobsRepository", lambda *_a, **_k: _HandlerRepo())
 
     async def _fake_run(_repo: Any, user_id: str, _batch_week: Any, *, force: bool, **_kw: Any) -> None:

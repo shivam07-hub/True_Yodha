@@ -327,12 +327,21 @@ def test_patch_story_archive():
 
 
 class _FakeCvRepo:
-    def __init__(self, baseline):
+    def __init__(self, baseline, document=None):
         self.baseline = baseline
+        self.document = document
         self.created: list[Any] = []
+        self.patched: list[Any] = []
 
     def latest_baseline(self, user_id):
         return self.baseline
+
+    def job_document(self, user_id, job_id):
+        return self.document
+
+    def update_job_draft(self, version_id, user_id, **kw):
+        self.patched.append({"id": version_id, **kw})
+        return {"id": version_id}
 
     def create(self, user_id, spec):
         self.created.append(spec)

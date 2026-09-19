@@ -114,5 +114,11 @@ def assemble(
     title_only_ids = [jid for jid in title_ids if jid not in have]
     title_metas = repo.get_jobs_by_ids(title_only_ids) if title_only_ids else []
     if eligibility_profile is not None:
-        title_metas = [job for job in title_metas if job_is_eligible(eligibility_profile, job)]
+        # The triage pool, so an unreadable seniority is admitted for the brain to
+        # read — the same rule `filter_job_ids_for_eligibility` applies to the
+        # overlap half of this pool. One pool, one admission rule.
+        title_metas = [
+            job for job in title_metas
+            if job_is_eligible(eligibility_profile, job, admit_unreadable=True)
+        ]
     return merge_triage_pool(overlap_jobs, title_metas, pool_size=pool_size)

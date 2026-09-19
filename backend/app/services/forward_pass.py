@@ -130,11 +130,130 @@ def bank_existing_baseline(user_id: str) -> bool:
         return False
 
 
+def drop_stray_cv_skills(user_id: str) -> bool:
+    """Employer-header and nameless-metric skills come off on the next CV visit.
+
+    Extraction now refuses them. People who uploaded before that still carry
+    them; opening the CV is the occasion. Claim + cheap check + enqueue — the
+    delete and recompute never run on the read they came for.
+    """
+    if not _claim("stray_skills", user_id):
+        return False
+    try:
+        from app.services.cv_stray_heal import enqueue_if_behind
+
+        return enqueue_if_behind(user_id)
+    except Exception as exc:  # noqa: BLE001 — a read must never fail on a forward pass
+        logger.warning(
+            "metric forward_pass.failed pass=stray_skills user=%s reason=%s",
+            user_id, exc.__class__.__name__,
+        )
+        return False
+
+
+def retag_file_billed_as_text(user_id: str) -> bool:
+    """A PDF billed as a paste is retagged the next time they open their CV.
+
+    Claim + two existence reads + a cheap write. The historical ledger stays;
+    only `cv_versions.source` and `entry_mode` come forward.
+    """
+    if not _claim("cv_source", user_id):
+        return False
+    try:
+        from app.database import get_supabase_admin
+        from app.repositories.cv import CVVersionsRepository
+        from app.repositories.onboarding import OnboardingRepository
+        from app.services.cv_entry_heal import heal_loaded
+
+        db = get_supabase_admin()
+        return heal_loaded(
+            db,
+            user_id,
+            OnboardingRepository(db).get_state(user_id),
+            CVVersionsRepository(db).latest_baseline(user_id),
+        )
+    except Exception as exc:  # noqa: BLE001 — a read must never fail on a forward pass
+        logger.warning(
+            "metric forward_pass.failed pass=cv_source user=%s reason=%s",
+            user_id, exc.__class__.__name__,
+        )
+        return False
+
+
 #: Every pass the platform runs. One entry per capability that shipped after the
 #: data it needs — the list is the answer to "what is a returning user behind on".
 PASSES: tuple[tuple[str, Any], ...] = (
     ("baseline_bank", bank_existing_baseline),
+    ("stray_skills", drop_stray_cv_skills),
+    ("cv_source", retag_file_billed_as_text),
 )
+
+
+# Cheap skip for the /users/me door. The write path reads is_catch_all; this is
+# the seed from 20260909100000 plus the two prefixes that migration also marked.
+# A hand-edited flag the seed misses waits for a re-save.
+_SEEDED_BUCKETS = frozenset({
+    "Business Operations", "Business Management", "Business Solutions",
+    "Business Leadership", "Business Continuity", "Computer Science",
+    "Administrative Support and Clerical Tasks",
+    "Office and Productivity Equipment and Technology",
+    "Scripting Languages", "Query Languages",
+})
+
+
+def _clean_names(raw: Any) -> list[str]:
+    if not isinstance(raw, list):
+        return []
+    return [str(value).strip() for value in raw if str(value).strip()]
+
+
+def _looks_like_bucket(name: str) -> bool:
+    return name.startswith(("General ", "Other ")) or name in _SEEDED_BUCKETS
+
+
+def _needs_promote(names: list[str]) -> bool:
+    return (
+        len(names) >= 2
+        and _looks_like_bucket(names[0])
+        and any(not _looks_like_bucket(name) for name in names[1:])
+    )
+
+
+def on_profile_read(user_id: str, profile: dict[str, Any]) -> None:
+    """A catch-all cannot stay the main role. Fix it on the visit they already make.
+
+    `/users/me` is the shell on every authed page — the 23 people in this state
+    walk it. The cheap check is string-only, so everyone else pays nothing.
+    The write itself goes through `save_target`, so score and match refresh
+    the same way a Direction save does. Nothing is edited by hand.
+    """
+    titles = _clean_names(profile.get("target_role_titles"))
+    families = _clean_names(profile.get("target_roles"))
+    if not titles or not (_needs_promote(titles) or _needs_promote(families)):
+        return
+    if not _claim("promote_primary", user_id):
+        return
+    try:
+        from app.database import get_supabase_admin
+        from app.services.onboarding_service import save_target
+        from app.services.targeting_write import demote_catch_all_primary
+
+        kwargs: dict[str, Any] = {"role_titles": titles}
+        if families:
+            kwargs["role_families"] = families
+        save_target(get_supabase_admin(), user_id, **kwargs)
+        catch = {name for name in [*titles, *families] if _looks_like_bucket(name)}
+        promoted_titles = demote_catch_all_primary(titles, catch)
+        profile["target_role_titles"] = promoted_titles
+        profile["target_role_title"] = promoted_titles[0]
+        if families:
+            profile["target_roles"] = demote_catch_all_primary(families, catch)
+        logger.info("metric forward_pass.primary_promoted user=%s", user_id)
+    except Exception as exc:  # noqa: BLE001 — a read must never fail on a forward pass
+        logger.warning(
+            "metric forward_pass.failed pass=promote_primary user=%s reason=%s",
+            user_id, exc.__class__.__name__,
+        )
 
 
 def on_cv_read(user_id: str) -> None:
