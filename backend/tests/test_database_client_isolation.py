@@ -36,6 +36,7 @@ def _client_factory_settings(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     accept blank credentials.
     """
     database.get_supabase_admin.cache_clear()
+    database.get_supabase_admin_batch.cache_clear()
     monkeypatch.setattr(database.settings, "supabase_url", "https://test.supabase.co")
     # supabase-py validates the JWT shape at construction time. These are
     # deliberately unsigned placeholders, valid only because no test sends a
@@ -46,6 +47,7 @@ def _client_factory_settings(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     yield
 
     database.get_supabase_admin.cache_clear()
+    database.get_supabase_admin_batch.cache_clear()
 
 
 def test_each_token_client_is_a_distinct_object() -> None:
@@ -102,3 +104,19 @@ def test_admin_client_shares_the_same_pool_as_token_clients() -> None:
     admin = database.get_supabase_admin()
     token_client = database.get_supabase_for_token("token-aaa")
     assert admin.postgrest.session._transport is token_client.postgrest.session._transport
+
+
+def _read_timeout_seconds(client) -> float:
+    timeout = client.postgrest.session.timeout
+    read = getattr(timeout, "read", timeout)
+    return float(read)
+
+
+def test_batch_admin_client_outlives_the_web_deadline() -> None:
+    """A Match Run's candidate-pool read is corpus work. The 8s web client
+    timed that read out on 2026-09-17; the batch client is the 120s one."""
+    admin = database.get_supabase_admin()
+    batch = database.get_supabase_admin_batch()
+    assert _read_timeout_seconds(admin) == 8.0
+    assert _read_timeout_seconds(batch) == 120.0
+    assert admin.postgrest.session._transport is batch.postgrest.session._transport

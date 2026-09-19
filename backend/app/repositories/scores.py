@@ -471,15 +471,22 @@ class ScoresRepository:
         """(raw target_seniority, total_score) for every scored user.
 
         Feeds band-relative percentile: the caller resolves each raw seniority
-        to its band and ranks the subject against same-band peers. Two small
-        reads joined in Python — the scored population is well under 10k, so a
-        band-filtered SQL join isn't worth the derived-band complexity yet.
+        to its band and ranks the subject against same-band peers. Two reads
+        joined in Python, paged past PostgREST's silent 1,000-row cap — an
+        unpaged select would freeze the peer pool at the first thousand as
+        signups cross that line.
         """
-        scores = (
-            self._db.table("mirror_scores").select("user_id, total_score").execute().data or []
+        scores = fetch_all_rows(
+            self._db,
+            table="mirror_scores",
+            columns="user_id, total_score",
+            query_builder=lambda q: q.order("user_id"),
         )
-        profiles = (
-            self._db.table("user_profiles").select("id, target_seniority").execute().data or []
+        profiles = fetch_all_rows(
+            self._db,
+            table="user_profiles",
+            columns="id, target_seniority",
+            query_builder=lambda q: q.order("id"),
         )
         seniority_by_id = {p["id"]: p.get("target_seniority") for p in profiles if p.get("id")}
         out: list[tuple[str, float]] = []

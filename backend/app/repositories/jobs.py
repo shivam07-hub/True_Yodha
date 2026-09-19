@@ -11,7 +11,7 @@ from fastapi import Depends
 from postgrest.exceptions import APIError
 from supabase import Client
 
-from app.database import get_supabase_admin
+from app.database import get_supabase_admin, get_supabase_admin_batch
 from app.db_safe import safe_read
 from app.services.job_extract_backstop import is_valid_location
 from app.deps import get_user_db
@@ -4204,5 +4204,10 @@ def get_token_jobs_repository(db: Client = Depends(get_user_db)) -> JobsReposito
 
 
 def get_admin_jobs_repository() -> JobsRepository:
-    """Admin factory — internal/ops scripts only. Not for user-facing routes."""
-    return JobsRepository(get_supabase_admin())
+    """Admin factory — worker / ops only. Not for user-facing routes.
+
+    Uses the batch PostgREST client (120s). The Match Run's candidate-pool read
+    is corpus work; the 8s web deadline timed out a Direction-save run in
+    12s (2026-09-17) and RQ reported Job OK because the caller swallowed it.
+    """
+    return JobsRepository(get_supabase_admin_batch())

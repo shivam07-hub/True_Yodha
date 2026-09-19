@@ -7,7 +7,7 @@ from typing import Any
 
 from fastapi import HTTPException, status
 
-from app.database import get_supabase_admin
+from app.database import get_supabase_admin, get_supabase_admin_batch
 from app.repositories import cv_upload_jobs as upload_jobs_repo
 from app.repositories.cv import (
     CVVersionWriteSpec,
@@ -30,17 +30,23 @@ async def _trigger_initial_match_compute(
     *,
     force_context_refresh: bool = False,
 ) -> None:
-    """Fire-and-forget: compute first 5 matches after CV upload (free welcome bonus).
+    """Compute the first Match Run after Direction save / CV upload.
 
     Backlog #36 (de-weekly): no separate "matched this week?" pre-check — that
     used to be a `batch_week`-scoped short-circuit which would wrongly re-fire a
     full compute on a week rollover. `compute_job_matches`'s own cache-hit gate
     (has this user ever matched + anything new since?) is the single source of
-    truth for "is there anything to do here" and already handles this."""
-    try:
-        from app.repositories.jobs import JobsRepository
+    truth for "is there anything to do here" and already handles this.
 
-        admin_db = get_supabase_admin()
+    This is worker work, not a web request. The 8s PostgREST deadline made a
+    healthy candidate-pool read look like an outage: 2026-09-17 13:30 UTC the
+    Direction-save `initial_match` timed out in 12s, this function swallowed it,
+    RQ logged Job OK, and the /market warmer filled ten rows with no run stamp.
+    """
+    from app.repositories.jobs import JobsRepository
+
+    try:
+        admin_db = get_supabase_admin_batch()
         jobs_repo = JobsRepository(admin_db, admin_db)
         if force_context_refresh:
             jobs_repo.clear_recommendations(user_id)
@@ -58,12 +64,13 @@ async def _trigger_initial_match_compute(
             notify=False,
         )
     except Exception as exc:
-        # Not swallowed silently: the matches read seam infers `failed` from the
-        # empty feed and offers a free re-vet; this metric line is the alerting
-        # hook (spike = matcher/provider degradation). See compute_match_health.
+        # Log, then re-raise. Swallowing made RQ report Job OK, so a timed-out
+        # run was never retried and compute_match_health could not see `failed`
+        # once the feed warmer wrote overall_score onto ten rows.
         _log.warning(
             "metric match.initial_compute_failed user=%s error=%s", user_id, exc
         )
+        raise
 
 
 def _persist_baseline_cv(
