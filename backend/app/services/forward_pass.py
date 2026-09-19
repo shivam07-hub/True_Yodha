@@ -151,11 +151,41 @@ def drop_stray_cv_skills(user_id: str) -> bool:
         return False
 
 
+def retag_file_billed_as_text(user_id: str) -> bool:
+    """A PDF billed as a paste is retagged the next time they open their CV.
+
+    Claim + two existence reads + a cheap write. The historical ledger stays;
+    only `cv_versions.source` and `entry_mode` come forward.
+    """
+    if not _claim("cv_source", user_id):
+        return False
+    try:
+        from app.database import get_supabase_admin
+        from app.repositories.cv import CVVersionsRepository
+        from app.repositories.onboarding import OnboardingRepository
+        from app.services.cv_entry_heal import heal_loaded
+
+        db = get_supabase_admin()
+        return heal_loaded(
+            db,
+            user_id,
+            OnboardingRepository(db).get_state(user_id),
+            CVVersionsRepository(db).latest_baseline(user_id),
+        )
+    except Exception as exc:  # noqa: BLE001 — a read must never fail on a forward pass
+        logger.warning(
+            "metric forward_pass.failed pass=cv_source user=%s reason=%s",
+            user_id, exc.__class__.__name__,
+        )
+        return False
+
+
 #: Every pass the platform runs. One entry per capability that shipped after the
 #: data it needs — the list is the answer to "what is a returning user behind on".
 PASSES: tuple[tuple[str, Any], ...] = (
     ("baseline_bank", bank_existing_baseline),
     ("stray_skills", drop_stray_cv_skills),
+    ("cv_source", retag_file_billed_as_text),
 )
 
 

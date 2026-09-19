@@ -478,6 +478,19 @@ def _idem_response(existing: dict[str, Any]) -> dict[str, Any]:
     return {"status": "processing", "job_id": str(existing["id"])}
 
 
+_FILE_SOURCES = frozenset({"pdf_upload", "linkedin_pdf"})
+
+
+def charge_action_for_source(source: str) -> str:
+    """Ledger action follows how the CV arrived, not which HTTP route posted it.
+
+    `/cv/text` can honestly carry `pdf_upload` when the original File is gone
+    (OAuth redirect, playground edit). Charging `cv_upload_text` for that made a
+    file look like a paste.
+    """
+    return "cv_upload" if source in _FILE_SOURCES else "cv_upload_text"
+
+
 async def start_cv_upload_job_from_text(
     cv_repo: CVVersionsRepository,
     user_id: str,
@@ -509,7 +522,8 @@ async def start_cv_upload_job_from_text(
         }
 
     return await _start_async_upload_job(
-        user_id, raw_text=raw_text, content_hash=content_hash, action="cv_upload_text",
+        user_id, raw_text=raw_text, content_hash=content_hash,
+        action=charge_action_for_source(source),
         idempotency_key=idempotency_key, source=source,
         xp_cost=0 if cached else CV_UPLOAD_XP_COST,
     )
