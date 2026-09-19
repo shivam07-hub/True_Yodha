@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.schemas.jobs import SeniorityCompat
-from app.services.job_eligibility import seniority_for_job
+from app.services.job_eligibility import seniority_fit, seniority_for_job
 from app.services.onboarding_service import context_key
 
 
@@ -18,12 +18,20 @@ class Credibility:
 
 
 def seniority_compatibility(target: str, job: dict[str, Any]) -> SeniorityCompat:
+    """The eligibility gate's own reading of this job's level — not a second one.
+
+    This used to be `actual == target`, while the gate that admitted the job
+    used adjacency. The band below the target was admitted and then graded
+    `incompatible`, so it could never be `strong`, `worth_it` or recommended.
+    `seniority_fit` is now the only definition of at-level.
+
+    A blank or legacy `any` TARGET stays `compatible` here — it is the one rule
+    this function owns: with no stated level there is nothing to be off-level
+    FROM, and the promotion gate should not bar on it.
+    """
     if target in ("", "any"):
         return "compatible"
-    actual = seniority_for_job(job)
-    if not actual:
-        return "unknown"
-    return "compatible" if actual == target else "incompatible"
+    return seniority_fit(target, seniority_for_job(job))
 
 
 def _location_token(value: str) -> str:

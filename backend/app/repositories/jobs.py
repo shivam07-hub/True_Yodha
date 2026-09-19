@@ -2768,7 +2768,13 @@ class JobsRepository:
         include_stretch: bool = False,
         jobs: list[dict[str, Any]],
     ) -> list[str]:
-        """Keep candidate IDs that pass the same gate as the browse feed.
+        """Keep candidate IDs that may enter the Match Run's ranking pool.
+
+        The browse feed's gate, plus one admission browse does not make: a job
+        whose source carries no readable seniority. This pool meets the brain
+        before anything is persisted (triage, then `_persist_provisional`), and
+        the brain reads the JD — the only reader that can tell a level the
+        adapter did not. See `job_eligibility.seniority_is_eligible`.
 
         `jobs` is the eligibility-column rows already loaded for this pool
         (from `candidate_jobs_for_skills`). Passing ids into `get_jobs_by_ids`
@@ -2779,7 +2785,10 @@ class JobsRepository:
         allowed = {
             str(job["job_id"])
             for job in jobs
-            if job.get("job_id") and job_is_eligible(profile, job, include_stretch=include_stretch)
+            if job.get("job_id")
+            and job_is_eligible(
+                profile, job, include_stretch=include_stretch, admit_unreadable=True
+            )
         }
         return [job_id for job_id in job_ids if job_id in allowed]
 
