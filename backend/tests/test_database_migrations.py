@@ -141,3 +141,21 @@ def test_growth_tracker_parity_migration_is_additive_and_private() -> None:
     assert "alter column final_copy_snapshot set not null" in sql
     assert "create policy" not in sql
     assert "notify pgrst, 'reload schema';" in sql
+
+
+def test_first_seen_is_written_once_migration_preserves_the_old_value() -> None:
+    sql = _migration("20260920090000_first_seen_is_written_once.sql").lower()
+
+    # The guard is the assignment, not the comment above it: a re-observation
+    # may move `last_seen`, never the discovery date.
+    assert "new.first_seen := old.first_seen;" in sql
+    assert "if old.first_seen is not null then" in sql
+    # UPDATE-only and column-scoped, so the verifier's lifecycle writes and the
+    # enrichment path never pay for it, and INSERT still records discovery.
+    assert "before update of first_seen on public.jobs" in sql
+    assert "create trigger preserve_job_first_seen" in sql
+    assert "for each row" in sql
+    # Coerce, never raise: the crawler sends this column on every row, so a
+    # raising guard would fail live crawls instead of ignoring a bad payload.
+    assert "raise exception" not in sql
+    assert "notify pgrst, 'reload schema';" in sql
