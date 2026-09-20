@@ -11,7 +11,7 @@ from fastapi import Depends
 from postgrest.exceptions import APIError
 from supabase import Client
 
-from app.database import get_supabase_admin
+from app.database import get_supabase_admin, get_supabase_admin_batch
 from app.db_safe import safe_read
 from app.services.job_extract_backstop import is_valid_location
 from app.deps import get_user_db
@@ -2768,7 +2768,13 @@ class JobsRepository:
         include_stretch: bool = False,
         jobs: list[dict[str, Any]],
     ) -> list[str]:
-        """Keep candidate IDs that pass the same gate as the browse feed.
+        """Keep candidate IDs that may enter the Match Run's ranking pool.
+
+        The browse feed's gate, plus one admission browse does not make: a job
+        whose source carries no readable seniority. This pool meets the brain
+        before anything is persisted (triage, then `_persist_provisional`), and
+        the brain reads the JD — the only reader that can tell a level the
+        adapter did not. See `job_eligibility.seniority_is_eligible`.
 
         `jobs` is the eligibility-column rows already loaded for this pool
         (from `candidate_jobs_for_skills`). Passing ids into `get_jobs_by_ids`
@@ -2779,7 +2785,10 @@ class JobsRepository:
         allowed = {
             str(job["job_id"])
             for job in jobs
-            if job.get("job_id") and job_is_eligible(profile, job, include_stretch=include_stretch)
+            if job.get("job_id")
+            and job_is_eligible(
+                profile, job, include_stretch=include_stretch, admit_unreadable=True
+            )
         }
         return [job_id for job_id in job_ids if job_id in allowed]
 
@@ -4195,5 +4204,10 @@ def get_token_jobs_repository(db: Client = Depends(get_user_db)) -> JobsReposito
 
 
 def get_admin_jobs_repository() -> JobsRepository:
-    """Admin factory — internal/ops scripts only. Not for user-facing routes."""
-    return JobsRepository(get_supabase_admin())
+    """Admin factory — worker / ops only. Not for user-facing routes.
+
+    Uses the batch PostgREST client (120s). The Match Run's candidate-pool read
+    is corpus work; the 8s web deadline timed out a Direction-save run in
+    12s (2026-09-17) and RQ reported Job OK because the caller swallowed it.
+    """
+    return JobsRepository(get_supabase_admin_batch())

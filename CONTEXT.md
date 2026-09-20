@@ -34,6 +34,34 @@ A CV Version is one row in `cv_versions`. Upload, polish, and an explicit new sa
 
 ---
 
+## Job Document
+
+**THE** CV for one `(user, job)`. Exactly one exists, and it is **defined, not stored**: the
+newest `cv_versions` row carrying that `job_id`, of any kind (ADR-0025). A `baseline_upload` has
+`job_id IS NULL`, so a master can never be one.
+
+Read it with `CVVersionsRepository.job_document`. Patch it in place with `update_job_draft`,
+which is scoped by `job_id IS NOT NULL` — never by `kind`.
+
+**The rules every reader and writer is held to**
+
+- Identity is read, never ranked. Nothing picks between candidate rows by kind or by guessing.
+- Every writer seeds from the job document. The master seeds it only when there is none yet.
+- Patch in place by default. A new row only for an act the user asked to be separate — a polish
+  or a structured edit, which keep provenance via `parent_version_id` — and that row then
+  BECOMES the job document.
+- `kind` is a lineage label, not identity.
+
+**Why it is named this and not "draft"**
+
+`latest_job_draft` was named for one writer's private draft and filtered to that writer's kind.
+Both were the bug: three writers minted `deterministic` rows for one job, and the reader picked
+between them by version number while ignoring every `polished` or `edited` row. A playground
+Save seeded from the untouched master overwrote a user's accepted Tailor lines in production
+(2026-08-30). The full account is in ADR-0025.
+
+---
+
 ## Company CV Thread
 
 The ordered set of CV Versions a user has authored against any job at a given company. The unit of CV identity the user actually cares about — "my Capgemini CV" — independent of which specific Capgemini role row in `job_applications` is being viewed.
@@ -1210,6 +1238,40 @@ before a job reaches the feed or the Career Ops ranking pool.
 - Target seniority persists with the candidate profile. Browse state persists
   in the URL so opening a role, navigating back, or reloading does not require
   the candidate to restate their intent.
+
+### Seniority Fit
+
+**The one reading of a job's level against a target** —
+`job_eligibility.seniority_fit`, returning `SeniorityCompat`
+(`compatible | incompatible | unknown`). The gate admits by it and
+`match_credibility` grades by it; neither re-decides what at-level means.
+
+- **At level** = the target's own level and the one below (`_AT_LEVEL`). For
+  intern and entry that is the default pool above; for everyone else the band
+  below is the same rule. It is not a stretch.
+- **Unreadable** either side is `unknown`, never `incompatible`. An absence is
+  not a verdict (the rule F3 already applied at promotion).
+- **Admission** (`seniority_is_eligible`) = fit, plus two opt-ins that stay
+  visible on top of it:
+  - `admit_unreadable` — a job with no readable level, for a readable target.
+    **Career Ops ranking pool only** (`filter_job_ids_for_eligibility`,
+    `candidate_pool.assemble`), because that pool meets the brain before any
+    row is written and the brain reads the JD. Browse never passes it: no brain
+    on that path, and it would grow an entry feed ~3× with jobs whose level
+    nobody established. An unreadable *target* (legacy `any`) still admits
+    nothing.
+  - `include_stretch` — the one band above. Admitted when asked for, still
+    graded `incompatible`: looking up a level is not Myro recommending it.
+
+Why it exists (2026-09-19): the gate used adjacency and returned a bool; the
+verdict used `actual == target`. They disagreed on 6 of 36 target×level pairs —
+every one the band below — so a job admitted to be shown was graded the weakest
+thing on the page, permanently (22 rows, 17 users; an intern graded every entry
+job off-level). And 12,885 of 49,310 live jobs (26%) carry no readable level —
+per source adapter (RippleHire 40.9% blank, DeloitteUSI 1.0%), not recoverable
+downstream (77% have no level word in the title, 20 have
+`min_years_experience`) — and the bool read that absence as "show nobody".
+The adapter gap itself is the scraper repo's to close.
 
 ---
 

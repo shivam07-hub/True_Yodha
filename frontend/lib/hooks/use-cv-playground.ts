@@ -288,9 +288,14 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
       if (!token || !jobId || !base) throw new Error("No CV to patch.")
       const next = mut(structuredClone(base))
       const sel = selectedRef.current
-      if (sel && sel.kind === "deterministic" && sel.job_id) {
+      // Any kind, so long as it is this job's paper — ADR-0025, one document
+      // per job. The kind check used to send a polished tailored CV down the
+      // create path, minting a rival copy seeded from the master.
+      if (sel && sel.job_id) {
         return cv.versions.patchJobDraft(token, sel.id, next, phrasing)
       }
+      // No document selected yet: create returns this job's document, patching
+      // it when one already exists rather than seeding a sibling.
       const created = await cv.versions.create(
         token, jobId, Array.from(hiddenItems), undefined, sectionOrder,
       )
@@ -352,7 +357,7 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     debounceRef.current = setTimeout(() => {
       debounceRef.current = null
       const sel = selectedVersion
-      if (sel && sel.kind === "deterministic" && sel.job_id) {
+      if (sel && sel.job_id) {
         autosave.mutate({ versionId: sel.id, hidden: Array.from(hiddenItems), order: sectionOrder })
       } else {
         saveVersion.mutate()
@@ -380,7 +385,7 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     if (!enabled || !token || !jobId) return
     if (serializeProjection(hiddenItems, sectionOrder) === lastSavedRef.current) return
     const sel = selectedVersion
-    if (sel && sel.kind === "deterministic" && sel.job_id) {
+    if (sel && sel.job_id) {
       await autosave.mutateAsync({ versionId: sel.id, hidden: Array.from(hiddenItems), order: sectionOrder })
     } else {
       await saveVersion.mutateAsync()
@@ -399,7 +404,7 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     if (!en || !tk || !jid) return
     if (serializeProjection(hid, ord) === lastSavedRef.current) return
     const hidden = Array.from(hid)
-    const persist = sel && sel.kind === "deterministic" && sel.job_id
+    const persist = sel && sel.job_id
       ? cv.versions.updateHiddenItems(tk, sel.id, hidden, ord)
       : cv.versions.create(tk, jid, hidden, undefined, ord)
     persist

@@ -54,7 +54,24 @@ def test_get_my_score_reads_through_scores_repository() -> None:
 
     assert response.status_code == 200
     assert response.json()["total_score"] == 72.5
+    assert response.json()["version"] == 1
     assert "rank_tier" not in response.json()
+
+
+def test_get_my_score_surfaces_formula_version() -> None:
+    row = _score_row()
+    row["version"] = 2
+    repo = _FakeScoresRepository(score_row=row)
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
+    app.dependency_overrides[scores.get_token_scores_repository] = lambda: repo
+
+    try:
+        with TestClient(app) as client:
+            body = client.get("/scores/me").json()
+    finally:
+        app.dependency_overrides.clear()
+
+    assert body["version"] == 2
 
 
 def test_get_my_score_surfaces_band_percentile() -> None:

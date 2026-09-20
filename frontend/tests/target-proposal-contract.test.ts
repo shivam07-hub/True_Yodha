@@ -45,6 +45,11 @@ test("a residual bucket is offered, never asserted", () => {
   assert.match(confirm, /if \(role\.is_catch_all\) return false/, "a catch-all can still be proposed")
 })
 
+test("a bucket is never the main role when a real family is on the list", () => {
+  assert.match(confirm, /function withRealPrimary\(picks: RoleFamily\[\]\)/, "no reorder helper")
+  assert.match(confirm, /return withRealPrimary\(\[\.\.\.current, family\]\)/, "a pick can still land first as a bucket")
+})
+
 test("the gate reads the skills the screen actually shows", () => {
   // The old gate was `matched_skill_count >= 3` — skills appearing ANYWHERE in
   // the family. That count is a function of family size, which is the bug the
@@ -90,7 +95,7 @@ test("an unloaded list is not mistaken for no answer", () => {
 test("a stored choice still wins over the proposal", () => {
   assert.match(
     confirm,
-    /useState<RoleFamily\[\]>\(result\.selected\?\.families \?\? \[\]\)/,
+    /useState<RoleFamily\[\]>\(\s*\(\) => withRealPrimary\(result\.selected\?\.families \?\? \[\]\)/,
     "the restored selection is no longer the seed",
   )
 })

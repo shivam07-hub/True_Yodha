@@ -23,9 +23,21 @@ const RESULT_KEY = "myro_anon_score_v1"
 // rewrites + a kept restructure). sessionStorage so it survives the signup
 // redirect → claim-replay POSTs it to /cv/text as the new Main CV (grill Q8).
 const COMPOSED_KEY = "myro_anon_cv_text_v1"
+const ORIGIN_KEY = "myro_anon_cv_origin_v1"
+const ORIGINAL_KEY = "myro_anon_cv_original_v1"
+
+export type AnonCvOrigin = "file" | "text"
 
 let stashedFile: File | null = null
 let stashedText: string | null = null
+
+function dropSession(...keys: string[]): void {
+  try {
+    for (const key of keys) sessionStorage.removeItem(key)
+  } catch {
+    // ignore
+  }
+}
 
 /** Stash pasted CV text before scoring (navigate-then-load paste path, #4): the
  *  landing dropzone holds the text in-memory and jumps to /cv-preview, which
@@ -36,6 +48,8 @@ export function stashAnonCvText(text: string): void {
   try {
     sessionStorage.removeItem(RESULT_KEY)
     sessionStorage.removeItem(COMPOSED_KEY)
+    sessionStorage.removeItem(ORIGINAL_KEY)
+    sessionStorage.setItem(ORIGIN_KEY, "text")
   } catch {
     // ignore — destination still finds the in-memory text to score.
   }
@@ -53,8 +67,15 @@ export function stashAnonCv(file: File, result: AnonScoreResponse): void {
   stashedFile = file
   try {
     sessionStorage.setItem(RESULT_KEY, JSON.stringify(result))
-    if (result.cv) sessionStorage.setItem(COMPOSED_KEY, renderDeterministic(result.cv, new Set()))
-    else sessionStorage.removeItem(COMPOSED_KEY)
+    sessionStorage.setItem(ORIGIN_KEY, "file")
+    if (result.cv) {
+      const composed = renderDeterministic(result.cv, new Set())
+      sessionStorage.setItem(COMPOSED_KEY, composed)
+      sessionStorage.setItem(ORIGINAL_KEY, composed)
+    } else {
+      sessionStorage.removeItem(COMPOSED_KEY)
+      sessionStorage.removeItem(ORIGINAL_KEY)
+    }
   } catch {
     // sessionStorage unavailable (private mode / quota) — the in-memory File
     // still covers the same-SPA replay; only cross-redirect continuity is lost.
@@ -70,6 +91,8 @@ export function stashAnonCvFile(file: File): void {
   try {
     sessionStorage.removeItem(RESULT_KEY)
     sessionStorage.removeItem(COMPOSED_KEY)
+    sessionStorage.removeItem(ORIGINAL_KEY)
+    sessionStorage.setItem(ORIGIN_KEY, "file")
   } catch {
     // ignore — destination still finds the in-memory File to score.
   }
@@ -94,6 +117,8 @@ export function stashAnonCvResult(result: AnonScoreResponse): void {
   stashedFile = null
   try {
     sessionStorage.setItem(RESULT_KEY, JSON.stringify(result))
+    sessionStorage.setItem(ORIGIN_KEY, "text")
+    sessionStorage.removeItem(ORIGINAL_KEY)
     if (!result.cv) sessionStorage.removeItem(COMPOSED_KEY)
   } catch {
     // storage blocked — the in-SPA result state still renders; only cross-
@@ -130,15 +155,30 @@ export function readStashedComposedCvText(): string | null {
   }
 }
 
+export function readStashedOrigin(): AnonCvOrigin | null {
+  try {
+    const origin = sessionStorage.getItem(ORIGIN_KEY)
+    return origin === "file" || origin === "text" ? origin : null
+  } catch {
+    return null
+  }
+}
+
+/** Snapshot of the composed CV at stash time. Playground edits change
+ *  COMPOSED_KEY only — claim uses the mismatch to keep those edits. */
+export function readOriginalComposedCvText(): string | null {
+  try {
+    const text = sessionStorage.getItem(ORIGINAL_KEY)
+    return text && text.trim() ? text : null
+  } catch {
+    return null
+  }
+}
+
 export function clearAnonCvStash(): void {
   stashedFile = null
   stashedText = null
-  try {
-    sessionStorage.removeItem(RESULT_KEY)
-    sessionStorage.removeItem(COMPOSED_KEY)
-  } catch {
-    // ignore
-  }
+  dropSession(RESULT_KEY, COMPOSED_KEY, ORIGIN_KEY, ORIGINAL_KEY)
 }
 
 // A stable-per-browser random id for pre-login download telemetry (#34 S6).

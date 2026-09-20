@@ -789,6 +789,16 @@ def journey_position(db: Client, user_id: str) -> dict[str, Any]:
         "profile": lambda: UsersRepository(db).get_profile(user_id),
     })
     state = facts["state"] or {}
+    try:
+        from app.services.cv_entry_heal import heal_loaded
+
+        if heal_loaded(db, user_id, facts["state"], facts["baseline"]):
+            state = {**state, "entry_mode": "uploaded_cv"}
+    except Exception as exc:  # noqa: BLE001 — a position read must not fail on a heal
+        logger.warning(
+            "metric forward_pass.failed pass=cv_source user=%s reason=%s",
+            user_id, exc.__class__.__name__,
+        )
     started = bool(facts["baseline"] or state.get("upload_job_id"))
     # `completed_at` is a flag; a direction is the fact. `_current_result` already
     # refuses to trust the flag alone — it falls through to Direction when the

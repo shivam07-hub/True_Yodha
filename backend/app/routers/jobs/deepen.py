@@ -8,6 +8,7 @@ from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.services import text_stream, xp_service
 from app.services.llm_provider import LLMProvider, get_llm_provider
 from app.routers.jobs.analyse import _compute_overlap
+from app.services.deepening_keys import assert_deepener_namespace_is_disjoint
 
 router = APIRouter()
 
@@ -30,6 +31,11 @@ _PROMPTS: dict[str, str] = {
         "Be specific to their skills. 2-3 sentences, plain text."
     ),
 }
+
+# A deepener answer is a paragraph; a reserved key holds a structured
+# artifact a user paid for. One overwriting the other is data loss with no
+# error, so the clash fails the process at import, not a request at runtime.
+assert_deepener_namespace_is_disjoint(_PROMPTS)
 
 _SYSTEM_PROMPT = (
     "You are a senior career advisor answering one focused follow-up question about a candidate's fit "

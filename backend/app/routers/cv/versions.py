@@ -31,7 +31,6 @@ from app.services import (
     cv_compose,
     cv_restructure,
     cv_section_order,
-    cv_skill_edit,
     xp_policy,
     xp_service,
 )
@@ -186,7 +185,16 @@ def create_cv_version(
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
     db: Client = Depends(get_user_db),
 ) -> CVVersionResponse:
-    """Save a new deterministic version from the playground state."""
+    """Save the playground state onto this job's document (ADR-0025).
+
+    One document per job. When the job already has one, Save PATCHES it — it
+    used to mint a new row seeded from the untouched master, which silently
+    overwrote the tailored lines a Keep/Take had just landed (prod, 2026-08-30:
+    a Save 83 seconds after a weave apply wrote a byte-identical copy of the
+    master as the newest row, and the next Take then patched THAT).
+
+    The master seeds the document only the first time, when there is none.
+    """
     user_id = principal.id
     baseline = cv_repo.latest_baseline(user_id)
     if baseline is None:
@@ -197,6 +205,27 @@ def create_cv_version(
 
     # Validate the job exists / user has access (RLS-enforced).
     _get_job(db, body.job_id)
+
+    order = (
+        cv_section_order.normalize_section_order(body.section_order)
+        if body.section_order is not None else None
+    )
+    document = cv_repo.job_document(user_id, body.job_id)
+    if document is not None:
+        structured = document.get("cv_structured") or {}
+        return _to_response(cv_repo.update_job_draft(
+            int(document["id"]), user_id,
+            cv_structured=structured,
+            body_text=cv_compose.render_deterministic(
+                structured,
+                hidden_items=body.hidden_items,
+                edited_items=None,
+                section_order=body.section_order,
+            ),
+            title=body.title or None,
+            hidden_items=body.hidden_items,
+            section_order=order,
+        ))
 
     structured = baseline.get("cv_structured") or {}
     body_text = cv_compose.render_deterministic(
@@ -213,8 +242,7 @@ def create_cv_version(
         body_text=body_text,
         cv_structured=structured,
         hidden_items=body.hidden_items,
-        section_order=cv_section_order.normalize_section_order(body.section_order)
-        if body.section_order is not None else None,
+        section_order=order,
         title=body.title or _auto_title("deterministic", next_n),
         snapshot_hash=cv_compose.item_id("save", next_n, body_text),
         confidence_label="user-curated",
@@ -287,10 +315,12 @@ def update_cv_version_hidden_items(
     version = cv_repo.find(version_id, user_id)
     if not version:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "CV version not found.")
-    if version.get("kind") != "deterministic" or not version.get("job_id"):
+    # Any kind, as long as it belongs to a job (ADR-0025). A polished tailored
+    # CV is still this job's document, and its layout must stay auto-savable.
+    if not version.get("job_id"):
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
-            "Only a job-specific working draft can be auto-saved in place.",
+            "Only a job-specific document can be auto-saved in place.",
         )
     body_text = cv_compose.render_deterministic(
         version.get("cv_structured") or {},
@@ -320,14 +350,9 @@ class JobDraftPatchRequest(BaseModel):
     phrasing: LinePhrasing | None = None
 
 
-# The reservoir holds experience/project bullets as points; nothing else.
-_SECTION_TO_LIST = {"exp_bullet": "experience", "proj_bullet": "projects"}
-
-
 def _mirror_job_reword_to_reservoir(
     cv_repo: CVVersionsRepository,
     user_id: str,
-    before: dict[str, Any],
     phrasing: LinePhrasing,
 ) -> None:
     """Keep a job-scoped reword as an ALTERNATE phrasing in the reservoir.
@@ -335,17 +360,14 @@ def _mirror_job_reword_to_reservoir(
     The master's wording does not move — this line was written for one JD. But a
     reword is often where the user remembers real work, so the text has to survive
     somewhere they can find it (Stories). Best-effort: the draft patch has already
-    landed and a reservoir hiccup must never fail it."""
-    located = cv_skill_edit.locate_bullet(before, phrasing.old_text)
-    if not isinstance(located, cv_skill_edit.BulletLocation):
-        return
-    list_key = _SECTION_TO_LIST.get(located.section)
-    if not list_key:
-        return
+    landed and a reservoir hiccup must never fail it.
+
+    It no longer locates the bullet first: the repository finds the point by its
+    text. Locating it here only ever produced a positional anchor that had to
+    match, and never did — `source="tailor"` had written zero rows."""
     try:
         cv_repo.append_phrasing(
             user_id,
-            f"{list_key}:{located.item_index}",
             phrasing.old_text,
             phrasing.new_text,
             source="tailor",
@@ -368,10 +390,13 @@ def patch_job_draft(
     version = cv_repo.find(version_id, user_id)
     if not version:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "CV version not found.")
-    if version.get("kind") != "deterministic" or not version.get("job_id"):
+    # Any kind, as long as it belongs to a job: the document is whatever last
+    # wrote to that job's paper (ADR-0025), and a polished tailored CV must stay
+    # patchable. A master CV has no job_id.
+    if not version.get("job_id"):
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
-            "Only a job-specific working draft can be patched in place.",
+            "Only a job-specific document can be patched in place.",
         )
     body_text = cv_compose.render_deterministic(
         body.cv_structured,
@@ -384,9 +409,7 @@ def patch_job_draft(
         cv_structured=body.cv_structured, body_text=body_text,
     )
     if body.phrasing:
-        _mirror_job_reword_to_reservoir(
-            cv_repo, user_id, version.get("cv_structured") or {}, body.phrasing,
-        )
+        _mirror_job_reword_to_reservoir(cv_repo, user_id, body.phrasing)
     return _to_response(row)
 
 

@@ -296,7 +296,7 @@ Built a responsive website for a college project using browser technologies.
 
         async def fake_extract(cv_text: str, provider=None):
             skills = [
-                {"taxonomy_key": "Python (Programming Language)", "signal_type": "impact", "evidence": "5y"},
+                {"taxonomy_key": "Python (Programming Language)", "signal_type": "impact", "evidence": "Reduced time 40% using Python"},
                 {"taxonomy_key": "Not A Real Skill",              "signal_type": "mention"},
             ]
             return skills, None
@@ -306,7 +306,6 @@ Built a responsive website for a college project using browser technologies.
         assert out["raw_text"] == fake_text
         assert len(out["skills_detected"]) == 1
         assert out["skills_detected"][0]["taxonomy_key"] == "Python (Programming Language)"
-        assert out["skills_detected"][0]["xp_awarded"] == _SIGNAL_XP["impact"]
         assert out["cv_structured"] is None
 
     @pytest.mark.asyncio

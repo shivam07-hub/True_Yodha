@@ -33,6 +33,7 @@ class MirrorScoreResponse(BaseModel):
     band: str = "unknown"               # six-band seniority, or unknown — never invent entry
     band_percentile: float | None = None
     top_percent: int | None = None      # 100 − rank, floored at 1
+    version: int = 1                    # 1 = equal-domain mean (gone); 2 = skill-weighted
 
     @field_validator("total_score")
     @classmethod

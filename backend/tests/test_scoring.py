@@ -44,6 +44,17 @@ CLUSTER_TO_DOMAIN = {
 }
 
 
+def _domain_skill_counts(level_map: dict[str, int]) -> dict[str, int]:
+    out: dict[str, int] = {}
+    for skill in level_map:
+        cluster = SKILL_TO_CLUSTER.get(skill)
+        if not cluster:
+            continue
+        domain = CLUSTER_TO_DOMAIN.get(cluster, "General")
+        out[domain] = out.get(domain, 0) + 1
+    return out
+
+
 # ── Cluster Score ─────────────────────────────────────────────────────────────
 
 class TestClusterScores:
@@ -138,7 +149,8 @@ class TestBandedScoring:
         )
         cluster_scores = compute_cluster_scores({"Django": 2, "SQL": 1}, CLUSTER_CHILDREN, SKILL_TO_CLUSTER, 2)
         counts = {c: sum(1 for s in {"Django": 2, "SQL": 1} if SKILL_TO_CLUSTER.get(s) == c) for c in cluster_scores}
-        expected = compute_mirror_score(compute_domain_scores(cluster_scores, CLUSTER_TO_DOMAIN, counts))
+        domains = compute_domain_scores(cluster_scores, CLUSTER_TO_DOMAIN, counts)
+        expected = compute_mirror_score(domains, _domain_skill_counts({"Django": 2, "SQL": 1}))
         assert projected == pytest.approx(expected)
 
 
@@ -193,8 +205,16 @@ class TestMirrorScore:
     def test_single_domain(self) -> None:
         assert compute_mirror_score({"IT": 60.0}) == 60.0
 
-    def test_two_domains_averaged(self) -> None:
+    def test_missing_counts_weigh_each_domain_once(self) -> None:
+        # Peers stored before domain_skill_counts existed: one skill each.
         assert compute_mirror_score({"IT": 30.0, "Engineering": 60.0}) == pytest.approx(45.0)
+
+    def test_thick_domain_outweighs_thin(self) -> None:
+        # 1 skill at 30 and 9 at 60 is 57, not the equal-domain mean of 45.
+        assert compute_mirror_score(
+            {"IT": 30.0, "Engineering": 60.0},
+            {"IT": 1, "Engineering": 9},
+        ) == pytest.approx(57.0)
 
     def test_all_100_returns_100(self) -> None:
         assert compute_mirror_score({"A": 100.0, "B": 100.0}) == 100.0
@@ -222,7 +242,8 @@ class TestScoreDeltaWhatIf:
     def _total(self, level_map: dict[str, int]) -> float:
         cluster_scores = compute_cluster_scores(level_map, CLUSTER_CHILDREN, SKILL_TO_CLUSTER)
         counts = {c: sum(1 for s in level_map if SKILL_TO_CLUSTER.get(s) == c) for c in cluster_scores}
-        return compute_mirror_score(compute_domain_scores(cluster_scores, CLUSTER_TO_DOMAIN, counts))
+        domains = compute_domain_scores(cluster_scores, CLUSTER_TO_DOMAIN, counts)
+        return compute_mirror_score(domains, _domain_skill_counts(level_map))
 
     def test_bump_matches_real_recompute(self) -> None:
         # The what-if must equal an actual recompute with the skill raised — it is

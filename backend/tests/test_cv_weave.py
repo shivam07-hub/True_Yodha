@@ -475,7 +475,7 @@ class _CVRepo:
         }
         return self.draft
 
-    def latest_job_draft(self, _u, _j):
+    def job_document(self, _u, _j):
         return self.draft
 
     def update_job_draft(self, version_id, _u, *, cv_structured, body_text, title=None):
@@ -949,3 +949,23 @@ def test_a_real_rewrite_keeps_its_rationale():
     assert role["edit_kind"] == "rewrite"
     assert role["why"].startswith("Puffery")
     assert out["changed_roles"] == 1
+
+
+def test_the_interview_is_a_door_not_a_toll():
+    """At most MAX_QUESTIONS, weak asks first — 13 questions before a single
+    tailored line is a wall in front of the step the funnel needs."""
+    from app.services import cv_weave_interview as cwi
+
+    items = [CoverageItem(requirement=f"gap {i}", status="gap") for i in range(11)]
+    items.insert(4, CoverageItem(requirement="thin one", status="weak", story_id="s1"))
+    items.insert(9, CoverageItem(requirement="thin two", status="weak", story_id="s2"))
+    items.append(CoverageItem(requirement="proven", status="covered"))
+
+    questions = _run(cwi.build_interview("u1", items, CV))
+    assert len(questions) == cwi.MAX_QUESTIONS == 5
+    assert [q.requirement for q in questions][:2] == ["thin one", "thin two"], (
+        "a weak ask needs one sentence; a gap needs the whole story told"
+    )
+    assert all(q.status != "covered" for q in questions)
+    # The unasked requirements are not lost — they still reach the weave.
+    assert len(items) == 14

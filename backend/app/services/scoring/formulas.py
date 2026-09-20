@@ -6,7 +6,7 @@ Pipeline:
   signals → proficiency level (P1 Scout … P5 Legend)
   level map → cluster_score (Tax-L2)
   cluster_scores → domain_score (Tax-L1)
-  domain_scores → mirror_score (0–100)
+  domain_scores × skill counts → mirror_score (0–100)
 """
 
 import math
@@ -218,11 +218,28 @@ def compute_domain_scores(
     return result
 
 
-def compute_mirror_score(domain_scores: dict[str, float]) -> float:
-    """Mirror Score = mean of domain scores. 0–100."""
+# mirror_scores.version. v1 was an equal-weight mean of domains (deleted).
+SCORE_FORMULA_VERSION = 2
+
+
+def compute_mirror_score(
+    domain_scores: dict[str, float],
+    domain_skill_counts: dict[str, int] | None = None,
+) -> float:
+    """Skill-count-weighted mean of domain scores. 0–100.
+
+    A domain held up by one skill is not worth the same as a domain with
+    twenty. v1 averaged domains equally; that formula is gone.
+    """
     if not domain_scores:
         return 0.0
-    return round(sum(domain_scores.values()) / len(domain_scores), 1)
+    weights = domain_skill_counts or {}
+    weighted: list[tuple[float, int]] = []
+    for domain, score in domain_scores.items():
+        n = int(weights.get(domain, 0) or 0)
+        weighted.append((float(score), n if n > 0 else 1))
+    total_n = sum(n for _, n in weighted)
+    return round(sum(score * n for score, n in weighted) / total_n, 1)
 
 
 def project_total_with_skill_bump(
@@ -241,7 +258,7 @@ def project_total_with_skill_bump(
     map with one skill bumped. Used to attach an honest projected point-gain to
     each gap skill ("practice this one level → +N pts") — never fabricated, it
     is the real engine re-run. Adding an absent skill (level 0 → 1) can introduce
-    a new evidenced domain, which the mean-of-evidenced-domains formula reflects.
+    a new evidenced domain, which the weighted-mean formula reflects.
 
     ``target_level`` must match the score's band denominator so the projected
     gain lives in the same band-relative space as the displayed total.
@@ -254,4 +271,11 @@ def project_total_with_skill_bump(
         for cluster in cluster_scores
     }
     domain_scores = compute_domain_scores(cluster_scores, cluster_to_domain, cluster_skill_counts)
-    return compute_mirror_score(domain_scores)
+    domain_skill_counts: dict[str, int] = {}
+    for skill in bumped:
+        cluster = skill_to_cluster.get(skill)
+        if not cluster:
+            continue
+        domain = cluster_to_domain.get(cluster, "General")
+        domain_skill_counts[domain] = domain_skill_counts.get(domain, 0) + 1
+    return compute_mirror_score(domain_scores, domain_skill_counts)

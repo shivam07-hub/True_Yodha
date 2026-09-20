@@ -31,6 +31,20 @@ from app.services.job_eligibility import (
 logger = logging.getLogger("uvicorn.error")
 
 
+def demote_catch_all_primary(names: list[str], catch_alls: set[str]) -> list[str]:
+    """A residual bucket is never the main role when a real family is in the list.
+
+    titles[0] / target_roles[0] is the primary — score label, snapshot, first
+    chip. Catch-alls stay on the list; they just cannot sit first.
+    """
+    if not names or names[0] not in catch_alls:
+        return list(names)
+    for index, name in enumerate(names):
+        if name not in catch_alls:
+            return [name, *names[:index], *names[index + 1 :]]
+    return list(names)
+
+
 def derive(updates: dict[str, Any], before: dict[str, Any]) -> dict[str, Any]:
     """Expand a caller's patch into the columns storage actually holds.
 
@@ -169,56 +183,48 @@ class TargetCommit:
         self.leans_changed = leans_changed
 
 
-def _drop_unknown_families(users_repo: UsersRepository, updates: dict[str, Any]) -> None:
-    """The matcher's scoping key may only name directions that exist.
+def _scope_direction(users_repo: UsersRepository, updates: dict[str, Any]) -> None:
+    """One corpus read: drop phantom families, and a bucket is never primary.
 
-    It did not. 41 stored keys across 36 users were raw typed titles — "seo",
-    "hr", "any", "Teacher or a tele caller" — because `_normalize_families`
-    trims and de-dupes whatever a caller sends and never asks the corpus. 29 of
-    those users (18% of everyone with a target) had a scope made ENTIRELY of
-    phantoms, and nothing told them: `get_candidate_job_ids_for_roles` is an
-    equality on `jobs.role_family`, so it returned zero role-right jobs, and
-    `role_family_demand` returned no market to score or prep against. The rot
-    reached `career_target_snapshots.l2_role_family` too, because that snapshot
-    is recorded from this same profile.
+    The scoping key must name a family that exists. It did not: 41 stored keys
+    across 36 users were raw typed titles, and 29 had a scope made entirely of
+    them, so the matcher returned nothing. Titles stay; only the scope is
+    cleaned. ILIKE-resolving a dropped title is not the repair — it maps "sales"
+    to Customer Service.
 
-    The title is NOT discarded — it stays in `target_role_titles`, which is what
-    Settings, Practice and the score header render. Only the scope is cleaned.
-
-    ⚠️ Resolving a dropped title to a family by string match is NOT the repair,
-    and must not be added here later. Measured 2026-09-14 on the real stored
-    values, ILIKE gives "sales" -> Customer Service, "Intern" -> Internal
-    Controls, "any" -> Company, Product, and Service Knowledge. `save_target`'s
-    own docstring has said so since #145: the family comes from corpus-backed
-    discovery, never from a free-form title.
+    The same read carries `is_catch_all`. A catch-all may be on the list; it
+    may not sit first when a real family is there. Direct API calls hit this
+    too — the picker is not the only door.
     """
-    families = updates.get("target_roles")
-    if not families:
-        return
-    # Same guard `commit` uses for the snapshot write below: a pure-unit caller
-    # hands in a repo with no client, and a validation that cannot read the
-    # corpus must pass the patch through rather than drop a real family.
     db = getattr(users_repo, "_db", None)
     if db is None:
         return
-    known = RoleFamiliesRepository(db).known_families(list(families))
-    kept = [family for family in families if family in known]
-    if kept == list(families):
+    families = list(updates.get("target_roles") or [])
+    titles = list(updates.get("target_role_titles") or [])
+    lookup = list(dict.fromkeys([*families, *titles]))
+    flags = RoleFamiliesRepository(db).family_flags(lookup) if lookup else {}
+
+    if families:
+        kept = [family for family in families if family in flags]
+        if not kept:
+            updates.pop("target_roles", None)
+            logger.warning("metric targeting.scope_all_unknown dropped=%d", len(families))
+        elif kept != families:
+            logger.warning(
+                "metric targeting.scope_partly_unknown kept=%d dropped=%d",
+                len(kept), len(families) - len(kept),
+            )
+            updates["target_roles"] = kept
+
+    catch_alls = {name for name, bucket in flags.items() if bucket}
+    if not catch_alls:
         return
-    if not kept:
-        # Same rule as the empty-scope guard in `derive`: an empty scoping key is
-        # not a narrower search, it is no search (invariant 5). Leave whatever is
-        # stored until a caller that actually resolved a family replaces it.
-        updates.pop("target_roles")
-        logger.warning(
-            "metric targeting.scope_all_unknown dropped=%d", len(families)
-        )
-        return
-    logger.warning(
-        "metric targeting.scope_partly_unknown kept=%d dropped=%d",
-        len(kept), len(families) - len(kept),
-    )
-    updates["target_roles"] = kept
+    if updates.get("target_roles"):
+        updates["target_roles"] = demote_catch_all_primary(updates["target_roles"], catch_alls)
+    if updates.get("target_role_titles"):
+        promoted = demote_catch_all_primary(updates["target_role_titles"], catch_alls)
+        updates["target_role_titles"] = promoted
+        updates["target_role_title"] = promoted[0]
 
 
 def commit(users_repo: UsersRepository, user_id: str, patch: dict[str, Any]) -> TargetCommit:
@@ -226,7 +232,7 @@ def commit(users_repo: UsersRepository, user_id: str, patch: dict[str, Any]) -> 
     before = users_repo.get_profile(user_id) or {}
     updates, lean = split_lean(patch)
     updates = derive(updates, before)
-    _drop_unknown_families(users_repo, updates)
+    _scope_direction(users_repo, updates)
 
     leans_changed = False
     if lean is not None:
