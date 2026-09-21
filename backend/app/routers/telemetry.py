@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from app.config import settings
 from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
+from app.services import test_accounts
 
 router = APIRouter(prefix="/v1/telemetry", tags=["telemetry"])
 _log = logging.getLogger(__name__)
@@ -89,6 +90,11 @@ def _count_cv_upload_events(
     outcome: str | None = None,
 ) -> int:
     admin = get_supabase_admin()
+    # Read the exclusions BEFORE building the count query, not after: this is an
+    # ALERT denominator and the Match Quality personas upload a CV on every gate
+    # run, so leaving them in dilutes a real failure rate below the threshold —
+    # the one direction of error an alert must never have.
+    excluded = test_accounts.excluded_user_ids(admin)
     query = (
         admin.table("cv_upload_phase_events")
         .select("id", count="exact")
@@ -98,6 +104,8 @@ def _count_cv_upload_events(
     )
     if outcome:
         query = query.eq("outcome", outcome)
+    if excluded:
+        query = query.not_.in_("user_id", sorted(excluded))
     result = query.execute()
     return int(getattr(result, "count", 0) or 0)
 

@@ -485,14 +485,19 @@ class ScoresRepository:
         profiles = fetch_all_rows(
             self._db,
             table="user_profiles",
-            columns="id, target_seniority",
+            columns="id, target_seniority, is_test_account",
             query_builder=lambda q: q.order("id"),
         )
+        # Myro's own accounts are not peers. Dropped by id rather than filtered
+        # in the read, because a profile missing from this map is ALSO a user
+        # whose band is unknown — and those two must not collapse into the same
+        # "" band, which is how a persona would end up ranked against entry.
+        excluded = {p["id"] for p in profiles if p.get("id") and p.get("is_test_account")}
         seniority_by_id = {p["id"]: p.get("target_seniority") for p in profiles if p.get("id")}
         out: list[tuple[str, float]] = []
         for row in scores:
             uid = row.get("user_id")
-            if uid is None:
+            if uid is None or uid in excluded:
                 continue
             domains = row.get("domain_scores") or {}
             counts = row.get("domain_skill_counts") or {}
