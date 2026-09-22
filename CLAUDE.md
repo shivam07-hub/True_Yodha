@@ -172,8 +172,8 @@ cd frontend && npx tsc --noEmit && npm run lint && npm test
 npm run check:ui-drift && npm run build && npm run check:reach
 ```
 
-Gates 1–5 prove the code is **correct**; `check:reach` asks whether anyone can
-**get to it**. Loop reach: `python backend/scripts/loop_reach.py`.
+Gates 1–5 prove the code is **correct**; `check:reach` that anyone can **get to
+it**; `match_quality.py` that they were the RIGHT jobs. Reach: `loop_reach.py`.
 
 **Dev:** `PYTHONPATH=backend uvicorn app.main:app --reload` · `npm run dev`.
 
