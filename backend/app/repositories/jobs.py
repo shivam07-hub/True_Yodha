@@ -2005,9 +2005,20 @@ class JobsRepository:
         wants_inpython = mode == "fit" or min_skill > 0 or bool(exclude) or eligibility_active
 
         if wants_inpython:
-            # Load + cache the freshest CAP candidates (raw rows, no per-user
-            # data → shared across users on the same filter set). Per-user
-            # shaping, exclusion and computed filters run below the cache.
+            # Load + cache CAP candidates (raw rows, no per-user data → shared
+            # across users on the same filter set). Per-user shaping, exclusion
+            # and computed filters run below the cache.
+            #
+            # ⚠️ NOT "the freshest", whatever the ordering says. `first_seen` is
+            # a DATE and the scraper restamped it on every crawl until
+            # 2026-09-20, so 34,022 of 38,824 live listings share one value:
+            # `limit(CAP)` returns an arbitrary CAP of them, identical for every
+            # user on the same filters. One user's whole feed measured 34 jobs
+            # out of 38,824, and none of the 35 a hand search found for her.
+            # The trigger stops it getting worse; the values already written are
+            # not repaired (forward only), so this pool stays arbitrary until
+            # retrieval filters per user BEFORE it samples.
+            # Measured by `backend/scripts/match_quality.py`.
             pkey = (domain, city, country, loc_mode, scope_sig, follow_sig, effective_term, skill_facet)
             def _load_feed_candidates() -> list[dict[str, Any]]:
                 try:
