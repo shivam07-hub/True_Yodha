@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from datetime import datetime, timezone
 
@@ -16,6 +17,13 @@ _logger = logging.getLogger("app.notice")
 
 _CAPACITY_BLOCKED = "Overload Policy / paid compute gate"
 _RAILWAY_INFRA_BLOCKED = "Railway infra (OOM / failed deploy) — not a code close"
+
+def _open_set_fingerprint(rows: tuple[NoticeRecord, ...]) -> str:
+    """Identity of the open set: which causes are open, and in what state."""
+    return hashlib.sha256(
+        "\n".join(sorted(f"{row.cause_key}:{row.status}" for row in rows)).encode()
+    ).hexdigest()
+
 
 _PRIORITY = ("failed-close", "open", "open-on-prod", "blocked")
 _SETTLEABLE = frozenset(
@@ -68,6 +76,43 @@ class NoticeBook:
             return rows
         return tuple(row for row in rows if row.status == status)
 
+    def _worth_sending(
+        self,
+        now: datetime,
+        rows: tuple[NoticeRecord, ...],
+        closed: list[str],
+    ) -> bool:
+        """Send only when something moved — plus a Monday heartbeat.
+
+        The digest went out every day whether or not anything had changed. Most
+        of those said the same thing as yesterday, and a mail that is usually
+        noise is a mail nobody opens on the day it matters.
+
+        "Moved" is the open SET, not its counts: a fingerprint over
+        (cause_key, status) catches an open, a close, and a state change alike,
+        and ignores the occurrence counter, which a live dead-man bumps on every
+        /health probe without anything actually happening.
+
+        Monday always sends, so a quiet week still proves the Action is alive —
+        silence from a working system and silence from a dead one must not look
+        the same. That is the same rule the belts themselves are built on.
+        """
+        if closed:
+            return True                      # a close is always news
+        if now.weekday() == 0:
+            return True                      # Monday heartbeat, open or not
+        if not rows:
+            # Nothing open and nothing closed. The Monday heartbeat above is
+            # what proves the Action is alive; a daily "no open Notices" does
+            # not, it just spends the reader's attention.
+            return False
+        try:
+            last = self._store.last_digest_fingerprint()
+        except Exception:  # noqa: BLE001 — never lose a digest to a read failure
+            _logger.exception("metric notice.digest_fingerprint_read_failed")
+            return True
+        return _open_set_fingerprint(rows) != last
+
     def settle(self, proofs: list[CloseProof] | tuple[CloseProof, ...] = ()) -> Digest:
         """Apply class-2 proofs, then one digest. Git is a caller (on_main)."""
         closed: list[str] = []
@@ -104,13 +149,15 @@ class NoticeBook:
         text = _digest_text(now, rows, tuple(closed))
         informed = False
         had_recipient = self._mailer is not None
-        if self._mailer is not None:
+        if self._mailer is not None and self._worth_sending(now, rows, closed):
             informed = bool(
                 self._mailer.send(
                     subject=f"Myro Notice digest ({now.date().isoformat()})",
                     text=text,
                 )
             )
+            if informed:
+                self._store.record_digest(_open_set_fingerprint(rows), now)
         return Digest(
             as_of=now,
             rows=rows,

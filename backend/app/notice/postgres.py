@@ -37,6 +37,22 @@ class PostgresNoticeStore:
         result = self._client.table("notices").select("*").execute()
         return tuple(_from_row(item) for item in (result.data or []))
 
+    def last_digest_fingerprint(self) -> str | None:
+        result = (
+            self._client.table("notice_digest_state")
+            .select("fingerprint")
+            .limit(1)
+            .execute()
+        )
+        rows = result.data or []
+        return str(rows[0]["fingerprint"]) if rows else None
+
+    def record_digest(self, fingerprint: str, at: datetime) -> None:
+        self._client.table("notice_digest_state").upsert(
+            {"id": True, "fingerprint": fingerprint, "sent_at": at.isoformat()},
+            on_conflict="id",
+        ).execute()
+
     def list_not_closed(self) -> tuple[NoticeRecord, ...]:
         result = (
             self._client.table("notices")
