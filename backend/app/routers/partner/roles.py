@@ -42,10 +42,16 @@ def live_roles(
     appears between two polls is delivered on the next one rather than sliding
     underneath the window.
 
-    Every row carries `verification.state` and `verification.last_verified_live_at`.
-    Those are our own conclusive check at the employer's source, which is the
-    reason this is not a scrape — see the Ghost Job Index for what happens to
-    feeds that cannot tell.
+    Every row carries a `verification` block. Read `verification.checked`:
+    `state` is `checked` only when our verifier opened the employer's page
+    inside the last seven days, and it carries `checked_at` so you can age it
+    yourself.
+
+    `verification.state` and `verification.last_verified_live_at` are kept for
+    compatibility and are WEAKER than they look: the crawler writes both when a
+    job_id appears in an employer's source feed, so they say we saw it listed,
+    not that we opened it. Measured 2026-09-22, 18,080 live listings carried
+    that stamp having never been checked at all. Prefer `checked`.
     """
     page = roles_feed.fetch_roles(
         cursor=cursor,

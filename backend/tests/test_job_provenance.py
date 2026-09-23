@@ -5,6 +5,7 @@ Covers:
 - a user's own contribution is filtered by created_by_user_id
 - a failing count degrades to 0 rather than taking the surface down
 - the verified-live filter asks for a cutoff, not for everything
+- and counts a CHECK plus a live verdict, never the crawler's sighting
 """
 
 from __future__ import annotations
@@ -53,7 +54,7 @@ def _key(filters: dict[str, Any]) -> str:
         return "community"
     if "eq:created_by_user_id" in filters:
         return "mine"
-    if "gte:last_verified_live_at" in filters:
+    if "gte:last_conclusive_verification_at" in filters:
         return "verified"
     return "total"
 
@@ -100,10 +101,26 @@ def test_verified_live_asks_for_a_cutoff() -> None:
 
     job_provenance.read_provenance(db)
 
-    verified = [f for f in db.seen if "gte:last_verified_live_at" in f]
+    verified = [f for f in db.seen if "gte:last_conclusive_verification_at" in f]
     assert len(verified) == 1
     # A bare "not null" would count listings verified a year ago as live.
-    assert verified[0]["gte:last_verified_live_at"]
+    assert verified[0]["gte:last_conclusive_verification_at"]
+
+
+def test_verified_live_counts_the_check_and_the_verdict() -> None:
+    """Both halves. `last_conclusive_verification_at` says we opened it, not
+    that it was open: on 2026-09-23, 8,295 of the 27,681 listings checked inside
+    a week had been checked and found DEAD. It also must not read
+    `last_verified_live_at`, which the crawler stamps for any job_id it sees in
+    an employer's feed."""
+    db = _FakeClient({"total": 10, "community": 1, "verified": 4})
+
+    job_provenance.read_provenance(db)
+
+    verified = next(f for f in db.seen if "gte:last_conclusive_verification_at" in f)
+    assert verified["eq:is_active"] is True
+    assert verified["eq:listing_confidence"] == "active"
+    assert not any("gte:last_verified_live_at" in f for f in db.seen)
 
 
 def test_mine_is_scoped_to_the_caller() -> None:

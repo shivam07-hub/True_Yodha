@@ -64,8 +64,24 @@ def read_provenance(db: Client) -> dict[str, int]:
     """Collective counts: total pool, verified-live, and the source split."""
     total = _count(db, lambda q: q)
     community = _count(db, lambda q: q.eq("ingestion_source", COMMUNITY_SOURCE))
+    # `last_conclusive_verification_at`, never `last_verified_live_at`: the
+    # crawler stamps the latter when a job_id appears in an employer's FEED, so
+    # counting it made this hero number a count of crawl sightings. Measured
+    # 2026-09-22, that was 19,258 rows of which 18,080 had never been opened by
+    # anyone. The docstring above already promised "personally opened"; this is
+    # the code finally saying the same thing. Expect the number to FALL — it was
+    # never that high.
+    #
+    # BOTH halves are required. A conclusive check answers live or closed and
+    # stamps the same column either way: on 2026-09-23, 8,295 of the 27,681
+    # listings checked inside a week had been checked and found DEAD. Counting
+    # the timestamp alone would have called those verified live — a worse claim
+    # than the crawl stamp this replaced. See services/listing_trust.py.
     verified_live = _count(
-        db, lambda q: q.gte("last_verified_live_at", _verified_cutoff())
+        db,
+        lambda q: q.gte("last_conclusive_verification_at", _verified_cutoff())
+        .eq("is_active", True)
+        .eq("listing_confidence", "active"),
     )
     return {
         "total": total,
