@@ -45,6 +45,11 @@ class TargetRequest(BaseModel):
     # Optional so a point-of-use "edit role" (issue #145) can change only the
     # role(s); save_target preserves the user's existing seniority/location.
     seniority: Seniority | None = None
+    # The quantity behind the band. An employer states "3+ years"; `mid` cannot
+    # answer that, because it admits entry AND mid alike. We read it from the CV
+    # and she may correct it — a correction is marked `user` and survives every
+    # later re-parse. Absent preserves; this step never clears it.
+    years_experience: float | None = Field(default=None, ge=0, le=60)
     location: str | None = Field(default=None, min_length=2, max_length=160)
     # Plural form. `[]` is a real answer ("Anywhere"), distinct from omitting the
     # field, which means "leave my saved locations alone".
@@ -162,6 +167,7 @@ def save_target(
             role_family=body.role_family,
             role_families=body.role_families,
             seniority=body.seniority,
+            years_experience=body.years_experience,
             location=body.location,
             locations=body.locations,
             avoid=body.avoid,

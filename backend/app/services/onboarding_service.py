@@ -327,6 +327,7 @@ def save_target(
     role_family: str | None = None,
     role_families: list[str] | None = None,
     seniority: str | None = None,
+    years_experience: float | None = None,
     location: str | None = None,
     locations: list[str] | None = None,
     avoid: list[str] | None = None,
@@ -369,6 +370,12 @@ def save_target(
     }
     if seniority is not None:
         patch["target_seniority"] = seniority
+    if years_experience is not None:
+        # Marked `user` so the next CV parse leaves it alone. Omitted preserves —
+        # a role-only edit must not silently reset the number retrieval matches
+        # her against.
+        patch["years_experience"] = years_experience
+        patch["years_experience_source"] = "user"
     chosen_locations: list[str] | None = None
     if location is not None or locations is not None:
         chosen_locations = _normalize_locations(location, locations)
@@ -459,12 +466,26 @@ def seed_provisional_baseline_score(
         return False
     users_repo = UsersRepository(db)
     profile = users_repo.get_profile(user_id) or {}
+    suggestion = seniority_from_cv(baseline)
+    patch: dict[str, Any] = {}
     if not (profile.get("target_seniority") or "").strip():
-        suggestion = seniority_from_cv(baseline)
         value = suggestion.get("value")
         if value:
-            from app.services import targeting_write
-            targeting_write.commit(users_repo, user_id, {"target_seniority": value})
+            patch["target_seniority"] = value
+    # The same read already knew the YEARS and discarded them, keeping only the
+    # band. Retrieval needs the quantity: an employer states "3+ years", and
+    # `mid` cannot answer that — it admits entry AND mid alike. Kept here rather
+    # than re-derived later so the band and the number can never disagree.
+    #
+    # Her own correction wins over ours forever (CEO decision 2026-09-23: read
+    # the CV, let her correct it), so a re-parse never overwrites `user`.
+    years = suggestion.get("years")
+    if years is not None and profile.get("years_experience_source") != "user":
+        patch["years_experience"] = years
+        patch["years_experience_source"] = "cv"
+    if patch:
+        from app.services import targeting_write
+        targeting_write.commit(users_repo, user_id, patch)
     try:
         scoring.record_cv_score(scores_repo, user_id, signals)
     except ValueError:
@@ -918,6 +939,12 @@ def _awaiting_target_payload(
         "selected": {
             "families": selected_families,
             "seniority": stored_band if stored_band in SOURCE_SENIORITY else None,
+            # The quantity behind the band, so the Level step can show what we
+            # read and let her correct it. `None` is "we could not read it" —
+            # the step asks rather than inventing a number, the same rule the
+            # band itself follows.
+            "years_experience": profile.get("years_experience"),
+            "years_experience_source": profile.get("years_experience_source"),
             "locations": stored_locations,
             # Empty is "not asked yet", never "chose none" — the journey's landing
             # rule opens on the band step only for the first of those.
