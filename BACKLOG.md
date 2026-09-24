@@ -196,6 +196,31 @@ measured Free/Nano database ceiling, not unfinished application work.
 
 ### TIER 3 — needs a decision or a grill BEFORE code
 
+**Level is now read two ways, and they disagree (FOUND 2026-09-24, NOT fixed).**
+`candidates_for_user` admits a job when the person's years range overlaps the
+employer's **stated** `[min, max]`, falling back to the seniority tag only where the
+employer states nothing. `job_eligibility.seniority_is_eligible` / `seniority_fit` —
+which the matching brain's `candidate_pool` and the Match Verdict still use — admits
+by **band name** through `_AT_LEVEL`. So a job can be on someone's /market list and
+rejected by the pool that rates it, or the reverse.
+
+This is the drift [[feedback_one_definition_or_none]] warns about, and the reason it
+is a TIER 3 line rather than a commit is that unifying them means rewriting the
+brain's admission, which needs a number first: how many of a user's forty the two
+rules disagree about. `job_is_browse_eligible` — a *third* reading — was deleted in
+`23c9ee0e` because nothing called it any more, so this is two, not three.
+**Owner: Shivam to decide whether the brain moves to the range rule, or the range
+rule publishes a band the brain can read.** Do not "fix" it by making retrieval
+call the Python function: that is what put a title word over a stated "2-6 years"
+and dropped every NPCI payments role.
+
+**The authed search-intent signal lost its writer.** `SearchQueriesRepository.record`
+used to fire from the feed's `q` param on page 1. The list takes no `q` (search is a
+view filter, corpus search is ⌘K at `/jobs/search/global`), and ⌘K is a public
+endpoint with no user id, so authed search intent is no longer recorded anywhere.
+Either ⌘K gets an authed variant that logs, or we accept that signal is gone —
+it is one decision, not a bug.
+
 **Closed listing → next hunt (LOCKED 2026-09-14).** One complete miss — or any other gone-signal — writes `closed`, the Collection card poofs, and people still sitting on it get one `listing_vanished` notification. The tailored CV and its pointers stay (aspiration signal, not a hunt). What is NOT built: the path after that ping that gets them onto the next live role and through tailor + apply faster. Do not add a Closed chip back.
 
 8. **#37 ranked job-skill importance** — `/grill-me` first (ordinal vs weight vs 3-tier; extension-only vs whole matcher; sister-repo scraper coordination).
