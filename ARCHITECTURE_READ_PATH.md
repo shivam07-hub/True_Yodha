@@ -1870,8 +1870,29 @@ and mean 1,690ms; this is the same route with percentiles, and the p95 is
 worse than the mean suggested.
 
 One bucket reports p95 **14,993ms** and p99 14,997ms. Per playbook Rule 2, a
-figure clustering at a round number is a **ceiling, not a cost** — find the
-layer that owns a ~15s timeout before reading it as query time.
+figure clustering at a round number is a **ceiling, not a cost**.
+
+**The layer is ours, and it is the client.** Filtering the same window to
+status **499 (client closed request)** puts p95 at 14,971 / 14,996 / 15,006ms:
+`frontend/lib/api.ts:63`, `const REQUEST_TIMEOUT_MS = 15_000`, aborting via
+`controller.abort()` at line 84. No server layer timed out. The browser gave up
+at 15s and hung up, and the proxy recorded the abort as the response time.
+
+Three consequences, and the third is the one that matters:
+
+1. The p95 above is **censored at 15s** — the real tail is unbounded and
+   invisible, so "p95 = 14,993ms" understates the worst case rather than
+   overstating it.
+2. Every 499 is a user shown a failure while the backend kept working and 200'd
+   into a connection that had gone.
+3. LLM endpoints already opt into 60s (`LLM_REQUEST_TIMEOUT_MS`). **15s is what
+   every ordinary read gets**, including `/users/me` at p95 2,750–4,202ms —
+   within 3.5× of the abort on the route that loads on every authed page.
+
+A **second ceiling sits at exactly 30,000ms and is not identified.** It is not
+a doubling of the first: the retry at `api.ts:191` fires on 401, not on
+timeout. Find it before raising the 15s default, or the raise just moves the
+wall.
 
 **A bucketed-counts TABLE was considered and deliberately not built.** It would
 have been a second instrument answering a question the first already answers,
