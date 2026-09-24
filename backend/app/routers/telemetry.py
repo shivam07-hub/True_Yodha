@@ -15,6 +15,10 @@ _log = logging.getLogger(__name__)
 
 
 class RoutePerfPayload(BaseModel):
+    #: What the USER waited for — the half no server metric can see. Railway
+    #: measures edge time and `route.latency` measures server time; neither
+    #: includes the render, and neither knows the connection the wait happened
+    #: on. See ARCHITECTURE_READ_PATH §19.
     route: str
     ttfa_ms: int
     tti_cc_ms: int | None = None
@@ -23,6 +27,7 @@ class RoutePerfPayload(BaseModel):
     backend_version: str | None = None
     viewport: str | None = None
     session_id: str | None = None
+    network_type: str | None = None
 
 
 class CVUploadPhasePayload(BaseModel):
@@ -78,6 +83,7 @@ def _persist_route_perf(payload: RoutePerfPayload, user_id: str) -> None:
         "backend_version": payload.backend_version,
         "viewport": payload.viewport,
         "session_id": payload.session_id,
+        "network_type": payload.network_type,
         "occurred_at": datetime.now(timezone.utc).isoformat(),
     })
 

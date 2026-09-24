@@ -37,5 +37,5 @@ export function RouteLoading(props: RouteLoadingProps) {
 // Re-export hooks for layout.tsx and page-level use
 export { useBackendStatus } from "./use-backend-status"
 export { useAppVersionWatch } from "./use-app-version-watch"
-export { useRoutePerfMarks } from "./use-route-perf-marks"
+export { RoutePerfProbe } from "./route-perf-probe"
 export type { BackendStatus } from "./use-backend-status"
