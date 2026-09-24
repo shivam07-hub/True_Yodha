@@ -1965,9 +1965,15 @@ live listings shared one value and that `limit(500)` returned an arbitrary slice
 | same, warm | 1,745ms | 43,359 |
 | `cardinality(x)=0 or col = any(x)` — partial index UNUSED | 7,206ms | 43,376 |
 | empty choice → full set, scalar subqueries | 269ms | 37,874 |
-| PL/pgSQL locals (planner sees the value) | **~300ms** | **21,183** |
+| PL/pgSQL locals (planner sees the value) | 300ms | 21,183 |
+| same shape, six timed runs on a quiet instance | **139ms** | **20,994** |
 
-Two traps from the playbook fired, both worth naming:
+**139ms is the number**, steady to ±5ms over six consecutive calls. The single
+readings above it are the same plan on the same buffers — 300ms, 777ms and
+4,979ms all came back with 20,994 buffers. Buffers are what the query costs;
+wall-clock on a shared instance is what it happened to cost once.
+
+Three traps from the playbook fired, all worth naming:
 
 - **Cold vs warm nearly became a wrong diagnosis.** The identical filter measured
   7,468ms cold and 342ms warm, and the cold number was read as regex cost. It is
@@ -1976,17 +1982,72 @@ Two traps from the playbook fired, both worth naming:
   unused and says nothing about it. `idx_jobs_candidate_band` sat idle first
   behind an `OR`, then behind a scalar subquery. With a literal array the same
   filter is an index scan: 14,173 buffers, 99ms.
+- **A `stable` function is evaluated once per query.** Six timed calls inside one
+  statement all reported 0ms, because Postgres called it once and reused the
+  result. Timing a loop of identical calls measures nothing; vary an argument.
+
+**A ranking experiment that did not earn its place.** Weighting skill overlap by
+rarity — `ln(corpus / document frequency)`, so Payment Systems at 22 listings
+outscores Python at 2,683 — was built, measured and removed the same day. It
+moved recall 20% → **18%** and warm latency 139ms → 1,108ms (the corpus count
+alone cost 10× until it read `pg_class.reltuples`, and the `job_skills` CTE read
+twice materialised and spilled to temp until it became one windowed pass). The
+top of the list looked better to a human eye. That is not evidence, and the
+metric moved the wrong way. The reasoning is kept as a comment in the migration
+so the next agent measures before rebuilding it.
 
 **The level rule is what recall turns on.** Both sides are a range and must
 overlap — the person's is `[years-1, years+1]`, or the band's implied span when
 her years are unknown; the listing's is `[min, max]` with an unstated bound
-spanning `[0,40]`, so an untagged listing stays a candidate. Two bugs here were
+spanning `[0,40]`, so an untagged listing stays a candidate. Three bugs here were
 caught by reading the output rather than reasoning about it: judging the
 employer's stated range *only* when years were known sent NPCI's "Senior
 Associate, 2-6 years" back to its title word and dropped every payments role;
 falling back to no rule at all put an 8-14 year role and a VP requisition in a
-3.2-year candidate's top three.
+3.2-year candidate's top three; and then *dropping the seniority tag entirely*
+over-corrected, because where the employer states no range at all the tag is the
+only signal the listing has — nine senior roles reached a 3.5-year list.
 
-**Open.** The function is unwired. `years_experience` is NULL for every user who
-predates 2026-09-24, so they all take the band fallback until their next CV
-parse — which is the forward pass, not a backfill.
+**Absence is not a rejection, and it had a second shape.** 1,557 live listings
+carry no `career_band`, and `career_band = any(array)` never matches NULL, so
+they were invisible to every user alive — Airbus's "Full
+Stack_Python_Pyspark_AWS", MongoDB's "Associate TSE II". A band nobody tagged is
+a tagger that did not run; where the role family is one the person chose, the
+family has already proved relevance. It is a `UNION ALL` of two index-backed
+branches and NOT an `OR`, which is precisely the predicate the planner cannot
+prove: +3ms.
+
+### What the gate measures, and what it could not
+
+Recall against a 40-item yardstick conflates two faults with different fixes, and
+that nearly sent a ranking experiment out as a reachability win. The gate now
+reports both: `admissible` is how much of the yardstick survives the filters at
+all — a miss there is unreachable at any depth — and `recall` is how much makes
+the list shown, where a miss is two 40-item picks from one admissible pool
+disagreeing. `thresholds.json` keys on `<persona> · <retrieval>`, because one
+shared row would mean ratcheting the better path fails the worse one while the
+swap is in flight.
+
+Measuring it also found the answer key was not the human it claimed to be. The
+hand-built shortlists capped an employer at two roles; `reference_matcher` did
+not, so it handed a person three Google roles and counted the product wrong for
+obeying a rule they shared. Fixing the yardstick flatters production, which is
+why it is written down here.
+
+| Rupanjana Mitra, same yardstick | shown | admissible | shown ∩ yardstick | off-level |
+|---|---|---|---|---|
+| `/market` 500-row sample | 96 | 0% | **0%** | 72% |
+| retrieval, first cut | 40 | 30% | 20% | 52% |
+| + yardstick shape rules *(answer key fixed)* | 40 | 60% | 25% | 52% |
+| + untagged band admitted | 40 | 62% | 30% | 48% |
+| + seniority tag as a fallback | 40 | **68%** | **35%** | **30%** |
+
+**Open.** The function is unwired. Every one of the 12 remaining off-level jobs
+has one cause: `years_experience` is NULL for all 911 accounts, so a mid-band
+person gets `[2,5]` where her own `[2.2,4.2]` belongs. `forward_pass.cv_years`
+reads it off the CV she already uploaded when she next opens it — finishing work
+her upload started, never a backfill — so this number should fall on its own as
+people return. The 33% between admissible and shown is the employer cap, where
+both sides keep two and disagree on which two; that is ranking, and ranking has
+already had one confident change measured and reverted, so it waits for a second
+persona rather than another guess.

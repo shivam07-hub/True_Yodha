@@ -1,11 +1,16 @@
 """What production actually shows this person, measured against the yardstick.
 
-Two numbers matter and they fail differently:
+Three numbers matter and they fail differently:
 
-  `recall`     of the jobs a careful human would shortlist, how many can the
-               person REACH in the product at all. Misses are invisible to the
-               user — they never learn the job existed. This is the number that
-               was 0.00 on 2026-09-19.
+  `admissible` of the jobs a careful human would shortlist, how many SURVIVE
+               retrieval's filters at all. A miss here is unreachable at any
+               depth: the person never learns the job exists. This is the number
+               that was 0.00 on 2026-09-19.
+  `recall`     of those, how many make the list actually shown. A miss here is a
+               RANKING disagreement between two 40-item picks from the same
+               admissible pool — a real cost, but a different fault with a
+               different fix, and conflating the two is what nearly sent a
+               ranking experiment out as a reachability win on 2026-09-24.
   `violations` of what production DOES show, how much fails the yardstick's own
                rules — wrong level, off direction, no skill in common. Visible
                to the user, and on a finite list of 35 each one costs trust.
@@ -34,12 +39,18 @@ class GateResult:
     reference_size: int
     production_size: int
     reached: int
+    admitted: int
     violations: list[str] = field(default_factory=list)
     missed_examples: list[str] = field(default_factory=list)
+    unreachable_examples: list[str] = field(default_factory=list)
 
     @property
     def recall(self) -> float:
         return (self.reached / self.reference_size) if self.reference_size else 0.0
+
+    @property
+    def admissible_recall(self) -> float:
+        return (self.admitted / self.reference_size) if self.reference_size else 0.0
 
     @property
     def violation_rate(self) -> float:
@@ -51,10 +62,13 @@ class GateResult:
             "reference_size": self.reference_size,
             "production_size": self.production_size,
             "reached": self.reached,
+            "admitted": self.admitted,
             "recall": round(self.recall, 3),
+            "admissible_recall": round(self.admissible_recall, 3),
             "violation_rate": round(self.violation_rate, 3),
             "violations": self.violations[:10],
             "missed_examples": self.missed_examples[:10],
+            "unreachable_examples": self.unreachable_examples[:10],
         }
 
 
@@ -63,6 +77,9 @@ def production_visible(repo: Any, user_id: str, profile_row: dict[str, Any]) -> 
 
     Calls the real repository the router calls, with the real account context —
     the point is to measure the product, not a reconstruction of it.
+
+    The feed has no cut beyond paging: a person CAN scroll to page eight. So for
+    this path shown and admissible are the same set, and a miss is unreachable.
     """
     from app.services import test_accounts  # noqa: F401  (import proves the flag ships)
 
@@ -85,11 +102,35 @@ def production_visible(repo: Any, user_id: str, profile_row: dict[str, Any]) -> 
         page += 1
 
 
+# Far past the 320 the densest profile measured, and the RPC's own filters are
+# what bound the cost: asking for everything admissible is one pass either way.
+_ADMISSIBLE_CEILING = 100_000
+
+
+def retrieval_candidates(
+    db: Any, user_id: str, limit: int
+) -> tuple[list[dict[str, Any]], set[str]]:
+    """What `candidates_for_user` shows, and the wider set it could have shown.
+
+    Two calls on purpose. The shown list is the product; the admissible set is
+    everything that survived the filters, and the gap between them is ranking —
+    the one distinction the single `recall` number could not make.
+    """
+    shown = (db.rpc("candidates_for_user",
+                    {"p_user_id": user_id, "p_limit": limit}).execute()).data or []
+    admissible = (db.rpc("candidates_for_user",
+                         {"p_user_id": user_id,
+                          "p_limit": _ADMISSIBLE_CEILING}).execute()).data or []
+    return shown, {str(r["job_id"]) for r in admissible if r.get("job_id")}
+
+
 def evaluate(
     profile: CandidateProfile,
     reference: list[ReferenceHit],
     production_rows: list[dict[str, Any]],
     corpus_by_id: dict[str, dict[str, Any]] | None = None,
+    admissible_ids: set[str] | None = None,
+    via: str = "feed",
 ) -> GateResult:
     """Judge both sides from the SAME raw listing.
 
@@ -103,8 +144,11 @@ def evaluate(
     """
     by_id = corpus_by_id or {}
     reachable = {str(row.get("job_id")) for row in production_rows if row.get("job_id")}
+    # A path with no cut beyond paging admits exactly what it shows.
+    admissible = reachable if admissible_ids is None else admissible_ids
     reference_ids = {hit.job_id for hit in reference}
     reached = reference_ids & reachable
+    admitted = reference_ids & admissible
 
     violations: list[str] = []
     for row in production_rows:
@@ -123,13 +167,22 @@ def evaluate(
         f"{hit.company} — {hit.title}"
         for hit in reference if hit.job_id not in reachable
     ]
+    unreachable = [
+        f"{hit.company} — {hit.title}"
+        for hit in reference if hit.job_id not in admissible
+    ]
     return GateResult(
-        label=profile.label,
+        # The retrieval is part of the identity of the measurement. Two paths
+        # sharing one threshold row means ratcheting the better one fails the
+        # worse one, so the pair cannot be measured while the swap is in flight.
+        label=f"{profile.label} · {via}",
         reference_size=len(reference_ids),
         production_size=len(reachable),
         reached=len(reached),
+        admitted=len(admitted),
         violations=violations,
         missed_examples=missed,
+        unreachable_examples=unreachable,
     )
 
 
@@ -149,6 +202,12 @@ def check(result: GateResult, thresholds: dict[str, dict[str, float]]) -> list[s
     if floor is not None and result.recall < floor:
         failures.append(
             f"{result.label}: recall {result.recall:.2f} below earned {floor:.2f}"
+        )
+    admissible_floor = earned.get("min_admissible_recall")
+    if admissible_floor is not None and result.admissible_recall < admissible_floor:
+        failures.append(
+            f"{result.label}: admissible recall {result.admissible_recall:.2f} "
+            f"below earned {admissible_floor:.2f} — a job went unreachable"
         )
     ceiling = earned.get("max_violation_rate")
     if ceiling is not None and result.violation_rate > ceiling:

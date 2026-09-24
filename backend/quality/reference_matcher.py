@@ -68,9 +68,15 @@ class ReferenceHit:
 
 def fetch_corpus(db: Any, *, countries: frozenset[str] = frozenset()) -> list[dict[str, Any]]:
     """Every live, applyable listing. Paged — a silent 1,000-row stop here would
-    quietly shrink the answer key and flatter production."""
+    quietly shrink the answer key and flatter production.
+
+    Keyset-paged on `job_id`, not `.range()`. An OFFSET walks every row it skips,
+    so page 30 of 39 re-scanned 30,000 rows and tripped the statement timeout
+    mid-run: the yardstick failed to build at all, which reads like a broken gate
+    rather than a slow read. `job_id > last` is one index seek per page.
+    """
     rows: list[dict[str, Any]] = []
-    start = 0
+    after: str | None = None
     while True:
         query = (
             db.table("jobs")
@@ -79,15 +85,17 @@ def fetch_corpus(db: Any, *, countries: frozenset[str] = frozenset()) -> list[di
             .eq("listing_confidence", "active")
             .not_.is_("apply_url", "null")
             .order("job_id")
-            .range(start, start + _PAGE - 1)
+            .limit(_PAGE)
         )
+        if after is not None:
+            query = query.gt("job_id", after)
         if countries:
             query = query.in_("location_country", sorted(countries))
         page = query.execute().data or []
         rows.extend(page)
         if len(page) < _PAGE:
             return rows
-        start += _PAGE
+        after = page[-1]["job_id"]
 
 
 def level_fits(profile: CandidateProfile, job: dict[str, Any]) -> tuple[bool, bool]:
@@ -129,6 +137,19 @@ def is_relevant(profile: CandidateProfile, job: dict[str, Any]) -> tuple[bool, s
     return False, ""
 
 
+# Rule 5 of the hand-built shortlists, which the first version of this file
+# forgot to write down: at most two roles per employer, and one row per
+# (employer, title). A human handed nobody five Google requisitions — two
+# requisitions with the same title read as one job to a person, and an employer
+# that posts 300 roles would otherwise eat the whole list.
+#
+# Leaving it out did not make the yardstick stricter, it made it DIFFERENT, and
+# recall then measured rule disagreement rather than quality: three of the forty
+# were Google roles the retrieval was never permitted to admit, so they counted
+# as unreachable while the product was obeying a rule the yardstick shared.
+_PER_COMPANY = 2
+
+
 def shortlist(
     profile: CandidateProfile, corpus: list[dict[str, Any]], *, limit: int = 40
 ) -> list[ReferenceHit]:
@@ -154,4 +175,20 @@ def shortlist(
             reason=reason,
         ))
     hits.sort(key=lambda h: h.rank_key)
-    return hits[:limit]
+
+    kept: list[ReferenceHit] = []
+    seen_titles: set[tuple[str, str]] = set()
+    per_company: dict[str, int] = {}
+    for hit in hits:
+        company = hit.company.strip().lower()
+        title_key = (company, hit.title.strip().lower())
+        if title_key in seen_titles:
+            continue
+        if per_company.get(company, 0) >= _PER_COMPANY:
+            continue
+        seen_titles.add(title_key)
+        per_company[company] = per_company.get(company, 0) + 1
+        kept.append(hit)
+        if len(kept) == limit:
+            break
+    return kept

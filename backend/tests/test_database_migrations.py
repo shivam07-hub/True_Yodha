@@ -174,8 +174,20 @@ def test_retrieval_migration_filters_before_it_ranks() -> None:
     # The level rule is a RANGE OVERLAP on both sides. An unstated bound spans
     # [0,40] so an untagged listing stays a candidate — 9,323 live listings
     # state no level and hiding them is what emptied a user's feed.
-    assert "coalesce(j.min_years_experience, 0)::numeric <= v_hi" in sql
-    assert "coalesce(j.max_years_experience, 40)::numeric >= v_lo" in sql
+    assert "coalesce(p.lo, 0)::numeric <= v_hi" in sql
+    assert "coalesce(p.hi, 40)::numeric >= v_lo" in sql
+
+    # Where the employer states NO range, the seniority tag is the only signal
+    # in the listing. Ignoring it put nine senior roles in a 3.5-year list.
+    assert "v_senior_tags" in sql
+    assert "p.lo is null and p.hi is null" in sql
+
+    # An untagged career_band is a tagger that did not run, not a job in another
+    # field: 1,557 live listings were invisible to every user because an array
+    # equality never matches NULL. Two index-backed branches, never an OR — that
+    # predicate is exactly the one the planner cannot prove.
+    assert "j.career_band is null and j.role_family = any(v_families)" in sql
+    assert "union all" in sql
 
     # Unknown years falls back to the BAND, never to no rule: that put an 8-14
     # year role and a VP requisition in a 3.2-year candidate's top three.

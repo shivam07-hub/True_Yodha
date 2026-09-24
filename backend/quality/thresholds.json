@@ -1,9 +1,18 @@
 {
   "_comment": "EARNED, not aspired to. A profile lands here only after a run proved the number; each raise is a deliberate commit. A profile that is absent prints a baseline and passes — the first measurement of anything must not fail a build.",
-  "Rupanjana Mitra": {
-    "_measured": "2026-09-22, corpus 38,763 live applyable listings",
-    "_note": "The floor is 0.00 because that is what production earns today: none of the 40 listings the yardstick shortlists can be reached on /market at all. The ceiling is what it shows that should not be there. Both move one way.",
+  "_keys": "'<persona> · <retrieval>'. The retrieval is part of the measurement's identity: while the swap is in flight both paths are measured against the same yardstick, and one shared row would mean ratcheting the better path fails the worse one.",
+  "Rupanjana Mitra · feed": {
+    "_measured": "2026-09-24, corpus 37,060 live applyable listings",
+    "_note": "The floors are 0.00 because that is what the 500-row sample earns: of the 40 listings the yardstick shortlists, NONE can be reached on /market at any page depth. It shows 96 and 69 of them fail the yardstick's own rules. This row exists to be deleted with the feed.",
     "min_recall": 0.0,
-    "max_violation_rate": 0.83
+    "min_admissible_recall": 0.0,
+    "max_violation_rate": 0.72
+  },
+  "Rupanjana Mitra · rpc": {
+    "_measured": "2026-09-24, corpus 37,060 live applyable listings",
+    "_note": "Whole-corpus retrieval. 68% of the yardstick is reachable and 35% is shown; the 33% between them is the 2-per-employer cap, where both sides cap at two and disagree on WHICH two — a ranking fault, not a reach one. Every one of the 12 remaining violations has the same single cause: years_experience is NULL for every account older than 2026-09-24, so a mid-band person gets the band's [2,5] instead of her own [2.2,4.2] and roles asking 5 reach the list. The forward pass reads it off her banked CV on her next visit; this number should fall on its own as people return.",
+    "min_recall": 0.35,
+    "min_admissible_recall": 0.68,
+    "max_violation_rate": 0.3
   }
 }

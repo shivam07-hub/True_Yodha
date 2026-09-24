@@ -145,10 +145,34 @@ def test_shortlist_drops_internships_whatever_their_skills_say():
 
 
 def test_shortlist_is_capped_but_never_padded():
-    jobs = [_job(job_id=f"j{i}", main_skills=["Java (Programming Language)"]) for i in range(60)]
+    # One employer per listing, because the shape rules cap an employer at two —
+    # sixty identical NPCI requisitions correctly collapse to one, and a fixture
+    # that used them was only ever passing by accident.
+    jobs = [_job(job_id=f"j{i}", company_name=f"Co{i}",
+                 main_skills=["Java (Programming Language)"]) for i in range(60)]
 
     assert len(shortlist(PAYMENTS_ENGINEER, jobs, limit=40)) == 40
     assert len(shortlist(PAYMENTS_ENGINEER, jobs[:3], limit=40)) == 3
+
+
+def test_an_employer_never_takes_more_than_two_places():
+    """Rule 5 of the hand-built shortlists. Honeywell took 7 of the first 12
+    without it, and a yardstick that hands a person five Google roles is not the
+    human it claims to encode — it then counts the product wrong for obeying a
+    rule they share."""
+    jobs = [_job(job_id=f"g{i}", company_name="Google", job_title=f"Engineer {i}",
+                 main_skills=["Java (Programming Language)"]) for i in range(6)]
+
+    assert len(shortlist(PAYMENTS_ENGINEER, jobs, limit=40)) == 2
+
+
+def test_two_requisitions_with_one_title_read_as_one_job():
+    jobs = [_job(job_id="a", company_name="Infosys", job_title="Java Developer",
+                 main_skills=["Java (Programming Language)"]),
+            _job(job_id="b", company_name="Infosys", job_title="Java Developer",
+                 main_skills=["Java (Programming Language)"])]
+
+    assert [h.job_id for h in shortlist(PAYMENTS_ENGINEER, jobs, limit=40)] == ["a"]
 
 
 # ── the gate's two numbers ───────────────────────────────────────────────────
@@ -180,18 +204,33 @@ def test_a_shown_job_that_fails_the_level_rule_is_a_violation():
 def test_the_ratchet_stays_silent_for_a_profile_that_has_earned_nothing_yet():
     """A new persona's first run is a baseline. A gate that failed it would
     punish measuring something for the first time."""
-    result = GateResult(label="new persona", reference_size=40, production_size=0, reached=0)
+    result = GateResult(label="new persona", reference_size=40, production_size=0,
+                        reached=0, admitted=0)
 
     assert check(result, {}) == []
 
 
 def test_the_ratchet_fails_a_drop_below_what_was_earned():
     result = GateResult(label="payments returner", reference_size=40,
-                        production_size=30, reached=12)
+                        production_size=30, reached=12, admitted=30)
 
     failures = check(result, {"payments returner": {"min_recall": 0.5}})
 
     assert failures and "below earned" in failures[0]
+
+
+def test_a_job_going_unreachable_fails_even_when_the_shown_list_holds_up():
+    """The two numbers fail differently, and one can hide the other. Ranking can
+    keep recall flat while a filter change quietly makes jobs unreachable at any
+    depth — the exact fault that measured 0% and was invisible for months."""
+    result = GateResult(label="payments returner", reference_size=40,
+                        production_size=40, reached=14, admitted=10)
+
+    failures = check(result, {"payments returner": {
+        "min_recall": 0.35, "min_admissible_recall": 0.68}})
+
+    assert len(failures) == 1
+    assert "unreachable" in failures[0]
 
 
 def test_a_shaped_feed_card_is_judged_on_the_listing_not_on_its_missing_keys():

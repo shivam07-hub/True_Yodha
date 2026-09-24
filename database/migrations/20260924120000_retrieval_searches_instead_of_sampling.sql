@@ -17,16 +17,17 @@
 --     the partial index sat unused at 37,874 buffers. An empty choice now
 --     becomes the full set and the predicate is a plain equality.
 --   * scalar subqueries defeated the index a second time; PL/pgSQL locals make
---     the value a plan parameter. 21,183 buffers, ~300ms warm — inside the
---     read contract's 500ms.
---   * and the trap READ_PATH_PLAYBOOK warns about: the same filter measured
---     7,468ms cold and 342ms warm. That nearly became a wrong diagnosis about
---     regex cost.
+--     the value a plan parameter. 20,994 buffers, and 139ms warm, steady over
+--     six consecutive runs — inside the read contract's 500ms.
+--   * and the trap READ_PATH_PLAYBOOK warns about, twice. The same filter
+--     measured 7,468ms cold and 342ms warm; and a `stable` function called with
+--     the same arguments is evaluated ONCE per query, so six timed runs in one
+--     statement all read 0ms. Vary an argument, or measure nothing.
 --
--- THE LEVEL RULE is what recall actually turns on. Both sides are a range and
--- they must overlap: the person's is [years-1, years+1] when we know her years
--- and the band's implied span when we do not; the listing's is [min, max] with
--- an unstated bound spanning [0,40].
+-- THE LEVEL RULE is what reachability turns on. Both sides are a range and they
+-- must overlap: the person's is [years-1, years+1] when we know her years and
+-- the band's implied span when we do not; the listing's is [min, max] with an
+-- unstated bound spanning [0,40].
 --
 -- Two bugs here were caught by READING THE OUTPUT, not by reasoning:
 --   - judging the employer's stated range only when years were known sent
@@ -35,8 +36,20 @@
 --   - falling back to no rule at all when years were unknown put an 8-14 year
 --     Cisco role and a VP requisition in a 3.2-year candidate's top three.
 --
--- Untagged listings stay candidates. 9,323 live listings state no level, and
--- treating that absence as a rejection is what emptied the feed.
+-- ABSENCE IS NOT A REJECTION, and it took two shapes here. 9,323 live listings
+-- state no level, and treating that absence as a reject is what emptied the
+-- feed. 1,557 state no `career_band` — Airbus's "Full Stack_Python_Pyspark_AWS"
+-- and MongoDB's "Associate TSE II" among them — and an equality against an
+-- array never matches NULL, so they were invisible to every user alive. A band
+-- nobody tagged is a tagger that did not run, not a job in another field: when
+-- the role family is one the person chose, the family has already proved
+-- relevance and the missing band decides nothing.
+--
+-- It is a UNION ALL of two index-backed branches, not an `OR`. `career_band =
+-- any(...) or (career_band is null and role_family = any(...))` is precisely the
+-- predicate the planner cannot prove, and it would have put the whole thing back
+-- on a sequential scan — the trap that already cost two rounds here. Two
+-- branches, two indexes, +3ms: 139ms -> 142ms warm.
 --
 -- The shape rules are the ones a hand-built shortlist already followed: at most
 -- two roles per employer (Honeywell took 7 of the first 12 without it), and one
@@ -72,8 +85,9 @@ as $$
 declare
     v_years numeric; v_years_unknown boolean;
     v_families text[]; v_bands text[]; v_countries text[]; v_skills int[];
-    v_lo numeric; v_hi numeric;
+    v_lo numeric; v_hi numeric; v_centre numeric;
     v_per_company int := 2;
+    v_senior_tags text[] := array['senior','lead','principal','staff','executive','director'];
 begin
     select coalesce(p.years_experience, 0)::numeric,
            (p.years_experience is null),
@@ -98,6 +112,7 @@ begin
             (select target_seniority from public.user_profiles where id = p_user_id), ''));
         if v_lo is null then v_lo := 0; v_hi := 40; end if;
     end if;
+    v_centre := (v_lo + v_hi) / 2;
 
     select array_agg(us.skill_id) into v_skills
       from public.user_skills us join public.skills s on s.id = us.skill_id
@@ -105,55 +120,83 @@ begin
     v_skills := coalesce(v_skills, array[]::int[]);
 
     return query
-    with overlap as (
-        select js.job_id, count(*)::int as hits,
+    with pool as (
+        select j.job_id as jid, j.role_family, j.location_country, j.company_name,
+               j.job_title, j.min_years_experience as lo, j.max_years_experience as hi,
+               j.seniority_level as tag,
+               j.last_conclusive_verification_at as checked_at, j.ingested_at
+        from public.jobs j
+        where j.is_active and j.listing_confidence = 'active' and j.apply_url is not null
+          and j.career_band = any(v_bands)
+      union all
+        -- Untagged band, but a family she chose. Disjoint from the branch above,
+        -- so UNION ALL cannot duplicate a row.
+        select j.job_id, j.role_family, j.location_country, j.company_name,
+               j.job_title, j.min_years_experience, j.max_years_experience,
+               j.seniority_level,
+               j.last_conclusive_verification_at, j.ingested_at
+        from public.jobs j
+        where j.is_active and j.listing_confidence = 'active' and j.apply_url is not null
+          and j.career_band is null and j.role_family = any(v_families)
+    ),
+    cand as (
+        select * from pool p
+        where p.job_title !~* '(intern|trainee|graduate|campus|fresher|apprentice)'
+          and coalesce(p.lo, 0)::numeric <= v_hi
+          and coalesce(p.hi, 40)::numeric >= v_lo
+          -- The employer's range wins over any tag — but only where there IS
+          -- one. Where the employer states nothing, the tag is the only signal
+          -- in the listing, and ignoring it put nine senior roles in a 3.5-year
+          -- list. Dropping the tag entirely was an over-correction for the
+          -- opposite bug, where a title word overruled a stated "2-6 years".
+          and not (p.lo is null and p.hi is null
+                   and lower(coalesce(p.tag, '')) = any(v_senior_tags)
+                   and v_centre < 5)
+    ),
+    -- Weighted by whether the listing calls the skill a must-have, and NOT by
+    -- how rare the skill is. Rarity weighting (ln(corpus/document frequency))
+    -- was built and measured here on 2026-09-24: recall against the yardstick
+    -- moved 20% -> 18% while warm latency went 139ms -> 1,108ms. It made the
+    -- top of the list look better to a human eye, which is not evidence. If it
+    -- is tried again, measure recall first and keep it only if the number moves.
+    overlap as (
+        select js.job_id as jid, count(*)::int as n_hits,
                sum(case when js.is_primary then 2 else 1 end)::numeric as weighted
         from public.job_skills js
         where js.skill_id = any(v_skills)
         group by js.job_id
     ),
-    cand as (
-        select j.job_id, j.role_family, j.location_country, j.company_name, j.job_title,
-               j.min_years_experience as lo, j.max_years_experience as hi,
-               j.last_conclusive_verification_at as checked_at, j.ingested_at
-        from public.jobs j
-        where j.is_active and j.listing_confidence = 'active' and j.apply_url is not null
-          and j.career_band = any(v_bands)
-          and j.job_title !~* '(intern|trainee|graduate|campus|fresher|apprentice)'
-          and coalesce(j.min_years_experience, 0)::numeric <= v_hi
-          and coalesce(j.max_years_experience, 40)::numeric >= v_lo
-    ),
     scored as (
-        select c.job_id, c.company_name, c.job_title,
+        select c.jid, c.company_name, c.job_title,
                (case when c.role_family = any(v_families) then 6 else 0 end
                 + coalesce(o.weighted, 0)
                 + case when c.checked_at > now() - interval '7 days' then 1 else 0 end
-                + case when c.ingested_at > now() - interval '14 days' then 1 else 0 end)::numeric as score,
-               coalesce(o.hits, 0)::int as hits,
-               (c.role_family = any(v_families)) as on_direction,
-               (c.lo is not null or c.hi is not null) as level_stated,
-               (c.checked_at > now() - interval '7 days') as checked_recently
+                + case when c.ingested_at > now() - interval '14 days' then 1 else 0 end)::numeric as sc,
+               coalesce(o.n_hits, 0)::int as n_hits,
+               (c.role_family = any(v_families)) as on_dir,
+               (c.lo is not null or c.hi is not null) as lvl_stated,
+               (c.checked_at > now() - interval '7 days') as chk
         from cand c
-        left join overlap o on o.job_id = c.job_id
-        where (coalesce(o.hits, 0) > 0 or c.role_family = any(v_families))
+        left join overlap o on o.jid = c.jid
+        where (coalesce(o.n_hits, 0) > 0 or c.role_family = any(v_families))
           and (cardinality(v_countries) = 0 or c.location_country = any(v_countries))
     ),
     deduped as (
         select s.*, row_number() over (
                  partition by lower(coalesce(s.company_name,'')), lower(coalesce(s.job_title,''))
-                 order by s.score desc, s.job_id) as same_title
+                 order by s.sc desc, s.jid) as same_title
         from scored s
     ),
     ranked as (
         select d.*, row_number() over (
                  partition by lower(coalesce(d.company_name,''))
-                 order by d.score desc, d.job_id) as per_company
+                 order by d.sc desc, d.jid) as per_company
         from deduped d where d.same_title = 1
     )
-    select r.job_id, r.score, r.hits, r.on_direction, r.level_stated, r.checked_recently
+    select r.jid, r.sc, r.n_hits, r.on_dir, r.lvl_stated, r.chk
     from ranked r
     where r.per_company <= v_per_company
-    order by r.score desc, r.job_id
+    order by r.sc desc, r.jid
     limit greatest(p_limit, 0);
 end;
 $$;
