@@ -1940,3 +1940,53 @@ metric route.latency method=GET path=/users/me n=412 p50=300 p95=1500 buckets=20
 This measures **server time**. Railway measures **edge time**. Neither replaces
 the other, and the gap between them is the queueing — which is the number §16's
 "capacity queue victim" classification has been inferring without measuring.
+
+## 20. Retrieval: the first read that searches instead of sampling (2026-09-24)
+
+`candidates_for_user(p_user_id, p_limit)` — migration
+`20260924120000_retrieval_searches_instead_of_sampling.sql`. Not wired to any
+surface yet; it exists to be measured against the Match Quality yardstick before
+the finite list replaces the feed in one release.
+
+**What it replaces.** The authed `/market` feed built its candidate pool with
+`order(first_seen desc).limit(500)` and filtered it for the user afterwards.
+`first_seen` was restamped by every crawl until 2026-09-20, so 34,022 of 38,824
+live listings shared one value and that `limit(500)` returned an arbitrary slice
+— the same slice for every user on the same filters. One user's whole feed was
+34 jobs out of 38,824 and her Match Quality recall was **0%**.
+
+**Measured, in the order the shapes failed.** Every number here is from
+`explain (analyze, buffers)` on production data:
+
+| shape | time | buffers |
+|---|---|---|
+| lateral `job_skills` lookup per candidate | 29,562ms | 1,117,150 |
+| inverted to one grouped pass by `skill_id` | 20,659ms | 40,201 |
+| same, warm | 1,745ms | 43,359 |
+| `cardinality(x)=0 or col = any(x)` — partial index UNUSED | 7,206ms | 43,376 |
+| empty choice → full set, scalar subqueries | 269ms | 37,874 |
+| PL/pgSQL locals (planner sees the value) | **~300ms** | **21,183** |
+
+Two traps from the playbook fired, both worth naming:
+
+- **Cold vs warm nearly became a wrong diagnosis.** The identical filter measured
+  7,468ms cold and 342ms warm, and the cold number was read as regex cost. It is
+  not: the regex is ~free.
+- **Trap 1, twice.** A predicate the planner cannot prove leaves the index
+  unused and says nothing about it. `idx_jobs_candidate_band` sat idle first
+  behind an `OR`, then behind a scalar subquery. With a literal array the same
+  filter is an index scan: 14,173 buffers, 99ms.
+
+**The level rule is what recall turns on.** Both sides are a range and must
+overlap — the person's is `[years-1, years+1]`, or the band's implied span when
+her years are unknown; the listing's is `[min, max]` with an unstated bound
+spanning `[0,40]`, so an untagged listing stays a candidate. Two bugs here were
+caught by reading the output rather than reasoning about it: judging the
+employer's stated range *only* when years were known sent NPCI's "Senior
+Associate, 2-6 years" back to its title word and dropped every payments role;
+falling back to no rule at all put an 8-14 year role and a VP requisition in a
+3.2-year candidate's top three.
+
+**Open.** The function is unwired. `years_experience` is NULL for every user who
+predates 2026-09-24, so they all take the band fallback until their next CV
+parse — which is the forward pass, not a backfill.

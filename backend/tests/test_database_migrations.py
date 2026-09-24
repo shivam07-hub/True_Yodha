@@ -159,3 +159,43 @@ def test_first_seen_is_written_once_migration_preserves_the_old_value() -> None:
     # raising guard would fail live crawls instead of ignoring a bad payload.
     assert "raise exception" not in sql
     assert "notify pgrst, 'reload schema';" in sql
+
+
+def test_retrieval_migration_filters_before_it_ranks() -> None:
+    """The defect it replaces: the feed sampled 500 rows by a date 88% of the
+    corpus shared, then filtered them for the user. Recall was 0%."""
+    sql = _migration("20260924120000_retrieval_searches_instead_of_sampling.sql").lower()
+
+    # Filter first, over the whole corpus — no cap before the predicates.
+    assert "create or replace function public.candidates_for_user" in sql
+    assert "j.career_band = any(v_bands)" in sql
+    assert "limit greatest(p_limit, 0)" in sql
+
+    # The level rule is a RANGE OVERLAP on both sides. An unstated bound spans
+    # [0,40] so an untagged listing stays a candidate — 9,323 live listings
+    # state no level and hiding them is what emptied a user's feed.
+    assert "coalesce(j.min_years_experience, 0)::numeric <= v_hi" in sql
+    assert "coalesce(j.max_years_experience, 40)::numeric >= v_lo" in sql
+
+    # Unknown years falls back to the BAND, never to no rule: that put an 8-14
+    # year role and a VP requisition in a 3.2-year candidate's top three.
+    assert "('mid', 2, 5)" in sql
+    assert "v_lo := v_years - 1" in sql
+
+    # Shape rules a hand-built shortlist already followed.
+    assert "per_company <= v_per_company" in sql
+    assert "same_title = 1" in sql
+
+    # PL/pgSQL locals, not scalar subqueries: the subquery form left the partial
+    # index unused at 37,874 buffers.
+    #
+    # Checked against CODE lines only. The first version of this assertion read
+    # the whole file and tripped on the comment that explains the very pattern
+    # it forbids — a grep contract test failing on its own prose.
+    code = "\n".join(
+        line for line in sql.splitlines() if not line.strip().startswith("--")
+    )
+    assert "language plpgsql" in code
+    assert "cardinality(bands)=0 or" not in code
+
+    assert "notify pgrst, 'reload schema';" in sql
