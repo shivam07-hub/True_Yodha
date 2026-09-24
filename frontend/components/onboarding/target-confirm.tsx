@@ -112,6 +112,23 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
   const [seniority, setSeniority] = useState<TargetSeniority | null>(
     result.selected?.seniority ?? result.seniority.value,
   )
+  /**
+   * Years in the craft. Seeded from the stored number when there is one — a
+   * correction she already made, or the reading the `cv_years` forward pass took
+   * off her banked CV — and otherwise from what this CV parse read.
+   *
+   * `null` stays `null`. It means "we could not read it", and defaulting to 0
+   * would make every "2+ years" listing ineligible: a worse answer than none.
+   */
+  const [years, setYears] = useState<number | null>(
+    result.selected?.years_experience ?? result.seniority.years ?? null,
+  )
+  /** The number's provenance as it ARRIVED. Once she edits the field it is hers,
+   *  so the step stops crediting the CV for it. */
+  const [yearsSource, setYearsSource] = useState<"user" | "cv" | null>(
+    result.selected?.years_experience_source
+      ?? (result.seniority.source === "experience_years" ? "cv" : null),
+  )
   const [ninja, setNinja] = useState(() => (result.ninja?.ninja_name ?? "").toLowerCase())
   const [ninjaClaimed, setNinjaClaimed] = useState(() => Boolean(result.ninja?.claimed))
   const [busy, setBusy] = useState(false)
@@ -340,6 +357,10 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
         role_families: selected.map((family) => family.family),
         career_bands: bands,
         seniority,
+        // Omitted when unknown, because the write path treats a supplied number
+        // as HER answer and marks it `user` forever. Sending null to mean "still
+        // unknown" would record an unanswered field as a decision.
+        ...(years != null ? { years_experience: years } : {}),
         locations,
         lean,
         avoid,
@@ -421,7 +442,17 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
       ) : null}
 
       {step === "level" ? (
-        <LevelStep evidence={result.seniority} value={seniority} onChange={setSeniority} />
+        <LevelStep
+          evidence={result.seniority}
+          value={seniority}
+          years={years}
+          yearsSource={yearsSource}
+          onChange={setSeniority}
+          onYearsChange={(next) => {
+            setYears(next)
+            setYearsSource("user")
+          }}
+        />
       ) : null}
 
       {step === "where" ? (

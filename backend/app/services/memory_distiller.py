@@ -261,6 +261,13 @@ def _job_titles(db: Any, table: str, ts_col: str, user_id: str, since_iso: str) 
 def _searches(db: Any, user_id: str, since_iso: str) -> list[str]:
     from app.repositories.search_queries import SearchQueriesRepository
 
+    # ⚠️ This signal is near-empty and that is known, not an accident. The authed
+    # writer was /market's search box, which the finite list removed on 2026-09-24
+    # (search is now a view filter; corpus search is ⌘K, a public endpoint with no
+    # user_id). What is left: 6,569 landing rows with NO user_id, which this
+    # user-scoped read cannot see, and 14 intent_chat rows last written 2026-07-19.
+    # Shivam left it 2026-09-25: revisit when the distiller earns its keep. Do not
+    # read "four signals" as four working ones.
     rows = SearchQueriesRepository(db).list_since(user_id, since_iso, limit=_SIGNAL_CAP)
     return [q for r in rows if (q := (r.get("query") or "").strip())]
 

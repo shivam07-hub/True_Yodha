@@ -864,6 +864,15 @@ def _awaiting_target_payload(
     """
     from app.services import ninja_name as nn
     from app.services.concurrent_reads import run_concurrently
+    from app.services.forward_pass import read_years_from_banked_cv
+
+    # The forward pass for `years_experience`, run HERE because this is the one
+    # payload whose step renders the number — a pass that reshaped her matches
+    # without showing her the number would be enrichment she never got told about.
+    # It is claim-gated to once a day, costs date arithmetic plus one narrow
+    # update, and returns what it wrote so the field below is filled in the SAME
+    # response rather than one visit later.
+    written_years = read_years_from_banked_cv(user_id)
 
     families_repo = RoleFamiliesRepository(db)
     chosen_keys = [
@@ -943,8 +952,15 @@ def _awaiting_target_payload(
             # read and let her correct it. `None` is "we could not read it" —
             # the step asks rather than inventing a number, the same rule the
             # band itself follows.
-            "years_experience": profile.get("years_experience"),
-            "years_experience_source": profile.get("years_experience_source"),
+            #
+            # `profile` was read before the pass ran, so a number the pass just
+            # wrote is not in it. Reading the pass's own return value is what
+            # makes the write visible on the same visit.
+            "years_experience": profile.get("years_experience") or written_years,
+            "years_experience_source": (
+                profile.get("years_experience_source")
+                or ("cv" if written_years is not None else None)
+            ),
             "locations": stored_locations,
             # Empty is "not asked yet", never "chose none" — the journey's landing
             # rule opens on the band step only for the first of those.

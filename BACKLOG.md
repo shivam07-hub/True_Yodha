@@ -196,7 +196,17 @@ measured Free/Nano database ceiling, not unfinished application work.
 
 ### TIER 3 — needs a decision or a grill BEFORE code
 
-**Level is now read two ways, and they disagree (FOUND 2026-09-24, NOT fixed).**
+**Level: the stated range wins everywhere — LOCKED 2026-09-25 (Shivam). NOT yet built.**
+The brain's `candidate_pool` moves to the same range-overlap rule retrieval uses:
+the employer's stated `[min, max]` decides, and the seniority tag is consulted only
+where the employer states nothing. One rule, one answer on /market and the
+dashboard. Her pool grows ~48% (19 of 40 today), so a match run costs more brain
+calls — accepted, because the alternative is half her list never carrying a verdict.
+Rejected: deriving a band for the brain to keep reading, since storing a bucket
+derived from a range is what ADR-0022 forbids and both surfaces would agree by both
+being wrong. The measurement below is the before-state.
+
+
 `candidates_for_user` admits a job when the person's years range overlaps the
 employer's **stated** `[min, max]`, falling back to the seniority tag only where the
 employer states nothing. `job_eligibility.seniority_is_eligible` / `seniority_fit` —
@@ -214,7 +224,10 @@ rule publishes a band the brain can read.** Do not "fix" it by making retrieval
 call the Python function: that is what put a title word over a stated "2-6 years"
 and dropped every NPCI payments role.
 
-**The authed search-intent signal lost its writer.** `SearchQueriesRepository.record`
+**The authed search-intent signal lost its writer — LEFT AS IS, deliberately
+(Shivam, 2026-09-25).** Revisit when the memory distiller earns its keep; until then
+it reads 14 rows from July and nobody should read "four signals" as four working
+ones. `SearchQueriesRepository.record`
 used to fire from the feed's `q` param on page 1. The list takes no `q` (search is a
 view filter, corpus search is ⌘K at `/jobs/search/global`), and ⌘K is a public
 endpoint with no user id, so authed search intent is no longer recorded anywhere.

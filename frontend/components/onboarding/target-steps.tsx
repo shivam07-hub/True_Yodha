@@ -34,8 +34,15 @@ const SENIORITY_LABEL: Record<Exclude<TargetSeniority, "any">, string> = {
 }
 
 /** The remembering, in the one place onboarding can honestly claim it: what
- *  Myro read off the CV before asking anything. */
-function seniorityEvidence(result: { source: string; years?: number | null; title?: string | null }): string {
+ *  Myro read off the CV before asking anything.
+ *
+ *  A number she has already corrected is hers, and saying "read from your CV"
+ *  over it would be a claim about where it came from that is simply untrue. */
+function seniorityEvidence(
+  result: { source: string; years?: number | null; title?: string | null },
+  storedSource: "user" | "cv" | null,
+): string {
+  if (storedSource === "user") return "You set this."
   if (result.source === "experience_years") return `${result.years} yrs of experience, read from your CV.`
   if (result.source === "title") return `Read from “${result.title}” in your CV.`
   return "Your CV did not say, so this one is yours to set."
@@ -157,17 +164,45 @@ export function BandStep({
   )
 }
 
+/**
+ * Level: the band, and the number behind it.
+ *
+ * The band alone cannot answer an employer's "3+ years" — `mid` admits entry and
+ * mid alike — so the years is its own stored field, and it is the one retrieval
+ * matches on: her range is [years-1, years+1], and where we do not know it she
+ * falls back to the band's whole implied span. For a mid-band person that is
+ * [2,5] instead of her own [2.2,4.2], and the Match Quality gate measured what
+ * that costs — 12 of her 40 jobs failed the level rule at the top end, every one
+ * of them because the number was missing.
+ *
+ * So the number is shown and correctable, never inferred silently. That is also
+ * what makes the `cv_years` forward pass honest: it reads her years off the CV
+ * she already uploaded when she next arrives, and a pass that changed her matches
+ * without showing the number it changed them with would be silent enrichment
+ * rather than an update she got.
+ *
+ * `null` years is "we could not read it" and must stay empty rather than default
+ * to 0 — a zero would make every "2+ years" listing ineligible, which is a worse
+ * answer than no answer.
+ */
 export function LevelStep({
-  evidence, value, onChange,
+  evidence, value, years, yearsSource, onChange, onYearsChange,
 }: {
   evidence: { source: string; years?: number | null; title?: string | null }
   value: TargetSeniority | null
+  /** The stored number, or null when nothing has been read or set. */
+  years: number | null
+  /** Where the stored number came from — `user` is a correction and outranks
+   *  every later CV parse. */
+  yearsSource: "user" | "cv" | null
   onChange: (value: TargetSeniority) => void
+  /** `null` clears it back to unknown, which is a real answer. */
+  onYearsChange: (years: number | null) => void
 }) {
   return (
     <>
       <StepHead
-        recall={seniorityEvidence(evidence)}
+        recall={seniorityEvidence(evidence, yearsSource)}
         title="Level"
         lede="Roles above this are noise; roles below it are a step back."
       />
@@ -189,6 +224,46 @@ export function LevelStep({
           </button>
         ))}
       </div>
+
+      {/* The number, under the band it qualifies. Not in a disclosure: it is what
+          retrieval matches against an employer's stated range, so hiding it would
+          hide the one input that decides which jobs she is shown. */}
+      <label className="mt-6 block">
+        <span className="mb-2 block text-sm text-[var(--tm-text-muted)]">
+          Years of experience
+        </span>
+        <div className="flex items-center gap-3">
+          <input
+            type="number"
+            inputMode="decimal"
+            min={0}
+            max={60}
+            step={0.5}
+            value={years ?? ""}
+            onChange={(e) => {
+              const raw = e.target.value.trim()
+              if (raw === "") return onYearsChange(null)
+              const next = Number(raw)
+              // Out of range or unparseable stays unknown rather than clamping to
+              // a number she did not type.
+              onYearsChange(Number.isFinite(next) && next >= 0 && next <= 60 ? next : null)
+            }}
+            placeholder="—"
+            aria-describedby="tm-years-note"
+            className="tm-control-focus min-h-11 w-24 rounded-md border border-[var(--tm-border)] bg-[var(--tm-surface)] px-3 text-[var(--tm-text)] placeholder:text-[var(--tm-text-muted)]"
+          />
+          {yearsSource === "cv" && years != null ? (
+            <span className="text-sm text-[var(--tm-text-muted)]">
+              Read from your CV — correct it if it is wrong.
+            </span>
+          ) : null}
+        </div>
+        <span id="tm-years-note" className="mt-2 block text-sm text-[var(--tm-text-muted)]">
+          {years == null
+            ? "Leave it blank if you would rather not say — Myro then matches on your level alone, which is wider."
+            : `Myro matches you against roles asking roughly ${Math.max(0, years - 1)}–${years + 1} years.`}
+        </span>
+      </label>
     </>
   )
 }

@@ -859,6 +859,12 @@ export interface OnboardingTarget {
   // Optional for point-of-use "edit role" (issue #145): omit to keep the user's
   // existing seniority/location; the backend preserves them via save_target.
   seniority?: TargetSeniority
+  /** Years in the craft — the quantity retrieval matches against an employer's
+   *  "3+ years", where the band alone cannot (`mid` admits entry AND mid alike).
+   *  Sending it marks the number `user`, which outranks every later CV parse.
+   *  Omit on a role-only edit: the backend preserves it rather than resetting the
+   *  number her matches depend on. */
+  years_experience?: number
   location?: string
   // Plural form. `[]` is a real answer ("Anywhere"); omitting the field
   // means "leave my saved locations alone".
@@ -1005,6 +1011,14 @@ export type OnboardingResult = OnboardingReach & (
       selected: {
         families: RoleFamily[]
         seniority: TargetSeniority | null
+        /** The quantity behind the band — the number retrieval actually matches
+         *  against an employer's "3+ years". `null` is "we could not read it",
+         *  never zero: zero would make every "2+ years" listing ineligible. */
+        years_experience: number | null
+        /** Where the number above came from. `user` outranks any later CV parse,
+         *  forever; `cv` is a reading she has not corrected yet; `null` means
+         *  nothing has been read or set. */
+        years_experience_source: "user" | "cv" | null
         locations: string[]
         /** Empty means NOBODY HAS BEEN ASKED — never "chose none". The step
          *  order below opens on the band only for the first of those. */

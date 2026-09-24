@@ -273,7 +273,9 @@ def test_years_are_read_off_the_cv_a_returning_user_already_uploaded(monkeypatch
     the level rule at the top end. This finishes work her upload started."""
     written = _years_pass_env(monkeypatch, {}, _cv("Jan 2016 – Jul 2018"))
 
-    assert forward_pass.read_years_from_banked_cv("u1") is True
+    # It returns the number so the Direction payload can show it in the SAME
+    # response — a field that fills one visit later is not an update she got.
+    assert forward_pass.read_years_from_banked_cv("u1") == 3
     assert written == [{"years_experience": 3, "years_experience_source": "cv"}]
 
 
@@ -286,7 +288,7 @@ def test_a_number_the_user_corrected_is_never_re_read(monkeypatch):
         _cv("Jan 2016 – Jul 2018"),
     )
 
-    assert forward_pass.read_years_from_banked_cv("u1") is False
+    assert forward_pass.read_years_from_banked_cv("u1") is None
     assert written == []
 
 
@@ -295,7 +297,7 @@ def test_a_cv_with_no_readable_dates_leaves_the_field_absent(monkeypatch):
     "2+ years" listing ineligible — a worse answer than no answer."""
     written = _years_pass_env(monkeypatch, {}, _cv("sometime last year"))
 
-    assert forward_pass.read_years_from_banked_cv("u1") is False
+    assert forward_pass.read_years_from_banked_cv("u1") is None
     assert written == []
 
 
@@ -308,4 +310,12 @@ def test_the_years_pass_claims_before_it_reads(monkeypatch):
         database_mod, "get_supabase_admin",
         lambda: pytest.fail("the pass read the database before claiming"),
     )
-    assert forward_pass.read_years_from_banked_cv("u1") is False
+    assert forward_pass.read_years_from_banked_cv("u1") is None
+
+
+def test_the_years_pass_is_not_on_the_cv_read_door():
+    """Every other pass rides a CV read and enqueues. This one changes which jobs
+    she is shown, so it runs where the number is RENDERED — the Direction payload's
+    Level step. On a CV read it would reshape her matches with nothing on screen to
+    say so, which is the silent enrichment `964f1587` ruled out."""
+    assert "cv_years" not in dict(forward_pass.PASSES)
