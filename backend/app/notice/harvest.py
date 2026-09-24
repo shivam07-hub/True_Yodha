@@ -83,6 +83,7 @@ def harvest_belts(
     sha: str,
     on_main: bool,
     alert_above: int = 100,
+    ingestion_state: str | None = None,
 ) -> tuple[list[Sighting], list[CloseProof]]:
     sightings: list[Sighting] = []
     proofs: list[CloseProof] = []
@@ -105,6 +106,20 @@ def harvest_belts(
             CloseProof(
                 cause_key="dead_man:listing_verifier",
                 test_nodeid="harvest:listing_verifier_ok",
+                sha=sha,
+                on_main=on_main,
+            )
+        )
+    # Ingestion, unlike the other two belts, opens a Notice only when STALLED.
+    # `degraded` is the 72h cadence target we are knowingly behind on; a row
+    # that is permanently open is a row nobody reads.
+    if ingestion_state == "stalled":
+        sightings.append(Sighting.dead_man(belt="job_ingestion"))
+    elif ingestion_state in {"ok", "degraded"}:
+        proofs.append(
+            CloseProof(
+                cause_key="dead_man:job_ingestion",
+                test_nodeid="harvest:job_ingestion_ran",
                 sha=sha,
                 on_main=on_main,
             )

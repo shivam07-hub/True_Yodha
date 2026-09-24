@@ -32,7 +32,7 @@ export interface NavUnlockCtx {
 
 export interface NavItem {
   /** Stable id, also the gate key for Myrology. */
-  id: "home" | "forge" | "market" | "cv" | "tracker" | "myrology" | "intel" | "newsletter"
+  id: "home" | "forge" | "market" | "cv" | "tracker" | "myrology" | "intel" | "newsletter" | "ghost-index" | "hiring"
   href: string
   label: string
   /** Native title attribute / tooltip. */
@@ -137,6 +137,27 @@ export const CONTENT_NAV: NavItem[] = [
     href: "/newsletter",
     label: "Newsletter",
     desc: "Weekly hiring signals, read from live job data",
+    stage: "base",
+    surfaces: [],
+  },
+  // Public verification surfaces (POSITIONING.md Wave 1/2) shipped indexed and
+  // linked from the footer, reachable from nowhere a logged-in user goes — the
+  // 299 users who already have a CV and no target could not find either one.
+  // Same bucket as Intel/Newsletter: product content, not marketing, must not
+  // vanish at the door.
+  {
+    id: "ghost-index",
+    href: "/ghost-index",
+    label: "Ghost Job Index",
+    desc: "Which roles are still open, and which just look that way",
+    stage: "base",
+    surfaces: [],
+  },
+  {
+    id: "hiring",
+    href: "/hiring",
+    label: "Hiring by Sector",
+    desc: "Live roles, momentum, and top skills by sector",
     stage: "base",
     surfaces: [],
   },

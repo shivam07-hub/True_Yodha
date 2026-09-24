@@ -3,9 +3,11 @@
 Deliberately LLM-free. Myro's ranked match is user-pulled because ranking costs
 provider budget and Shivam's model is "compute follows intent" (see
 `services/new_inventory.py`). A partner alert fires for people who are not on the
-site and may never come back, so it rides the same deterministic feed the /market
-triage list uses — role family, seniority band, saved locations, CV skill overlap
-— and never the Matching Brain. Cached brain verdicts are not consulted either:
+site and may never come back, so it rides the same deterministic retrieval the
+/market list uses — `shortlist_jobs`, which asks `candidates_for_user` for the
+jobs this one person should see — and never the Matching Brain. One retrieval for
+both surfaces is the point: while the feed sampled 500 rows by a shared date, a
+partner carrying 37% of our users was being handed the same arbitrary slice. Cached brain verdicts are not consulted either:
 a payload that sometimes carries a score and sometimes doesn't is worse for the
 partner than one that never does.
 
@@ -17,8 +19,6 @@ import logging
 from typing import Any
 
 from app.repositories.partner_delivery import PartnerDeliveryRepository
-from app.services.matching.filter_spec import FilterSpec
-from app.services.matching.job_query import JobQuery
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ def jobs_for_seat(
     max_experience_years: int | None = None,
     exclude_delivered: bool = True,
 ) -> list[dict[str, Any]]:
-    """Openings this seat has not been told about yet, freshest first.
+    """Openings this seat has not been told about yet, best match first.
 
     `exclude_delivered=False` is the read-only preview a partner uses while
     integrating: same query, but it does not pretend the ledger is empty when
@@ -50,41 +50,23 @@ def jobs_for_seat(
     if exclude_delivered:
         exclude = delivery_repo.delivered_job_ids(str(seat["id"]))
 
-    eligibility = _eligibility(jobs_repo, user_id)
-    spec = FilterSpec(
-        sort="fresh",
-        location_prefs=tuple(_safe(jobs_repo.user_target_locations, user_id, default=[])),
-        page=1,
-        # Over-fetch: the experience filter below is applied after shaping, so a
-        # page sized exactly to `limit` could come back short of it.
-        page_size=limit * 3,
+    # Over-fetch: the staleness and experience filters below run after
+    # retrieval, so asking for exactly `limit` could come back short of it.
+    rows = jobs_repo.shortlist_jobs(
+        user_id,
+        skill_keys=_safe(jobs_repo.user_skill_keys, user_id, default=set()),
+        target_roles=_safe(jobs_repo.get_user_target_roles, user_id, default=[]),
+        limit=limit * 3,
     )
-    result = JobQuery.feed(
-        jobs_repo,
-        spec,
-        user_skill_keys=_safe(jobs_repo.user_skill_keys, user_id, default=set()),
-        user_target_roles=_safe(jobs_repo.get_user_target_roles, user_id, default=[]),
-        primary_career_band=eligibility.get("target_career_band"),
-        explored_career_bands=eligibility.get("explored_career_bands") or [],
-        target_seniority=eligibility.get("target_seniority") or "any",
-        exclude_job_ids=exclude,
-    )
-    rows = [r for r in (result.get("rows") or []) if r.get("job_id")]
-    rows = [r for r in rows if not r.get("is_stale")]
+    rows = [r for r in rows if r.get("job_id") and not r.get("is_stale")]
+    # The retrieval already drops what the user saved or skipped. This ledger is a
+    # different question — what this SEAT has already been sent — and only the
+    # partner's side knows it.
+    if exclude:
+        rows = [r for r in rows if str(r["job_id"]) not in exclude]
     if max_experience_years is not None:
         rows = [r for r in rows if _min_years(r) <= max_experience_years]
     return [_shape(r) for r in rows[:limit]]
-
-
-def _eligibility(jobs_repo: Any, user_id: str) -> dict[str, Any]:
-    getter = getattr(jobs_repo, "get_user_eligibility_preferences", None)
-    if getter is None:
-        return {}
-    try:
-        return getter(user_id) or {}
-    except Exception as exc:  # noqa: BLE001 — an unset profile is not an error
-        logger.warning("partner_alerts eligibility read failed user=%s: %s", user_id, exc)
-        return {}
 
 
 def _safe(fn: Any, user_id: str, *, default: Any) -> Any:

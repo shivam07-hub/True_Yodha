@@ -1,4 +1,4 @@
-import type { QueryClient, InfiniteData } from "@tanstack/react-query"
+import type { QueryClient } from "@tanstack/react-query"
 import type { AgentPicksResponse, JobFeedResponse } from "@/lib/api"
 
 /** Shared with every Agent Picks surface so skip/save from Jobs or Collections
@@ -7,21 +7,15 @@ export function agentPicksQueryKey(token: string) {
   return ["agentPicks", token] as const
 }
 
-/** Drop a job from every page of a cached infinite feed + decrement the draining
- *  queue count on the first page. */
-export function removeJobFromPages(
-  data: InfiniteData<JobFeedResponse> | undefined,
+/** Drop a job from a cached list. The list is finite, so this is one array — it
+ *  used to walk every page of an infinite feed and decrement a total that was
+ *  itself the size of a 500-row sample. */
+export function removeJobFromList(
+  data: JobFeedResponse | undefined,
   jobId: string,
-): InfiniteData<JobFeedResponse> | undefined {
+): JobFeedResponse | undefined {
   if (!data) return data
-  return {
-    ...data,
-    pages: data.pages.map((p, i) => ({
-      ...p,
-      jobs: p.jobs.filter(j => j.job_id !== jobId),
-      available_total: i === 0 ? Math.max(0, p.available_total - 1) : p.available_total,
-    })),
-  }
+  return { ...data, jobs: data.jobs.filter(j => j.job_id !== jobId) }
 }
 
 export function dropJobFromAgentPicks(qc: QueryClient, token: string, jobId: string) {
@@ -34,7 +28,7 @@ export function dropJobFromAgentPicks(qc: QueryClient, token: string, jobId: str
 }
 
 export function dropJobFromJobFeeds(qc: QueryClient, jobId: string) {
-  qc.setQueriesData<InfiniteData<JobFeedResponse>>({ queryKey: ["jobFeed"] }, prev =>
-    removeJobFromPages(prev, jobId),
+  qc.setQueriesData<JobFeedResponse>({ queryKey: ["jobFeed"] }, prev =>
+    removeJobFromList(prev, jobId),
   )
 }

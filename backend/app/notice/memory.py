@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from app.notice.types import NoticeRecord
 
 
 class MemoryNoticeStore:
     def __init__(self) -> None:
         self._rows: dict[str, NoticeRecord] = {}
+        self._digest: tuple[str, datetime] | None = None
 
     def get(self, cause_key: str) -> NoticeRecord | None:
         return self._rows.get(cause_key)
@@ -24,3 +27,9 @@ class MemoryNoticeStore:
             for row in self._rows.values()
             if row.status != "closed"
         )
+
+    def last_digest_fingerprint(self) -> str | None:
+        return self._digest[0] if self._digest else None
+
+    def record_digest(self, fingerprint: str, at: datetime) -> None:
+        self._digest = (fingerprint, at)

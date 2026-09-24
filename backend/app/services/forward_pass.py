@@ -180,8 +180,85 @@ def retag_file_billed_as_text(user_id: str) -> bool:
         return False
 
 
+def read_years_from_banked_cv(user_id: str) -> float | None:
+    """Years of experience, read off the CV they already uploaded. Returns what it
+    wrote, so the surface that called it can show that number in the same response.
+
+    `years_experience` shipped on 2026-09-24; every account before it holds NULL,
+    and retrieval then falls back to the band's implied span. For a mid-band
+    person that is [2,5] where her actual [2.2,4.2] would be, and the Match
+    Quality gate measured what that costs: 52% of the forty jobs shown failed the
+    level rule, all of them at the top end — 5-8 year roles in a 3.2-year list.
+
+    A heal, not a backfill, and the line is exact: she uploaded a CV and asked to
+    be matched against it. Reading her years out of that same CV finishes work she
+    started. It invents nothing, spends no model call — `seniority_from_cv` is
+    date arithmetic — and never touches an account that is not present.
+
+    It writes only when nobody has corrected the number: `years_experience_source
+    = 'user'` outranks any parse, forever (CEO decision 2026-09-23).
+
+    **It is NOT in `PASSES`, and that is the point.** Every other pass rides a CV
+    read and enqueues; this one changes which jobs she is shown, so it has to run
+    where she can SEE the number and correct it — the Direction journey's Level
+    step, which is the only surface that renders years. A pass that silently
+    reshaped her matches on a CV read would be enrichment she never got told about
+    (`964f1587`), and the rule is explicit that a pass must show on the surface
+    that fires it.
+
+    It also breaks the "enqueue only" half of the pass shape deliberately, because
+    the work is date arithmetic over a document already in memory plus one narrow
+    update — no model call, no scan. The read it rides is a Direction payload that
+    measured 2,461ms of family lookups; this is not what the user is waiting on,
+    and deferring it would mean showing her a blank field and the right number one
+    visit later.
+    """
+    if not _claim("cv_years", user_id):
+        return None
+    try:
+        from app.database import get_supabase_admin
+        from app.repositories.cv import CVVersionsRepository
+        from app.repositories.users import UsersRepository
+        from app.services import targeting_write
+        from app.services.experience_years import seniority_from_cv
+
+        db = get_supabase_admin()
+        users = UsersRepository(db)
+        profile = users.get_profile(user_id) or {}
+        # Cheap check: two fields already in hand. Absent is not the same as
+        # corrected — only a `user` source stops us.
+        if profile.get("years_experience") is not None:
+            return None
+        if profile.get("years_experience_source") == "user":
+            return None
+
+        baseline = CVVersionsRepository(db).latest_baseline(user_id)
+        if not baseline:
+            return None
+        years = seniority_from_cv(baseline).get("years")
+        if years is None:
+            return None
+
+        targeting_write.commit(users, user_id, {
+            "years_experience": years,
+            "years_experience_source": "cv",
+        })
+        logger.info(
+            "metric forward_pass.cv_years_read user=%s years=%s", user_id, years,
+        )
+        return years
+    except Exception as exc:  # noqa: BLE001 — a read must never fail on a forward pass
+        logger.warning(
+            "metric forward_pass.failed pass=cv_years user=%s reason=%s",
+            user_id, exc.__class__.__name__,
+        )
+        return None
+
+
 #: Every pass the platform runs. One entry per capability that shipped after the
 #: data it needs — the list is the answer to "what is a returning user behind on".
+#: `cv_years` is deliberately absent — it runs from the Direction payload, the one
+#: surface that shows the number it writes. See its docstring.
 PASSES: tuple[tuple[str, Any], ...] = (
     ("baseline_bank", bank_existing_baseline),
     ("stray_skills", drop_stray_cv_skills),

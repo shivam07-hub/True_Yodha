@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Protocol
 
 from app.notice.types import NoticeRecord
@@ -18,4 +19,11 @@ class NoticeStore(Protocol):
         ...
 
     def list_not_closed(self) -> tuple[NoticeRecord, ...]:
+        ...
+
+    def last_digest_fingerprint(self) -> str | None:
+        """The open-set fingerprint of the last digest that was SENT."""
+        ...
+
+    def record_digest(self, fingerprint: str, at: datetime) -> None:
         ...

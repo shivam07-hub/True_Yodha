@@ -22,11 +22,13 @@ Item numbers are historical and carry no priority meaning.
 | Read capacity under concurrent load | #16 | software closed; paid DB capacity gate blocks launch |
 | CV rewrite destroys sections the schema can't hold | #47 = #48 | MEASURED: 5 users · path idle since 2026-08-05 · root cause is the closed schema |
 | Download gated by a page-fill meter that is wrong | #49 | blocks CVs that fit; passes CVs that spill |
+| Direction opens blank where it could open answered | #46 S6 | 19% of those who reach it leave with no target; 5 of 27 measured |
 
 ### Stage 2 — job matching through Myro Ops (NEXT)
 
 | Work | Where | State |
 |---|---|---|
+| **Job ingestion stopped 2026-09-09** | scraper repo `CLAUDE.md` → PENDING WORK 00 | **corpus shrinking: 1 job in 9 days, 2,715 retired in 6.** Alarm shipped (#16 · 3d); the fix is Shivam's |
 | Event-driven matching slices 3-5 | #36 | slices 1-2 shipped |
 | Ranked job-skill importance | #37 | blocked on scraper repo |
 | Semantic retrieval slices 2-3 | Tier 4 | blocked on scraper repo |
@@ -147,6 +149,18 @@ measured Free/Nano database ceiling, not unfinished application work.
 3c. **✅ Global search fixed, and it IS on prod — `cd777acb` is an ancestor of `origin/main` (verified 2026-09-15).** `/jobs/search/global` returned 503 for ordinary words (`engineer`, `manager`) because a five-column `ILIKE` OR seq-scanned 62,225 rows and hit the 8s timeout. Cost tracked how *rare* the user's word was. Replaced with `job_search_index` (materialized view of the five search fields concatenated; the same concatenation `_global_search_rank` already ranks against) + the `search_jobs_global` RPC. Measured: `engineer` 4,284ms → 177ms, `quantum` 12,415ms → 22ms; live dev endpoint 210–1,204ms across every term shape, no 503s. Migrations `20260807_job_search_index.sql` + `20260807a_*_interim.sql`; code `cd777acb`.
    **⚠️ The drop-list on this line was WRONG, and acting on it would have removed live indexes.** It named four interim per-column trigram indexes as serving only the old query. `pg_stat_user_indexes` on prod (stats never reset, so these are lifetime counts) says otherwise: `idx_jobs_job_title_trgm_all` **38** scans, `_location_city_` **65**, `_location_country_` **31**, `_role_domain_` **50**. Non-zero is not proof they are still needed — the counters cannot separate pre-merge from post-merge use — but it IS proof the claim was never measured.
    **The drop is Shivam's call, and it needs a measured window first** (destructive; 22MB + 8MB + 5.7MB + 10MB back on a Nano instance whose capacity is #16's launch blocker, so it is worth doing right). Method: snapshot `idx_scan` for those four plus `idx_jobs_job_title_trgm` (**1** scan, 22MB, built on `coalesce(...)` not the column) and `idx_jobs_company_name_trgm` (**6**, 10MB, partial predicate the planner cannot prove), re-read in a week, and drop only what did not move. Baseline taken 2026-09-15; the two genuine zeroes today are `idx_jobs_job_content_hash` (5.2MB) and `idx_jobs_has_summary` (1.4MB).
+3d. **#16's instruments, audited 2026-09-24 — two of three were broken, and the 15s ceiling is OURS.** Full numbers in `ARCHITECTURE_READ_PATH.md` §19; do not re-derive them.
+
+    **The ~15s ceiling is `frontend/lib/api.ts:63`, `REQUEST_TIMEOUT_MS = 15_000`.** Railway's p95 clusters at 14,971–15,006ms under status **499 — client closed request**. The server never timed out; the browser aborted at 15s and hung up, and the proxy recorded the abort as the response time. So the figure in §19.1 is a *ceiling*, exactly as playbook Rule 2 says, and every one of those is a user who saw a failure while the backend kept working. LLM endpoints already opt into 60s (`LLM_REQUEST_TIMEOUT_MS`); the 15s default is what every ordinary read gets. **A second, separate ceiling sits at exactly 30,000ms and is NOT identified** — it is not a doubling of the first (the retry at `api.ts:191` fires on 401, not on timeout).
+
+    **Do not build a per-route latency table.** Railway's `http-response-time` already returns p50/p90/p95/p99 per path over 7 days, free, at the edge (project `clever-embrace`, service `mirror-backend-prod`). A table would be a second instrument answering the first one's question, on the compute-constrained DB that IS this item's launch blocker, by writing to the read path it measures. Considered and rejected 2026-09-24.
+
+    **Measured, 168h, prod:** p50 48–548ms · **p95 1,869–14,993ms** against a p95 < 500ms contract. `/users/me` alone: p50 345–642ms, **p95 2,750–4,202ms** — it is on every authed page, and §16 had it at mean 1,690ms, so the percentile is worse than the mean implied. **That is the next latency target**, and it is a better one than another capacity lever because it is one route.
+
+    **Shipped alongside (`82724e84`, `d454a109`):** `route.latency` bucket COUNTS per route template in the log (server time; counts because percentiles cannot be summed across processes) and `RoutePerfProbe` (real-user time, root layout so `/onboarding` is covered, authed `fetch(keepalive)`, carries `network_type`). `route_perf_events` had **zero rows ever** — nothing called the hook, `sendBeacon` cannot carry the Authorization header the endpoint requires, and `ttfa_ms` measured time since page load rather than since the route change. ~10% of uploaders are on 3G/2G, where a 300ms response is not a 300ms wait. **Neither instrument is verified against live traffic yet** — check `grep "metric route.latency"` and `select count(*) from route_perf_events` after the next deploy.
+
+    **Still open here:** `signed-url` has 426 `started` events and **221 with no terminal outcome** — the same hole `direction` had before `b5275528`. It is emitted from `uploadCV` in `frontend/lib/api.ts`.
+
 ### TIER 2 — bounded, meaningful
 
 7. **#33 ₹199 Personalised Engagement — operator remaining** (ENG1 / [OFFERING.md](OFFERING.md)): checkout is Razorpay Subscriptions at 19900 paise / month; one human pass per IST billing month. Still owed by Shivam: create the Razorpay plan, set `RAZORPAY_ENGAGEMENT_PLAN_ID` + webhook events, reviewer email/token. LinkedIn door is `/job-switch-plan?utm_source=linkedin_services`. Do not keep ₹99 as a cheaper CTA.
@@ -181,6 +195,44 @@ measured Free/Nano database ceiling, not unfinished application work.
     or retire them; either way, one shape. Not urgent.
 
 ### TIER 3 — needs a decision or a grill BEFORE code
+
+**Level: the stated range wins everywhere — LOCKED 2026-09-25 (Shivam). NOT yet built.**
+The brain's `candidate_pool` moves to the same range-overlap rule retrieval uses:
+the employer's stated `[min, max]` decides, and the seniority tag is consulted only
+where the employer states nothing. One rule, one answer on /market and the
+dashboard. Her pool grows ~48% (19 of 40 today), so a match run costs more brain
+calls — accepted, because the alternative is half her list never carrying a verdict.
+Rejected: deriving a band for the brain to keep reading, since storing a bucket
+derived from a range is what ADR-0022 forbids and both surfaces would agree by both
+being wrong. The measurement below is the before-state.
+
+
+`candidates_for_user` admits a job when the person's years range overlaps the
+employer's **stated** `[min, max]`, falling back to the seniority tag only where the
+employer states nothing. `job_eligibility.seniority_is_eligible` / `seniority_fit` —
+which the matching brain's `candidate_pool` and the Match Verdict still use — admits
+by **band name** through `_AT_LEVEL`. So a job can be on someone's /market list and
+rejected by the pool that rates it, or the reverse.
+
+This is the drift [[feedback_one_definition_or_none]] warns about, and the reason it
+is a TIER 3 line rather than a commit is that unifying them means rewriting the
+brain's admission, which needs a number first: how many of a user's forty the two
+rules disagree about. `job_is_browse_eligible` — a *third* reading — was deleted in
+`23c9ee0e` because nothing called it any more, so this is two, not three.
+**Owner: Shivam to decide whether the brain moves to the range rule, or the range
+rule publishes a band the brain can read.** Do not "fix" it by making retrieval
+call the Python function: that is what put a title word over a stated "2-6 years"
+and dropped every NPCI payments role.
+
+**The authed search-intent signal lost its writer — LEFT AS IS, deliberately
+(Shivam, 2026-09-25).** Revisit when the memory distiller earns its keep; until then
+it reads 14 rows from July and nobody should read "four signals" as four working
+ones. `SearchQueriesRepository.record`
+used to fire from the feed's `q` param on page 1. The list takes no `q` (search is a
+view filter, corpus search is ⌘K at `/jobs/search/global`), and ⌘K is a public
+endpoint with no user id, so authed search intent is no longer recorded anywhere.
+Either ⌘K gets an authed variant that logs, or we accept that signal is gone —
+it is one decision, not a bug.
 
 **Closed listing → next hunt (LOCKED 2026-09-14).** One complete miss — or any other gone-signal — writes `closed`, the Collection card poofs, and people still sitting on it get one `listing_vanished` notification. The tailored CV and its pointers stay (aspiration signal, not a hunt). What is NOT built: the path after that ping that gets them onto the next live role and through tailor + apply faster. Do not add a Closed chip back.
 
@@ -337,6 +389,10 @@ measured Free/Nano database ceiling, not unfinished application work.
     **The write was the real defect.** Direction saves the band and the roles in ONE `save_target`, and the roles won: `targeting_write` recomputed both band columns from the title regex on every save, so the band chosen at step one was erased by the call that stored it. Now `explored_career_bands` holds the **whole explicit answer, primary first**, and only an explicit pick writes it (`chosen_bands_for_profile`). That is also what makes "nobody has been asked" (empty) readable apart from "chose exactly one band". A second target role still opens its band — derived at read time in `eligible_bands_for_profile`, where it can be removed and does not resurrect itself. **10 profiles were backfilled**; without it they would have silently lost their primary band from the feed.
 
     **One control, not two.** The backlog said to reuse the multi-select in `filters-sheet.tsx`; there wasn't one — three "Also explore X" switches around a derived primary, the only band UI in the app, encoding the model this replaces. `components/target-role/band-choice.tsx` is now shared by Direction, the filters sheet and Settings (`BandSettings`, beside Target Roles), and `primaryCareerBand` is gone from the sheet, the jobs tab, the mobile surface and the market page. Verified at 375 and desktop in both themes against fixed data; **the step itself has never been driven authed** — the QA account stalls at `awaiting_skill_confirmation`, before Direction.
+
+    **OPEN — S6 Direction opens ANSWERED, five confirmations (locked with Shivam 2026-09-24, not built).** S3 made the band step pre-answered; the other four steps are not, and the landing rule still puts a fully pre-answerable person on step 1 of 5. Measured over the 27 people who have reached Direction: Field 27/27 pre-answerable, **Work 14/27**, Level 24/27, **Where 0/27 offered** (it opens as an empty picker with "Skip for now"), Name 27/27. 5 of 27 left with no target. Shraddha Gupta (`fc2f8f61-…`) is the worked example: every step pre-answerable, bounced Confirm↔Direction four times in 10 seconds, left, never returned — 0 matches to this day.
+
+    Shape, decided: keep the five screens and make each a **one-tap confirmation** (Reddit/Pinterest pattern — every tap is Myro showing it knows them), not one summary screen behind a single tap. (a) **Work proposes the first DEFENSIBLE family in the top 5**, not only rank 1 — same `mayPropose` rule (non-catch-all AND the user holds one of its top skills), which takes it **14/27 → 27/27**; re-arm the proposal when the band-scoped list arrives, which also closes the `proposedRef` burn (the ref is spent on the band-LESS first response, and 13 of 27 get a catch-all there). (b) **Where opens on "Anywhere in India" as a stated answer**, with the CV city as the first chip labelled from the CV — never pre-selected, because location is a HARD filter on the match pool and a reflex tap must not shrink it (Shraddha studied in Kolkata and will relocate anywhere). (c) no false "could not save" after a save that succeeded — four things run after `saveTarget` inside the same `try`. ⚠️ **`target-confirm.tsx` is being actively worked by another agent** (`5d31bf83` added `withRealPrimary` and removed the `no_families` reasonCode); coordinate before starting.
 
     **OPEN — S4 Graded job ↔ direction fit. ⚠️ MEASURED 2026-09-13 AND DEFERRED — it needs the paid DB compute gate, not more design.**
     The rule is right and Pareto-better (**76% precision / 40% reach** against the bucket's 71%/29%). The cost is the problem. On the shared Nano instance, against 46,801 live jobs:
@@ -608,6 +664,36 @@ measured Free/Nano database ceiling, not unfinished application work.
 15. **Job Card Lifecycle Loop (idea, parked 2026-05-27):** Netflix-style lifecycle model for every job card — track `posted_at`, `first_seen_on_platform_at`, `last_seen_on_platform_at`, `delisted_at`. Pair the job-side lifecycle with a user-side application-stage loop: once a user saves/applies, prompt + track stage transitions (saved → applied → screening → recruiter call → interview → final round → offer/reject) and the dwell time in each stage. Aggregate cross-user signal per company/role: median time-to-first-reply, median screening→interview gap, ghosting rate, offer rate, typical funnel shape. Surface back to users as "what to expect from this company" + sharpen our own match ranking + power a future newsletter/intel surface. Pick up when we redesign the job card to make the experience better — this loop is the data engine that justifies the new card layout. Touches: `jobs` schema (lifecycle timestamps), `job_applications` (already has `status` + `last_stage_changed_at` per Q7), new `application_stage_events` event log, a nudge/reminder cadence for stage updates, and an aggregation RPC for company funnel stats.
 
 17. **Legal hardening for 10k scale (DOCS DONE 2026-06-02, counsel sign-off open):** Entity now = **Myro Career Intelligence Private Limited** (renamed across terms/privacy). Payment T&C shipped on both money surfaces (XP billing modal + Myrology checkout carry Terms+Privacy consent line). Terms §07 **Payments, XP & Refunds** (XP = closed-loop credit, not RBI PPI; funds servers not jobs; Myro = distributor of company listings; **Cancellation & Refunds** — XP final, Myrology full-refund-before-delivery / non-refundable-after). India-compliance pass INTEGRATED via Legal Compliance Checker agent: **DPDP consent microcopy at signup** (`signup-form.tsx`), privacy §06 rights expanded (withdraw/nominate/erase), §03 purpose-limitation, §04 cross-border-transfer, §07 cookie-banner-not-required note, NEW privacy §11 **Grievance Redressal** (24h ack / 15-day SLA, IT Rules 2021), terms §08 operator/grievance disclosure, §10 fraud/gross-negligence carve-out, footer "Cancellation & Refunds"→/terms#payments (Razorpay live-key prereq). Razorpay is **LIVE** — prod backend (`mirror-backend-prod`) env `RAZORPAY_KEY_ID=rzp_live_SuJDCjSGSSkGAP` + secret, tested by Shivam 2026-06-03. Billing badge is key-derived → auto-shows "Secure checkout" (no test-mode warning) on prod. ⚠️ **Verify the matching frontend public key:** Vercel **production** env `NEXT_PUBLIC_RAZORPAY_KEY_ID` must = `rzp_live_…` (same pair as backend) or checkout signature mismatches. Dev backend has no Razorpay key (payments untestable on pre-prod unless test keys added). tsc/lint clean, pushed to `main`. Files: `frontend/app/terms/page.tsx`, `frontend/app/privacy/page.tsx` (+ `privacy-components.tsx`), `frontend/components/settings-modal.tsx`, `frontend/app/myrology/checkout.tsx` (+ `myrology.css`), `frontend/components/auth/signup-form.tsx`, `frontend/components/public/public-footer.tsx`. Memory: `project_payment_legal_terms`. **OPEN — NEEDS SHIVAM + COUNSEL (placeholders live in code, NOT autonomous):** (a) lawyer review of both docs; (b) **CIN number** → `[to be inserted]` in terms §08; (c) **named Grievance Officer** — section shows designation+`grievance@himyro.com` only, IT Rules want a named individual; confirm the `grievance@himyro.com` mailbox exists + is monitored (24h/15-day SLA is now a public commitment); (d) full registered office address (street+PIN, MCA record); (e) confirm Myro is **not** a Significant Data Fiduciary (so no statutory DPO; "Grievance Officer" label correct); (f) sign off INR 5,000 liability cap; (g) confirm Myrology refund mechanics match booking flow + final price (₹499 vs ₹200-300 intro); (h) EU/UK in-scope check (cookie note assumes auth-only cookies). Razorpay live-key activation needs Terms+Privacy+Refund pages visibly linked (done).
+
+---
+
+## CV PARSING — SHORT-TOKEN FALSE SKILLS (measured 2026-09-24, not fixed)
+
+Sits with the gold-standard gap below: both are "what Myro reads off a CV is not
+what the CV says". This one is narrow, measured, and cheap.
+
+101 `user_skills` rows across **69 of 403 CV users** come from evidence of four
+characters or less. Most are correct (SQL, C++, HTML, AWS, Java). These are not:
+
+| Skill stored | Evidence | What happened |
+|---|---|---|
+| .NET Framework | `net` | substring of "**net** profit" |
+| Microsoft Word | `word` | the ordinary word, lowercased |
+| Rdata | `data` | the ordinary word |
+| Microsoft Office | `Ms` | the title "Ms." |
+| **RPL (Programming Language)** | **`PHP`** | **wrong mapping — a PHP developer loses PHP** |
+| Python | `None` | Python `None` stored as the string |
+| C / R | `C` / `R` | ambiguous single letters (6 users) |
+
+~10 users affected, but each false skill moves both the Myro Score domain
+breakdown and the matcher's overlap. Fix: tokens ≤4 chars match
+case-sensitively on word boundaries with a stoplist (`net`, `word`, `data`,
+`ms`); correct the PHP→RPL mapping; never store `"None"` as evidence. **Forward
+only** — existing rows stand until that user re-uploads.
+
+⚠️ `cv_parser.py` / `cv_skill_evidence.py` / `cv_explicit_skills.py` were
+rewritten by another agent in `79908258`; re-measure before building, the floor
+may already be partly there.
 
 ---
 

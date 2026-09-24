@@ -1,9 +1,6 @@
 "use client"
 
-import type { JobFeedSort } from "@/lib/api"
-import {
-  type FeedFilters, SORT_TOGGLE, WORK_MODES, canRankByFit, activeFilterCount,
-} from "./feed-types"
+import { type FeedFilters, WORK_MODES, activeFilterCount } from "./feed-types"
 
 // The sheet itself lives in ./filters-sheet — one component shared by the
 // desktop drawer and the mobile bottom sheet.
@@ -11,13 +8,13 @@ export { FiltersSheet } from "./filters-sheet"
 
 // ── the control row: rank toggle · Filters button · Saved ─────────────────────
 
+// The rank toggle is gone with the sort it toggled: a list of forty jobs chosen
+// for one person has one order. "Best fit ⇄ Newest" was reordering a 500-row
+// sample of a single shared date, and the composite behind "Best fit" is deleted.
 export function FeedControls({
-  filters, onChange, hasCv, hasTargetRoles, savedCount, onOpenSaved, onOpenFilters,
+  filters, savedCount, onOpenSaved, onOpenFilters,
 }: {
   filters: FeedFilters
-  onChange: (f: FeedFilters) => void
-  hasCv: boolean
-  hasTargetRoles: boolean
   savedCount: number
   onOpenSaved: () => void
   onOpenFilters: () => void
@@ -25,11 +22,6 @@ export function FeedControls({
   const n = activeFilterCount(filters)
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-      <SortToggle
-        sort={filters.sort}
-        onSort={s => onChange({ ...filters, sort: s })}
-        canFit={canRankByFit(hasCv, hasTargetRoles)}
-      />
       <button type="button" onClick={onOpenFilters} className="tm-feed-ctl" aria-haspopup="dialog">
         Filters{n > 0 ? <span className="tm-feed-ctl-badge">{n}</span> : null} <span aria-hidden>▾</span>
       </button>
@@ -42,43 +34,16 @@ export function FeedControls({
   )
 }
 
-/** Segmented two-way rank toggle. Both states visible (no mystery single button).
- *  "Best fit" is omitted entirely when the user can't be fit-ranked. */
-function SortToggle({
-  sort, onSort, canFit,
-}: { sort: JobFeedSort; onSort: (s: JobFeedSort) => void; canFit: boolean }) {
-  const options = canFit ? SORT_TOGGLE : SORT_TOGGLE.filter(o => o.key === "fresh")
-  if (options.length < 2) return null  // nothing to toggle → no control
-  return (
-    <div className="tm-feed-segmented" role="group" aria-label="Rank jobs by">
-      {options.map(o => (
-        <button
-          key={o.key}
-          type="button"
-          aria-pressed={sort === o.key}
-          onClick={() => onSort(o.key)}
-          className={`tm-feed-seg ${sort === o.key ? "is-on" : ""}`}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-// ── removable hard-filter chips (live in the summary line) ────────────────────
+// ── removable filter chips (live in the summary line) ─────────────────────────
 
 export function FilterChips({ filters, onChange }: { filters: FeedFilters; onChange: (f: FeedFilters) => void }) {
   // Role lives in <RoleSwitcher> (the always-visible target-role row); this only
-  // carries the remaining removable hard filters.
+  // carries the remaining removable filters.
   const chips: { key: string; label: string; clear: () => void }[] = []
   if (filters.locationMode) {
     const label = WORK_MODES.find(([m]) => m === filters.locationMode)?.[1] ?? filters.locationMode
     chips.push({ key: "mode", label, clear: () => onChange({ ...filters, locationMode: null }) })
   }
-  if (filters.minSkillMatches > 0) chips.push({ key: "skill", label: `≥ ${filters.minSkillMatches} skills`, clear: () => onChange({ ...filters, minSkillMatches: 0 }) })
-  if (filters.followingOnly) chips.push({ key: "follow", label: "Following", clear: () => onChange({ ...filters, followingOnly: false }) })
-  if (filters.includeStretch) chips.push({ key: "stretch", label: "Next-level stretch", clear: () => onChange({ ...filters, includeStretch: false }) })
   if (filters.hideLowConfidence) chips.push({ key: "quality", label: "Verified-looking only", clear: () => onChange({ ...filters, hideLowConfidence: false }) })
   if (chips.length === 0) return null
   return (

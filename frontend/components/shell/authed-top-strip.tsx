@@ -8,6 +8,7 @@ import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
 import { useShellModel, type ShellModel } from "@/lib/shell/use-shell-model"
 import { MyroLogo } from "@/components/myro-logo"
 import { TopbarNav, NavContentCluster } from "@/components/nav/topbar-nav"
+import { CONTENT_NAV } from "@/lib/nav-items"
 import { NotificationBell } from "@/components/nav/notification-bell"
 import { ScoreChip } from "@/components/nav/score-chip"
 import { NextChip } from "@/components/nav/next-chip"
@@ -61,6 +62,11 @@ const LEARN_LINKS = [
   // /mission rendered the mission statement and nothing linked to it — the one
   // page in this group that had no door (reach gate, 2026-09-13).
   { href: "/mission", label: "Our mission" },
+  // CONTENT_NAV (Intel/Newsletter/Ghost Job Index/Hiring by Sector) — globals.css
+  // hides .tm-nav-content-cluster below 1080px on the claim that the account
+  // menu is the fallback door. It wasn't wired here, so a signed-in desktop
+  // user 768–1080px wide had no way to reach any of the four (reach gate).
+  ...CONTENT_NAV.map((item) => ({ href: item.href, label: item.label })),
 ] as const
 
 interface AuthedTopStripProps {

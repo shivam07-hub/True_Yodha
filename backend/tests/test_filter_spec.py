@@ -83,12 +83,14 @@ def test_from_memory_last_writer_wins_per_axis() -> None:
 
 # ── consumers / resolver ──────────────────────────────────────────────────────
 
-def test_feed_kwargs_preserves_empty_vs_none_prefs() -> None:
-    # explicit-empty tuple → [] (matches the browse_scope branches that pass []),
-    # None → None (nothing set). This distinction reaches build_location_scope.
-    assert FilterSpec(location_prefs=()).feed_kwargs()["location_prefs"] == []
-    assert FilterSpec(location_prefs=None).feed_kwargs()["location_prefs"] is None
-    assert FilterSpec(location_prefs=("India",)).feed_kwargs()["location_prefs"] == ["India"]
+def test_a_spec_has_no_feed_mapper_to_map() -> None:
+    """The authed /market list is not a filtered search: `shortlist_jobs` asks
+    `candidates_for_user` for one person's forty jobs, and location, level,
+    direction and the draining queue are all decided in SQL. A `feed_kwargs`
+    growing back would mean a filter set had grown back with it."""
+    assert not hasattr(FilterSpec(), "feed_kwargs")
+    for gone in ("sort", "min_skill_matches", "following_only", "include_stretch"):
+        assert not hasattr(FilterSpec(), gone), f"{gone} outlived the feed that read it"
 
 
 class _CaptureRepo:
@@ -98,10 +100,6 @@ class _CaptureRepo:
     def public_job_query(self, **kw: Any) -> dict[str, Any]:
         self.calls["public"] = kw
         return {"rows": [], "total": 0, "relaxed": []}
-
-    def feed_jobs(self, **kw: Any) -> dict[str, Any]:
-        self.calls["feed"] = kw
-        return {"rows": []}
 
     def search_jobs_by_filters(self, **kw: Any) -> dict[str, Any]:
         self.calls["drill"] = kw
@@ -113,31 +111,6 @@ def test_jobquery_public_delegates() -> None:
     JobQuery.public(repo, FilterSpec.from_nl_parse({"role": "pm"}))
     assert repo.calls["public"]["role"] == "pm"
     assert repo.calls["public"]["limit"] == 12
-
-
-def test_jobquery_feed_injects_user_context_verbatim() -> None:
-    repo = _CaptureRepo()
-    spec = FilterSpec(role_domain="ml", q="llm", skill_facet="pytorch", sort="fit", page=2, page_size=20)
-    JobQuery.feed(
-        repo,
-        spec,
-        user_skill_keys={"python"},
-        user_target_roles=["MLE"],
-        exclude_job_ids={"j9"},
-        followed_companies={"Acme"},
-    )
-    feed = repo.calls["feed"]
-    # query dims from the spec …
-    assert feed["role_domain"] == "ml"
-    assert feed["q"] == "llm"
-    assert feed["skill"] == "pytorch"
-    assert feed["sort"] == "fit"
-    assert feed["page"] == 2
-    # … user-context injected by the resolver, not the spec.
-    assert feed["user_skill_keys"] == {"python"}
-    assert feed["user_target_roles"] == ["MLE"]
-    assert feed["exclude_job_ids"] == {"j9"}
-    assert feed["followed_companies"] == {"Acme"}
 
 
 def test_jobquery_company_drill_delegates() -> None:

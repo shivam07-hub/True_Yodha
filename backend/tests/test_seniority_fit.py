@@ -13,7 +13,9 @@ admitted every entry job and told every one of them was the wrong level.
 
 Separately, a missing `seniority_level` read as "no" at the gate. 26% of the live
 corpus carries none — per source adapter, not at random — so a missing field
-became a permanent decision to show the job to nobody.
+became a permanent decision to show the job to nobody. It is admitted now, on
+EVERY path: pool-only admission was itself two rules in one system, and the
+Match Quality gate measured the disagreement as 9,323 hidden listings.
 """
 from __future__ import annotations
 
@@ -23,7 +25,6 @@ import pytest
 
 from app.services.job_eligibility import (
     SOURCE_SENIORITY,
-    job_is_browse_eligible,
     job_is_eligible,
     seniority_fit,
     seniority_is_eligible,
@@ -99,7 +100,7 @@ def test_a_strong_match_one_band_below_can_now_be_recommended() -> None:
     assert cred.credible is True
 
 
-# ── unreadable job seniority: the pool reads it, browse does not ──────────────
+# ── unreadable job seniority: admitted everywhere, graded nowhere ────────────
 
 
 @pytest.mark.parametrize("blank", [None, "", "  ", "Not Applicable"])
@@ -109,29 +110,28 @@ def test_an_unreadable_job_level_is_unknown_never_incompatible(blank: str | None
 
 
 @pytest.mark.parametrize("blank", [None, ""])
-def test_the_ranking_pool_admits_an_unreadable_level_for_the_brain(blank: str | None) -> None:
-    assert job_is_eligible(_profile("entry"), _job(blank), admit_unreadable=True)
-
-
-@pytest.mark.parametrize("blank", [None, ""])
-def test_browse_still_refuses_an_unreadable_level(blank: str | None) -> None:
-    # No brain on this path. Opening it would grow an entry feed by ~198% with
-    # jobs whose level nobody has established — the flood CONTEXT.md forbids.
-    assert not job_is_eligible(_profile("entry"), _job(blank))
-    assert not job_is_browse_eligible(_profile("entry"), _job(blank))
+def test_every_path_admits_an_unreadable_level(blank: str | None) -> None:
+    # ONE admission rule. It was briefly pool-only, and that put two rules in
+    # one system: the Match Quality gate measured browse hiding 9,323 listings
+    # its yardstick calls candidates, while the pool beside it admitted the very
+    # same rows. Two halves that disagree about one job disagree forever.
+    #
+    # `job_is_browse_eligible` was the third reading and is gone: the /market list
+    # admits in SQL now (`candidates_for_user`), so nothing called it.
+    assert job_is_eligible(_profile("entry"), _job(blank))
 
 
 def test_admitting_an_unreadable_level_never_crosses_a_band() -> None:
     # The seniority relaxation must not become a band relaxation.
     other = _job(None, band="engineering_data")
-    assert not job_is_eligible(_profile("entry"), other, admit_unreadable=True)
+    assert not job_is_eligible(_profile("entry"), other)
 
 
 def test_an_unreadable_target_still_admits_nothing() -> None:
     # Legacy `any` is an absent answer, not `entry`. Admitting an unreadable JOB
     # is not licence to read an unreadable TARGET as a level.
     for job in (_job(None), _job("entry"), _job("executive")):
-        assert not job_is_eligible(_profile("any"), job, admit_unreadable=True)
+        assert not job_is_eligible(_profile("any"), job)
 
 
 def test_an_unreadable_level_is_not_graded_compatible_by_the_gate() -> None:
@@ -157,7 +157,11 @@ def test_the_stretch_band_is_still_graded_off_level(target: str, above: str) -> 
 def test_stretch_reaches_one_band_and_no_further() -> None:
     assert not seniority_is_eligible("entry", "senior", include_stretch=True)
     assert not seniority_is_eligible("intern", "mid", include_stretch=True)
-    assert not seniority_is_eligible("executive", "executive_plus", include_stretch=True)
+    # Nothing sits above executive, so stretch adds nothing and a two-band drop
+    # is still refused. (A garbage level like "executive_plus" is not "above" —
+    # it is UNREADABLE, and unreadable is admitted everywhere by design.)
+    assert not seniority_is_eligible("executive", "mid", include_stretch=True)
+    assert seniority_is_eligible("executive", "executive_plus") is True
 
 
 # ── the vocabulary ───────────────────────────────────────────────────────────

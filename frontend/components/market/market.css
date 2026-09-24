@@ -96,6 +96,13 @@
 .tm-feed-summary::-webkit-scrollbar { display: none; }
 .tm-feed-summary > * { flex: 0 0 auto; }
 .tm-feed-summary-count { font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); letter-spacing: 0.04em; color: var(--tm-text-faint); }
+/* The foot of a finite list. Same faint mono as the summary count at the head,
+   because they are the same fact read from the two ends of the list. */
+.tm-feed-listend {
+  text-align: center; padding: 24px 16px;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption);
+  letter-spacing: 0.04em; color: var(--tm-text-faint);
+}
 .tm-feed-summary-loc {
   display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: var(--tm-button-radius); cursor: pointer;
   font-size: var(--tm-fs-caption); font-weight: 500; color: var(--tm-text-muted);

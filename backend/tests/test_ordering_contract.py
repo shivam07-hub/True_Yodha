@@ -41,21 +41,28 @@ def _src(rel: str) -> str:
 # ── The register ─────────────────────────────────────────────────────────────
 #
 # Every ordering the job read path is allowed to apply, and what question it
-# answers. A debt register, not a permission slip: `browse_composite` exists
-# because un-rated inventory has no verdict yet, and it shrinks to nothing when
-# the ranked head is precomputed (ARCHITECTURE_READ_PATH §12, R2).
+# answers. A debt register, not a permission slip.
+#
+# Two of the three entries here are GONE, and the register is shorter rather than
+# annotated, because a retired ordering that stays listed reads as one that is
+# still allowed:
+#   * `browse_composite` (`_fit_scores`) was a page-relative skill·role·fresh
+#     blend over whatever 500 rows the sample returned. It was declared to
+#     "retire with R2"; it retired on 2026-09-24 with the sample itself.
+#   * `recency` was the "Newest" half of the sort toggle. A finite list of forty
+#     chosen jobs has one order, so there is no toggle to be the other half of.
 DECLARED_ORDERINGS = {
     "match_verdict": (
         "MatchEval.match_score — THE fit answer. Brain-spined, overlap-gated, "
         "derived server-side in to_job_match and applied by _rank_feed_rows."
     ),
-    "browse_composite": (
-        "_fit_scores — the order un-RATED inventory is browsed in (skill·role·fresh, "
-        "page-relative). NOT a fit claim: it governs only the tail below the warmed "
-        "head, and it is page-relative so it is not cacheable and cannot be a "
-        "per-(user,job) property. Retires with R2."
+    "retrieval_score": (
+        "candidates_for_user's `score` — direction match + must-have-weighted skill "
+        "overlap + freshness, computed in SQL over the WHOLE corpus and returned "
+        "already ordered. NOT a fit claim and never shown as a number: it decides "
+        "which forty jobs exist for this person, and the verdict orders what the "
+        "brain has warmed above them."
     ),
-    "recency": "first_seen desc — the honest 'Newest' alternative. A different question.",
 }
 
 
@@ -109,25 +116,26 @@ def test_agent_picks_attach_the_same_verdict_the_feed_does() -> None:
     assert "reorder=False" in src
 
 
-def test_reordering_follows_the_user_s_chosen_sort() -> None:
-    """It reordered on EVERY sort, so "Newest" returned warmed-cards-first and the
-    two-way toggle was wrong on both settings."""
+def test_the_ranker_still_takes_reorder_as_a_decision() -> None:
+    """The list has one order now, so /market passes `reorder=True` — but the flag
+    stays a parameter because Agent Picks passes False. It reordered on EVERY sort
+    once, which returned warmed-cards-first to a user who asked for "Newest"; the
+    flag is what made that visible, and a hardcoded reorder would hide the next one."""
     src = _src("app/routers/jobs/list.py")
     assert "def _rank_feed_rows(rows: list[dict], brain_evals: dict[str, dict], *, reorder: bool)" in src
-    assert 'reorder=page_result["sort"] == "fit"' in src
+    assert "reorder=True" in src
 
 
-def test_the_browse_composite_is_declared_as_not_a_fit_claim() -> None:
-    """It is allowed to exist — un-rated inventory has no verdict — but it must be
-    documented as the browse order, not a second answer to "how good is this"."""
+def test_the_retired_browse_composite_has_not_grown_back() -> None:
+    """`_fit_scores` ranked whatever the 500-row sample happened to return, and its
+    own register entry said it would retire. Retrieval ranks the whole corpus in
+    SQL now, so a second Python scorer over the rows it returns would be ordering
+    an answer that is already ordered."""
     src = _src("app/repositories/jobs.py")
-    start = src.index("def _fit_scores")
-    body = src[start : start + 2000]
-    assert "normalized over the candidate set" in body or "normalized within" in body, (
-        "the composite must state that it is page-relative — that is what makes it "
-        "uncacheable and disqualifies it as a per-(user,job) fit score"
-    )
-    assert "browse_composite" in DECLARED_ORDERINGS
+    assert "_fit_scores" not in src
+    assert "_FIT_WEIGHTS" not in src
+    assert "browse_composite" not in DECLARED_ORDERINGS
+    assert "retrieval_score" in DECLARED_ORDERINGS
 
 
 def test_no_undeclared_fit_scorer_has_grown_back() -> None:
@@ -144,14 +152,18 @@ def test_no_undeclared_fit_scorer_has_grown_back() -> None:
         assert "def _prize" not in src, f"{rel}: undeclared scorer"
 
 
-def test_the_two_feed_sort_modes_are_the_two_the_client_offers() -> None:
-    """`JobFeedSort = "fit" | "fresh"` in lib/api.ts. A third mode added on one
-    side only is how a toggle starts lying about what it does."""
+def test_neither_side_still_offers_a_sort_the_other_does_not() -> None:
+    """There is no sort lens. A finite list of forty chosen jobs has one order, and
+    the "Best fit ⇄ Newest" toggle went with the sample it was reordering.
+
+    This test used to assert the two modes matched on both sides, because a third
+    mode added on one side only is how a toggle starts lying about what it does.
+    The same failure is now a mode surviving on one side at all."""
     src = _src("app/repositories/jobs.py")
-    assert 'sort if sort in {"fresh", "fit"} else "fresh"' in src
+    assert 'sort in {"fresh", "fit"}' not in src
 
     client = (_BACKEND.parent / "frontend" / "lib" / "api.ts").read_text()
-    assert 'export type JobFeedSort = "fit" | "fresh"' in client
+    assert "JobFeedSort" not in client, "the client still offers a sort the server dropped"
 
 
 def test_every_declared_ordering_says_what_question_it_answers() -> None:

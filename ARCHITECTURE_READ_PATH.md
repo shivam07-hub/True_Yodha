@@ -244,7 +244,7 @@ Re-measured end-to-end on prod after: 1,569 / 895 / 603 / 574ms, zero 503s —
 correct, but still above the 500ms p95 budget.
 
 **What's left is structural, not a query:** `job_feed` makes three
-*sequential* round trips — the personalization prelude, then `feed_jobs`
+*sequential* round trips — the personalization prelude, then the feed query
 (now ~3–26ms), then `get_cached_match_evals` for the brain-ranked badges.
 Each round trip to Supabase appears to carry roughly 150–300ms of fixed
 overhead in this path (the same floor `/companies/{slug}` settled at after
@@ -1841,3 +1841,249 @@ refresh_company_skill_profiles
 
 `role_family_for_job` and `refresh_job_role_family` (trigger) stay until #46 S4
 ships — that retirement is graded fit's, and it is gated on paid DB compute.
+
+---
+
+## 19. The instruments, audited (2026-09-24)
+
+Before building a per-route latency recorder, Rule 0: measure what already
+reports. Two of the three instruments this codebase believes it has do not
+work, and the one that does was never being read.
+
+### 19.1 Railway already answers the question S5 was going to build
+
+`http-response-time` returns **p50/p90/p95/p99 per path**, bucketed over up to
+7 days, at the edge — no code, no DB writes. Measured 2026-09-24,
+`mirror-backend-prod`, last 168h, 15 buckets:
+
+| | range across buckets |
+|---|---|
+| p50 | **48 – 548ms** |
+| p95 | **1,869 – 14,993ms** |
+| p99 | 3,679 – 10,988ms |
+
+`/users/me` alone, same window: p50 **345–642ms**, p95 **2,750–4,202ms**.
+
+**The read contract is p95 < 500ms (§ the contract). Every bucket in the last
+seven days breaches it, by 4× to 30×.** §16 ranked `/users/me` by alert count
+and mean 1,690ms; this is the same route with percentiles, and the p95 is
+worse than the mean suggested.
+
+One bucket reports p95 **14,993ms** and p99 14,997ms. Per playbook Rule 2, a
+figure clustering at a round number is a **ceiling, not a cost**.
+
+**The layer is ours, and it is the client.** Filtering the same window to
+status **499 (client closed request)** puts p95 at 14,971 / 14,996 / 15,006ms:
+`frontend/lib/api.ts:63`, `const REQUEST_TIMEOUT_MS = 15_000`, aborting via
+`controller.abort()` at line 84. No server layer timed out. The browser gave up
+at 15s and hung up, and the proxy recorded the abort as the response time.
+
+Three consequences, and the third is the one that matters:
+
+1. The p95 above is **censored at 15s** — the real tail is unbounded and
+   invisible, so "p95 = 14,993ms" understates the worst case rather than
+   overstating it.
+2. Every 499 is a user shown a failure while the backend kept working and 200'd
+   into a connection that had gone.
+3. LLM endpoints already opt into 60s (`LLM_REQUEST_TIMEOUT_MS`). **15s is what
+   every ordinary read gets**, including `/users/me` at p95 2,750–4,202ms —
+   within 3.5× of the abort on the route that loads on every authed page.
+
+A **second ceiling sits at exactly 30,000ms and is not identified.** It is not
+a doubling of the first: the retry at `api.ts:191` fires on 401, not on
+timeout. Find it before raising the 15s default, or the raise just moves the
+wall.
+
+**A bucketed-counts TABLE was considered and deliberately not built.** It would
+have been a second instrument answering a question the first already answers,
+on the one resource that is compute-constrained (BACKLOG #16), measuring the
+read path by writing to it.
+
+### 19.2 `route_perf_events` has never recorded a row, and could not
+
+The client-side RUM pipe is dead three times over:
+
+1. **Nothing calls `useRoutePerfMarks`.** The hook is exported and has no
+   caller anywhere in `frontend/`.
+2. **If it were called, every beacon would 401.** It uses `navigator.sendBeacon`
+   whenever available — which cannot send an `Authorization` header — while
+   `POST /v1/telemetry/route-perf` requires `get_principal`. The hook's own
+   comment says "endpoint must accept unauthenticated posts". It does not.
+3. **If both were fixed, the number would still be wrong.** `ttfa_ms` is
+   `performance.now()`, i.e. time since page load, not since the route change.
+   Meaningless after the first page of a client-side session.
+
+So the platform has **no measurement of what a user actually waits for** —
+network plus render — and ~10% of uploaders are on 3G or 2G (32 of 328 by
+`cv_upload_phase_events.network_type`), where a 300ms server response is not a
+300ms wait. That is S4.
+
+### 19.3 What shipped instead: `route.latency` bucket counts
+
+`app/route_latency.py`, from `RequestTimingMiddleware`, every response:
+
+```
+metric route.latency method=GET path=/users/me n=412 p50=300 p95=1500 buckets=200:80,300:190,...
+```
+
+- **Counts, not percentiles**, because percentiles cannot be summed: each
+  process holds its own histogram, so a per-process p95 is the p95 of a slice.
+  Counts sum across processes and windows; the true p95 comes from the summed
+  buckets. Same rule as `role_family_scope`.
+- Keyed on the **route template** the router resolved, so `/jobs/{job_id}` is
+  one series, not one per job.
+- To the **log**, not a table — the repo already aggregates this way
+  (`railway logs → grep "metric fanout.slow"`), and WARNING because the `app`
+  namespace drops INFO.
+- Bounded at 300 route keys: a 404 carries no template and keeps its raw path.
+
+This measures **server time**. Railway measures **edge time**. Neither replaces
+the other, and the gap between them is the queueing — which is the number §16's
+"capacity queue victim" classification has been inferring without measuring.
+
+## 20. Retrieval: the first read that searches instead of sampling (2026-09-24)
+
+`candidates_for_user(p_user_id, p_limit)` — migration
+`20260924120000_retrieval_searches_instead_of_sampling.sql`. **Wired**: it is what
+`GET /jobs/feed` serves, through `JobsRepository.shortlist_jobs`, and what
+`POST /feed/warm` and the partner alert payload read. One retrieval, three
+surfaces.
+
+**What it replaces.** The authed `/market` feed built its candidate pool with
+`order(first_seen desc).limit(500)` and filtered it for the user afterwards.
+`first_seen` was restamped by every crawl until 2026-09-20, so 34,022 of 38,824
+live listings shared one value and that `limit(500)` returned an arbitrary slice
+— the same slice for every user on the same filters. One user's whole feed was
+34 jobs out of 38,824 and her Match Quality recall was **0%**.
+
+**Measured, in the order the shapes failed.** Every number here is from
+`explain (analyze, buffers)` on production data:
+
+| shape | time | buffers |
+|---|---|---|
+| lateral `job_skills` lookup per candidate | 29,562ms | 1,117,150 |
+| inverted to one grouped pass by `skill_id` | 20,659ms | 40,201 |
+| same, warm | 1,745ms | 43,359 |
+| `cardinality(x)=0 or col = any(x)` — partial index UNUSED | 7,206ms | 43,376 |
+| empty choice → full set, scalar subqueries | 269ms | 37,874 |
+| PL/pgSQL locals (planner sees the value) | 300ms | 21,183 |
+| same shape, `explain (analyze, buffers)` | 4,979ms / 8,584ms | 20,994 |
+| same shape, **`timing off`** | **165ms** | **19,942** |
+| same shape, six calls in one statement | **131–139ms** | — |
+| same shape, one plain call, fresh session | **193ms** | — |
+| over PostgREST, from a laptop (WAN RTT included) | 340–680ms | — |
+
+**~165ms is the number** — measured three independent ways that agree, and every
+wildly larger reading in this table is the same plan on the same buffers.
+
+**`EXPLAIN ANALYZE`'s own timing cost was inflating this by up to 50×.** The same
+call is 8,584ms with timing on and 165ms with `timing off`. Instrumentation
+`clock_gettime()`s every node iteration, and a query that pushes ~20k rows through
+a UNION, four CTEs and two window functions has millions of them; on this VM the
+clock source is slow enough to dominate. It cost most of a session here: the 8.5s
+reading was diagnosed as heap fetches, a covering index on `job_skills (skill_id)
+include (job_id, is_primary)` was built to fix it, and it moved buffers 20,994 →
+19,942 — 5%, for 16MB and a write cost on every scraper insert. Dropped.
+
+**Use `explain (analyze, buffers, timing off)`** on this path, take the steady
+value over several calls, and compare buffers rather than milliseconds. The rows in
+the table above this one were all taken with timing ON, so they are like-for-like
+with each other and overstated in absolute terms.
+
+Three traps from the playbook fired, all worth naming:
+
+- **Cold vs warm nearly became a wrong diagnosis.** The identical filter measured
+  7,468ms cold and 342ms warm, and the cold number was read as regex cost. It is
+  not: the regex is ~free.
+- **Trap 1, twice.** A predicate the planner cannot prove leaves the index
+  unused and says nothing about it. `idx_jobs_candidate_band` sat idle first
+  behind an `OR`, then behind a scalar subquery. With a literal array the same
+  filter is an index scan: 14,173 buffers, 99ms.
+- **A `stable` function is evaluated once per query.** Six timed calls inside one
+  statement all reported 0ms, because Postgres called it once and reused the
+  result. Timing a loop of identical calls measures nothing; vary an argument.
+- **One 8s PostgREST timeout was real**, and self-inflicted: it fired while a
+  `CREATE INDEX CONCURRENTLY`, a schema reload and the full backend suite were all
+  hitting the same instance. `authenticated` and `authenticator` both carry
+  `statement_timeout=8s`, so this path has a hard ceiling no retry can widen — the
+  reason the query cost is worth keeping at ~165ms rather than merely under 500ms.
+
+**A ranking experiment that did not earn its place.** Weighting skill overlap by
+rarity — `ln(corpus / document frequency)`, so Payment Systems at 22 listings
+outscores Python at 2,683 — was built, measured and removed the same day. It
+moved recall 20% → **18%** and warm latency 139ms → 1,108ms (the corpus count
+alone cost 10× until it read `pg_class.reltuples`, and the `job_skills` CTE read
+twice materialised and spilled to temp until it became one windowed pass). The
+top of the list looked better to a human eye. That is not evidence, and the
+metric moved the wrong way. The reasoning is kept as a comment in the migration
+so the next agent measures before rebuilding it.
+
+**The level rule is what recall turns on.** Both sides are a range and must
+overlap — the person's is `[years-1, years+1]`, or the band's implied span when
+her years are unknown; the listing's is `[min, max]` with an unstated bound
+spanning `[0,40]`, so an untagged listing stays a candidate. Three bugs here were
+caught by reading the output rather than reasoning about it: judging the
+employer's stated range *only* when years were known sent NPCI's "Senior
+Associate, 2-6 years" back to its title word and dropped every payments role;
+falling back to no rule at all put an 8-14 year role and a VP requisition in a
+3.2-year candidate's top three; and then *dropping the seniority tag entirely*
+over-corrected, because where the employer states no range at all the tag is the
+only signal the listing has — nine senior roles reached a 3.5-year list.
+
+**Absence is not a rejection, and it had a second shape.** 1,557 live listings
+carry no `career_band`, and `career_band = any(array)` never matches NULL, so
+they were invisible to every user alive — Airbus's "Full
+Stack_Python_Pyspark_AWS", MongoDB's "Associate TSE II". A band nobody tagged is
+a tagger that did not run; where the role family is one the person chose, the
+family has already proved relevance. It is a `UNION ALL` of two index-backed
+branches and NOT an `OR`, which is precisely the predicate the planner cannot
+prove: +3ms.
+
+### What the gate measures, and what it could not
+
+Recall against a 40-item yardstick conflates two faults with different fixes, and
+that nearly sent a ranking experiment out as a reachability win. The gate now
+reports both: `admissible` is how much of the yardstick survives the filters at
+all — a miss there is unreachable at any depth — and `recall` is how much makes
+the list shown, where a miss is two 40-item picks from one admissible pool
+disagreeing. `thresholds.json` keys on `<persona> · <retrieval>`, because one
+shared row would mean ratcheting the better path fails the worse one while the
+swap is in flight.
+
+Measuring it also found the answer key was not the human it claimed to be. The
+hand-built shortlists capped an employer at two roles; `reference_matcher` did
+not, so it handed a person three Google roles and counted the product wrong for
+obeying a rule they shared. Fixing the yardstick flatters production, which is
+why it is written down here.
+
+| Rupanjana Mitra, same yardstick | shown | admissible | shown ∩ yardstick | off-level |
+|---|---|---|---|---|
+| `/market` 500-row sample | 96 | 0% | **0%** | 72% |
+| retrieval, first cut | 40 | 30% | 20% | 52% |
+| + yardstick shape rules *(answer key fixed)* | 40 | 60% | 25% | 52% |
+| + untagged band admitted | 40 | 62% | 30% | 48% |
+| + seniority tag as a fallback | 40 | **68%** | **35%** | **30%** |
+
+**The read path it replaced.** `GET /jobs/feed` took eleven query parameters and
+made ~6 prelude reads, then the 500-row sample, then the eval batch. It now makes
+three reads in two sections: `current_user_feed_context` (CV skill keys + target
+roles), `candidates_for_user`, then one `in_` for the card columns of the forty it
+named, and the eval batch. The exclusion sets, follow set and location prefs no
+longer cross the wire at all — retrieval reads them itself.
+
+Deleted with it, because nothing else called them: `feed_jobs`, `_fit_scores` and
+`_FIT_WEIGHTS` (the browse composite, whose own register entry said it would
+retire), `_empty_feed`, `_feed_search_patterns`, both feed caches, `JobQuery.feed`,
+`FilterSpec.feed_kwargs` and its four feed-shaping fields, and
+`job_is_browse_eligible` — a third reading of level that only its own test called
+once retrieval admitted in SQL.
+
+**Open.** Every one of the 12 remaining off-level jobs
+has one cause: `years_experience` is NULL for all 911 accounts, so a mid-band
+person gets `[2,5]` where her own `[2.2,4.2]` belongs. `forward_pass.cv_years`
+reads it off the CV she already uploaded when she next opens it — finishing work
+her upload started, never a backfill — so this number should fall on its own as
+people return. The 33% between admissible and shown is the employer cap, where
+both sides keep two and disagree on which two; that is ranking, and ranking has
+already had one confident change measured and reverted, so it waits for a second
+persona rather than another guess.

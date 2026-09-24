@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import logging
-from typing import Literal
+from typing import Literal, get_args
 
 from fastapi import APIRouter, BackgroundTasks, Depends
 from pydantic import BaseModel
@@ -8,12 +8,17 @@ from pydantic import BaseModel
 from app.config import settings
 from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
+from app.services import test_accounts
 
 router = APIRouter(prefix="/v1/telemetry", tags=["telemetry"])
 _log = logging.getLogger(__name__)
 
 
 class RoutePerfPayload(BaseModel):
+    #: What the USER waited for — the half no server metric can see. Railway
+    #: measures edge time and `route.latency` measures server time; neither
+    #: includes the render, and neither knows the connection the wait happened
+    #: on. See ARCHITECTURE_READ_PATH §19.
     route: str
     ttfa_ms: int
     tti_cc_ms: int | None = None
@@ -22,6 +27,7 @@ class RoutePerfPayload(BaseModel):
     backend_version: str | None = None
     viewport: str | None = None
     session_id: str | None = None
+    network_type: str | None = None
 
 
 class CVUploadPhasePayload(BaseModel):
@@ -51,8 +57,23 @@ class CVUploadPhasePayload(BaseModel):
     network_type: str | None = None
 
 
+#: The vocabularies, derived from the models above so there is ONE definition.
+#: `test_telemetry_vocabulary` ties these to the SQL CHECK constraints and to
+#: the TypeScript unions that produce them. They have drifted before: `confirm`
+#: and `direction` were added to the Literal and no migration widened the CHECK,
+#: so for seven days every one of those events raised inside the BackgroundTask
+#: — after the route had already answered 202 — and the table stayed empty
+#: (migration 20260908b).
+CV_UPLOAD_PHASES: tuple[str, ...] = get_args(
+    CVUploadPhasePayload.model_fields["phase"].annotation
+)
+CV_UPLOAD_OUTCOMES: tuple[str, ...] = get_args(
+    CVUploadPhasePayload.model_fields["outcome"].annotation
+)
+
+
 def _persist_route_perf(payload: RoutePerfPayload, user_id: str) -> None:
-    get_supabase_admin().table("route_perf_events").insert({
+    _write("route_perf_events", {
         "user_id": user_id,
         "route": payload.route,
         "ttfa_ms": payload.ttfa_ms,
@@ -62,8 +83,28 @@ def _persist_route_perf(payload: RoutePerfPayload, user_id: str) -> None:
         "backend_version": payload.backend_version,
         "viewport": payload.viewport,
         "session_id": payload.session_id,
+        "network_type": payload.network_type,
         "occurred_at": datetime.now(timezone.utc).isoformat(),
-    }).execute()
+    })
+
+
+def _write(table: str, row: dict) -> bool:
+    """Insert one telemetry row, and SAY SO when it fails.
+
+    Not a swallow — the opposite. These writes run in a BackgroundTask after the
+    route has already answered 202, so an exception here reaches nobody: not the
+    client, which read nothing, and not us, because FastAPI logs a background
+    failure without naming the table that stayed empty. That is how the
+    `cv_upload_phase_events` CHECK mismatch survived seven days of every single
+    event failing (migration 20260908b). The metric is the fix; re-raising would
+    only move the silence.
+    """
+    try:
+        get_supabase_admin().table(table).insert(row).execute()
+        return True
+    except Exception as exc:  # noqa: BLE001 — a dropped beacon must be visible, never fatal
+        _log.warning("metric telemetry.persist_failed table=%s error=%s", table, exc)
+        return False
 
 
 @router.post("/route-perf", status_code=202)
@@ -89,6 +130,11 @@ def _count_cv_upload_events(
     outcome: str | None = None,
 ) -> int:
     admin = get_supabase_admin()
+    # Read the exclusions BEFORE building the count query, not after: this is an
+    # ALERT denominator and the Match Quality personas upload a CV on every gate
+    # run, so leaving them in dilutes a real failure rate below the threshold —
+    # the one direction of error an alert must never have.
+    excluded = test_accounts.excluded_user_ids(admin)
     query = (
         admin.table("cv_upload_phase_events")
         .select("id", count="exact")
@@ -98,6 +144,8 @@ def _count_cv_upload_events(
     )
     if outcome:
         query = query.eq("outcome", outcome)
+    if excluded:
+        query = query.not_.in_("user_id", sorted(excluded))
     result = query.execute()
     return int(getattr(result, "count", 0) or 0)
 
@@ -140,7 +188,7 @@ def _maybe_emit_cv_upload_alert(payload: CVUploadPhasePayload) -> bool:
 
 def _persist_cv_upload_phase(payload: CVUploadPhasePayload, user_id: str) -> None:
     now = datetime.now(timezone.utc).isoformat()
-    get_supabase_admin().table("cv_upload_phase_events").insert({
+    stored = _write("cv_upload_phase_events", {
         "user_id": user_id,
         "phase": payload.phase,
         "outcome": payload.outcome,
@@ -156,8 +204,11 @@ def _persist_cv_upload_phase(payload: CVUploadPhasePayload, user_id: str) -> Non
         "route": payload.route,
         "network_type": payload.network_type,
         "occurred_at": now,
-    }).execute()
-    _maybe_emit_cv_upload_alert(payload)
+    })
+    # The alert counts rows in this table. An event that never landed must not
+    # move a denominator built from rows that did.
+    if stored:
+        _maybe_emit_cv_upload_alert(payload)
 
 
 @router.post("/cv-upload-phase", status_code=202)

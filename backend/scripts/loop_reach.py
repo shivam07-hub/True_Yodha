@@ -25,7 +25,10 @@ from typing import Any
 
 # (label, table, distinct-user column or None for row count, filter)
 STEPS: list[tuple[str, str, str | None, dict[str, Any]]] = [
-    ("signed up", "user_profiles", None, {}),
+    # Myro's own accounts count for nothing — see services/test_accounts.py.
+    # This step counts ROWS, so it filters on the column; every step below
+    # counts distinct users and subtracts the marked ids instead.
+    ("signed up", "user_profiles", None, {"is_test_account": False}),
     ("uploaded a CV", "cv_versions", "user_id", {}),
     ("confirmed skills", "user_skills", "user_id", {}),
     ("got a Myro Score", "mirror_scores", "user_id", {}),
@@ -51,8 +54,19 @@ SPINE = [
 _PAGE = 1000  # PostgREST's default ceiling — see feedback_postgrest_batch_ceilings
 
 
-def _count(db: Any, table: str, user_col: str | None, filters: dict[str, Any]) -> int:
-    """Distinct users (or rows) — PAGED.
+def _count(
+    db: Any,
+    table: str,
+    user_col: str | None,
+    filters: dict[str, Any],
+    excluded: frozenset[str] = frozenset(),
+) -> int:
+    """Distinct users (or rows) — PAGED, and never Myro's own accounts.
+
+    `excluded` is the Match Quality personas (`services/test_accounts.py`).
+    They walk the real journey, so they appear in every table this counts —
+    a persona would otherwise read as a model user with perfect funnel
+    behaviour, in the one instrument built to tell us the opposite.
 
     A plain `.select(...).execute()` stops at PostgREST's 1000-row ceiling and
     returns silently. Counting distinct users over that truncated page gave
@@ -77,17 +91,21 @@ def _count(db: Any, table: str, user_col: str | None, filters: dict[str, Any]) -
         if len(page) < _PAGE:
             break
         start += _PAGE
-    return rows_total if user_col is None else len(seen)
+    if user_col is None:
+        return rows_total
+    return len(seen - excluded)
 
 
 def main() -> int:
     from app.database import get_supabase_admin
+    from app.services import test_accounts
 
     db = get_supabase_admin()
+    excluded = test_accounts.excluded_user_ids(db)
     results: list[tuple[str, int]] = []
     for label, table, user_col, filters in STEPS:
         try:
-            results.append((label, _count(db, table, user_col, filters)))
+            results.append((label, _count(db, table, user_col, filters, excluded)))
         except Exception as exc:  # noqa: BLE001 — a missing table must not hide the rest
             print(f"  ! {label}: could not read {table} ({exc.__class__.__name__})", file=sys.stderr)
 

@@ -239,3 +239,83 @@ def test_a_lone_bucket_is_left_alone(monkeypatch) -> None:
     )
     forward_pass.on_profile_read("u1", profile)
     assert profile["target_role_titles"] == ["Scripting Languages"]
+
+
+def _years_pass_env(monkeypatch, profile: dict[str, Any], baseline: dict[str, Any] | None):
+    """Wire the cv_years pass to a profile and a banked CV, and record the write."""
+    written: list[dict[str, Any]] = []
+    monkeypatch.setattr(forward_pass.debounce, "claim", lambda key, ttl: True)
+
+    import app.database as database_mod
+    monkeypatch.setattr(database_mod, "get_supabase_admin", lambda: object())
+
+    import app.repositories.users as users_mod
+    import app.repositories.cv as cv_mod
+    import app.services.targeting_write as targeting_write
+
+    monkeypatch.setattr(users_mod, "UsersRepository",
+                        lambda _db: type("R", (), {"get_profile": lambda _s, _u: profile})())
+    monkeypatch.setattr(cv_mod, "CVVersionsRepository",
+                        lambda _db: type("C", (), {"latest_baseline": lambda _s, _u: baseline})())
+    monkeypatch.setattr(targeting_write, "commit",
+                        lambda _repo, _uid, patch: written.append(patch))
+    return written
+
+
+def _cv(*date_ranges: str) -> dict[str, Any]:
+    return {"cv_structured": {
+        "experience": [{"role": "Engineer", "dates": d} for d in date_ranges]}}
+
+
+def test_years_are_read_off_the_cv_a_returning_user_already_uploaded(monkeypatch):
+    """The gate measured what NULL years cost: a mid-band person got the band's
+    [2,5] instead of her own [2.2,4.2], and 52% of the forty jobs shown failed
+    the level rule at the top end. This finishes work her upload started."""
+    written = _years_pass_env(monkeypatch, {}, _cv("Jan 2016 – Jul 2018"))
+
+    # It returns the number so the Direction payload can show it in the SAME
+    # response — a field that fills one visit later is not an update she got.
+    assert forward_pass.read_years_from_banked_cv("u1") == 3
+    assert written == [{"years_experience": 3, "years_experience_source": "cv"}]
+
+
+def test_a_number_the_user_corrected_is_never_re_read(monkeypatch):
+    """`user` outranks any parse, forever — CEO decision 2026-09-23. The pass
+    must not undo a correction just because it runs later."""
+    written = _years_pass_env(
+        monkeypatch,
+        {"years_experience": 4, "years_experience_source": "user"},
+        _cv("Jan 2016 – Jul 2018"),
+    )
+
+    assert forward_pass.read_years_from_banked_cv("u1") is None
+    assert written == []
+
+
+def test_a_cv_with_no_readable_dates_leaves_the_field_absent(monkeypatch):
+    """Absent means "we could not read it". Writing 0 would make every
+    "2+ years" listing ineligible — a worse answer than no answer."""
+    written = _years_pass_env(monkeypatch, {}, _cv("sometime last year"))
+
+    assert forward_pass.read_years_from_banked_cv("u1") is None
+    assert written == []
+
+
+def test_the_years_pass_claims_before_it_reads(monkeypatch):
+    """Claim first: a polled read must not turn one returning user into N writes."""
+    monkeypatch.setattr(forward_pass.debounce, "claim", lambda key, ttl: False)
+
+    import app.database as database_mod
+    monkeypatch.setattr(
+        database_mod, "get_supabase_admin",
+        lambda: pytest.fail("the pass read the database before claiming"),
+    )
+    assert forward_pass.read_years_from_banked_cv("u1") is None
+
+
+def test_the_years_pass_is_not_on_the_cv_read_door():
+    """Every other pass rides a CV read and enqueues. This one changes which jobs
+    she is shown, so it runs where the number is RENDERED — the Direction payload's
+    Level step. On a CV read it would reshape her matches with nothing on screen to
+    say so, which is the silent enrichment `964f1587` ruled out."""
+    assert "cv_years" not in dict(forward_pass.PASSES)

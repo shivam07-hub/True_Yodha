@@ -3,6 +3,7 @@ import localFont from "next/font/local"
 import { headers } from "next/headers"
 import Script from "next/script"
 import { Providers } from "@/components/providers"
+import { RoutePerfProbe } from "@/components/loading/route-loading"
 import "./globals.css"
 // Progressive-nav chrome (Myro wordmark, journey tabs/counts, live dot). Disjoint
 // from globals.css's topbar rules — loaded globally here because the shared
@@ -119,7 +120,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Script id="myro-accent-init" strategy="beforeInteractive" nonce={nonce}>
           {ACCENT_INIT}
         </Script>
-        <Providers>{children}</Providers>
+        <Providers>
+          {/* Mounted once, above every route group, so it survives the
+              navigations it measures — and so it covers /onboarding, which
+              sits outside (authed) and is where the journey actually starts. */}
+          <RoutePerfProbe />
+          {children}
+        </Providers>
       </body>
     </html>
   )

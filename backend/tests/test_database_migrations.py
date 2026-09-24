@@ -141,3 +141,73 @@ def test_growth_tracker_parity_migration_is_additive_and_private() -> None:
     assert "alter column final_copy_snapshot set not null" in sql
     assert "create policy" not in sql
     assert "notify pgrst, 'reload schema';" in sql
+
+
+def test_first_seen_is_written_once_migration_preserves_the_old_value() -> None:
+    sql = _migration("20260920090000_first_seen_is_written_once.sql").lower()
+
+    # The guard is the assignment, not the comment above it: a re-observation
+    # may move `last_seen`, never the discovery date.
+    assert "new.first_seen := old.first_seen;" in sql
+    assert "if old.first_seen is not null then" in sql
+    # UPDATE-only and column-scoped, so the verifier's lifecycle writes and the
+    # enrichment path never pay for it, and INSERT still records discovery.
+    assert "before update of first_seen on public.jobs" in sql
+    assert "create trigger preserve_job_first_seen" in sql
+    assert "for each row" in sql
+    # Coerce, never raise: the crawler sends this column on every row, so a
+    # raising guard would fail live crawls instead of ignoring a bad payload.
+    assert "raise exception" not in sql
+    assert "notify pgrst, 'reload schema';" in sql
+
+
+def test_retrieval_migration_filters_before_it_ranks() -> None:
+    """The defect it replaces: the feed sampled 500 rows by a date 88% of the
+    corpus shared, then filtered them for the user. Recall was 0%."""
+    sql = _migration("20260924120000_retrieval_searches_instead_of_sampling.sql").lower()
+
+    # Filter first, over the whole corpus — no cap before the predicates.
+    assert "create or replace function public.candidates_for_user" in sql
+    assert "j.career_band = any(v_bands)" in sql
+    assert "limit greatest(p_limit, 0)" in sql
+
+    # The level rule is a RANGE OVERLAP on both sides. An unstated bound spans
+    # [0,40] so an untagged listing stays a candidate — 9,323 live listings
+    # state no level and hiding them is what emptied a user's feed.
+    assert "coalesce(p.lo, 0)::numeric <= v_hi" in sql
+    assert "coalesce(p.hi, 40)::numeric >= v_lo" in sql
+
+    # Where the employer states NO range, the seniority tag is the only signal
+    # in the listing. Ignoring it put nine senior roles in a 3.5-year list.
+    assert "v_senior_tags" in sql
+    assert "p.lo is null and p.hi is null" in sql
+
+    # An untagged career_band is a tagger that did not run, not a job in another
+    # field: 1,557 live listings were invisible to every user because an array
+    # equality never matches NULL. Two index-backed branches, never an OR — that
+    # predicate is exactly the one the planner cannot prove.
+    assert "j.career_band is null and j.role_family = any(v_families)" in sql
+    assert "union all" in sql
+
+    # Unknown years falls back to the BAND, never to no rule: that put an 8-14
+    # year role and a VP requisition in a 3.2-year candidate's top three.
+    assert "('mid', 2, 5)" in sql
+    assert "v_lo := v_years - 1" in sql
+
+    # Shape rules a hand-built shortlist already followed.
+    assert "per_company <= v_per_company" in sql
+    assert "same_title = 1" in sql
+
+    # PL/pgSQL locals, not scalar subqueries: the subquery form left the partial
+    # index unused at 37,874 buffers.
+    #
+    # Checked against CODE lines only. The first version of this assertion read
+    # the whole file and tripped on the comment that explains the very pattern
+    # it forbids — a grep contract test failing on its own prose.
+    code = "\n".join(
+        line for line in sql.splitlines() if not line.strip().startswith("--")
+    )
+    assert "language plpgsql" in code
+    assert "cardinality(bands)=0 or" not in code
+
+    assert "notify pgrst, 'reload schema';" in sql

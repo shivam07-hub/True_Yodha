@@ -1,6 +1,6 @@
 "use client"
 
-import type { Dispatch, MutableRefObject, SetStateAction } from "react"
+import type { Dispatch, SetStateAction } from "react"
 import { useRouter } from "next/navigation"
 import { Search, X } from "lucide-react"
 import type { JobFeedItem, JobPulse } from "@/lib/api"
@@ -13,7 +13,7 @@ import { VirtualFeed } from "@/components/jobs/virtual-feed"
 import { JobCard } from "./job-card"
 import { MobileFeed } from "./mobile-feed"
 import { FeedControls, FilterChips } from "./feed-filters"
-import { EmptyHandoff, FeedSkeleton, LocationScopePill } from "./jobs-tab-helpers"
+import { EmptyHandoff, FeedSkeleton, ListEnd, LocationScopePill } from "./jobs-tab-helpers"
 import { HiddenJobsDialog } from "./hidden-jobs-dialog"
 import { StoryCard, type FeedStory } from "./story-card"
 import type { FeedRow } from "./feed-rows"
@@ -23,7 +23,6 @@ import type { FeedScope } from "@/lib/feed-scope"
 export function MarketJobsColumn({
   token,
   hasCv,
-  hasTargetRoles,
   searchOpen,
   setSearchOpen,
   searchInput,
@@ -33,6 +32,7 @@ export function MarketJobsColumn({
   filters,
   onChangeFilters,
   savedCount,
+  shortlistSize,
   onOpenFilters,
   q,
   skillFacet,
@@ -53,13 +53,9 @@ export function MarketJobsColumn({
   onOpenJob,
   onStoryPrimary,
   onStorySecondary,
-  sentinelRef,
-  fetchingMore,
-  hasNextPage,
 }: {
   token: string
   hasCv: boolean
-  hasTargetRoles: boolean
   searchOpen: boolean
   setSearchOpen: (open: boolean) => void
   searchInput: string
@@ -69,6 +65,8 @@ export function MarketJobsColumn({
   filters: FeedFilters
   onChangeFilters: (f: FeedFilters) => void
   savedCount: number
+  /** What retrieval capped the list at — the response says so. */
+  shortlistSize: number
   onOpenFilters: () => void
   q: string
   skillFacet: string | null
@@ -89,9 +87,6 @@ export function MarketJobsColumn({
   onOpenJob: (job: JobFeedItem) => void
   onStoryPrimary: (s: FeedStory) => void
   onStorySecondary: (s: FeedStory) => void
-  sentinelRef: MutableRefObject<HTMLDivElement | null>
-  fetchingMore: boolean
-  hasNextPage: boolean
 }) {
   const router = useRouter()
 
@@ -129,9 +124,6 @@ export function MarketJobsColumn({
             </button>
             <FeedControls
               filters={filters}
-              onChange={onChangeFilters}
-              hasCv={hasCv}
-              hasTargetRoles={hasTargetRoles}
               savedCount={savedCount}
               onOpenSaved={() => router.push("/collections")}
               onOpenFilters={onOpenFilters}
@@ -143,7 +135,7 @@ export function MarketJobsColumn({
 
       <SetupNudge token={token} style={{ marginTop: 14 }} />
 
-      {!q && !skillFacet && !filters.roleDomain ? (
+      {!q && !skillFacet && !filters.roleFamily ? (
         <AgentPicksBand token={token} hasCv={hasCv} context="feed" onSave={onSave} onSkip={onSkip} />
       ) : null}
 
@@ -155,7 +147,13 @@ export function MarketJobsColumn({
         ) : (
           <>
             <div className="tm-feed-summary">
-              <span className="tm-feed-summary-count">{formatCount(total)} role{total === 1 ? "" : "s"}</span>
+              {/* The number IS the product: out of tens of thousands of live
+                  listings, these were chosen for this person. It used to read
+                  "1,284 roles" off a sample's `available_total`, which was the
+                  size of an arbitrary slice, not of an answer. */}
+              <span className="tm-feed-summary-count">
+                {formatCount(total)} role{total === 1 ? "" : "s"}, chosen for you
+              </span>
               <LocationScopePill scope={scope} onOpen={onOpenFilters} />
               {skillFacet ? (
                 <button
@@ -167,14 +165,14 @@ export function MarketJobsColumn({
                   <span className="tm-feed-chip-label" title={skillFacet}>{skillFacet}</span> <span aria-hidden>x</span>
                 </button>
               ) : null}
-              {filters.roleDomain ? (
+              {filters.roleFamily ? (
                 <button
                   type="button"
                   className="tm-feed-activechip"
-                  onClick={() => onChangeFilters({ ...filters, roleDomain: null })}
-                  aria-label={`Remove role: ${filters.roleDomain}`}
+                  onClick={() => onChangeFilters({ ...filters, roleFamily: null })}
+                  aria-label={`Remove role: ${filters.roleFamily}`}
                 >
-                  <span className="tm-feed-chip-label" title={filters.roleDomain}>{filters.roleDomain}</span> <span aria-hidden>x</span>
+                  <span className="tm-feed-chip-label" title={filters.roleFamily}>{filters.roleFamily}</span> <span aria-hidden>x</span>
                 </button>
               ) : null}
               <FilterChips filters={filters} onChange={onChangeFilters} />
@@ -241,9 +239,10 @@ export function MarketJobsColumn({
                 companyAction={followCompany.action}
               />
             )}
-            <div ref={sentinelRef} style={{ height: 1 }} />
-            {fetchingMore ? <FeedSkeleton rows={2} /> : null}
-            {!hasNextPage ? <div style={{ textAlign: "center", padding: "24px", fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>End of feed</div> : null}
+            {/* No sentinel and no "End of feed": the list is finite and the user
+                can see its end. An infinite scroll that ran out used to need a
+                label explaining it had. */}
+            <ListEnd shown={visibleJobs.length} of={total} cap={shortlistSize} />
           </>
         )}
       </div>

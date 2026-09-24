@@ -67,10 +67,15 @@ _CACHE_STALE_SECONDS = 1800  # serve stale up to 30min past TTL while one replic
 
 
 def _count_seekers() -> int:
+    # Myro's own accounts are not seekers. The flag lives on the row, so this
+    # one asks the column directly rather than through
+    # `test_accounts.excluded_user_ids` — the counters that cannot (they count
+    # rows in OTHER tables by user_id) go through the module.
     result = (
         get_supabase_admin()
         .table("user_profiles")
         .select("id", count="exact")
+        .eq("is_test_account", False)
         .limit(1)
         .execute()
     )

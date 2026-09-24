@@ -12,7 +12,8 @@ import { useMobileUI } from "./mobile-ui"
 /* ══════════════════════════════════════════════════════════════════════════
    ProfileSurface — the handoff Profile tab: Myro Score ring + tier + stats,
    today's missions (derived from real signals), and the hub list (Skills &
-   Score · Practice · Intel · Newsletter · Myrology · Settings · Sign out).
+   Score · Practice · Intel · Newsletter · Ghost Job Index · Hiring by Sector ·
+   Myrology · Settings · Sign out).
    Absorbs the retired avatar sheet. Wired to /home/bootstrap + wallet store.
    ══════════════════════════════════════════════════════════════════════════ */
 
@@ -67,6 +68,8 @@ export function ProfileSurface({ token }: { token: string }) {
     { label: "Practice", meta: "Level up", onTap: openPractice },
     { label: "Intel", meta: "Market mirror", onTap: () => router.push("/intel") },
     { label: "Newsletter", meta: "Weekly signals", onTap: () => router.push("/newsletter") },
+    { label: "Ghost Job Index", meta: "Which roles are real", onTap: () => router.push("/ghost-index") },
+    { label: "Hiring by Sector", meta: "Live roles by sector", onTap: () => router.push("/hiring") },
     { label: "Myrology ✦", onTap: () => router.push("/myrology") },
     { label: "About us", meta: "How Myro works", onTap: () => router.push("/tokens") },
     { label: "Settings", onTap: () => document.dispatchEvent(new CustomEvent("tm:open-settings")) },

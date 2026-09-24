@@ -656,6 +656,9 @@ class JobFeedItem(BaseModel):
     location_quality: str | None = None
     locations: list[str] = []  # per-city array for multi-location postings (firecrawl #6)
     role_domain: str | None = None
+    #: The family retrieval matched against the user's target roles — the same
+    #: vocabulary their role chips are written in, so the chips can narrow.
+    role_family: str | None = None
     career_band: str | None = None
     seniority_level: str | None = None
     min_years_experience: int | None = None
@@ -689,19 +692,28 @@ class JobFeedItem(BaseModel):
     #: profile — which is every card for the 83% who have one search, and every
     #: card in the browse tail, which no search found at all.
     track_id: int | None = None
+    #: Why this job is on the list. The three facts retrieval decided it on, so a
+    #: card can say what it was chosen for — a list of forty that cannot say why
+    #: is indistinguishable from forty that were not chosen.
+    on_direction: bool = False      # the role family is one the user picked
+    level_stated: bool = False      # the employer published a years range
+    checked_recently: bool = False  # we opened the link inside the freshness window
 
 
 class JobFeedResponse(BaseModel):
+    """The finite list: every job this person should see, and nothing else.
+
+    No `page`, no `has_next_page`, no `sort`. Those were the infinite browse feed,
+    which sampled 500 rows ordered by a date 88% of the corpus shared and filtered
+    them per user afterwards — one user's entire feed was 34 jobs out of 38,824.
+    Search did not go away; it is `/jobs/search`, which is a different act.
+    """
+
     jobs: list[JobFeedItem]
-    available_total: int
-    returned_total: int
-    page: int
-    page_size: int
-    has_next_page: bool
-    sort: str  # echo of the applied sort mode
-    expansion_tier: Literal["exact", "remote_country", "country"] = "exact"
-    expansion_label: str | None = None
-    # How many leading cards the brain has ranked (carry a verdict). The feed draws
+    #: What the list was capped at, so the copy can never claim a number the
+    #: response did not return.
+    shortlist_size: int
+    # How many leading cards the brain has ranked (carry a verdict). The list draws
     # the "more roles" divider after this many; 0 = no ranked shortlist yet.
     ranked_count: int = 0
 

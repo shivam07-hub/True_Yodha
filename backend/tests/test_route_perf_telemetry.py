@@ -50,8 +50,19 @@ class _CountChain:
         self.filters["limit"] = value
         return self
 
+    # The counter also asks which accounts are Myro's own, so the alert
+    # denominator excludes persona uploads (services/test_accounts.py). This
+    # fake answers "none", which is the shape prod has until a persona exists.
+    @property
+    def not_(self) -> "_CountChain":
+        return self
+
+    def in_(self, column: str, values: list[str]) -> "_CountChain":
+        self.filters[f"{column}__not_in"] = list(values)
+        return self
+
     def execute(self) -> Any:
-        return type("R", (), {"count": 42, "data": [{"id": "event-1"}]})()
+        return type("R", (), {"count": 42, "data": []})()
 
 
 @pytest.fixture

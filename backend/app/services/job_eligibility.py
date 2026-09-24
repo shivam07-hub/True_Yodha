@@ -207,7 +207,6 @@ def job_is_eligible(
     job: dict[str, Any],
     *,
     include_stretch: bool = False,
-    admit_unreadable: bool = False,
 ) -> bool:
     """True only if the job is in an enabled Career Band and safe level range."""
     eligible = eligible_bands_for_profile(profile)
@@ -215,27 +214,6 @@ def job_is_eligible(
         return False
     if career_band_for_job(job) not in eligible:
         return False
-    return seniority_is_eligible(
-        target_seniority_for_profile(profile),
-        seniority_for_job(job),
-        include_stretch=include_stretch,
-        admit_unreadable=admit_unreadable,
-    )
-
-
-def job_is_browse_eligible(
-    profile: dict[str, Any],
-    job: dict[str, Any],
-    *,
-    include_stretch: bool = False,
-) -> bool:
-    """Family-span browse at the candidate's canonical seniority, or nothing.
-
-    Without a six-band target the gate owns the next step — this function does
-    not invent entry-level eligibility from ``any`` or a missing field.
-    """
-    if career_band_for_profile(profile):
-        return job_is_eligible(profile, job, include_stretch=include_stretch)
     return seniority_is_eligible(
         target_seniority_for_profile(profile),
         seniority_for_job(job),
@@ -264,19 +242,23 @@ def seniority_fit(target: str, actual: str) -> SeniorityCompat:
     return "compatible" if actual in _AT_LEVEL[target] else "incompatible"
 
 
-def seniority_is_eligible(
-    target: str, actual: str, *, include_stretch: bool = False, admit_unreadable: bool = False,
-) -> bool:
-    """Admission: `seniority_fit`, plus two opt-ins. CONTEXT.md §Seniority Fit.
+def seniority_is_eligible(target: str, actual: str, *, include_stretch: bool = False) -> bool:
+    """Admission: `seniority_fit`, plus one opt-in. CONTEXT.md §Seniority Fit.
 
-    `admit_unreadable` — Career Ops pool only; the brain reads the JD before
-    anything persists. Browse never passes it. `include_stretch` — the band
-    above, admitted but still graded `incompatible`.
+    An unreadable JOB level is admitted — everywhere, browse included. It was
+    briefly pool-only, which put two admission rules in one system: the Match
+    Quality gate then measured browse hiding 9,323 listings the yardstick calls
+    candidates, while the pool next to it called the same rows fair game. One
+    rule, or the two halves disagree about the same job forever.
+
+    `include_stretch` — the band above, admitted but still graded
+    `incompatible`.
     """
     fit = seniority_fit(target, actual)
     if fit == "unknown":
-        # An unreadable TARGET (legacy `any`) still admits nothing.
-        return admit_unreadable and canonical_source_seniority(target) in SOURCE_SENIORITY
+        # An unreadable TARGET (legacy `any`) still admits nothing: a blank
+        # answer is never silently read as `entry`.
+        return canonical_source_seniority(target) in SOURCE_SENIORITY
     _below, above = adjacent_source_bands(target)
     return fit == "compatible" or (include_stretch and canonical_source_seniority(actual) == above)
 

@@ -27,6 +27,7 @@ import logging
 from typing import Any
 
 from app.database import get_supabase_admin
+from app.services import listing_trust
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,8 @@ _COLUMNS = (
     "job_id, job_title, company_name, industry_group, role_family, career_band, "
     "seniority_level, location_city, location_country, work_mode, "
     "min_years_experience, max_years_experience, main_skills, apply_url, "
-    "date_posted, ingested_at, listing_confidence, last_verified_live_at"
+    "date_posted, ingested_at, listing_confidence, last_verified_live_at, "
+    "last_conclusive_verification_at"
 )
 
 
@@ -65,6 +67,7 @@ def decode_cursor(cursor: str) -> tuple[str, str] | None:
 
 
 def _row_to_role(row: dict[str, Any]) -> dict[str, Any]:
+    claim = listing_trust.verification_claim(row)
     return {
         "job_id": row.get("job_id"),
         "title": row.get("job_title"),
@@ -82,11 +85,26 @@ def _row_to_role(row: dict[str, Any]) -> dict[str, Any]:
         "apply_url": row.get("apply_url"),
         "date_posted": row.get("date_posted"),
         "first_seen_at": row.get("ingested_at"),
-        # The trust half. `verified` is our own conclusive check at the source,
-        # not the employer's word and not a scrape timestamp.
+        # The trust half.
+        #
+        # `last_verified_live_at` keeps its NAME and type, and changes its
+        # MEANING to the one this API always documented: a conclusive check at
+        # the employer's source. It used to carry the crawler's stamp too, which
+        # is written whenever a job_id appears in a source feed — so half these
+        # rows claimed a check nobody had made (19,258 stamped, 18,080 never
+        # opened, measured 2026-09-22). Integrations keep parsing the same field;
+        # about half of them now see null, which is the true answer.
+        #
+        # ⚠️ Shivam tells Finlatics before this reaches production (2026-09-23):
+        # their "verified" count roughly halves on the day it ships, and they
+        # should hear the reason from us rather than from their dashboard.
+        #
+        # `state` stays as the lifecycle column — that one is honestly named.
+        # `checked` carries the age so a partner can apply its own window.
         "verification": {
             "state": row.get("listing_confidence"),
-            "last_verified_live_at": row.get("last_verified_live_at"),
+            "last_verified_live_at": claim["checked_at"],
+            "checked": claim,
         },
     }
 

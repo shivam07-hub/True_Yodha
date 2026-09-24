@@ -424,9 +424,9 @@ A mover badge is a promise: click "↑1190" and you must land on ~1190 roles (th
 `is_active = true AND <location scope> AND S ∈ main_skills`. Defined once, read by both halves of the seam:
 
 - **Count half** — `JobsRepository.scoped_skill_demand_counts(skill_displays, location_prefs)`: one indexed head-count per skill. Powers the rail badge (`UserSkillDemandItem.scoped_job_count`, populated only when `/jobs/my-skills/demand?location_scoped=true`).
-- **Filter half** — `JobsRepository.feed_jobs(skill=…)`: the feed's `skill` facet, a first-class dimension distinct from the free-text `q`.
+- **Filter half** — the rail's skill chip, applied to the /market list in the browser (`applyViewFilters`). It was `feed_jobs(skill=…)`, a server facet, until the list became finite: narrowing forty cards the client already holds needs no round trip.
 
-Because both read the same predicate, the badge equals the feed it links to (modulo the draining-queue triage drop — the same honesty `available_total` already carries).
+Because both read the same predicate, the badge equals the corpus the list was drawn from — but the list is a chosen forty, so a chip's badge can exceed the cards it reveals. That is the honest reading of "this skill is in demand" next to "these are your best matches for it".
 
 **Boundary**
 
@@ -1251,15 +1251,14 @@ before a job reaches the feed or the Career Ops ranking pool.
   below is the same rule. It is not a stretch.
 - **Unreadable** either side is `unknown`, never `incompatible`. An absence is
   not a verdict (the rule F3 already applied at promotion).
-- **Admission** (`seniority_is_eligible`) = fit, plus two opt-ins that stay
-  visible on top of it:
-  - `admit_unreadable` — a job with no readable level, for a readable target.
-    **Career Ops ranking pool only** (`filter_job_ids_for_eligibility`,
-    `candidate_pool.assemble`), because that pool meets the brain before any
-    row is written and the brain reads the JD. Browse never passes it: no brain
-    on that path, and it would grow an entry feed ~3× with jobs whose level
-    nobody established. An unreadable *target* (legacy `any`) still admits
-    nothing.
+- **Admission** (`seniority_is_eligible`) = fit, plus one opt-in:
+  - **An unreadable job level is admitted on EVERY path** — browse and the
+    Career Ops pool alike. It was briefly pool-only, and that was two admission
+    rules in one system: the Match Quality gate measured browse hiding 9,323
+    listings its yardstick calls candidates while the pool beside it admitted
+    the same rows. One rule, or the two halves disagree about the same job for
+    ever. An unreadable *target* (legacy `any`) still admits nothing — a blank
+    answer is never silently read as `entry`.
   - `include_stretch` — the one band above. Admitted when asked for, still
     graded `incompatible`: looking up a level is not Myro recommending it.
 
@@ -1271,7 +1270,9 @@ job off-level). And 12,885 of 49,310 live jobs (26%) carry no readable level —
 per source adapter (RippleHire 40.9% blank, DeloitteUSI 1.0%), not recoverable
 downstream (77% have no level word in the title, 20 have
 `min_years_experience`) — and the bool read that absence as "show nobody".
-The adapter gap itself is the scraper repo's to close.
+The adapter gap itself is the scraper repo's to close. Admission does not make
+an unreadable job at-level: `seniority_fit` still says `unknown`, so it cannot
+be `strong`, `worth_it` or promoted unless the brain judges it (F3).
 
 ---
 
@@ -1338,22 +1339,25 @@ from an unrelated career path before a job reaches the feed or Career Ops.
 
 The one structured filter vocabulary for "what jobs to search for". Before it, that intent was expressed three incompatible ways — the NL parser dict, the authed feed's long `feed_jobs(**kwargs)`, and the intent-chat diff. `FilterSpec` (`app/services/matching/filter_spec.py`) is a frozen dataclass every producer maps into and every query surface reads out of.
 
+**It no longer covers the authed /market list.** That list is not a filtered search: `shortlist_jobs` asks `candidates_for_user` for the forty jobs one person should see, and level, direction, location, the employer cap and the draining queue are decided in SQL. `feed_kwargs` and the four feed-shaping fields only it read (`sort`, `min_skill_matches`, `following_only`, `include_stretch`) went with the 500-row sample.
+
 **Producers** (build a spec): `FilterSpec.from_nl_parse(parsed)` (landing NL search), `from_intent_diff(diff)` (Delta-4 intent chat), `from_memory(facts)` (Phase-2 distilled `user_memory`).
 
-**Consumers** (map a spec to the tuned SQL): `public_kwargs()` → `public_job_query`, `feed_kwargs()` → `feed_jobs` (query dimensions only), `company_drill_kwargs()` → `search_jobs_by_filters`.
+**Consumers** (map a spec to the tuned SQL): `public_kwargs()` → `public_job_query`, `company_drill_kwargs()` → `search_jobs_by_filters`.
 
 **Invariants**
-- A field is **not a filter until a mapper hands it to a method that understands it**. `seniority` / `salary` are targeting/memory facts the feed SQL takes no param for, so `feed_kwargs` simply omits them — the spec can carry more than any one surface consumes.
-- `location_prefs` distinguishes `None` (unset) from `()` (explicit-empty) because `build_location_scope` treats them the same but the browse-scope branches deliberately pass `[]`; the mapper preserves the distinction.
+- A field is **not a filter until a mapper hands it to a method that understands it**. `seniority` / `salary` are targeting/memory facts no query SQL takes a param for, so every mapper omits them — the spec can carry more than any one surface consumes.
+- `location_prefs` distinguishes `None` (unset) from `()` (explicit-empty) because `build_location_scope` treats them the same; the mapper preserves the distinction.
 - Producers **canonicalise vocabulary once**: `work_mode` → `location_mode`, mode validated against `{remote,hybrid,onsite}`, blanks dropped. Downstream never re-validates.
 
 ## JobQuery
 
-The resolver that runs a `FilterSpec` against a jobs repository (`app/services/matching/job_query.py`). Thin call adapter — `public` / `feed` / `company_drill` each map a spec (plus, for `feed`, the injected user-context: CV skill keys, target roles, draining-queue exclusions, follow set) onto the exact keyword call the repo already exposes, then return its raw result dict.
+The resolver that runs a `FilterSpec` against a jobs repository (`app/services/matching/job_query.py`). Thin call adapter — `public` / `company_drill` each map a spec onto the exact keyword call the repo already exposes, then return its raw result dict.
 
 **Invariants**
-- `JobQuery` **delegates, never rewrites** — `feed_jobs` / `public_job_query` / `search_jobs_by_filters` stay the single home of the query SQL. The routers became adapters (build a spec → resolve); the tuned SQL is byte-for-byte the same call.
-- The **spec stays a pure, cacheable description** of the user-expressed search; per-request personal context is injected at `JobQuery.feed` time, not carried on the spec.
+- `JobQuery` **delegates, never rewrites** — `public_job_query` / `search_jobs_by_filters` stay the single home of the query SQL. The routers became adapters (build a spec → resolve); the tuned SQL is byte-for-byte the same call.
+- The **spec stays a pure, cacheable description** of the user-expressed search; nothing per-user rides on it.
+- There is **no `feed` resolver.** The authed list takes no parameters at all, so there is no spec to resolve — see the note under FilterSpec.
 
 ---
 

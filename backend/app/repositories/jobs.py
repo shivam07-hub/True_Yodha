@@ -26,7 +26,6 @@ from app.services.xp_policy import UPSKILLING_SET_SIZE
 from app.services.job_eligibility import (
     career_band_for_job,
     career_band_for_profile,
-    job_is_browse_eligible,
     job_is_eligible,
     seniority_for_job,
     target_seniority_for_profile,
@@ -87,15 +86,6 @@ _company_search_cache = shared_cache.SharedTTLMapping(
 _FEED_TS_TTL = 5 * 60  # 5 minutes — cheap guard against repeated MAX() queries
 _FEED_TS_STALE = 60 * 60  # serve the last known marker for an hour rather than nothing
 
-# /market browse feed — latency is the feature, so cache the DB round-trip on a
-# short TTL. Cached values are RAW DB rows; shaping (matched_skill_count) runs
-# per-request against the caller's CV skills so two users sharing a filter never
-# leak each other's overlap. Keys carry every dimension that changes the query:
-# sort + role_domain + location + free-text + page bounds (DB paths) — the
-# personal path paginates in Python, so its candidate set is page-independent.
-_FEED_TTL = 5 * 60  # 5 minutes — bound browse staleness against continuous scrapes
-_feed_page_cache = shared_cache.SharedTTLMapping("jobs.feed_page", ttl_seconds=_FEED_TTL)
-_feed_personal_cache = shared_cache.SharedTTLMapping("jobs.feed_personal.v2", ttl_seconds=_FEED_TTL)
 # Per-user CV skill keys — recomputed on every feed call before this cache.
 _USER_SKILL_KEYS_TTL = 5 * 60  # 5 minutes — CV skills change only on edit/re-upload
 _user_skill_keys_cache = shared_cache.SharedTTLMapping(
@@ -283,26 +273,6 @@ def _target_families(target_roles: list[str] | None) -> set[str]:
     return {r.strip() for r in (target_roles or []) if r and r.strip()}
 
 
-def _feed_search_patterns(term: str) -> tuple[str, ...]:
-    safe = (
-        term.replace(",", " ")
-        .replace("(", " ")
-        .replace(")", " ")
-        .replace("%", " ")
-        .replace("_", " ")
-    )
-    exact = " ".join(safe.split())
-    if len(exact) < 2:
-        return ()
-
-    patterns = [exact]
-    tokens = _ROLE_TOKEN_RE.findall(exact.lower())
-    core = " ".join(token for token in tokens if token not in _JOB_QUERY_GENERIC_WORDS)
-    if len(core) >= 2 and core != exact.lower():
-        patterns.append(core)
-    return tuple(dict.fromkeys(patterns))
-
-
 def _role_match_score(role_family: str | None, target_families: set[str]) -> int:
     """Whether this job is in one of the families the user is aiming at. 0 or 1.
 
@@ -321,69 +291,6 @@ def _role_match_score(role_family: str | None, target_families: set[str]) -> int
     if not target_families or not role_family:
         return 0
     return 1 if role_family in target_families else 0
-
-
-# Fit-rank weights — the "Best fit" composite (market filter rework, Q7,
-# locked 2026-06-05). (skill, role, fresh). Renormalized to whatever signals
-# the user actually has so an absent CV / absent target roles never zeros a
-# whole deck. Source of truth ↔ frontend feed-types.ts FIT_WEIGHTS.
-_FIT_WEIGHTS: dict[str, tuple[float, float, float]] = {
-    "both": (0.5, 0.3, 0.2),   # CV + target roles
-    "cv": (0.7, 0.0, 0.3),     # CV only
-    "roles": (0.0, 0.6, 0.4),  # target roles only
-    "none": (0.0, 0.0, 1.0),   # neither → pure freshness
-}
-
-
-def _fit_scores(
-    rows: list[dict[str, Any]],
-    *,
-    has_cv: bool,
-    has_roles: bool,
-) -> dict[str, float]:
-    """Composite 'Best fit' score per job_id, normalized over the candidate set.
-
-    Weighted sum of three signals already shaped onto every row — skill-overlap,
-    target-role match, recency — each min-max normalized within `rows` so the
-    weights stay comparable regardless of absolute counts. Weights renormalize
-    to the signals the user has (no CV → skill weight redistributes), so the
-    score never collapses to zero for a whole deck. Pure ordering: no new
-    fetch, no new column. job_ids absent from the result sort as 0.
-    """
-    if has_cv and has_roles:
-        w_skill, w_role, w_fresh = _FIT_WEIGHTS["both"]
-    elif has_cv:
-        w_skill, w_role, w_fresh = _FIT_WEIGHTS["cv"]
-    elif has_roles:
-        w_skill, w_role, w_fresh = _FIT_WEIGHTS["roles"]
-    else:
-        w_skill, w_role, w_fresh = _FIT_WEIGHTS["none"]
-
-    max_skill = max((r["matched_skill_count"] for r in rows), default=0)
-    fresh_ts: dict[str, float] = {}
-    for r in rows:
-        dt = _parse_iso_dt(r["first_seen"])
-        if dt is not None:
-            fresh_ts[r["job_id"]] = dt.timestamp()
-    fresh_min = min(fresh_ts.values(), default=0.0)
-    fresh_max = max(fresh_ts.values(), default=0.0)
-    fresh_span = (fresh_max - fresh_min) or 1.0
-
-    scores: dict[str, float] = {}
-    for r in rows:
-        skill_norm = (r["matched_skill_count"] / max_skill) if max_skill > 0 else 0.0
-        role_norm = float(r["target_role_match"])  # already 0 or 1
-        ts = fresh_ts.get(r["job_id"])
-        fresh_norm = ((ts - fresh_min) / fresh_span) if ts is not None else 0.0
-        scores[r["job_id"]] = w_skill * skill_norm + w_role * role_norm + w_fresh * fresh_norm
-    return scores
-
-
-def _empty_feed(mode: str, page: int, page_size: int) -> dict[str, Any]:
-    return {
-        "rows": [], "available_total": 0, "returned_total": 0,
-        "page": page, "page_size": page_size, "has_next_page": False, "sort": mode,
-    }
 
 
 def _marker_to_dt(value: Any) -> datetime | None:
@@ -1864,6 +1771,9 @@ class JobsRepository:
             "location_quality": row.get("location_quality"),
             "locations": [c for c in (row.get("locations") or []) if c and c.strip()],
             "role_domain": row.get("role_domain"),
+            # The family the user's own target roles are expressed in, so the
+            # role chips on /market can narrow the list they are looking at.
+            "role_family": row.get("role_family"),
             "career_band": career_band_for_job(row) or None,
             "seniority_level": seniority_for_job(row) or None,
             "min_years_experience": row.get("min_years_experience"),
@@ -1882,218 +1792,75 @@ class JobsRepository:
             "target_role_match": role_match,
         }
 
-    def feed_jobs(
+    #: The finite list's size. One number, read by the API response so the copy
+    #: ("40 roles, chosen for you") can never drift from what was returned.
+    SHORTLIST_SIZE = 40
+
+    def shortlist_jobs(
         self,
+        user_id: str,
         *,
-        role_domain: str | None = None,
-        q: str | None = None,
-        skill: str | None = None,
-        location_city: str | None = None,
-        location_country: str | None = None,
-        location_mode: str | None = None,
-        location_prefs: list[str] | None = None,
-        sort: str = "fresh",
-        user_skill_keys: set[str] | None = None,
-        user_target_roles: list[str] | None = None,
-        primary_career_band: str | None = None,
-        explored_career_bands: list[str] | None = None,
-        target_seniority: str = "any",
-        include_stretch: bool = False,
-        min_skill_matches: int | None = None,
-        following_only: bool = False,
-        followed_companies: set[str] | None = None,
-        exclude_job_ids: set[str] | None = None,
-        page: int = 1,
-        page_size: int = 20,
-    ) -> dict[str, Any]:
-        """Company-agnostic triage feed for the authed /market page. No LLM scoring.
+        skill_keys: set[str] | None = None,
+        target_roles: list[str] | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """The finite list: every job this person should see, and nothing else.
 
-        sort (the user's rank lens):
-          'fresh'    — first_seen desc.
-          'fit'      — composite skill·role·fresh blend (data-aware weights).
+        Replaces `feed_jobs`, which sampled 500 rows ordered by a date 88% of the
+        corpus shared and filtered them for the user afterwards. One user's whole
+        feed measured 34 jobs out of 38,824 and her Match Quality recall was 0%.
+        `candidates_for_user` filters the WHOLE corpus per user first and ranks
+        what survives; the measurements are in ARCHITECTURE_READ_PATH §20.
 
-        Narrowing filters:
-          min_skill_matches  — keep only jobs sharing ≥N of the user's CV skills.
-          following_only      — keep only jobs at companies the user follows.
-          exclude_job_ids     — drop jobs the user has already saved or skipped
-                                (the draining-queue model: the feed only shows
-                                roles the user has not yet decided on).
+        Two reads: the RPC decides WHICH jobs, then one `in_` fetches the card
+        columns for the forty it named. The RPC also drops what the user already
+        saved or skipped, so no exclusion set crosses the wire.
 
-        Computed-signal work (skill overlap, role match, exclusion) only exists
-        after a row is shaped, so the `fit` sort, the min_skill filter, or a
-        non-empty exclusion routes through the in-Python candidate path (bounded
-        to the freshest CAP: available_total reflects the candidate cap, not the
-        full DB pool). Pure `fresh` browsing with nothing to exclude stays
-        DB-paginated with a true count — that path is only ever hit by users who
-        have not yet saved or skipped anything.
-
-        location_prefs supersedes the single city/country/mode filters with an
-        OR-across-chips scope (geo is fixed from settings, not re-picked).
+        Each row carries WHY it is here — `on_direction`, `matched_skill_count`,
+        `checked_recently` — because a list of forty that cannot say why is
+        indistinguishable from a list of forty that was not chosen.
         """
-        scoped_page = _bounded_page(page)
-        scoped_page_size = _bounded_page_size(page_size)
-        mode = sort if sort in {"fresh", "fit"} else "fresh"
-        domain = _norm_filter(role_domain)
-        scope_clause, scope_sig = build_location_scope(location_prefs)
-        # Pref scope (fixed-from-settings) supersedes ad-hoc single filters.
-        if scope_clause is not None:
-            country = city = loc_mode = None
-        else:
-            country = _norm_filter(location_country)
-            city = _norm_filter(location_city)
-            loc_mode = _norm_filter(location_mode)
-        term = " ".join((q or "").split())
-        # Only terms ≥2 chars filter; fold shorter terms to "" so they share the
-        # unfiltered cache slot and stay part of the key for ≥2-char terms.
-        effective_term = term if len(term) >= 2 else ""
-        search_patterns = _feed_search_patterns(effective_term)
-        # Skill facet — Scoped Skill Demand's filter half. A first-class dimension
-        # (the canonical skill name, matched against the row's main_skills mirror),
-        # NOT folded into the free-text `q` (which only hits job_title/company_name).
-        # This is the same predicate scoped_skill_demand_counts() counts, so the
-        # rail's mover badge and the feed it lands on cannot disagree.
-        skill_facet = (skill or "").strip()
-        now = time.monotonic()
+        size = self.SHORTLIST_SIZE if limit is None else max(0, limit)
+        if size == 0:
+            return []
+        try:
+            picks = (
+                self._db.rpc(
+                    "candidates_for_user",
+                    {"p_user_id": user_id, "p_limit": size},
+                ).execute()
+            ).data or []
+        except APIError:
+            _log.warning("metric shortlist.rpc_failed user=%s", user_id)
+            return []
+        if not picks:
+            return []
 
-        target_families = _target_families(user_target_roles)
-        min_skill = min_skill_matches if (min_skill_matches and min_skill_matches > 0) else 0
-        # following_only with no follows → an empty feed is the honest answer
-        # (IH1: the user's heatmap/follow set is theirs; no global default).
-        follow_scope: list[str] | None = None
-        if following_only:
-            follow_scope = sorted({c for c in (followed_companies or set()) if c})
-            if not follow_scope:
-                return _empty_feed(mode, scoped_page, scoped_page_size)
-        follow_sig = ",".join(follow_scope) if follow_scope is not None else ""
-        exclude = {str(j) for j in (exclude_job_ids or set()) if j}
-        eligibility_profile = {
-            "target_career_band": primary_career_band,
-            "explored_career_bands": explored_career_bands or [],
-            "target_seniority": target_seniority,
-        }
-        eligibility_active = bool(primary_career_band) or target_seniority not in {"", "any"}
+        by_pick = {str(p["job_id"]): p for p in picks if p.get("job_id")}
+        order = [str(p["job_id"]) for p in picks if p.get("job_id")]
+        try:
+            rows = (
+                self._db.table("jobs")
+                .select(self._FEED_COLUMNS)
+                .in_("job_id", order)
+                .execute()
+            ).data or []
+        except APIError:
+            _log.warning("metric shortlist.cards_failed user=%s", user_id)
+            return []
 
-        # DB-level filters are user-independent (shareable cache); exclusion +
-        # computed filters are per-user and run after shaping.
-        def _apply_filters(query: Any) -> Any:
-            query = query.eq("is_active", True).eq("listing_confidence", "active")
-            if skill_facet:
-                # Array-contains on the canonical skill name. main_skills mirrors
-                # job_skills (CLAUDE.md: back-compat name mirror == [all names]).
-                query = query.contains("main_skills", [skill_facet])
-            if domain:
-                query = query.eq("role_domain", domain)
-            if scope_clause is not None:
-                query = query.or_(scope_clause)
-            if country:
-                query = query.eq("location_country", country)
-            if city:
-                query = query.eq("location_city", city)
-            if loc_mode:
-                query = query.eq("location_mode", loc_mode)
-            if follow_scope is not None:
-                query = query.in_("company_name", follow_scope)
-            if search_patterns:
-                clauses = [
-                    f"{column}.ilike.%{pattern}%"
-                    for pattern in search_patterns
-                    for column in ("job_title", "company_name", "job_description")
-                ]
-                query = query.or_(",".join(clauses))
-            return query
-
-        wants_inpython = mode == "fit" or min_skill > 0 or bool(exclude) or eligibility_active
-
-        if wants_inpython:
-            # Load + cache the freshest CAP candidates (raw rows, no per-user
-            # data → shared across users on the same filter set). Per-user
-            # shaping, exclusion and computed filters run below the cache.
-            pkey = (domain, city, country, loc_mode, scope_sig, follow_sig, effective_term, skill_facet)
-            def _load_feed_candidates() -> list[dict[str, Any]]:
-                try:
-                    result = _apply_filters(
-                        self._admin_db.table("jobs").select(self._FEED_COLUMNS)
-                    ).order("first_seen", desc=True).limit(self._FEED_PERSONAL_CAP).execute()
-                except APIError:
-                    result = None
-                return (result.data if result else None) or []
-
-            # Cold bursts used to let every caller that lost the shared-cache
-            # claim repeat this same 500-row query. One user arrival therefore
-            # became ten identical scans and queued unrelated J0 reads behind
-            # PostgREST's finite session pool. The shared mapping now waits for
-            # one bounded winner and all peers reuse its raw (user-independent)
-            # candidate rows.
-            rows = _feed_personal_cache.get_or_compute(pkey, _load_feed_candidates)
-
-            shaped = [self._feed_shape_row(r, user_skill_keys, target_families) for r in rows]
-            if eligibility_active:
-                shaped = [
-                    row for row in shaped
-                    if job_is_browse_eligible(eligibility_profile, row, include_stretch=include_stretch)
-                ]
-            if exclude:
-                shaped = [r for r in shaped if r["job_id"] not in exclude]
-            if min_skill > 0:
-                shaped = [r for r in shaped if r["matched_skill_count"] >= min_skill]
-
-            # Stable sort: lay down the freshest order, then the primary fit key
-            # on top so equal-fit jobs stay newest-first.
-            shaped.sort(key=lambda r: (r["first_seen"] or ""), reverse=True)
-            if mode == "fit":
-                fit_scores = _fit_scores(
-                    shaped,
-                    has_cv=bool(user_skill_keys),
-                    has_roles=bool(target_families),
-                )
-                shaped.sort(key=lambda r: fit_scores[r["job_id"]], reverse=True)
-
-            available_total = len(shaped)
-            start = (scoped_page - 1) * scoped_page_size
-            end = start + scoped_page_size
-            page_rows = shaped[start:end] if start < available_total else []
-            return {
-                "rows": page_rows,
-                "available_total": available_total,
-                "returned_total": len(page_rows),
-                "page": scoped_page,
-                "page_size": scoped_page_size,
-                "has_next_page": (start + len(page_rows)) < available_total,
-                "sort": mode,
-            }
-
-        # DB-paginated browse: fresh, nothing computed, nothing excluded.
-        start = (scoped_page - 1) * scoped_page_size
-        end = start + scoped_page_size - 1
-        ckey = (mode, domain, city, country, loc_mode, scope_sig, follow_sig, effective_term, skill_facet, scoped_page, scoped_page_size)
-        cached = _feed_page_cache.get(ckey)
-        if cached is not None and (now - cached[0]) < _FEED_TTL:
-            rows, available_total = cached[1]
-        else:
-            try:
-                base = _apply_filters(
-                    self._admin_db.table("jobs").select(self._FEED_COLUMNS, count="exact")
-                ).order("first_seen", desc=True).order("job_id", desc=True)
-                result = base.range(start, end).execute()
-            except APIError:
-                return {
-                    "rows": [], "available_total": 0, "returned_total": 0,
-                    "page": scoped_page, "page_size": scoped_page_size,
-                    "has_next_page": False, "sort": mode,
-                }
-            rows = result.data or []
-            available_total = result.count if result.count is not None else len(rows)
-            _feed_page_cache[ckey] = (now, (rows, available_total))
-        page_rows = [self._feed_shape_row(r, user_skill_keys, target_families) for r in rows]
-        return {
-            "rows": page_rows,
-            "available_total": available_total,
-            "returned_total": len(page_rows),
-            "page": scoped_page,
-            "page_size": scoped_page_size,
-            "has_next_page": (start + len(page_rows)) < available_total,
-            "sort": mode,
-        }
+        families = _target_families(target_roles)
+        shaped = {}
+        for row in rows:
+            card = self._feed_shape_row(row, skill_keys, families)
+            pick = by_pick.get(str(card["job_id"])) or {}
+            card["on_direction"] = bool(pick.get("on_direction"))
+            card["level_stated"] = bool(pick.get("level_stated"))
+            card["checked_recently"] = bool(pick.get("checked_recently"))
+            shaped[str(card["job_id"])] = card
+        # The RPC's order IS the ranking. Re-sorting here, or trusting the order
+        # `in_` happens to return, would silently discard it.
+        return [shaped[jid] for jid in order if jid in shaped]
 
     def user_skill_keys(self, user_id: str) -> set[str]:
         """Lowercased taxonomy_key + display_name set for the user's CV skills.
@@ -2770,11 +2537,23 @@ class JobsRepository:
     ) -> list[str]:
         """Keep candidate IDs that may enter the Match Run's ranking pool.
 
-        The browse feed's gate, plus one admission browse does not make: a job
-        whose source carries no readable seniority. This pool meets the brain
-        before anything is persisted (triage, then `_persist_provisional`), and
-        the brain reads the JD — the only reader that can tell a level the
-        adapter did not. See `job_eligibility.seniority_is_eligible`.
+        ⚠️ **This is no longer the same rule /market applies, and that is a known
+        open item, not an oversight.** It admits by BAND NAME through
+        `job_eligibility._AT_LEVEL`. The /market list admits by RANGE OVERLAP
+        against the employer's stated `[min, max]` years, consulting the seniority
+        tag only where the employer states nothing (`candidates_for_user`, migration
+        20260924120000). Measured on one user 2026-09-25: 19 of the 40 jobs on her
+        list carry a senior/lead/executive tag while stating a range that fits her,
+        so they cannot enter her match-run pool at all — her /market can rate them
+        (the J1 warm passes ids straight from the list) and her dashboard and
+        notifications cannot see them.
+
+        Shivam locked the direction on 2026-09-25: **the stated range wins
+        everywhere**, so this function moves to it. The reason it has not already
+        is that widening this pool changes what 203 users see on a surface the Match
+        Quality gate does not measure. Do NOT "fix" it by having retrieval call this
+        function instead — a title word overruling a stated "2-6 years" is the bug
+        that dropped every NPCI payments role. BACKLOG TIER 3.
 
         `jobs` is the eligibility-column rows already loaded for this pool
         (from `candidate_jobs_for_skills`). Passing ids into `get_jobs_by_ids`
@@ -2786,9 +2565,7 @@ class JobsRepository:
             str(job["job_id"])
             for job in jobs
             if job.get("job_id")
-            and job_is_eligible(
-                profile, job, include_stretch=include_stretch, admit_unreadable=True
-            )
+            and job_is_eligible(profile, job, include_stretch=include_stretch)
         }
         return [job_id for job_id in job_ids if job_id in allowed]
 

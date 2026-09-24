@@ -68,6 +68,13 @@ def harvest_into(book: NoticeBook, repo: Path) -> list[CloseProof]:
         verifier_state = verifier_health.check_belt().state
     except Exception:
         _logger.exception("metric notice.harvest_verifier_failed")
+    ingestion_state: str | None = None
+    try:
+        from app.services import ingestion_health
+
+        ingestion_state = ingestion_health.check_ingestion().state
+    except Exception:
+        _logger.exception("metric notice.harvest_ingestion_failed")
     try:
         result = (
             get_supabase_admin()
@@ -88,6 +95,7 @@ def harvest_into(book: NoticeBook, repo: Path) -> list[CloseProof]:
     sightings, proofs = harvest_belts(
         skill_awaiting=awaiting,
         verifier_state=verifier_state,
+        ingestion_state=ingestion_state,
         sha=sha,
         on_main=True,
     )

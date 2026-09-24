@@ -220,6 +220,13 @@ class Settings(BaseSettings):
     verifier_dead_man_hours: int = 2
     verifier_health_interval_minutes: int = 5
     verifier_priority_stale_hours: int = 24
+    # Job ingestion refills the corpus; the verifier only retires from it. The
+    # target cadence is 72h and compute cannot hold it yet, so `degraded` is
+    # measured and quiet while `stalled` is the loose bar that opens a Notice.
+    # Tighten by lowering ingestion_stalled_hours toward 72 — config, not deploy.
+    ingestion_degraded_hours: int = 72
+    ingestion_stalled_hours: int = 168
+    ingestion_health_interval_minutes: int = 5
 
     @property
     def release_tier(self) -> str:

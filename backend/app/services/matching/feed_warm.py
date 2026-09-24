@@ -9,7 +9,11 @@ evals (Consolidation D) and orders the warmed set by the brain's verdict; the lo
 tail stays in the fast deterministic order.
 
 This runs ONE batched brain pass (`llm_ranker.evaluate_all`) over the un-warmed
-candidates, on the FREE interactive provider, and reuses the exact shape + persist
+candidates, on the provider its caller injects — `get_blocking_judgment_provider`
+since 2026-08-04, NOT the free interactive lane this line claimed until
+2026-09-22. It matters which: this path writes 86% of all verdicts, so the model
+floor in [[feedback_no_cheap_models_judgment]] either holds here or holds
+nowhere. It reuses the exact shape + persist
 path as brain-on-open (`on_demand`) so a warmed row and an opened row are identical
 downstream. Idempotent: a candidate that already has a cached eval is skipped, so a
 re-warm inside the cache window costs nothing.

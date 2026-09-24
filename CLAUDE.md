@@ -162,7 +162,7 @@ Standing: 113 beta items unverified (built ≠ closed); last consumer CTA is ₹
 **Python:** 3.11+, async, type hints, Pydantic, Supabase client (no ORM).
 **TypeScript:** strict, no `any`, functional components, API via `lib/api.ts`,
 TanStack Query, Zustand. **Commits:** `feat:` `fix:` `chore:` `docs:` `test:`
-`refactor:` — one scope each. **No file over 300 lines.** **375px must work.**
+`refactor:` — one scope each. **375px must work.**
 
 **Before saying done — all six pass:**
 
@@ -172,8 +172,8 @@ cd frontend && npx tsc --noEmit && npm run lint && npm test
 npm run check:ui-drift && npm run build && npm run check:reach
 ```
 
-Gates 1–5 prove the code is **correct**; `check:reach` asks whether anyone can
-**get to it**. Loop reach: `python backend/scripts/loop_reach.py`.
+Gates 1–5 prove the code is **correct**; `check:reach` that anyone can **get to
+it**; `match_quality.py` that they were the RIGHT jobs. Reach: `loop_reach.py`.
 
 **Dev:** `PYTHONPATH=backend uvicorn app.main:app --reload` · `npm run dev`.
 

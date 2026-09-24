@@ -16,6 +16,7 @@ import time
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from app import route_latency
 from app.services import read_budget
 from app.notice import Sighting, observe
 
@@ -24,6 +25,18 @@ _logger = logging.getLogger("app.request_timing")
 # The product target is <1s end-to-end; 1000ms of pure backend time is already
 # over budget once network + render are added, so we flag at it.
 SLOW_REQUEST_MS = 1000.0
+
+
+def _route_label(scope: Scope) -> str:
+    """The router's template, or the raw path when nothing matched.
+
+    Starlette puts the matched route on the scope during routing, which has
+    finished by the time the response starts. A 404 never matches, so it keeps
+    its raw path — bounded by `route_latency.MAX_TRACKED_ROUTES`.
+    """
+    route = scope.get("route")
+    template = getattr(route, "path", None)
+    return str(template or scope.get("path", "?"))
 
 
 class RequestTimingMiddleware:
@@ -54,6 +67,12 @@ class RequestTimingMiddleware:
                 reads = read_budget.current_count()
                 method = scope.get("method", "?")
                 path = scope.get("path", "?")
+                # Every response, not just the slow ones: a route drifting from
+                # 200ms to 900ms never trips the threshold below, and the read
+                # contract is a p95, which a tail count cannot answer. Keyed on
+                # the route TEMPLATE the router resolved — the raw path would
+                # make `/jobs/{id}` a new series per job.
+                route_latency.record(str(method), _route_label(scope), elapsed_ms)
                 if reads > read_budget.READ_BUDGET_PER_REQUEST:
                     _logger.warning(
                         "metric reads.over_budget method=%s path=%s reads=%d budget=%d ms=%.1f",
