@@ -2537,9 +2537,23 @@ class JobsRepository:
     ) -> list[str]:
         """Keep candidate IDs that may enter the Match Run's ranking pool.
 
-        The same gate the browse feed applies — one admission rule, so the two
-        halves cannot disagree about the same job. See
-        `job_eligibility.seniority_is_eligible`.
+        ⚠️ **This is no longer the same rule /market applies, and that is a known
+        open item, not an oversight.** It admits by BAND NAME through
+        `job_eligibility._AT_LEVEL`. The /market list admits by RANGE OVERLAP
+        against the employer's stated `[min, max]` years, consulting the seniority
+        tag only where the employer states nothing (`candidates_for_user`, migration
+        20260924120000). Measured on one user 2026-09-25: 19 of the 40 jobs on her
+        list carry a senior/lead/executive tag while stating a range that fits her,
+        so they cannot enter her match-run pool at all — her /market can rate them
+        (the J1 warm passes ids straight from the list) and her dashboard and
+        notifications cannot see them.
+
+        Shivam locked the direction on 2026-09-25: **the stated range wins
+        everywhere**, so this function moves to it. The reason it has not already
+        is that widening this pool changes what 203 users see on a surface the Match
+        Quality gate does not measure. Do NOT "fix" it by having retrieval call this
+        function instead — a title word overruling a stated "2-6 years" is the bug
+        that dropped every NPCI payments role. BACKLOG TIER 3.
 
         `jobs` is the eligibility-column rows already loaded for this pool
         (from `candidate_jobs_for_skills`). Passing ids into `get_jobs_by_ids`
