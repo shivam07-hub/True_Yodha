@@ -1251,15 +1251,14 @@ before a job reaches the feed or the Career Ops ranking pool.
   below is the same rule. It is not a stretch.
 - **Unreadable** either side is `unknown`, never `incompatible`. An absence is
   not a verdict (the rule F3 already applied at promotion).
-- **Admission** (`seniority_is_eligible`) = fit, plus two opt-ins that stay
-  visible on top of it:
-  - `admit_unreadable` — a job with no readable level, for a readable target.
-    **Career Ops ranking pool only** (`filter_job_ids_for_eligibility`,
-    `candidate_pool.assemble`), because that pool meets the brain before any
-    row is written and the brain reads the JD. Browse never passes it: no brain
-    on that path, and it would grow an entry feed ~3× with jobs whose level
-    nobody established. An unreadable *target* (legacy `any`) still admits
-    nothing.
+- **Admission** (`seniority_is_eligible`) = fit, plus one opt-in:
+  - **An unreadable job level is admitted on EVERY path** — browse and the
+    Career Ops pool alike. It was briefly pool-only, and that was two admission
+    rules in one system: the Match Quality gate measured browse hiding 9,323
+    listings its yardstick calls candidates while the pool beside it admitted
+    the same rows. One rule, or the two halves disagree about the same job for
+    ever. An unreadable *target* (legacy `any`) still admits nothing — a blank
+    answer is never silently read as `entry`.
   - `include_stretch` — the one band above. Admitted when asked for, still
     graded `incompatible`: looking up a level is not Myro recommending it.
 
@@ -1271,7 +1270,9 @@ job off-level). And 12,885 of 49,310 live jobs (26%) carry no readable level —
 per source adapter (RippleHire 40.9% blank, DeloitteUSI 1.0%), not recoverable
 downstream (77% have no level word in the title, 20 have
 `min_years_experience`) — and the bool read that absence as "show nobody".
-The adapter gap itself is the scraper repo's to close.
+The adapter gap itself is the scraper repo's to close. Admission does not make
+an unreadable job at-level: `seniority_fit` still says `unknown`, so it cannot
+be `strong`, `worth_it` or promoted unless the brain judges it (F3).
 
 ---
 
