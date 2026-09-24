@@ -1841,3 +1841,81 @@ refresh_company_skill_profiles
 
 `role_family_for_job` and `refresh_job_role_family` (trigger) stay until #46 S4
 ships — that retirement is graded fit's, and it is gated on paid DB compute.
+
+---
+
+## 19. The instruments, audited (2026-09-24)
+
+Before building a per-route latency recorder, Rule 0: measure what already
+reports. Two of the three instruments this codebase believes it has do not
+work, and the one that does was never being read.
+
+### 19.1 Railway already answers the question S5 was going to build
+
+`http-response-time` returns **p50/p90/p95/p99 per path**, bucketed over up to
+7 days, at the edge — no code, no DB writes. Measured 2026-09-24,
+`mirror-backend-prod`, last 168h, 15 buckets:
+
+| | range across buckets |
+|---|---|
+| p50 | **48 – 548ms** |
+| p95 | **1,869 – 14,993ms** |
+| p99 | 3,679 – 10,988ms |
+
+`/users/me` alone, same window: p50 **345–642ms**, p95 **2,750–4,202ms**.
+
+**The read contract is p95 < 500ms (§ the contract). Every bucket in the last
+seven days breaches it, by 4× to 30×.** §16 ranked `/users/me` by alert count
+and mean 1,690ms; this is the same route with percentiles, and the p95 is
+worse than the mean suggested.
+
+One bucket reports p95 **14,993ms** and p99 14,997ms. Per playbook Rule 2, a
+figure clustering at a round number is a **ceiling, not a cost** — find the
+layer that owns a ~15s timeout before reading it as query time.
+
+**A bucketed-counts TABLE was considered and deliberately not built.** It would
+have been a second instrument answering a question the first already answers,
+on the one resource that is compute-constrained (BACKLOG #16), measuring the
+read path by writing to it.
+
+### 19.2 `route_perf_events` has never recorded a row, and could not
+
+The client-side RUM pipe is dead three times over:
+
+1. **Nothing calls `useRoutePerfMarks`.** The hook is exported and has no
+   caller anywhere in `frontend/`.
+2. **If it were called, every beacon would 401.** It uses `navigator.sendBeacon`
+   whenever available — which cannot send an `Authorization` header — while
+   `POST /v1/telemetry/route-perf` requires `get_principal`. The hook's own
+   comment says "endpoint must accept unauthenticated posts". It does not.
+3. **If both were fixed, the number would still be wrong.** `ttfa_ms` is
+   `performance.now()`, i.e. time since page load, not since the route change.
+   Meaningless after the first page of a client-side session.
+
+So the platform has **no measurement of what a user actually waits for** —
+network plus render — and ~10% of uploaders are on 3G or 2G (32 of 328 by
+`cv_upload_phase_events.network_type`), where a 300ms server response is not a
+300ms wait. That is S4.
+
+### 19.3 What shipped instead: `route.latency` bucket counts
+
+`app/route_latency.py`, from `RequestTimingMiddleware`, every response:
+
+```
+metric route.latency method=GET path=/users/me n=412 p50=300 p95=1500 buckets=200:80,300:190,...
+```
+
+- **Counts, not percentiles**, because percentiles cannot be summed: each
+  process holds its own histogram, so a per-process p95 is the p95 of a slice.
+  Counts sum across processes and windows; the true p95 comes from the summed
+  buckets. Same rule as `role_family_scope`.
+- Keyed on the **route template** the router resolved, so `/jobs/{job_id}` is
+  one series, not one per job.
+- To the **log**, not a table — the repo already aggregates this way
+  (`railway logs → grep "metric fanout.slow"`), and WARNING because the `app`
+  namespace drops INFO.
+- Bounded at 300 route keys: a 404 carries no template and keeps its raw path.
+
+This measures **server time**. Railway measures **edge time**. Neither replaces
+the other, and the gap between them is the queueing — which is the number §16's
+"capacity queue victim" classification has been inferring without measuring.
