@@ -42,8 +42,13 @@ class FilterSpec:
     Every field is optional so a spec can carry as little as one role term (public
     search) or the full authed-feed dimension set. No field is a filter until a
     ``*_kwargs`` mapper hands it to a repo method that understands it — e.g.
-    ``seniority`` / ``salary`` are targeting/memory facts the feed SQL doesn't take,
-    so ``feed_kwargs`` simply omits them.
+    ``seniority`` / ``salary`` are targeting/memory facts no query SQL takes today,
+    so every mapper omits them.
+
+    There is no feed mapper. The authed /market list is not a filtered search —
+    `shortlist_jobs` asks `candidates_for_user` for one person's forty jobs — so the
+    sort lens, the skill-match floor, the follow filter and the stretch toggle that
+    only ``feed_kwargs`` ever read went with it.
     """
 
     # Role intent
@@ -64,11 +69,6 @@ class FilterSpec:
     location_prefs: tuple[str, ...] | None = None  # OR-across-chips scope; () = explicit-empty
     # Money (memory fact — never a feed SQL filter)
     salary: str | None = None
-    # Feed shaping
-    sort: str = "fresh"
-    min_skill_matches: int = 0
-    following_only: bool = False
-    include_stretch: bool = False
     # Paging / bounds
     page: int = 1
     page_size: int = 20
@@ -148,26 +148,6 @@ class FilterSpec:
             "location_country": self.location_country,
             "location_mode": self.location_mode,
             "limit": self.limit,
-        }
-
-    def feed_kwargs(self) -> dict[str, Any]:
-        """→ JobsRepository.feed_jobs — the QUERY dimensions only. User-context
-        (skill keys, target roles, exclusions, followed set) is injected by
-        ``JobQuery.feed`` at resolve time, not carried on the spec."""
-        return {
-            "role_domain": self.role_domain,
-            "q": self.q,
-            "skill": self.skill_facet,
-            "location_city": self.location_city,
-            "location_country": self.location_country,
-            "location_mode": self.location_mode,
-            "location_prefs": list(self.location_prefs) if self.location_prefs is not None else None,
-            "sort": self.sort,
-            "min_skill_matches": self.min_skill_matches,
-            "following_only": self.following_only,
-            "include_stretch": self.include_stretch,
-            "page": self.page,
-            "page_size": self.page_size,
         }
 
     def company_drill_kwargs(self) -> dict[str, Any]:

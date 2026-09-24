@@ -17,6 +17,27 @@ export function LocationScopePill({ scope, onOpen }: { scope: FeedScope; onOpen:
   )
 }
 
+/**
+ * The foot of a finite list.
+ *
+ * It replaces "End of feed", which existed because an infinite scroll running out
+ * of pages looks like a bug unless you label it. A list of forty does not run out;
+ * it ends, and saying how many of how many were shown is the honest close.
+ *
+ * `shown < of` means the view filters are hiding cards, which the user chose and
+ * can undo — so it says which number is which rather than one bare count.
+ */
+export function ListEnd({ shown, of, cap }: { shown: number; of: number; cap: number }) {
+  if (of === 0) return null
+  const filtered = shown < of
+  return (
+    <div className="tm-feed-listend">
+      {filtered ? `${shown} of ${of} shown` : `${of} role${of === 1 ? "" : "s"}`}
+      {of >= cap && cap > 0 ? " — the closest we found" : null}
+    </div>
+  )
+}
+
 export function FeedSkeleton({ rows = 4, summary = false }: { rows?: number; summary?: boolean }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: summary ? 8 : 16 }} aria-hidden="true">

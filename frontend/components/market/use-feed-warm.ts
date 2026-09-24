@@ -5,7 +5,6 @@ import { useQueryClient } from "@tanstack/react-query"
 import { jobs } from "@/lib/api"
 import type { FeedScope } from "@/lib/feed-scope"
 import { useLaneYields } from "@/store/matchRunStore"
-import type { FeedFilters } from "./feed-types"
 import { jobFeedQueryKey } from "./job-feed-query-key"
 
 /**
@@ -29,30 +28,25 @@ import { jobFeedQueryKey } from "./job-feed-query-key"
  * decision. `settled` comes from the feed query itself, so later work cannot race
  * J0 because a timer happened to expire first.
  *
- * Fires at most once per (filters, scope, query) key. On resolve with new evals it
- * invalidates exactly that feed key, so the feed re-reads and the top cards arrive
- * carrying verdicts, ordered best-first. Warming nothing invalidates nothing — a
- * re-read that cannot change the answer is pure cost.
+ * Fires at most once per list key. On resolve with new evals it invalidates exactly
+ * that key, so the list re-reads and the top cards arrive carrying verdicts, ordered
+ * best-first. Warming nothing invalidates nothing — a re-read that cannot change the
+ * answer is pure cost.
  *
- * Only under the "Best fit" rank. `POST /feed/warm` always ranks the fit-top
- * shortlist regardless of the caller's sort, so warming under "Newest" would spend
- * a judgment-lane call on cards the user has not asked to be ranked and — since
- * `_rank_feed_rows` no longer reorders outside `fit` — would not change their order
- * anyway.
+ * It no longer passes filters, a sort or a query, and it no longer gates on the
+ * user having picked "Best fit". `POST /feed/warm` calls the same retrieval the list
+ * does, so it warms exactly the cards on screen by construction — it used to rebuild
+ * the feed's whole filter scope to try to agree with it, and gate on a sort lens so
+ * it would not spend a judgment-lane call reordering cards nobody asked to rank.
+ * There is one list and one order now, so the warm always ranks what is shown.
  */
 export function useFeedWarm({
   token,
-  filters,
-  q,
-  skill,
   scope,
   settled,
   enabled = true,
 }: {
   token: string
-  filters: FeedFilters
-  q: string
-  skill: string | null
   scope: FeedScope
   /** J0 has painted — the feed query has produced a result (or failed). */
   settled: boolean
@@ -65,34 +59,22 @@ export function useFeedWarm({
   // ranking owns the judgment lane, and a shed `{warmed:0}` must retry after.
   const attempted = useRef<Set<string>>(new Set())
 
-  const queryKey = jobFeedQueryKey({ token, filters, q, skill, scope })
+  const queryKey = jobFeedQueryKey({ token, scope })
   const signature = JSON.stringify(queryKey)
 
   useEffect(() => {
     if (yieldLane || !enabled || !token || !settled) return
-    if (filters.sort !== "fit") return
     if (attempted.current.has(signature)) return
 
     let cancelled = false
     const ac = new AbortController()
     setWarming(true)
     void jobs
-      .warmFeed(
-        token,
-        {
-          cluster: filters.roleDomain,
-          q: q || null,
-          skill: skill || null,
-          locationMode: filters.locationMode,
-          followingOnly: filters.followingOnly,
-          includeStretch: filters.includeStretch,
-        },
-        ac.signal,
-      )
+      .warmFeed(token, ac.signal)
       .then((res) => {
-        // Cancelled = the user changed filters, left, or a match run took the
-        // lane. Re-reading a feed they are no longer looking at wastes a
-        // request and can clobber the new one.
+        // Cancelled = the user left, or a match run took the lane. Re-reading a
+        // list they are no longer looking at wastes a request and can clobber
+        // the new one.
         if (cancelled) return
         if (res.warmed > 0) {
           attempted.current.add(signature)
@@ -110,7 +92,7 @@ export function useFeedWarm({
     }
     // `signature` stands in for queryKey (a fresh array each render).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, token, settled, filters.sort, signature, yieldLane])
+  }, [enabled, token, settled, signature, yieldLane])
 
   return { warming }
 }

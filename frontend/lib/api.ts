@@ -3756,7 +3756,6 @@ export interface JobSearchResponse {
 // "fit" = the composite Best-fit rank (market filter rework). "fresh" = Newest.
 // personal/company/role are legacy modes the UI no longer sends (cleanup-debt,
 // CLAUDE.md OPEN BACKLOG #23) — kept so the API stays back-compatible.
-export type JobFeedSort = "fit" | "fresh"
 
 export type CareerBand = "engineering_data" | "business_product_operations" | "research_people_public_impact" | "design_creative"
 
@@ -3804,6 +3803,15 @@ export interface JobFeedItem {
    *  the browse tail, which no search found at all. */
   track_id?: number | null
   is_strong?: boolean
+  /** The family retrieval matched against the user's target roles — the same
+   *  vocabulary the role chips are written in, so they can narrow the list. */
+  role_family?: string | null
+  /** Why this job is on the list — the three facts retrieval chose it on. A list
+   *  of forty that cannot say why is indistinguishable from forty that were not
+   *  chosen. */
+  on_direction?: boolean
+  level_stated?: boolean
+  checked_recently?: boolean
 }
 
 /** One card in the "Myro Agent Picks" band — a feed card plus the Career-Ops
@@ -3854,17 +3862,15 @@ export interface MatchBrainResult {
   legitimacy_reason?: string | null
 }
 
+/** GET /jobs/feed — the finite list: every job this person should see, and
+ *  nothing else. No page, no sort, no filters; those were the infinite browse
+ *  feed, which sampled 500 rows ordered by a date 88% of the corpus shared. */
 export interface JobFeedResponse {
   jobs: JobFeedItem[]
-  available_total: number
-  returned_total: number
-  page: number
-  page_size: number
-  has_next_page: boolean
-  sort: JobFeedSort
-  expansion_tier: "exact" | "remote_country" | "country"
-  expansion_label: string | null
-  // How many leading cards the brain has ranked (carry a verdict). The feed draws
+  /** What the list was capped at, so copy can never claim a number the response
+   *  did not return. */
+  shortlist_size: number
+  // How many leading cards the brain has ranked (carry a verdict). The list draws
   // its "more roles" divider after this many; 0 = no ranked shortlist.
   ranked_count: number
 }
@@ -3881,25 +3887,6 @@ export interface HiddenJobItem {
   company_name: string | null
   location: string | null
   dismissed_at: string | null
-}
-
-export interface JobFeedParams {
-  cluster?: string | null
-  roleDomain?: string | null
-  q?: string | null
-  /** Skill facet — the canonical skill name; filters the feed by job_skills
-   *  membership, distinct from the free-text `q`. */
-  skill?: string | null
-  locationCity?: string | null
-  locationCountry?: string | null
-  locationMode?: "onsite" | "hybrid" | "remote" | "unknown" | null
-  sort?: JobFeedSort
-  minSkillMatches?: number
-  followingOnly?: boolean
-  includeStretch?: boolean
-  page?: number
-  pageSize?: number
-  browseScope?: "exact" | "remote_country" | "country"
 }
 
 export interface MarketAnalytics {
@@ -4358,46 +4345,21 @@ export const jobs = {
     }
     return request<JobSearchResponse>(`/jobs/search?${params.toString()}`)
   },
-  feed: (token: string, p: JobFeedParams = {}) => {
-    const params = new URLSearchParams()
-    if (p.cluster && p.cluster.trim()) params.set("cluster", p.cluster.trim())
-    if (p.roleDomain && p.roleDomain.trim()) params.set("role_domain", p.roleDomain.trim())
-    if (p.q && p.q.trim()) params.set("q", p.q.trim())
-    if (p.skill && p.skill.trim()) params.set("skill", p.skill.trim())
-    if (p.locationCity && p.locationCity.trim()) params.set("location_city", p.locationCity.trim())
-    if (p.locationCountry && p.locationCountry.trim()) params.set("location_country", p.locationCountry.trim())
-    if (p.locationMode && p.locationMode.trim()) params.set("location_mode", p.locationMode.trim())
-    if (p.sort) params.set("sort", p.sort)
-    if (p.minSkillMatches && p.minSkillMatches > 0) params.set("min_skill_matches", String(p.minSkillMatches))
-    if (p.followingOnly) params.set("following_only", "true")
-    if (p.includeStretch) params.set("include_stretch", "true")
-    if (p.page && p.page > 0) params.set("page", String(p.page))
-    if (p.pageSize && p.pageSize > 0) params.set("page_size", String(p.pageSize))
-    if (p.browseScope) params.set("browse_scope", p.browseScope)
-    const qs = params.toString()
-    return request<JobFeedResponse>(`/jobs/feed${qs ? `?${qs}` : ""}`, {
+  /** The finite list. It takes no parameters — retrieval decides level,
+   *  direction, location and the draining queue in SQL, and every narrowing the
+   *  filters sheet used to offer is a view filter over cards already in hand. */
+  feed: (token: string) =>
+    request<JobFeedResponse>("/jobs/feed", {
       headers: { Authorization: `Bearer ${token}` },
-    })
-  },
-  /** Rank the top of the feed with the career-ops brain, then re-read /jobs/feed.
-   *  Scope params must match the feed's so the warmed cards are the ones shown.
-   *  Soft-resolves on any failure/timeout to {ready:false} — the feed then paints
+    }),
+  /** Rank the top of the list with the career-ops brain, then re-read /jobs/feed.
+   *  It warms the SAME jobs the list shows because both call the one retrieval —
+   *  it used to have to pass the feed's whole filter scope to try to agree with it.
+   *  Soft-resolves on any failure/timeout to {ready:false} — the list then paints
    *  the deterministic order (degradation, never a blocked page). */
-  warmFeed: async (token: string, p: JobFeedParams = {}, signal?: AbortSignal): Promise<FeedWarmResponse> => {
-    const params = new URLSearchParams()
-    if (p.cluster && p.cluster.trim()) params.set("cluster", p.cluster.trim())
-    if (p.roleDomain && p.roleDomain.trim()) params.set("role_domain", p.roleDomain.trim())
-    if (p.q && p.q.trim()) params.set("q", p.q.trim())
-    if (p.skill && p.skill.trim()) params.set("skill", p.skill.trim())
-    if (p.locationCity && p.locationCity.trim()) params.set("location_city", p.locationCity.trim())
-    if (p.locationCountry && p.locationCountry.trim()) params.set("location_country", p.locationCountry.trim())
-    if (p.locationMode && p.locationMode.trim()) params.set("location_mode", p.locationMode.trim())
-    if (p.followingOnly) params.set("following_only", "true")
-    if (p.includeStretch) params.set("include_stretch", "true")
-    if (p.browseScope) params.set("browse_scope", p.browseScope)
-    const qs = params.toString()
+  warmFeed: async (token: string, signal?: AbortSignal): Promise<FeedWarmResponse> => {
     try {
-      return await request<FeedWarmResponse>(`/jobs/feed/warm${qs ? `?${qs}` : ""}`, {
+      return await request<FeedWarmResponse>("/jobs/feed/warm", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         timeoutMs: 7000,

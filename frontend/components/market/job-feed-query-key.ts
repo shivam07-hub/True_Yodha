@@ -1,33 +1,10 @@
 import type { FeedScope } from "@/lib/feed-scope"
-import type { FeedFilters } from "./feed-types"
 
-export function jobFeedQueryKey({
-  token,
-  filters,
-  q,
-  skill,
-  scope,
-}: {
-  token: string
-  filters: FeedFilters
-  q: string
-  skill: string | null
-  scope: FeedScope
-}) {
-  // Only SERVER filters key the query. `hideLowConfidence` is view-scope
-  // (applied to the fetched page in `applyViewFilters`), so toggling it must
-  // not evict the cache and re-fetch.
-  return [
-    "jobFeed",
-    token,
-    scope.signature,
-    q,
-    skill ?? "",
-    filters.sort,
-    filters.roleDomain ?? "",
-    filters.minSkillMatches,
-    filters.followingOnly,
-    filters.includeStretch,
-    filters.locationMode ?? "",
-  ] as const
+/** The list is per-user and takes no parameters, so only identity and the saved
+ *  location scope can change what comes back. Both view filters are applied to
+ *  the cards in hand, so toggling one must not evict the cache and re-fetch —
+ *  which is why they were never in this key even when they were server filters.
+ */
+export function jobFeedQueryKey({ token, scope }: { token: string; scope: FeedScope }) {
+  return ["jobFeed", token, scope.signature] as const
 }

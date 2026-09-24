@@ -58,11 +58,14 @@ test("both feeds key virtual rows by row identity, never by index", () => {
   }
 })
 
-test("browse expansion and Undo follow the locked contract", () => {
+test("the list is finite, and Undo follows the locked contract", () => {
   const hook = readFileSync(new URL("../components/market/use-job-feed.ts", import.meta.url), "utf8")
   const css = readFileSync(new URL("../components/market/market.css", import.meta.url), "utf8")
-  assert.match(hook, /exact: "remote_country"/)
-  assert.match(hook, /remote_country: "country"/)
+  // The three-tier expansion ladder is gone. It existed because the feed ran dry,
+  // and it ran dry because it filtered a 500-row sample of one shared date —
+  // retrieval searches the whole corpus per user now, so there is one page.
+  assert.doesNotMatch(hook, /remote_country/)
+  assert.doesNotMatch(hook, /useInfiniteQuery|fetchNextPage/)
   assert.match(hook, /const UNDO_MS = 6000/)
   assert.match(css, /bottom: calc\(env\(safe-area-inset-bottom, 0px\) \+ 24px\)/)
   assert.match(css, /\+ 84px/)
@@ -137,9 +140,10 @@ test("the brain warm is deferred to J1 and lives outside the feed hook", () => {
   assert.match(warm, /settled/)
   // Calls, not prose: no timer or removed page-idle gate may own this transition.
   assert.doesNotMatch(warm, /useIdleWave\(|setTimeout\(/)
-  // Only under "Best fit". Warming under "Newest" spends a judgment-lane call on
-  // an order the user did not ask for and that no longer reorders anyway.
-  assert.match(warm, /filters\.sort !== "fit"/)
+  // It no longer gates on a sort lens, because there is no lens: the warm calls the
+  // same retrieval the list does, so it ranks exactly the cards on screen.
+  assert.doesNotMatch(warm, /filters\./)
+  assert.match(warm, /warmFeed\(token, ac\.signal\)/)
   // Warming nothing must not trigger a re-read.
   assert.match(warm, /res\.warmed > 0/)
 

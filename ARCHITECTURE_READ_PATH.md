@@ -244,7 +244,7 @@ Re-measured end-to-end on prod after: 1,569 / 895 / 603 / 574ms, zero 503s —
 correct, but still above the 500ms p95 budget.
 
 **What's left is structural, not a query:** `job_feed` makes three
-*sequential* round trips — the personalization prelude, then `feed_jobs`
+*sequential* round trips — the personalization prelude, then the feed query
 (now ~3–26ms), then `get_cached_match_evals` for the brain-ranked badges.
 Each round trip to Supabase appears to carry roughly 150–300ms of fixed
 overhead in this path (the same floor `/companies/{slug}` settled at after
@@ -1944,9 +1944,10 @@ the other, and the gap between them is the queueing — which is the number §16
 ## 20. Retrieval: the first read that searches instead of sampling (2026-09-24)
 
 `candidates_for_user(p_user_id, p_limit)` — migration
-`20260924120000_retrieval_searches_instead_of_sampling.sql`. Not wired to any
-surface yet; it exists to be measured against the Match Quality yardstick before
-the finite list replaces the feed in one release.
+`20260924120000_retrieval_searches_instead_of_sampling.sql`. **Wired**: it is what
+`GET /jobs/feed` serves, through `JobsRepository.shortlist_jobs`, and what
+`POST /feed/warm` and the partner alert payload read. One retrieval, three
+surfaces.
 
 **What it replaces.** The authed `/market` feed built its candidate pool with
 `order(first_seen desc).limit(500)` and filtered it for the user afterwards.
@@ -1966,12 +1967,28 @@ live listings shared one value and that `limit(500)` returned an arbitrary slice
 | `cardinality(x)=0 or col = any(x)` — partial index UNUSED | 7,206ms | 43,376 |
 | empty choice → full set, scalar subqueries | 269ms | 37,874 |
 | PL/pgSQL locals (planner sees the value) | 300ms | 21,183 |
-| same shape, six timed runs on a quiet instance | **139ms** | **20,994** |
+| same shape, `explain (analyze, buffers)` | 4,979ms / 8,584ms | 20,994 |
+| same shape, **`timing off`** | **165ms** | **19,942** |
+| same shape, six calls in one statement | **131–139ms** | — |
+| same shape, one plain call, fresh session | **193ms** | — |
+| over PostgREST, from a laptop (WAN RTT included) | 340–680ms | — |
 
-**139ms is the number**, steady to ±5ms over six consecutive calls. The single
-readings above it are the same plan on the same buffers — 300ms, 777ms and
-4,979ms all came back with 20,994 buffers. Buffers are what the query costs;
-wall-clock on a shared instance is what it happened to cost once.
+**~165ms is the number** — measured three independent ways that agree, and every
+wildly larger reading in this table is the same plan on the same buffers.
+
+**`EXPLAIN ANALYZE`'s own timing cost was inflating this by up to 50×.** The same
+call is 8,584ms with timing on and 165ms with `timing off`. Instrumentation
+`clock_gettime()`s every node iteration, and a query that pushes ~20k rows through
+a UNION, four CTEs and two window functions has millions of them; on this VM the
+clock source is slow enough to dominate. It cost most of a session here: the 8.5s
+reading was diagnosed as heap fetches, a covering index on `job_skills (skill_id)
+include (job_id, is_primary)` was built to fix it, and it moved buffers 20,994 →
+19,942 — 5%, for 16MB and a write cost on every scraper insert. Dropped.
+
+**Use `explain (analyze, buffers, timing off)`** on this path, take the steady
+value over several calls, and compare buffers rather than milliseconds. The rows in
+the table above this one were all taken with timing ON, so they are like-for-like
+with each other and overstated in absolute terms.
 
 Three traps from the playbook fired, all worth naming:
 
@@ -1985,6 +2002,11 @@ Three traps from the playbook fired, all worth naming:
 - **A `stable` function is evaluated once per query.** Six timed calls inside one
   statement all reported 0ms, because Postgres called it once and reused the
   result. Timing a loop of identical calls measures nothing; vary an argument.
+- **One 8s PostgREST timeout was real**, and self-inflicted: it fired while a
+  `CREATE INDEX CONCURRENTLY`, a schema reload and the full backend suite were all
+  hitting the same instance. `authenticated` and `authenticator` both carry
+  `statement_timeout=8s`, so this path has a hard ceiling no retry can widen — the
+  reason the query cost is worth keeping at ~165ms rather than merely under 500ms.
 
 **A ranking experiment that did not earn its place.** Weighting skill overlap by
 rarity — `ln(corpus / document frequency)`, so Payment Systems at 22 listings
@@ -2042,7 +2064,21 @@ why it is written down here.
 | + untagged band admitted | 40 | 62% | 30% | 48% |
 | + seniority tag as a fallback | 40 | **68%** | **35%** | **30%** |
 
-**Open.** The function is unwired. Every one of the 12 remaining off-level jobs
+**The read path it replaced.** `GET /jobs/feed` took eleven query parameters and
+made ~6 prelude reads, then the 500-row sample, then the eval batch. It now makes
+three reads in two sections: `current_user_feed_context` (CV skill keys + target
+roles), `candidates_for_user`, then one `in_` for the card columns of the forty it
+named, and the eval batch. The exclusion sets, follow set and location prefs no
+longer cross the wire at all — retrieval reads them itself.
+
+Deleted with it, because nothing else called them: `feed_jobs`, `_fit_scores` and
+`_FIT_WEIGHTS` (the browse composite, whose own register entry said it would
+retire), `_empty_feed`, `_feed_search_patterns`, both feed caches, `JobQuery.feed`,
+`FilterSpec.feed_kwargs` and its four feed-shaping fields, and
+`job_is_browse_eligible` — a third reading of level that only its own test called
+once retrieval admitted in SQL.
+
+**Open.** Every one of the 12 remaining off-level jobs
 has one cause: `years_experience` is NULL for all 911 accounts, so a mid-band
 person gets `[2,5]` where her own `[2.2,4.2]` belongs. `forward_pass.cv_years`
 reads it off the CV she already uploaded when she next opens it — finishing work

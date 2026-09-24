@@ -13,32 +13,23 @@ from app.services import partner_alerts
 
 
 class _FakeJobsRepo:
-    """Stands in for JobsRepository — records what the feed was asked for."""
+    """Stands in for JobsRepository — records what retrieval was asked for."""
 
     def __init__(self, rows: list[dict[str, Any]]) -> None:
         self.rows = rows
-        self.feed_kwargs: dict[str, Any] = {}
+        self.shortlist_kwargs: dict[str, Any] = {}
 
-    def feed_jobs(self, **kwargs: Any) -> dict[str, Any]:
-        self.feed_kwargs = kwargs
-        exclude = kwargs.get("exclude_job_ids") or set()
-        return {"rows": [r for r in self.rows if r["job_id"] not in exclude]}
+    def shortlist_jobs(self, user_id: str, **kwargs: Any) -> list[dict[str, Any]]:
+        self.shortlist_kwargs = {"user_id": user_id, **kwargs}
+        # Level, direction, location and the draining queue are decided inside
+        # `candidates_for_user`; a seat's own ledger is the caller's job.
+        return list(self.rows)
 
     def user_skill_keys(self, _uid: str) -> set[str]:
         return {"python"}
 
     def get_user_target_roles(self, _uid: str) -> list[str]:
         return ["analyst"]
-
-    def user_target_locations(self, _uid: str) -> list[str]:
-        return ["Bengaluru"]
-
-    def get_user_eligibility_preferences(self, _uid: str) -> dict[str, Any]:
-        return {
-            "target_career_band": "business_product_operations",
-            "explored_career_bands": [],
-            "target_seniority": "entry",
-        }
 
 
 class _FakeDeliveryRepo:
@@ -85,7 +76,6 @@ def test_already_delivered_jobs_are_excluded():
     out = partner_alerts.jobs_for_seat(jobs_repo, delivery, seat=SEAT)
 
     assert [j["job_id"] for j in out] == ["j2"]
-    assert jobs_repo.feed_kwargs["exclude_job_ids"] == {"j1"}
 
 
 def test_preview_can_ignore_the_ledger_without_consuming_it():
@@ -155,14 +145,17 @@ def test_payload_does_not_leak_internal_ranking_fields():
     }
 
 
-def test_the_feed_is_asked_for_the_users_own_context():
+def test_a_seat_gets_the_same_retrieval_the_site_does():
+    """One retrieval for both surfaces. While /market sampled 500 rows by a date
+    88% of the corpus shared, the partner carrying 37% of our users was handed the
+    same arbitrary slice — and their user never sees the site to notice."""
     jobs_repo = _FakeJobsRepo([_row("j1")])
 
     partner_alerts.jobs_for_seat(jobs_repo, _FakeDeliveryRepo(), seat=SEAT)
 
-    kwargs = jobs_repo.feed_kwargs
-    assert kwargs["user_skill_keys"] == {"python"}
-    assert kwargs["user_target_roles"] == ["analyst"]
-    assert kwargs["target_seniority"] == "entry"
-    assert kwargs["location_prefs"] == ["Bengaluru"]
-    assert kwargs["sort"] == "fresh"
+    kwargs = jobs_repo.shortlist_kwargs
+    assert kwargs["user_id"] == "u1"
+    assert kwargs["skill_keys"] == {"python"}
+    assert kwargs["target_roles"] == ["analyst"]
+    # Over-fetch, because staleness and the experience ceiling are applied after.
+    assert kwargs["limit"] > partner_alerts.DEFAULT_JOBS_PER_USER

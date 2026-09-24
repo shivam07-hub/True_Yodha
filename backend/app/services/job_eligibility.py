@@ -221,26 +221,6 @@ def job_is_eligible(
     )
 
 
-def job_is_browse_eligible(
-    profile: dict[str, Any],
-    job: dict[str, Any],
-    *,
-    include_stretch: bool = False,
-) -> bool:
-    """Family-span browse at the candidate's canonical seniority, or nothing.
-
-    Without a six-band target the gate owns the next step — this function does
-    not invent entry-level eligibility from ``any`` or a missing field.
-    """
-    if career_band_for_profile(profile):
-        return job_is_eligible(profile, job, include_stretch=include_stretch)
-    return seniority_is_eligible(
-        target_seniority_for_profile(profile),
-        seniority_for_job(job),
-        include_stretch=include_stretch,
-    )
-
-
 #: What "at level" means: own level and the one below. CONTEXT.md §Seniority Fit.
 _AT_LEVEL: dict[str, frozenset[str]] = {
     "intern": frozenset({"intern", "entry"}),

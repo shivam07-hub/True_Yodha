@@ -23,11 +23,14 @@ import "./market.css"
  * skins get it the same day.
  *
  * Sections: Location (read-only, settings-owned) · Work mode · Role ·
- * Career path · Skill match · Companies · Seniority · Listing quality.
+ * Career path · Listing quality. ("Skill match", "Companies" and "Seniority" are
+ * gone: overlap-or-direction is a condition of being on the list at all, a card
+ * does not know whether you follow its company, and level is a range-overlap rule
+ * in SQL rather than a toggle.)
  */
 
 export function FiltersSheet({
-  filters, onChange, onClose, targetRoles, chipCountMap, hasCv, scope, onEditLocations,
+  filters, onChange, onClose, targetRoles, chipCountMap, scope, onEditLocations,
   exploredCareerBands, onExploredCareerBandsChange, applyLabel,
 }: {
   filters: FeedFilters
@@ -118,8 +121,8 @@ export function FiltersSheet({
                   <button
                     key={role}
                     type="button"
-                    onClick={() => setDraft({ ...draft, roleDomain: draft.roleDomain === role ? null : role })}
-                    className={`tm-sheet-chip ${draft.roleDomain === role ? "is-on" : ""}`}
+                    onClick={() => setDraft({ ...draft, roleFamily: draft.roleFamily === role ? null : role })}
+                    className={`tm-sheet-chip ${draft.roleFamily === role ? "is-on" : ""}`}
                   >
                     {role}{chipCountMap[role] != null ? ` · ${chipCountMap[role]}` : ""}
                   </button>
@@ -143,21 +146,12 @@ export function FiltersSheet({
             />
           </Section>
 
-          <Section title="Skill match" locked={!hasCv} lockNote="Upload your CV to filter by skill match">
-            <Stepper value={draft.minSkillMatches} onChange={v => setDraft({ ...draft, minSkillMatches: v })} disabled={!hasCv} suffix="skills" />
-          </Section>
-
-          <Section title="Companies">
-            <Toggle checked={draft.followingOnly} onChange={v => setDraft({ ...draft, followingOnly: v })} label="Only companies I follow" />
-          </Section>
-
-          <Section title="Seniority">
-            <Toggle checked={draft.includeStretch} onChange={v => setDraft({ ...draft, includeStretch: v })} label="Include next-level stretch roles" />
-          </Section>
-
-          {/* View-scope: legitimacy comes from the per-job brain eval joined onto
-              each fetched page, so this hides loaded cards rather than narrowing
-              the query. The note says so — the count must never imply otherwise. */}
+          {/* Every filter in this sheet is view-scope now: the list is finite, so
+              narrowing happens over cards already in hand. "Skill match" (a floor
+              on overlap), "Companies" (only ones I follow) and "Seniority"
+              (include next-level stretch) are gone — overlap-or-direction is a
+              condition of being on the list at all, level is a range-overlap rule
+              in SQL, and a card does not know whether you follow its company. */}
           <Section title="Listing quality">
             <Toggle checked={draft.hideLowConfidence} onChange={v => setDraft({ ...draft, hideLowConfidence: v })} label={"Hide “check details” roles"} />
             <span className="tm-sheet-empty">Hides loaded cards flagged low-confidence or stale.</span>
@@ -179,16 +173,6 @@ function Section({ title, locked, lockNote, children }: { title: string; locked?
       <div className="tm-filters-section-title">{title}{locked ? <span className="tm-filters-lock"> · {lockNote}</span> : null}</div>
       {children}
     </section>
-  )
-}
-
-function Stepper({ value, onChange, disabled, suffix }: { value: number; onChange: (v: number) => void; disabled?: boolean; suffix: string }) {
-  return (
-    <div className="tm-stepper" aria-disabled={disabled}>
-      <button type="button" disabled={disabled || value <= 0} onClick={() => onChange(Math.max(0, value - 1))} aria-label="Fewer">–</button>
-      <span>{value === 0 ? "Any" : `≥ ${value} ${suffix}`}</span>
-      <button type="button" disabled={disabled || value >= 10} onClick={() => onChange(Math.min(10, value + 1))} aria-label="More">+</button>
-    </div>
   )
 }
 

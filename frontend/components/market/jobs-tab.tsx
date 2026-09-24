@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useViewport } from "@/mobile"
 import type { JobFeedItem } from "@/lib/api"
@@ -18,7 +18,7 @@ import { MarketJobsColumn } from "./market-jobs-column"
 import { MarketJobsOverlays } from "./market-jobs-overlays"
 import { type FeedStory } from "./story-card"
 import { interleaveStories } from "./feed-rows"
-import { DEFAULT_FILTERS, applyViewFilters, localFilters, pickDefaultSort, type FeedFilters } from "./feed-types"
+import { DEFAULT_FILTERS, applyViewFilters, localFilters, type FeedFilters } from "./feed-types"
 import { type MarketJobsTabProps } from "./market-jobs-tab-props"
 import "./market.css"
 import "./market-intel.css"
@@ -37,8 +37,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   } = props
   const router = useRouter()
   const { isDesktop } = useViewport()
-  const hasTargetRoles = targetRoles.length > 0
-  // Where this feed is looking. Every place-naming surface below reads it —
+  // Where this list is looking. Every place-naming surface below reads it —
   // the pill, the divider, the rail, the story card, the filters sheet.
   const scope = useFeedScope(targetLocations)
 
@@ -46,9 +45,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const [searchOpen, setSearchOpen] = useState(false)
   const [q, setQ] = useState(initialQuery)
   const [skillFacet, setSkillFacet] = useState<string | null>(initialSkillFacet ?? null)
-  const [local, setLocal] = useState<Omit<FeedFilters, "roleDomain">>(
-    () => localFilters(initialFilters, pickDefaultSort(hasCv, hasTargetRoles)),
-  )
+  const [local, setLocal] = useState<FeedFilters>(() => localFilters(initialFilters))
   const [openJob, setOpenJob] = useState<JobFeedItem | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
 
@@ -78,18 +75,21 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   }, [initialSkillFacet])
 
   useEffect(() => {
-    setLocal(localFilters(initialFilters, pickDefaultSort(hasCv, hasTargetRoles)))
-  }, [initialFilters, hasCv, hasTargetRoles])
+    setLocal(localFilters(initialFilters))
+  }, [initialFilters])
 
-  const filters: FeedFilters = useMemo(() => ({ ...local, roleDomain: selectedCluster }), [local, selectedCluster])
+  const filters: FeedFilters = useMemo(
+    () => ({ ...local, roleFamily: selectedCluster }),
+    [local, selectedCluster],
+  )
 
   const onChangeFilters = useCallback((f: FeedFilters) => {
-    if (f.roleDomain !== selectedCluster && !onFiltersChange) onSelectCluster(f.roleDomain)
-    setLocal(localFilters(f, f.sort))
+    if (f.roleFamily !== selectedCluster && !onFiltersChange) onSelectCluster(f.roleFamily)
+    setLocal(localFilters(f))
     onFiltersChange?.(f)
   }, [selectedCluster, onSelectCluster, onFiltersChange])
 
-  const { feed, allJobs, visibleJobs, total, rankedCount, loading, settled, expansionDividers, triage, undo, pending, savedCount } =
+  const { allJobs, visibleJobs, total, shortlistSize, rankedCount, loading, settled, triage, undo, pending, savedCount } =
     useJobFeed({ token, filters, q, skill: skillFacet, scope })
   useEffect(() => {
     if (settled) onFeedSettled?.()
@@ -97,7 +97,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   // J1: the brain warms the fit-top shortlist AFTER J0 has painted, then the feed
   // re-reads and the leading cards arrive ranked. Never on the arrival path — see
   // the "Jobs paints its J0 feed before secondary compute" contract test.
-  useFeedWarm({ token, filters, q, skill: skillFacet, scope, settled })
+  useFeedWarm({ token, scope, settled })
 
   // The brain's picks sit at the top; a quiet divider marks where the ranked
   // shortlist ends and the deterministic browse feed begins (so the verdicts
@@ -110,8 +110,10 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const { tracks } = useTracks(token)
 
   const visibleRanked = useMemo(
-    () => (rankedCount > 0 ? applyViewFilters(allJobs.slice(0, rankedCount), filters).length : 0),
-    [rankedCount, allJobs, filters],
+    () => (rankedCount > 0
+      ? applyViewFilters(allJobs.slice(0, rankedCount), filters, { q, skill: skillFacet }).length
+      : 0),
+    [rankedCount, allJobs, filters, q, skillFacet],
   )
   const picksDivider = useMemo(() => {
     if (visibleRanked <= 0) return []
@@ -147,17 +149,6 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   // One batched pulse request for the visible feed (not one-per-card).
   const pulses = usePulses(token, visibleJobs.map(j => j.job_id))
 
-  const sentinelRef = useRef<HTMLDivElement | null>(null)
-  useEffect(() => {
-    const el = sentinelRef.current
-    if (!el) return
-    const obs = new IntersectionObserver(entries => {
-      if (entries[0]?.isIntersecting && feed.hasNextPage && !feed.isFetchingNextPage) void feed.fetchNextPage()
-    }, { rootMargin: "600px" })
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [feed])
-
   const intel = useMarketIntel(scope.city, "roles", analyticsEnabled)
   const { skills: demandSkills } = useSkillDemand(scope.city, "30d", demandEnabled, 1)
   const stories = useMemo<FeedStory[]>(() => {
@@ -180,8 +171,10 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   }, [demandSkills, intel.trending, hasCv, followCompany.followedNames, scope])
 
   const rows = useMemo(
-    () => interleaveStories(visibleJobs, stories, [...searchDividers, ...picksDivider, ...expansionDividers]),
-    [visibleJobs, stories, searchDividers, picksDivider, expansionDividers],
+    // No expansion dividers: the three-tier ladder ("more remote roles in India")
+    // existed because the feed ran dry, which it did because it filtered a sample.
+    () => interleaveStories(visibleJobs, stories, [...searchDividers, ...picksDivider]),
+    [visibleJobs, stories, searchDividers, picksDivider],
   )
 
   const onSeeRoles = useCallback((query: string) => {
@@ -255,7 +248,6 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
       <MarketJobsColumn
         token={token}
         hasCv={hasCv}
-        hasTargetRoles={hasTargetRoles}
         searchOpen={searchOpen}
         setSearchOpen={setSearchOpen}
         searchInput={searchInput}
@@ -276,6 +268,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
         visibleJobs={visibleJobs}
         clearBrowse={clearBrowse}
         total={total}
+        shortlistSize={shortlistSize}
         scope={scope}
         weakShortlist={weakShortlist}
         isDesktop={isDesktop}
@@ -285,9 +278,6 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
         onOpenJob={setOpenJob}
         onStoryPrimary={onStoryPrimary}
         onStorySecondary={onStorySecondary}
-        sentinelRef={sentinelRef}
-        fetchingMore={feed.isFetchingNextPage}
-        hasNextPage={!!feed.hasNextPage}
       />
     </MarketFeedFrame>
   )

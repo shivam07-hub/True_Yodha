@@ -87,12 +87,14 @@ export function JobsSurface({
   // Over the VISIBLE ranked head: a filter that hides three cards must move the
   // boundaries with them, not point at whatever now sits at that index.
   const visibleRanked = useMemo(
-    () => (rankedCount > 0 ? applyViewFilters(allJobs.slice(0, rankedCount), filters).length : 0),
-    [rankedCount, allJobs, filters],
+    () => (rankedCount > 0
+      ? applyViewFilters(allJobs.slice(0, rankedCount), filters, { q: searchQ }).length
+      : 0),
+    [rankedCount, allJobs, filters, searchQ],
   )
   // Same J1 warm as desktop, through the same hook — a surface that warmed its own
   // way is how desktop and mobile drifted apart before.
-  useFeedWarm({ token, filters, q: searchQ, skill: null, scope, settled })
+  useFeedWarm({ token, scope, settled })
   const filterCount = activeFilterCount(filters)
 
   /**
@@ -215,16 +217,14 @@ export function JobsSurface({
           </div>
         ) : (
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
-            <div style={{ display: "flex", flex: "none", background: "var(--mm-raise-1)", borderRadius: 9, padding: 2 }}>
-              <SegBtn on={filters.sort === "fit"} onClick={() => onFiltersChange({ ...filters, sort: "fit" })}>Best fit</SegBtn>
-              <SegBtn on={filters.sort === "fresh"} onClick={() => onFiltersChange({ ...filters, sort: "fresh" })}>Newest</SegBtn>
-            </div>
+            {/* No rank toggle: the list is forty jobs chosen for one person, so it
+                has one order. "Best fit ⇄ Newest" was reordering a sample. */}
             <button onClick={() => setFiltersOpen(true)} style={{ height: 32, flex: "none", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6, padding: "0 11px", borderRadius: 10, border: "1px solid var(--mm-border)", background: "transparent", color: "var(--mm-text-3)", fontSize: "var(--tm-fs-caption)", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
               <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M4 7h16M7 12h10M10 17h4" /></svg>
               {filterCount > 0 ? `Filters · ${filterCount}` : "Filters"}
             </button>
             <div style={{ flex: 1 }} />
-            <button onClick={() => setSearchOpen(true)} aria-label="Search this feed" style={roundIcon}><svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.8-3.8" /></svg></button>
+            <button onClick={() => setSearchOpen(true)} aria-label="Search this list" style={roundIcon}><svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.8-3.8" /></svg></button>
           </div>
         )}
       </div>

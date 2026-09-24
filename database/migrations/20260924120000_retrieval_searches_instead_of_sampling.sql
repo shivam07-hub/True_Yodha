@@ -17,12 +17,15 @@
 --     the partial index sat unused at 37,874 buffers. An empty choice now
 --     becomes the full set and the predicate is a plain equality.
 --   * scalar subqueries defeated the index a second time; PL/pgSQL locals make
---     the value a plan parameter. 20,994 buffers, and 139ms warm, steady over
---     six consecutive runs — inside the read contract's 500ms.
---   * and the trap READ_PATH_PLAYBOOK warns about, twice. The same filter
---     measured 7,468ms cold and 342ms warm; and a `stable` function called with
---     the same arguments is evaluated ONCE per query, so six timed runs in one
---     statement all read 0ms. Vary an argument, or measure nothing.
+--     the value a plan parameter. ~165ms, 19,942 buffers — inside the read
+--     contract's 500ms, and well inside the 8s `statement_timeout` that
+--     `authenticated` carries and no retry can widen.
+--   * and three ways to measure nothing, all of which happened here. The same
+--     filter read 7,468ms cold and 342ms warm. A `stable` function called with
+--     identical arguments is evaluated ONCE per query, so six timed runs in one
+--     statement all reported 0ms. And `explain (analyze)` timing instrumentation
+--     cost 50x on this shape — 8,584ms with timing on, 165ms with `timing off`,
+--     same plan, same buffers. Use `timing off` here and compare buffers.
 --
 -- THE LEVEL RULE is what reachability turns on. Both sides are a range and they
 -- must overlap: the person's is [years-1, years+1] when we know her years and
@@ -56,9 +59,15 @@
 -- row per (employer, title), because two requisitions with the same title read
 -- as one job to a person.
 --
--- NOT wired to any surface yet. The feed keeps its 500-row sample until the
--- finite list replaces it in one release; this makes the honest answer
--- available to be measured against the yardstick first.
+-- WIRED, in the same release that deleted the sample: `GET /jobs/feed` serves this
+-- through `JobsRepository.shortlist_jobs`, `POST /feed/warm` ranks the same forty
+-- because it calls the same method, and the partner alert payload reads it too —
+-- a partner carrying 37% of our users was being handed the same arbitrary slice,
+-- and their user never sees the site to notice.
+--
+-- It also drops what the user already saved or skipped. That kept the draining
+-- queue in one place: a finite list that re-offers a decided job spends one of
+-- forty places on a question she already answered.
 --
 -- The index must be created CONCURRENTLY and so cannot run inside a
 -- transaction. It was applied to production separately on 2026-09-24; the
@@ -88,6 +97,7 @@ declare
     v_lo numeric; v_hi numeric; v_centre numeric;
     v_per_company int := 2;
     v_senior_tags text[] := array['senior','lead','principal','staff','executive','director'];
+    v_decided text[];
 begin
     select coalesce(p.years_experience, 0)::numeric,
            (p.years_experience is null),
@@ -118,6 +128,21 @@ begin
       from public.user_skills us join public.skills s on s.id = us.skill_id
      where us.user_id = p_user_id and coalesce(s.skill_kind, '') <> 'soft';
     v_skills := coalesce(v_skills, array[]::int[]);
+
+    -- The draining queue: a job she saved or skipped has been DECIDED, and a
+    -- finite list that re-offers it spends one of forty places on a question she
+    -- already answered. Capped at 193 rows for the heaviest account alive, so an
+    -- array beats two anti-joins and keeps this one pass.
+    --
+    -- Every column here is qualified because `job_id` is also an OUT parameter of
+    -- this function: unqualified, PL/pgSQL cannot tell them apart and raises
+    -- 42702 at runtime, not at create time.
+    select coalesce(array_agg(d.jid), array[]::text[]) into v_decided
+      from (
+        select x.job_id as jid from public.user_dismissed_job_cards x where x.user_id = p_user_id
+        union
+        select a.job_id as jid from public.job_applications a where a.user_id = p_user_id
+      ) d;
 
     return query
     with pool as (
@@ -152,6 +177,7 @@ begin
           and not (p.lo is null and p.hi is null
                    and lower(coalesce(p.tag, '')) = any(v_senior_tags)
                    and v_centre < 5)
+          and not (p.jid = any(v_decided))
     ),
     -- Weighted by whether the listing calls the skill a must-have, and NOT by
     -- how rare the skill is. Rarity weighting (ln(corpus/document frequency))
@@ -200,5 +226,16 @@ begin
     limit greatest(p_limit, 0);
 end;
 $$;
+
+-- Invoker rights, and not executable by anon. RLS on `user_profiles` is what makes
+-- the `p_user_id` argument safe: called as anyone but its owner, the profile read
+-- finds nothing and the function returns an empty list rather than that person's
+-- matches. `anon` had EXECUTE by default, which is a hole that degraded quietly
+-- rather than loudly.
+revoke all on function public.candidates_for_user(uuid, int) from public, anon;
+grant execute on function public.candidates_for_user(uuid, int) to authenticated, service_role;
+
+comment on function public.candidates_for_user(uuid, int) is
+'The finite /market list: filters the whole corpus for one user and ranks what survives. Invoker rights on purpose — RLS on user_profiles means passing someone else another person''s id returns nothing rather than their matches.';
 
 notify pgrst, 'reload schema';

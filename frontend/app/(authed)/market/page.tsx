@@ -16,7 +16,7 @@ import { JobsSurface } from "@/mobile/redesign/jobs-surface"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useFeedState } from "@/lib/hooks/use-feed-state"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
-import { parseLocationMode, pickDefaultSort, type FeedFilters } from "@/components/market/feed-types"
+import { parseLocationMode, type FeedFilters } from "@/components/market/feed-types"
 import { RequiresCareerTarget } from "@/components/career-path/requires-career-target"
 import { MarketSkeleton } from "@/components/loading/page-skeletons"
 
@@ -92,18 +92,15 @@ function IntelPageInner() {
     () => profileData?.target_roles ?? [],
     [profileData?.target_roles]
   )
-  const browseFilters = useMemo<FeedFilters>(() => {
-    const rawMinimum = Number(searchParams.get("min_skills") || 0)
-    return {
-      sort: searchParams.get("sort") === "fresh" ? "fresh" : pickDefaultSort(!!profileData?.has_cv, targetRoles.length > 0),
-      roleDomain: selectedCluster,
-      minSkillMatches: Number.isFinite(rawMinimum) ? Math.min(20, Math.max(0, Math.floor(rawMinimum))) : 0,
-      followingOnly: searchParams.get("following") === "1",
-      includeStretch: searchParams.get("stretch") === "1",
-      locationMode: parseLocationMode(searchParams.get("mode")),
-      hideLowConfidence: searchParams.get("quality") === "1",
-    }
-  }, [searchParams, profileData?.has_cv, selectedCluster, targetRoles.length])
+  // Four URL params went with the server filters they carried: `sort`,
+  // `min_skills`, `following` and `stretch`. A link someone saved still opens
+  // /market — the params are simply ignored, which is the honest outcome for a
+  // filter that no longer exists rather than a redirect pretending it does.
+  const browseFilters = useMemo<FeedFilters>(() => ({
+    roleFamily: selectedCluster,
+    locationMode: parseLocationMode(searchParams.get("mode")),
+    hideLowConfidence: searchParams.get("quality") === "1",
+  }), [searchParams, selectedCluster])
   const browseQuery = searchParams.get("q") || ""
 
   const updateBrowse = useCallback((patch: BrowsePatch) => {
@@ -116,17 +113,13 @@ function IntelPageInner() {
     if (patch.q !== undefined) set("q", patch.q.trim() || null)
     if (patch.skill !== undefined) set("skill", patch.skill?.trim() || null)
     if (patch.filters) {
-      set("cluster", patch.filters.roleDomain)
-      set("sort", patch.filters.sort === pickDefaultSort(!!profileData?.has_cv, targetRoles.length > 0) ? null : patch.filters.sort)
-      set("min_skills", patch.filters.minSkillMatches > 0 ? String(patch.filters.minSkillMatches) : null)
-      set("following", patch.filters.followingOnly ? "1" : null)
-      set("stretch", patch.filters.includeStretch ? "1" : null)
+      set("cluster", patch.filters.roleFamily)
       set("mode", patch.filters.locationMode)
       set("quality", patch.filters.hideLowConfidence ? "1" : null)
     }
     const query = next.toString()
     router.replace(`/market${query ? `?${query}` : ""}`, { scroll: false })
-  }, [router, searchParams, profileData?.has_cv, targetRoles.length])
+  }, [router, searchParams])
 
   const locFilters = useMemo(
     () => ({
@@ -212,7 +205,7 @@ function IntelPageInner() {
         targetRoles={targetRoles}
         chipCountMap={chipCountMap}
         selectedCluster={selectedCluster}
-        onSelectCluster={(roleDomain) => updateBrowse({ filters: { ...browseFilters, roleDomain } })}
+        onSelectCluster={(roleFamily) => updateBrowse({ filters: { ...browseFilters, roleFamily } })}
         initialFilters={browseFilters}
         initialQuery={browseQuery}
         onFiltersChange={(filters) => updateBrowse({ filters })}

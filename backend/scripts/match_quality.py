@@ -5,12 +5,6 @@
     python backend/scripts/match_quality.py --user <uuid> --years 3.2 --json
     python backend/scripts/match_quality.py --user <uuid> --years 3.2 \
         --keywords payment,reconciliation,backend
-    python backend/scripts/match_quality.py --user <uuid> --years 3.2 --via rpc
-
-`--via` picks WHICH retrieval is being judged. `feed` is what /market serves
-today; `rpc` is `candidates_for_user`, which replaces it. Both are measured
-against the same yardstick so the swap is a number, not an opinion. The flag
-goes away with the feed it names.
 
 `--years` is required and stated by you: nothing in an account holds
 professional years in the craft, and the CV's date span is a fiction for anyone
@@ -39,8 +33,6 @@ def main() -> int:
     parser.add_argument("--years", required=True, type=float, help="professional years in the craft")
     parser.add_argument("--keywords", default="", help="comma-separated title words a human would recognise")
     parser.add_argument("--limit", type=int, default=40, help="shortlist size (the product's cap)")
-    parser.add_argument("--via", choices=("feed", "rpc"), default="feed",
-                       help="which retrieval to judge: today's /market feed, or candidates_for_user")
     parser.add_argument("--json", action="store_true", help="machine-readable result")
     args = parser.parse_args()
 
@@ -48,10 +40,8 @@ def main() -> int:
     # and the 8s web timeout is sized for a request a user waits on. The same
     # confusion is what made a Direction-save Match Run look finished (1fead4de).
     from app.database import get_supabase_admin_batch
-    from app.repositories.jobs import JobsRepository
 
     db = get_supabase_admin_batch()
-    repo = JobsRepository(db, db)
 
     person = profile_mod.from_account(db, args.user, years_experience=args.years)
     if args.keywords:
@@ -69,28 +59,17 @@ def main() -> int:
     corpus = fetch_corpus(db, countries=person.countries)
     reference = shortlist(person, corpus, limit=args.limit)
 
-    admissible: set[str] | None = None
-    if args.via == "rpc":
-        production, admissible = gate.retrieval_candidates(db, args.user, args.limit)
-    else:
-        profile_row = (
-            db.table("user_profiles")
-            .select("target_role_titles, target_career_band, explored_career_bands, target_seniority")
-            .eq("id", args.user)
-            .limit(1)
-            .execute()
-        ).data or [{}]
-        production = gate.production_visible(repo, args.user, profile_row[0])
+    production, admissible = gate.retrieval_candidates(db, args.user, args.limit)
 
-    # Both sides judged from the same raw listings — the feed returns shaped
-    # cards that carry neither role_family nor main_skills, and the RPC returns
-    # only a job_id and a score.
+    # Both sides judged from the same raw listings — retrieval returns only a
+    # job_id and a score, and the shaped card it becomes carries neither
+    # `role_family` nor `main_skills`.
     corpus_by_id = {str(job.get("job_id")): job for job in corpus if job.get("job_id")}
-    result = gate.evaluate(person, reference, production, corpus_by_id, admissible, args.via)
+    result = gate.evaluate(person, reference, production, corpus_by_id, admissible)
     failures = gate.check(result, gate.load_thresholds())
 
     if args.json:
-        print(json.dumps({**result.as_dict(), "via": args.via, "failures": failures}, indent=2))
+        print(json.dumps({**result.as_dict(), "failures": failures}, indent=2))
     else:
         _print_report(person, corpus, result, failures)
 

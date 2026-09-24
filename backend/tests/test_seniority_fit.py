@@ -25,7 +25,6 @@ import pytest
 
 from app.services.job_eligibility import (
     SOURCE_SENIORITY,
-    job_is_browse_eligible,
     job_is_eligible,
     seniority_fit,
     seniority_is_eligible,
@@ -116,8 +115,10 @@ def test_every_path_admits_an_unreadable_level(blank: str | None) -> None:
     # one system: the Match Quality gate measured browse hiding 9,323 listings
     # its yardstick calls candidates, while the pool beside it admitted the very
     # same rows. Two halves that disagree about one job disagree forever.
+    #
+    # `job_is_browse_eligible` was the third reading and is gone: the /market list
+    # admits in SQL now (`candidates_for_user`), so nothing called it.
     assert job_is_eligible(_profile("entry"), _job(blank))
-    assert job_is_browse_eligible(_profile("entry"), _job(blank))
 
 
 def test_admitting_an_unreadable_level_never_crosses_a_band() -> None:

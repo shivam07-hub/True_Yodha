@@ -19,6 +19,11 @@ A ratchet, not a fixed bar. `thresholds.json` records what we have already
 earned, the gate fails when a change drops below it, and raising it is a
 deliberate commit. A fixed bar set today would fail every build until the
 retrieval rewrite lands; a ratchet fails only regressions.
+
+One row per persona, because there is one retrieval. While the swap was in
+flight the rows were keyed `<persona> · <retrieval>` so ratcheting the better
+path could not fail the worse one; the 500-row sample is deleted, so that
+suffix would now name a choice nobody has.
 """
 from __future__ import annotations
 
@@ -72,36 +77,6 @@ class GateResult:
         }
 
 
-def production_visible(repo: Any, user_id: str, profile_row: dict[str, Any]) -> list[dict[str, Any]]:
-    """Every listing this person can reach on /market, paged to the end.
-
-    Calls the real repository the router calls, with the real account context —
-    the point is to measure the product, not a reconstruction of it.
-
-    The feed has no cut beyond paging: a person CAN scroll to page eight. So for
-    this path shown and admissible are the same set, and a miss is unreachable.
-    """
-    from app.services import test_accounts  # noqa: F401  (import proves the flag ships)
-
-    seen: list[dict[str, Any]] = []
-    page = 1
-    while True:
-        result = repo.feed_jobs(
-            sort="fit",
-            user_skill_keys=repo.user_skill_keys(user_id),
-            user_target_roles=profile_row.get("target_role_titles") or [],
-            primary_career_band=profile_row.get("target_career_band"),
-            explored_career_bands=profile_row.get("explored_career_bands") or [],
-            target_seniority=profile_row.get("target_seniority") or "any",
-            page=page,
-            page_size=50,
-        )
-        seen.extend(result.get("rows") or [])
-        if not result.get("has_next_page"):
-            return seen
-        page += 1
-
-
 # Far past the 320 the densest profile measured, and the RPC's own filters are
 # what bound the cost: asking for everything admissible is one pass either way.
 _ADMISSIBLE_CEILING = 100_000
@@ -110,11 +85,16 @@ _ADMISSIBLE_CEILING = 100_000
 def retrieval_candidates(
     db: Any, user_id: str, limit: int
 ) -> tuple[list[dict[str, Any]], set[str]]:
-    """What `candidates_for_user` shows, and the wider set it could have shown.
+    """What /market shows this person, and the wider set it could have shown.
 
     Two calls on purpose. The shown list is the product; the admissible set is
     everything that survived the filters, and the gap between them is ranking —
     the one distinction the single `recall` number could not make.
+
+    It calls the RPC rather than `shortlist_jobs` because the second call asks for
+    everything admissible, which no product surface wants: the repository method
+    would fetch card columns for hundreds of rows to answer a question about ids.
+    The shown half is the same rows the router serves, in the same order.
     """
     shown = (db.rpc("candidates_for_user",
                     {"p_user_id": user_id, "p_limit": limit}).execute()).data or []
@@ -130,7 +110,6 @@ def evaluate(
     production_rows: list[dict[str, Any]],
     corpus_by_id: dict[str, dict[str, Any]] | None = None,
     admissible_ids: set[str] | None = None,
-    via: str = "feed",
 ) -> GateResult:
     """Judge both sides from the SAME raw listing.
 
@@ -172,10 +151,7 @@ def evaluate(
         for hit in reference if hit.job_id not in admissible
     ]
     return GateResult(
-        # The retrieval is part of the identity of the measurement. Two paths
-        # sharing one threshold row means ratcheting the better one fails the
-        # worse one, so the pair cannot be measured while the swap is in flight.
-        label=f"{profile.label} · {via}",
+        label=profile.label,
         reference_size=len(reference_ids),
         production_size=len(reachable),
         reached=len(reached),
