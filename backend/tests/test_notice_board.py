@@ -212,6 +212,55 @@ def test_upload_and_work_lane_and_dead_man_identity() -> None:
     }
 
 
+def test_a_harvest_proof_does_not_erase_a_failed_close() -> None:
+    book = NoticeBook.testing()
+    book.observe(Sighting.dead_man(belt="listing_verifier"))
+    book.settle([
+        CloseProof(
+            cause_key="dead_man:listing_verifier",
+            test_nodeid="harvest:listing_verifier_ok",
+            sha="abc",
+            on_main=True,
+        )
+    ])
+    book.observe(Sighting.dead_man(belt="listing_verifier"))
+    assert book.snapshot()[0].status == "failed-close"
+    digest = book.settle([
+        CloseProof(
+            cause_key="dead_man:listing_verifier",
+            test_nodeid="harvest:listing_verifier_ok",
+            sha="def",
+            on_main=True,
+        )
+    ])
+    assert digest.closed_this_run == ()
+    assert book.snapshot()[0].status == "failed-close"
+
+
+def test_a_proof_on_main_still_closes_a_failed_close() -> None:
+    book = NoticeBook.testing()
+    book.observe(Sighting.dead_man(belt="listing_verifier"))
+    book.settle([
+        CloseProof(
+            cause_key="dead_man:listing_verifier",
+            test_nodeid="harvest:listing_verifier_ok",
+            sha="abc",
+            on_main=True,
+        )
+    ])
+    book.observe(Sighting.dead_man(belt="listing_verifier"))
+    digest = book.settle([
+        CloseProof(
+            cause_key="dead_man:listing_verifier",
+            test_nodeid="backend/tests/test_notice_close_verifier.py::NOTICE_CAUSE_KEY",
+            sha="def",
+            on_main=True,
+        )
+    ])
+    assert digest.closed_this_run == ("dead_man:listing_verifier",)
+    assert book.snapshot()[0].status == "closed"
+
+
 def test_settle_closes_dead_man_by_cause_key() -> None:
     book = NoticeBook.testing()
     book.observe(Sighting.dead_man(belt="listing_verifier"))

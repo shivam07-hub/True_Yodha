@@ -96,6 +96,7 @@ def harvest_into(book: NoticeBook, repo: Path) -> list[CloseProof]:
         skill_awaiting=awaiting,
         verifier_state=verifier_state,
         ingestion_state=ingestion_state,
+        closer_state="ok",
         sha=sha,
         on_main=True,
     )

@@ -227,6 +227,10 @@ class Settings(BaseSettings):
     ingestion_degraded_hours: int = 72
     ingestion_stalled_hours: int = 168
     ingestion_health_interval_minutes: int = 5
+    # The Notice closer is itself a belt. The cron is daily and the run
+    # lands a few hours late; 36h is a missed day, not that lateness.
+    notice_closer_stale_hours: int = 36
+    notice_closer_health_interval_minutes: int = 5
 
     @property
     def release_tier(self) -> str:

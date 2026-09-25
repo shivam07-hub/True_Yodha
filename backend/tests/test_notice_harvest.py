@@ -73,6 +73,50 @@ def test_belt_stall_opens_dead_man() -> None:
     assert keys == {"dead_man:skill_floor", "dead_man:listing_verifier"}
 
 
+def test_ingestion_degraded_neither_opens_nor_closes() -> None:
+    sightings, proofs = harvest_belts(
+        skill_awaiting=None,
+        verifier_state=None,
+        ingestion_state="degraded",
+        sha="abc",
+        on_main=True,
+    )
+    assert sightings == []
+    assert proofs == []
+
+
+def test_ingestion_ok_is_a_recovery_and_stalled_opens() -> None:
+    _, ok_proofs = harvest_belts(
+        skill_awaiting=None,
+        verifier_state=None,
+        ingestion_state="ok",
+        sha="abc",
+        on_main=True,
+    )
+    assert {proof.cause_key for proof in ok_proofs} == {"dead_man:job_ingestion"}
+    stalled, stalled_proofs = harvest_belts(
+        skill_awaiting=None,
+        verifier_state=None,
+        ingestion_state="stalled",
+        sha="abc",
+        on_main=True,
+    )
+    assert stalled_proofs == []
+    assert {cause_key_for(item) for item in stalled} == {"dead_man:job_ingestion"}
+
+
+def test_a_running_closer_is_a_recovery() -> None:
+    _, proofs = harvest_belts(
+        skill_awaiting=None,
+        verifier_state=None,
+        closer_state="ok",
+        sha="abc",
+        on_main=True,
+    )
+    assert {proof.cause_key for proof in proofs} == {"dead_man:notice_closer"}
+    assert proofs[0].test_nodeid.startswith("harvest:")
+
+
 def test_upload_stall_harvest() -> None:
     assert harvest_upload_stalls(False) == []
     assert cause_key_for(harvest_upload_stalls(True)[0]) == (

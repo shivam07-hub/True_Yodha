@@ -257,13 +257,16 @@ async def health_check() -> dict:
     # probe frequency doesn't drive DB load, and it never changes `status`: a
     # stalled verifier degrades listing freshness, it does not make the API
     # unhealthy.
-    from app.services import ingestion_health, verifier_health
+    from app.services import ingestion_health, notice_closer_health, verifier_health
 
     belt = verifier_health.check_belt()
     # The other half of corpus health. The verifier retires listings; ingestion
     # is what replaces them, and it ran dead for nine days in September while
     # the verifier reported healthy the whole time.
     intake = ingestion_health.check_ingestion()
+    # A quiet digest is the normal case. The closer's heartbeat is how /health
+    # tells a day that sent nothing from a closer that never started.
+    closer = notice_closer_health.check_closer()
     return {
         "status": "ok",
         "ingestion": intake.state,
@@ -272,4 +275,6 @@ async def health_check() -> dict:
         "verifier_stale_hours": belt.stale_hours,
         "verifier_productive_stale_hours": belt.productive_stale_hours,
         "verifier_priority_backlog": belt.priority_backlog,
+        "notice_closer": closer.state,
+        "notice_closer_stale_hours": closer.stale_hours,
     }

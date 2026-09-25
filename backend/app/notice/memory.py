@@ -11,6 +11,7 @@ class MemoryNoticeStore:
     def __init__(self) -> None:
         self._rows: dict[str, NoticeRecord] = {}
         self._digest: tuple[str, datetime] | None = None
+        self.closer_ran_at: datetime | None = None
 
     def get(self, cause_key: str) -> NoticeRecord | None:
         return self._rows.get(cause_key)
@@ -33,3 +34,6 @@ class MemoryNoticeStore:
 
     def record_digest(self, fingerprint: str, at: datetime) -> None:
         self._digest = (fingerprint, at)
+
+    def mark_closer_ran(self, at: datetime) -> None:
+        self.closer_ran_at = at

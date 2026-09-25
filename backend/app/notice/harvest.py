@@ -84,6 +84,7 @@ def harvest_belts(
     on_main: bool,
     alert_above: int = 100,
     ingestion_state: str | None = None,
+    closer_state: str | None = None,
 ) -> tuple[list[Sighting], list[CloseProof]]:
     sightings: list[Sighting] = []
     proofs: list[CloseProof] = []
@@ -110,16 +111,28 @@ def harvest_belts(
                 on_main=on_main,
             )
         )
-    # Ingestion, unlike the other two belts, opens a Notice only when STALLED.
-    # `degraded` is the 72h cadence target we are knowingly behind on; a row
-    # that is permanently open is a row nobody reads.
+    # Ingestion opens only when stalled (168h). `degraded` is the 72h aim we
+    # are knowingly behind, so it must not open a permanent row — and it must
+    # not close a real stall. A scraper dead for six days is not a recovery.
     if ingestion_state == "stalled":
         sightings.append(Sighting.dead_man(belt="job_ingestion"))
-    elif ingestion_state in {"ok", "degraded"}:
+    elif ingestion_state == "ok":
         proofs.append(
             CloseProof(
                 cause_key="dead_man:job_ingestion",
                 test_nodeid="harvest:job_ingestion_ran",
+                sha=sha,
+                on_main=on_main,
+            )
+        )
+    # The closer's own belt. This process running is the recovery. The API
+    # opens the Notice when the heartbeat is stale; unknown (no row yet) is
+    # neither a stall nor a close.
+    if closer_state == "ok":
+        proofs.append(
+            CloseProof(
+                cause_key="dead_man:notice_closer",
+                test_nodeid="harvest:notice_closer_ran",
                 sha=sha,
                 on_main=on_main,
             )

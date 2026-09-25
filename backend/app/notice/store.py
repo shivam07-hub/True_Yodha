@@ -27,3 +27,7 @@ class NoticeStore(Protocol):
 
     def record_digest(self, fingerprint: str, at: datetime) -> None:
         ...
+
+    def mark_closer_ran(self, at: datetime) -> None:
+        """The closer executed, whether or not it sent a digest."""
+        ...
