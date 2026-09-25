@@ -194,6 +194,29 @@ measured Free/Nano database ceiling, not unfinished application work.
     scopes by `story_id`, so they are inert, not dangerous. Migrate onto stories
     or retire them; either way, one shape. Not urgent.
 
+7d. **`compute_match_health` answers from row existence, so it cannot see a
+    direction whose run never landed.** The other half of `8a6dff14`, left out on
+    purpose. `matching/match_freshness.py` now names the state (`covered ·
+    running · outstanding · unknown · no_direction`) and the forward pass repairs
+    it, but the health signal still asks "does any `user_job_matches` row exist" —
+    and `get_user_match_stack` is source-blind, so ten rows written by the
+    `/market` warmer or brain-on-open read as `vetted` for a user whose own Match
+    Run never ran. That is what made Deveshwar Kashyap's dead run invisible on
+    2026-09-19.
+
+    Why it is not done yet: the honest states need a surface. `running` maps onto
+    the existing `computing`; `outstanding` has no word — `failed` fires the free
+    re-vet banner (right action, wrong sentence: "your matches aren't AI-vetted
+    yet" when the real fact is "no search has run for the direction you chose").
+    CONTEXT.md **Targeting Brief** already carries the vocabulary (`stale_direction`)
+    and `lib/api.ts:1054` already accepts it on the onboarding shortlist union.
+
+    Also unresolved: the three callers (`routers/jobs/match.py:141,171`,
+    `routers/jobs/collections.py:62`) hold no profile, so consuming freshness
+    there costs a read on a hot path unless it rides the existing
+    `count_new_jobs_for_user` RPC, which already reads `last_match_run_at`.
+    Widening that RPC is a migration. Grill the copy first, then pick the read.
+
 ### TIER 3 — needs a decision or a grill BEFORE code
 
 **Level: the stated range wins everywhere — LOCKED 2026-09-25 (Shivam). NOT yet built.**
