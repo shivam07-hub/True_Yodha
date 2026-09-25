@@ -35,23 +35,17 @@ logger = logging.getLogger(__name__)
 # The shortlist depth — how many leading feed cards the brain ranks. Kept tight on
 # purpose (CEO decision): a real "top picks" set, not the whole feed. Everything
 # below stays fast deterministic overlap.
-SHORTLIST_SIZE = 10
-
-# How deep the warm looks before choosing its ten. The brain still rates ten; this
-# only widens what they are chosen FROM, so the direction can decide which ten.
-#
-# It costs no extra database work on the path that matters: the `fit` sort already
-# shapes a bounded candidate set in Python (`_FEED_PERSONAL_CAP` = 500) and
-# paginates it there, so asking for thirty rows instead of ten reads the same rows
-# and returns twenty more shaped ones.
-SHORTLIST_POOL = 3 * SHORTLIST_SIZE
+# Named for the warm, not for the list: `repositories.jobs.SHORTLIST_SIZE` is 40
+# and means the length of the finite list. Two numbers shared one name until
+# 2026-09-25, which is one grep away from a wrong constant.
+WARM_SHORTLIST_SIZE = 10
 
 
 def direction_first(
     rows: list[dict[str, Any]],
     vocabulary: frozenset[str],
     *,
-    limit: int = SHORTLIST_SIZE,
+    limit: int = WARM_SHORTLIST_SIZE,
 ) -> list[str]:
     """Choose which cards the brain rates: the work the user asked for, first.
 
@@ -108,7 +102,7 @@ async def warm_feed_shortlist(
     user_id: str,
     candidate_job_ids: list[str],
     *,
-    limit: int = SHORTLIST_SIZE,
+    limit: int = WARM_SHORTLIST_SIZE,
 ) -> int:
     """Brain-rank the top `limit` fit-sorted candidates that aren't cached yet.
 

@@ -27,6 +27,12 @@ class _FakeJobsRepo:
         self.count_markers: list[int] = []
         self.exposures: list[tuple[str, str, list[str]]] = []
         self.dismissed_reads = 0
+        self.freshness_profile: dict = {}
+
+    def match_freshness_inputs(self, user_id: str) -> dict:
+        # `{}` reads as `no_direction`, the state that changes no verdict — the
+        # same answer these tests asserted before Match Freshness existed.
+        return dict(self.freshness_profile)
 
     def get_agent_picks(self, user_id: str) -> list[dict]:
         return self._agent_picks
@@ -431,3 +437,27 @@ def test_the_band_names_the_directions_it_stopped_picking() -> None:
             assert client.get("/jobs/agent-picks").json()["passed_on"] == []
     finally:
         app.dependency_overrides.clear()
+
+
+def test_retry_accepted_when_the_direction_was_never_searched(monkeypatch) -> None:
+    """The row that looks vetted was written by the /market warmer, not by a run
+    for this direction. Deveshwar Kashyap read `vetted` for 78 days on exactly
+    this shape — a stack of rows and a `last_match_run_at` older than her target."""
+    repo = _FakeJobsRepo(stack=[{"job_id": "j1", "overall_score": 4.5}])
+    repo.freshness_profile = {
+        "target_role_titles": ["Digital Marketing"],
+        "target_updated_at": "2026-09-19T08:03:29+00:00",
+        "last_match_run_at": "2026-07-03T11:25:31+00:00",
+    }
+    enqueued: list = []
+    from app.services import background
+    monkeypatch.setattr(background, "enqueue", lambda *a, **k: enqueued.append((a, k)))
+    app.dependency_overrides[get_principal] = lambda: Principal(id="u1")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    try:
+        with TestClient(app) as client:
+            retry = client.post("/jobs/matches/retry")
+    finally:
+        app.dependency_overrides.clear()
+    assert retry.json() == {"accepted": True, "match_health": "stale_direction"}
+    assert len(enqueued) == 1

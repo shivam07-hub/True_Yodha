@@ -98,3 +98,48 @@ def test_exhausted_pool_is_empty_not_failed(monkeypatch) -> None:
     repo = _FakeRepo(skill_keys=["cobol"], candidate_ids=[])  # empty pool
     upload = {"status": "done", "finished_at": "2026-07-11T10:00:00+00:00"}
     assert _health(repo, [], upload=upload, now=now, monkeypatch=monkeypatch) == "empty"
+
+
+# ---------------------------------------------------------------- freshness
+# Rows alone cannot see a direction whose run never landed: the /market warmer
+# and brain-on-open write `user_job_matches` too, so ten warmer rows read like a
+# finished Match Run. Match Freshness is the caller-supplied answer.
+
+
+def test_outstanding_direction_beats_rows_that_look_vetted(monkeypatch) -> None:
+    rows = [_row(vetted=True)]
+    monkeypatch.setattr(
+        "app.repositories.cv_upload_jobs.get_latest_status", lambda user_id: None
+    )
+    health = jobs_workflow.compute_match_health(
+        _FakeRepo(), "u1", rows, freshness="outstanding"
+    )
+    assert health == "stale_direction"
+
+
+def test_a_run_in_flight_is_computing_not_failed(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.repositories.cv_upload_jobs.get_latest_status", lambda user_id: None
+    )
+    health = jobs_workflow.compute_match_health(
+        _FakeRepo(skill_keys=["python"], candidate_ids=["j1"]), "u1", [], freshness="running"
+    )
+    assert health == "computing"
+
+
+def test_covered_leaves_every_existing_verdict_alone(monkeypatch) -> None:
+    rows = [_row(vetted=True)]
+    assert _health(_FakeRepo(), rows, monkeypatch=monkeypatch) == "vetted"
+    health = jobs_workflow.compute_match_health(
+        _FakeRepo(), "u1", rows, freshness="covered"
+    )
+    assert health == "vetted"
+
+
+def test_freshness_not_asked_is_not_a_verdict(monkeypatch) -> None:
+    """Every caller that does not pay for the profile columns gets exactly the
+    answer it got before this state existed."""
+    rows = [_row(vetted=False)]
+    assert _health(_FakeRepo(), rows, monkeypatch=monkeypatch) == "overlap_only"
+    health = jobs_workflow.compute_match_health(_FakeRepo(), "u1", rows, freshness=None)
+    assert health == "overlap_only"

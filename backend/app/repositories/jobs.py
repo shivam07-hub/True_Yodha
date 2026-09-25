@@ -1739,7 +1739,6 @@ class JobsRepository:
         "seniority_level, min_years_experience, max_years_experience, "
         "is_active, listing_confidence, last_verified_live_at, main_skills, role_family"
     )
-    _FEED_PERSONAL_CAP = 500  # bound the in-Python overlap rank set
 
     @staticmethod
     def _feed_shape_row(
@@ -2651,6 +2650,26 @@ class JobsRepository:
 
     def count_new_jobs_since(self, since: datetime) -> int:
         return count_jobs_ingested_after(self._db, since)
+
+    def match_freshness_inputs(self, user_id: str) -> dict[str, Any]:
+        """The four profile columns **Match Freshness** compares — one PK read.
+
+        Deliberately its own reader rather than a general profile fetch: this is
+        on `/jobs/matches`, and a `select("*")` there would pull the whole
+        targeting row (and its memory-blind temptations, see the Targeting Brief)
+        onto a path that needs two timestamps and a direction. Fails soft to `{}`,
+        which Match Freshness reads as `no_direction` — the state that changes
+        nothing, because a read we could not make is not a verdict about a user.
+        """
+        rows = safe_read(
+            self._db.table("user_profiles")
+            .select("target_updated_at,last_match_run_at,target_role_title,target_role_titles")
+            .eq("id", user_id)
+            .limit(1),
+            default=[],
+            context="match_freshness_inputs",
+        )
+        return rows[0] if rows else {}
 
     def last_match_run_at(self, user_id: str) -> datetime | None:
         """When this user last RAN a match — the baseline for "new since your last

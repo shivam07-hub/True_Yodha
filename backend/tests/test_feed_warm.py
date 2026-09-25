@@ -243,7 +243,9 @@ def test_rows_without_an_id_are_skipped_and_ids_are_not_repeated() -> None:
     assert feed_warm.direction_first(rows, frozenset(), limit=10) == ["a", "b"]
 
 
-def test_the_pool_is_wider_than_what_gets_rated() -> None:
-    # The brain still rates SHORTLIST_SIZE; the pool only widens what they are
-    # chosen from, and costs no extra DB work on the fit path.
-    assert feed_warm.SHORTLIST_POOL > feed_warm.SHORTLIST_SIZE
+def test_the_warm_rates_fewer_than_the_list_shows() -> None:
+    # The warm rates ten; the finite list shows forty. Two numbers, two names —
+    # `SHORTLIST_POOL` (a third) went with the `fit` sort it was justified by.
+    from app.repositories.jobs import JobsRepository
+
+    assert feed_warm.WARM_SHORTLIST_SIZE < JobsRepository.SHORTLIST_SIZE

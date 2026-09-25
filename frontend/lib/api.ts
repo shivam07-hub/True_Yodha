@@ -435,6 +435,10 @@ export interface UserProfile {
   myrology_unlocked?: boolean
   myrology_interested?: boolean
   accent_pref?: "signal" | "forge"
+  /** A direction is set and no Match Run has landed for it. Carried here because
+   *  `users.me` already reads the two columns it compares — asking /jobs/matches
+   *  for the same fact would be a new round trip on the hottest authed path. */
+  match_run_outstanding?: boolean
 }
 
 export interface ProfileUpdateResponse extends UserProfile {
@@ -3350,13 +3354,21 @@ export interface JobMatchesResponse {
   matches_computed_at: string | null
   new_jobs_count: number
   dismissed_job_ids: string[]
-  /** Career-Ops vetting health: vetted | overlap_only | computing | failed | empty.
-   *  overlap_only/failed drive the honest "not AI-vetted — retry (free)" banner. */
+  /** Career-Ops vetting health: vetted | overlap_only | computing | failed | empty |
+   *  stale_direction. overlap_only/failed drive the honest "not AI-vetted — retry
+   *  (free)" banner; stale_direction says no run has landed for the direction the
+   *  user chose, which rows alone cannot show (the /market warmer writes rows too). */
   match_health: MatchHealth
   match_vetted_count: number
 }
 
-export type MatchHealth = "vetted" | "overlap_only" | "computing" | "failed" | "empty"
+export type MatchHealth =
+  | "vetted"
+  | "overlap_only"
+  | "computing"
+  | "failed"
+  | "empty"
+  | "stale_direction"
 
 export interface MatchRetryResponse {
   accepted: boolean

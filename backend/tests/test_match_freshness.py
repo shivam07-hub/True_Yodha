@@ -100,3 +100,18 @@ def test_datetime_objects_are_accepted():
         last_match_run_at=NOW - timedelta(days=4),
     )
     assert match_freshness.state(profile, now=NOW) == "outstanding"
+
+
+def test_the_profile_flag_is_the_surface_answer():
+    """`/users/me` carries `match_run_outstanding` because it already reads both
+    columns; `/jobs/matches` must not pay a round trip for the same fact."""
+    owed = _profile(last_match_run_at=(NOW - timedelta(days=80)).isoformat())
+    assert match_freshness.is_outstanding(owed, now=NOW) is True
+    assert match_freshness.is_outstanding(_profile(), now=NOW) is False
+
+
+def test_an_unreadable_profile_is_not_a_verdict():
+    """`match_freshness_inputs` fails soft to `{}` — which must read as
+    `no_direction`, never as work owed."""
+    assert match_freshness.state({}, now=NOW) == "no_direction"
+    assert match_freshness.is_outstanding({}, now=NOW) is False
