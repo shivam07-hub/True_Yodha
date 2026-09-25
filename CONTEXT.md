@@ -985,6 +985,22 @@ The ONE module every match surface routes through (`app/services/matching/match_
 - `notify=False` where the user watches the reveal live (paid Refresh, onboarding initial); background runs (sweep, future login-confirm async) notify — debounced 12h, so it's spam-safe.
 - The **100-coin charge** (`MATCH_RUN_COST`) is a property of a run but lives at the entry seam that owns the wallet + reveal ticket (`job_refresh` charges at dispatch, `_dispatch` refunds on failure). This module owns the WORK, not the charge.
 - Callers: `job_refresh/_pipeline` (paid Refresh worker), `cv_workflow` (onboarding initial), `scrape_sweep` (background sweep). Every one now gets identical outputs.
+- **A run that searched nothing stamps nothing.** `cache_hit` and `needs_onboarding` return before a profile is read, so they carry no `context_key` — and since 2026-09-25 that means neither half of the marker is written, not just a null key. The timestamp is not bookkeeping: **Match Freshness** reads it, so a bare stamp from a no-op run permanently answers "were these matches computed for the direction this user holds" with a lie. A missed stamp on a real run is logged (`metric match_run.stamp_missed`) and left to the forward pass — re-raising would re-run a full LLM compute to repair one column.
+
+---
+
+## Match Freshness
+
+**Were the matches this user is looking at computed for the direction they hold NOW?** One pure module (`app/services/matching/match_freshness.py`) over the pair `user_profiles.target_updated_at` (stamped by `targeting_write.commit` on a real direction change) and `user_profiles.last_match_run_at` (stamped by `match_run.run_match` alone). Five states: `no_direction · unknown · covered · running · outstanding`.
+
+Migration `20260804_target_updated_at.sql` wrote the contract down and `04ef9f3b` deleted the reader and its self-heal, so for six weeks `target_updated_at` was written on every direction change and compared against nothing. In its place the surface asked `compute_match_health`, which answers "does any match row exist" — and `user_job_matches` rows are also written by the `/market` warmer and brain-on-open, so **ten warmer rows made a Match Run that never ran read as `vetted`** (Deveshwar Kashyap, 2026-09-19: two `Job OK` logs, no run, `last_match_run_at` still 78 days old). Measured 2026-09-25: 331 profiles hold a direction newer than their last run, 4 of the 14 saved that week.
+
+**Invariants**
+- **`unknown` is the state a legacy row gets**, and it is load-bearing. A direction with no change stamp predates the column; reading that as `outstanding` would enqueue a run for every dormant account at once — a backfill wearing a forward pass's clothes. Absence is not a verdict.
+- **`running` is not `outstanding`.** `target_updated_at → last_match_run_at` measured 166s for a real signup and 190–220s for most (**Provisional Match**), so `RUN_GRACE_SECONDS` (15 min) is the window in which a missing run is in flight, not missing. Nothing re-enqueues inside it and no surface may cry failure.
+- **It decides nothing about jobs and costs no read.** Both columns ride the profile `/users/me` already fetched; the comparison is pure. The repair is `forward_pass.finish_outstanding_match`, which claims per direction change (a new direction that also failed is owed its own run), enqueues `initial_match` with `force_context_refresh=True` — without force the compute's own cache gate answers `cache_hit`, stamps nothing, and brings the same user back forever — and never runs on the read path.
+- The module is the test surface (`test_match_freshness.py`): the states are tested once, not re-derived per consumer.
+- ⚠️ **Not yet read by `compute_match_health`.** The health signal still answers from row existence, so a user whose direction has no run can still read `vetted` off warmer rows until that seam consumes this module.
 
 ---
 

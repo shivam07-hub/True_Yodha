@@ -2689,7 +2689,7 @@ class JobsRepository:
         when: datetime | None = None,
         *,
         context_key: str | None = None,
-    ) -> None:
+    ) -> bool:
         """Stamp the run marker. One writer (`match_run.run_match`) — that is the
         whole point of the column; widen this and the baseline rots again.
 
@@ -2698,11 +2698,19 @@ class JobsRepository:
         changed", and a yes was read as "this direction was searched and the market
         had nothing" — the false-empty that told 162 users their stack of real
         matches was an empty market. Omitted (None) leaves the stored key untouched:
-        a path that computed nothing must not claim to have covered anything."""
+        a path that computed nothing must not claim to have covered anything.
+
+        Returns whether a row was actually stamped. Match Freshness reads this
+        column to answer "did a run land for the direction this user holds now",
+        so a silent no-op (an id matching no row) leaves that question answered
+        wrongly and forever. The caller decides what a miss is worth — `run_match`
+        logs it and leaves the repair to the forward pass, because re-raising
+        would re-run a full LLM compute to fix a one-column update."""
         patch: dict[str, Any] = {"last_match_run_at": (when or datetime.now(timezone.utc)).isoformat()}
         if context_key is not None:
             patch["last_match_context_hash"] = context_key
-        self._db.table("user_profiles").update(patch).eq("id", user_id).execute()
+        result = self._db.table("user_profiles").update(patch).eq("id", user_id).execute()
+        return bool(getattr(result, "data", None))
 
     def has_computed_matches(self, user_id: str) -> bool:
         """Cheap existence check — has this user EVER had a match computed?

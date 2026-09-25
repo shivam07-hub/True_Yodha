@@ -27,10 +27,12 @@ class _FakeRepo:
         self._before = before
         self._after = after
         self.marked = 0
+        self.marked_context: str | None = None
 
-    def mark_match_run(self, _user_id: str, *, context_key: str | None = None) -> None:
+    def mark_match_run(self, _user_id: str, *, context_key: str | None = None) -> bool:
         self.marked += 1
         self.marked_context = context_key
+        return True
 
     def get_existing_match_job_ids(self, _user_id: str) -> list[str]:
         return self._before
@@ -156,9 +158,17 @@ def test_the_run_stamps_which_direction_it_covered(monkeypatch) -> None:
     assert repo.marked_context == "ctx-abc"
 
 
-def test_a_run_that_computed_nothing_claims_no_direction(monkeypatch) -> None:
-    """cache_hit / needs_onboarding return before a profile exists. Stamping a key
-    there would claim coverage the run never gave."""
+def test_a_run_that_computed_nothing_stamps_nothing(monkeypatch) -> None:
+    """cache_hit / needs_onboarding return before a profile exists, so the run
+    covered no direction — and since 2026-09-25 that means it writes NEITHER half
+    of the marker, not just a null key.
+
+    Match Freshness reads `last_match_run_at` against `target_updated_at` to
+    answer "were these matches computed for the direction this user holds now".
+    A bare timestamp from a no-op run answers it wrongly and permanently: nothing
+    later corrects a stamp that already looks fresh. The baseline it also feeds
+    ("new since your last search") loses nothing by standing still — a cache hit
+    is by definition a run where nothing had landed since the last one."""
     calls: dict[str, Any] = {}
 
     async def _no_profile_compute(**kwargs: Any):
@@ -171,5 +181,5 @@ def test_a_run_that_computed_nothing_claims_no_direction(monkeypatch) -> None:
 
     repo = _FakeRepo(before=[], after=[])
     asyncio.run(match_run.run_match(repo, "u1", date(2026, 7, 28), notify=False))
-    assert repo.marked == 1              # the run still happened
-    assert repo.marked_context is None   # but it covered no direction
+    assert repo.marked == 0              # nothing searched, nothing claimed
+    assert repo.marked_context is None   # and no direction covered

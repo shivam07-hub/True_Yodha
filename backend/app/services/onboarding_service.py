@@ -8,7 +8,7 @@ from typing import Any
 
 from supabase import Client
 
-from app.database import get_supabase_admin
+from app.database import get_supabase_admin, get_supabase_admin_batch
 from app.repositories.cv import CVVersionsRepository
 from app.repositories.jobs import JobsRepository
 from app.repositories.onboarding import OnboardingRepository
@@ -536,7 +536,11 @@ async def provisional_baseline_score_job(payload: dict[str, Any], allow_retry: b
 @background.handler("onboarding_target_refresh")
 async def refresh_target_result(payload: dict[str, Any], allow_retry: bool) -> None:
     user_id = str(payload["user_id"])
-    db = get_supabase_admin()
+    # Worker work, not a web request: the 8s PostgREST deadline turned a healthy
+    # score recompute into a crash on the Direction-save path, the same way it did
+    # one layer down in `initial_match` before `1fead4de`. A background job that
+    # dies on a slow read is a job the user's direction never gets.
+    db = get_supabase_admin_batch()
     baseline = CVVersionsRepository(db).latest_baseline(user_id)
     if not baseline or not baseline.get("skills_confirmed_at"):
         return

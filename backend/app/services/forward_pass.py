@@ -296,20 +296,86 @@ def _needs_promote(names: list[str]) -> bool:
     )
 
 
+def finish_outstanding_match(user_id: str, profile: dict[str, Any]) -> bool:
+    """Finish the Match Run a Direction save started and never landed.
+
+    This is the line the doctrine at the top of this file draws, on its clearest
+    case: the user chose a direction, Myro owed them a search for it, and the
+    search did not happen. Finishing it starts nothing they did not — and it is
+    the repair for the failure that made a growth marketer's list read
+    `vetted` off ten rows the `/market` warmer wrote while her own run had
+    reported `Job OK` and written nothing (audit 2026-09-19).
+
+    Measured 2026-09-25: 331 profiles hold a direction newer than their last
+    run, 4 of the 14 directions saved in the preceding week. They are reached
+    one at a time, when they come back, never by a sweep.
+
+    **The check costs nothing.** `/users/me` already holds the profile, and both
+    timestamps are columns on it — Match Freshness is a pure comparison, so the
+    shell on every authed page pays no read for the users who are current.
+
+    **The claim is per direction change**, not per user per day: someone who
+    saves a new direction after a failed one is owed a second run, and a claim
+    keyed on the user alone would swallow it for 24 hours.
+
+    `force_context_refresh=True` matters — without it the compute's own cache
+    gate (`has this user matched, anything new since?`) can answer `cache_hit`,
+    which stamps nothing, leaves the state `outstanding`, and brings the same
+    user back here on every visit with no run ever running.
+    """
+    from app.services.matching import match_freshness
+
+    if not match_freshness.is_outstanding(profile):
+        return False
+    changed = str(profile.get("target_updated_at") or "").strip()
+    if not _claim(f"match_outstanding:{changed}", user_id):
+        return False
+    try:
+        from app.services import background
+
+        background.enqueue(
+            background.LANE_FAST,
+            "initial_match",
+            payload={"user_id": user_id, "force_context_refresh": True},
+            correlation_id=f"target-match:{user_id}",
+        )
+        logger.info("metric forward_pass.match_run_enqueued user=%s", user_id)
+        return True
+    except Exception as exc:  # noqa: BLE001 — a read must never fail on a forward pass
+        logger.warning(
+            "metric forward_pass.failed pass=finish_outstanding_match user=%s reason=%s",
+            user_id, exc.__class__.__name__,
+        )
+        return False
+
+
 def on_profile_read(user_id: str, profile: dict[str, Any]) -> None:
+    """What `/users/me` — the shell on every authed page — can put right.
+
+    Two passes, in order. A catch-all cannot stay the main role; and a direction
+    whose Match Run never landed gets that run. The promote path goes through
+    `save_target`, which enqueues a run of its own, so it returns before the
+    second pass rather than queueing the same work twice.
+    """
+    if _promote_catch_all_primary(user_id, profile):
+        return
+    finish_outstanding_match(user_id, profile)
+
+
+def _promote_catch_all_primary(user_id: str, profile: dict[str, Any]) -> bool:
     """A catch-all cannot stay the main role. Fix it on the visit they already make.
 
-    `/users/me` is the shell on every authed page — the 23 people in this state
-    walk it. The cheap check is string-only, so everyone else pays nothing.
-    The write itself goes through `save_target`, so score and match refresh
-    the same way a Direction save does. Nothing is edited by hand.
+    The 23 people in this state walk `/users/me`. The cheap check is string-only,
+    so everyone else pays nothing. The write itself goes through `save_target`,
+    so score and match refresh the same way a Direction save does. Nothing is
+    edited by hand. Returns whether it wrote.
     """
     titles = _clean_names(profile.get("target_role_titles"))
     families = _clean_names(profile.get("target_roles"))
     if not titles or not (_needs_promote(titles) or _needs_promote(families)):
-        return
+        return False
     if not _claim("promote_primary", user_id):
-        return
+        return False
     try:
         from app.database import get_supabase_admin
         from app.services.onboarding_service import save_target
@@ -326,11 +392,13 @@ def on_profile_read(user_id: str, profile: dict[str, Any]) -> None:
         if families:
             profile["target_roles"] = demote_catch_all_primary(families, catch)
         logger.info("metric forward_pass.primary_promoted user=%s", user_id)
+        return True
     except Exception as exc:  # noqa: BLE001 — a read must never fail on a forward pass
         logger.warning(
             "metric forward_pass.failed pass=promote_primary user=%s reason=%s",
             user_id, exc.__class__.__name__,
         )
+        return False
 
 
 def on_cv_read(user_id: str) -> None:
