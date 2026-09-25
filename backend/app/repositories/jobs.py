@@ -2962,7 +2962,8 @@ class JobsRepository:
             .select(
                 "id, job_id, overlap_score, llm_rank, llm_explanation, "
                 "batch_week, computed_at, matched_skills, "
-                "is_recommended, baseline_version_id, target_context_hash, seniority_compatibility, "
+                "is_recommended, baseline_version_id, target_context_hash, eval_context_hash, "
+                "seniority_compatibility, "
                 "track_id, "
                 "overall_score, grade, recommendation, application_angle, summary, "
                 "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
@@ -3515,6 +3516,21 @@ class JobsRepository:
                 .execute()
             ).data or []
             row = _newest(any_rows)
+        if not row:
+            return ""
+        return (row.get("polished_text") or row.get("body_text") or "").strip()
+
+    def get_baseline_cv_markdown(self, user_id: str, baseline_version_id: int) -> str:
+        """CV text for one baseline, so a ranking finishes on the CV it started with."""
+        result = (
+            self._db.table("cv_versions")
+            .select("body_text, polished_text")
+            .eq("user_id", user_id)
+            .eq("id", baseline_version_id)
+            .limit(1)
+            .execute()
+        )
+        row = (result.data or [None])[0]
         if not row:
             return ""
         return (row.get("polished_text") or row.get("body_text") or "").strip()

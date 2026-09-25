@@ -243,12 +243,10 @@ def test_rows_without_an_id_are_skipped_and_ids_are_not_repeated() -> None:
     assert feed_warm.direction_first(rows, frozenset(), limit=10) == ["a", "b"]
 
 
-def test_the_warm_rates_fewer_than_the_list_shows() -> None:
-    # The warm rates ten; the finite list shows forty. Two numbers, two names —
-    # `SHORTLIST_POOL` (a third) went with the `fit` sort it was justified by.
-    from app.repositories.jobs import JobsRepository
+def test_one_batch_is_not_the_pile() -> None:
+    from app.services.matching.published_list import ASPIRATION_READ
 
-    assert feed_warm.WARM_SHORTLIST_SIZE < JobsRepository.SHORTLIST_SIZE
+    assert feed_warm.DRAIN_BATCH < ASPIRATION_READ
 
 
 def test_enqueue_feed_warm_queues_the_job_and_does_not_rank(monkeypatch: Any) -> None:
@@ -286,6 +284,53 @@ def test_enqueue_feed_warm_yields_to_a_live_match_run(monkeypatch: Any) -> None:
         lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("yielded into a queue")),
     )
     assert feed_warm.enqueue_feed_warm("u1") is False
+
+
+def test_the_drain_finishes_on_the_cv_it_started_with(monkeypatch: Any) -> None:
+    """A save during the run does not mix the new CV into this ranking."""
+    seen: dict[str, Any] = {}
+    enqueued: list[dict[str, Any]] = []
+
+    class _Repo:
+        def get_user_profile_targeting(self, _user_id: str) -> dict[str, Any]:
+            return {
+                "target_roles": ["Data Engineer"],
+                "cv_markdown": "the cv they just saved",
+            }
+
+        def get_latest_baseline_id(self, _user_id: str) -> int:
+            return 2
+
+        def get_baseline_cv_markdown(self, _user_id: str, baseline_id: int) -> str:
+            assert baseline_id == 1
+            return "the cv this read started with"
+
+        def get_candidate_job_ids_for_roles(self, roles: list[str], **_kw: Any) -> list[str]:
+            assert roles == ["Data Engineer"]
+            return [f"j{i}" for i in range(20)]
+
+        def get_cached_match_evals(self, _user_id: str, _ids: list[str]) -> dict[str, Any]:
+            return {}
+
+    async def _warm(_repo: Any, _provider: Any, _user_id: str, ids: list[str], **kw: Any) -> int:
+        seen["ids"] = ids
+        seen["profile"] = kw["profile"]
+        return len(ids)
+
+    monkeypatch.setattr(feed_warm, "warm_feed_shortlist", _warm)
+    monkeypatch.setattr(
+        feed_warm.background, "enqueue",
+        lambda _lane, _job, **kwargs: enqueued.append(kwargs["payload"]),
+    )
+
+    written = asyncio.run(feed_warm.run_feed_warm(
+        _Repo(), object(), "u1", baseline_version_id=1,  # type: ignore[arg-type]
+    ))
+
+    assert written == feed_warm.DRAIN_BATCH
+    assert seen["profile"]["baseline_version_id"] == 1
+    assert seen["profile"]["cv_markdown"] == "the cv this read started with"
+    assert enqueued == [{"user_id": "u1", "baseline_version_id": 1}]
 
 
 def test_a_warm_already_in_flight_is_pending_and_not_queued_again(monkeypatch: Any) -> None:

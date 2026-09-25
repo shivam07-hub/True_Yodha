@@ -73,10 +73,10 @@ test("phone Collections is on 4/6/8/10 and the six rungs", () => {
     assert.doesNotMatch(src, /borderRadius:\s*(11|12|13|14|16|99|999)\b/, rel)
   }
   // The phone jobs surface, spot-checked on the rungs it actually uses. The `9`
-  // pinned here was the segmented sort toggle's wrapper; the toggle went with the
-  // sort it toggled, so pinning it would have held a control in place by test.
+  // pinned here was the segmented sort toggle's wrapper; the `7` was that
+  // toggle's unused button. Both went with the sort, so pinning them would
+  // have held a control in place by test.
   const jobs = code(readFileSync(new URL("mobile/redesign/jobs-surface.tsx", ROOT), "utf8"))
-  assert.match(jobs, /borderRadius: 7/)
   assert.match(jobs, /borderRadius: 14/)
   assert.doesNotMatch(jobs, /borderRadius:\s*(11|12|13|16|99|999)\b/)
 })

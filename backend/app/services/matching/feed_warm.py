@@ -1,12 +1,12 @@
 """
-services/matching/feed_warm.py — the /market feed shortlist warmer.
+services/matching/feed_warm.py — the /market aspiration drain.
 
-The "best jobs" rule: the career-ops brain ranks the top of the market feed, not
-raw skill overlap. But LLM-ranking hundreds of roles per visit is cost-prohibitive
-at scale, so the brain warms only the tight top shortlist (the fit-sorted first N)
-and caches each eval into `user_job_matches`. The feed read then JOINs those cached
-evals (Consolidation D) and orders the warmed set by the brain's verdict; the long
-tail stays in the fast deterministic order.
+The list a person sees is the career-ops judgment already stored on
+`user_job_matches`. This worker opens the live jobs that match their
+aspirations and have not been judged for the CV the run started with, a
+batch at a time, and enqueues the next batch itself. It does not stop at a
+silent cap. `direction_first` remains for callers that still ask which of a
+given set to read first; the drain does not use it to decide membership.
 
 This runs ONE batched brain pass (`llm_ranker.evaluate_all`) over the un-warmed
 candidates. The HTTP route does not call it. `enqueue_feed_warm` puts
@@ -32,7 +32,7 @@ from typing import Any
 
 from app.services import background, llm_ranker, onboarding_service
 from app.services.llm_provider import LLMProvider
-from app.services.matching import direction_fit, on_demand, ranking, targeting
+from app.services.matching import direction_fit, on_demand, published_list, ranking, targeting
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +47,11 @@ _WARM_CLAIM_SECONDS = 180
 # and means the length of the finite list. Two numbers shared one name until
 # 2026-09-25, which is one grep away from a wrong constant.
 WARM_SHORTLIST_SIZE = 10
+
+# One worker tick. Not a membership cap: the pile is every aspiration-matched
+# job that has not been judged for this CV, and a tick that leaves some
+# enqueues the next tick itself.
+DRAIN_BATCH = 8
 
 
 def direction_first(
@@ -111,6 +116,7 @@ async def warm_feed_shortlist(
     candidate_job_ids: list[str],
     *,
     limit: int = WARM_SHORTLIST_SIZE,
+    profile: dict[str, Any] | None = None,
 ) -> int:
     """Brain-rank the top `limit` fit-sorted candidates that aren't cached yet.
 
@@ -128,9 +134,10 @@ async def warm_feed_shortlist(
     # The Targeting Brief, not the raw profile columns — same reason as on_demand:
     # these evals persist permanently per (user, job), so a memory-blind one here is
     # a memory-blind verdict forever.
-    profile = targeting.for_ranking(repo, user_id).ranking_profile()
-    if hasattr(repo, "get_latest_baseline_id"):
-        profile["baseline_version_id"] = repo.get_latest_baseline_id(user_id)
+    if profile is None:
+        profile = targeting.for_ranking(repo, user_id).ranking_profile()
+        if hasattr(repo, "get_latest_baseline_id"):
+            profile["baseline_version_id"] = repo.get_latest_baseline_id(user_id)
     eval_ctx = onboarding_service.eval_context_key(profile)
 
     # Cached counts only if it was reasoned from what we believe NOW. A warm is
@@ -200,17 +207,89 @@ def enqueue_feed_warm(user_id: str) -> bool:
     return True
 
 
-async def run_feed_warm(repo: Any, provider: LLMProvider, user_id: str) -> int:
-    """The worker body: the same shortlist the list shows, then the brain.
+def _cached_evals(repo: Any, user_id: str, job_ids: list[str]) -> dict[str, Any]:
+    """Badge reads in slices. One `in_` of a thousand ids blows the request URL."""
+    found: dict[str, Any] = {}
+    step = 100
+    for start in range(0, len(job_ids), step):
+        found.update(repo.get_cached_match_evals(user_id, job_ids[start : start + step]))
+    return found
 
-    Skill keys and target roles are read here, off the request. The route
-    used to do this and then await `warm_feed_shortlist`.
+
+def _continue_drain(user_id: str, baseline_version_id: int | None) -> None:
+    """Queue the next batch without taking the claim the first POST already holds."""
+    background.enqueue(
+        background.LANE_FAST,
+        "feed_warm",
+        payload={"user_id": user_id, "baseline_version_id": baseline_version_id},
+    )
+
+
+async def run_feed_warm(
+    repo: Any,
+    provider: LLMProvider,
+    user_id: str,
+    *,
+    baseline_version_id: int | None = None,
+) -> int:
+    """Judge the next batch of aspiration-matched jobs on one CV.
+
+    The CV is the baseline this run started with. A save during the run does
+    not change it. When this baseline's pile is empty and a newer baseline
+    exists, the next tick starts on that one.
     """
-    skill_keys = set(repo.user_skill_keys(user_id))
-    target_roles = list(repo.get_user_target_roles(user_id))
-    rows = repo.shortlist_jobs(user_id, skill_keys=skill_keys, target_roles=target_roles)
-    candidate_ids = direction_first(rows, targeting.direction_vocabulary(repo, target_roles))
-    return await warm_feed_shortlist(repo, provider, user_id, candidate_ids)
+    profile = targeting.for_ranking(repo, user_id).ranking_profile()
+    latest = (
+        repo.get_latest_baseline_id(user_id)
+        if hasattr(repo, "get_latest_baseline_id") else None
+    )
+    locked = baseline_version_id if baseline_version_id is not None else latest
+    profile["baseline_version_id"] = locked
+    if (
+        locked is not None
+        and locked != latest
+        and hasattr(repo, "get_baseline_cv_markdown")
+    ):
+        text = repo.get_baseline_cv_markdown(user_id, locked)
+        if text:
+            profile["cv_markdown"] = text
+
+    roles = [str(r) for r in (profile.get("target_roles") or []) if str(r).strip()]
+    if not roles:
+        return 0
+    countries = profile.get("target_location_countries") or None
+    ids = [
+        str(job_id) for job_id in (
+            repo.get_candidate_job_ids_for_roles(
+                roles,
+                target_location_countries=countries,
+                limit=published_list.ASPIRATION_READ,
+            ) or []
+        ) if job_id
+    ]
+    eval_ctx = onboarding_service.eval_context_key(profile)
+    cached = _cached_evals(repo, user_id, ids)
+    pending = [
+        job_id for job_id in ids
+        if not onboarding_service.eval_matches_context(cached.get(job_id), eval_ctx)
+    ]
+    batch = pending[:DRAIN_BATCH]
+    written = 0
+    if batch:
+        written = await warm_feed_shortlist(
+            repo, provider, user_id, batch, limit=len(batch), profile=profile,
+        )
+        if written == 0:
+            logger.warning(
+                "metric feed_warm.batch_empty user=%s pending=%d",
+                user_id, len(pending),
+            )
+            return 0
+    if len(pending) > len(batch):
+        _continue_drain(user_id, locked)
+    elif latest is not None and locked != latest:
+        _continue_drain(user_id, latest)
+    return written
 
 
 @background.handler("feed_warm")
@@ -226,6 +305,10 @@ async def _feed_warm_handler(payload: dict[str, Any], allow_retry: bool) -> None
     from app.services.llm_provider import get_judgment_provider
 
     user_id = str(payload["user_id"])
+    raw_baseline = payload.get("baseline_version_id")
+    baseline = int(raw_baseline) if raw_baseline is not None else None
     db = get_supabase_admin()
     repo = JobsRepository(db, db)
-    await run_feed_warm(repo, get_judgment_provider(), user_id)
+    await run_feed_warm(
+        repo, get_judgment_provider(), user_id, baseline_version_id=baseline,
+    )

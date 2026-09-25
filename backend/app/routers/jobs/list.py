@@ -1,5 +1,4 @@
 import logging
-from dataclasses import dataclass
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
@@ -17,8 +16,7 @@ from app.repositories.jobs import (
     get_public_jobs_repository,
     get_token_jobs_repository,
 )
-from app.services.concurrent_reads import run_concurrently
-from app.services.matching import feed_warm
+from app.services.matching import feed_warm, published_list
 from app.services.matching.filter_spec import FilterSpec
 from app.services.matching.job_query import JobQuery
 from app.services.job_refresh import user_has_live_refresh
@@ -332,40 +330,6 @@ def search_jobs(
     )
 
 
-@dataclass(frozen=True)
-class _ShortlistContext:
-    """The only per-user state the finite list needs: the CV skills that mark a
-    card's chips matched, and the target roles that decide role-family match.
-
-    Retrieval does the rest in SQL — level, direction, location, the employer cap
-    and the draining queue are all inside `candidates_for_user`, so no exclusion
-    set, follow set or location pref crosses the wire any more. The seven-read
-    prelude this replaces is why `/jobs/feed` sat at ~550ms."""
-
-    skill_keys: set[str]
-    target_roles: list[str]
-
-
-def _shortlist_context(repo: JobsRepository, uid: str) -> _ShortlistContext:
-    got: dict[str, object]
-    if hasattr(repo, "get_feed_context"):
-        got = repo.get_feed_context()
-    else:
-        # Compatibility seam for lightweight repository fakes. Production uses
-        # current_user_feed_context(), which answers both in one hop.
-        got = run_concurrently(
-            {
-                "skill_keys": lambda: repo.user_skill_keys(uid),
-                "target_roles": lambda: repo.get_user_target_roles(uid),
-            },
-            label="jobs.shortlist.context",
-        )
-    return _ShortlistContext(
-        skill_keys=set(got.get("skill_keys") or ()),
-        target_roles=list(got.get("target_roles") or []),
-    )
-
-
 def _rank_feed_rows(rows: list[dict], brain_evals: dict[str, dict], *, reorder: bool) -> int:
     """Attach cached Matching-Brain badges + the Match Verdict to each card, and —
     when the user asked to be ranked by fit — float the brain-ranked cards to the
@@ -461,49 +425,17 @@ def job_feed(
     repo: JobsRepository = Depends(get_token_jobs_repository),
     principal: Principal = Depends(get_principal),
 ) -> JobFeedResponse:
-    """The authed /market list: every job this person should see, and nothing else.
+    """The authed /market list: jobs this person's judge scored as worth pursuing.
 
-    Takes no parameters, and that is the change. It used to take eleven — a sort
-    lens, a cluster pin, free text, a skill facet, three location fields, a skill
-    floor, a follow toggle, a stretch toggle, an expansion tier and a page — and
-    behind them it sampled 500 rows ordered by a date 88% of the corpus shared,
-    then filtered THOSE for the user. One person's entire feed was 34 jobs out of
-    38,824 live listings and her Match Quality recall was 0%.
-
-    Now `candidates_for_user` filters the whole corpus per user first and ranks
-    what survives, capped at `SHORTLIST_SIZE`. On a finite list every narrowing the
-    filters sheet offered is a view filter over forty cards the client already
-    holds, so none of it belongs on the wire. Corpus-wide search is a different
-    act and it is Myro Search's surface, not this one.
+    Takes no parameters. An unscored job is not on the list. Membership is
+    overall_score ≥ 3.5 and a recommendation of Apply or Negotiate, ordered by
+    that score. The overlap shortlist is not this response. Corpus-wide search
+    is Myro Search, not this route.
     """
     uid = principal.id
     with phase_timer("jobs.feed") as timed:
-        with timed("context"):
-            ctx = _shortlist_context(repo, uid)
         with timed("retrieve"):
-            rows = repo.shortlist_jobs(
-                uid, skill_keys=ctx.skill_keys, target_roles=ctx.target_roles
-            )
-        # Brain-everywhere (Consolidation D): attach the cached Matching-Brain badges
-        # + the Match Verdict from ONE batched read, and float the ranked cards to the
-        # front (the "best jobs" rule). No LLM at read time — a card only ranks if the
-        # brain already warmed it for this user (POST /feed/warm, a refresh, or an open).
-        feed_job_ids = [str(r.get("job_id")) for r in rows if r.get("job_id")]
-        with timed("evals"):
-            brain_evals = repo.get_cached_match_evals(uid, feed_job_ids) if feed_job_ids else {}
-        # One order now, and it is best-first, so the brain's verdict always leads.
-        # This used to reorder only when the user picked the "fit" lens; there is no
-        # lens to pick.
-        with timed("rank"):
-            ranked_count = _rank_feed_rows(rows, brain_evals, reorder=True)
-        # Nobody has been read yet. The rows are marked checking and the client
-        # draws the unread divider; this log is the rate of that state. Expected
-        # on a cold arrival (the warm is still on the lane). A sustained rate
-        # means the warm is failing or never firing.
-        if ranked_count == 0 and rows:
-            logger.warning("metric feed.unranked user=%s rows=%d", uid, len(rows))
-        # Analytics/audit write: never make the J0 read wait for it. Starlette runs
-        # this after the response is sent, matching /jobs/matches' existing seam.
+            rows, judgment = published_list.assemble(repo, uid)
         background_tasks.add_task(
             repo.record_recommendation_exposures, uid, rows, surface="market"
         )
@@ -511,8 +443,9 @@ def job_feed(
             items = [JobFeedItem(**row) for row in rows]
     return JobFeedResponse(
         jobs=items,
-        shortlist_size=repo.SHORTLIST_SIZE,
-        ranked_count=ranked_count,
+        shortlist_size=0,
+        ranked_count=len(items),
+        judgment=judgment,
     )
 
 

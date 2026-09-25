@@ -8,7 +8,9 @@ import { useLaneYields } from "@/store/matchRunStore"
 import { jobFeedQueryKey } from "./job-feed-query-key"
 
 const POLL_MS = 15_000
-const POLL_CAP = 12 // ~3 min. The warm measures ~100s; the extra polls cover a wait on the fast lane.
+// A full aspiration pile outlasts the old ten-card warm. ~30 min of re-reads;
+// the notice on the last response is the count if the pile is still open.
+const POLL_CAP = 120
 
 /**
  * The deferred brain warm for the triage feed — J1, never J0.
@@ -68,11 +70,12 @@ export function useFeedWarm({
         if (cancelled) return
         if (!res.pending) return
         attempted.current.add(signature)
-        const ranked = qc.getQueryData<JobFeedResponse>(queryKey)?.ranked_count ?? 0
-        // A list that already has read rows draws the divider from ranked_count.
-        // Polling it again is a feed read that cannot change that fact until the
-        // worker lands, and a return visit is a cache hit.
-        if (ranked > 0) return
+        const current = qc.getQueryData<JobFeedResponse>(queryKey)
+        const reading = current?.judgment?.reading ?? false
+        const ranked = current?.ranked_count ?? 0
+        // Cards can already be on the page while the pile is still open.
+        // Stop only once the read itself has finished.
+        if (!reading && ranked > 0) return
         polls.current = 0
         setWatching(true)
       })
@@ -100,12 +103,17 @@ export function useFeedWarm({
     queryFn: async () => {
       polls.current += 1
       await qc.refetchQueries({ queryKey })
-      return qc.getQueryData<JobFeedResponse>(queryKey)?.ranked_count ?? 0
+      const feed = qc.getQueryData<JobFeedResponse>(queryKey)
+      return {
+        ranked: feed?.ranked_count ?? 0,
+        reading: feed?.judgment?.reading ?? false,
+      }
     },
     refetchInterval: (query) => {
       if (polls.current >= POLL_CAP) return false
-      const count = query.state.data
-      if (typeof count === "number" && count > 0) return false
+      const data = query.state.data
+      if (data && data.reading) return POLL_MS
+      if (data && !data.reading && data.ranked > 0) return false
       return POLL_MS
     },
   })

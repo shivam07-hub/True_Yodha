@@ -12,6 +12,7 @@ import { useJobFeed } from "@/components/market/use-job-feed"
 import { useTracks } from "@/lib/hooks/use-tracks"
 import { trackDividers, unreadBoundary } from "@/lib/jobs/track-sections"
 import { useFeedWarm } from "@/components/market/use-feed-warm"
+import { MarketJudgmentNote } from "@/components/market/market-judgment"
 import { useFeedScope } from "@/lib/hooks/use-feed-scope"
 import { useMyroSearch } from "@/lib/hooks/use-myro-search"
 import { NewInventoryStrip } from "@/components/jobs/new-inventory-strip"
@@ -80,7 +81,7 @@ export function JobsSurface({
   }, [])
 
   const scope = useFeedScope(targetLocations)
-  const { allJobs, visibleJobs, total, rankedCount, loading, settled, triage, undo } =
+  const { allJobs, visibleJobs, total, rankedCount, judgment, loading, settled, triage, undo } =
     useJobFeed({ token, filters, q: searchQ, skill: null, scope })
   // The WORDS for each search. One search — 83% of users — draws nothing.
   const { tracks } = useTracks(token)
@@ -238,6 +239,7 @@ export function JobsSurface({
             so the two skins can never disagree about whether the user was told
             that Myro is holding roles they've never searched. Renders nothing at
             zero. */}
+        {!loading ? <MarketJudgmentNote judgment={judgment} /> : null}
         {!loading && !isRefreshing ? <NewInventoryStrip token={token} /> : null}
         {/* Curated Agent Picks — default view only (hidden while searching, filtering
             or viewing hidden jobs). Renders nothing when the user has no picks. */}
@@ -248,7 +250,7 @@ export function JobsSurface({
           <HiddenView token={token} snack={snack} />
         ) : loading ? (
           <JobsMobileFeedRows />
-        ) : rows.length === 0 ? (
+        ) : rows.length === 0 && !judgment?.notice ? (
           <div style={{ textAlign: "center", padding: "44px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
             <div style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600 }}>Feed clear 🎯</div>
             <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--mm-faint)", lineHeight: 1.5 }}>You&apos;ve triaged everything here.<br />Next: tailor a CV for what you saved.</div>
@@ -321,14 +323,6 @@ export function JobsSurface({
           against this same Order is gone. */}
       {myroSearchGate}
     </div>
-  )
-}
-
-function SegBtn({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button onClick={onClick} style={{ height: 28, padding: "0 14px", borderRadius: 7, border: "none", background: on ? "var(--mm-raise-2)" : "transparent", color: on ? "var(--mm-text)" : "var(--mm-faint)", fontSize: "var(--tm-fs-caption)", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "background 180ms" }}>
-      {children}
-    </button>
   )
 }
 

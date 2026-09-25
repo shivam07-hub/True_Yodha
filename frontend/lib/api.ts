@@ -3888,18 +3888,28 @@ export interface MatchBrainResult {
   legitimacy_reason?: string | null
 }
 
-/** GET /jobs/feed — the finite list: every job this person should see, and
- *  nothing else. No page, no sort, no filters; those were the infinite browse
- *  feed, which sampled 500 rows ordered by a date 88% of the corpus shared. */
+/** Where the career-ops read of this person's aspirations stands. */
+export interface MarketJudgment {
+  reading: boolean
+  read: number
+  pending: number
+  cleared: number
+  notice: string | null
+  cause: "skills" | "aspirations" | null
+  skills: string[]
+}
+
+/** GET /jobs/feed — jobs the judge scored as worth this person's time.
+ *  An unscored job is not in `jobs`. `shortlist_size` is 0 when the list
+ *  is not truncated. */
 export interface JobFeedResponse {
   jobs: JobFeedItem[]
-  /** What the list was capped at, so copy can never claim a number the response
-   *  did not return. */
+  /** 0 when the judged list is not truncated. A positive cap is what the
+   *  client uses to append "the closest we found". */
   shortlist_size: number
-  /** How many leading cards the brain has read. 0 means every row is unread
-   *  (`checking`) and the list draws "Not read yet" before the first one.
-   *  Drawing nothing there presented retrieval order as a ranking. */
+  /** Equal to `jobs.length` on this list: every card has been judged. */
   ranked_count: number
+  judgment?: MarketJudgment | null
 }
 
 /** POST /jobs/feed/warm — queues the ranking. The request does not rank.

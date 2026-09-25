@@ -28,9 +28,11 @@ aiming at sales. Past work qualifies a person; it does not say where they are go
 
 **One evaluation per (user, job), one writer, one reader, one bar.**
 
-1. **Direction is an input to the evaluation, not a filter after it.** Each job
-   is graded on skills before the model sees it (ADR-0022), and the prompt is
-   told the result. Past skills qualify; they never set direction.
+1. **Direction is context the model judges, not a grade injected as the answer.**
+   Aspirations name which live jobs are opened. The published fit is the
+   evaluation's score (ADR-0022, amended 2026-09-26). Past skills qualify;
+   they never set direction. The prompt is not handed a precomputed skill
+   grade and told to treat it as the fit.
 2. **Apply means 4.0**, as upstream career-ops does, for picks. The feed keeps
    3.5 for its verdict word.
 3. **A thin band is topped up with reach, and reach is on-direction only.** The

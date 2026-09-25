@@ -89,7 +89,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     onFiltersChange?.(f)
   }, [selectedCluster, onSelectCluster, onFiltersChange])
 
-  const { allJobs, visibleJobs, total, shortlistSize, rankedCount, loading, settled, triage, undo, pending, savedCount } =
+  const { allJobs, visibleJobs, total, shortlistSize, rankedCount, judgment, loading, settled, triage, undo, pending, savedCount } =
     useJobFeed({ token, filters, q, skill: skillFacet, scope })
   useEffect(() => {
     if (settled) onFeedSettled?.()
@@ -271,6 +271,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
         onSave={onSave}
         onSkip={onSkip}
         loading={loading}
+        judgment={judgment}
         visibleJobs={visibleJobs}
         clearBrowse={clearBrowse}
         total={total}

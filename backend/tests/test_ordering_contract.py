@@ -118,13 +118,12 @@ def test_agent_picks_attach_the_same_verdict_the_feed_does() -> None:
 
 
 def test_the_ranker_still_takes_reorder_as_a_decision() -> None:
-    """The list has one order now, so /market passes `reorder=True` — but the flag
-    stays a parameter because Agent Picks passes False. It reordered on EVERY sort
-    once, which returned warmed-cards-first to a user who asked for "Newest"; the
-    flag is what made that visible, and a hardcoded reorder would hide the next one."""
+    """Agent Picks still attach badges without reordering. `/market` does not
+    call this ranker: its order is the judge's overall_score."""
     src = _src("app/routers/jobs/list.py")
     assert "def _rank_feed_rows(rows: list[dict], brain_evals: dict[str, dict], *, reorder: bool)" in src
-    assert "reorder=True" in src
+    assert "published_list.assemble" in src
+    assert "reorder=True" not in src
 
 
 def test_the_retired_browse_composite_has_not_grown_back() -> None:

@@ -703,24 +703,41 @@ class JobFeedItem(BaseModel):
     checked_recently: bool = False  # we opened the link inside the freshness window
 
 
-class JobFeedResponse(BaseModel):
-    """The finite list: every job this person should see, and nothing else.
+class MarketJudgment(BaseModel):
+    """Where the career-ops read of this person's aspirations stands.
 
-    No `page`, no `has_next_page`, no `sort`. Those were the infinite browse feed,
-    which sampled 500 rows ordered by a date 88% of the corpus shared and filtered
-    them per user afterwards — one user's entire feed was 34 jobs out of 38,824.
-    Search did not go away; it is `/jobs/search`, which is a different act.
+    `reading` is true while jobs that match their aspirations are still
+    unjudged. `notice` is the one sentence for that state: the count while
+    the read is open, or the larger cut once it has finished. `shortlist_size`
+    on the parent stays 0 — this list is not truncated, and a cap of 0 is how
+    the client knows not to call the remainder "the closest we found".
+    """
+
+    reading: bool = False
+    read: int = 0
+    pending: int = 0
+    cleared: int = 0
+    notice: str | None = None
+    cause: Literal["skills", "aspirations"] | None = None
+    skills: list[str] = []
+
+
+class JobFeedResponse(BaseModel):
+    """The jobs the career-ops judge scored as worth this person's time.
+
+    No `page`, no `has_next_page`, no `sort`. An unscored job is not on
+    `jobs`. Search did not go away; it is `/jobs/search`, which is a
+    different act.
     """
 
     jobs: list[JobFeedItem]
-    #: What the list was capped at, so the copy can never claim a number the
-    #: response did not return.
+    #: 0 when the judged list is not truncated. A positive cap is what the
+    #: client uses to append "the closest we found".
     shortlist_size: int
-    # How many leading cards the brain has read. The client draws the read/unread
-    # divider from this. 0 means every row is unread — retrieval order, marked
-    # `checking` — and drawing nothing there is how that order was presented as
-    # a ranking.
+    # Equal to `len(jobs)`. Every card on this list has been judged, so the
+    # client draws no unread divider.
     ranked_count: int = 0
+    judgment: MarketJudgment | None = None
 
 
 class AgentPickItem(JobFeedItem):

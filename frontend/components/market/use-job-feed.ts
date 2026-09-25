@@ -100,6 +100,7 @@ export function useJobFeed({
   // How many leading cards the brain ranked. The list draws its "more roles"
   // divider after this many.
   const rankedCount = feed.data?.ranked_count ?? 0
+  const judgment = feed.data?.judgment ?? null
 
   const clearUndoTimer = useCallback(() => {
     if (undoTimer.current) { clearTimeout(undoTimer.current); undoTimer.current = null }
@@ -153,5 +154,5 @@ export function useJobFeed({
   // existed. The real flag comes from `useFeedWarm`, which owns the deferred warm.
   // `settled` is J0's paint signal — that hook gates on it, and reading it from the
   // query is what keeps "after J0" a fact rather than a timer.
-  return { feed, allJobs, visibleJobs, total, shortlistSize, rankedCount, loading, settled: feedSettled, triage, undo, pending, commitPending, savedCount }
+  return { feed, allJobs, visibleJobs, total, shortlistSize, rankedCount, judgment, loading, settled: feedSettled, triage, undo, pending, commitPending, savedCount }
 }

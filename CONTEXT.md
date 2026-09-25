@@ -495,7 +495,7 @@ Two Tier-0 tables hold it — `role_family_scope` (family × seniority → job_c
 
 **It is pure, and costs no read.** Both sides are already in memory: a job row carries `main_skills`, a direction's vocabulary is one `text[]` on the labels snapshot. Measured 2026-09-16 over the 3,000 most recently seen live jobs, grading `main_skills` against those twelve names finds **736 of the 780** jobs a full `job_skills` join finds for Business Operations and **256 of 260** for Sales Management. `top_skills` was tried first and found 102 and 24 — it ranks by tf-idf DISTINCTIVENESS and is capped at eight, so it names the skills that are rarest in the jobs it should be matching. Two arrays, two questions: `top_skills` says what is distinctive about a direction, `core_skills` says what it asks for.
 
-**Recall is not a verdict.** `jobs.role_family` survives as the cheap index that narrows 46,801 live rows into a pool; it never answers whether a job fits. `candidates_for_user` uses it only as that filter. The card's `on_direction` and the retrieval score's direction term are `direction_fit.grade` on the rows already fetched (`shortlist_jobs`). That is what keeps ONE definition of fit while the corpus-wide precompute waits on the paid compute gate (#46 S4) — the half that ADR-0022 and #46 forbid shipping is a second *definition* of fit, not a second scale for the same one.
+**Recall is not a verdict.** `jobs.role_family` survives as the cheap index that narrows live rows into the aspiration pile (`get_candidate_job_ids_for_roles`); it never answers whether a job fits. The published fit on `/market` is the career-ops evaluation: overall_score ≥ 3.5 and Apply or Negotiate. `direction_fit` (2 of 12) is not that list.
 
 **Unknown is a third state.** An empty vocabulary (no direction chosen, or a family the snapshot does not hold) and a listing naming no skills both read `unknown`, never `off_direction`. Absence is not a verdict, and an ungradable job must be neither hidden nor promoted on the strength of missing data.
 
@@ -1361,7 +1361,7 @@ from an unrelated career path before a job reaches the feed or Career Ops.
 
 The one structured filter vocabulary for "what jobs to search for". Before it, that intent was expressed three incompatible ways — the NL parser dict, the authed feed's long `feed_jobs(**kwargs)`, and the intent-chat diff. `FilterSpec` (`app/services/matching/filter_spec.py`) is a frozen dataclass every producer maps into and every query surface reads out of.
 
-**It no longer covers the authed /market list.** That list is not a filtered search: `shortlist_jobs` asks `candidates_for_user` for the forty jobs one person should see, and level, direction, location, the employer cap and the draining queue are decided in SQL. `feed_kwargs` and the four feed-shaping fields only it read (`sort`, `min_skill_matches`, `following_only`, `include_stretch`) went with the 500-row sample.
+**It no longer covers the authed /market list.** That list is the career-ops judgment for this person: jobs already scored at ≥ 3.5 as Apply or Negotiate, ordered by that score. An unscored job is not on it. `feed_kwargs` and the four feed-shaping fields only it read (`sort`, `min_skill_matches`, `following_only`, `include_stretch`) went with the 500-row sample.
 
 **Producers** (build a spec): `FilterSpec.from_nl_parse(parsed)` (landing NL search), `from_intent_diff(diff)` (Delta-4 intent chat), `from_memory(facts)` (Phase-2 distilled `user_memory`).
 

@@ -67,6 +67,14 @@ paid-compute gate as #16. When the selector and the feed signal both read that
 snapshot, `role_family`, `role_family_for_job` and `trg_refresh_job_role_family`
 retire together, and this amendment goes with them.
 
+## Amended 2026-09-26 — the published fit is the judge's score
+
+`/market` membership is the career-ops evaluation: overall_score ≥ 3.5 and
+Apply or Negotiate, ordered by that score. `role_family` still recalls the
+pile (`get_candidate_job_ids_for_roles`). It does not decide which of those
+jobs the person sees. `direction_fit` (2 of 12 skills) is not that decision
+either. A skip is stored and stays off the list.
+
 ## Amended 2026-09-25 — the shortlist's verdict is the grade
 
 `candidates_for_user` was still answering the fit question with the bucket:
