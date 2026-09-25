@@ -78,6 +78,44 @@ const nextConfig = {
         destination: "/",
         permanent: true,
       },
+      // Retired URLs. These used to be page-level redirect() calls. With
+      // middleware on the matcher, that returns HTTP 200 plus a NEXT_REDIRECT
+      // flight: the homepage title, no canonical, and a body Google can store
+      // as a duplicate. next.config redirects run before middleware, so the
+      // status is a real 308 (same path /about and /forge already take).
+      // Most-specific /home rule first so a ?jobId= deep link still opens
+      // that collection; every other /home link lands on Jobs.
+      {
+        source: "/home",
+        has: [{ type: "query", key: "jobId", value: "(?<jobId>.+)" }],
+        destination: "/collections?jobId=:jobId",
+        permanent: true,
+      },
+      {
+        source: "/home",
+        destination: "/market",
+        permanent: true,
+      },
+      {
+        source: "/welcome",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/dashboard",
+        destination: "/practice",
+        permanent: true,
+      },
+      {
+        source: "/myro",
+        destination: "/market",
+        permanent: true,
+      },
+      {
+        source: "/xp",
+        destination: "/tokens",
+        permanent: true,
+      },
     ];
   },
 };
