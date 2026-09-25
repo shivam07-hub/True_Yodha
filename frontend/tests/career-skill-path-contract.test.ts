@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 
 import {
+  groupLearningRepos,
   isLivePath,
   requestQueue,
   sortAnchorCards,
@@ -178,6 +179,44 @@ test("request queue is the leftover after the story, unique, your band first", (
     "Communication",
     "Cold Calling",
   ])
+})
+
+test("repositories on the path group by use case and drop empty groups", () => {
+  const groups = groupLearningRepos([
+    {
+      full_name: "rust-lang/rust",
+      html_url: "https://github.com/rust-lang/rust",
+      roadmap_slug: "rust",
+      use_case: "language",
+      taxonomy_key: "Rust (Programming Language)",
+    },
+    {
+      full_name: "python/cpython",
+      html_url: "https://github.com/python/cpython",
+      roadmap_slug: "python",
+      use_case: "language",
+      taxonomy_key: "Python (Programming Language)",
+    },
+    {
+      full_name: "kubernetes/kubernetes",
+      html_url: "https://github.com/kubernetes/kubernetes",
+      roadmap_slug: "kubernetes",
+      use_case: "data_infrastructure",
+      taxonomy_key: "Kubernetes",
+    },
+  ])
+  assert.deepEqual(groups.map((group) => group.label), ["Language", "Data"])
+  assert.deepEqual(groups[0].repos.map((repo) => repo.full_name), [
+    "rust-lang/rust",
+    "python/cpython",
+  ])
+})
+
+test("the practice story lists repository links beside the bands", () => {
+  const maps = read("components/career-path/skill-path-maps.tsx")
+  assert.match(maps, /groupLearningRepos/)
+  assert.match(maps, /repo\.html_url/)
+  assert.match(maps, /RepositoryList/)
 })
 
 test("the practice story does not mix request CTAs into the band maps", () => {

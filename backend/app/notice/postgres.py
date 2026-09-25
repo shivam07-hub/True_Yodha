@@ -53,6 +53,12 @@ class PostgresNoticeStore:
             on_conflict="id",
         ).execute()
 
+    def mark_closer_ran(self, at: datetime) -> None:
+        self._client.table("notice_closer_heartbeat").upsert(
+            {"id": True, "ran_at": at.isoformat()},
+            on_conflict="id",
+        ).execute()
+
     def list_not_closed(self) -> tuple[NoticeRecord, ...]:
         result = (
             self._client.table("notices")

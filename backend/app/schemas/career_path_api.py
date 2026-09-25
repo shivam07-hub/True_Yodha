@@ -50,6 +50,24 @@ class BandSkillMap(BaseModel):
     cards: list[SkillPathCard] = Field(default_factory=list)
 
 
+LearningRepoUseCase = Literal[
+    "role_path",
+    "language",
+    "framework",
+    "data_infrastructure",
+    "practice",
+    "ai_tooling",
+]
+
+
+class LearningRepoLink(BaseModel):
+    full_name: str
+    html_url: str
+    roadmap_slug: str
+    use_case: LearningRepoUseCase
+    taxonomy_key: str
+
+
 class SkillPathNextAction(BaseModel):
     kind: str
     label: str
@@ -67,6 +85,7 @@ class CareerSkillPathResponse(BaseModel):
     higher: BandSkillMap | None = None
     next_action: SkillPathNextAction | None = None
     target_flow: dict[str, Any] | None = None
+    learning_repos: list[LearningRepoLink] = Field(default_factory=list)
 
 
 class LearningPathRequestBody(BaseModel):

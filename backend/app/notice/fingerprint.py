@@ -13,7 +13,12 @@ _TOKEN = re.compile(r"^[A-Za-z0-9_./-]+$")
 _BREAK_KINDS = frozenset({"object_no_job", "job_never_claimed"})
 _SLOW_KINDS = frozenset({"reads_over_budget", "capacity_queue"})
 _DEATH_KINDS = frozenset({"oom", "crash", "failed_deploy", "runner_exit"})
-_BELTS = frozenset({"skill_floor", "listing_verifier", "job_ingestion"})
+_BELTS = frozenset({
+    "skill_floor",
+    "listing_verifier",
+    "job_ingestion",
+    "notice_closer",
+})
 
 
 def cause_key_for(sighting: Sighting) -> str:

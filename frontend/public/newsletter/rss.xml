@@ -6,7 +6,16 @@
     <description>Free weekly hiring intelligence. Real skill demand data from thousands of live job postings.</description>
     <language>en</language>
     <atom:link href="https://www.himyro.com/newsletter/rss.xml" rel="self" type="application/rss+xml"/>
-    <lastBuildDate>Thu, 17 Sep 2026 07:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Thu, 01 Oct 2026 07:00:00 +0000</lastBuildDate>
+
+    <item>
+      <title>Which Global Employers in India Ghost Their Own Job Ads</title>
+      <link>https://www.himyro.com/newsletter/2026-10-ghost-job-index-mnc-employers</link>
+      <guid isPermaLink="true">https://www.himyro.com/newsletter/2026-10-ghost-job-index-mnc-employers</guid>
+      <description>Myro&apos;s Ghost Index checked ten global employers hiring in India against their own hiring systems. Citibank pulls a closed listing in under three days on average. AB InBev leaves seven in ten up. Here&apos;s what each is actually hiring for right now.</description>
+      <pubDate>Thu, 01 Oct 2026 07:00:00 +0000</pubDate>
+      <author>Shivam Pathak</author>
+    </item>
 
     <item>
       <title>22% of India&apos;s Finance Openings Sit in Mumbai, and 32 Companies Hold All of Them.</title>

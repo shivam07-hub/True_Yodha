@@ -6,12 +6,13 @@ year, most of them saying what yesterday said. A mail that is usually noise is
 the mail nobody opens on the day it matters — and the day it matters is the day
 a belt like ingestion has been dead for a week.
 
-"Moved" is the open SET — which causes are open and in what state — not the
-occurrence counter, which a live dead-man bumps on every /health probe without
-anything actually happening.
+"Moved" is the open set, the count on an open cause, and a doubling of a
+blocked cause. A dead-man probe refreshes last_seen and does not count, so a
+belt that is still dead is not a new mail.
 """
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
 from app.notice.board import NoticeBook
@@ -84,8 +85,8 @@ def test_a_close_is_always_news() -> None:
 
 
 def test_re_observing_the_same_belt_is_not_movement() -> None:
-    # /health probes the belt every five minutes. Each probe bumps
-    # occurrence_count and last_seen_at; none of that is news.
+    # /health probes the belt every five minutes. A probe refreshes last_seen.
+    # It does not bump the count, and it is not a new mail.
     store, mailer = MemoryNoticeStore(), RecordingMailer()
     _stall(store, mailer, TUE)
     book = _book(store, mailer, TUE + timedelta(days=1))
@@ -93,12 +94,67 @@ def test_re_observing_the_same_belt_is_not_movement() -> None:
         book.observe(Sighting.dead_man(belt="job_ingestion"))
     book.settle([])
     assert len(mailer.sent) == 1
+    row = store.get("dead_man:job_ingestion")
+    assert row is not None
+    assert row.occurrence_count == 1
 
 
 def test_nothing_open_at_all_sends_nothing_on_a_tuesday() -> None:
     store, mailer = MemoryNoticeStore(), RecordingMailer()
     _book(store, mailer, TUE).settle([])
     assert mailer.sent == []
+
+
+def test_another_hit_on_an_open_cause_is_news() -> None:
+    store, mailer = MemoryNoticeStore(), RecordingMailer()
+    book = _book(store, mailer, TUE)
+    book.observe(Sighting.unhandled_500(
+        exc=RuntimeError("profile"),
+        correlation_id="a",
+        method="POST",
+        path="/preflight/run",
+    ))
+    book.settle([])
+    book = _book(store, mailer, TUE + timedelta(days=1))
+    book.observe(Sighting.unhandled_500(
+        exc=RuntimeError("profile"),
+        correlation_id="b",
+        method="POST",
+        path="/preflight/run",
+    ))
+    book.settle([])
+    assert len(mailer.sent) == 2
+
+
+def test_blocked_growth_is_news_only_when_the_band_changes() -> None:
+    # 5000 and 7000 sit in the 4096 band. 9000 crosses into 8192.
+    store, mailer = MemoryNoticeStore(), RecordingMailer()
+    book = _book(store, mailer, TUE)
+    book.observe(Sighting.slow_200(kind="capacity_queue", method="GET", path="/a"))
+    row = store.get("slow_200:capacity_queue")
+    assert row is not None
+    store.put(replace(row, occurrence_count=5000))
+    book.settle([])
+    assert len(mailer.sent) == 1
+
+    row = store.get("slow_200:capacity_queue")
+    assert row is not None
+    store.put(replace(row, occurrence_count=7000))
+    _book(store, mailer, TUE + timedelta(days=1)).settle([])
+    assert len(mailer.sent) == 1
+
+    row = store.get("slow_200:capacity_queue")
+    assert row is not None
+    store.put(replace(row, occurrence_count=9000))
+    _book(store, mailer, TUE + timedelta(days=2)).settle([])
+    assert len(mailer.sent) == 2
+
+
+def test_a_quiet_tuesday_still_records_that_the_closer_ran() -> None:
+    store, mailer = MemoryNoticeStore(), RecordingMailer()
+    _book(store, mailer, TUE).settle([])
+    assert mailer.sent == []
+    assert store.closer_ran_at == TUE
 
 
 def test_monday_sends_even_with_nothing_open() -> None:

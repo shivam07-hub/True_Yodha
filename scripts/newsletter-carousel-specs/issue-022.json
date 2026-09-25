@@ -1,0 +1,95 @@
+{
+  "issue": 22,
+  "out": "Myro Newsletter/Issue 022 - carousel",
+  "og_out": "frontend/public/newsletter/issue-022-og.png",
+  "foot": "268 employers tracked · Ghost Index · 24 Sept 2026",
+  "og": {
+    "series": "GHOST JOB INDEX",
+    "h1": "Some employers in India pull a dead job ad in under 3 days. One leaves <span style=\"color:var(--mint)\">70%</span> of them up.",
+    "bars": [
+      ["Citibank", 3.4, "3.4%"],
+      ["Wells Fargo", 5.1, "5.1%"],
+      ["Barclays", 13.2, "13.2%"],
+      ["Cisco", 29.4, "29.4%"],
+      ["Okta", 39.5, "39.5%"],
+      ["AB InBev", 69.6, "69.6%"]
+    ],
+    "max": 70,
+    "foot": "10 employers checked · 268 in the corpus · himyro.com"
+  },
+  "slides": [
+    {
+      "kind": "statement",
+      "kicker": "GHOST JOB INDEX",
+      "h1": "Which global employers in India ghost their own job ads",
+      "sub": "We checked ten employers' career pages against their own hiring systems."
+    },
+    {
+      "kind": "bars",
+      "kicker": "Share of closed roles still advertised",
+      "bars": [
+        ["Citibank", 3.4, "3.4%"],
+        ["Wells Fargo", 5.1, "5.1%"],
+        ["Amazon", 10.6, "10.6%"],
+        ["Barclays", 13.2, "13.2%"],
+        ["Nike", 17.1, "17.1%"],
+        ["Capgemini", 23.6, "23.6%"],
+        ["Cisco", 29.4, "29.4%"],
+        ["Okta", 39.5, "39.5%"],
+        ["Palo Alto Networks", 50.0, "50.0%"],
+        ["AB InBev", 69.6, "69.6%"]
+      ],
+      "max": 70
+    },
+    {
+      "kind": "number",
+      "kicker": "CLEANEST",
+      "huge": "3.4%",
+      "sub": "Citibank pulls a closed listing in <b>2.6 days</b> on average."
+    },
+    {
+      "kind": "number",
+      "kicker": "SLOWEST",
+      "huge": "69.6%",
+      "sub": "AB InBev leaves <b>seven in ten</b> closed roles still advertised."
+    },
+    {
+      "kind": "table",
+      "kicker": "If you're applying to one of the clean four",
+      "head": ["Employer", "Still advertised"],
+      "rows": [
+        ["Citibank", "3.4%", true],
+        ["Wells Fargo", "5.1%", true],
+        ["Amazon", "10.6%", true],
+        ["Barclays", "13.2%", true]
+      ],
+      "note": "Hiring for SQL, regulatory compliance, Java, Python, supply chain."
+    },
+    {
+      "kind": "table",
+      "kicker": "Check before you tailor a CV for these four",
+      "head": ["Employer", "Still advertised"],
+      "rows": [
+        ["Cisco", "29.4%", false],
+        ["Okta", "39.5%", false],
+        ["Palo Alto Networks", "50.0%", false],
+        ["AB InBev", "69.6%", false]
+      ],
+      "note": "Hiring for Python, artificial intelligence, computer science, software engineering."
+    },
+    {
+      "kind": "cards",
+      "kicker": "The middle",
+      "cards": [
+        ["Nike · 17.1%", "Pulls a dead ad in about 11 days. Hiring for software engineering, computer science, SQL."],
+        ["Capgemini · 23.6%", "Takes closer to 38 days. Hiring for SAP S/4HANA, digital transformation, data migration."]
+      ]
+    },
+    {
+      "kind": "cta",
+      "h1": "Check any employer before you apply",
+      "sub": "Free, named, updated daily against 268 employers' own hiring systems.",
+      "pill": "himyro.com/ghost-index →"
+    }
+  ]
+}

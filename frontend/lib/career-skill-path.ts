@@ -55,12 +55,47 @@ export interface BandSkillMap {
   cards: SkillPathCard[]
 }
 
+export type LearningRepoUseCase =
+  | "role_path"
+  | "language"
+  | "framework"
+  | "data_infrastructure"
+  | "practice"
+  | "ai_tooling"
+
+export interface LearningRepoLink {
+  full_name: string
+  html_url: string
+  roadmap_slug: string
+  use_case: LearningRepoUseCase
+  taxonomy_key: string
+}
+
+const LEARNING_REPO_GROUPS: { useCase: LearningRepoUseCase; label: string }[] = [
+  { useCase: "role_path", label: "Role" },
+  { useCase: "language", label: "Language" },
+  { useCase: "framework", label: "Framework" },
+  { useCase: "data_infrastructure", label: "Data" },
+  { useCase: "practice", label: "Practice" },
+  { useCase: "ai_tooling", label: "AI" },
+]
+
+export function groupLearningRepos(
+  repos: readonly LearningRepoLink[],
+): { useCase: LearningRepoUseCase; label: string; repos: LearningRepoLink[] }[] {
+  return LEARNING_REPO_GROUPS.flatMap((group) => {
+    const items = repos.filter((repo) => repo.use_case === group.useCase)
+    return items.length === 0 ? [] : [{ ...group, repos: items }]
+  })
+}
+
 export interface CareerSkillPath {
   needs_target: boolean
   snapshot: CareerTargetSnapshot | null
   lower: BandSkillMap | null
   anchor: BandSkillMap | null
   higher: BandSkillMap | null
+  learning_repos?: LearningRepoLink[]
   next_action: {
     kind: string
     label: string

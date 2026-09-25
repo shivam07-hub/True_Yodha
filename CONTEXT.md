@@ -1472,10 +1472,10 @@ The saturation mailbox is retired (ADR-0021). A Notice is the memory; a daily Gi
 3. 503 / upstream timeout (`read_capacity.rejected`, `upstream.read_timeout`).
 4. Upload Guarantee break — object in storage, no job / no output.
 5. Work Lane exhaustion — retries spent, user still has no result.
-6. Dead-man — skill-floor stall, listing verifier not running.
-7. Slow 200 — `slow_200:reads_over_budget` (code) or `slow_200:capacity_queue` (`blocked`, queue victim).
+6. Dead-man — skill-floor, listing verifier, job ingestion, and the Notice closer. Ingestion opens only when `stalled` (168h). `degraded` (behind the 72h aim) neither opens nor closes. A repeat probe refreshes `last_seen_at` and does not increment the count.
+7. Slow 200 — `slow_200:reads_over_budget` (code; the digest mails again when the count changes) or `slow_200:capacity_queue` (`blocked`; mails when the count doubles, and on Monday).
 
-Class 2 closes in Cursor: root-cause fix, five gates, branch from `main`, that Notice’s files only. The Action never writes the patch. A `NOTICE_CAUSE_KEY` test already on `origin/main` is how the next digest marks it `closed`. Class 3 and slow-200 queue victims and Railway OOM/failed-deploy open `blocked`. 4–6 record live; the closer harvests Railway deaths and belt recovery.
+Class 2 closes in Cursor: root-cause fix, five gates, branch from `main`, that Notice’s files only. The Action never writes the patch. A `NOTICE_CAUSE_KEY` test already on `origin/main` is how the next digest marks it `closed`. A harvest proof may close an `open` belt from one healthy sample. It does not clear `failed-close` — a recovery that did not hold stays visible until a proof on `main`. Class 3 and slow-200 queue victims and Railway OOM/failed-deploy open `blocked`. 4–6 record live; the closer harvests Railway deaths and belt recovery.
 
 **Identity**
 
@@ -1496,7 +1496,7 @@ Postgres is the record. Tests use an in-memory adapter. Redis may page (skill-fl
 **Surfaces**
 
 - Live: 500/503 handlers, Work Lane `on_failure`, upload stall/orphan, skill-floor and listing-verifier dead-men, and slow 2xx timing write a Notice (no email).
-- Daily: GitHub Action harvests Railway process death, settles proofs already on `origin/main`, sends one digest to `ops_alert_email`. Cursor authors the close when the laptop is open — tonight or the next session. OpenRouter is the user path and is not in this loop.
+- Daily: GitHub Action harvests Railway process death, settles proofs already on `origin/main`, sends one digest to `ops_alert_email`. An open cause whose count rose is movement. A blocked cause is movement when its count doubles. The closer writes `notice_closer_heartbeat` on every run, including a run that sends nothing; `/health` opens `dead_man:notice_closer` when that row is older than 36h. Cursor authors the close when the laptop is open — tonight or the next session. OpenRouter is the user path and is not in this loop.
 - The closer does not run inside `mirror-backend-prod`. The Job Runner binds Notice so class 5 can record.
 
 ## Listing Verification

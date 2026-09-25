@@ -18,11 +18,29 @@ _logger = logging.getLogger("app.notice")
 _CAPACITY_BLOCKED = "Overload Policy / paid compute gate"
 _RAILWAY_INFRA_BLOCKED = "Railway infra (OOM / failed deploy) — not a code close"
 
+def _blocked_band(count: int) -> int:
+    """Highest power of two at or below count. A blocked row mails when this changes."""
+    if count <= 0:
+        return 0
+    return 1 << (count.bit_length() - 1)
+
+
 def _open_set_fingerprint(rows: tuple[NoticeRecord, ...]) -> str:
-    """Identity of the open set: which causes are open, and in what state."""
-    return hashlib.sha256(
-        "\n".join(sorted(f"{row.cause_key}:{row.status}" for row in rows)).encode()
-    ).hexdigest()
+    """Identity of what the operator needs to hear about.
+
+    An open cause includes its count, so another user hitting the same bug is
+    news. A blocked cause includes only the power-of-two band, so the paid
+    compute gate does not page every day it ticks, and does page when it
+    doubles. Dead-man probes do not reach this: a repeat probe refreshes
+    last_seen and leaves the count alone.
+    """
+    parts: list[str] = []
+    for row in rows:
+        if row.status == "blocked":
+            parts.append(f"{row.cause_key}:{row.status}:x{_blocked_band(row.occurrence_count)}")
+        else:
+            parts.append(f"{row.cause_key}:{row.status}:n={row.occurrence_count}")
+    return hashlib.sha256("\n".join(sorted(parts)).encode()).hexdigest()
 
 
 _PRIORITY = ("failed-close", "open", "open-on-prod", "blocked")
@@ -88,10 +106,11 @@ class NoticeBook:
         of those said the same thing as yesterday, and a mail that is usually
         noise is a mail nobody opens on the day it matters.
 
-        "Moved" is the open SET, not its counts: a fingerprint over
-        (cause_key, status) catches an open, a close, and a state change alike,
-        and ignores the occurrence counter, which a live dead-man bumps on every
-        /health probe without anything actually happening.
+        "Moved" is the open set plus the counts that mean a person was hurt
+        again. An open cause mails when its count changes. A blocked cause
+        mails when its count doubles. A dead-man probe does neither: it
+        refreshes last_seen and leaves the count alone, so a belt that is
+        still dead does not page every five minutes.
 
         Monday always sends, so a quiet week still proves the Action is alive —
         silence from a working system and silence from a dead one must not look
@@ -126,6 +145,12 @@ class NoticeBook:
             proof = by_key.get(row.cause_key)
             if proof is None:
                 continue
+            # A harvest proof is one healthy sample. The first recovery may
+            # close an open belt. A failed close means that recovery did not
+            # hold, and another sample must not launder it back to closed —
+            # a proof on main still can.
+            if row.status == "failed-close" and proof.test_nodeid.startswith("harvest:"):
+                continue
             next_status: Status = "closed" if proof.on_main else "open-on-prod"
             self._store.put(
                 NoticeRecord(
@@ -158,6 +183,13 @@ class NoticeBook:
             )
             if informed:
                 self._store.record_digest(_open_set_fingerprint(rows), now)
+        # The run is the artefact, including the run that correctly sent
+        # nothing. A quiet day with no row is indistinguishable from a dead
+        # Action. A missing table must not swallow the digest.
+        try:
+            self._store.mark_closer_ran(now)
+        except Exception:
+            _logger.exception("metric notice.closer_heartbeat_failed")
         return Digest(
             as_of=now,
             rows=rows,
@@ -170,6 +202,30 @@ class NoticeBook:
         key = cause_key_for(sighting)
         now = self._clock.now()
         existing = self._store.get(key)
+        if (
+            existing is not None
+            and sighting.cause_class == "dead_man"
+            and existing.status != "closed"
+        ):
+            self._store.put(
+                NoticeRecord(
+                    cause_key=existing.cause_key,
+                    cause_class=existing.cause_class,
+                    status=existing.status,
+                    occurrence_count=existing.occurrence_count,
+                    first_seen_at=existing.first_seen_at,
+                    last_seen_at=now,
+                    last_method=sighting.method or existing.last_method,
+                    last_path=sighting.path or existing.last_path,
+                    last_correlation_id=(
+                        sighting.correlation_id or existing.last_correlation_id
+                    ),
+                    closing_commit=existing.closing_commit,
+                    blocked_reason=existing.blocked_reason,
+                    proof_test=existing.proof_test,
+                )
+            )
+            return
         if existing is None:
             status, blocked_reason = _opening(sighting)
             self._store.put(
