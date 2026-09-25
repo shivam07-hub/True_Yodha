@@ -7,10 +7,26 @@ Postgres for the nearest live jobs (pgvector cosine, match_jobs_semantic RPC). T
 Career-Ops brain then judges true fit — a semantically-perfect, keyword-poor role
 that the overlap sieve would have dropped now reaches the brain.
 
-FAIL-SOFT BY DESIGN: any failure — no embedding key, RPC error, or (during rollout)
-every jobs.embedding still NULL — returns []. The matcher's caller unions this with
-the deterministic candidate set, so [] === today's behaviour. Semantic retrieval
-*widens* the pool; it is never a hard dependency that can break matching.
+WHERE THE VECTORS LIVE — corrected 2026-09-25 against the live database. NOT
+`jobs.embedding`: that column was in the original design (migration
+`20260711_jobs_semantic_embedding.sql`) and does not exist in production. The
+vectors are `private.job_embeddings` (halfvec(768), HNSW), filled by the sister
+scraper repo, and `match_jobs_semantic` reads that table. Measured that day:
+**43,803 jobs embedded** (`status='complete'`), 269 more enrolled at the
+2026-09-17 ingest. The corpus is NOT the reason this module has no caller — see
+BACKLOG 7e, which is a cost-and-quality decision, not a wiring chore.
+
+THIS MODULE HAS NO PRODUCTION CALLER YET. `CandidatePool.assemble` is the seam
+it unions into (CONTEXT.md "CandidatePool"). Read that before wiring it: the
+union widens what reaches the brain, and the brain is the LLM spend.
+
+FAIL-SOFT BY DESIGN: any failure — no embedding key, RPC error, empty corpus —
+returns []. The matcher's caller unions this with the deterministic candidate
+set, so [] === today's behaviour. Semantic retrieval *widens* the pool; it is
+never a hard dependency that can break matching. ⚠️ That same fail-soft is why
+the argument names below are load-bearing: a signature mismatch does not raise
+to the caller, it returns [] forever, and the feature looks switched on while
+retrieving nothing.
 
 Reads via the service-role admin client (match_jobs_semantic is SECURITY INVOKER;
 the matcher already runs admin-side). The location hard-filter lives in the RPC —
@@ -51,6 +67,31 @@ def build_query(profile: dict[str, Any]) -> str:
     return "\n".join(parts)[:_MAX_QUERY_CHARS]
 
 
+def _rpc_params(
+    qvec: Any, *, countries: list[str] | None, k: int
+) -> dict[str, Any]:
+    """The deployed `match_jobs_semantic` signature, verified 2026-09-25:
+
+        p_query_embedding text, p_match_count integer, p_target_countries text[],
+        p_include_remote boolean, p_excluded_job_ids text[]
+
+    Named because PostgREST resolves a function by its ARGUMENT NAMES: the keys
+    this module sent until 2026-09-25 (`query_embedding`, `p_countries`,
+    `match_count`) matched no deployed overload, so the call would have failed and
+    `retrieve`'s fail-soft `except` would have returned [] on every call, forever.
+    Nothing would have raised. `test_semantic_candidates` pins these keys.
+
+    The two defaulted parameters are left to the function (`p_include_remote` true,
+    `p_excluded_job_ids` empty): exclusions are the caller's to apply at the
+    CandidatePool seam, where the novelty-preference set already lives.
+    """
+    return {
+        "p_query_embedding": embeddings.to_pgvector(qvec),
+        "p_match_count": k,
+        "p_target_countries": countries or None,
+    }
+
+
 async def retrieve(
     profile: dict[str, Any],
     *,
@@ -71,14 +112,7 @@ async def retrieve(
     try:
         resp = (
             get_supabase_admin()
-            .rpc(
-                "match_jobs_semantic",
-                {
-                    "query_embedding": embeddings.to_pgvector(qvec),
-                    "p_countries": countries or None,
-                    "match_count": k,
-                },
-            )
+            .rpc("match_jobs_semantic", _rpc_params(qvec, countries=countries, k=k))
             .execute()
         )
         rows = resp.data or []
