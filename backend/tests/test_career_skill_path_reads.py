@@ -138,9 +138,9 @@ def test_assemble_answers_every_band_within_the_read_contract() -> None:
 
     # The shape, spelled out so a future reader can see what the number is made of:
     #   1  career_target_snapshots        (must resolve family + band first)
-    #   3  requests / certificates / label            — one wave
+    #   2  requests / certificates                    — one wave
     #   3  market RPC, one per band                   — one wave
-    #   1  skills, over the UNION of every band's demand
+    #   2  skills + github_learning_repos             — one wave, same keys
     #   3  user_skills / assessed / ladders           — one wave
     # Eleven reads, five round trips. It shipped at nineteen, all sequential.
     assert len(reads) <= 11, (
@@ -202,3 +202,47 @@ def test_band_maps_stay_identical_after_the_collapse() -> None:
     # No ladder rows seeded, so nothing is practice-complete.
     assert sql["ladder_complete"] is False
     assert python["next_practice_level"] is None
+
+
+def test_learning_repos_follow_the_skills_on_the_path() -> None:
+    TABLE_ROWS["github_learning_repos"] = [
+        {
+            "owner": "python",
+            "name": "cpython",
+            "html_url": "https://github.com/python/cpython",
+            "roadmap_slug": "python",
+            "use_case": "language",
+            "taxonomy_key": "python",
+        },
+        {
+            "owner": "rust-lang",
+            "name": "rust",
+            "html_url": "https://github.com/rust-lang/rust",
+            "roadmap_slug": "rust",
+            "use_case": "language",
+            "taxonomy_key": "rust",
+        },
+        {
+            "owner": "python",
+            "name": "cpython",
+            "html_url": "https://github.com/python/cpython",
+            "roadmap_slug": "python-data-analysis",
+            "use_case": "language",
+            "taxonomy_key": "python",
+        },
+    ]
+    try:
+        payload, reads = _assemble()
+    finally:
+        TABLE_ROWS.pop("github_learning_repos", None)
+
+    assert reads.count("github_learning_repos") == 1
+    assert payload["learning_repos"] == [
+        {
+            "full_name": "python/cpython",
+            "html_url": "https://github.com/python/cpython",
+            "roadmap_slug": "python",
+            "use_case": "language",
+            "taxonomy_key": "python",
+        }
+    ]

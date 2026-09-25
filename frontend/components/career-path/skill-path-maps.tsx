@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { RequestBoard } from "@/components/career-path/skill-path-requests"
 import {
   addCertificateHref,
+  groupLearningRepos,
   isLivePath,
   requestQueue,
   SENIORITY_LABEL,
@@ -94,6 +95,45 @@ function SkillCard({ card }: { card: SkillPathCard }) {
   )
 }
 
+function skillNames(path: CareerSkillPath): Map<string, string> {
+  const names = new Map<string, string>()
+  for (const map of storyBands(path)) {
+    for (const card of map.cards) names.set(card.taxonomy_key, card.display_name)
+  }
+  return names
+}
+
+function RepositoryList({ path }: { path: CareerSkillPath }) {
+  const groups = groupLearningRepos(path.learning_repos ?? [])
+  if (groups.length === 0) return null
+  const names = skillNames(path)
+  return (
+    <section className="csp-band" aria-labelledby="csp-repos">
+      <h2 id="csp-repos" className="csp-band-label">Repositories</h2>
+      <div className="csp-repos">
+        {groups.map((group) => (
+          <div key={group.useCase} className="csp-repo-group">
+            <h3 className="csp-repo-use">{group.label}</h3>
+            <ul className="csp-repo-list">
+              {group.repos.map((repo) => (
+                <li key={`${repo.html_url}:${repo.taxonomy_key}`}>
+                  <a href={repo.html_url} target="_blank" rel="noopener noreferrer">
+                    {repo.full_name}
+                  </a>
+                  <span className="csp-repo-skill">
+                    {" · "}
+                    {names.get(repo.taxonomy_key) ?? repo.taxonomy_key}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function BandMap({ map }: { map: BandSkillMap }) {
   const cards = sortStoryCards(map.cards)
   return (
@@ -133,6 +173,7 @@ export function SkillPathMaps({ path }: { path: CareerSkillPath }) {
         </p>
       </header>
       {storyBands(path).map((map) => <BandMap key={map.kind} map={map} />)}
+      <RepositoryList path={path} />
       <RequestBoard cards={requestQueue(path)} />
       <p className="csp-closer">
         <Link href="/job-switch-plan">Keep a person on this path</Link>

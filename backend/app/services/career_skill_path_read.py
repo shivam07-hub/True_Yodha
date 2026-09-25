@@ -15,6 +15,7 @@ from app.services.career_skill_path_cards import (
 )
 from app.services.career_target import current_snapshot
 from app.services.concurrent_reads import run_concurrently
+from app.services.github_learning_repos import project_learning_repos
 from app.services.job_eligibility import adjacent_source_bands
 from app.services.xp_policy import UPSKILLING_SET_SIZE
 
@@ -30,6 +31,7 @@ def assemble(db: Client, user_id: str) -> dict[str, Any]:
             "higher": None,
             "next_action": next_action([], needs_target=True),
             "target_flow": _target_flow(db, user_id),
+            "learning_repos": [],
         }
     family = str(snapshot.get("l2_role_family") or "")
     anchor_band = str(snapshot.get("seniority") or "")
@@ -63,7 +65,7 @@ def assemble(db: Client, user_id: str) -> dict[str, Any]:
         for kind, band in (("anchor", anchor_band), ("lower", lower_band), ("higher", higher_band))
         if family and band
     ]
-    maps = _band_maps(db, user_id, family, bands, requests, certs)
+    maps, learning_repos = _band_maps(db, user_id, family, bands, requests, certs)
 
     anchor_cards = (maps.get("anchor") or {}).get("cards") or []
     _fulfill_ready(db, user_id, requests, anchor_cards)
@@ -75,6 +77,7 @@ def assemble(db: Client, user_id: str) -> dict[str, Any]:
         "higher": maps.get("higher"),
         "next_action": next_action(anchor_cards, needs_target=False),
         "target_flow": None,
+        "learning_repos": learning_repos,
     }
 
 
@@ -85,7 +88,7 @@ def _band_maps(
     bands: list[tuple[str, str]],
     requests: dict[str, dict[str, Any]],
     certs: dict[str, dict[str, Any]],
-) -> dict[str, dict[str, Any]]:
+) -> tuple[dict[str, dict[str, Any]], list[dict[str, str]]]:
     """Every band's map on a fixed read budget, whatever the band count.
 
     This used to be one `_band_map` per band, five SEQUENTIAL reads inside each:
@@ -94,13 +97,13 @@ def _band_maps(
     p50 5,882ms / max 7,895ms in the saturation alerts within a day of shipping.
 
     The bands differ only by seniority, so the reads collapse: one concurrent
-    market wave, ONE `skills` lookup over the union of every band's demand, then
-    one concurrent wave of the three user-state reads over that shared id set.
-    Six round trips, max width three — the read contract
-    (ARCHITECTURE_READ_PATH.md §2), not an exception to it.
+    market wave, then the skill lookup and the repository links together (both
+    keyed by that same union of demand), then one concurrent wave of the three
+    user-state reads over that shared id set. Depth stays five round trips,
+    width three — the read contract (ARCHITECTURE_READ_PATH.md §2).
     """
     if not bands:
-        return {}
+        return {}, []
     markets = run_concurrently(
         {kind: _market_reader(db, family, band) for kind, band in bands},
         label="career.skill_path.market",
@@ -114,7 +117,19 @@ def _band_maps(
         for row in qualified_demand(rows, band_counts[kind])
         if row.get("taxonomy_key")
     })
-    skills = _skills_by_key(db, keys)
+    if keys:
+        looked_up = run_concurrently(
+            {
+                "skills": lambda: _skills_by_key(db, keys),
+                "repos": lambda: _learning_repos(db, keys),
+            },
+            label="career.skill_path.taxonomy",
+        )
+        skills = looked_up["skills"]
+        learning_repos = looked_up["repos"]
+    else:
+        skills = {}
+        learning_repos = []
     skill_ids = sorted({int(s["id"]) for s in skills.values() if s.get("id")})
     state = run_concurrently(
         {
@@ -137,7 +152,7 @@ def _band_maps(
             certs=certs,
         )
         for kind, band in bands
-    }
+    }, learning_repos
 
 
 def _market_reader(db: Client, family: str, band: str) -> Callable[[], list[dict[str, Any]]]:
@@ -196,6 +211,18 @@ def _certs_by_key(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
         if key and key not in out:
             out[key] = row
     return out
+
+
+def _learning_repos(db: Client, keys: list[str]) -> list[dict[str, str]]:
+    if not keys:
+        return []
+    rows = (
+        db.table("github_learning_repos")
+        .select("owner, name, html_url, roadmap_slug, use_case, taxonomy_key")
+        .in_("taxonomy_key", keys)
+        .execute()
+    ).data or []
+    return project_learning_repos(rows, keys)
 
 
 def _skills_by_key(db: Client, keys: list[str]) -> dict[str, dict[str, Any]]:
