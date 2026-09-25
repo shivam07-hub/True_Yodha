@@ -695,7 +695,10 @@ class JobFeedItem(BaseModel):
     #: Why this job is on the list. The three facts retrieval decided it on, so a
     #: card can say what it was chosen for — a list of forty that cannot say why
     #: is indistinguishable from forty that were not chosen.
-    on_direction: bool = False      # the role family is one the user picked
+    #: True when the job asks for at least two of the direction's core skills
+    #: (`matching/direction_fit`). False covers off-direction and unknown — a
+    #: missing grade is not a tag. `jobs.role_family` is not this field.
+    on_direction: bool = False
     level_stated: bool = False      # the employer published a years range
     checked_recently: bool = False  # we opened the link inside the freshness window
 

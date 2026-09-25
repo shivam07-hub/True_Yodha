@@ -57,11 +57,12 @@ DECLARED_ORDERINGS = {
         "derived server-side in to_job_match and applied by _rank_feed_rows."
     ),
     "retrieval_score": (
-        "candidates_for_user's `score` — direction match + must-have-weighted skill "
-        "overlap + freshness, computed in SQL over the WHOLE corpus and returned "
-        "already ordered. NOT a fit claim and never shown as a number: it decides "
-        "which forty jobs exist for this person, and the verdict orders what the "
-        "brain has warmed above them."
+        "candidates_for_user's score — must-have-weighted skill overlap + freshness "
+        "over the whole corpus — decides which forty jobs are fetched. shortlist_jobs "
+        "then adds the direction term from direction_fit.grade, so an on-direction job "
+        "moves ahead of a higher raw score. jobs.role_family is the recall filter only. "
+        "NOT a fit claim and never shown as a number; the brain's verdict orders what "
+        "it has warmed above this order."
     ),
 }
 
@@ -128,9 +129,10 @@ def test_the_ranker_still_takes_reorder_as_a_decision() -> None:
 
 def test_the_retired_browse_composite_has_not_grown_back() -> None:
     """`_fit_scores` ranked whatever the 500-row sample happened to return, and its
-    own register entry said it would retire. Retrieval ranks the whole corpus in
-    SQL now, so a second Python scorer over the rows it returns would be ordering
-    an answer that is already ordered."""
+    own register entry said it would retire. The skill score is computed in SQL.
+    The direction term in shortlist_jobs is retrieval_score, graded from skills
+    already on the row — a page-relative composite over those rows is still a
+    second ordering."""
     src = _src("app/repositories/jobs.py")
     assert "_fit_scores" not in src
     assert "_FIT_WEIGHTS" not in src

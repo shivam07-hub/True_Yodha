@@ -495,7 +495,7 @@ Two Tier-0 tables hold it — `role_family_scope` (family × seniority → job_c
 
 **It is pure, and costs no read.** Both sides are already in memory: a job row carries `main_skills`, a direction's vocabulary is one `text[]` on the labels snapshot. Measured 2026-09-16 over the 3,000 most recently seen live jobs, grading `main_skills` against those twelve names finds **736 of the 780** jobs a full `job_skills` join finds for Business Operations and **256 of 260** for Sales Management. `top_skills` was tried first and found 102 and 24 — it ranks by tf-idf DISTINCTIVENESS and is capped at eight, so it names the skills that are rarest in the jobs it should be matching. Two arrays, two questions: `top_skills` says what is distinctive about a direction, `core_skills` says what it asks for.
 
-**Recall is not a verdict.** `jobs.role_family` survives as the cheap index that narrows 46,801 live rows into a pool; it never answers whether a job fits. That is what keeps ONE definition of fit while the corpus-wide precompute waits on the paid compute gate (#46 S4) — the half that ADR-0022 and #46 forbid shipping is a second *definition* of fit, not a second scale for the same one.
+**Recall is not a verdict.** `jobs.role_family` survives as the cheap index that narrows 46,801 live rows into a pool; it never answers whether a job fits. `candidates_for_user` uses it only as that filter. The card's `on_direction` and the retrieval score's direction term are `direction_fit.grade` on the rows already fetched (`shortlist_jobs`). That is what keeps ONE definition of fit while the corpus-wide precompute waits on the paid compute gate (#46 S4) — the half that ADR-0022 and #46 forbid shipping is a second *definition* of fit, not a second scale for the same one.
 
 **Unknown is a third state.** An empty vocabulary (no direction chosen, or a family the snapshot does not hold) and a listing naming no skills both read `unknown`, never `off_direction`. Absence is not a verdict, and an ungradable job must be neither hidden nor promoted on the strength of missing data.
 
@@ -1316,7 +1316,9 @@ from an unrelated career path before a job reaches the feed or Career Ops.
   derived from their CV and target-role titles, and a second target role still
   opens its own band — derived at READ time (`eligible_bands_for_profile`), never
   written into the answer, so it can be removed and does not resurrect itself on
-  the next save.
+  the next save. A taxonomy family name is not a title for that derivation:
+  `career_bands_for_profile` does not run job-title regexes on `target_roles`,
+  or on a title slot that holds the same family name.
 - **Job Career Band** — the deterministic family assigned to a job from its
   source role domain and explicit title signals. A title such as Product
   Designer may take the Design & Creative band even if its detailed role domain

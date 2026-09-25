@@ -66,3 +66,14 @@ the `role_family_pool(family, job_id, matched)` snapshot can be built — the sa
 paid-compute gate as #16. When the selector and the feed signal both read that
 snapshot, `role_family`, `role_family_for_job` and `trg_refresh_job_role_family`
 retire together, and this amendment goes with them.
+
+## Amended 2026-09-25 — the shortlist's verdict is the grade
+
+`candidates_for_user` was still answering the fit question with the bucket:
+`on_direction` was `role_family` equality, and the score added 6 for the same
+equality. Both now stop at recall. The score that cuts the corpus is skill
+overlap and freshness. `shortlist_jobs` grades the rows that cut already
+returned — `main_skills` against the direction's `core_skills`, both already
+in memory — and that grade is the card's `on_direction` and the +6 that
+moves an on-direction job ahead of a higher raw score. The corpus-wide
+`role_family_pool` snapshot is still not built.

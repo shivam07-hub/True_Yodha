@@ -273,6 +273,13 @@ def _target_families(target_roles: list[str] | None) -> set[str]:
     return {r.strip() for r in (target_roles or []) if r and r.strip()}
 
 
+#: Weight of an on-direction job in the retrieval score. The same +6 used to be
+#: added in SQL from `role_family` equality. It is earned only when
+#: `direction_fit.grade` says the job asks for the direction. Recall — which
+#: jobs the RPC may return — still uses the bucket.
+_DIRECTION_RANK = 6
+
+
 def _role_match_score(role_family: str | None, target_families: set[str]) -> int:
     """Whether this job is in one of the families the user is aiming at. 0 or 1.
 
@@ -1815,6 +1822,13 @@ class JobsRepository:
         columns for the forty it named. The RPC also drops what the user already
         saved or skipped, so no exclusion set crosses the wire.
 
+        The RPC's score is skill overlap and freshness. The direction term is
+        applied here, from `direction_fit.grade` on `main_skills` already on
+        those rows, against the direction vocabulary already on the labels
+        snapshot. `on_direction` on the card is that grade. The RPC's own
+        `on_direction` column is null on purpose — it used to be
+        `role_family` equality, which is recall, not a verdict.
+
         Each row carries WHY it is here — `on_direction`, `matched_skill_count`,
         `checked_recently` — because a list of forty that cannot say why is
         indistinguishable from a list of forty that was not chosen.
@@ -1849,17 +1863,53 @@ class JobsRepository:
             return []
 
         families = _target_families(target_roles)
-        shaped = {}
-        for row in rows:
+        by_row = {str(row.get("job_id")): row for row in rows if row.get("job_id")}
+        graded = self._grade_shortlist(list(by_row.values()), families)
+        shaped: dict[str, dict[str, Any]] = {}
+        # Score descending, and the RPC's own order on a tie. The `in_` fetch
+        # has no ORDER BY; dropping the index would replace the retrieval order
+        # with whatever order the table read happened to return.
+        ranked: list[tuple[float, int, str]] = []
+        for index, jid in enumerate(order):
+            row = by_row.get(jid)
+            if row is None:
+                continue
             card = self._feed_shape_row(row, skill_keys, families)
-            pick = by_pick.get(str(card["job_id"])) or {}
-            card["on_direction"] = bool(pick.get("on_direction"))
+            pick = by_pick.get(jid) or {}
+            fit = graded.get(jid)
+            card["on_direction"] = bool(fit is not None and fit.is_on_direction)
             card["level_stated"] = bool(pick.get("level_stated"))
             card["checked_recently"] = bool(pick.get("checked_recently"))
-            shaped[str(card["job_id"])] = card
-        # The RPC's order IS the ranking. Re-sorting here, or trusting the order
-        # `in_` happens to return, would silently discard it.
-        return [shaped[jid] for jid in order if jid in shaped]
+            shaped[jid] = card
+            score = float(pick.get("score") or 0)
+            boost = _DIRECTION_RANK if card["on_direction"] else 0
+            ranked.append((-(score + boost), index, jid))
+        ranked.sort()
+        return [shaped[jid] for _, _, jid in ranked]
+
+    def _grade_shortlist(
+        self, rows: list[dict[str, Any]], families: set[str]
+    ) -> dict[str, Any]:
+        """Grade the rows already fetched. Empty when the direction cannot be read.
+
+        An unreadable vocabulary grades every job unknown, which leaves the
+        RPC's order untouched and tags nothing. Losing the direction is a worse
+        answer than raising on the one read a user waits on.
+        """
+        from app.repositories.role_families import RoleFamiliesRepository
+        from app.services.matching import direction_fit
+
+        names = sorted(families)
+        if not names or not rows:
+            return {}
+        try:
+            core = RoleFamiliesRepository(self._db).core_skills(names)
+        except APIError:
+            _log.warning("metric shortlist.direction_vocabulary_failed")
+            return {}
+        return direction_fit.grade_all(
+            rows, direction_fit.vocabulary(core, names), skills_key="main_skills"
+        )
 
     def user_skill_keys(self, user_id: str) -> set[str]:
         """Lowercased taxonomy_key + display_name set for the user's CV skills.

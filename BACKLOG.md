@@ -254,22 +254,6 @@ measured Free/Nano database ceiling, not unfinished application work.
     `frontend/tests/market-browse-contract.test.ts:74`.
     Rule to keep: rank down, never hide (`test_feed_ranking.py:52`).
 
-7g. **Two live definitions of "on direction", and the bucket one reaches the
-    user.** ADR-0022 allows the bucket for RECALL only; a verdict is graded from
-    skills by `matching/direction_fit.py` (2-of-12 `core_skills`), which four
-    surfaces already use. But migration
-    `20260924120000_retrieval_searches_instead_of_sampling.sql:202` emits
-    `on_dir` from `j.role_family = any(v_families)` and `:197` adds a `+6`
-    ranking term from the same equality; `repositories/jobs.py:1857` puts it on
-    the card (`schemas/jobs.py:698`). `jobs.role_family` is the modal L2 cluster
-    with an alphabetical tie-break (`20260806h:88-110`) — 26% modal share, 45.7%
-    ties — which is how a gold-loan branch-sales posting sits in "Marketing
-    Strategy and Techniques" next to growth-marketing roles. Grading is pure and
-    costs no read, so this does NOT need the corpus-wide precompute #46 S4 parks
-    behind the paid-compute gate; do not build that here.
-    Same seam, smaller: `job_eligibility.py:106-117` passes a FAMILY NAME through
-    human job-title regexes (`career_band_for_job`).
-
 7h. **CLOSED 2026-09-25. The CV evidence rule is the precondition of the write.**
     `rows_for_user_skills_write` runs before every `user_skills` insert the
     product can reach (score, `confirm_cv_skills`'s only caller, overrides,

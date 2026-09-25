@@ -9,8 +9,9 @@ decided in SQL and belong to the migration's own contract test.
 
 What is left to guard here is the seam between the two reads:
 
-* Repository — the RPC's ORDER is the ranking and must survive the `in_` fetch
-  that has no order at all; a named job missing from the table is dropped, not a
+* Repository — with no direction vocabulary the RPC's ORDER survives the `in_`
+  fetch that has no order at all; an on-direction grade can move a card ahead of
+  a higher raw score. A named job missing from the table is dropped, not a
   KeyError; the reasons ride onto the card; a failure returns an empty list rather
   than a 500 on the one read a user waits on.
 * Endpoint (`TestClient`) — auth gating, the finite response shape, brain badges.
@@ -235,10 +236,9 @@ def _pick(job_id: str, **over: Any) -> dict[str, Any]:
 
 
 def test_the_rpcs_order_is_the_lists_order() -> None:
-    """The whole point of the rewrite is that SQL decides the ranking. The `in_`
-    fetch that follows has no ORDER BY, so whatever order PostgREST happens to
-    return would silently replace it — here the table is deliberately stored in
-    the opposite order."""
+    """The `in_` fetch has no ORDER BY. With no direction vocabulary every grade
+    is unknown, so nothing is promoted and the list stays in the RPC's order —
+    here the table is deliberately stored in the opposite order."""
     repo, db = _repo([_job("j3"), _job("j2"), _job("j1")])
     _with_rpc(db, [_pick("j1"), _pick("j2"), _pick("j3")])
 
@@ -258,15 +258,60 @@ def test_a_named_job_missing_from_the_table_is_dropped_not_raised() -> None:
 
 def test_each_card_carries_why_it_was_chosen() -> None:
     """A list of forty that cannot say why is indistinguishable from forty that
-    were not chosen."""
+    were not chosen. Level and freshness still come from retrieval. The
+    direction tag does not: the RPC used to copy a role-family equality onto
+    the card, and that flag is ignored."""
     repo, db = _repo([_job("j1")])
     _with_rpc(db, [_pick("j1", on_direction=True, level_stated=False, checked_recently=True)])
 
     card = repo.shortlist_jobs("u1")[0]
 
-    assert card["on_direction"] is True
+    assert card["on_direction"] is False
     assert card["level_stated"] is False
     assert card["checked_recently"] is True
+
+
+def test_a_bucket_match_whose_skills_miss_the_direction_is_not_on_direction() -> None:
+    """ADR-0022: role_family equality is recall, not a verdict. A gold-loan
+    posting filed in the marketing family must not wear that family's tag, and
+    must not outrank a job that actually asks for the direction's skills."""
+    family = "Marketing Strategy and Techniques"
+    repo, db = _repo([
+        _job(
+            "gold",
+            title="Branch Sales Officer",
+            role_family=family,
+            skills=["Gold Loans", "Branch Banking"],
+        ),
+        _job(
+            "growth",
+            title="Growth Marketing Manager",
+            role_family="Sales Management",
+            skills=["Search Engine Optimization", "Content Marketing"],
+        ),
+    ])
+    db.tables["role_family_labels"] = [{
+        "family": family,
+        "core_skills": [
+            "Search Engine Optimization", "Content Marketing", "Campaign Management",
+            "Marketing Strategy", "Social Media", "Brand Management",
+            "Market Research", "Copywriting", "Email Marketing",
+            "Analytics", "Advertising", "Public Relations",
+        ],
+    }]
+    # Retrieval still ranks the bucket hit first. The grade has to move it.
+    _with_rpc(db, [
+        _pick("gold", score=9, on_direction=True),
+        _pick("growth", score=4, on_direction=False),
+    ])
+
+    rows = repo.shortlist_jobs("u1", target_roles=[family])
+
+    by_id = {row["job_id"]: row for row in rows}
+    assert by_id["gold"]["role_family"] == family
+    assert by_id["gold"]["on_direction"] is False
+    assert by_id["growth"]["on_direction"] is True
+    assert [row["job_id"] for row in rows] == ["growth", "gold"]
 
 
 def test_matched_skills_are_the_requesting_users_own() -> None:

@@ -104,16 +104,29 @@ def career_band_for_profile(profile: dict[str, Any]) -> CareerBand | str:
 
 
 def career_bands_for_profile(profile: dict[str, Any]) -> list[CareerBand | str]:
-    """Derive every distinct role family a candidate explicitly targeted."""
+    """Bands implied by human job titles the candidate typed.
+
+    `target_roles` is a taxonomy family name, and so is a title slot filled from
+    that family (migration 20260909120000). Neither is a job title.
+    `career_band_for_job` runs title regexes, which read the label "Artificial
+    Intelligence and Machine Learning (AI/ML)" as engineering because the words
+    "ai" and "machine learning" occur in it. A family's bands live on
+    `role_family_labels.bands`; this function does not guess them from the name.
+    """
+    raw_roles = profile.get("target_roles") or []
+    if isinstance(raw_roles, str):
+        raw_roles = [raw_roles]
+    families = {name.strip() for name in raw_roles if isinstance(name, str) and name.strip()}
     titles = profile.get("target_role_titles") or []
     if isinstance(titles, str):
         titles = [titles]
     bands: list[CareerBand | str] = []
-    for title in [*titles, profile.get("target_role_title"), *(profile.get("target_roles") or [])]:
-        if isinstance(title, str) and title.strip():
-            band = career_band_for_job({"job_title": title})
-            if band and band not in bands:
-                bands.append(band)
+    for title in [*titles, profile.get("target_role_title")]:
+        if not isinstance(title, str) or not title.strip() or title.strip() in families:
+            continue
+        band = career_band_for_job({"job_title": title})
+        if band and band not in bands:
+            bands.append(band)
     return bands
 
 

@@ -8,6 +8,7 @@ from __future__ import annotations
 from app.services.job_eligibility import (
     career_band_for_job,
     career_band_for_profile,
+    career_bands_for_profile,
     job_is_eligible,
 )
 
@@ -30,6 +31,23 @@ def test_profile_band_derives_from_target_role_titles() -> None:
     assert career_band_for_profile({
         "target_role_titles": ["Public Policy Research Associate"],
     }) == "research_people_public_impact"
+
+
+def test_a_taxonomy_label_is_not_run_through_job_title_regexes() -> None:
+    """A family name is not a job title. The title regexes read
+    "Artificial Intelligence and Machine Learning (AI/ML)" as engineering
+    because the words "ai" and "machine learning" appear in the label."""
+    label = "Artificial Intelligence and Machine Learning (AI/ML)"
+    assert career_band_for_job({"job_title": label}) == "engineering_data"
+    assert career_bands_for_profile({
+        "target_roles": [label],
+        "target_role_titles": [label],
+        "target_role_title": label,
+    }) == []
+    assert career_bands_for_profile({
+        "target_roles": [label],
+        "target_role_titles": ["Policy Research Associate"],
+    }) == ["research_people_public_impact"]
 
 
 def test_entry_level_ma_never_receives_vp_or_business_role() -> None:
