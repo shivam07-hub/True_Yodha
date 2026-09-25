@@ -101,7 +101,10 @@ def test_feed_warm_worker_uses_the_judgment_provider() -> None:
     src = (Path(__file__).resolve().parents[1] / "app/services/matching/feed_warm.py").read_text()
     assert '@background.handler("feed_warm")' in src
     # The worker resolves the provider. The request path must not.
-    assert "await run_feed_warm(repo, get_judgment_provider(), user_id)" in src
+    # Keyword args (the CV the drain started with) may follow the user id.
+    handler = src.split('@background.handler("feed_warm")', 1)[1]
+    assert "await run_feed_warm(" in handler
+    assert "get_judgment_provider()" in handler
 
 
 def test_opening_a_job_does_not_resolve_a_model_on_the_request() -> None:
