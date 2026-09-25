@@ -202,6 +202,39 @@ measured Free/Nano database ceiling, not unfinished application work.
     already makes — and NOT through `/jobs/matches`, where a read for it is a new
     round trip that `test_read_contract` refuses. The free re-vet accepts it.
 
+7e. **Semantic retrieval is PAID FOR and UNWIRED — and its one caller-ready
+    module would fail silently if wired today.** Measured 2026-09-25, against the
+    live database, after this module was proposed for deletion as dead code.
+
+    **It is not dead.** `private.job_embeddings` holds **43,803 embedded live
+    jobs** (halfvec 768, HNSW, all `status='complete'`), last embedded
+    2026-09-10, with **269 `pending` enrolled at the most recent ingest
+    (2026-09-17)** — the sister scraper repo is still filling it. The RPC
+    `match_jobs_semantic` is deployed and reads that table. What is missing is
+    the caller: `backend/app/services/matching/semantic_candidates.py` has no
+    production importer, and CONTEXT.md **CandidatePool** already reserves the
+    seam ("swap `title_ids` for semantic ids, same merge").
+
+    ⚠️ **The module's docstring describes a schema that no longer exists** — it
+    says the vector is `jobs.embedding` and that everything is inert while those
+    are NULL. There is no `jobs.embedding` column; the design moved to
+    `private.job_embeddings`. Anyone reading that file today concludes, as I
+    did, that the feature is inert.
+
+    ⚠️ **Its RPC call does not match the deployed function, and the mismatch is
+    silent.** The module sends `query_embedding` / `p_countries` / `match_count`
+    (`semantic_candidates.py:74-79`); the live signature is
+    `p_query_embedding, p_match_count, p_target_countries, p_include_remote,
+    p_excluded_job_ids`. Wired as-is, the call fails and the fail-soft `except`
+    returns `[]` — the feature would look switched on and retrieve nothing, for
+    as long as nobody checked ([[feedback_a_scoping_key_must_name_something_that_exists]]).
+
+    **Why this is a decision, not a chore:** unioning semantic ids into the
+    triage pool widens what reaches the brain, and the brain is the LLM spend.
+    It needs a cost answer and a quality measurement (`match_quality.py`) before
+    it is switched on — which is exactly what ADR-0022's "recall may use any
+    index, a verdict is always graded from skills" already permits.
+
 ### TIER 3 — needs a decision or a grill BEFORE code
 
 **Level: the stated range wins everywhere — LOCKED 2026-09-25 (Shivam). NOT yet built.**
