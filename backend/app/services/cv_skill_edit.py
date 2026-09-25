@@ -313,7 +313,9 @@ async def run_async_retag(
         parsed = await cv_parser.parse_cv_text(new_body_text)
         skills_detected = parsed.get("skills_detected") or []
         if skills_detected:
-            scoring.record_cv_score(scores_repo, user_id, skills_detected)
+            scoring.record_cv_score(
+                scores_repo, user_id, skills_detected, cv_text=new_body_text,
+            )
         else:
             scoring.recompute_score(scores_repo, user_id)
     except Exception:

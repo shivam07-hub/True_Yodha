@@ -194,35 +194,105 @@ measured Free/Nano database ceiling, not unfinished application work.
     scopes by `story_id`, so they are inert, not dangerous. Migrate onto stories
     or retire them; either way, one shape. Not urgent.
 
+7d. **✅ CLOSED 2026-09-25 `30194e50` — the surface now says when no search has
+    run for your direction.** `stale_direction` is the sixth `MatchHealth` state
+    and is checked before rows, because `get_user_match_stack` is source-blind
+    (warmer and brain-on-open write `user_job_matches` too). It reaches the user
+    through `users.me.match_run_outstanding` — the profile read every authed page
+    already makes — and NOT through `/jobs/matches`, where a read for it is a new
+    round trip that `test_read_contract` refuses. The free re-vet accepts it.
+
+7e. **Semantic retrieval is PAID FOR and UNWIRED — and its one caller-ready
+    module would fail silently if wired today.** Measured 2026-09-25, against the
+    live database, after this module was proposed for deletion as dead code.
+
+    **It is not dead.** `private.job_embeddings` holds **43,803 embedded live
+    jobs** (halfvec 768, HNSW, all `status='complete'`), last embedded
+    2026-09-10, with **269 `pending` enrolled at the most recent ingest
+    (2026-09-17)** — the sister scraper repo is still filling it. The RPC
+    `match_jobs_semantic` is deployed and reads that table. What is missing is
+    the caller: `backend/app/services/matching/semantic_candidates.py` has no
+    production importer, and CONTEXT.md **CandidatePool** already reserves the
+    seam ("swap `title_ids` for semantic ids, same merge").
+
+    ⚠️ **The module's docstring describes a schema that no longer exists** — it
+    says the vector is `jobs.embedding` and that everything is inert while those
+    are NULL. There is no `jobs.embedding` column; the design moved to
+    `private.job_embeddings`. Anyone reading that file today concludes, as I
+    did, that the feature is inert.
+
+    ⚠️ **Its RPC call does not match the deployed function, and the mismatch is
+    silent.** The module sends `query_embedding` / `p_countries` / `match_count`
+    (`semantic_candidates.py:74-79`); the live signature is
+    `p_query_embedding, p_match_count, p_target_countries, p_include_remote,
+    p_excluded_job_ids`. Wired as-is, the call fails and the fail-soft `except`
+    returns `[]` — the feature would look switched on and retrieve nothing, for
+    as long as nobody checked ([[feedback_a_scoping_key_must_name_something_that_exists]]).
+
+    **Why this is a decision, not a chore:** unioning semantic ids into the
+    triage pool widens what reaches the brain, and the brain is the LLM spend.
+    It needs a cost answer and a quality measurement (`match_quality.py`) before
+    it is switched on — which is exactly what ADR-0022's "recall may use any
+    index, a verdict is always graded from skills" already permits.
+
+7f. **The /market list is served unranked and presented as ranked.** Measured
+    2026-09-25; `metric feed.unranked` still fires in prod (most recent that day
+    05:37 UTC, 40 rows). `routers/jobs/list.py:498` logs it and returns all 40
+    rows in retrieval order with no verdicts and no divider. Ranking is
+    `POST /jobs/feed/warm` (`list.py:514-557`), SYNCHRONOUS in the request at
+    98–103s: 10 jobs (`feed_warm.WARM_SHORTLIST_SIZE`) ÷ 3 concurrent
+    (`llm_ranker.py:46`) × up to 45s (`config.py:183`). The client abandons at
+    7,000ms (`frontend/lib/api.ts:4379`), so `use-feed-warm.ts:79` never
+    invalidates and the ranked rows land after the user has gone, behind a
+    30-minute `staleTime`. Two numbers that must agree, in two modules, 14x apart.
+    Fix shape: warm onto the durable rail (ADR-0008 Background Job + Work Lane —
+    `background/registry.py` has no feed-warm handler), and give the list the
+    read/unread state the ROW already has (`Provisional Match` / `verdict:
+    "checking"`, divider in `lib/jobs/track-sections.ts`).
+    ⚠️ Two tests currently pin the defect and must be replaced, not worked
+    around: `test_feed_ranking.py:62` and
+    `frontend/tests/market-browse-contract.test.ts:74`.
+    Rule to keep: rank down, never hide (`test_feed_ranking.py:52`).
+
+7h. **CLOSED 2026-09-25. The CV evidence rule is the precondition of the write.**
+    `rows_for_user_skills_write` runs before every `user_skills` insert the
+    product can reach (score, `confirm_cv_skills`'s only caller, overrides,
+    diary, and the explicit-skill repair script). A parenthetical token no
+    longer names the whole skill, and a match cannot cross a line onto a
+    heading or sit on a degree line. Existing rows come off on the next CV
+    read via `forward_pass.drop_stray_cv_skills` — not a backfill.
+    What it closed: `79908258` built
+    `cv_skill_evidence.apply_cv_evidence_rules` and called it from two lines
+    (`cv_parser.py:399-401`, `:470`). Every writer of `user_skills` is
+    downstream and uncovered: `scoring/orchestrator.py:341`,
+    `repositories/scores.py:445`, SQL `confirm_cv_skills`
+    (`20260720010000`), `skill_overrides.py:77`, `repositories/diary.py:150`,
+    and `scripts/backfill_cv_explicit_skills.py:83`, which re-mints EXISTING
+    rows as `legacy_confirmed` straight past the guard. Two measured holes in
+    the rule itself: `cv_skill_evidence.py:131` accepts a single token from a
+    parenthetical (so "NLP audit" satisfies "Natural Language Processing
+    (NLP)"), and `cv_explicit_skills.py:124-137` tokenises line-blind, so a
+    match straddles a body word and a section heading ("…VAS business" +
+    "EDUCATION" → the skill "Business Education"). Against the five false skills
+    measured on a real CV, the guard rejects 2.
+    Blast radius one bad row already has: Myro Score domains and gaps, the
+    Direction family ranking and the `mayPropose` pre-tick
+    (`target-confirm.tsx:70`), `candidates_for_user`'s overlap, every prep
+    ladder, and `routers/cv/skills_refresh.py`, which offers to write the false
+    skill onto the user's CV. Forward-only — existing rows stand until that user
+    re-uploads (see `forward_pass.drop_stray_cv_skills` for the pattern).
+    Narrow prior entry: "CV PARSING — SHORT-TOKEN FALSE SKILLS" below; this is
+    the seam version of it, and closing 7h closes that too.
+
 ### TIER 3 — needs a decision or a grill BEFORE code
 
-**Level: the stated range wins everywhere — LOCKED 2026-09-25 (Shivam). NOT yet built.**
-The brain's `candidate_pool` moves to the same range-overlap rule retrieval uses:
-the employer's stated `[min, max]` decides, and the seniority tag is consulted only
-where the employer states nothing. One rule, one answer on /market and the
-dashboard. Her pool grows ~48% (19 of 40 today), so a match run costs more brain
-calls — accepted, because the alternative is half her list never carrying a verdict.
-Rejected: deriving a band for the brain to keep reading, since storing a bucket
-derived from a range is what ADR-0022 forbids and both surfaces would agree by both
-being wrong. The measurement below is the before-state.
-
-
-`candidates_for_user` admits a job when the person's years range overlaps the
-employer's **stated** `[min, max]`, falling back to the seniority tag only where the
-employer states nothing. `job_eligibility.seniority_is_eligible` / `seniority_fit` —
-which the matching brain's `candidate_pool` and the Match Verdict still use — admits
-by **band name** through `_AT_LEVEL`. So a job can be on someone's /market list and
-rejected by the pool that rates it, or the reverse.
-
-This is the drift [[feedback_one_definition_or_none]] warns about, and the reason it
-is a TIER 3 line rather than a commit is that unifying them means rewriting the
-brain's admission, which needs a number first: how many of a user's forty the two
-rules disagree about. `job_is_browse_eligible` — a *third* reading — was deleted in
-`23c9ee0e` because nothing called it any more, so this is two, not three.
-**Owner: Shivam to decide whether the brain moves to the range rule, or the range
-rule publishes a band the brain can read.** Do not "fix" it by making retrieval
-call the Python function: that is what put a title word over a stated "2-6 years"
-and dropped every NPCI payments role.
+**Level: the stated range wins everywhere — LOCKED 2026-09-25 (Shivam). Built.**
+`job_is_eligible` admits by `stated_range_admits`, the same predicate as
+`candidates_for_user`. The seniority tag is consulted only where the employer
+states nothing. Pinned by `backend/tests/test_stated_level.py`. The verdict
+grade is still `seniority_fit`: a senior-tagged posting whose range fits can
+be matched and still graded `incompatible`. Do not "fix" that by having
+retrieval call the Python function.
 
 **The authed search-intent signal lost its writer — LEFT AS IS, deliberately
 (Shivam, 2026-09-25).** Revisit when the memory distiller earns its keep; until then
@@ -667,7 +737,7 @@ it is one decision, not a bug.
 
 ---
 
-## CV PARSING — SHORT-TOKEN FALSE SKILLS (measured 2026-09-24, not fixed)
+## CV PARSING — SHORT-TOKEN FALSE SKILLS (closed 2026-09-25, with 7h)
 
 Sits with the gold-standard gap below: both are "what Myro reads off a CV is not
 what the CV says". This one is narrow, measured, and cheap.

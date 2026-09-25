@@ -16,7 +16,7 @@ from app.services.scoring.aspirations import fetch_aspiration_skills
 
 logger = logging.getLogger(__name__)
 
-MatchHealth = Literal["vetted", "overlap_only", "computing", "failed", "empty"]
+MatchHealth = Literal["vetted", "overlap_only", "computing", "failed", "empty", "stale_direction"]
 
 # How long after a CV upload terminally finishes we still treat an empty match
 # feed as "computing" (the `initial_match` bulk job runs a few seconds behind the
@@ -53,9 +53,15 @@ def compute_match_health(
     match_rows: list[dict[str, Any]],
     *,
     now: Any = None,
+    freshness: Any = None,
 ) -> MatchHealth:
     """Honest state of a user's job matches, for the trust banner + free re-vet.
 
+    - ``stale_direction`` — a direction is set and no Match Run has landed for it.
+      Checked FIRST, because rows alone cannot see it: `get_user_match_stack` is
+      source-blind, so ten rows the /market warmer wrote read exactly like a
+      finished run (Deveshwar Kashyap, 2026-09-19 — her run logged `Job OK` and
+      wrote nothing, and every surface said `vetted` for 78 days).
     - ``vetted``       — at least one recommended row carries a Career-Ops eval.
     - ``overlap_only`` — matches exist but NONE were LLM-vetted (the brain failed;
       the user is looking at un-vetted overlap picks). The core silent-degradation
@@ -65,10 +71,21 @@ def compute_match_health(
       ever landed and the upload finished long ago → the compute silently died.
     - ``empty``        — nothing to surface (no CV/skills, or the market genuinely
       has no overlapping jobs). NOT a failure; no retry offered.
+
+    `freshness` is a **Match Freshness** state supplied by the caller — the profile
+    columns it reads are not on this module's path, and only callers that already
+    pay for them should. Omitted (None) means "not asked", never "fine": the
+    answer is then exactly what it was before this state existed.
     """
     from datetime import datetime, timezone
 
     from app.repositories import cv_upload_jobs
+
+    if freshness == "outstanding":
+        return "stale_direction"
+    if freshness == "running" and not match_rows:
+        # A run IS in flight for a direction saved minutes ago. Never `failed`.
+        return "computing"
 
     if match_rows:
         vetted = any(r.get("overall_score") is not None for r in match_rows)

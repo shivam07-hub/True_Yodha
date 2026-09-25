@@ -3,7 +3,8 @@
 import type { Dispatch, SetStateAction } from "react"
 import { useRouter } from "next/navigation"
 import { Search, X } from "lucide-react"
-import type { JobFeedItem, JobPulse } from "@/lib/api"
+import type { JobFeedItem, JobPulse, MarketJudgment } from "@/lib/api"
+import { MarketJudgmentNote } from "./market-judgment"
 import type { UseFollowCompany } from "@/lib/hooks/use-follow-company"
 import { formatCount } from "@/lib/format"
 import { AgentPicksBand } from "@/components/jobs/agent-picks-band"
@@ -41,6 +42,7 @@ export function MarketJobsColumn({
   onSave,
   onSkip,
   loading,
+  judgment,
   visibleJobs,
   clearBrowse,
   total,
@@ -75,6 +77,7 @@ export function MarketJobsColumn({
   onSave: (j: JobFeedItem) => void
   onSkip: (j: JobFeedItem) => void
   loading: boolean
+  judgment: MarketJudgment | null
   visibleJobs: JobFeedItem[]
   clearBrowse: () => void
   total: number
@@ -142,18 +145,21 @@ export function MarketJobsColumn({
       <div style={{ marginTop: 8 }}>
         {loading ? (
           <FeedSkeleton summary />
-        ) : visibleJobs.length === 0 ? (
+        ) : visibleJobs.length === 0 && !judgment?.notice ? (
           <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/collections")} onClear={clearBrowse} onTellMyro={() => openRefreshGate("say")} />
         ) : (
           <>
+            <MarketJudgmentNote judgment={judgment} />
             <div className="tm-feed-summary">
               {/* The number IS the product: out of tens of thousands of live
                   listings, these were chosen for this person. It used to read
                   "1,284 roles" off a sample's `available_total`, which was the
                   size of an arbitrary slice, not of an answer. */}
-              <span className="tm-feed-summary-count">
-                {formatCount(total)} role{total === 1 ? "" : "s"}, chosen for you
-              </span>
+              {total > 0 ? (
+                <span className="tm-feed-summary-count">
+                  {formatCount(total)} role{total === 1 ? "" : "s"}, chosen for you
+                </span>
+              ) : null}
               <LocationScopePill scope={scope} onOpen={onOpenFilters} />
               {skillFacet ? (
                 <button
@@ -187,12 +193,12 @@ export function MarketJobsColumn({
                 Myro Search
               </button>
             </div>
-            {weakShortlist ? (
+            {weakShortlist && !judgment?.notice ? (
               <div className="tm-feed-weak-note">
                 <strong>No strong matches yet.</strong> Here are the closest — each card shows what would move it.
               </div>
             ) : null}
-            {total > 0 && total < 5 ? (
+            {total > 0 && total < 5 && !judgment?.notice ? (
               <button
                 type="button"
                 onClick={() => openRefreshGate("say")}

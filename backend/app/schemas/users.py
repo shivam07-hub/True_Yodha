@@ -35,6 +35,11 @@ class UserProfileResponse(BaseModel):
     #: step the re-entry nudge names.
     skills_confirmed: bool = False
     cv_readiness: str = "missing"  # ready | missing | processing | failed
+    # A direction is set and no Match Run has landed for it (**Match Freshness**
+    # `outstanding`). Free here — the two columns ride the profile row this
+    # endpoint already reads — and it is the one place the fact costs nothing,
+    # which is why /jobs/matches does not ask for it.
+    match_run_outstanding: bool = False
     cv_upload_job_id: str | None = None
     cv_upload_error_code: str | None = None
     myrology_unlocked: bool = False

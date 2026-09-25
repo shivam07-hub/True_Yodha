@@ -123,15 +123,19 @@ def set_skill_included(
                     detail="Your CV has no evidence for that skill — re-upload to add it.",
                 )
             stashed = ((override or {}).get("source_location") or {}).get("forge") or {}
-            scores_repo.upsert_user_skill_rows([
-                {
-                    "user_id": user_id,
-                    "skill_id": skill_id,
-                    "source": "cv",
-                    **candidate,
-                    **{field: int(stashed.get(field) or 0) for field in _FORGE_FIELDS},
-                }
-            ])
+            scores_repo.upsert_user_skill_rows(
+                [
+                    {
+                        "user_id": user_id,
+                        "skill_id": skill_id,
+                        "taxonomy_key": taxonomy_key,
+                        "source": "cv",
+                        **candidate,
+                        **{field: int(stashed.get(field) or 0) for field in _FORGE_FIELDS},
+                    }
+                ],
+                cv_text=str(baseline.get("body_text") or ""),
+            )
         if override:
             cv_repo.delete_skill_override(user_id, baseline_id, skill_id)
 

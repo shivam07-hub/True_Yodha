@@ -62,10 +62,24 @@ def apply_skill_overrides(
         )
     if included:
         now = datetime.now(timezone.utc).isoformat()
+        included_ids = [int(item["skill_id"]) for item in included]
+        named = (
+            db.table("skills")
+            .select("id, taxonomy_key")
+            .in_("id", included_ids)
+            .execute()
+        )
+        key_by_id = {
+            int(row["id"]): str(row.get("taxonomy_key") or "")
+            for row in (named.data or [])
+            if row.get("id") is not None
+        }
+        baseline = CVVersionsRepository(db).latest_baseline(user_id) or {}
         rows = [
             {
                 "user_id": user_id,
                 "skill_id": int(item["skill_id"]),
+                "taxonomy_key": key_by_id.get(int(item["skill_id"]), ""),
                 "matched_level": 1,
                 "proficiency_title": "Scout",
                 "source": "user_override",
@@ -74,7 +88,9 @@ def apply_skill_overrides(
             }
             for item in included
         ]
-        db.table("user_skills").upsert(rows, on_conflict="user_id,skill_id").execute()
+        ScoresRepository(db).upsert_user_skill_rows(
+            rows, cv_text=str(baseline.get("body_text") or ""),
+        )
 
     scores_repo = ScoresRepository(db)
     return scoring.recompute_score(scores_repo, user_id)

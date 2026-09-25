@@ -20,7 +20,7 @@ from app.schemas.jobs import MatchBrainResult, MatchRetryResponse
 from app.services import background, jobs_workflow, new_inventory, progress_stream
 from app.services.job_refresh import JobRefresh
 from app.services.concurrent_reads import run_concurrently
-from app.services.matching import on_demand
+from app.services.matching import match_freshness, on_demand
 
 from app.routers.jobs.list import _rank_feed_rows
 from app.services.job_projection import last_monday, to_job_match
@@ -138,6 +138,10 @@ def get_job_matches(
     if new_jobs_count > 0:
         background_tasks.add_task(new_inventory.announce_for_user, principal.id, new_jobs_count)
 
+    # No freshness here on purpose: a read for it would be a new round trip on
+    # the hottest authed path (`test_read_contract`), and `/users/me` already
+    # holds the two columns. `match_run_outstanding` on the profile is the same
+    # fact, paid for once, on a read every authed page already makes.
     match_health = jobs_workflow.compute_match_health(repo, principal.id, rows)
     vetted_count = sum(1 for r in rows if r.get("overall_score") is not None)
 
@@ -164,12 +168,20 @@ def retry_match_vetting(
 
     This is NOT the paid Refresh (150 coins, vanity re-run). It re-does work the
     user never received — so it's free, and gated server-side on the match health
-    actually being `failed`/`overlap_only`. A `vetted` user can't use it to dodge
+    actually being `failed`/`overlap_only`/`stale_direction` (the third is work
+    never done at all: a direction saved with no run behind it, which the forward
+    pass also repairs on the next visit — this is the same work, pulled by the
+    user instead of waited for). A `vetted` user can't use it to dodge
     the paid refresh. Re-dispatches the same durable `initial_match` bulk job
     (ADR-0008) with `force` so the brain re-runs even against cached rows."""
     rows = repo.get_user_match_stack(principal.id)
-    health = jobs_workflow.compute_match_health(repo, principal.id, rows)
-    if health not in ("failed", "overlap_only"):
+    health = jobs_workflow.compute_match_health(
+        repo,
+        principal.id,
+        rows,
+        freshness=match_freshness.state(repo.match_freshness_inputs(principal.id)),
+    )
+    if health not in ("failed", "overlap_only", "stale_direction"):
         # Nothing failed — the free re-vet doesn't apply. (A well-behaved client
         # never shows the button here; this is the honest server-side guard.)
         return MatchRetryResponse(accepted=False, match_health=health)

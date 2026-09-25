@@ -211,3 +211,20 @@ def test_retrieval_migration_filters_before_it_ranks() -> None:
     assert "cardinality(bands)=0 or" not in code
 
     assert "notify pgrst, 'reload schema';" in sql
+
+
+def test_retrieval_ranks_direction_from_skills_not_the_bucket() -> None:
+    """ADR-0022: role_family may recall a job. It may not tag it or add rank.
+    The live function is the later migration; the 20260924 body is history."""
+    sql = _migration("20260925223000_direction_grade_not_bucket.sql").lower()
+    code = "\n".join(
+        line for line in sql.splitlines() if not line.strip().startswith("--")
+    )
+    assert "create or replace function public.candidates_for_user" in code
+    assert "then 6 else 0" not in code
+    assert "(c.role_family = any(v_families)) as on_dir" not in code
+    assert "null::boolean as on_dir" in code
+    # Recall stays indexed equality.
+    assert "j.career_band is null and j.role_family = any(v_families)" in code
+    assert "or c.role_family = any(v_families)" in code
+    assert "notify pgrst, 'reload schema';" in sql

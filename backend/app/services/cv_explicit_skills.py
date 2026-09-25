@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
-from app.services.cv_skill_evidence import header_spans, span_in_headers
+from app.services.cv_skill_evidence import header_spans, line_is_degree, span_in_headers
 from app.services.taxonomy_loader import get_all_skills, lookup_by_name
 
 _TOKEN_RE = re.compile(r"(?u)[^\W_][\w+#./-]*")
@@ -133,7 +133,19 @@ def extract_explicit_skills(cv_text: str) -> list[dict[str, object]]:
                 continue
             end = start + width - 1
             span_start, span_end = matches[start].start(), matches[end].end()
+            # A window that crosses a newline joins a body word to the next
+            # heading: "VAS business" + "EDUCATION" is not "Business Education".
+            # span_in_headers cannot see that, because the span is not inside
+            # either line.
+            if "\n" in cv_text[span_start:span_end]:
+                continue
             if span_in_headers(span_start, span_end, headers):
+                continue
+            line_start = cv_text.rfind("\n", 0, span_start) + 1
+            line_end = cv_text.find("\n", span_end)
+            if line_end < 0:
+                line_end = len(cv_text)
+            if line_is_degree(cv_text[line_start:line_end]):
                 continue
             evidence = cv_text[span_start:span_end].strip()
             found[canonical] = {

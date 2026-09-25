@@ -26,6 +26,7 @@ from app.schemas import (
 )
 from app.services import followed_companies
 from app.services import forward_pass
+from app.services.matching import match_freshness
 from app.services import skill_correction, targeting_write
 from app.services.job_eligibility import (
     career_band_for_profile,
@@ -70,6 +71,9 @@ def get_me(
     # Door the 23 people with a catch-all sitting first actually walk. String
     # check only for everyone else — this endpoint is on every authed page.
     forward_pass.on_profile_read(principal.id, profile)
+    # Read AFTER the pass: it may have just enqueued the run, and the honest
+    # answer is still "outstanding" until that run lands and stamps.
+    profile["match_run_outstanding"] = match_freshness.is_outstanding(profile)
     has_cv, skills_confirmed = reads["baseline"]
     profile["has_cv"] = has_cv
     profile["skills_confirmed"] = skills_confirmed

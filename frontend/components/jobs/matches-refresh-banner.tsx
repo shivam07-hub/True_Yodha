@@ -1,12 +1,12 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import "@/components/dashboard/dashboard.css"
 import { useMyroSearch } from "@/lib/hooks/use-myro-search"
 import { refreshIsLive } from "@/lib/hooks/use-job-refresh"
 import { useParticleMoment } from "@/components/particle"
-import { jobs, type MatchHealth } from "@/lib/api"
+import { jobs, users, type MatchHealth } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useJobMatches } from "@/lib/hooks/use-job-matches"
 import { openRefreshGate } from "@/store/refreshGateStore"
@@ -90,6 +90,17 @@ export function MatchesRefreshBanner({ token }: { token: string | null }) {
 export function MatchVettingBanner({ token, health }: { token: string | null; health?: MatchHealth }) {
   const queryClient = useQueryClient()
   const [retrying, setRetrying] = useState(false)
+  // The profile read every authed page already makes. `match_run_outstanding`
+  // is the one fact rows cannot show: the /market warmer writes `user_job_matches`
+  // too, so a stack of rows looks identical whether or not a Match Run ever ran
+  // for the direction this person chose.
+  const { data: profile } = useQuery({
+    queryKey: dataKeys.profile(),
+    queryFn: () => users.me(token!),
+    enabled: !!token,
+    staleTime: 60_000,
+  })
+  const staleDirection = health === "stale_direction" || !!profile?.match_run_outstanding
 
   // While retrying, re-check the matches cache until health leaves the failed/
   // un-vetted states (Career Ops landed) or we time out — never spins forever.
@@ -108,12 +119,12 @@ export function MatchVettingBanner({ token, health }: { token: string | null; he
 
   // Stop the poll the moment the feed becomes vetted (or is being computed).
   useEffect(() => {
-    if (retrying && health && health !== "failed" && health !== "overlap_only") {
+    if (retrying && health && health !== "failed" && health !== "overlap_only" && health !== "stale_direction") {
       setRetrying(false)
     }
   }, [retrying, health])
 
-  const needsBanner = health === "overlap_only" || health === "failed"
+  const needsBanner = health === "overlap_only" || health === "failed" || staleDirection
   if (!needsBanner && !retrying) return null
 
   async function onRetry() {
@@ -132,9 +143,11 @@ export function MatchVettingBanner({ token, health }: { token: string | null; he
       <span>
         {retrying
           ? "Re-checking these with Myro Ops…"
-          : failed
-            ? "Myro Ops couldn’t rank your matches. Your matches aren’t AI-vetted yet."
-            : "These matches aren’t AI-vetted yet — Myro Ops couldn’t finish."}
+          : staleDirection
+            ? "No search has run for the direction you chose."
+            : failed
+              ? "Myro Ops couldn’t rank your matches. Your matches aren’t AI-vetted yet."
+              : "These matches aren’t AI-vetted yet — Myro Ops couldn’t finish."}
       </span>
       <button
         type="button"
@@ -142,7 +155,7 @@ export function MatchVettingBanner({ token, health }: { token: string | null; he
         onClick={onRetry}
         disabled={retrying}
       >
-        {retrying ? "Retrying…" : "Retry — free"}
+        {retrying ? "Retrying…" : staleDirection ? "Search now — free" : "Retry — free"}
       </button>
     </div>
   )

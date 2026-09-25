@@ -49,8 +49,44 @@ export default async function HiringPage() {
     data = null
   }
 
+  const jsonLd: Record<string, unknown>[] = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: BASE },
+        { "@type": "ListItem", position: 2, name: "Hiring by Sector", item: `${BASE}/hiring` },
+      ],
+    },
+  ]
+
+  // Dataset — presence-gated on a computed snapshot. Aggregates only (no
+  // per-user data), matching the same schema shape newsletter issues use.
+  if (data) {
+    jsonLd.push({
+      "@context": "https://schema.org",
+      "@type": "Dataset",
+      name: "Myro Sector Hiring Panel",
+      description:
+        "Live roles, employers, hiring momentum and the most-asked skills by sector in India, read from employer hiring systems directly.",
+      url: `${BASE}/hiring`,
+      isAccessibleForFree: true,
+      license: "https://creativecommons.org/licenses/by/4.0/",
+      creator: { "@type": "Organization", name: "Myro", url: BASE },
+      spatialCoverage: "India",
+      dateModified: data.computed_at,
+      variableMeasured: [
+        "Live roles per sector",
+        "Hiring momentum (roles posted in the last 30 days)",
+        "Most-asked skills per sector",
+      ],
+      measurementTechnique: data.method,
+    })
+  }
+
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <PublicTopNav />
       {data ? <HiringPanel data={data} /> : <HiringUnavailable />}
       <PublicFooter />

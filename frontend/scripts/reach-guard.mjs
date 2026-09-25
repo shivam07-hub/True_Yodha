@@ -82,9 +82,11 @@ function pageFiles() {
  *
  * A retired route SHOULD keep a redirect: the old link lives in emails, in
  * screenshots, in someone's bookmarks, and a 404 is a worse answer than a
- * forward. /myro → /market and /diary → /practice both say so in their own
- * comments, and /diary carries query params through so deep links from pipeline
- * cards keep working.
+ * forward. /myro → /market, /welcome → /, /home → /market, /dashboard →
+ * /practice and /xp → /tokens are edge redirects in next.config.mjs (a
+ * page-level redirect() returns HTTP 200 once middleware is on the matcher).
+ * /diary → /practice still lives on the page and carries query params so
+ * deep links from pipeline cards keep working.
  *
  * So a redirect stub is not a dead end — it is a door to somewhere else, and
  * flagging it as debt teaches the reader to ignore this gate's output. The

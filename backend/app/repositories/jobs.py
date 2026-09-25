@@ -273,6 +273,13 @@ def _target_families(target_roles: list[str] | None) -> set[str]:
     return {r.strip() for r in (target_roles or []) if r and r.strip()}
 
 
+#: Weight of an on-direction job in the retrieval score. The same +6 used to be
+#: added in SQL from `role_family` equality. It is earned only when
+#: `direction_fit.grade` says the job asks for the direction. Recall — which
+#: jobs the RPC may return — still uses the bucket.
+_DIRECTION_RANK = 6
+
+
 def _role_match_score(role_family: str | None, target_families: set[str]) -> int:
     """Whether this job is in one of the families the user is aiming at. 0 or 1.
 
@@ -1739,7 +1746,6 @@ class JobsRepository:
         "seniority_level, min_years_experience, max_years_experience, "
         "is_active, listing_confidence, last_verified_live_at, main_skills, role_family"
     )
-    _FEED_PERSONAL_CAP = 500  # bound the in-Python overlap rank set
 
     @staticmethod
     def _feed_shape_row(
@@ -1816,6 +1822,13 @@ class JobsRepository:
         columns for the forty it named. The RPC also drops what the user already
         saved or skipped, so no exclusion set crosses the wire.
 
+        The RPC's score is skill overlap and freshness. The direction term is
+        applied here, from `direction_fit.grade` on `main_skills` already on
+        those rows, against the direction vocabulary already on the labels
+        snapshot. `on_direction` on the card is that grade. The RPC's own
+        `on_direction` column is null on purpose — it used to be
+        `role_family` equality, which is recall, not a verdict.
+
         Each row carries WHY it is here — `on_direction`, `matched_skill_count`,
         `checked_recently` — because a list of forty that cannot say why is
         indistinguishable from a list of forty that was not chosen.
@@ -1850,17 +1863,53 @@ class JobsRepository:
             return []
 
         families = _target_families(target_roles)
-        shaped = {}
-        for row in rows:
+        by_row = {str(row.get("job_id")): row for row in rows if row.get("job_id")}
+        graded = self._grade_shortlist(list(by_row.values()), families)
+        shaped: dict[str, dict[str, Any]] = {}
+        # Score descending, and the RPC's own order on a tie. The `in_` fetch
+        # has no ORDER BY; dropping the index would replace the retrieval order
+        # with whatever order the table read happened to return.
+        ranked: list[tuple[float, int, str]] = []
+        for index, jid in enumerate(order):
+            row = by_row.get(jid)
+            if row is None:
+                continue
             card = self._feed_shape_row(row, skill_keys, families)
-            pick = by_pick.get(str(card["job_id"])) or {}
-            card["on_direction"] = bool(pick.get("on_direction"))
+            pick = by_pick.get(jid) or {}
+            fit = graded.get(jid)
+            card["on_direction"] = bool(fit is not None and fit.is_on_direction)
             card["level_stated"] = bool(pick.get("level_stated"))
             card["checked_recently"] = bool(pick.get("checked_recently"))
-            shaped[str(card["job_id"])] = card
-        # The RPC's order IS the ranking. Re-sorting here, or trusting the order
-        # `in_` happens to return, would silently discard it.
-        return [shaped[jid] for jid in order if jid in shaped]
+            shaped[jid] = card
+            score = float(pick.get("score") or 0)
+            boost = _DIRECTION_RANK if card["on_direction"] else 0
+            ranked.append((-(score + boost), index, jid))
+        ranked.sort()
+        return [shaped[jid] for _, _, jid in ranked]
+
+    def _grade_shortlist(
+        self, rows: list[dict[str, Any]], families: set[str]
+    ) -> dict[str, Any]:
+        """Grade the rows already fetched. Empty when the direction cannot be read.
+
+        An unreadable vocabulary grades every job unknown, which leaves the
+        RPC's order untouched and tags nothing. Losing the direction is a worse
+        answer than raising on the one read a user waits on.
+        """
+        from app.repositories.role_families import RoleFamiliesRepository
+        from app.services.matching import direction_fit
+
+        names = sorted(families)
+        if not names or not rows:
+            return {}
+        try:
+            core = RoleFamiliesRepository(self._db).core_skills(names)
+        except APIError:
+            _log.warning("metric shortlist.direction_vocabulary_failed")
+            return {}
+        return direction_fit.grade_all(
+            rows, direction_fit.vocabulary(core, names), skills_key="main_skills"
+        )
 
     def user_skill_keys(self, user_id: str) -> set[str]:
         """Lowercased taxonomy_key + display_name set for the user's CV skills.
@@ -2537,23 +2586,15 @@ class JobsRepository:
     ) -> list[str]:
         """Keep candidate IDs that may enter the Match Run's ranking pool.
 
-        ⚠️ **This is no longer the same rule /market applies, and that is a known
-        open item, not an oversight.** It admits by BAND NAME through
-        `job_eligibility._AT_LEVEL`. The /market list admits by RANGE OVERLAP
-        against the employer's stated `[min, max]` years, consulting the seniority
-        tag only where the employer states nothing (`candidates_for_user`, migration
-        20260924120000). Measured on one user 2026-09-25: 19 of the 40 jobs on her
-        list carry a senior/lead/executive tag while stating a range that fits her,
-        so they cannot enter her match-run pool at all — her /market can rate them
-        (the J1 warm passes ids straight from the list) and her dashboard and
-        notifications cannot see them.
+        Level is the same rule `/market` applies. `job_is_eligible` admits by
+        `stated_range_admits`: the employer's stated `[min, max]` overlaps the
+        person's span, and the seniority tag is read only when both bounds are
+        null. Held to the SQL by `test_stated_level.py`. Do not invert this by
+        having `candidates_for_user` call the Python — a title word overruling
+        a stated "2-6 years" is what dropped every NPCI payments role.
 
-        Shivam locked the direction on 2026-09-25: **the stated range wins
-        everywhere**, so this function moves to it. The reason it has not already
-        is that widening this pool changes what 203 users see on a surface the Match
-        Quality gate does not measure. Do NOT "fix" it by having retrieval call this
-        function instead — a title word overruling a stated "2-6 years" is the bug
-        that dropped every NPCI payments role. BACKLOG TIER 3.
+        The Match Quality gate measures `/market`, not this pool. A regression
+        here does not move that gate.
 
         `jobs` is the eligibility-column rows already loaded for this pool
         (from `candidate_jobs_for_skills`). Passing ids into `get_jobs_by_ids`
@@ -2652,6 +2693,26 @@ class JobsRepository:
     def count_new_jobs_since(self, since: datetime) -> int:
         return count_jobs_ingested_after(self._db, since)
 
+    def match_freshness_inputs(self, user_id: str) -> dict[str, Any]:
+        """The four profile columns **Match Freshness** compares — one PK read.
+
+        Deliberately its own reader rather than a general profile fetch: this is
+        on `/jobs/matches`, and a `select("*")` there would pull the whole
+        targeting row (and its memory-blind temptations, see the Targeting Brief)
+        onto a path that needs two timestamps and a direction. Fails soft to `{}`,
+        which Match Freshness reads as `no_direction` — the state that changes
+        nothing, because a read we could not make is not a verdict about a user.
+        """
+        rows = safe_read(
+            self._db.table("user_profiles")
+            .select("target_updated_at,last_match_run_at,target_role_title,target_role_titles")
+            .eq("id", user_id)
+            .limit(1),
+            default=[],
+            context="match_freshness_inputs",
+        )
+        return rows[0] if rows else {}
+
     def last_match_run_at(self, user_id: str) -> datetime | None:
         """When this user last RAN a match — the baseline for "new since your last
         search". None = never ran one (no baseline → nothing is "new" yet).
@@ -2689,7 +2750,7 @@ class JobsRepository:
         when: datetime | None = None,
         *,
         context_key: str | None = None,
-    ) -> None:
+    ) -> bool:
         """Stamp the run marker. One writer (`match_run.run_match`) — that is the
         whole point of the column; widen this and the baseline rots again.
 
@@ -2698,11 +2759,19 @@ class JobsRepository:
         changed", and a yes was read as "this direction was searched and the market
         had nothing" — the false-empty that told 162 users their stack of real
         matches was an empty market. Omitted (None) leaves the stored key untouched:
-        a path that computed nothing must not claim to have covered anything."""
+        a path that computed nothing must not claim to have covered anything.
+
+        Returns whether a row was actually stamped. Match Freshness reads this
+        column to answer "did a run land for the direction this user holds now",
+        so a silent no-op (an id matching no row) leaves that question answered
+        wrongly and forever. The caller decides what a miss is worth — `run_match`
+        logs it and leaves the repair to the forward pass, because re-raising
+        would re-run a full LLM compute to fix a one-column update."""
         patch: dict[str, Any] = {"last_match_run_at": (when or datetime.now(timezone.utc)).isoformat()}
         if context_key is not None:
             patch["last_match_context_hash"] = context_key
-        self._db.table("user_profiles").update(patch).eq("id", user_id).execute()
+        result = self._db.table("user_profiles").update(patch).eq("id", user_id).execute()
+        return bool(getattr(result, "data", None))
 
     def has_computed_matches(self, user_id: str) -> bool:
         """Cheap existence check — has this user EVER had a match computed?
@@ -2893,7 +2962,8 @@ class JobsRepository:
             .select(
                 "id, job_id, overlap_score, llm_rank, llm_explanation, "
                 "batch_week, computed_at, matched_skills, "
-                "is_recommended, baseline_version_id, target_context_hash, seniority_compatibility, "
+                "is_recommended, baseline_version_id, target_context_hash, eval_context_hash, "
+                "seniority_compatibility, "
                 "track_id, "
                 "overall_score, grade, recommendation, application_angle, summary, "
                 "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
@@ -3383,6 +3453,9 @@ class JobsRepository:
         # On the paid Refresh hot path: a missing profile row (or the postgrest-py
         # 204 quirk) must degrade to empty targeting, never crash the pipeline and
         # trigger a refund. safe_read absorbs the benign "no row" case.
+        # `years_experience` is the level span. Leave it out and every user
+        # falls through to the band fallback; a test that builds the profile
+        # dict by hand will still pass.
         data = safe_read(
             self._db.table("user_profiles")
             .select(
@@ -3390,6 +3463,7 @@ class JobsRepository:
                 "target_locations, target_location_countries, "
                 "target_role_title, target_role_titles, target_seniority, "
                 "target_career_band, explored_career_bands, "
+                "years_experience, "
                 "deal_breakers, career_goal, superpower"
             )
             .eq("id", user_id)
@@ -3442,6 +3516,21 @@ class JobsRepository:
                 .execute()
             ).data or []
             row = _newest(any_rows)
+        if not row:
+            return ""
+        return (row.get("polished_text") or row.get("body_text") or "").strip()
+
+    def get_baseline_cv_markdown(self, user_id: str, baseline_version_id: int) -> str:
+        """CV text for one baseline, so a ranking finishes on the CV it started with."""
+        result = (
+            self._db.table("cv_versions")
+            .select("body_text, polished_text")
+            .eq("user_id", user_id)
+            .eq("id", baseline_version_id)
+            .limit(1)
+            .execute()
+        )
+        row = (result.data or [None])[0]
         if not row:
             return ""
         return (row.get("polished_text") or row.get("body_text") or "").strip()

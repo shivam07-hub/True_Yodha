@@ -57,6 +57,17 @@ def test_registry_includes_the_job_brain_handler() -> None:
     assert "job_brain_eval" in registry.registered_job_types()
 
 
+def test_registry_includes_the_feed_warm_handler() -> None:
+    """The market warm is a Background Job. The Runner only imports this module,
+    so a handler that exists only because the web process imported the router
+    is dropped in production — the failure this file exists to catch."""
+    from pathlib import Path
+
+    source = Path(registry.__file__).read_text()
+    assert "app.services.matching.feed_warm" in source
+    assert "feed_warm" in registry.registered_job_types()
+
+
 @pytest.mark.asyncio
 async def test_unknown_job_type_fails_loudly() -> None:
     """A dropped job must reach RQ's failed registry, never report success."""

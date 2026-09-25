@@ -11,7 +11,7 @@ import { useMarketIntel } from "@/lib/hooks/use-market-intel"
 import { useSkillDemand } from "@/lib/hooks/use-skill-demand"
 import { useFeedScope } from "@/lib/hooks/use-feed-scope"
 import { useTracks } from "@/lib/hooks/use-tracks"
-import { trackDividers } from "@/lib/jobs/track-sections"
+import { trackDividers, unreadBoundary } from "@/lib/jobs/track-sections"
 import { MarketRail } from "./market-rail"
 import { MarketFeedFrame } from "./market-feed-frame"
 import { MarketJobsColumn } from "./market-jobs-column"
@@ -89,7 +89,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     onFiltersChange?.(f)
   }, [selectedCluster, onSelectCluster, onFiltersChange])
 
-  const { allJobs, visibleJobs, total, shortlistSize, rankedCount, loading, settled, triage, undo, pending, savedCount } =
+  const { allJobs, visibleJobs, total, shortlistSize, rankedCount, judgment, loading, settled, triage, undo, pending, savedCount } =
     useJobFeed({ token, filters, q, skill: skillFacet, scope })
   useEffect(() => {
     if (settled) onFeedSettled?.()
@@ -124,6 +124,12 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
       kind: "scope" as const,
     }]
   }, [visibleRanked, visibleJobs, scope])
+  // ranked_count 0: every visible row is unread. The divider goes before the
+  // first one. Omitting it is how retrieval order was presented as a ranking.
+  const unreadDivider = useMemo(
+    () => unreadBoundary(visibleJobs, visibleRanked),
+    [visibleJobs, visibleRanked],
+  )
 
   /**
    * Where each of the user's searches begins, and where the brain stopped
@@ -173,8 +179,8 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const rows = useMemo(
     // No expansion dividers: the three-tier ladder ("more remote roles in India")
     // existed because the feed ran dry, which it did because it filtered a sample.
-    () => interleaveStories(visibleJobs, stories, [...searchDividers, ...picksDivider]),
-    [visibleJobs, stories, searchDividers, picksDivider],
+    () => interleaveStories(visibleJobs, stories, [...searchDividers, ...unreadDivider, ...picksDivider]),
+    [visibleJobs, stories, searchDividers, unreadDivider, picksDivider],
   )
 
   const onSeeRoles = useCallback((query: string) => {
@@ -265,6 +271,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
         onSave={onSave}
         onSkip={onSkip}
         loading={loading}
+        judgment={judgment}
         visibleJobs={visibleJobs}
         clearBrowse={clearBrowse}
         total={total}

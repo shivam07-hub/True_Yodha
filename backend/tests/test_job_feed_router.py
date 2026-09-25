@@ -9,8 +9,9 @@ decided in SQL and belong to the migration's own contract test.
 
 What is left to guard here is the seam between the two reads:
 
-* Repository — the RPC's ORDER is the ranking and must survive the `in_` fetch
-  that has no order at all; a named job missing from the table is dropped, not a
+* Repository — with no direction vocabulary the RPC's ORDER survives the `in_`
+  fetch that has no order at all; an on-direction grade can move a card ahead of
+  a higher raw score. A named job missing from the table is dropped, not a
   KeyError; the reasons ride onto the card; a failure returns an empty list rather
   than a 500 on the one read a user waits on.
 * Endpoint (`TestClient`) — auth gating, the finite response shape, brain badges.
@@ -235,10 +236,9 @@ def _pick(job_id: str, **over: Any) -> dict[str, Any]:
 
 
 def test_the_rpcs_order_is_the_lists_order() -> None:
-    """The whole point of the rewrite is that SQL decides the ranking. The `in_`
-    fetch that follows has no ORDER BY, so whatever order PostgREST happens to
-    return would silently replace it — here the table is deliberately stored in
-    the opposite order."""
+    """The `in_` fetch has no ORDER BY. With no direction vocabulary every grade
+    is unknown, so nothing is promoted and the list stays in the RPC's order —
+    here the table is deliberately stored in the opposite order."""
     repo, db = _repo([_job("j3"), _job("j2"), _job("j1")])
     _with_rpc(db, [_pick("j1"), _pick("j2"), _pick("j3")])
 
@@ -258,15 +258,60 @@ def test_a_named_job_missing_from_the_table_is_dropped_not_raised() -> None:
 
 def test_each_card_carries_why_it_was_chosen() -> None:
     """A list of forty that cannot say why is indistinguishable from forty that
-    were not chosen."""
+    were not chosen. Level and freshness still come from retrieval. The
+    direction tag does not: the RPC used to copy a role-family equality onto
+    the card, and that flag is ignored."""
     repo, db = _repo([_job("j1")])
     _with_rpc(db, [_pick("j1", on_direction=True, level_stated=False, checked_recently=True)])
 
     card = repo.shortlist_jobs("u1")[0]
 
-    assert card["on_direction"] is True
+    assert card["on_direction"] is False
     assert card["level_stated"] is False
     assert card["checked_recently"] is True
+
+
+def test_a_bucket_match_whose_skills_miss_the_direction_is_not_on_direction() -> None:
+    """ADR-0022: role_family equality is recall, not a verdict. A gold-loan
+    posting filed in the marketing family must not wear that family's tag, and
+    must not outrank a job that actually asks for the direction's skills."""
+    family = "Marketing Strategy and Techniques"
+    repo, db = _repo([
+        _job(
+            "gold",
+            title="Branch Sales Officer",
+            role_family=family,
+            skills=["Gold Loans", "Branch Banking"],
+        ),
+        _job(
+            "growth",
+            title="Growth Marketing Manager",
+            role_family="Sales Management",
+            skills=["Search Engine Optimization", "Content Marketing"],
+        ),
+    ])
+    db.tables["role_family_labels"] = [{
+        "family": family,
+        "core_skills": [
+            "Search Engine Optimization", "Content Marketing", "Campaign Management",
+            "Marketing Strategy", "Social Media", "Brand Management",
+            "Market Research", "Copywriting", "Email Marketing",
+            "Analytics", "Advertising", "Public Relations",
+        ],
+    }]
+    # Retrieval still ranks the bucket hit first. The grade has to move it.
+    _with_rpc(db, [
+        _pick("gold", score=9, on_direction=True),
+        _pick("growth", score=4, on_direction=False),
+    ])
+
+    rows = repo.shortlist_jobs("u1", target_roles=[family])
+
+    by_id = {row["job_id"]: row for row in rows}
+    assert by_id["gold"]["role_family"] == family
+    assert by_id["gold"]["on_direction"] is False
+    assert by_id["growth"]["on_direction"] is True
+    assert [row["job_id"] for row in rows] == ["growth", "gold"]
 
 
 def test_matched_skills_are_the_requesting_users_own() -> None:
@@ -321,24 +366,26 @@ def test_the_list_does_not_load_full_job_descriptions() -> None:
 
 
 class _ListRepo:
-    """The endpoint's whole repository surface — which is now four methods."""
+    """The feed endpoint reads the judged stack and the aspiration pile."""
 
-    SHORTLIST_SIZE = 40
-
-    def __init__(self, rows: list[dict[str, Any]], evals: dict[str, Any] | None = None) -> None:
+    def __init__(self, rows: list[dict[str, Any]]) -> None:
         self.rows = rows
-        self.evals = evals or {}
         self.asked: dict[str, Any] = {}
 
-    def get_feed_context(self) -> dict[str, Any]:
-        return {"skill_keys": {"python"}, "target_roles": ["Data Engineer"]}
+    def get_user_profile_targeting(self, user_id: str) -> dict[str, Any]:
+        self.asked["user_id"] = user_id
+        return {"target_roles": ["Data Engineer"], "cv_markdown": "cv"}
 
-    def shortlist_jobs(self, user_id: str, **kw: Any) -> list[dict[str, Any]]:
-        self.asked = {"user_id": user_id, **kw}
+    def get_latest_baseline_id(self, _user_id: str) -> int:
+        return 7
+
+    def get_user_match_stack(self, _user_id: str) -> list[dict[str, Any]]:
         return [dict(r) for r in self.rows]
 
-    def get_cached_match_evals(self, _u: str, _ids: list[str], *, full: bool = False) -> dict[str, Any]:
-        return self.evals
+    def get_candidate_job_ids_for_roles(self, roles: list[str], **kw: Any) -> list[str]:
+        self.asked["roles"] = roles
+        self.asked["limit"] = kw.get("limit")
+        return []
 
     def record_recommendation_exposures(self, _u: str, rows: list[dict], *, surface: str) -> int:
         return len(rows)
@@ -361,12 +408,34 @@ def test_feed_requires_authentication() -> None:
     assert response.status_code in (401, 403)
 
 
-def test_the_endpoint_returns_a_finite_list_and_says_what_it_was_capped_at() -> None:
-    repo = _ListRepo([{
-        "job_id": "j1", "job_title": "Data Engineer", "company_name": "Acme",
-        "job_description": None, "matched_skill_count": 1, "skills": ["Python"],
-        "on_direction": True,
-    }])
+def _judged(job_id: str, title: str, company: str, **eval_fields: Any) -> dict[str, Any]:
+    from app.services.onboarding_service import eval_context_key
+
+    ctx = eval_context_key({
+        "target_roles": ["Data Engineer"],
+        "cv_markdown": "cv",
+        "baseline_version_id": 7,
+    })
+    row = {
+        "job_id": job_id,
+        "eval_context_hash": ctx,
+        "baseline_version_id": 7,
+        "overall_score": 4.2,
+        "recommendation": "Apply",
+        "matched_skills": ["Python"],
+        "jobs": {
+            "job_title": title,
+            "company_name": company,
+            "is_active": True,
+            "main_skills": ["Python"],
+        },
+    }
+    row.update(eval_fields)
+    return row
+
+
+def test_the_endpoint_returns_judged_jobs_and_does_not_cap_them() -> None:
+    repo = _ListRepo([_judged("j1", "Data Engineer", "Acme")])
 
     response = _get_feed(repo)
 
@@ -374,22 +443,22 @@ def test_the_endpoint_returns_a_finite_list_and_says_what_it_was_capped_at() -> 
     body = response.json()
     assert body["jobs"][0]["job_id"] == "j1"
     assert body["jobs"][0]["matched_skill_count"] == 1
-    assert body["jobs"][0]["on_direction"] is True
-    assert body["shortlist_size"] == 40
-    # The pagination contract is gone, not merely unused: a client reading
-    # `has_next_page` off this response would page for ever.
+    assert body["jobs"][0]["job_description"] is None
+    assert body["shortlist_size"] == 0
+    assert body["ranked_count"] == 1
+    assert body["judgment"]["cleared"] == 1
     for gone in ("page", "page_size", "has_next_page", "available_total", "sort", "expansion_tier"):
         assert gone not in body
 
 
-def test_the_endpoint_passes_the_users_own_context_to_retrieval() -> None:
+def test_the_endpoint_opens_the_aspiration_pile_not_the_overlap_shortlist() -> None:
     repo = _ListRepo([])
 
     _get_feed(repo)
 
     assert repo.asked["user_id"] == "u1"
-    assert repo.asked["skill_keys"] == {"python"}
-    assert repo.asked["target_roles"] == ["Data Engineer"]
+    assert repo.asked["roles"] == ["Data Engineer"]
+    assert repo.asked["limit"] == 1000
 
 
 def test_the_endpoint_takes_no_filters() -> None:
@@ -404,34 +473,32 @@ def test_the_endpoint_takes_no_filters() -> None:
     assert params == set(), f"the list still accepts {params}"
 
 
-def test_feed_attaches_cached_brain_badges() -> None:
-    """Consolidation D: a cached Matching-Brain eval decorates the card (grade /
-    verdict / legitimacy) at read time, no LLM."""
-    repo = _ListRepo(
-        [
-            {"job_id": "j1", "job_title": "DE", "company_name": "Acme", "job_description": None},
-            {"job_id": "j2", "job_title": "SRE", "company_name": "Beta", "job_description": None},
-        ],
-        evals={
-            "j1": {
-                "overall_score": 4.2, "grade": "A", "recommendation": "Apply",
-                "legitimacy_tier": "suspicious", "legitimacy_reason": "no scope",
-                "archetype": "Data Engineer",
-            }
+def test_an_unscored_job_is_not_on_the_market_list() -> None:
+    """The list is the judge's keep. A skip, and a job with no score, stay off it."""
+    repo = _ListRepo([
+        _judged(
+            "j1", "DE", "Acme",
+            grade="A", legitimacy_tier="suspicious",
+            legitimacy_reason="no scope", archetype="Data Engineer",
+        ),
+        _judged("j2", "SRE", "Beta", overall_score=2.1, recommendation="Skip"),
+        {
+            "job_id": "j3",
+            "overall_score": None,
+            "jobs": {"job_title": "Unread", "company_name": "Gamma", "is_active": True},
         },
-    )
+    ])
 
     body = _get_feed(repo).json()
 
-    j1, j2 = body["jobs"]
+    assert [job["job_id"] for job in body["jobs"]] == ["j1"]
+    j1 = body["jobs"][0]
     assert j1["grade"] == "A"
     assert j1["recommendation"] == "Apply"
     assert j1["legitimacy_tier"] == "suspicious"
     assert j1["archetype"] == "Data Engineer"
-    # A job with no cached eval carries no badge fields (deterministic-only).
-    assert j2["grade"] is None
-    assert j2["legitimacy_tier"] is None
     assert body["ranked_count"] == 1
+    assert "checking" not in {job.get("verdict") for job in body["jobs"]}
 
 
 def test_hidden_feed_jobs_can_be_recovered() -> None:

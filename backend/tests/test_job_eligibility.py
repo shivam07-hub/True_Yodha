@@ -8,6 +8,7 @@ from __future__ import annotations
 from app.services.job_eligibility import (
     career_band_for_job,
     career_band_for_profile,
+    career_bands_for_profile,
     job_is_eligible,
 )
 
@@ -30,6 +31,23 @@ def test_profile_band_derives_from_target_role_titles() -> None:
     assert career_band_for_profile({
         "target_role_titles": ["Public Policy Research Associate"],
     }) == "research_people_public_impact"
+
+
+def test_a_taxonomy_label_is_not_run_through_job_title_regexes() -> None:
+    """A family name is not a job title. The title regexes read
+    "Artificial Intelligence and Machine Learning (AI/ML)" as engineering
+    because the words "ai" and "machine learning" appear in the label."""
+    label = "Artificial Intelligence and Machine Learning (AI/ML)"
+    assert career_band_for_job({"job_title": label}) == "engineering_data"
+    assert career_bands_for_profile({
+        "target_roles": [label],
+        "target_role_titles": [label],
+        "target_role_title": label,
+    }) == []
+    assert career_bands_for_profile({
+        "target_roles": [label],
+        "target_role_titles": ["Policy Research Associate"],
+    }) == ["research_people_public_impact"]
 
 
 def test_entry_level_ma_never_receives_vp_or_business_role() -> None:
@@ -84,7 +102,9 @@ def test_second_target_role_is_an_explicit_cross_band_request() -> None:
     })
 
 
-def test_entry_stretch_can_admit_mid_but_never_senior_or_executive() -> None:
+def test_a_stated_range_is_not_widened_by_stretch() -> None:
+    """Entry is [0, 2]. A posting that asks for 3 years does not overlap it,
+    and include_stretch cannot put the next band back in front of that range."""
     profile = {
         "target_career_band": "research_people_public_impact",
         "target_seniority": "entry",
@@ -102,11 +122,14 @@ def test_entry_stretch_can_admit_mid_but_never_senior_or_executive() -> None:
         "min_years_experience": 5,
     }
     assert not job_is_eligible(profile, mid)
-    assert job_is_eligible(profile, mid, include_stretch=True)
+    assert not job_is_eligible(profile, mid, include_stretch=True)
     assert not job_is_eligible(profile, senior, include_stretch=True)
 
 
-def test_legacy_any_seniority_does_not_invent_entry() -> None:
+def test_legacy_any_is_the_open_span_not_the_entry_band() -> None:
+    """No readable band is [0, 40], matching candidates_for_user. An executive
+    posting is not rejected for sitting above entry, because there is no entry
+    to sit above. The career band still holds."""
     profile = {
         "target_career_band": "research_people_public_impact",
         "target_seniority": "any",
@@ -121,5 +144,11 @@ def test_legacy_any_seniority_does_not_invent_entry() -> None:
         "role_domain": "Research & Science",
         "seniority_level": "entry",
     }
-    assert not job_is_eligible(profile, executive)
-    assert not job_is_eligible(profile, entry)
+    outside = {
+        "job_title": "Software Engineer",
+        "role_domain": "Software Engineering",
+        "seniority_level": "entry",
+    }
+    assert job_is_eligible(profile, executive)
+    assert job_is_eligible(profile, entry)
+    assert not job_is_eligible(profile, outside)

@@ -186,3 +186,91 @@ def test_stray_skill_ids_will_not_leave_a_profile_empty() -> None:
         {"skill_id": 1, "taxonomy_key": "Salesforce", "evidence_text": "Salesforce", "source": "cv"},
     ]
     assert stray_skill_ids(receipts, SALESFORCE_CV) == []
+
+
+# Evidence → whether that row may be written to user_skills.
+# The first five are skills stored off a real CV on 2026-09-19. Two of them
+# already failed evidence_names_skill; the other three were the holes.
+_WRITE_CASES = [
+    (
+        "business-education",
+        "Grew the VAS business\nEDUCATION\n",
+        "Business Education",
+        "business\nEDUCATION",
+        False,
+    ),
+    (
+        "artificial-intelligence",
+        "Built an AI chatbot fulfillment flow for returns\n",
+        "Artificial Intelligence",
+        "AI chatbot fulfillment",
+        False,
+    ),
+    (
+        "natural-language-processing",
+        "Ran an NLP audit of 5K inputs before launch\n",
+        "Natural Language Processing (NLP)",
+        "NLP audit of 5K inputs",
+        False,
+    ),
+    (
+        "team-management",
+        "Led end-to-end GTM for the payments launch\n",
+        "Team Management",
+        "Led end-to-end GTM",
+        False,
+    ),
+    (
+        "food-technology",
+        "EDUCATION\nB.E. Food Technology\nAnna University\n",
+        "Food Technology",
+        "Food Technology",
+        False,
+    ),
+    (
+        "sql-named-in-a-bullet",
+        "Wrote SQL reports for settlements\n",
+        "SQL (Programming Language)",
+        "Wrote SQL reports for settlements",
+        True,
+    ),
+    (
+        "html-abbreviation-is-the-receipt",
+        "SKILLS\nHTML, CSS\n",
+        "HyperText Markup Language (HTML)",
+        "HTML",
+        True,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("label", "cv_text", "skill", "evidence", "may_write"),
+    _WRITE_CASES,
+    ids=[case[0] for case in _WRITE_CASES],
+)
+def test_write_seam_requires_the_receipt_to_name_the_skill(
+    label: str, cv_text: str, skill: str, evidence: str, may_write: bool,
+) -> None:
+    from app.services.cv_skill_evidence import rows_for_user_skills_write
+
+    written = rows_for_user_skills_write(
+        [{
+            "user_id": "u1",
+            "skill_id": 1,
+            "taxonomy_key": skill,
+            "source": "cv",
+            "evidence_text": evidence,
+        }],
+        cv_text,
+    )
+    assert bool(written) is may_write, label
+    if written:
+        assert "taxonomy_key" not in written[0]
+
+
+def test_literal_extractor_does_not_join_a_word_to_the_next_heading() -> None:
+    cv = "Grew the VAS business\nEDUCATION\nB.E. Food Technology\n"
+    keys = {item["taxonomy_key"] for item in extract_explicit_skills(cv)}
+    assert "Business Education" not in keys
+    assert "Food Technology" not in keys

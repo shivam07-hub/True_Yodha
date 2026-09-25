@@ -495,7 +495,7 @@ Two Tier-0 tables hold it — `role_family_scope` (family × seniority → job_c
 
 **It is pure, and costs no read.** Both sides are already in memory: a job row carries `main_skills`, a direction's vocabulary is one `text[]` on the labels snapshot. Measured 2026-09-16 over the 3,000 most recently seen live jobs, grading `main_skills` against those twelve names finds **736 of the 780** jobs a full `job_skills` join finds for Business Operations and **256 of 260** for Sales Management. `top_skills` was tried first and found 102 and 24 — it ranks by tf-idf DISTINCTIVENESS and is capped at eight, so it names the skills that are rarest in the jobs it should be matching. Two arrays, two questions: `top_skills` says what is distinctive about a direction, `core_skills` says what it asks for.
 
-**Recall is not a verdict.** `jobs.role_family` survives as the cheap index that narrows 46,801 live rows into a pool; it never answers whether a job fits. That is what keeps ONE definition of fit while the corpus-wide precompute waits on the paid compute gate (#46 S4) — the half that ADR-0022 and #46 forbid shipping is a second *definition* of fit, not a second scale for the same one.
+**Recall is not a verdict.** `jobs.role_family` survives as the cheap index that narrows live rows into the aspiration pile (`get_candidate_job_ids_for_roles`); it never answers whether a job fits. The published fit on `/market` is the career-ops evaluation: overall_score ≥ 3.5 and Apply or Negotiate. `direction_fit` (2 of 12) is not that list.
 
 **Unknown is a third state.** An empty vocabulary (no direction chosen, or a family the snapshot does not hold) and a listing naming no skills both read `unknown`, never `off_direction`. Absence is not a verdict, and an ungradable job must be neither hidden nor promoted on the strength of missing data.
 
@@ -985,6 +985,22 @@ The ONE module every match surface routes through (`app/services/matching/match_
 - `notify=False` where the user watches the reveal live (paid Refresh, onboarding initial); background runs (sweep, future login-confirm async) notify — debounced 12h, so it's spam-safe.
 - The **100-coin charge** (`MATCH_RUN_COST`) is a property of a run but lives at the entry seam that owns the wallet + reveal ticket (`job_refresh` charges at dispatch, `_dispatch` refunds on failure). This module owns the WORK, not the charge.
 - Callers: `job_refresh/_pipeline` (paid Refresh worker), `cv_workflow` (onboarding initial), `scrape_sweep` (background sweep). Every one now gets identical outputs.
+- **A run that searched nothing stamps nothing.** `cache_hit` and `needs_onboarding` return before a profile is read, so they carry no `context_key` — and since 2026-09-25 that means neither half of the marker is written, not just a null key. The timestamp is not bookkeeping: **Match Freshness** reads it, so a bare stamp from a no-op run permanently answers "were these matches computed for the direction this user holds" with a lie. A missed stamp on a real run is logged (`metric match_run.stamp_missed`) and left to the forward pass — re-raising would re-run a full LLM compute to repair one column.
+
+---
+
+## Match Freshness
+
+**Were the matches this user is looking at computed for the direction they hold NOW?** One pure module (`app/services/matching/match_freshness.py`) over the pair `user_profiles.target_updated_at` (stamped by `targeting_write.commit` on a real direction change) and `user_profiles.last_match_run_at` (stamped by `match_run.run_match` alone). Five states: `no_direction · unknown · covered · running · outstanding`.
+
+Migration `20260804_target_updated_at.sql` wrote the contract down and `04ef9f3b` deleted the reader and its self-heal, so for six weeks `target_updated_at` was written on every direction change and compared against nothing. In its place the surface asked `compute_match_health`, which answers "does any match row exist" — and `user_job_matches` rows are also written by the `/market` warmer and brain-on-open, so **ten warmer rows made a Match Run that never ran read as `vetted`** (Deveshwar Kashyap, 2026-09-19: two `Job OK` logs, no run, `last_match_run_at` still 78 days old). Measured 2026-09-25: 331 profiles hold a direction newer than their last run, 4 of the 14 saved that week.
+
+**Invariants**
+- **`unknown` is the state a legacy row gets**, and it is load-bearing. A direction with no change stamp predates the column; reading that as `outstanding` would enqueue a run for every dormant account at once — a backfill wearing a forward pass's clothes. Absence is not a verdict.
+- **`running` is not `outstanding`.** `target_updated_at → last_match_run_at` measured 166s for a real signup and 190–220s for most (**Provisional Match**), so `RUN_GRACE_SECONDS` (15 min) is the window in which a missing run is in flight, not missing. Nothing re-enqueues inside it and no surface may cry failure.
+- **It decides nothing about jobs and costs no read.** Both columns ride the profile `/users/me` already fetched; the comparison is pure. The repair is `forward_pass.finish_outstanding_match`, which claims per direction change (a new direction that also failed is owed its own run), enqueues `initial_match` with `force_context_refresh=True` — without force the compute's own cache gate answers `cache_hit`, stamps nothing, and brings the same user back forever — and never runs on the read path.
+- The module is the test surface (`test_match_freshness.py`): the states are tested once, not re-derived per consumer.
+- ⚠️ **Not yet read by `compute_match_health`.** The health signal still answers from row existence, so a user whose direction has no run can still read `vetted` off warmer rows until that seam consumes this module.
 
 ---
 
@@ -1224,43 +1240,47 @@ before a job reaches the feed or the Career Ops ranking pool.
 - **Eligibility Boundary** — the server-side hard gate that filters
   incompatible jobs before the browse feed, candidate selection, and
   Career-Ops ranking. A client-side filter alone is never sufficient.
-- **Stretch Scope** — an explicit, temporary expansion to the next higher
-  compatible level. It is opt-in, URL-backed for back-navigation, and never
-  admits senior, lead, or executive postings for an intern or entry candidate.
+- **Stretch Scope** — used to admit the next higher seniority band on an
+  opt-in. It no longer widens past the stated years range. `job_is_eligible`
+  still accepts the flag and does not apply it.
 
 **Default policy**
 
-- Intern and entry candidates receive Intern + Entry postings by default.
-- Mid, senior, lead, and executive postings are excluded from those default
-  feeds; titles such as Vice President are never a fresher stretch.
-- Career Ops ranks and explains jobs only after this boundary. It may rank an
-  opted-in adjacent stretch below at-level work, but cannot override the gate.
+- Level admission is the employer's stated `[min, max]` years, overlapping the
+  person's span. Known years are `[years - 1, years + 1]`. Unknown years use
+  the target band's span (`intern [0,1]`, `entry [0,2]`, `mid [2,5]`,
+  `senior [5,8]`, `lead [8,12]`, `executive [12,40]`). No readable band is
+  `[0, 40]`. None is not zero.
+- The seniority tag is read only when the employer states no range, and then
+  only to reject `senior`, `lead`, `principal`, `staff`, `executive`, or
+  `director` when the person's centre is under 5. A stated "2-6 years" on a
+  senior-tagged posting is admitted.
+- Career Ops ranks and explains jobs only after this boundary. `include_stretch`
+  does not widen past a stated range.
 - Target seniority persists with the candidate profile. Browse state persists
   in the URL so opening a role, navigating back, or reloading does not require
   the candidate to restate their intent.
 
 ### Seniority Fit
 
-**The one reading of a job's level against a target** —
-`job_eligibility.seniority_fit`, returning `SeniorityCompat`
-(`compatible | incompatible | unknown`). The gate admits by it and
-`match_credibility` grades by it; neither re-decides what at-level means.
+**Two readings, on purpose.** Admission and the verdict grade are not the
+same question any more.
 
-- **At level** = the target's own level and the one below (`_AT_LEVEL`). For
-  intern and entry that is the default pool above; for everyone else the band
-  below is the same rule. It is not a stretch.
-- **Unreadable** either side is `unknown`, never `incompatible`. An absence is
-  not a verdict (the rule F3 already applied at promotion).
-- **Admission** (`seniority_is_eligible`) = fit, plus one opt-in:
-  - **An unreadable job level is admitted on EVERY path** — browse and the
-    Career Ops pool alike. It was briefly pool-only, and that was two admission
-    rules in one system: the Match Quality gate measured browse hiding 9,323
-    listings its yardstick calls candidates while the pool beside it admitted
-    the same rows. One rule, or the two halves disagree about the same job for
-    ever. An unreadable *target* (legacy `any`) still admits nothing — a blank
-    answer is never silently read as `entry`.
-  - `include_stretch` — the one band above. Admitted when asked for, still
-    graded `incompatible`: looking up a level is not Myro recommending it.
+- **Admission** is `stated_range_admits`, shared by `candidates_for_user` and
+  `job_is_eligible` (the match-run pool, including title-only extras). The
+  employer's stated years decide. The tag is a fallback where nothing is
+  stated. Pinned by `backend/tests/test_stated_level.py`. A missing band is
+  `[0, 40]`, which is not the entry band and not a closed door.
+- **The verdict grade** is still `seniority_fit`: own level and the one below
+  (`_AT_LEVEL`), returning `compatible | incompatible | unknown`.
+  `match_credibility` grades by it. A senior-tagged posting whose stated range
+  fits is admitted and can still be graded `incompatible`. That is the range
+  winning admission; it is not the tag winning it back.
+- **Unreadable** either side of the grade is `unknown`, never `incompatible`.
+  An absence is not a verdict (the rule F3 already applied at promotion).
+- `seniority_is_eligible` is the band-adjacency form of that grade, plus an
+  opt-in stretch. The pool does not call it. `include_stretch` does not admit
+  a stated range that does not overlap.
 
 Why it exists (2026-09-19): the gate used adjacency and returned a bool; the
 verdict used `actual == target`. They disagreed on 6 of 36 target×level pairs —
@@ -1300,7 +1320,9 @@ from an unrelated career path before a job reaches the feed or Career Ops.
   derived from their CV and target-role titles, and a second target role still
   opens its own band — derived at READ time (`eligible_bands_for_profile`), never
   written into the answer, so it can be removed and does not resurrect itself on
-  the next save.
+  the next save. A taxonomy family name is not a title for that derivation:
+  `career_bands_for_profile` does not run job-title regexes on `target_roles`,
+  or on a title slot that holds the same family name.
 - **Job Career Band** — the deterministic family assigned to a job from its
   source role domain and explicit title signals. A title such as Product
   Designer may take the Design & Creative band even if its detailed role domain
@@ -1339,7 +1361,7 @@ from an unrelated career path before a job reaches the feed or Career Ops.
 
 The one structured filter vocabulary for "what jobs to search for". Before it, that intent was expressed three incompatible ways — the NL parser dict, the authed feed's long `feed_jobs(**kwargs)`, and the intent-chat diff. `FilterSpec` (`app/services/matching/filter_spec.py`) is a frozen dataclass every producer maps into and every query surface reads out of.
 
-**It no longer covers the authed /market list.** That list is not a filtered search: `shortlist_jobs` asks `candidates_for_user` for the forty jobs one person should see, and level, direction, location, the employer cap and the draining queue are decided in SQL. `feed_kwargs` and the four feed-shaping fields only it read (`sort`, `min_skill_matches`, `following_only`, `include_stretch`) went with the 500-row sample.
+**It no longer covers the authed /market list.** That list is the career-ops judgment for this person: jobs already scored at ≥ 3.5 as Apply or Negotiate, ordered by that score. An unscored job is not on it. `feed_kwargs` and the four feed-shaping fields only it read (`sort`, `min_skill_matches`, `following_only`, `include_stretch`) went with the 500-row sample.
 
 **Producers** (build a spec): `FilterSpec.from_nl_parse(parsed)` (landing NL search), `from_intent_diff(diff)` (Delta-4 intent chat), `from_memory(facts)` (Phase-2 distilled `user_memory`).
 

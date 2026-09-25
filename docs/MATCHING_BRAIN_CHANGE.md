@@ -1,5 +1,11 @@
 # Matching Brain Change
 
+> **Superseded 2026-09-26.** The sentence below that says the user sees Stage 1
+> is no longer the product. `/market` shows jobs the career-ops judge scored
+> at ≥ 3.5 (Apply or Negotiate). Stage 1 overlap is not that list. The rest
+> of this plan — port the 5-axis evaluation, do not hardcode one candidate —
+> still stands.
+
 > **Status: PLAN — approved, thin-slice first cut.**
 > Decided 2026-05-29. Replaces the thin Stage-2 LLM ranker with the Career Ops
 > 5-axis evaluation brain. Companion to `MATCHER_COMPARISON_CAREER_OPS_VS_TRUEYODHA.md`.

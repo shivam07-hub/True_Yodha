@@ -69,14 +69,38 @@ async def run_match(
     # Read the key OUTSIDE the guard below: that except exists for a failing
     # profiles write, and must not also swallow a wrong-shaped outcome.
     run_context = outcome.context_key
-    try:
+    if run_context is None:
+        # Nothing searched. `cache_hit` and `needs_onboarding` both return before a
+        # profile is read, so there is no direction this run could claim to have
+        # covered — and the stamp is not only the direction key: it also moves the
+        # "new since your last search" baseline and, since Match Freshness reads it,
+        # answers "were this user's matches computed for the direction they hold".
+        # One rule for both halves of the column: a path that computed nothing
+        # claims nothing. Stamping here is what let a Direction save whose run never
+        # ran read as covered ever after.
+        logger.info(
+            "metric match_run.unstamped user=%s kind=%s", user_id, outcome.kind
+        )
+    else:
         # Stamp WHICH direction the run covered, not just that one happened. The
         # key comes off the outcome (the profile the ranking actually used) rather
         # than a re-read here, so a direction change mid-run can't record a key no
         # row was written under.
-        repo.mark_match_run(user_id, context_key=run_context)
-    except Exception as exc:  # noqa: BLE001 — a missed stamp costs a stale prompt, not the run
-        logger.warning("match_run: run marker not stamped user=%s: %s", user_id, exc)
+        try:
+            stamped = repo.mark_match_run(user_id, context_key=run_context)
+        except Exception as exc:  # noqa: BLE001 — see below: the rows are already safe
+            stamped = False
+            logger.warning("match_run: run marker not stamped user=%s: %s", user_id, exc)
+        if not stamped:
+            # The matches landed; only the bookkeeping did not. Deliberately not
+            # re-raised: the retry ladder would re-run a full LLM compute to repair
+            # a one-column update. The pair (`target_updated_at`, `last_match_run_at`)
+            # still reads `outstanding`, so `forward_pass.finish_outstanding_match`
+            # picks this user up on their next visit — the cheap lever, on a door
+            # they already walk.
+            logger.warning(
+                "metric match_run.stamp_missed user=%s kind=%s", user_id, outcome.kind
+            )
 
     if regenerate_picks:
         try:

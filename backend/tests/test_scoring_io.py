@@ -241,7 +241,12 @@ class TestRecordCvScore:
         cp, sp = _patch_orchestrator_internals()
         with cp, sp:
             signals = [
-                {"taxonomy_key": "Django", "signal_type": "impact", "xp_awarded": 350, "evidence": ""}
+                {
+                    "taxonomy_key": "Django",
+                    "signal_type": "impact",
+                    "xp_awarded": 350,
+                    "evidence": "Shipped Django services",
+                }
             ]
             result = record_cv_score(ScoresRepository(_make_facade_db()), "u1", signals)
             assert "total_score" in result
@@ -257,7 +262,12 @@ class TestRecordCvScore:
                 record_cv_score(
                     ScoresRepository(_make_facade_db()),
                     "u1",
-                    [{"taxonomy_key": "Django", "signal_type": "impact", "xp_awarded": 350, "evidence": ""}],
+                    [{
+                    "taxonomy_key": "Django",
+                    "signal_type": "impact",
+                    "xp_awarded": 350,
+                    "evidence": "Shipped Django services",
+                }],
                 )
 
     def test_skips_market_lookup(self) -> None:
@@ -279,7 +289,12 @@ class TestRecordCvScore:
             result = record_cv_score(
                 ScoresRepository(db),
                 "u1",
-                [{"taxonomy_key": "Django", "signal_type": "impact", "xp_awarded": 350, "evidence": ""}],
+                [{
+                    "taxonomy_key": "Django",
+                    "signal_type": "impact",
+                    "xp_awarded": 350,
+                    "evidence": "Shipped Django services",
+                }],
             )
             assert result is not None
 

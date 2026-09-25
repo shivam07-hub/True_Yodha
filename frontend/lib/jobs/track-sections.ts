@@ -84,3 +84,20 @@ export function trackDividers(
   }
   return out
 }
+
+/**
+ * The line in front of a list the brain has not read.
+ *
+ * `rankedCount` is GET /jobs/feed's count of leading read rows. Zero means
+ * every visible row is retrieval order. Drawing nothing there is how that
+ * order was presented as a ranking (prod 2026-09-25): the cards looked like
+ * the list, and nothing said the judge had not read them.
+ *
+ * A read head already has its boundary — the "more roles" divider, and for
+ * two searches the tier line inside `trackDividers`. This does not add a
+ * second one.
+ */
+export function unreadBoundary(jobs: JobFeedItem[], rankedCount: number): FeedDivider[] {
+  if (jobs.length === 0 || rankedCount > 0) return []
+  return [{ beforeJobId: jobs[0].job_id, label: "Not read yet", kind: "tier" }]
+}

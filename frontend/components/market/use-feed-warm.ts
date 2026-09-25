@@ -1,44 +1,37 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { useQueryClient } from "@tanstack/react-query"
-import { jobs } from "@/lib/api"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { jobs, type JobFeedResponse } from "@/lib/api"
 import type { FeedScope } from "@/lib/feed-scope"
 import { useLaneYields } from "@/store/matchRunStore"
 import { jobFeedQueryKey } from "./job-feed-query-key"
 
+const POLL_MS = 15_000
+// A full aspiration pile outlasts the old ten-card warm. ~30 min of re-reads;
+// the notice on the last response is the count if the pile is still open.
+const POLL_CAP = 120
+
 /**
  * The deferred brain warm for the triage feed — J1, never J0.
  *
- * Why this is a separate hook and not two lines inside `useJobFeed`: the warm is a
- * blocking-judgment LLM call. 3799e114 removed it from the feed hook because it was
- * wait-then-paint, and locked that in with the "Jobs paints its J0 feed before
- * secondary compute" contract test, which asserts `use-job-feed.ts` contains no
- * `jobs.warmFeed`. c73aa23a put it back while consolidating something unrelated and
- * left Develop failing that test. Keeping the warm in its own module is what makes
- * the guard meaningful instead of a string the next refactor trips over by accident.
+ * Why this is a separate hook and not two lines inside `useJobFeed`: the warm
+ * used to be a blocking-judgment LLM call. 3799e114 removed it from the feed
+ * hook because it was wait-then-paint, and locked that in with the "Jobs paints
+ * its J0 feed before secondary compute" contract test, which asserts
+ * `use-job-feed.ts` contains no `jobs.warmFeed`.
  *
- * What was left behind by that removal: nothing warmed on arrival at all, so a
- * first-time user under "Best fit" got pure deterministic overlap under a label
- * promising the brain's ranking. `ranked_count` was 0 and the feed had no way to
- * ever become ranked except by opening cards one at a time.
+ * What that removal left behind, and what putting the call back as a 7s POST
+ * did not fix: the ranking takes ~100s and the client abandoned it, so
+ * `ranked_count` stayed 0 and the list painted retrieval order as if it were
+ * ranked. The POST now only enqueues `feed_warm`. This hook re-reads the feed
+ * while that job can still be running and the list is entirely unread — once
+ * any row is read, the divider already says where the unread ones start, and
+ * another feed read on a 30-minute staleTime is not what surfaces them.
  *
- * The gate is **J0 having settled**, not browser idle. ARCHITECTURE_READ_PATH's
- * journey-compute contract is explicit that "the browser is idle" is not a user
- * decision. `settled` comes from the feed query itself, so later work cannot race
- * J0 because a timer happened to expire first.
- *
- * Fires at most once per list key. On resolve with new evals it invalidates exactly
- * that key, so the list re-reads and the top cards arrive carrying verdicts, ordered
- * best-first. Warming nothing invalidates nothing — a re-read that cannot change the
- * answer is pure cost.
- *
- * It no longer passes filters, a sort or a query, and it no longer gates on the
- * user having picked "Best fit". `POST /feed/warm` calls the same retrieval the list
- * does, so it warms exactly the cards on screen by construction — it used to rebuild
- * the feed's whole filter scope to try to agree with it, and gate on a sort lens so
- * it would not spend a judgment-lane call reordering cards nobody asked to rank.
- * There is one list and one order now, so the warm always ranks what is shown.
+ * The gate to START is J0 having settled, not a timer and not browser idle.
+ * The re-read interval belongs to the query, and it only runs after the
+ * enqueue has been accepted.
  */
 export function useFeedWarm({
   token,
@@ -55,9 +48,11 @@ export function useFeedWarm({
   const qc = useQueryClient()
   const yieldLane = useLaneYields()
   const [warming, setWarming] = useState(false)
-  // Keys already warmed this mount. A yielded or failed call is NOT recorded —
-  // ranking owns the judgment lane, and a shed `{warmed:0}` must retry after.
+  const [watching, setWatching] = useState(false)
+  // Keys already accepted this mount. A yielded call is NOT recorded — ranking
+  // owns the judgment lane, and a shed warm must retry after.
   const attempted = useRef<Set<string>>(new Set())
+  const polls = useRef(0)
 
   const queryKey = jobFeedQueryKey({ token, scope })
   const signature = JSON.stringify(queryKey)
@@ -72,14 +67,21 @@ export function useFeedWarm({
     void jobs
       .warmFeed(token, ac.signal)
       .then((res) => {
-        // Cancelled = the user left, or a match run took the lane. Re-reading a
-        // list they are no longer looking at wastes a request and can clobber
-        // the new one.
         if (cancelled) return
-        if (res.warmed > 0) {
-          attempted.current.add(signature)
-          void qc.invalidateQueries({ queryKey })
-        }
+        if (!res.pending) return
+        attempted.current.add(signature)
+        const current = qc.getQueryData<JobFeedResponse>(queryKey)
+        const reading = current?.judgment?.reading ?? false
+        const ranked = current?.ranked_count ?? 0
+        // Cards can already be on the page while the pile is still open.
+        // Stop only once the read itself has finished.
+        if (!reading && ranked > 0) return
+        polls.current = 0
+        setWatching(true)
+      })
+      .catch(() => {
+        // The enqueue failed. Leave the key unrecorded so a later settle retries.
+        // The list stays on `checking` — unread, not a fake ranking.
       })
       .finally(() => {
         if (!cancelled) setWarming(false)
@@ -89,10 +91,32 @@ export function useFeedWarm({
       cancelled = true
       ac.abort()
       setWarming(false)
+      setWatching(false)
     }
     // `signature` stands in for queryKey (a fresh array each render).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, token, settled, signature, yieldLane])
+
+  useQuery({
+    queryKey: ["feed-warm-watch", signature],
+    enabled: watching && !yieldLane,
+    queryFn: async () => {
+      polls.current += 1
+      await qc.refetchQueries({ queryKey })
+      const feed = qc.getQueryData<JobFeedResponse>(queryKey)
+      return {
+        ranked: feed?.ranked_count ?? 0,
+        reading: feed?.judgment?.reading ?? false,
+      }
+    },
+    refetchInterval: (query) => {
+      if (polls.current >= POLL_CAP) return false
+      const data = query.state.data
+      if (data && data.reading) return POLL_MS
+      if (data && !data.reading && data.ranked > 0) return false
+      return POLL_MS
+    },
+  })
 
   return { warming }
 }

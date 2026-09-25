@@ -695,27 +695,49 @@ class JobFeedItem(BaseModel):
     #: Why this job is on the list. The three facts retrieval decided it on, so a
     #: card can say what it was chosen for — a list of forty that cannot say why
     #: is indistinguishable from forty that were not chosen.
-    on_direction: bool = False      # the role family is one the user picked
+    #: True when the job asks for at least two of the direction's core skills
+    #: (`matching/direction_fit`). False covers off-direction and unknown — a
+    #: missing grade is not a tag. `jobs.role_family` is not this field.
+    on_direction: bool = False
     level_stated: bool = False      # the employer published a years range
     checked_recently: bool = False  # we opened the link inside the freshness window
 
 
-class JobFeedResponse(BaseModel):
-    """The finite list: every job this person should see, and nothing else.
+class MarketJudgment(BaseModel):
+    """Where the career-ops read of this person's aspirations stands.
 
-    No `page`, no `has_next_page`, no `sort`. Those were the infinite browse feed,
-    which sampled 500 rows ordered by a date 88% of the corpus shared and filtered
-    them per user afterwards — one user's entire feed was 34 jobs out of 38,824.
-    Search did not go away; it is `/jobs/search`, which is a different act.
+    `reading` is true while jobs that match their aspirations are still
+    unjudged. `notice` is the one sentence for that state: the count while
+    the read is open, or the larger cut once it has finished. `shortlist_size`
+    on the parent stays 0 — this list is not truncated, and a cap of 0 is how
+    the client knows not to call the remainder "the closest we found".
+    """
+
+    reading: bool = False
+    read: int = 0
+    pending: int = 0
+    cleared: int = 0
+    notice: str | None = None
+    cause: Literal["skills", "aspirations"] | None = None
+    skills: list[str] = []
+
+
+class JobFeedResponse(BaseModel):
+    """The jobs the career-ops judge scored as worth this person's time.
+
+    No `page`, no `has_next_page`, no `sort`. An unscored job is not on
+    `jobs`. Search did not go away; it is `/jobs/search`, which is a
+    different act.
     """
 
     jobs: list[JobFeedItem]
-    #: What the list was capped at, so the copy can never claim a number the
-    #: response did not return.
+    #: 0 when the judged list is not truncated. A positive cap is what the
+    #: client uses to append "the closest we found".
     shortlist_size: int
-    # How many leading cards the brain has ranked (carry a verdict). The list draws
-    # the "more roles" divider after this many; 0 = no ranked shortlist yet.
+    # Equal to `len(jobs)`. Every card on this list has been judged, so the
+    # client draws no unread divider.
     ranked_count: int = 0
+    judgment: MarketJudgment | None = None
 
 
 class AgentPickItem(JobFeedItem):
@@ -744,15 +766,19 @@ class AgentPicksResponse(BaseModel):
 
 
 class FeedWarmResponse(BaseModel):
-    """Result of POST /jobs/feed/warm — the brain ranked the feed's top shortlist.
+    """Result of POST /jobs/feed/warm — the request queued a Background Job.
 
-    `ready` is always True once the call returns (the feed is safe to paint); it is
-    True even when `warmed` is 0 (everything was already cached, or the brain was
-    unavailable and the feed falls back to deterministic order — degradation, not an
-    error). `warmed` = how many NEW evals were computed this call."""
+    The call used to rank inside the request. That took ~100s (ten jobs, three
+    at a time, 45s per call) and the client abandoned it at 7s, so the list
+    stayed in retrieval order. The request now only enqueues. `ready` is True
+    once it returns: the feed is safe to paint. `warmed` stays 0 here — this
+    call computed nothing. `pending` means a warm is queued or already in
+    flight; the client re-reads GET /jobs/feed, whose `ranked_count` is how
+    many of those rows are read."""
 
     ready: bool = True
     warmed: int = 0
+    pending: bool = False
 
 
 class MatchBrainResult(BaseModel):

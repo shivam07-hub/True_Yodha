@@ -146,8 +146,31 @@ class DiaryRepository:
         return [str(role).strip() for role in raw_roles if str(role).strip()]
 
     def upsert_user_skill_rows(self, rows: list[dict[str, Any]]) -> None:
-        if rows:
-            self._db.table("user_skills").upsert(rows, on_conflict="user_id,skill_id").execute()
+        from app.services.cv_skill_evidence import rows_for_user_skills_write
+
+        user_id = next((str(row["user_id"]) for row in rows if row.get("user_id")), "")
+        payload = rows_for_user_skills_write(rows, self._baseline_body_text(user_id))
+        if payload:
+            self._db.table("user_skills").upsert(
+                payload, on_conflict="user_id,skill_id",
+            ).execute()
+
+    def _baseline_body_text(self, user_id: str) -> str:
+        if not user_id:
+            return ""
+        result = (
+            self._db.table("cv_versions")
+            .select("body_text")
+            .eq("user_id", user_id)
+            .eq("kind", "baseline_upload")
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        rows = result.data or []
+        if not rows:
+            return ""
+        return str(rows[0].get("body_text") or "")
 
 
 def get_admin_diary_repository(db: Client = Depends(get_supabase_admin)) -> DiaryRepository:

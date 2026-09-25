@@ -14,8 +14,11 @@ errors. A confidently-wrong shortlist is invisible to fallback logic: nothing
 errors, nothing retries, and the user simply gets the wrong jobs.
 
 So the contract is asserted where it can be checked mechanically: at the route's
-dependency, and at the resolved model list. `POST /jobs/{id}/brain` is a Durable
-Answer read that enqueues `job_brain_eval`; the worker is the judgment path.
+dependency, and at the resolved model list. `POST /jobs/{id}/brain` and
+`POST /jobs/feed/warm` are Durable Answer requests that enqueue
+`job_brain_eval` and `feed_warm`; the worker is the judgment path. The warm
+used to take `get_blocking_judgment_provider` and await the model inside the
+request.
 """
 
 from __future__ import annotations
@@ -28,7 +31,6 @@ from app.services import llm_provider as lp
 # Routes whose output IS a judgment — a rank, a verdict, a grade, a rationale.
 # Add a route here the day it starts asking a model "is this job good for them".
 JUDGMENT_ROUTES = {
-    ("POST", "/jobs/feed/warm"),
     ("POST", "/jobs/analyse/{job_id}/stream"),
 }
 
@@ -77,6 +79,32 @@ def test_every_judgment_route_uses_a_judgment_safe_provider() -> None:
             )
     missing = JUDGMENT_ROUTES - seen
     assert not missing, f"judgment routes vanished from the app — renamed or deleted? {missing}"
+
+
+def test_warming_the_feed_does_not_resolve_a_model_on_the_request() -> None:
+    for route in app.routes:
+        if not isinstance(route, APIRoute):
+            continue
+        if route.path != "/jobs/feed/warm" or "POST" not in route.methods:
+            continue
+        assert not _provider_factories_for(route), (
+            "POST /jobs/feed/warm enqueues feed_warm — a provider dependency "
+            "means the request can wait on a model"
+        )
+        return
+    raise AssertionError("POST /jobs/feed/warm vanished from the app")
+
+
+def test_feed_warm_worker_uses_the_judgment_provider() -> None:
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[1] / "app/services/matching/feed_warm.py").read_text()
+    assert '@background.handler("feed_warm")' in src
+    # The worker resolves the provider. The request path must not.
+    # Keyword args (the CV the drain started with) may follow the user id.
+    handler = src.split('@background.handler("feed_warm")', 1)[1]
+    assert "await run_feed_warm(" in handler
+    assert "get_judgment_provider()" in handler
 
 
 def test_opening_a_job_does_not_resolve_a_model_on_the_request() -> None:

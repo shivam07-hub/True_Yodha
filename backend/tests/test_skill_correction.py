@@ -94,7 +94,7 @@ class _ScoresRepo:
     def delete_user_skill(self, _user_id: str, skill_id: int) -> None:
         self.rows.pop(skill_id, None)
 
-    def upsert_user_skill_rows(self, rows: list[dict[str, Any]]) -> None:
+    def upsert_user_skill_rows(self, rows: list[dict[str, Any]], *, cv_text: str = "") -> None:
         self.upserted.extend(rows)
         for row in rows:
             self.rows[int(row["skill_id"])] = row

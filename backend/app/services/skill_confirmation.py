@@ -113,7 +113,12 @@ def confirm_baseline_skills(
 
     signals = baseline.get("skills_detected") or []
     scores_repo = ScoresRepository(db)
-    base_rows = scoring.build_cv_skill_rows(scores_repo, user_id, signals)
+    base_rows = scoring.build_cv_skill_rows(
+        scores_repo,
+        user_id,
+        signals,
+        cv_text=str(baseline.get("body_text") or ""),
+    )
     normalized = _normalized_overrides(scores_repo, overrides)
     reviewed = _reviewed_rows(base_rows, normalized)
     # The guard exists to stop someone unticking every real skill, NOT to punish

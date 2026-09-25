@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import test from "node:test"
 import { interleaveStories } from "../components/market/feed-rows"
+import { unreadBoundary } from "../lib/jobs/track-sections"
 import type { JobFeedItem } from "../lib/api"
 
 const jobs = ["exact", "remote", "country"].map((job_id) => ({ job_id } as JobFeedItem))
@@ -71,15 +72,40 @@ test("the list is finite, and Undo follows the locked contract", () => {
   assert.match(css, /\+ 84px/)
 })
 
-test("Jobs paints its J0 feed before secondary compute", () => {
-  const hook = readFileSync(new URL("../components/market/use-job-feed.ts", import.meta.url), "utf8")
+test("a list never presents unread rows as ranked", () => {
+  // Was "Jobs paints its J0 feed before secondary compute", whose load-bearing
+  // assertion was that the warm is absent from the feed hook. That absence —
+  // and the 7s POST that replaced it and then gave up — left retrieval order
+  // on screen with ranked_count 0 and no divider, which is an unranked list
+  // presented as ranked (prod 2026-09-25). The warm is a Background Job now.
+  // This test locks the list's half: zero read rows draw "Not read yet"
+  // before the first card, on both skins, and the client no longer races the
+  // judgment call.
+  const unread = ["a", "b"].map((job_id) => ({ job_id } as JobFeedItem))
+  assert.deepEqual(unreadBoundary(unread, 0), [
+    { beforeJobId: "a", label: "Not read yet", kind: "tier" },
+  ])
+  assert.deepEqual(unreadBoundary(unread, 1), [])
+  assert.deepEqual(unreadBoundary([], 0), [])
+
+  const desktop = readFileSync(new URL("../components/market/jobs-tab.tsx", import.meta.url), "utf8")
+  const mobile = readFileSync(new URL("../mobile/redesign/jobs-surface.tsx", import.meta.url), "utf8")
+  assert.match(desktop, /unreadBoundary\(/)
+  assert.match(mobile, /unreadBoundary\(/)
+
+  const api = readFileSync(new URL("../lib/api.ts", import.meta.url), "utf8")
+  const warmFn = api.slice(api.indexOf("warmFeed:"), api.indexOf("agentPicks:"))
+  assert.doesNotMatch(warmFn, /timeoutMs/)
+  assert.doesNotMatch(warmFn, /warmed: 0/)
+
   const page = readFileSync(new URL("../app/(authed)/market/page.tsx", import.meta.url), "utf8")
   const rail = readFileSync(new URL("../components/market/market-rail.tsx", import.meta.url), "utf8")
   const demand = readFileSync(new URL("../components/market/skill-demand-panel.tsx", import.meta.url), "utf8")
   const bell = readFileSync(new URL("../components/nav/notification-bell.tsx", import.meta.url), "utf8")
   const mobileShell = readFileSync(new URL("../mobile/shell.tsx", import.meta.url), "utf8")
   const navUnlocks = readFileSync(new URL("../lib/hooks/use-nav-unlocks.ts", import.meta.url), "utf8")
-  assert.doesNotMatch(hook, /jobs\.warmFeed/)
+  // J0 still paints before the enqueue. The warm stays out of the feed hook;
+  // what changed is that its absence is no longer the whole contract.
   assert.doesNotMatch(page, /useIntentWave|pointerdown|keydown/)
   assert.match(page, /const heroEnabled = j0Settled/)
   assert.match(page, /const demandEnabled = heroSettled/)
@@ -144,8 +170,10 @@ test("the brain warm is deferred to J1 and lives outside the feed hook", () => {
   // same retrieval the list does, so it ranks exactly the cards on screen.
   assert.doesNotMatch(warm, /filters\./)
   assert.match(warm, /warmFeed\(token, ac\.signal\)/)
-  // Warming nothing must not trigger a re-read.
-  assert.match(warm, /res\.warmed > 0/)
+  // The POST reports that a job is in flight. It does not report how many
+  // rows it ranked — it ranked none. A re-read keys off `pending`.
+  assert.match(warm, /res\.pending/)
+  assert.doesNotMatch(warm, /res\.warmed/)
 
   // BOTH skins warm through the same hook — a surface that warmed its own way is
   // how desktop and mobile drifted apart before.
@@ -180,10 +208,11 @@ test("a live match run yields every J1/J2 Market fetch", () => {
     assert.match(src, /useLaneYields/, `${name} must yield to a live match run`)
   }
 
-  // A shed `{warmed:0}` must retry after ranking; recording the key before the
-  // call is how a yielded warm never ran again.
+  // A yielded warm must retry after ranking; recording the key before the
+  // call is how a yielded warm never ran again. `pending` is the accept.
   assert.match(warm, /if \(yieldLane/)
-  assert.match(warm, /res\.warmed > 0/)
+  assert.match(warm, /res\.pending/)
+  assert.doesNotMatch(warm, /res\.warmed/)
   assert.match(warm, /attempted\.current\.add\(signature\)/)
   const attemptedAt = warm.indexOf("attempted.current.add(signature)")
   const yieldAt = warm.indexOf("if (yieldLane")

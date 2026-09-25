@@ -3,7 +3,7 @@ services/matching/filter_spec.py — the canonical FilterSpec.
 
 Before this, "what jobs to search for" was expressed three different ways:
   - the NL parser dict  {role, location_city, location_country, location_mode, skills}
-  - the authed feed's long feed_jobs(**kwargs)
+  - the authed list's shortlist_jobs(...)
   - the intent-chat diff {add_roles, remove_roles, locations, seniority, work_mode, salary}
 
 FilterSpec is the ONE structured filter vocabulary all of them map into. Producers

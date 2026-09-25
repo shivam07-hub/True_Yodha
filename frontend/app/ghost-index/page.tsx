@@ -52,8 +52,43 @@ export default async function GhostIndexPage() {
     data = null
   }
 
+  const jsonLd: Record<string, unknown>[] = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: BASE },
+        { "@type": "ListItem", position: 2, name: "Ghost Job Index", item: `${BASE}/ghost-index` },
+      ],
+    },
+  ]
+
+  // Dataset — presence-gated on a computed snapshot. Aggregates only (no
+  // per-user data), matching the same schema shape newsletter issues use.
+  if (data) {
+    jsonLd.push({
+      "@context": "https://schema.org",
+      "@type": "Dataset",
+      name: "Myro Ghost Job Index",
+      description:
+        "The share of closed roles still advertised on the employer's own careers page, by employer and by sector, checked against the employer's own hiring system.",
+      url: `${BASE}/ghost-index`,
+      isAccessibleForFree: true,
+      license: "https://creativecommons.org/licenses/by/4.0/",
+      creator: { "@type": "Organization", name: "Myro", url: BASE },
+      spatialCoverage: "India",
+      dateModified: data.computed_at,
+      variableMeasured: [
+        "Share of closed roles still advertised",
+        "Average days a closed role stayed advertised",
+      ],
+      measurementTechnique: data.method,
+    })
+  }
+
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <PublicTopNav />
       {data ? <GhostIndexReport data={data} /> : <GhostIndexUnavailable />}
       <PublicFooter />

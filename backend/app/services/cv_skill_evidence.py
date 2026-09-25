@@ -117,21 +117,79 @@ def _skill_names(skill_name: str) -> tuple[list[str], list[str]]:
     return base, extra
 
 
-def evidence_names_skill(evidence: str, skill_name: str) -> bool:
-    """The receipt has to name the skill. One overlapping token is not enough
-    for a multi-word Lightcast key — that is how 'BillDesk Spring' became
-    Spring Framework."""
-    ev = set(_words(evidence))
+# A degree line names a qualification, not a skill the person demonstrated.
+# "B.E. Food Technology" is how Food Technology was stored off a 2026-09-19 CV.
+_DEGREE_LINE = re.compile(
+    r"(?ix)^\s*(?:"
+    r"b\.\s*e\.?"
+    r"|b\.?\s*tech\.?"
+    r"|b\.\s*sc\.?"
+    r"|b\.\s*com\.?"
+    r"|m\.\s*tech\.?"
+    r"|m\.\s*sc\.?"
+    r"|m\.\s*e\.?"
+    r"|m\.\s*com\.?"
+    r"|mba"
+    r"|ph\.?\s*d\.?"
+    r"|bachelor"
+    r"|master"
+    r")\b"
+)
+
+_CV_WRITE_SOURCES = frozenset({"cv", "user_override"})
+_GATE_XP = {"mention": 1, "project": 1, "impact": 1, "leadership": 1}
+
+
+def line_is_degree(line: str) -> bool:
+    return _DEGREE_LINE.match(line.strip()) is not None
+
+
+def _line_names_skill(line: str, skill_name: str) -> bool:
+    """One line of a receipt. A parenthetical abbreviation counts only when
+    the line is that abbreviation — "HTML" names HyperText Markup Language,
+    "NLP audit" does not name Natural Language Processing."""
+    ev = set(_words(line))
     if not ev:
         return False
     base, extra = _skill_names(skill_name)
-    if extra and any(token in ev for token in extra):
+    if extra and ev <= set(extra):
         return True
     if not base:
         return False
     if len(base) == 1:
         return base[0] in ev
     return sum(1 for token in base if token in ev) >= 2
+
+
+def evidence_names_skill(evidence: str, skill_name: str) -> bool:
+    """The receipt has to name the skill, on one line.
+
+    One overlapping token is not enough for a multi-word Lightcast key — that
+    is how 'BillDesk Spring' became Spring Framework. A newline is not a space:
+    "business" on a bullet and "EDUCATION" on the next heading are two lines,
+    not the skill Business Education.
+    """
+    return any(_line_names_skill(line, skill_name) for line in evidence.splitlines())
+
+
+def evidence_only_on_degree_lines(cv_text: str, evidence: str) -> bool:
+    needle = evidence.strip()
+    if not needle or not cv_text:
+        return False
+    start = 0
+    found = False
+    while True:
+        idx = cv_text.find(needle, start)
+        if idx < 0:
+            return found
+        found = True
+        line_start = cv_text.rfind("\n", 0, idx) + 1
+        line_end = cv_text.find("\n", idx)
+        if line_end < 0:
+            line_end = len(cv_text)
+        if not line_is_degree(cv_text[line_start:line_end]):
+            return False
+        start = idx + 1
 
 
 def signal_from_evidence(evidence: str, skill_name: str) -> str:
@@ -165,6 +223,8 @@ def apply_cv_evidence_rules(
             continue
         if evidence_only_in_headers(cv_text, evidence, spans):
             continue
+        if evidence_only_on_degree_lines(cv_text, evidence):
+            continue
         signal = signal_from_evidence(evidence, key)
         item = dict(raw)
         item["taxonomy_key"] = key
@@ -174,6 +234,65 @@ def apply_cv_evidence_rules(
         seen.add(key)
         kept.append(item)
     return kept
+
+
+def _row_key(row: dict[str, Any]) -> str:
+    return str(row.get("taxonomy_key") or "").strip()
+
+
+def _row_evidence(row: dict[str, Any]) -> str:
+    return str(row.get("evidence") or row.get("evidence_text") or "").strip()
+
+
+def gate_cv_skill_rows(rows: list[dict[str, Any]], cv_text: str) -> list[dict[str, Any]]:
+    """Precondition of a ``user_skills`` write.
+
+    CV receipts that do not name their skill are not written. Practice rows
+    (any source other than ``cv`` / ``user_override``) are someone else's
+    decision and pass through. With no CV text in hand the receipt is judged
+    on its own words, so a missing document cannot wipe a profile.
+    """
+    judged: list[dict[str, Any]] = []
+    kept_other: list[dict[str, Any]] = []
+    for row in rows:
+        source = row.get("source")
+        if source is not None and str(source) not in _CV_WRITE_SOURCES:
+            kept_other.append(row)
+            continue
+        judged.append(row)
+    if not judged:
+        return kept_other
+
+    shaped = [
+        {
+            "taxonomy_key": _row_key(row),
+            "evidence": _row_evidence(row),
+            "signal_type": str(row.get("signal_type") or "mention"),
+        }
+        for row in judged
+    ]
+    if cv_text.strip():
+        allowed = {
+            item["taxonomy_key"]
+            for item in apply_cv_evidence_rules(shaped, cv_text, _GATE_XP)
+        }
+    else:
+        allowed = {
+            item["taxonomy_key"]
+            for item in shaped
+            if item["taxonomy_key"] and evidence_names_skill(item["evidence"], item["taxonomy_key"])
+        }
+    return kept_other + [row for row in judged if _row_key(row) in allowed]
+
+
+def rows_for_user_skills_write(
+    rows: list[dict[str, Any]], cv_text: str,
+) -> list[dict[str, Any]]:
+    """Rows that may be upserted. ``taxonomy_key`` is the gate's input, not a column."""
+    return [
+        {key: value for key, value in row.items() if key != "taxonomy_key"}
+        for row in gate_cv_skill_rows(rows, cv_text)
+    ]
 
 
 def stray_skill_ids(receipts: list[dict[str, Any]], cv_text: str) -> list[int]:
