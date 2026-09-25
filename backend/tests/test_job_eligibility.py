@@ -144,5 +144,11 @@ def test_legacy_any_is_the_open_span_not_the_entry_band() -> None:
         "role_domain": "Research & Science",
         "seniority_level": "entry",
     }
-    assert not job_is_eligible(profile, executive)
-    assert not job_is_eligible(profile, entry)
+    outside = {
+        "job_title": "Software Engineer",
+        "role_domain": "Software Engineering",
+        "seniority_level": "entry",
+    }
+    assert job_is_eligible(profile, executive)
+    assert job_is_eligible(profile, entry)
+    assert not job_is_eligible(profile, outside)
