@@ -487,7 +487,12 @@ def seed_provisional_baseline_score(
         from app.services import targeting_write
         targeting_write.commit(users_repo, user_id, patch)
     try:
-        scoring.record_cv_score(scores_repo, user_id, signals)
+        scoring.record_cv_score(
+            scores_repo,
+            user_id,
+            signals,
+            cv_text=str(baseline.get("body_text") or ""),
+        )
     except ValueError:
         logger.info(
             "metric onboarding.provisional_score_skipped user=%s baseline=%s reason=no_skills",

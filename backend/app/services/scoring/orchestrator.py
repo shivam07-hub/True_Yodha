@@ -67,13 +67,21 @@ def record_cv_score(
     scores_repo: ScoresRepository,
     user_id: str,
     skills_detected: list[dict],
+    cv_text: str = "",
 ) -> dict:
     """CV ingest path. Infers levels from raw signals, writes user_skills + score.
 
     Raises ValueError when zero skills can be persisted (caller maps to 422).
     Scored against the profile's seniority band (entry when unset — a fresher
     uploading at onboarding is not measured against L5).
+
+    ``cv_text`` is the document the receipts must name their skills in. The
+    write drops a receipt that does not, and the score is computed from what
+    remains — a false skill must not move the number and then be refused.
     """
+    from app.services.cv_skill_evidence import gate_cv_skill_rows
+
+    skills_detected = gate_cv_skill_rows(skills_detected, cv_text)
     skill_level_map = build_skill_level_map(skills_detected)
     skill_rows = _build_user_skill_rows(scores_repo, user_id, skill_level_map, skills_detected)
     if not skill_rows:
@@ -89,7 +97,7 @@ def record_cv_score(
         skills_assessed_override=len(skill_rows),
     )
     _persist_score(scores_repo, user_id, projection)
-    scores_repo.upsert_user_skill_rows(skill_rows)
+    scores_repo.upsert_user_skill_rows(skill_rows, cv_text=cv_text)
     _persist_band_percentile(scores_repo, user_id, seniority, projection.total_score)
     return scores_repo.require_mirror_score(user_id)
 
@@ -98,12 +106,18 @@ def build_cv_skill_rows(
     scores_repo: ScoresRepository,
     user_id: str,
     skills_detected: list[dict],
+    cv_text: str = "",
 ) -> list[dict[str, Any]]:
     """Map reviewed extraction signals to canonical ``user_skills`` rows.
 
     This performs taxonomy resolution only. It does not write or score, which
     lets the baseline confirmation transaction remain the publication gate.
+    Receipts that do not name their skill are dropped here so that gate
+    publishes the same set the score will.
     """
+    from app.services.cv_skill_evidence import gate_cv_skill_rows
+
+    skills_detected = gate_cv_skill_rows(skills_detected, cv_text)
     skill_level_map = build_skill_level_map(skills_detected)
     return _build_user_skill_rows(
         scores_repo,
@@ -358,6 +372,7 @@ def _build_user_skill_rows(
         rows.append({
             "user_id":           user_id,
             "skill_id":          skill_id,
+            "taxonomy_key":      key,
             "matched_level":     level,
             "proficiency_title": _PROFICIENCY_TITLES.get(level, "Scout"),
             "source":            "cv",

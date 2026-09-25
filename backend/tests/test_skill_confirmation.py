@@ -125,7 +125,7 @@ def test_confirmation_publishes_skills_then_hands_the_score_off(monkeypatch) -> 
     monkeypatch.setattr(
         skill_confirmation.scoring,
         "build_cv_skill_rows",
-        lambda *_args: [
+        lambda *_args, **_kwargs: [
             {
                 "skill_id": 9,
                 "matched_level": 2,
@@ -174,7 +174,7 @@ def test_confirmation_scores_against_the_band_read_from_the_cv(monkeypatch) -> N
     monkeypatch.setattr(
         skill_confirmation.scoring,
         "build_cv_skill_rows",
-        lambda *_args: [{"skill_id": 9, "matched_level": 2, "proficiency_title": "T", "evidence_text": "x"}],
+        lambda *_args, **_kwargs: [{"skill_id": 9, "matched_level": 2, "proficiency_title": "T", "evidence_text": "x"}],
     )
     monkeypatch.setattr(skill_confirmation, "UsersRepository", lambda _db: users)
     _patch_handoff(monkeypatch, calls)
@@ -205,7 +205,7 @@ def test_confirmation_never_overwrites_a_level_the_user_chose(monkeypatch) -> No
     monkeypatch.setattr(
         skill_confirmation.scoring,
         "build_cv_skill_rows",
-        lambda *_args: [{"skill_id": 9, "matched_level": 2, "proficiency_title": "T", "evidence_text": "x"}],
+        lambda *_args, **_kwargs: [{"skill_id": 9, "matched_level": 2, "proficiency_title": "T", "evidence_text": "x"}],
     )
     monkeypatch.setattr(skill_confirmation, "UsersRepository", lambda _db: users)
     _patch_handoff(monkeypatch, calls)
@@ -218,7 +218,7 @@ def test_confirmation_never_overwrites_a_level_the_user_chose(monkeypatch) -> No
 def test_target_refresh_stops_before_score_and_match_when_skills_pending(monkeypatch) -> None:
     calls: list[str] = []
     baseline = {"id": 17, "kind": "baseline_upload", "skills_confirmed_at": None}
-    monkeypatch.setattr(onboarding_service, "get_supabase_admin", lambda: object())
+    monkeypatch.setattr(onboarding_service, "get_supabase_admin_batch", lambda: object())
     monkeypatch.setattr(
         onboarding_service,
         "CVVersionsRepository",
@@ -266,7 +266,7 @@ def test_target_refresh_scores_but_does_not_match_before_a_direction_exists(
         def mirror_score_exists(self, _user_id: str) -> bool:
             return False
 
-    monkeypatch.setattr(onboarding_service, "get_supabase_admin", lambda: object())
+    monkeypatch.setattr(onboarding_service, "get_supabase_admin_batch", lambda: object())
     monkeypatch.setattr(onboarding_service, "CVVersionsRepository", lambda _db: _CVRepo(baseline, calls))
     monkeypatch.setattr(onboarding_service, "ScoresRepository", lambda _db: _Scores())
     monkeypatch.setattr(onboarding_service, "OnboardingRepository", lambda _db: _OnboardingRepo(calls))
@@ -307,7 +307,7 @@ def test_target_refresh_skips_recompute_when_provisional_score_is_fresh(
         def mirror_score_exists(self, _user_id: str) -> bool:
             return True
 
-    monkeypatch.setattr(onboarding_service, "get_supabase_admin", lambda: object())
+    monkeypatch.setattr(onboarding_service, "get_supabase_admin_batch", lambda: object())
     monkeypatch.setattr(onboarding_service, "CVVersionsRepository", lambda _db: _CVRepo(baseline, calls))
     monkeypatch.setattr(onboarding_service, "ScoresRepository", lambda _db: _Scores())
     monkeypatch.setattr(onboarding_service, "OnboardingRepository", lambda _db: _OnboardingRepo(calls))
@@ -354,7 +354,7 @@ def test_confirmation_skips_enqueue_when_provisional_score_already_landed(
     monkeypatch.setattr(
         skill_confirmation.scoring,
         "build_cv_skill_rows",
-        lambda *_args: [
+        lambda *_args, **_kwargs: [
             {
                 "skill_id": 9,
                 "matched_level": 2,
@@ -398,7 +398,7 @@ def test_confirmation_forces_recompute_when_user_excludes_a_skill(monkeypatch) -
     monkeypatch.setattr(
         skill_confirmation.scoring,
         "build_cv_skill_rows",
-        lambda *_args: [
+        lambda *_args, **_kwargs: [
             {
                 "skill_id": 9,
                 "matched_level": 2,

@@ -482,6 +482,49 @@ class CVVersionsRepository:
             {"cv_structured": cv_structured}
         ).eq("id", version_id).execute()
 
+    def _baseline_body_text(self, baseline_version_id: int) -> str:
+        result = (
+            self._db.table("cv_versions")
+            .select("body_text")
+            .eq("id", baseline_version_id)
+            .limit(1)
+            .execute()
+        )
+        rows = result.data or []
+        if not rows:
+            return ""
+        return str(rows[0].get("body_text") or "")
+
+    def _with_taxonomy_keys(self, skill_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """The evidence rule names a skill. The confirm payload only has ids."""
+        missing = [
+            int(row["skill_id"])
+            for row in skill_rows
+            if row.get("skill_id") is not None and not str(row.get("taxonomy_key") or "").strip()
+        ]
+        if not missing:
+            return skill_rows
+        found = (
+            self._db.table("skills")
+            .select("id, taxonomy_key")
+            .in_("id", missing)
+            .execute()
+        )
+        by_id = {
+            int(row["id"]): str(row.get("taxonomy_key") or "")
+            for row in (found.data or [])
+            if row.get("id") is not None
+        }
+        return [
+            {
+                **row,
+                "taxonomy_key": str(row.get("taxonomy_key") or "") or by_id.get(int(row["skill_id"]), ""),
+            }
+            if row.get("skill_id") is not None
+            else row
+            for row in skill_rows
+        ]
+
     def confirm_skills(
         self,
         user_id: str,
@@ -489,7 +532,18 @@ class CVVersionsRepository:
         skill_rows: list[dict[str, Any]],
         overrides: list[dict[str, Any]],
     ) -> str:
-        """Atomically publish one baseline's reviewed skills as user truth."""
+        """Atomically publish one baseline's reviewed skills as user truth.
+
+        ``confirm_cv_skills`` inserts whatever rows it is given. The evidence
+        rule runs here, before that insert, so the SQL writer cannot publish
+        a receipt that does not name its skill.
+        """
+        from app.services.cv_skill_evidence import rows_for_user_skills_write
+
+        skill_rows = rows_for_user_skills_write(
+            self._with_taxonomy_keys(skill_rows),
+            self._baseline_body_text(baseline_version_id),
+        )
         result = self._db.rpc(
             "confirm_cv_skills",
             {

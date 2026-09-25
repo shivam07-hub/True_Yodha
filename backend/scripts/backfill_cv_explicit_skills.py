@@ -20,6 +20,7 @@ from typing import Any
 
 from app.database import get_supabase_admin
 from app.services.cv_explicit_skills import extract_explicit_skills
+from app.services.cv_skill_evidence import gate_cv_skill_rows
 
 _PAGE_SIZE = 1000
 
@@ -96,7 +97,8 @@ def _plan(
     for baseline in baselines:
         user_id = str(baseline["user_id"])
         existing_keys = known.get(user_id, set())
-        for signal in extract_explicit_skills(str(baseline.get("body_text") or "")):
+        body = str(baseline.get("body_text") or "")
+        for signal in gate_cv_skill_rows(extract_explicit_skills(body), body):
             if signal["taxonomy_key"] in existing_keys:
                 continue
             planned.append(
@@ -109,17 +111,22 @@ def _apply(
     db: Any,
     planned: list[dict[str, Any]],
     cv_signals: dict[str, list[dict[str, Any]]],
+    bodies: dict[str, str],
 ) -> int:
     by_baseline: dict[int, dict[str, Any]] = {}
     for item in planned:
         baseline_id = int(item["baseline_id"])
+        user_id = str(item["user_id"])
         group = by_baseline.setdefault(
             baseline_id,
             {
-                "user_id": item["user_id"],
+                "user_id": user_id,
                 "signals": {
                     signal["taxonomy_key"]: signal
-                    for signal in cv_signals.get(item["user_id"], [])
+                    for signal in gate_cv_skill_rows(
+                        cv_signals.get(user_id, []),
+                        bodies.get(user_id, ""),
+                    )
                 },
             },
         )
@@ -174,7 +181,10 @@ def main() -> None:
         print(f"  {skill}: {count}")
 
     if args.apply:
-        queued = _apply(db, planned, cv_signals)
+        bodies = {
+            str(row["user_id"]): str(row.get("body_text") or "") for row in baselines
+        }
+        queued = _apply(db, planned, cv_signals, bodies)
         print(
             f"APPLIED candidate_rows={len(planned)} "
             f"baselines_queued_for_review={queued}; published_user_skill_rows=0"

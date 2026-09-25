@@ -442,9 +442,16 @@ class ScoresRepository:
                 demand[key] = weighted
         return demand
 
-    def upsert_user_skill_rows(self, rows: list[dict[str, Any]]) -> None:
-        if rows:
-            self._db.table("user_skills").upsert(rows, on_conflict="user_id,skill_id").execute()
+    def upsert_user_skill_rows(
+        self, rows: list[dict[str, Any]], *, cv_text: str = "",
+    ) -> None:
+        from app.services.cv_skill_evidence import rows_for_user_skills_write
+
+        payload = rows_for_user_skills_write(rows, cv_text)
+        if payload:
+            self._db.table("user_skills").upsert(
+                payload, on_conflict="user_id,skill_id",
+            ).execute()
 
     def mirror_score_exists(self, user_id: str) -> bool:
         result = (

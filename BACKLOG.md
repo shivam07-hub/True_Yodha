@@ -270,7 +270,14 @@ measured Free/Nano database ceiling, not unfinished application work.
     Same seam, smaller: `job_eligibility.py:106-117` passes a FAMILY NAME through
     human job-title regexes (`career_band_for_job`).
 
-7h. **The CV evidence rule guards the parse, not the write.** `79908258` built
+7h. **CLOSED 2026-09-25. The CV evidence rule is the precondition of the write.**
+    `rows_for_user_skills_write` runs before every `user_skills` insert the
+    product can reach (score, `confirm_cv_skills`'s only caller, overrides,
+    diary, and the explicit-skill repair script). A parenthetical token no
+    longer names the whole skill, and a match cannot cross a line onto a
+    heading or sit on a degree line. Existing rows come off on the next CV
+    read via `forward_pass.drop_stray_cv_skills` — not a backfill.
+    What it closed: `79908258` built
     `cv_skill_evidence.apply_cv_evidence_rules` and called it from two lines
     (`cv_parser.py:399-401`, `:470`). Every writer of `user_skills` is
     downstream and uncovered: `scoring/orchestrator.py:341`,
@@ -766,7 +773,7 @@ it is one decision, not a bug.
 
 ---
 
-## CV PARSING — SHORT-TOKEN FALSE SKILLS (measured 2026-09-24, not fixed)
+## CV PARSING — SHORT-TOKEN FALSE SKILLS (closed 2026-09-25, with 7h)
 
 Sits with the gold-standard gap below: both are "what Myro reads off a CV is not
 what the CV says". This one is narrow, measured, and cheap.
