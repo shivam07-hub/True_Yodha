@@ -235,6 +235,64 @@ measured Free/Nano database ceiling, not unfinished application work.
     it is switched on — which is exactly what ADR-0022's "recall may use any
     index, a verdict is always graded from skills" already permits.
 
+7f. **The /market list is served unranked and presented as ranked.** Measured
+    2026-09-25; `metric feed.unranked` still fires in prod (most recent that day
+    05:37 UTC, 40 rows). `routers/jobs/list.py:498` logs it and returns all 40
+    rows in retrieval order with no verdicts and no divider. Ranking is
+    `POST /jobs/feed/warm` (`list.py:514-557`), SYNCHRONOUS in the request at
+    98–103s: 10 jobs (`feed_warm.WARM_SHORTLIST_SIZE`) ÷ 3 concurrent
+    (`llm_ranker.py:46`) × up to 45s (`config.py:183`). The client abandons at
+    7,000ms (`frontend/lib/api.ts:4379`), so `use-feed-warm.ts:79` never
+    invalidates and the ranked rows land after the user has gone, behind a
+    30-minute `staleTime`. Two numbers that must agree, in two modules, 14x apart.
+    Fix shape: warm onto the durable rail (ADR-0008 Background Job + Work Lane —
+    `background/registry.py` has no feed-warm handler), and give the list the
+    read/unread state the ROW already has (`Provisional Match` / `verdict:
+    "checking"`, divider in `lib/jobs/track-sections.ts`).
+    ⚠️ Two tests currently pin the defect and must be replaced, not worked
+    around: `test_feed_ranking.py:62` and
+    `frontend/tests/market-browse-contract.test.ts:74`.
+    Rule to keep: rank down, never hide (`test_feed_ranking.py:52`).
+
+7g. **Two live definitions of "on direction", and the bucket one reaches the
+    user.** ADR-0022 allows the bucket for RECALL only; a verdict is graded from
+    skills by `matching/direction_fit.py` (2-of-12 `core_skills`), which four
+    surfaces already use. But migration
+    `20260924120000_retrieval_searches_instead_of_sampling.sql:202` emits
+    `on_dir` from `j.role_family = any(v_families)` and `:197` adds a `+6`
+    ranking term from the same equality; `repositories/jobs.py:1857` puts it on
+    the card (`schemas/jobs.py:698`). `jobs.role_family` is the modal L2 cluster
+    with an alphabetical tie-break (`20260806h:88-110`) — 26% modal share, 45.7%
+    ties — which is how a gold-loan branch-sales posting sits in "Marketing
+    Strategy and Techniques" next to growth-marketing roles. Grading is pure and
+    costs no read, so this does NOT need the corpus-wide precompute #46 S4 parks
+    behind the paid-compute gate; do not build that here.
+    Same seam, smaller: `job_eligibility.py:106-117` passes a FAMILY NAME through
+    human job-title regexes (`career_band_for_job`).
+
+7h. **The CV evidence rule guards the parse, not the write.** `79908258` built
+    `cv_skill_evidence.apply_cv_evidence_rules` and called it from two lines
+    (`cv_parser.py:399-401`, `:470`). Every writer of `user_skills` is
+    downstream and uncovered: `scoring/orchestrator.py:341`,
+    `repositories/scores.py:445`, SQL `confirm_cv_skills`
+    (`20260720010000`), `skill_overrides.py:77`, `repositories/diary.py:150`,
+    and `scripts/backfill_cv_explicit_skills.py:83`, which re-mints EXISTING
+    rows as `legacy_confirmed` straight past the guard. Two measured holes in
+    the rule itself: `cv_skill_evidence.py:131` accepts a single token from a
+    parenthetical (so "NLP audit" satisfies "Natural Language Processing
+    (NLP)"), and `cv_explicit_skills.py:124-137` tokenises line-blind, so a
+    match straddles a body word and a section heading ("…VAS business" +
+    "EDUCATION" → the skill "Business Education"). Against the five false skills
+    measured on a real CV, the guard rejects 2.
+    Blast radius one bad row already has: Myro Score domains and gaps, the
+    Direction family ranking and the `mayPropose` pre-tick
+    (`target-confirm.tsx:70`), `candidates_for_user`'s overlap, every prep
+    ladder, and `routers/cv/skills_refresh.py`, which offers to write the false
+    skill onto the user's CV. Forward-only — existing rows stand until that user
+    re-uploads (see `forward_pass.drop_stray_cv_skills` for the pattern).
+    Narrow prior entry: "CV PARSING — SHORT-TOKEN FALSE SKILLS" below; this is
+    the seam version of it, and closing 7h closes that too.
+
 ### TIER 3 — needs a decision or a grill BEFORE code
 
 **Level: the stated range wins everywhere — LOCKED 2026-09-25 (Shivam). NOT yet built.**
