@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
@@ -118,29 +119,59 @@ export function TopbarNav({ nav }: { nav: NavUnlocksVm }) {
 }
 
 /**
- * Shared-content cluster (intel-authed grill Q11–13) — Intel / Newsletter persist
- * across login as a secondary, lighter-weight group. Rendered in the header right
- * of the logo (between the brand and the centered workspace tabs). Desktop-only
- * (CSS); on mobile they live in the account menu. The hairline divider sets them
- * apart from the brand.
+ * Shared-content cluster (intel-authed grill Q11–13) — Intel / Newsletter / Ghost
+ * Job Index / Hiring by Sector persist across login as a secondary, lighter-weight
+ * group. Folded into one "Explore" dropdown (2026-09-25) — four-plus text links
+ * sitting inline next to the workspace tabs read as clutter the moment a second
+ * public-verification surface joined Intel/Newsletter. Rendered in the header
+ * right of the logo. Desktop-only (CSS); on mobile they live in the account menu.
  */
 export function NavContentCluster({ nav }: { nav: NavUnlocksVm }) {
   const pathname = usePathname()
+  const [open, setOpen] = useState(false)
+  useEffect(() => { setOpen(false) }, [pathname])
   if (nav.content.length === 0) return null
+  const active = nav.content.some((item) => pathname.startsWith(item.href))
   return (
     <div className="tm-nav-content-cluster" aria-label="Browse">
-      {nav.content.map((item) => (
-        <Link
-          key={item.id}
-          href={item.href}
-          title={item.desc}
-          className={`tm-topbar-link ${item.special ? "tm-topbar-link-myrology" : "tm-topbar-link-content"}`}
-          data-active={pathname.startsWith(item.href)}
-          aria-current={pathname.startsWith(item.href) ? "page" : undefined}
+      <div style={{ position: "relative" }}>
+        <button
+          type="button"
+          className="tm-topbar-link tm-topbar-link-content"
+          data-active={active}
+          aria-expanded={open}
+          aria-haspopup="menu"
+          onClick={() => setOpen((v) => !v)}
         >
-          {item.special ? `✦ ${item.label}` : item.label}
-        </Link>
-      ))}
+          Explore
+          <span aria-hidden style={{ fontSize: "0.7em", opacity: 0.7, marginLeft: 2 }}>{open ? "▴" : "▾"}</span>
+        </button>
+        {open && (
+          <>
+            <div style={{ position: "fixed", inset: 0, zIndex: 29 }} onClick={() => setOpen(false)} />
+            <div className="tm-topbar-menu tm-topbar-menu--left" role="menu">
+              {nav.content.map((item) => {
+                const itemActive = pathname.startsWith(item.href)
+                return (
+                  <Link
+                    key={item.id}
+                    href={item.href}
+                    title={item.desc}
+                    role="menuitem"
+                    onClick={() => setOpen(false)}
+                    className="tm-topbar-menu-item"
+                    data-active={itemActive}
+                    aria-current={itemActive ? "page" : undefined}
+                    style={item.special ? { color: "var(--my-amethyst-rest)" } : undefined}
+                  >
+                    {item.special ? `✦ ${item.label}` : item.label}
+                  </Link>
+                )
+              })}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }

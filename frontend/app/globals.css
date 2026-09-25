@@ -806,6 +806,12 @@
   flex-direction: column;
   gap: 2px;
 }
+/* Explore dropdown sits at the left of the topbar, unlike the avatar menu at
+   the far right — align its left edge to the trigger instead of the right. */
+.tm-topbar-menu--left {
+  left: 0;
+  right: auto;
+}
 .tm-topbar-menu-user {
   padding: 8px 10px 10px;
   border-bottom: 1px solid var(--tm-border-soft);
@@ -823,7 +829,18 @@
   font-family: inherit;
   text-align: left;
   width: 100%;
+  text-decoration: none;
+  color: var(--tm-text);
   transition: background var(--tm-dur-fast), border-color var(--tm-dur-fast);
+}
+.tm-topbar-menu-item:hover {
+  background: var(--tm-hover-soft);
+}
+.tm-topbar-menu-item[data-active="true"] {
+  color: var(--tm-interactive);
+  background: var(--tm-int-bg-wash);
+  border-color: var(--tm-int-border);
+  font-weight: 600;
 }
 .tm-topbar-menu-divider {
   height: 1px;
