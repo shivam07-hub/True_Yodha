@@ -43,9 +43,11 @@ def test_unwarmed_tail_keeps_fit_order_below_ranked() -> None:
     ranked = _rank_feed_rows(rows, evals, reorder=True)
     assert ranked == 2
     assert [r["job_id"] for r in rows] == ["c", "a", "b", "d"]  # ranked (best first), then fit tail
-    # Un-warmed rows carry no verdict key — JobFeedItem fills it None on serialize.
-    assert rows[2].get("verdict") is None
-    assert rows[3].get("verdict") is None
+    # Unread rows are provisional, not blank. A missing verdict is how retrieval
+    # order was presented as a ranking. They are not given a score — that would
+    # be a second "how good".
+    assert rows[2]["verdict"] == "checking"
+    assert rows[3]["verdict"] == "checking"
     assert rows[2].get("match_score") is None
 
 
@@ -59,12 +61,27 @@ def test_weak_shortlist_still_shows_never_hidden() -> None:
     assert rows[1]["verdict"] == "stretch"  # weak, but present
 
 
-def test_no_evals_leaves_feed_untouched() -> None:
+def test_a_list_never_presents_unread_rows_as_ranked() -> None:
+    """Unread rows used to leave this function untouched.
+
+    Retrieval order, no verdict, ranked_count 0. The client drew that as one
+    list, which is how an unranked feed was presented as ranked (measured on
+    prod 2026-09-25, `metric feed.unranked`, all 40 rows). This test locked
+    that in: `test_no_evals_leaves_feed_untouched` asserted the verdict stayed
+    absent.
+
+    Order stays the order retrieval gave — rank down, never hide, and no
+    second ordering. The rows are marked `checking`, the same provisional
+    state a persisted match uses before the brain reads it, so the list can
+    draw the read/unread divider. ranked_count stays 0: none of them are read.
+    """
     rows = [_row("a"), _row("b")]
     ranked = _rank_feed_rows(rows, {}, reorder=True)
     assert ranked == 0
     assert [r["job_id"] for r in rows] == ["a", "b"]
-    assert rows[0].get("verdict") is None
+    assert rows[0]["verdict"] == "checking"
+    assert rows[1]["verdict"] == "checking"
+    assert rows[0].get("match_score") is None
 
 
 # ── "Newest" means newest ─────────────────────────────────────────────────────

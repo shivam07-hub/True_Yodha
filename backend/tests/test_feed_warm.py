@@ -249,3 +249,52 @@ def test_the_warm_rates_fewer_than_the_list_shows() -> None:
     from app.repositories.jobs import JobsRepository
 
     assert feed_warm.WARM_SHORTLIST_SIZE < JobsRepository.SHORTLIST_SIZE
+
+
+def test_enqueue_feed_warm_queues_the_job_and_does_not_rank(monkeypatch: Any) -> None:
+    """The request's only job. Awaiting `warm_feed_shortlist` here is the ~100s
+    call the client used to abandon at 7s."""
+    enqueued: list[tuple[Any, ...]] = []
+
+    monkeypatch.setattr(feed_warm.background, "claim", lambda _key, _ttl: True)
+    monkeypatch.setattr(
+        feed_warm.background, "enqueue",
+        lambda lane, job_type, **kwargs: enqueued.append((lane, job_type, kwargs)),
+    )
+    monkeypatch.setattr(
+        "app.services.job_refresh._dispatch.user_has_live_refresh", lambda _uid: False,
+    )
+
+    async def _boom(*_args: Any, **_kwargs: Any) -> int:
+        raise AssertionError("enqueue ranked inside the caller")
+
+    monkeypatch.setattr(feed_warm, "warm_feed_shortlist", _boom)
+    assert feed_warm.enqueue_feed_warm("u1") is True
+    assert enqueued == [(
+        "fast",
+        "feed_warm",
+        {"payload": {"user_id": "u1"}},
+    )]
+
+
+def test_enqueue_feed_warm_yields_to_a_live_match_run(monkeypatch: Any) -> None:
+    monkeypatch.setattr(
+        "app.services.job_refresh._dispatch.user_has_live_refresh", lambda _uid: True,
+    )
+    monkeypatch.setattr(
+        feed_warm.background, "enqueue",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("yielded into a queue")),
+    )
+    assert feed_warm.enqueue_feed_warm("u1") is False
+
+
+def test_a_warm_already_in_flight_is_pending_and_not_queued_again(monkeypatch: Any) -> None:
+    monkeypatch.setattr(
+        "app.services.job_refresh._dispatch.user_has_live_refresh", lambda _uid: False,
+    )
+    monkeypatch.setattr(feed_warm.background, "claim", lambda _key, _ttl: False)
+    monkeypatch.setattr(
+        feed_warm.background, "enqueue",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("double enqueue")),
+    )
+    assert feed_warm.enqueue_feed_warm("u1") is True

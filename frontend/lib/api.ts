@@ -3896,15 +3896,18 @@ export interface JobFeedResponse {
   /** What the list was capped at, so copy can never claim a number the response
    *  did not return. */
   shortlist_size: number
-  // How many leading cards the brain has ranked (carry a verdict). The list draws
-  // its "more roles" divider after this many; 0 = no ranked shortlist.
+  /** How many leading cards the brain has read. 0 means every row is unread
+   *  (`checking`) and the list draws "Not read yet" before the first one.
+   *  Drawing nothing there presented retrieval order as a ranking. */
   ranked_count: number
 }
 
-/** POST /jobs/feed/warm — the brain ranked the feed's top shortlist. */
+/** POST /jobs/feed/warm — queues the ranking. The request does not rank.
+ *  `pending` means a warm is in flight; re-read GET /jobs/feed for `ranked_count`. */
 export interface FeedWarmResponse {
   ready: boolean
   warmed: number
+  pending?: boolean
 }
 
 export interface HiddenJobItem {
@@ -4378,23 +4381,17 @@ export const jobs = {
     request<JobFeedResponse>("/jobs/feed", {
       headers: { Authorization: `Bearer ${token}` },
     }),
-  /** Rank the top of the list with the career-ops brain, then re-read /jobs/feed.
-   *  It warms the SAME jobs the list shows because both call the one retrieval —
-   *  it used to have to pass the feed's whole filter scope to try to agree with it.
-   *  Soft-resolves on any failure/timeout to {ready:false} — the list then paints
-   *  the deterministic order (degradation, never a blocked page). */
-  warmFeed: async (token: string, signal?: AbortSignal): Promise<FeedWarmResponse> => {
-    try {
-      return await request<FeedWarmResponse>("/jobs/feed/warm", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        timeoutMs: 7000,
-        signal,
-      })
-    } catch {
-      return { ready: false, warmed: 0 }
-    }
-  },
+  /** Queue a ranking of the list. The request returns when the job is queued,
+   *  not when the brain has read the rows — that used to be one POST awaited
+   *  for 7s against ~100s of judgment, and the abandonment was reported as
+   *  `{warmed: 0}`. Re-read GET /jobs/feed; `ranked_count` is how many rows
+   *  are read. */
+  warmFeed: (token: string, signal?: AbortSignal) =>
+    request<FeedWarmResponse>("/jobs/feed/warm", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      signal,
+    }),
   /** The curated "Myro Agent Picks" band — the brain's hand-vetted shortlist that
    *  sits above the algorithm feed. Empty list for users with no picks. */
   agentPicks: (token: string) =>

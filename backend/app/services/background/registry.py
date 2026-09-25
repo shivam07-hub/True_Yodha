@@ -24,6 +24,7 @@ import app.services.certificate_to_cv  # noqa: F401  certificate_to_cv
 import app.services.cv_skill_edit  # noqa: F401  skill_retag
 import app.services.cv_stray_heal  # noqa: F401  stray_skill_heal
 import app.services.cv_workflow  # noqa: F401  cv_upload_analysis, initial_match, …
+import app.services.matching.feed_warm  # noqa: F401  feed_warm
 import app.services.matching.on_demand  # noqa: F401  job_brain_eval
 import app.services.matching.scrape_sweep  # noqa: F401  scrape_match_recompute
 import app.services.onboarding_service  # noqa: F401  onboarding_target_refresh, provisional_baseline_score

@@ -428,9 +428,13 @@ def test_feed_attaches_cached_brain_badges() -> None:
     assert j1["recommendation"] == "Apply"
     assert j1["legitimacy_tier"] == "suspicious"
     assert j1["archetype"] == "Data Engineer"
-    # A job with no cached eval carries no badge fields (deterministic-only).
+    # A job with no cached eval carries no brain badge. It is unread, so the
+    # verdict is the provisional `checking` — a missing one is how the list
+    # presented retrieval order as a ranking.
     assert j2["grade"] is None
     assert j2["legitimacy_tier"] is None
+    assert j2["verdict"] == "checking"
+    assert j2["match_score"] is None
     assert body["ranked_count"] == 1
 
 

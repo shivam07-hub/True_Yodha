@@ -10,7 +10,7 @@ import { activeFilterCount, applyViewFilters, type FeedFilters } from "@/compone
 import { FiltersSheet } from "@/components/market/filters-sheet"
 import { useJobFeed } from "@/components/market/use-job-feed"
 import { useTracks } from "@/lib/hooks/use-tracks"
-import { trackDividers } from "@/lib/jobs/track-sections"
+import { trackDividers, unreadBoundary } from "@/lib/jobs/track-sections"
 import { useFeedWarm } from "@/components/market/use-feed-warm"
 import { useFeedScope } from "@/lib/hooks/use-feed-scope"
 import { useMyroSearch } from "@/lib/hooks/use-myro-search"
@@ -109,7 +109,10 @@ export function JobsSurface({
    */
   const entries = useMemo(() => {
     const cards = visibleJobs.map((job) => ({ t: "job" as const, job, row: feedItemToRow(job) }))
-    const dividers = trackDividers(visibleJobs.slice(0, visibleRanked), tracks)
+    const dividers = [
+      ...trackDividers(visibleJobs.slice(0, visibleRanked), tracks),
+      ...unreadBoundary(visibleJobs, visibleRanked),
+    ]
     const out: Array<
       | { t: "job"; job: (typeof visibleJobs)[number]; row: ReturnType<typeof feedItemToRow> }
       | { t: "divider"; id: string; label: string; kind: "track" | "tier" }

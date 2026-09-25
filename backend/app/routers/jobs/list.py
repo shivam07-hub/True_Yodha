@@ -18,8 +18,7 @@ from app.repositories.jobs import (
     get_token_jobs_repository,
 )
 from app.services.concurrent_reads import run_concurrently
-from app.services.llm_provider import LLMProvider, get_blocking_judgment_provider
-from app.services.matching import feed_warm, targeting
+from app.services.matching import feed_warm
 from app.services.matching.filter_spec import FilterSpec
 from app.services.matching.job_query import JobQuery
 from app.services.job_refresh import user_has_live_refresh
@@ -445,6 +444,13 @@ def _rank_feed_rows(rows: list[dict], brain_evals: dict[str, dict], *, reorder: 
     # Ascending, with the two "best first" terms negated — a single `reverse`
     # would also reverse the track order and put the last search first.
     ranked.sort(key=lambda row: (row[0], -row[1], -row[2]))
+    # No eval is the same provisional state a persisted match uses before the
+    # brain reads it (`verdict: "checking"`). Leaving the key absent is how
+    # retrieval order was presented as a ranking: ranked_count 0, no verdict,
+    # and the client drew no read/unread divider. Order is unchanged — rank
+    # down, never hide, and this is not a second ordering.
+    for row in tail:
+        row["verdict"] = "checking"
     rows[:] = [r for _, _, _, r in ranked] + tail
     return len(ranked)
 
@@ -490,11 +496,10 @@ def job_feed(
         # lens to pick.
         with timed("rank"):
             ranked_count = _rank_feed_rows(rows, brain_evals, reorder=True)
-        # The promise breaking, observed in the request that broke it: a list that
-        # claims to be chosen, with no verdict on any card. Expected transiently on a
-        # cold arrival (the J1 warm has not landed); a SUSTAINED rate means the warm
-        # is failing or never firing, which is the state this endpoint sat in
-        # undetected until 2026-08-13.
+        # Nobody has been read yet. The rows are marked checking and the client
+        # draws the unread divider; this log is the rate of that state. Expected
+        # on a cold arrival (the warm is still on the lane). A sustained rate
+        # means the warm is failing or never firing.
         if ranked_count == 0 and rows:
             logger.warning("metric feed.unranked user=%s rows=%d", uid, len(rows))
         # Analytics/audit write: never make the J0 read wait for it. Starlette runs
@@ -513,48 +518,27 @@ def job_feed(
 
 @router.post("/feed/warm", response_model=FeedWarmResponse)
 async def warm_feed(
-    repo: JobsRepository = Depends(get_token_jobs_repository),
     principal: Principal = Depends(get_principal),
-    provider: LLMProvider = Depends(get_blocking_judgment_provider),
 ) -> FeedWarmResponse:
-    """Rank the top of the /market list with the career-ops brain (the "best jobs"
-    rule). The frontend calls this while showing a skeleton, then re-reads GET /feed
-    — the top cards now carry a verdict + move, ordered best-first.
+    """Queue a ranking of the /market shortlist. This request does not rank.
 
-    ONE batched brain pass over the shortlist on the BLOCKING JUDGMENT lane
-    (strong-only, paid-first), cached into `user_job_matches` for 30 min. It ran on
-    `get_interactive_provider` until 2026-08-04, whose lead tier is
-    `google/gemma-3-4b-it` — the model `_JUDGMENT_UNSAFE_MODELS` names for ranking
-    banker jobs to a senior SWE with zero errors. Deciding which ten cards a user
-    sees first is the definition of a judgment call, and the user is watching a
-    skeleton while it runs, so paid-strong leads. Idempotent (a re-warm inside the
-    window is free) and fail-soft (any brain failure returns ready=True/warmed=0 and
-    the list paints the deterministic order).
+    It used to await the career-ops brain here: ten jobs, three at a time, up
+    to 45s each, ~100s measured, while the client gave up at 7s and treated
+    the abandonment as "nothing was warmed". The ranked rows then landed after
+    the user had gone. The work is the `feed_warm` Background Job on the fast
+    lane (a user is looking at this list). GET /jobs/feed is the Durable
+    Answer: `ranked_count` says how many rows are read, and unread rows carry
+    `verdict: "checking"`.
 
-    It warms the SAME forty the list shows, because both call `shortlist_jobs`. It
-    used to rebuild the feed's whole filter scope to try to agree with it.
+    A live match run still yields the lane. Idempotent within the claim
+    window: a second POST while one is in flight reports pending and does not
+    enqueue another.
     """
     uid = principal.id
     if user_has_live_refresh(uid):
         logger.info("metric feed_warm.yielded user=%s stage=route", uid)
-        return FeedWarmResponse(ready=True, warmed=0)
-    ctx = _shortlist_context(repo, uid)
-    rows = repo.shortlist_jobs(uid, skill_keys=ctx.skill_keys, target_roles=ctx.target_roles)
-    # WHICH ten get a verdict is the direction's call, not the retrieval score's.
-    # The rows are already in hand and already carry `main_skills`; the vocabulary
-    # is one indexed read of the labels snapshot, and failing to read it simply
-    # leaves retrieval's own order (`direction_first` with an empty vocabulary is
-    # the identity).
-    candidate_ids = feed_warm.direction_first(
-        rows, targeting.direction_vocabulary(repo, ctx.target_roles)
-    )
-    try:
-        warmed = await feed_warm.warm_feed_shortlist(repo, provider, uid, candidate_ids)
-    except Exception:
-        # Degradation, not an error: the list still paints deterministic retrieval.
-        logger.warning("metric feed_warm.failed user=%s candidates=%d", uid, len(candidate_ids), exc_info=True)
-        return FeedWarmResponse(ready=True, warmed=0)
-    return FeedWarmResponse(ready=True, warmed=warmed)
+        return FeedWarmResponse(ready=True, warmed=0, pending=False)
+    return FeedWarmResponse(ready=True, warmed=0, pending=feed_warm.enqueue_feed_warm(uid))
 
 
 @router.post("/feed/{job_id}/skip", status_code=status.HTTP_204_NO_CONTENT)

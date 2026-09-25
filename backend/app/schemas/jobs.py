@@ -713,8 +713,10 @@ class JobFeedResponse(BaseModel):
     #: What the list was capped at, so the copy can never claim a number the
     #: response did not return.
     shortlist_size: int
-    # How many leading cards the brain has ranked (carry a verdict). The list draws
-    # the "more roles" divider after this many; 0 = no ranked shortlist yet.
+    # How many leading cards the brain has read. The client draws the read/unread
+    # divider from this. 0 means every row is unread — retrieval order, marked
+    # `checking` — and drawing nothing there is how that order was presented as
+    # a ranking.
     ranked_count: int = 0
 
 
@@ -744,15 +746,19 @@ class AgentPicksResponse(BaseModel):
 
 
 class FeedWarmResponse(BaseModel):
-    """Result of POST /jobs/feed/warm — the brain ranked the feed's top shortlist.
+    """Result of POST /jobs/feed/warm — the request queued a Background Job.
 
-    `ready` is always True once the call returns (the feed is safe to paint); it is
-    True even when `warmed` is 0 (everything was already cached, or the brain was
-    unavailable and the feed falls back to deterministic order — degradation, not an
-    error). `warmed` = how many NEW evals were computed this call."""
+    The call used to rank inside the request. That took ~100s (ten jobs, three
+    at a time, 45s per call) and the client abandoned it at 7s, so the list
+    stayed in retrieval order. The request now only enqueues. `ready` is True
+    once it returns: the feed is safe to paint. `warmed` stays 0 here — this
+    call computed nothing. `pending` means a warm is queued or already in
+    flight; the client re-reads GET /jobs/feed, whose `ranked_count` is how
+    many of those rows are read."""
 
     ready: bool = True
     warmed: int = 0
+    pending: bool = False
 
 
 class MatchBrainResult(BaseModel):

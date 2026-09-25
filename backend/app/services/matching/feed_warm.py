@@ -9,28 +9,36 @@ evals (Consolidation D) and orders the warmed set by the brain's verdict; the lo
 tail stays in the fast deterministic order.
 
 This runs ONE batched brain pass (`llm_ranker.evaluate_all`) over the un-warmed
-candidates, on the provider its caller injects — `get_blocking_judgment_provider`
-since 2026-08-04, NOT the free interactive lane this line claimed until
-2026-09-22. It matters which: this path writes 86% of all verdicts, so the model
-floor in [[feedback_no_cheap_models_judgment]] either holds here or holds
-nowhere. It reuses the exact shape + persist
-path as brain-on-open (`on_demand`) so a warmed row and an opened row are identical
-downstream. Idempotent: a candidate that already has a cached eval is skipped, so a
-re-warm inside the cache window costs nothing.
+candidates. The HTTP route does not call it. `enqueue_feed_warm` puts
+`feed_warm` on the fast Work Lane and returns; the Job Runner runs
+`run_feed_warm` on `get_judgment_provider` — the judgment lane, NOT the free
+interactive lane this line claimed until 2026-09-22, and not inside the
+request the way `get_blocking_judgment_provider` was until 2026-09-25. It
+matters which: this path writes 86% of all verdicts, so the model floor in
+[[feedback_no_cheap_models_judgment]] either holds here or holds nowhere. It
+reuses the exact shape + persist path as brain-on-open (`on_demand`) so a
+warmed row and an opened row are identical downstream. Idempotent: a candidate
+that already has a cached eval is skipped, so a re-warm inside the cache
+window costs nothing.
 
-Fail-soft: any failure leaves the feed showing deterministic overlap (degradation,
-not an error) — the caller never blocks a paint on the brain succeeding.
+Fail-soft: any failure leaves the feed showing the rows it already has, each
+unread one marked `checking` — degradation, not an error, and not a list that
+pretends retrieval order was a ranking.
 """
 from __future__ import annotations
 
 import logging
 from typing import Any
 
-from app.services import llm_ranker, onboarding_service
+from app.services import background, llm_ranker, onboarding_service
 from app.services.llm_provider import LLMProvider
 from app.services.matching import direction_fit, on_demand, ranking, targeting
 
 logger = logging.getLogger(__name__)
+
+# One in-flight warm per user. The run measures ~100s; the window covers that
+# so a client re-read does not enqueue a second one. It is not a request deadline.
+_WARM_CLAIM_SECONDS = 180
 
 # The shortlist depth — how many leading feed cards the brain ranks. Kept tight on
 # purpose (CEO decision): a real "top picks" set, not the whole feed. Everything
@@ -168,3 +176,56 @@ async def warm_feed_shortlist(
         on_demand._persist(repo, user_id, job, profile, ev)
         written += 1
     return written
+
+
+def enqueue_feed_warm(user_id: str) -> bool:
+    """Queue the shortlist warm. Returns whether one is in flight.
+
+    False when a live match run owns the judgment lane — the caller paints
+    the list as it is. True when this call queued the job, or an earlier
+    call already holds the claim. Either way the request does not rank.
+    """
+    from app.services.job_refresh._dispatch import user_has_live_refresh
+
+    if user_has_live_refresh(user_id):
+        logger.info("metric feed_warm.yielded user=%s stage=enqueue", user_id)
+        return False
+    if not background.claim(f"feed_warm:{user_id}", _WARM_CLAIM_SECONDS):
+        return True
+    background.enqueue(
+        background.LANE_FAST,
+        "feed_warm",
+        payload={"user_id": user_id},
+    )
+    return True
+
+
+async def run_feed_warm(repo: Any, provider: LLMProvider, user_id: str) -> int:
+    """The worker body: the same shortlist the list shows, then the brain.
+
+    Skill keys and target roles are read here, off the request. The route
+    used to do this and then await `warm_feed_shortlist`.
+    """
+    skill_keys = set(repo.user_skill_keys(user_id))
+    target_roles = list(repo.get_user_target_roles(user_id))
+    rows = repo.shortlist_jobs(user_id, skill_keys=skill_keys, target_roles=target_roles)
+    candidate_ids = direction_first(rows, targeting.direction_vocabulary(repo, target_roles))
+    return await warm_feed_shortlist(repo, provider, user_id, candidate_ids)
+
+
+@background.handler("feed_warm")
+async def _feed_warm_handler(payload: dict[str, Any], allow_retry: bool) -> None:  # noqa: ARG001
+    """Fast lane: the user is on the list, waiting for the read rows to appear.
+
+    Filing this under bulk is how a watched ranking waits behind work nobody
+    is looking at. The handler is idempotent — a cached eval is skipped — so
+    an RQ retry does not re-rate what already landed.
+    """
+    from app.database import get_supabase_admin
+    from app.repositories.jobs import JobsRepository
+    from app.services.llm_provider import get_judgment_provider
+
+    user_id = str(payload["user_id"])
+    db = get_supabase_admin()
+    repo = JobsRepository(db, db)
+    await run_feed_warm(repo, get_judgment_provider(), user_id)
