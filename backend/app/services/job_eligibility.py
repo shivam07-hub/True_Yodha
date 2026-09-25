@@ -215,23 +215,92 @@ def reported_target_seniority(profile: dict[str, Any]) -> str | None:
     return "any" if stored == "any" else None
 
 
+#: Person span when `years_experience` is null. The same six rows as
+#: `candidates_for_user`. Order matches the migration so a text pin can quote it.
+PERSON_YEAR_SPAN_BY_BAND: tuple[tuple[str, int, int], ...] = (
+    ("intern", 0, 1),
+    ("entry", 0, 2),
+    ("mid", 2, 5),
+    ("senior", 5, 8),
+    ("lead", 8, 12),
+    ("executive", 12, 40),
+)
+_SPAN_BY_BAND = {band: (lo, hi) for band, lo, hi in PERSON_YEAR_SPAN_BY_BAND}
+
+#: Rejected only when the employer states no years at all and the person's
+#: centre is under 5. Principal and staff are tags, not canonical bands.
+SENIOR_LEVEL_TAGS: tuple[str, ...] = (
+    "senior",
+    "lead",
+    "principal",
+    "staff",
+    "executive",
+    "director",
+)
+_SENIOR_LEVEL_TAGS = frozenset(SENIOR_LEVEL_TAGS)
+_OPEN_SPAN = (0.0, 40.0)
+_SENIOR_TAG_CENTRE = 5.0
+
+
+def person_year_span(profile: dict[str, Any]) -> tuple[float, float]:
+    """The `[lo, hi]` `candidates_for_user` uses for this person.
+
+    A known `years_experience` is `[years - 1, years + 1]`, and 0 is a real
+    answer: `[−1, 1]`. None is not 0. Every account older than the column
+    holds NULL, and reading that as zero would reject every listing that
+    asks for 2 or more years.
+    """
+    years = profile.get("years_experience")
+    if years is not None:
+        value = float(years)
+        return value - 1.0, value + 1.0
+    span = _SPAN_BY_BAND.get(target_seniority_for_profile(profile))
+    if span is None:
+        return _OPEN_SPAN
+    return float(span[0]), float(span[1])
+
+
+def stated_range_admits(profile: dict[str, Any], job: dict[str, Any]) -> bool:
+    """Whether this job's level fits, by the years the employer stated.
+
+    The `cand` predicate in `candidates_for_user`: the two ranges overlap.
+    A missing job bound is 0 or 40, so an unstated side does not reject.
+    The seniority tag is read only when both bounds are null, and then only
+    to reject a senior-side tag for a person whose centre is under 5.
+    """
+    lo, hi = person_year_span(profile)
+    centre = (lo + hi) / 2.0
+    job_lo = job.get("min_years_experience")
+    job_hi = job.get("max_years_experience")
+    if job_lo is None and job_hi is None:
+        tag = str(job.get("seniority_level") or "").strip().casefold()
+        return not (tag in _SENIOR_LEVEL_TAGS and centre < _SENIOR_TAG_CENTRE)
+    low = 0.0 if job_lo is None else float(job_lo)
+    high = 40.0 if job_hi is None else float(job_hi)
+    return low <= hi and high >= lo
+
+
 def job_is_eligible(
     profile: dict[str, Any],
     job: dict[str, Any],
     *,
     include_stretch: bool = False,
 ) -> bool:
-    """True only if the job is in an enabled Career Band and safe level range."""
+    """True when the job is in an enabled Career Band and its level fits.
+
+    Level is `stated_range_admits`, the same predicate as `candidates_for_user`.
+    `include_stretch` used to admit the next seniority band. That is the bucket
+    this gate stopped reading: a stated range that does not overlap stays out,
+    and a flag cannot put it back. The argument remains so existing callers
+    still type-check.
+    """
+    del include_stretch
     eligible = eligible_bands_for_profile(profile)
     if not eligible:
         return False
     if career_band_for_job(job) not in eligible:
         return False
-    return seniority_is_eligible(
-        target_seniority_for_profile(profile),
-        seniority_for_job(job),
-        include_stretch=include_stretch,
-    )
+    return stated_range_admits(profile, job)
 
 
 #: What "at level" means: own level and the one below. CONTEXT.md §Seniority Fit.
@@ -246,8 +315,11 @@ _AT_LEVEL: dict[str, frozenset[str]] = {
 
 
 def seniority_fit(target: str, actual: str) -> SeniorityCompat:
-    """THE reading of a job's level against a target — the gate admits by it and
-    the verdict grades by it. CONTEXT.md §Seniority Fit. Unreadable is `unknown`."""
+    """The verdict's grade of a job's tag against a target. CONTEXT.md §Seniority Fit.
+
+    The match-run gate does not admit by this. It admits by `stated_range_admits`.
+    Unreadable is `unknown`.
+    """
     target = canonical_source_seniority(target)
     actual = canonical_source_seniority(actual)
     if target not in SOURCE_SENIORITY or not actual:
@@ -256,16 +328,16 @@ def seniority_fit(target: str, actual: str) -> SeniorityCompat:
 
 
 def seniority_is_eligible(target: str, actual: str, *, include_stretch: bool = False) -> bool:
-    """Admission: `seniority_fit`, plus one opt-in. CONTEXT.md §Seniority Fit.
+    """Band-adjacency reading of two seniority tags. Not the match-run gate.
 
-    An unreadable JOB level is admitted — everywhere, browse included. It was
-    briefly pool-only, which put two admission rules in one system: the Match
-    Quality gate then measured browse hiding 9,323 listings the yardstick calls
-    candidates, while the pool next to it called the same rows fair game. One
-    rule, or the two halves disagree about the same job forever.
+    The match run and `/market` admit by `stated_range_admits`. This function
+    remains because `seniority_fit` — the verdict's grade — is this same set
+    with stretch off, and the two are pinned together in tests. Calling it to
+    decide whether a job enters the pool puts the tag back in front of a
+    stated "2-6 years".
 
-    `include_stretch` — the band above, admitted but still graded
-    `incompatible`.
+    An unreadable job tag is admitted here. An unreadable target is not.
+    `include_stretch` is the band above, still graded `incompatible`.
     """
     fit = seniority_fit(target, actual)
     if fit == "unknown":

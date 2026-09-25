@@ -38,15 +38,24 @@ def test_any_is_not_invented_as_entry() -> None:
     assert target_seniority_for_profile({"target_seniority": "mid"}) == "mid"
 
 
-def test_legacy_any_is_not_eligible_for_personalized_jobs() -> None:
+def test_legacy_any_does_not_collapse_to_the_entry_band() -> None:
+    """A missing band is the open span, so an entry posting is not the only
+    thing admitted — and it is admitted, rather than the door being shut."""
     profile = {
         "target_career_band": "research_people_public_impact",
         "target_seniority": "any",
     }
-    assert not job_is_eligible(profile, {
+    assert job_is_eligible(profile, {
         "job_title": "Graduate Policy Research Associate",
         "role_domain": "Research & Science",
+        "career_band": "research_people_public_impact",
         "seniority_level": "entry",
+    })
+    assert job_is_eligible(profile, {
+        "job_title": "Vice President, Public Policy",
+        "role_domain": "Research & Science",
+        "career_band": "research_people_public_impact",
+        "seniority_level": "executive",
     })
 
 

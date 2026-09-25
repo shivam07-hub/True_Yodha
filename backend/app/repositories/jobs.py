@@ -2586,23 +2586,15 @@ class JobsRepository:
     ) -> list[str]:
         """Keep candidate IDs that may enter the Match Run's ranking pool.
 
-        ⚠️ **This is no longer the same rule /market applies, and that is a known
-        open item, not an oversight.** It admits by BAND NAME through
-        `job_eligibility._AT_LEVEL`. The /market list admits by RANGE OVERLAP
-        against the employer's stated `[min, max]` years, consulting the seniority
-        tag only where the employer states nothing (`candidates_for_user`, migration
-        20260924120000). Measured on one user 2026-09-25: 19 of the 40 jobs on her
-        list carry a senior/lead/executive tag while stating a range that fits her,
-        so they cannot enter her match-run pool at all — her /market can rate them
-        (the J1 warm passes ids straight from the list) and her dashboard and
-        notifications cannot see them.
+        Level is the same rule `/market` applies. `job_is_eligible` admits by
+        `stated_range_admits`: the employer's stated `[min, max]` overlaps the
+        person's span, and the seniority tag is read only when both bounds are
+        null. Held to the SQL by `test_stated_level.py`. Do not invert this by
+        having `candidates_for_user` call the Python — a title word overruling
+        a stated "2-6 years" is what dropped every NPCI payments role.
 
-        Shivam locked the direction on 2026-09-25: **the stated range wins
-        everywhere**, so this function moves to it. The reason it has not already
-        is that widening this pool changes what 203 users see on a surface the Match
-        Quality gate does not measure. Do NOT "fix" it by having retrieval call this
-        function instead — a title word overruling a stated "2-6 years" is the bug
-        that dropped every NPCI payments role. BACKLOG TIER 3.
+        The Match Quality gate measures `/market`, not this pool. A regression
+        here does not move that gate.
 
         `jobs` is the eligibility-column rows already loaded for this pool
         (from `candidate_jobs_for_skills`). Passing ids into `get_jobs_by_ids`
@@ -3460,6 +3452,9 @@ class JobsRepository:
         # On the paid Refresh hot path: a missing profile row (or the postgrest-py
         # 204 quirk) must degrade to empty targeting, never crash the pipeline and
         # trigger a refund. safe_read absorbs the benign "no row" case.
+        # `years_experience` is the level span. Leave it out and every user
+        # falls through to the band fallback; a test that builds the profile
+        # dict by hand will still pass.
         data = safe_read(
             self._db.table("user_profiles")
             .select(
@@ -3467,6 +3462,7 @@ class JobsRepository:
                 "target_locations, target_location_countries, "
                 "target_role_title, target_role_titles, target_seniority, "
                 "target_career_band, explored_career_bands, "
+                "years_experience, "
                 "deal_breakers, career_goal, superpower"
             )
             .eq("id", user_id)

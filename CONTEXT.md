@@ -1240,43 +1240,47 @@ before a job reaches the feed or the Career Ops ranking pool.
 - **Eligibility Boundary** — the server-side hard gate that filters
   incompatible jobs before the browse feed, candidate selection, and
   Career-Ops ranking. A client-side filter alone is never sufficient.
-- **Stretch Scope** — an explicit, temporary expansion to the next higher
-  compatible level. It is opt-in, URL-backed for back-navigation, and never
-  admits senior, lead, or executive postings for an intern or entry candidate.
+- **Stretch Scope** — used to admit the next higher seniority band on an
+  opt-in. It no longer widens past the stated years range. `job_is_eligible`
+  still accepts the flag and does not apply it.
 
 **Default policy**
 
-- Intern and entry candidates receive Intern + Entry postings by default.
-- Mid, senior, lead, and executive postings are excluded from those default
-  feeds; titles such as Vice President are never a fresher stretch.
-- Career Ops ranks and explains jobs only after this boundary. It may rank an
-  opted-in adjacent stretch below at-level work, but cannot override the gate.
+- Level admission is the employer's stated `[min, max]` years, overlapping the
+  person's span. Known years are `[years - 1, years + 1]`. Unknown years use
+  the target band's span (`intern [0,1]`, `entry [0,2]`, `mid [2,5]`,
+  `senior [5,8]`, `lead [8,12]`, `executive [12,40]`). No readable band is
+  `[0, 40]`. None is not zero.
+- The seniority tag is read only when the employer states no range, and then
+  only to reject `senior`, `lead`, `principal`, `staff`, `executive`, or
+  `director` when the person's centre is under 5. A stated "2-6 years" on a
+  senior-tagged posting is admitted.
+- Career Ops ranks and explains jobs only after this boundary. `include_stretch`
+  does not widen past a stated range.
 - Target seniority persists with the candidate profile. Browse state persists
   in the URL so opening a role, navigating back, or reloading does not require
   the candidate to restate their intent.
 
 ### Seniority Fit
 
-**The one reading of a job's level against a target** —
-`job_eligibility.seniority_fit`, returning `SeniorityCompat`
-(`compatible | incompatible | unknown`). The gate admits by it and
-`match_credibility` grades by it; neither re-decides what at-level means.
+**Two readings, on purpose.** Admission and the verdict grade are not the
+same question any more.
 
-- **At level** = the target's own level and the one below (`_AT_LEVEL`). For
-  intern and entry that is the default pool above; for everyone else the band
-  below is the same rule. It is not a stretch.
-- **Unreadable** either side is `unknown`, never `incompatible`. An absence is
-  not a verdict (the rule F3 already applied at promotion).
-- **Admission** (`seniority_is_eligible`) = fit, plus one opt-in:
-  - **An unreadable job level is admitted on EVERY path** — browse and the
-    Career Ops pool alike. It was briefly pool-only, and that was two admission
-    rules in one system: the Match Quality gate measured browse hiding 9,323
-    listings its yardstick calls candidates while the pool beside it admitted
-    the same rows. One rule, or the two halves disagree about the same job for
-    ever. An unreadable *target* (legacy `any`) still admits nothing — a blank
-    answer is never silently read as `entry`.
-  - `include_stretch` — the one band above. Admitted when asked for, still
-    graded `incompatible`: looking up a level is not Myro recommending it.
+- **Admission** is `stated_range_admits`, shared by `candidates_for_user` and
+  `job_is_eligible` (the match-run pool, including title-only extras). The
+  employer's stated years decide. The tag is a fallback where nothing is
+  stated. Pinned by `backend/tests/test_stated_level.py`. A missing band is
+  `[0, 40]`, which is not the entry band and not a closed door.
+- **The verdict grade** is still `seniority_fit`: own level and the one below
+  (`_AT_LEVEL`), returning `compatible | incompatible | unknown`.
+  `match_credibility` grades by it. A senior-tagged posting whose stated range
+  fits is admitted and can still be graded `incompatible`. That is the range
+  winning admission; it is not the tag winning it back.
+- **Unreadable** either side of the grade is `unknown`, never `incompatible`.
+  An absence is not a verdict (the rule F3 already applied at promotion).
+- `seniority_is_eligible` is the band-adjacency form of that grade, plus an
+  opt-in stretch. The pool does not call it. `include_stretch` does not admit
+  a stated range that does not overlap.
 
 Why it exists (2026-09-19): the gate used adjacency and returned a bool; the
 verdict used `actual == target`. They disagreed on 6 of 36 target×level pairs —

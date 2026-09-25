@@ -286,33 +286,13 @@ measured Free/Nano database ceiling, not unfinished application work.
 
 ### TIER 3 — needs a decision or a grill BEFORE code
 
-**Level: the stated range wins everywhere — LOCKED 2026-09-25 (Shivam). NOT yet built.**
-The brain's `candidate_pool` moves to the same range-overlap rule retrieval uses:
-the employer's stated `[min, max]` decides, and the seniority tag is consulted only
-where the employer states nothing. One rule, one answer on /market and the
-dashboard. Her pool grows ~48% (19 of 40 today), so a match run costs more brain
-calls — accepted, because the alternative is half her list never carrying a verdict.
-Rejected: deriving a band for the brain to keep reading, since storing a bucket
-derived from a range is what ADR-0022 forbids and both surfaces would agree by both
-being wrong. The measurement below is the before-state.
-
-
-`candidates_for_user` admits a job when the person's years range overlaps the
-employer's **stated** `[min, max]`, falling back to the seniority tag only where the
-employer states nothing. `job_eligibility.seniority_is_eligible` / `seniority_fit` —
-which the matching brain's `candidate_pool` and the Match Verdict still use — admits
-by **band name** through `_AT_LEVEL`. So a job can be on someone's /market list and
-rejected by the pool that rates it, or the reverse.
-
-This is the drift [[feedback_one_definition_or_none]] warns about, and the reason it
-is a TIER 3 line rather than a commit is that unifying them means rewriting the
-brain's admission, which needs a number first: how many of a user's forty the two
-rules disagree about. `job_is_browse_eligible` — a *third* reading — was deleted in
-`23c9ee0e` because nothing called it any more, so this is two, not three.
-**Owner: Shivam to decide whether the brain moves to the range rule, or the range
-rule publishes a band the brain can read.** Do not "fix" it by making retrieval
-call the Python function: that is what put a title word over a stated "2-6 years"
-and dropped every NPCI payments role.
+**Level: the stated range wins everywhere — LOCKED 2026-09-25 (Shivam). Built.**
+`job_is_eligible` admits by `stated_range_admits`, the same predicate as
+`candidates_for_user`. The seniority tag is consulted only where the employer
+states nothing. Pinned by `backend/tests/test_stated_level.py`. The verdict
+grade is still `seniority_fit`: a senior-tagged posting whose range fits can
+be matched and still graded `incompatible`. Do not "fix" that by having
+retrieval call the Python function.
 
 **The authed search-intent signal lost its writer — LEFT AS IS, deliberately
 (Shivam, 2026-09-25).** Revisit when the memory distiller earns its keep; until then

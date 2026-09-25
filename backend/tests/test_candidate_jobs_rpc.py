@@ -118,7 +118,16 @@ def test_filter_job_ids_for_eligibility_uses_preloaded_rows_not_get_jobs_by_ids(
     }
     jobs = [
         _row("keep"),
-        _row("drop", seniority_level="executive", job_title="Vice President"),
+        # No stated range: the senior-side tag is the only signal, and an
+        # entry centre is under 5, so the tag rejects. A stated 0-2 would
+        # have been kept — the range wins over the title.
+        _row(
+            "drop",
+            seniority_level="executive",
+            job_title="Vice President",
+            min_years_experience=None,
+            max_years_experience=None,
+        ),
     ]
 
     kept = repo.filter_job_ids_for_eligibility(

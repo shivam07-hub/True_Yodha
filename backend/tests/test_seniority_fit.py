@@ -127,11 +127,14 @@ def test_admitting_an_unreadable_level_never_crosses_a_band() -> None:
     assert not job_is_eligible(_profile("entry"), other)
 
 
-def test_an_unreadable_target_still_admits_nothing() -> None:
-    # Legacy `any` is an absent answer, not `entry`. Admitting an unreadable JOB
-    # is not licence to read an unreadable TARGET as a level.
+def test_an_unreadable_target_is_the_open_span() -> None:
+    # Legacy `any` is not `entry`. candidates_for_user reads a missing band as
+    # [0, 40], so level does not close the door. It also does not become the
+    # entry band: an executive posting stays admissible. A different career
+    # band still does not.
     for job in (_job(None), _job("entry"), _job("executive")):
-        assert not job_is_eligible(_profile("any"), job)
+        assert job_is_eligible(_profile("any"), job)
+    assert not job_is_eligible(_profile("any"), _job("entry", band="engineering_data"))
 
 
 def test_an_unreadable_level_is_not_graded_compatible_by_the_gate() -> None:
