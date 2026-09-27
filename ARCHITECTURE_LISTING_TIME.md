@@ -114,7 +114,7 @@ its job (*may we say this was checked*) and calls this module for the *when*.
 
 Each step is independently shippable and green. Do not batch them.
 
-### 1 · De-seed the false stamps  ⚠️ needs Shivam to apply
+### 1 · De-seed the false stamps — ✅ APPLIED 2026-09-27
 
 A migration that nulls `last_verified_live_at` wherever it is a copy of
 `last_seen`, i.e. the 24,551 rows where
@@ -131,8 +131,33 @@ claim, and the verifier re-earns it. But it is a write over half the corpus:
 **Shivam applies it, same session, with `NOTIFY pgrst, 'reload schema';` and a
 spot-check after.**
 
-Guard against re-seeding: the migration must also drop or neutralise whatever
-would re-run `20260711_trusted_job_lifecycle.sql`'s `SET` block.
+**⚠️ It must NOT touch `listing_confidence`, and did not.**
+`is_recommendable_listing` (`job_intelligence_policy.py:38`) returns true ONLY
+for `listing_confidence = 'active'`. Flipping the de-seeded rows to
+`'uncertain'` in the same statement would have halved the recommendable corpus
+instantly — **36,968 → 18,705** — while ingestion is already frozen. The
+verifier sets that field per row, on evidence. A migration must not guess it.
+This was found after the first draft of this spec and is the main reason step 1
+is one column, not two.
+
+**Applied 2026-09-27** as
+`database/migrations/20260927100000_deseed_false_verification_stamps.sql`,
+with `NOTIFY pgrst, 'reload schema'`. Verified after:
+
+| | before | after |
+|---|---|---|
+| stamps equal to `last_seen` | 26,521 | **0** |
+| recommendable (`is_active` + confidence `active`) | 36,968 | **36,968** |
+| active awaiting a real check | 4,190 | **28,741** |
+| genuinely stamped | 18,705 | 18,724 |
+
+No user-visible change, as predicted: `job_intelligence.py:255-257` still
+coalesces to `last_seen`. That coalesce is step 3 and is now the thing standing
+between the user and the truth.
+
+Guard against re-seeding: `20260711_trusted_job_lifecycle.sql`'s `SET` block
+must never re-run. It is a one-shot historical migration; if anything replays
+migrations wholesale, that file needs a guard before it does.
 
 ### 2 · Build `listing_time.py` with its tests, wired to nothing
 
