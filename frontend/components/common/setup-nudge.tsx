@@ -53,7 +53,7 @@ export function SetupNudge({ token, className, style }: SetupNudgeProps) {
   if (!profile.data) return null
   const hasCv = profile.data.has_cv
   const skillsConfirmed = profile.data.skills_confirmed !== false
-  const hasTargetRoles = (profile.data.target_roles ?? []).length > 0
+  const hasTargetRoles = profile.data.direction?.is_set ?? false
   if (hasCv && hasTargetRoles && skillsConfirmed) return null
 
   // NAME THE STEP THE USER IS ACTUALLY ON. This said "Pick a target role" to

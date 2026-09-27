@@ -9,6 +9,10 @@ import type { UserProfile } from "@/lib/api"
  */
 export type SidebarProfile = Pick<
   UserProfile,
+  // The ONE answer to what this person is aiming at. Settings renders
+  // `direction.titles`; it used to rebuild that from the three raw fields
+  // below and fall back to `target_roles`, the matcher's scoping key.
+  | "direction"
   | "full_name"
   | "target_roles"
   | "target_role_title"

@@ -104,6 +104,10 @@ export function useShellModel() {
 
   const profile: SidebarProfile = {
     full_name: profileData?.full_name ?? null,
+    // Listed explicitly for the same reason `explored_career_bands` is: this
+    // object is built key-by-key and the field is optional on `UserProfile`,
+    // so omitting it typechecks and hands Settings a blank target.
+    direction: profileData?.direction ?? null,
     email: profileData?.email ?? "",
     target_roles: profileData?.target_roles ?? [],
     target_role_title: profileData?.target_role_title ?? null,

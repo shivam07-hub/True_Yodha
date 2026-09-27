@@ -89,8 +89,8 @@ function IntelPageInner() {
   // Feed publication sensing is J1: it starts automatically after J0 settles.
   useFeedState(j0Settled)
   const targetRoles: string[] = useMemo(
-    () => profileData?.target_roles ?? [],
-    [profileData?.target_roles]
+    () => profileData?.direction?.families ?? [],
+    [profileData?.direction?.families]
   )
   // Four URL params went with the server filters they carried: `sort`,
   // `min_skills`, `following` and `stretch`. A link someone saved still opens

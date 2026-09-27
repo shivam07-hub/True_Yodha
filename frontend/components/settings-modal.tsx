@@ -454,11 +454,8 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
 
   const followedCompanies = following.companies
   const targetRoleTitles =
-    profile?.target_role_titles?.length
-      ? profile.target_role_titles
-      : profile?.target_role_title
-        ? [profile.target_role_title]
-        : (profile?.target_roles ?? [])
+    // One answer from the backend — see `Direction` in lib/api.
+    profile?.direction?.titles ?? []
 
   // Following-tab save state, derived from the follow hook so the indicator can
   // sit inline next to the chips. Flashes "✓ Saved" briefly once an in-flight

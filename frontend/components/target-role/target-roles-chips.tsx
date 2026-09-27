@@ -85,11 +85,9 @@ export function TargetRolesChips({
   })
   const roles =
     rolesProp ??
-    (profile?.target_role_titles?.length
-      ? profile.target_role_titles
-      : profile?.target_role_title
-        ? [profile.target_role_title]
-        : (profile?.target_roles ?? []))
+    // One answer from the backend. This chain fell back to `target_roles` —
+    // the matcher's scoping key — and rendered it as the user's target.
+    (profile?.direction?.titles ?? [])
 
   const edit = useEditTargetRole()
   const standingQ = useRoleStanding(showReadiness && roles.length > 0)

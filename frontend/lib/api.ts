@@ -406,10 +406,36 @@ export const auth = {
 
 // ── User ──────────────────────────────────────────────────────────────────────
 
+/** What this person is aiming at — the ONE answer, computed by the backend.
+ *
+ *  Nine surfaces used to rebuild this from the raw columns below and five of
+ *  them disagreed: two fell back to `target_roles`, Practice stopped at
+ *  `target_role_title`, `/market` read `target_roles` alone, and the CV page
+ *  answered "needs a target?" from whether the scoping key was empty — so
+ *  someone whose scope was blank was told to pick a target their own Career
+ *  Path page was showing them. Read this; never the raw columns. */
+export interface Direction {
+  /** Shown to humans. */
+  titles: string[]
+  /** What the matcher scopes on. Corpus families — the SAME strings as
+   *  `titles` for anyone the role picker wrote. Never render these. */
+  families: string[]
+  primary_title: string | null
+  /** The one answer to "does this person need a target?". Titles alone count. */
+  is_set: boolean
+  /** A role-targeted search will scope on something. */
+  is_runnable: boolean
+  /** What a search can honestly promise. `skills_only` must be SAID on the
+   *  surface — the run matched on skills, not on their role. */
+  scope_mode: "targeted" | "skills_only" | "none"
+}
+
 export interface UserProfile {
   email: string
   full_name: string | null
   linkedin_url: string | null
+  /** Read this instead of the four raw target fields below. */
+  direction?: Direction | null
   target_roles: string[]
   target_role_title?: string | null
   target_role_titles?: string[]

@@ -90,9 +90,13 @@ test("the /cv score reveal offers the target step when there is none", () => {
   assert.match(scoreReveal, /done\.needsTarget \? \(/)
   assert.match(scoreReveal, /Pick your target role/)
   const cvPage = code("app/(authed)/cv/page.tsx")
+  // `direction.is_set`, not an empty scoping key. Both read the SAME fact —
+  // that is what this assertion is for — and since 2026-09-27 that fact is the
+  // one the backend computes, so a blank scope no longer reads as "no target"
+  // for the 29 people who have a title and an empty scope.
   assert.match(
     cvPage,
-    /needsTarget: \(profileQuery\.data\?\.target_roles \?\? \[\]\)\.length === 0/,
+    /needsTarget: !\(profileQuery\.data\?\.direction\?\.is_set \?\? false\)/,
     "the reveal reads a different fact than the nudge does",
   )
 })
@@ -115,7 +119,7 @@ test("it reads the fact instead of accepting it", () => {
   // case entirely. One component, one read, one answer.
   assert.match(nudge, /queryKey: dataKeys\.profile\(\)/)
   assert.match(nudge, /profile\.data\.has_cv/)
-  assert.match(nudge, /\(profile\.data\.target_roles \?\? \[\]\)\.length > 0/)
+  assert.match(nudge, /profile\.data\.direction\?\.is_set \?\? false/)
   assert.doesNotMatch(nudge, /hasCv:|hasTargetRoles:|resolved:/)
 })
 

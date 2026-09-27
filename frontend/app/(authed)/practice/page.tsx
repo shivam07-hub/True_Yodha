@@ -70,8 +70,7 @@ function PracticePageInner() {
 
   const roleTitles = useMemo(() => {
     if (path.data?.snapshot?.role_title) return [path.data.snapshot.role_title]
-    if (profile?.target_role_titles?.length) return profile.target_role_titles
-    if (profile?.target_role_title) return [profile.target_role_title]
+    if (profile?.direction?.titles?.length) return profile.direction.titles
     return []
   }, [path.data, profile])
 

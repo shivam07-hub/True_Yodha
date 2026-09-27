@@ -39,7 +39,7 @@ function contactFrom(cv: CVStructured | null, profile: UserProfile | null) {
   const contact = cv?.contact
   return {
     name: contact?.name?.trim() || profile?.full_name?.trim() || "Your Name",
-    title: contact?.title?.trim() || cv?.experience[0]?.role || profile?.target_roles?.[0] || "",
+    title: contact?.title?.trim() || cv?.experience[0]?.role || profile?.direction?.primary_title || "",
     location: contact?.location?.trim() || profile?.target_location || "",
     email: contact?.email?.trim() || "",
     phone: contact?.phone?.trim() || "",
