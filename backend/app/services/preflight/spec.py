@@ -1,4 +1,4 @@
-"""The six slots, and what an EMPTY one means.
+"""The four slots, and what an EMPTY one means.
 
 Split out of `payload.py` because the meaning of absence is a contract in its
 own right, and it was being decided implicitly by a dict literal.
@@ -46,8 +46,6 @@ SLOT_ARITY: dict[str, int] = {
     "target_locations": MAX_TARGET_LOCATIONS,
     "deal_breakers": 6,
     "lean": 6,
-    "career_goal": 1,
-    "superpower": 1,
 }
 
 SLOT_KINDS: dict[str, tuple[str, ...]] = {
@@ -55,8 +53,6 @@ SLOT_KINDS: dict[str, tuple[str, ...]] = {
     "target_locations": ("location",),
     "deal_breakers": ("wont_take", "pay_floor"),
     "lean": ("lean",),
-    "career_goal": ("goal",),
-    "superpower": ("strength",),
 }
 
 #: What "the user emptied this slot" writes. A scalar slot clears to NULL, a
@@ -66,8 +62,6 @@ EMPTY: dict[str, Any] = {
     "target_locations": [],
     "deal_breakers": [],
     "lean": [],
-    "career_goal": None,
-    "superpower": None,
 }
 
 

@@ -163,13 +163,15 @@ def test_every_imported_guess_carries_a_source():
         assert guess.source_note, f"{guess.text} reached the screen with no attribution"
 
 
-def test_a_junk_stored_answer_is_flagged_unusable_not_run():
-    # The prod case: a career_goal of "No" printed as "You're heading for No."
-    guesses = memory_import.guesses_from(brief(profile={"career_goal": "No"}))
-    goal = next(g for g in guesses if g.kind == "goal")
-    assert goal.unusable is True
-    assert goal.status == "unanswered"
-    assert "reword it or drop it" in goal.source_note
+def test_a_stored_goal_is_not_re_asked():
+    """The column is not a slot. Re-asking it is how a career_goal of "No"
+    became a line the run could NULL. An aspiration fact stays in memory and
+    still reaches the brain; it is not turned into a question here."""
+    guesses = memory_import.guesses_from(brief(
+        profile={"career_goal": "No", "superpower": "debugging"},
+        facts=[("aspiration", "lead a platform team")],
+    ))
+    assert all(g.kind not in ("goal", "strength") for g in guesses)
 
 
 def test_a_soft_note_is_marked_soft_rather_than_filed_as_a_hard_no():
@@ -382,6 +384,20 @@ _TWO_SEARCHES = {
     "add_roles": ["Consulting"],
     "second_search": {"label": "Marketing", "role_titles": ["Product Marketing Manager"]},
 }
+
+
+def test_a_volunteered_goal_is_not_turned_into_a_slot():
+    """Yes on a goal proposal used to write the column. The slot is gone, so
+    the diff's career_goal and superpower are not questions. The role still is."""
+    built = proposals.from_utterance(
+        {
+            "career_goal": "Staff engineer",
+            "superpower": "debugging",
+            "add_roles": ["AE"],
+        },
+        ops.Order(),
+    )
+    assert [p.eyebrow for p in built] == ["THE WORK"]
 
 
 def test_a_second_search_is_never_proposed_behind_a_shut_gate():

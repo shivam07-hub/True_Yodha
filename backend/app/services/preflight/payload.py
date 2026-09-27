@@ -5,7 +5,7 @@ else. An unanswered line never reaches the matcher — not defaulted to kept, no
 inferred from "well, Myro proposed it". `lines.drop_unanswered` runs immediately
 before this, server-side, so a client that forgets cannot widen the run.
 
-`resolve()` is where the Order becomes the six-slot spec: duplicates collapse
+`resolve()` is where the Order becomes the four-slot spec: duplicates collapse
 silently, each slot states its arity, and contradictions are reported rather
 than guessed. `project()` is the PATCH adapter over that spec.
 
@@ -198,13 +198,19 @@ def _value_clashes(lines: list[OrderLine]) -> list[Conflict]:
 
 
 def resolve(order: Order) -> ResolveResult:
-    """Order → six-slot spec plus the decisions the user still has to make.
+    """Order → four-slot spec plus the decisions the user still has to make.
 
     A slot reaches `spec` only when it is `stated` or `cleared`. `absent` and
     `contested` omit the key entirely — see `spec.py` for why writing them was
     erasing profile columns nobody had answered.
+
+    `career_goal` and `superpower` are not slots. A kept line of those kinds
+    (or a refile to `fact`) files nowhere, so it must still be reported —
+    `_dedupe` drops anything with no slot, and a line that vanishes because
+    the spec shrank is the same loss the facts tuple exists to stop.
     """
-    unique = _dedupe(normalise.apply(list(order.kept())))
+    normalised = normalise.apply(list(order.kept()))
+    unique = _dedupe(normalised)
     conflicts = _contradictions(unique) + _value_clashes(unique)
     blocked = {line_id for conflict in conflicts for line_id in conflict.line_ids}
     usable = [line for line in unique if line.id not in blocked]
@@ -274,7 +280,7 @@ def resolve(order: Order) -> ResolveResult:
         used_line_ids=tuple(used),
         conflicts=tuple(conflicts),
         slots=slots,
-        facts=tuple(line.id for line in unique if line.kind == "fact"),
+        facts=tuple(line.id for line in normalised if slot_for(line) is None),
     )
 
 

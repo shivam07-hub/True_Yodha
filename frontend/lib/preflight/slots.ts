@@ -1,8 +1,8 @@
 /**
- * The six slots, in the reader's words.
+ * The four slots, in the reader's words.
  *
  * THE ONE IDEA in MYRO_SEARCH_REBUILD.md: *the Order is not a list the user
- * maintains, it is a conversational way to fill a six-slot search spec the
+ * maintains, it is a conversational way to fill the search spec the
  * backend already has.* A flat column of every kept line is therefore the one
  * shape the surface must never take — it hides the only structure that exists,
  * and it cannot answer the question the user actually has when they open the
@@ -21,8 +21,8 @@
  * keeps only what the server has no business owning: the words. The ORDER they
  * render in is not here either: `journey.ts` assigns each slot to a step, and
  * that assignment is the render order — running from the thing that DEFINES
- * the search to the thing that only colours it. Two lists of six keys is how a
- * slot ends up in a step nobody visits.
+ * the search to the thing that only colours it. Two lists of the same keys is
+ * how a slot ends up in a step nobody visits.
  */
 
 import type { LineKind, SlotKey } from "./types"
@@ -46,8 +46,6 @@ export const SLOT_COPY: Record<SlotKey, SlotCopy> = {
   target_locations: { label: "Where", addKind: "location", invite: "a city, or remote" },
   deal_breakers: { label: "Won't take", addKind: "wont_take", invite: "something you'd turn down" },
   lean: { label: "Drawn to", addKind: "lean", invite: "something that pulls you" },
-  career_goal: { label: "Aiming for", addKind: "goal", invite: "where this is heading" },
-  superpower: { label: "Best at", addKind: "strength", invite: "what you're strongest at" },
 }
 
 /**

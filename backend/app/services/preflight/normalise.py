@@ -130,8 +130,6 @@ def refile(line: OrderLine) -> tuple[LineKind, str | None]:
 #: `apply`.
 _YIELD_TO_NATIVE: dict[str, tuple[str, ...]] = {
     "target_locations": ("location",),
-    "career_goal": ("goal",),
-    "superpower": ("strength",),
 }
 
 

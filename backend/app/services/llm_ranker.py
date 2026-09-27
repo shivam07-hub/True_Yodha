@@ -92,8 +92,69 @@ NO_TARGET_ROLES = "not set"
 #: this, so moving it re-rates every cached verdict the next time its user runs a
 #: Search — the forward pass, not a backfill. Bump it when the prompt's rules or
 #: its output shape change; leave it alone for wording that cannot change an
-#: answer. v2 (2026-09-16): the direction rule + `pick_reason`.
-PROMPT_VERSION = "v2-direction"
+#: answer.
+#: v2 (2026-09-16): the direction rule + `pick_reason`.
+#: v3 (2026-09-27): `growth_fit` is scored only when a career goal is actually
+#: on file. The previous prompt printed "Career goal: not specified" and still
+#: asked for the score. Cached rows are not rewritten; until each user returns
+#: and is re-rated, the feed holds both vintages.
+PROMPT_VERSION = "v3-growth-when-goal"
+
+#: Literal non-answers that have been stored as a career goal. The prod case is
+#: a column of "No". Scoring growth against that is the same failure as scoring
+#: it against "not specified".
+_NOT_A_GOAL = {
+    "no", "yes", "n/a", "na", "none", "nil", "nothing", "-", "--", "idk",
+    "i don't know", "i dont know", "not sure", "tbd", "?", ".",
+    "not specified",
+}
+
+
+def _stated(value: Any) -> str | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    folded = re.sub(r"[^a-z0-9/' ]", "", text.lower())
+    if folded in _NOT_A_GOAL:
+        return None
+    return text
+
+
+def career_goal_of(profile: dict[str, Any]) -> str | None:
+    """The goal the brain can actually see, or nothing.
+
+    The column wins. When it is empty, an `aspiration` fact already riding in
+    `known_facts` counts — that is the memory fallback, and it is the only
+    reason a goal reaches the prompt for anyone beyond the two filled columns.
+    A missing goal is omitted, never rendered as "not specified".
+    """
+    column = _stated(profile.get("career_goal"))
+    if column:
+        return column
+    for fact in profile.get("known_facts") or []:
+        text = str(fact).strip()
+        prefix, _, body = text.partition(":")
+        if prefix.strip().casefold() == "aspiration":
+            stated = _stated(body)
+            if stated:
+                return stated
+    return None
+
+
+def superpower_of(profile: dict[str, Any]) -> str | None:
+    """Column only. There is no memory kind for this, and a blank is not a power."""
+    return _stated(profile.get("superpower"))
+
+
+def gate_growth_fit(profile: dict[str, Any], parsed: dict[str, Any]) -> dict[str, Any]:
+    """Drop a growth score the model produced against no goal.
+
+    The prompt already says to return null. This is the write: a number judged
+    against nothing must not be stored, even when the model ignores that line.
+    """
+    if career_goal_of(profile) is None:
+        parsed["growth_fit"] = None
+    return parsed
 
 
 def build_system_prompt(profile: dict[str, Any], cv_markdown: str) -> str:
@@ -105,9 +166,37 @@ def build_system_prompt(profile: dict[str, Any], cv_markdown: str) -> str:
     roles = ", ".join(profile.get("target_roles") or []) or NO_TARGET_ROLES
     location = preferred_locations(profile)
     deal_breakers = ", ".join(profile.get("deal_breakers") or []) or "none specified"
-    career_goal = profile.get("career_goal") or "not specified"
-    superpower = profile.get("superpower") or "not specified"
+    career_goal = career_goal_of(profile)
+    superpower = superpower_of(profile)
     cv_block = (cv_markdown or "").strip()[:4000] or "No CV on file — infer from the skill profile."
+    identity = [
+        f"- Target roles: {roles}",
+        f"- Preferred locations: {location}",
+    ]
+    if career_goal:
+        identity.append(f"- Career goal: {career_goal}")
+    if superpower:
+        identity.append(f"- Superpower: {superpower}")
+    identity.append(f"- Deal-breakers: {deal_breakers}")
+    identity_block = "\n".join(identity)
+    if career_goal:
+        growth_axis = (
+            f"- growth_fit: will this move the candidate toward this career goal: {career_goal}?"
+        )
+        growth_rule = f"- Judge growth_fit against the career goal above ({career_goal})."
+        growth_schema = '"growth_fit": float,'
+    else:
+        growth_axis = (
+            "- growth_fit: null. There is no career goal on file, so this dimension is not scored."
+        )
+        growth_rule = "- growth_fit MUST be null. Do not invent a trajectory and do not score one."
+        growth_schema = '"growth_fit": null,'
+    if superpower:
+        angle_rule = f"- Frame application_angle around this superpower: {superpower}."
+    else:
+        angle_rule = (
+            "- Frame application_angle from the CV. There is no stated superpower; do not invent one."
+        )
 
     # Targeting Brief: memory facts (authored + distilled) ride as known_facts —
     # the same key the intent-chat concierge reads. Soft context, never hard rules.
@@ -120,11 +209,7 @@ def build_system_prompt(profile: dict[str, Any], cv_markdown: str) -> str:
     return f"""You are Career Ops, an elite AI career advisor. You evaluate a job posting against ONE specific candidate with brutal honesty and strategic insight. No flattery, no score inflation.
 
 This candidate:
-- Target roles: {roles}
-- Preferred locations: {location}
-- Career goal: {career_goal}
-- Superpower: {superpower}
-- Deal-breakers: {deal_breakers}{facts_block}
+{identity_block}{facts_block}
 
 CV:
 {cv_block}
@@ -132,7 +217,7 @@ CV:
 Score the posting on a 0.0–5.0 scale (use decimals; NEVER round to whole numbers):
 - role_fit: match to skills, experience, seniority, and the candidate's target roles
 - comp_fit: likely compensation vs the candidate's level/market (infer if undisclosed)
-- growth_fit: will this accelerate the candidate's trajectory?
+{growth_axis}
 - culture_fit: alignment with the candidate's work style and the org implied
 - risk_score: stability / over-qualification / mis-fit risk (HIGHER = riskier)
 
@@ -155,7 +240,8 @@ Rules:
 - Reward strong alignment with the candidate's target roles; penalise roles far outside them. ("not set" means the candidate has NOT told us what they want: judge role fit from the CV alone, and do not penalise distance from a target that does not exist.)
 - Reward the candidate's preferred location; flag relocation risk otherwise (do not hard-fail).
 - If the posting clearly violates a stated deal-breaker, recommendation MUST be "Skip" and the summary must name the deal-breaker. ("none specified" means no hard filters.)
-- Judge growth_fit against the candidate's career goal, and frame application_angle around their superpower when stated.
+{growth_rule}
+{angle_rule}
 - If overall_score < 3.5, recommendation MUST be "Skip" and summary must say why not to apply.
 - PAST SKILLS QUALIFY A CANDIDATE; THEY DO NOT SET THEIR DIRECTION. A posting that leans on skills from the candidate's past while moving them away from the target roles above is at best a deliberate pivot: say so in the summary, and do not let old skills alone carry role_fit. A candidate whose CV shows SQL and whose target is sales is not a data engineer.
 - Apply is a recommendation to spend an application. Use "Apply" only at 4.0+; 3.5-3.9 is "Negotiate" at best — worth a look for a specific reason, not a role to lead with.
@@ -166,7 +252,7 @@ Respond ONLY with valid JSON, no prose outside it, matching exactly:
   "grade": "A+|A|A-|B+|B|B-|C+|C|C-|D|F",
   "role_fit": float,
   "comp_fit": float,
-  "growth_fit": float,
+  {growth_schema}
   "culture_fit": float,
   "risk_score": float,
   "summary": "2-3 sentence honest summary",
@@ -501,6 +587,8 @@ async def evaluate_all(
             except Exception:
                 logger.warning("rank on_progress callback failed", exc_info=True)
         ev = outcome.value if outcome.kind == "ok" else None
+        if isinstance(ev, dict):
+            gate_growth_fit(profile, ev)
         return str(job["job_id"]), ev
 
     results = await asyncio.gather(*(_one(j) for j in top_jobs))

@@ -1,4 +1,4 @@
-"""Order → six-slot spec. The interface is `resolve()`, tested with Order fixtures."""
+"""Order → four-slot spec. The interface is `resolve()`, tested with Order fixtures."""
 from __future__ import annotations
 
 from app.services.preflight import lines as ops
@@ -32,29 +32,22 @@ def test_resolve_collapses_normalized_duplicates_silently() -> None:
     assert result.used_line_ids == ("a", "c")
 
 
-def test_three_kept_goals_are_an_arity_conflict_not_a_silent_first() -> None:
+def test_a_kept_goal_is_not_a_slot_and_stays_visible() -> None:
+    """career_goal left the spec. A kept line must not write the column, and
+    must not vanish — `_dedupe` drops anything with no slot."""
     order = ops.Order(
         lines=[
             line(id="g1", kind="goal", text="Staff engineer"),
             line(id="g2", kind="goal", text="Founding PM"),
-            line(id="g3", kind="goal", text="Research scientist"),
+            line(id="s", kind="strength", text="debugging"),
         ]
     )
     result = payload.resolve(order)
     assert "career_goal" not in result.spec
-    assert len(result.conflicts) == 1
-    conflict = result.conflicts[0]
-    assert conflict.slot == "career_goal"
-    assert conflict.kind == "arity"
-    assert conflict.line_ids == ("g1", "g2", "g3")
-    assert result.used_line_ids == ()
-
-
-def test_a_single_goal_still_fills_the_slot() -> None:
-    order = ops.Order(lines=[line(kind="goal", text="Staff engineer")])
-    result = payload.resolve(order)
-    assert result.spec["career_goal"] == "Staff engineer"
+    assert "superpower" not in result.spec
     assert result.conflicts == ()
+    assert result.used_line_ids == ()
+    assert set(result.facts) == {"g1", "g2", "s"}
 
 
 def test_wont_take_against_the_same_lean_is_a_contradiction() -> None:

@@ -32,7 +32,6 @@ _SLOT_FOR_KIND: dict[str, str] = {
 
 _WONT_KINDS = ("constraint", "work_mode")
 _LEAN_KINDS = ("preference",)
-_GOAL_KINDS = ("aspiration",)
 
 # A fact that reads like a preference rather than a hard line. Myro says so on
 # the row instead of silently filing it as an exclusion, because a soft note
@@ -40,19 +39,6 @@ _GOAL_KINDS = ("aspiration",)
 _SOFT_HINTS = re.compile(
     r"\b(prefer|prefers|preferred|lean|leans|rather|ideally|mostly|usually|tend to|open to)\b", re.I
 )
-
-# Text Myro cannot run. Not a length heuristic with a magic number: these are
-# the literal non-answers a one-line form collects — "No", "n/a", "-", "none".
-# The prod case that motivated the whole redesign is a career_goal of "No".
-_NON_ANSWERS = {
-    "no", "yes", "n/a", "na", "none", "nil", "nothing", "-", "--", "idk",
-    "i don't know", "i dont know", "not sure", "tbd", "?", ".",
-}
-
-
-def _is_unusable(text: str) -> bool:
-    return re.sub(r"[^a-z0-9/' ]", "", text.strip().lower()) in _NON_ANSWERS
-
 
 def _ref(prefix: str, value: str) -> str:
     """A stable dedupe key, which is ALSO the imported line's id.
@@ -87,7 +73,7 @@ def _norm_key(text: str) -> str:
 
 def _kind_priority(kind: str) -> int:
     """When the distiller files the same note twice, keep the earlier round's kind."""
-    return {"wont_take": 0, "lean": 1, "goal": 2, "strength": 3}.get(kind, 9)
+    return {"wont_take": 0, "lean": 1}.get(kind, 9)
 
 
 def _within_budget(guesses: list[OrderLine]) -> list[OrderLine]:
@@ -193,52 +179,10 @@ def guesses_from(brief: TargetingBrief) -> list[OrderLine]:
 
     profile: dict[str, Any] = brief.profile
 
-    # The two stored one-liners. They are the user's OWN words — the source chip
-    # says so — but they are re-asked because nothing ever checked them: one of
-    # the four prod users who reached this screen has a career_goal of "No".
-    goal = (profile.get("career_goal") or "").strip()
-    if not goal:
-        goal = next((f.text for f in facts if f.kind in _GOAL_KINDS), "").strip()
-    if goal:
-        bad = _is_unusable(goal)
-        goal_ref = _ref("profile:goal", goal)
-        out.append(
-            OrderLine(
-                id=goal_ref,
-                kind="goal",
-                text=goal.rstrip("."),
-                source="user_said",
-                source_note=(
-                    "that isn't a goal — reword it or drop it" if bad
-                    else "tidied from your own words — yes keeps the tidy version"
-                ),
-                origin="cv_import",
-                status="unanswered",
-                unusable=bad,
-                ref=goal_ref,
-            )
-        )
-
-    power = (profile.get("superpower") or "").strip()
-    if power:
-        bad = _is_unusable(power)
-        power_ref = _ref("profile:power", power)
-        out.append(
-            OrderLine(
-                id=power_ref,
-                kind="strength",
-                text=power.rstrip("."),
-                source="user_said",
-                source_note=(
-                    "that isn't a strength — reword it or drop it" if bad
-                    else "tidied from your own words — yes keeps the tidy version"
-                ),
-                origin="cv_import",
-                status="unanswered",
-                unusable=bad,
-                ref=power_ref,
-            )
-        )
+    # career_goal and superpower are not slots. Importing them asked a question
+    # whose answer wrote the column — including NULL, when the stored answer was
+    # "No". The columns stay; intent chat still records a volunteered one.
+    # An aspiration fact still reaches the brain as known_facts.
 
     # One surface per statement. The distiller sometimes files the same note as
     # work_mode and preference — that asked twice across Won't take and Drawn to.

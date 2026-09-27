@@ -664,3 +664,49 @@ def test_the_prompt_says_past_skills_do_not_set_direction() -> None:
     assert "PAST SKILLS QUALIFY A CANDIDATE; THEY DO NOT SET THEIR DIRECTION" in prompt
     assert "pick_reason" in prompt
     assert 'Use "Apply" only at 4.0+' in prompt
+
+
+# ── growth_fit only when a goal is actually on file ─────────────────────────
+
+def test_no_goal_is_omitted_rather_than_scored_as_not_specified() -> None:
+    """~2,000 verdicts were generated against "Career goal: not specified"."""
+    prompt = llm_ranker.build_system_prompt({}, "CV text")
+    assert "not specified" not in prompt
+    assert "Career goal:" not in prompt
+    assert "Superpower:" not in prompt
+    assert "growth_fit MUST be null" in prompt
+    assert '"growth_fit": null' in prompt
+    assert "application_angle" in prompt
+    assert "do not invent one" in prompt
+
+
+def test_a_real_goal_is_what_growth_fit_is_judged_against() -> None:
+    prompt = llm_ranker.build_system_prompt(
+        {"career_goal": "lead a platform team", "superpower": "debugging production"},
+        "CV text",
+    )
+    assert "Career goal: lead a platform team" in prompt
+    assert "Superpower: debugging production" in prompt
+    assert "Judge growth_fit against the career goal above (lead a platform team)." in prompt
+    assert '"growth_fit": float' in prompt
+    assert "Frame application_angle around this superpower: debugging production." in prompt
+
+
+def test_an_aspiration_fact_counts_as_the_goal_when_the_column_is_empty() -> None:
+    prompt = llm_ranker.build_system_prompt(
+        {"known_facts": ["aspiration: move into platform work"]},
+        "CV text",
+    )
+    assert "Career goal: move into platform work" in prompt
+    assert llm_ranker.career_goal_of({"career_goal": "No", "known_facts": ["aspiration: lead a team"]}) == "lead a team"
+
+
+def test_a_growth_score_against_no_goal_is_dropped() -> None:
+    parsed = {"growth_fit": 4.2, "overall_score": 4.0}
+    assert llm_ranker.gate_growth_fit({}, parsed)["growth_fit"] is None
+    kept = {"growth_fit": 4.2}
+    assert llm_ranker.gate_growth_fit({"career_goal": "lead a team"}, kept)["growth_fit"] == 4.2
+
+
+def test_prompt_version_names_the_growth_rule() -> None:
+    assert llm_ranker.PROMPT_VERSION == "v3-growth-when-goal"

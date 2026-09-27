@@ -301,7 +301,8 @@ def test_rank_one_delegates_to_evaluate_job(monkeypatch: Any) -> None:
     )
 
     assert out.kind == "ok"
-    assert out.value == {"overall_score": 3.9, "grade": "B+"}
+    # No career goal on the profile, so a growth score is not stored.
+    assert out.value == {"overall_score": 3.9, "grade": "B+", "growth_fit": None}
     assert captured == {"cv": "CV TEXT", "job": "jX", "prompt": "SYS"}
 
 

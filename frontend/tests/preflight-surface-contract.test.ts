@@ -294,23 +294,24 @@ test("conflicts land inside the slot they are about", () => {
   assert.match(gate, /visibleConflicts\(order\)\.length > 0/)
 })
 
-/* ── the six-slot spec, as the reader meets it ────────────────────────────── */
+/* ── the four-slot spec, as the reader meets it ───────────────────────────── */
 
-test("the order is six slots, never one flat column", () => {
-  // THE ONE IDEA in MYRO_SEARCH_REBUILD.md: the Order fills a six-slot spec.
+test("the order is four slots, never one flat column", () => {
+  // THE ONE IDEA in MYRO_SEARCH_REBUILD.md: the Order fills the search spec.
   // A flat list of every kept line hides the only structure there is, and
   // cannot answer "what does Myro still need from me?".
+  // career_goal and superpower left the spec: filled for 2 of 924 users, and
+  // the prompt was scoring growth against "not specified".
   assert.match(journey, /<ChipGroup|groups=\{/)
   assert.match(group, /<h3 className="pf-group-label">\{copy\.label\}<\/h3>/)
-  // Six groups, named in one place.
+  // Four groups, named in one place.
   const slots = read("lib/preflight/slots.ts")
-  assert.equal([...slots.matchAll(/label: "/g)].length, 6)
+  assert.equal([...slots.matchAll(/label: "/g)].length, 4)
   // …and every one of them is reachable from exactly one step. A slot no step
   // renders is a slot the user can never fill.
   const steps = read("lib/preflight/journey.ts")
   for (const key of [
-    "target_role_titles", "target_locations", "deal_breakers",
-    "lean", "career_goal", "superpower",
+    "target_role_titles", "target_locations", "deal_breakers", "lean",
   ]) {
     assert.ok(steps.includes(`"${key}"`), `${key} belongs to no step`)
   }
