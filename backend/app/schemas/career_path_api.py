@@ -5,6 +5,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from app.schemas.career_skill_path import CertificateStatus, DemandKind, SkillState
+from app.schemas.preparations import TrainingMatch
 
 SourceSeniority = Literal["intern", "entry", "mid", "senior", "lead", "executive"]
 BandKind = Literal["lower", "anchor", "higher"]
@@ -86,6 +87,9 @@ class CareerSkillPathResponse(BaseModel):
     next_action: SkillPathNextAction | None = None
     target_flow: dict[str, Any] | None = None
     learning_repos: list[LearningRepoLink] = Field(default_factory=list)
+    #: Finlatics programmes covering the anchor band's gaps, most-asked first.
+    #: Only matches — Prep fills the rest of the catalogue itself.
+    training: list[TrainingMatch] = Field(default_factory=list)
 
 
 class LearningPathRequestBody(BaseModel):

@@ -13,6 +13,7 @@ from app.services.career_skill_path_cards import (
     next_action,
     qualified_demand,
 )
+from app.services import finlatics_match
 from app.services.career_target import current_snapshot
 from app.services.concurrent_reads import run_concurrently
 from app.services.github_learning_repos import project_learning_repos
@@ -32,6 +33,7 @@ def assemble(db: Client, user_id: str) -> dict[str, Any]:
             "next_action": next_action([], needs_target=True),
             "target_flow": _target_flow(db, user_id),
             "learning_repos": [],
+            "training": [],
         }
     family = str(snapshot.get("l2_role_family") or "")
     anchor_band = str(snapshot.get("seniority") or "")
@@ -78,7 +80,33 @@ def assemble(db: Client, user_id: str) -> dict[str, Any]:
         "next_action": next_action(anchor_cards, needs_target=False),
         "target_flow": None,
         "learning_repos": learning_repos,
+        "training": _training(anchor_cards),
     }
+
+
+def _training(cards: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Finlatics programmes covering the anchor band's gaps — Prep with no rooms.
+
+    Pure over cards already built, so the read shape does not move. A gap is a
+    skill the band asks for that the CV does not show and practice has not
+    reached; a card with no stated level needs any evidence at all.
+    """
+    gaps = [
+        finlatics_match.TargetGap(
+            taxonomy_key=str(card["taxonomy_key"]),
+            display_name=str(card.get("display_name") or card["taxonomy_key"]),
+            required_level=card.get("required_level"),
+            skill_jobs=int(card["demand"]["skill_job_count"]),
+            band_jobs=int(card["demand"]["band_job_count"]),
+        )
+        for card in cards
+        if card.get("state") != "on_cv"
+        and (card.get("current_level") or 0) < (card.get("required_level") or 1)
+    ]
+    return [
+        {"program_id": match.program_id, "why": match.why, "matched": match.matched}
+        for match in finlatics_match.for_target(gaps)
+    ]
 
 
 def _band_maps(

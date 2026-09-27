@@ -246,3 +246,21 @@ def test_learning_repos_follow_the_skills_on_the_path() -> None:
             "taxonomy_key": "python",
         }
     ]
+
+
+def test_training_answers_the_anchor_bands_gaps_without_a_new_read() -> None:
+    """Prep with no rooms matches Finlatics on the target band — off cards already read.
+
+    python is practised at L2 against an L3 ask, so it is a gap DS&ML covers; sql
+    is on the CV, so nothing may claim it.
+    """
+    payload, reads = _assemble()
+
+    assert payload["training"] == [
+        {
+            "program_id": "bads",
+            "why": "Covers Python L3 · asked in 60 of 100 roles in your band",
+            "matched": True,
+        }
+    ]
+    assert len(reads) <= 11

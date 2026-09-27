@@ -112,6 +112,7 @@ def test_assemble_gates_without_a_snapshot(monkeypatch) -> None:
     assert out["needs_target"] is True
     assert out["snapshot"] is None
     assert out["next_action"]["kind"] == "choose_target"
+    assert out["training"] == []
 
 
 def test_credibility_uses_source_seniority_not_title() -> None:

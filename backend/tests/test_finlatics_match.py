@@ -7,11 +7,23 @@ word-boundary guard are pinned here.
 from __future__ import annotations
 
 from app.services import finlatics_match
-from app.services.finlatics_match import SkillGap
+from app.services.finlatics_match import SkillGap, TargetGap
 
 
 def gap(key: str, level: int = 3, company: str | None = "Sanofi", drill: bool = True) -> SkillGap:
     return SkillGap(taxonomy_key=key, required_level=level, company=company, has_drill=drill)
+
+
+def target(
+    key: str, jobs: int, level: int | None = 3, band: int = 660, name: str | None = None
+) -> TargetGap:
+    return TargetGap(
+        taxonomy_key=key,
+        display_name=name or key,
+        required_level=level,
+        skill_jobs=jobs,
+        band_jobs=band,
+    )
 
 
 class TestCovers:
@@ -122,3 +134,49 @@ class TestRailNote:
         note = finlatics_match.rail_note(has_gaps=True, bottleneck_step=1)
         assert "Step 2 is where your rooms stall" not in note
         assert note == "These three cover the levels your live rooms keep asking for."
+
+
+class TestForTarget:
+    """No rooms yet: the claim comes from the target band's demand, not a board.
+
+    Every line must be checkable against the Skill path the same screen shows —
+    the same skill, the same "N of M roles" the meter's tooltip states.
+    """
+
+    def test_no_gaps_matches_nothing(self) -> None:
+        assert finlatics_match.for_target([]) == []
+
+    def test_the_line_states_the_band_count(self) -> None:
+        (match,) = finlatics_match.for_target([target("Machine Learning", 412)])
+        assert match.program_id == "ml"
+        assert match.matched
+        assert match.why == "Covers Machine Learning L3 · asked in 412 of 660 roles in your band"
+
+    def test_an_unknown_level_is_not_invented(self) -> None:
+        (match,) = finlatics_match.for_target([target("Machine Learning", 40, level=None)])
+        assert match.why == "Covers Machine Learning · asked in 40 of 660 roles in your band"
+
+    def test_display_name_drops_the_parenthetical(self) -> None:
+        (match,) = finlatics_match.for_target(
+            [target("Python (Programming Language)", 90, name="Python (Programming Language)")]
+        )
+        assert "(Programming Language)" not in (match.why or "")
+
+    def test_every_covering_programme_answers_most_asked_first(self) -> None:
+        """Python is DS&ML's, Excel is EX's. Both come back, the more-asked first."""
+        picked = finlatics_match.for_target(
+            [target("Microsoft Excel", 120), target("Python (Programming Language)", 300)]
+        )
+        ids = [m.program_id for m in picked]
+        assert set(ids) == {"bads", "da"}
+        assert ids[0] == "bads"
+
+    def test_a_programme_claims_its_most_asked_skill(self) -> None:
+        (match,) = finlatics_match.for_target(
+            [target("Asset Allocation", 30), target("Portfolio Analysis", 90)]
+        )
+        assert match.program_id == "fm"
+        assert "Portfolio Analysis" in (match.why or "")
+
+    def test_lookalikes_still_match_nothing(self) -> None:
+        assert finlatics_match.for_target([target("Art Portfolio", 500)]) == []
