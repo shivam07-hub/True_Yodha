@@ -15,7 +15,7 @@ from app.repositories.jobs import (
     get_public_jobs_repository,
     get_token_jobs_repository,
 )
-from app.services.listing_time import day
+from app.services.listing_time import SEED_COLUMN, day
 from app.services.matching import feed_warm, published_list
 from app.services.matching.filter_spec import FilterSpec
 from app.services.matching.job_query import JobQuery
@@ -529,7 +529,7 @@ def list_company_open_roles(
 def list_top_companies_at(
     industry: str | None = None,
     city: str | None = None,
-    sort_by: Literal["roles", "last_seen"] = "roles",
+    sort_by: str = "roles",
     limit: Annotated[int, Query(ge=1, le=20)] = 8,
     repo: JobsRepository = Depends(get_public_jobs_repository),
 ) -> TopCompaniesAtResponse:
@@ -545,7 +545,14 @@ def list_top_companies_at(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Provide exactly one of industry or city.",
         )
-    rows = repo.list_top_companies_at(industry=industry, city=city, limit=limit, sort_by=sort_by)
+    # A client that has not refreshed still sends the retired crawler token.
+    # Both that token and "discovered" are discovery order.
+    requested: Literal["roles", "discovered"] = (
+        "discovered" if sort_by in {"discovered", SEED_COLUMN} else "roles"
+    )
+    rows = repo.list_top_companies_at(
+        industry=industry, city=city, limit=limit, sort_by=requested
+    )
     return TopCompaniesAtResponse(
         kind="industry" if industry else "city",
         value=industry or city or "",

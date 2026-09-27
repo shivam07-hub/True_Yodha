@@ -25,8 +25,8 @@ export function companySignalHeading(): string {
   return "Company signals"
 }
 
-export function companySignalSortParam(mode: CompanySignalMode): "roles" | "last_seen" {
-  return mode === "scraped" ? "last_seen" : "roles"
+export function companySignalSortParam(mode: CompanySignalMode): "roles" | "discovered" {
+  return mode === "scraped" ? "discovered" : "roles"
 }
 
 export function companySignalMeta(row: CompanySignalMetaInput, mode: CompanySignalMode): string {

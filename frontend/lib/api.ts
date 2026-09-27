@@ -4203,7 +4203,7 @@ export interface TopCompaniesAtResponse {
   value: string
   companies: CompanyHiringItem[]
 }
-export type TopCompaniesSort = "roles" | "last_seen"
+export type TopCompaniesSort = "roles" | "discovered"
 
 export interface GlobalJobHit {
   job_id: string

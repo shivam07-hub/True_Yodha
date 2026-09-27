@@ -34,7 +34,7 @@ test("scraped mode shows latest scrape date and role count", () => {
     "4 Jun · 1 role",
   )
   assert.equal(companySignalMeta({ openCount: 7, lastSeenAt: null }, "scraped"), "date n/a · 7 roles")
-  assert.equal(companySignalSortParam("scraped"), "last_seen")
+  assert.equal(companySignalSortParam("scraped"), "discovered")
 })
 
 test("company signal rail keeps every fetched company available", () => {

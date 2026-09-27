@@ -1379,7 +1379,7 @@ class JobsRepository:
         industry: str | None = None,
         city: str | None = None,
         limit: int = 8,
-        sort_by: Literal["roles", "last_seen"] = "roles",
+        sort_by: Literal["roles", "discovered"] = "roles",
     ) -> list[dict[str, Any]]:
         """Top companies hiring within an industry group or a city.
 
@@ -1409,7 +1409,9 @@ class JobsRepository:
         if not value:
             return []
         scoped_limit = max(1, min(20, int(limit)))
-        order = sort_by if sort_by in {"roles", "last_seen"} else "roles"
+        # The function still matches the retired crawler token. Callers say
+        # discovered; the argument is that token so the order does not change.
+        order = SEED_COLUMN if sort_by == "discovered" else "roles"
         cache_key = (f"__companies_at_{kind}_{order}__", value, None, None, None, None, 1, scoped_limit)
         now = time.monotonic()
         cached = _search_cache.get(cache_key)
