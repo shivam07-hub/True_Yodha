@@ -28,7 +28,7 @@ Item numbers are historical and carry no priority meaning.
 
 | Work | Where | State |
 |---|---|---|
-| **Job ingestion stopped 2026-09-09** | scraper repo `CLAUDE.md` → PENDING WORK 00 | **corpus shrinking: 1 job in 9 days, 2,715 retired in 6.** Alarm shipped (#16 · 3d); the fix is Shivam's |
+| **Job ingestion stopped 2026-09-17** | scraper repo `CLAUDE.md` → PENDING WORK 00 | **re-measured 2026-09-27: 0 new jobs in 7 days, 5 in 18.** 2026-09-09 was a 23,140-row BULK LOAD, not a healthy rate — the stop is 09-17. Corpus is FROZEN, not shrinking: retirements are **0 in 14 days**, not 2,715 in 6. Alarm shipped (#16 · 3d); the fix is Shivam's |
 | Event-driven matching slices 3-5 | #36 | slices 1-2 shipped |
 | Ranked job-skill importance | #37 | blocked on scraper repo |
 | Semantic retrieval slices 2-3 | Tier 4 | blocked on scraper repo |
@@ -37,6 +37,22 @@ Item numbers are historical and carry no priority meaning.
 
 Engine built. This stage is about making tailoring the obvious next step after a
 match, not new machinery.
+
+### Architecture specs — written 2026-09-27, Cursor implements
+
+We hold the architecture; Cursor does the engineering. Both docs are the spec;
+do not re-derive them. Each numbered step is its own commit, six gates green.
+
+| Spec | Covers | First step |
+|---|---|---|
+| [ARCHITECTURE_LISTING_TIME.md](ARCHITECTURE_LISTING_TIME.md) `56592675` | `last_seen` is dead (0 of 52,717 rows ever updated); 52% of active jobs wear a verification stamp seeded from it | **Shivam's**: migration nulling the 24,551 false stamps |
+| [ARCHITECTURE_CONTRACTS_BY_TYPE.md](ARCHITECTURE_CONTRACTS_BY_TYPE.md) `a8741e45` | `compute_match_health`'s optional `freshness` restores the pre-fix bug at 2 of 3 callers; four hand-rolled dead-man probes, one of which writes inside a read | Make `freshness` required |
+
+⚠️ `jobs_added_1h` on the public landing page is structurally **0 for 23 hours
+of every day** (`repositories/jobs.py:644,629,676` — a day marker compared to
+`now − 1h`). Fix from `ingested_at` or delete the field. In the first spec.
+
+---
 
 ### Standing obligations — not a stage
 
