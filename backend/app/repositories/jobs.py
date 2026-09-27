@@ -22,7 +22,7 @@ from app.services.background import debounce
 from app.services.industry_grouping import normalize_industry_group
 from app.services.job_history import attach_jobs
 from app.services.job_intelligence_policy import is_recommendable_listing
-from app.services.listing_time import verdict as listing_time
+from app.services.listing_time import SEED_COLUMN, day, marker, verdict as listing_time
 from app.services.xp_policy import UPSKILLING_SET_SIZE
 from app.services.job_eligibility import (
     career_band_for_job,
@@ -55,9 +55,6 @@ def _warn_demand_rpc_fallback(exc: APIError) -> None:
 
 
 SKILL_DRILL_DEFAULT_PAGE_SIZE = 50
-# Card-level stale flag. Age-delist identifies a posting as closed after 30 days
-# without a scrape; unload follows one hour after that close.
-STALE_AFTER_DAYS = 21
 # .in_() serialises each id into the URL query string — cap batch size so a huge
 # scrape's job_id list can't blow the PostgREST URL length limit (Backlog #36).
 _SWEEP_IN_CHUNK_SIZE = 200
@@ -121,19 +118,18 @@ def _parse_iso_dt(value: Any) -> datetime | None:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
-def _job_feed_marker_to_iso(value: Any) -> str | None:
-    if value is None:
+def _iso_day(value: Any) -> str | None:
+    """A marker or ISO date as `YYYY-MM-DD`, or None when it is not a day."""
+    found = day(value)
+    return None if found is None else found.isoformat()
+
+
+def _day_start(value: Any) -> datetime | None:
+    """Midnight UTC of a marker or ISO date. None when it is not a day."""
+    found = day(value)
+    if found is None:
         return None
-    if isinstance(value, int):
-        text = f"{value:08d}"
-    else:
-        text = str(value).strip()
-    if len(text) == 8 and text.isdigit():
-        try:
-            return date(int(text[:4]), int(text[4:6]), int(text[6:8])).isoformat()
-        except ValueError:
-            return None
-    return text or None
+    return datetime(found.year, found.month, found.day, tzinfo=timezone.utc)
 
 
 _ROLE_TOKEN_RE = re.compile(r"[a-z0-9+#]+")
@@ -301,41 +297,8 @@ def _role_match_score(role_family: str | None, target_families: set[str]) -> int
     return 1 if role_family in target_families else 0
 
 
-def _marker_to_dt(value: Any) -> datetime | None:
-    """Parse a jobs feed marker (YYYYMMDD int/str) or ISO string → aware datetime.
-
-    The `jobs` table stores first_seen / last_seen / batch_date as integer
-    YYYYMMDD markers, not timestamps. Route those through the marker→ISO
-    converter before ISO parsing so analytics date math works on real values.
-    """
-    return _parse_iso_dt(_job_feed_marker_to_iso(value))
-
-
-def _marker_int(value: Any) -> int | None:
-    """A jobs first_seen/last_seen marker as a comparable YYYYMMDD int, or None.
-
-    The column stores integer YYYYMMDD markers; tolerate str/float and reject
-    anything non-numeric so a malformed marker never crashes pulse math.
-    """
-    if value is None:
-        return None
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _fresh_cutoff_marker(days: int = STALE_AFTER_DAYS) -> int:
-    """YYYYMMDD int for `today - days` — a discovery-age floor for matching.
-
-    This is not the stale badge. The badge asks `listing_time.verdict`.
-    """
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    return int(cutoff.strftime("%Y%m%d"))
-
-
 def get_feed_updated_at(db: Client) -> str | None:
-    """ISO date of the newest job feed marker. Corpus-wide, cached 5 min.
+    """ISO date of the newest row Myro received. Corpus-wide, cached 5 min.
 
     There is exactly ONE answer to this for the whole platform — it describes
     the corpus, not the caller — so it is Tier 0 by the read contract
@@ -344,16 +307,25 @@ def get_feed_updated_at(db: Client) -> str | None:
     in a snapshot table because the value already IS a single indexed read; what
     it needed was one cached answer across replicas, which S3's primitive gives.
 
-    Never raises: a missing feed stamp costs a "last updated" line, never the
+    Never raises: a missing receipt costs a "last updated" line, never the
     response. `stale_seconds` means a DB blip during a refresh serves the last
-    known marker for an hour instead of dropping it — strictly better than the
+    known instant for an hour instead of dropping it — strictly better than the
     per-process version, which lost the value entirely on a cold replica.
     """
     def _compute() -> str | None:
-        result = db.table("jobs").select("last_seen").order("last_seen", desc=True).limit(1).execute()
-        return _job_feed_marker_to_iso(
-            ((result.data or [{}])[0].get("last_seen")) if result.data else None
+        result = (
+            db.table("jobs")
+            .select("ingested_at")
+            .not_.is_("ingested_at", "null")
+            .order("ingested_at", desc=True)
+            .limit(1)
+            .execute()
         )
+        rows = result.data or []
+        if not rows:
+            return None
+        received = listing_time(rows[0], now=datetime.now(timezone.utc)).received_at
+        return None if received is None else received.date().isoformat()
 
     try:
         return shared_cache.get_or_compute(
@@ -634,15 +606,7 @@ class MarketAnalyticsCompiler:
             location_mode = (row.get("location_mode") or "").strip()
             skills = [skill.strip() for skill in (row.get("main_skills") or []) if skill]
 
-            created_at_dt = _marker_to_dt(row.get("first_seen"))
-            # Prefer the job's own last_seen date from the jobs table; fall back to
-            # the scrape/dump date (batch_date), then to first_seen. last_seen is a
-            # day-granular YYYYMMDD marker, so downstream age is day-level only.
-            last_seen_dt = (
-                _marker_to_dt(row.get("last_seen"))
-                or _marker_to_dt(row.get("batch_date"))
-                or created_at_dt
-            )
+            created_at_dt = _day_start(row.get("first_seen"))
 
             if company:
                 company_counts[company] += 1
@@ -651,11 +615,10 @@ class MarketAnalyticsCompiler:
                     company_country_counters.setdefault(company, Counter())[location_country] += 1
                 if industry:
                     company_industry_counters.setdefault(company, Counter())[industry] += 1
-                if last_seen_dt is not None:
-                    prev = company_last_seen.get(company)
-                    if prev is None or last_seen_dt > prev:
-                        company_last_seen[company] = last_seen_dt
                 if created_at_dt is not None:
+                    prev = company_last_seen.get(company)
+                    if prev is None or created_at_dt > prev:
+                        company_last_seen[company] = created_at_dt
                     prev_first = company_first_created.get(company)
                     if prev_first is None or created_at_dt < prev_first:
                         company_first_created[company] = created_at_dt
@@ -783,9 +746,9 @@ class JobsRepository:
         job_row = plan["job_row"]
         prior_first_seen = self._existing_first_seen(plan["job_id"])
         if prior_first_seen is not None:
-            # Re-importing a listing is a new SIGHTING, not a new discovery —
-            # `last_seen` moves, `first_seen` must not, or the upsert would keep
-            # resetting the corpus's own "when did this appear" answer.
+            # Re-importing a listing is a new sighting, not a new discovery.
+            # The crawler marker may move; first_seen must not, or the upsert
+            # would keep resetting the corpus's own "when did this appear".
             job_row = {**job_row, "first_seen": prior_first_seen}
 
         self._admin_db.table("jobs").upsert(
@@ -888,7 +851,7 @@ class JobsRepository:
             columns=(
                 "job_id, company_name, industry, industry_group, role_domain, batch_date, "
                 "location, location_raw, location_city, location_country, location_mode, location_quality, locations, "
-                "main_skills, first_seen, last_seen, ingested_at"
+                "main_skills, first_seen, ingested_at"
             ),
             query_builder=query_builder,
         )
@@ -950,27 +913,27 @@ class JobsRepository:
         return payload if isinstance(payload, dict) else None
 
     def _jobs_source_marker(self) -> dict[str, Any]:
-        """Cheap change-detection signal for the jobs table: row count + newest
-        last_seen batch marker. Two index-backed queries (no full scan, no
-        compile) — the dirty-guard the daily cron runs before deciding whether
-        to recompile. ``last_seen`` is an integer YYYYMMDD batch marker; the
-        not-null filter is required because ``ORDER BY ... DESC`` is NULLS FIRST
-        in Postgres, which would otherwise surface a null row over the real max.
+        """Cheap change-detection signal for the jobs table: row count + the
+        newest crawler marker the importer wrote. Two index-backed queries
+        (no full scan, no compile) — the dirty-guard the daily cron runs
+        before deciding whether to recompile. The not-null filter is required
+        because ``ORDER BY ... DESC`` is NULLS FIRST in Postgres, which would
+        otherwise surface a null row over the real max.
         """
         count_result = (
             self._admin_db.table("jobs").select("job_id", count="exact").limit(1).execute()
         )
-        last_seen_result = (
+        marker_result = (
             self._admin_db.table("jobs")
-            .select("last_seen")
-            .not_.is_("last_seen", "null")
-            .order("last_seen", desc=True)
+            .select(SEED_COLUMN)
+            .not_.is_(SEED_COLUMN, "null")
+            .order(SEED_COLUMN, desc=True)
             .limit(1)
             .execute()
         )
-        rows = last_seen_result.data or []
-        last_seen = rows[0].get("last_seen") if rows else None
-        return {"job_count": int(count_result.count or 0), "last_seen": last_seen}
+        rows = marker_result.data or []
+        batch_marker = rows[0].get(SEED_COLUMN) if rows else None
+        return {"job_count": int(count_result.count or 0), "batch_marker": batch_marker}
 
     def _read_snapshot_marker(self) -> dict[str, Any] | None:
         try:
@@ -989,7 +952,7 @@ class JobsRepository:
         payload = rows[0].get("payload")
         return {
             "job_count": rows[0].get("source_job_count"),
-            "last_seen": rows[0].get("source_last_seen"),
+            "batch_marker": rows[0].get("source_last_seen"),
             "has_industry_roles": isinstance(payload, dict)
             and isinstance(payload.get("industry_roles"), dict),
         }
@@ -1006,7 +969,7 @@ class JobsRepository:
         if (
             stored is not None
             and stored.get("job_count") == current["job_count"]
-            and stored.get("last_seen") == current["last_seen"]
+            and stored.get("batch_marker") == current["batch_marker"]
             and stored.get("has_industry_roles") is True
         ):
             existing = self._read_snapshot_payload() or {}
@@ -1025,7 +988,7 @@ class JobsRepository:
 
         Called by the admin refresh endpoint after a scraper batch finalises, and by
         the dirty-guarded daily refresh. Bypasses the in-process cache so the snapshot
-        always reflects current DB state. ``marker`` (count + last_seen) is persisted
+        always reflects current DB state. ``marker`` (count + batch marker) is persisted
         alongside so the next dirty-guard can detect a no-op.
         """
         rows = self.fetch_analytics_rows()
@@ -1039,7 +1002,7 @@ class JobsRepository:
                 "refreshed_at": datetime.now(timezone.utc).isoformat(),
                 "refreshed_by": refreshed_by,
                 "source_job_count": marker.get("job_count"),
-                "source_last_seen": marker.get("last_seen"),
+                "source_last_seen": marker.get("batch_marker"),
             },
             on_conflict="id",
         ).execute()
@@ -1186,7 +1149,7 @@ class JobsRepository:
         if cached is not None and (now - cached[0]) < _PULSE_TTL:
             return cached[1]
 
-        week_marker = _fresh_cutoff_marker(7)
+        week_marker = marker(datetime.now(timezone.utc).date() - timedelta(days=7))
         job_rows = fetch_all_rows(
             self._db,
             table="jobs",
@@ -1390,7 +1353,7 @@ class JobsRepository:
                 .select(
                     "job_id, job_title, company_name, location, location_raw, "
                     "location_city, location_country, location_mode, location_quality, "
-                    "date_posted, first_seen, last_seen"
+                    "date_posted, first_seen"
                 )
                 .eq("company_name", company_name)
             )
@@ -1465,7 +1428,7 @@ class JobsRepository:
             company = (r.get("company_name") or "").strip()
             if not company:
                 continue
-            seen_dt = _marker_to_dt(r.get("max_seen"))
+            seen_dt = _day_start(r.get("max_seen"))
             rows.append({
                 "company_name": company,
                 "open_count": int(r.get("open_count") or 0),
@@ -1732,7 +1695,8 @@ class JobsRepository:
         # decoding, then saturated every other read during a browsing burst.
         "job_id, job_title, company_name, "
         "location, location_raw, location_city, location_country, location_mode, location_quality, locations, "
-        "role_domain, career_band, industry, industry_group, apply_url, first_seen, last_seen, "
+        "role_domain, career_band, industry, industry_group, apply_url, first_seen, "
+        f"{SEED_COLUMN}, "
         "seniority_level, min_years_experience, max_years_experience, "
         "is_active, listing_confidence, last_verified_live_at, main_skills, role_family"
     )
@@ -1755,6 +1719,7 @@ class JobsRepository:
             matched_skills = [s for s in raw_skills if s.lower() in user_skill_keys]
         matched = len(matched_skills)
         role_match = _role_match_score(row.get("role_family"), target_families or set())
+        when = listing_time(row, now=datetime.now(timezone.utc))
         return {
             "job_id": row.get("job_id"),
             "job_title": row.get("job_title") or "",
@@ -1776,9 +1741,9 @@ class JobsRepository:
             "max_years_experience": row.get("max_years_experience"),
             "industry": row.get("industry_group") or row.get("industry"),
             "source_url": row.get("apply_url"),
-            "first_seen": _job_feed_marker_to_iso(row.get("first_seen")),
-            "last_seen_at": _job_feed_marker_to_iso(row.get("last_seen")),
-            "is_stale": listing_time(row, now=datetime.now(timezone.utc)).state != "confirmed_open",
+            "first_seen": None if when.discovered_on is None else when.discovered_on.isoformat(),
+            "last_seen_at": None if when.confirmed_at is None else when.confirmed_at.date().isoformat(),
+            "is_stale": when.state != "confirmed_open",
             "is_active": bool(row.get("is_active", True)),
             "listing_confidence": row.get("listing_confidence"),
             "last_verified_live_at": row.get("last_verified_live_at"),
@@ -1948,7 +1913,8 @@ class JobsRepository:
     _AGENT_PICK_JOB_COLUMNS = (
         "job_id, job_title, company_name, job_description, industry, industry_group, "
         "role_domain, apply_url, location, location_raw, location_city, location_country, "
-        "location_mode, location_quality, locations, main_skills, first_seen, last_seen, "
+        "location_mode, location_quality, locations, main_skills, first_seen, "
+        f"{SEED_COLUMN}, "
         "is_active, listing_confidence, last_verified_live_at"
     )
 
@@ -2499,8 +2465,8 @@ class JobsRepository:
         empty means no location filter.
 
         require_fresh: compatibility name for the trust gate. When True
-        (default), only verifier-active listings reach the pool; scraper
-        ``last_seen`` age is deliberately ignored. Set False only for callers
+        (default), only verifier-active listings reach the pool. A crawler
+        marker's age is deliberately ignored. Set False only for callers
         that deliberately want the full history.
         """
         return [
@@ -2976,7 +2942,7 @@ class JobsRepository:
                 # `main_skills` is what `direction_fit` grades the pick gate on. One array
                 # on a select this read already makes, so the grade costs no round trip.
                 "main_skills, "
-                "first_seen, last_seen, is_active, listing_confidence, last_verified_live_at)"
+                "first_seen, " f"{SEED_COLUMN}, is_active, listing_confidence, last_verified_live_at)"
             )
             .eq("user_id", user_id)
             .execute()
@@ -3181,7 +3147,7 @@ class JobsRepository:
                 "location_country, location_mode, location_quality, locations, apply_url, "
                 "job_summary, job_description, "
                 "date_posted, seniority_level, work_mode, min_years_experience, max_years_experience, "
-                "first_seen, last_seen, is_active, listing_confidence, last_verified_live_at)"
+                "first_seen, " f"{SEED_COLUMN}, is_active, listing_confidence, last_verified_live_at)"
             )
             .eq("user_id", user_id)
             .eq("baseline_version_id", baseline_version_id)
@@ -3561,7 +3527,8 @@ class JobsRepository:
             # Liveness is server-joined for the Collection Record: the
             # client batch that used to answer it caps at 100 ids sorted
             # lexically, so a client-side `closed` is capped by alphabet.
-            "is_active, listing_confidence, last_verified_live_at, first_seen, last_seen",
+            "is_active, listing_confidence, last_verified_live_at, first_seen, "
+            f"{SEED_COLUMN}",
         )
         for row in rows:
             if row.get("jobs"):

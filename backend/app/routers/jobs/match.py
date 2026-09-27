@@ -123,8 +123,8 @@ def get_job_matches(
             pass
 
     # Genuine "new jobs since your last match" — live rows whose DB landing time
-    # (`ingested_at`) post-dates this user's match compute. Not `last_seen` (bumps
-    # on re-crawl), not `first_seen` (a scraper-stamped date that can already be in
+    # (`ingested_at`) post-dates this user's match compute. Not the crawler
+    # marker (it moves on a re-import), not `first_seen` (a scraper-stamped date that can already be in
     # the past on arrival). Skip for never-matched users — no baseline, nothing new.
     # This same count is the login announcement and the charge waiver: one number,
     # one module, so the bell can never promise what the run then bills for.

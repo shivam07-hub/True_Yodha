@@ -100,9 +100,9 @@ def _valid_taxonomy_keys() -> set[str]:
 def _today_marker() -> int:
     """Today as the YYYYMMDD int the `jobs` feed columns store.
 
-    `first_seen` / `last_seen` / `batch_date` are integer date markers, not
-    timestamps — see `_fresh_cutoff_marker` in the jobs repository, which
-    compares against exactly this shape.
+    `first_seen` / `batch_date` are integer date markers, not timestamps.
+    The crawler marker written beside them is the same shape, and it is not
+    a confirmation that the listing is open.
     """
     return int(date.today().strftime("%Y%m%d"))
 

@@ -19,6 +19,7 @@ from uuid import uuid4
 
 from supabase import Client
 
+from app.services.listing_time import SEED_COLUMN
 
 log = logging.getLogger(__name__)
 
@@ -27,7 +28,8 @@ ARCHIVE_FORMAT = "job_archive_v1"
 # 400s that filter) so a restore can stand the old corpus back up.
 JOB_COLUMNS = (
     "job_id,job_title,job_description,company_name,industry,location,apply_url,"
-    "main_skills,side_skills,batch_date,first_seen,last_seen,is_active,"
+    "main_skills,side_skills,batch_date,first_seen,"
+    f"{SEED_COLUMN},is_active,"
     "change_fingerprint,role_domain,industry_group,location_city,report_count,"
     "location_raw,location_country,location_mode,location_quality,locations,"
     "job_summary,date_posted,seniority_level,work_mode,min_years_experience,"
@@ -216,7 +218,7 @@ def _fetch_skills(db: Client, ids: list[str]) -> list[dict[str, Any]]:
 def _jobs_csv(jobs: list[dict[str, Any]]) -> str:
     fields = (
         "job_id", "job_title", "company_name", "listing_confidence",
-        "last_seen", "apply_url", "location",
+        SEED_COLUMN, "apply_url", "location",
     )
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=fields, extrasaction="ignore")

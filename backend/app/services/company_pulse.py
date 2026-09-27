@@ -33,7 +33,7 @@ VOLUME_SATURATION = 150
 MOMENTUM_TURNOVER = 0.20
 MOMENTUM_FLOOR = 5  # small companies: 5 new roles this week already reads hot
 # Freshness decays to zero over the one window a confirmation stays sayable.
-# The old 21 was an age of `last_seen`, which never ticked.
+# The old 21 was an age of the crawler marker, which never ticked.
 
 _W_VOLUME = 0.5
 _W_MOMENTUM = 0.3

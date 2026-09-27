@@ -6,9 +6,9 @@ a check, and local midnight and UTC midnight disagreed about the day.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
-from app.services.listing_time import CONFIRM_WITHIN, verdict
+from app.services.listing_time import CONFIRM_WITHIN, day, marker, verdict
 
 NOW = datetime(2026, 9, 27, 12, 0, tzinfo=timezone.utc)
 
@@ -217,3 +217,10 @@ def test_now_has_no_default():
 
     param = inspect.signature(verdict).parameters["now"]
     assert param.default is inspect.Parameter.empty
+
+
+def test_day_is_total_and_marker_is_the_column_integer():
+    assert day(20260426) == date(2026, 4, 26)
+    assert day("not a day") is None
+    assert day(None) is None
+    assert marker(date(2026, 4, 26)) == 20260426

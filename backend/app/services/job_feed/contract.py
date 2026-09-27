@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date
 from typing import Any, Mapping
 
+from app.services.listing_time import day
 from app.services.location_normalizer import normalize_location
 
 
@@ -57,21 +58,20 @@ def _parse_skills(value: Any) -> tuple[str, ...]:
     return tuple(cleaned)
 
 
-def _parse_batch_date(value: Any, *, default: date | None = None) -> date:
+def _batch_day(value: Any, *, default: date | None) -> date:
+    """The dump day on a crawler row.
+
+    Empty uses the caller's default. A present value that is not a day is a
+    contract error. Nothing here reads the clock.
+    """
     if value is None or value == "":
-        return default or date.today()
-    if isinstance(value, datetime):
-        return value.date()
-    if isinstance(value, date):
-        return value
-    if isinstance(value, int):
-        return datetime.strptime(str(value), "%Y%m%d").date()
-    if isinstance(value, str):
-        text = value.strip()
-        if text.isdigit() and len(text) == 8:
-            return datetime.strptime(text, "%Y%m%d").date()
-        return date.fromisoformat(text)
-    raise JobFeedContractError("batch_date must be YYYYMMDD, ISO date, or date")
+        if default is None:
+            raise JobFeedContractError("batch_date is required")
+        return default
+    parsed = day(value)
+    if parsed is None:
+        raise JobFeedContractError("batch_date must be YYYYMMDD or an ISO date")
+    return parsed
 
 
 @dataclass(frozen=True)
@@ -115,7 +115,7 @@ class JobFeedRow:
             apply_url=_clean_text(raw.get("apply_url")) or None,
             main_skills=_parse_skills(raw.get("main_skills")),
             side_skills=_parse_skills(raw.get("side_skills")),
-            batch_date=_parse_batch_date(raw.get("batch_date"), default=default_batch_date),
+            batch_date=_batch_day(raw.get("batch_date"), default=default_batch_date),
         )
 
     def to_supabase_row(self) -> dict[str, Any]:

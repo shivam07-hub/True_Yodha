@@ -151,7 +151,7 @@ export function IntelPane() {
     staleTime: OPEN_ROLES_STALE_MS,
   })
 
-  // Build company list from real backend analytics + real velocity bins + real last_seen.
+  // Build company list from real backend analytics + real velocity bins + the discovery date.
   const allCompanies: ResultCompany[] = useMemo(() => {
     if (!analytics) return []
     return analytics.by_company.map((c) => {

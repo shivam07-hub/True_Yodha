@@ -247,7 +247,7 @@ class JobMatchesResponse(BaseModel):
     jobs: list[JobMatchResponse]
     batch_week: date        # Monday of the current week's batch
     total: int
-    feed_updated_at: datetime | None = None    # MAX(jobs.last_seen) — when the feed last refreshed
+    feed_updated_at: datetime | None = None    # newest ingested_at — when a row last arrived
     matches_computed_at: datetime | None = None  # when this user's matches were last computed
     new_jobs_count: int = 0  # genuinely-new live jobs (first_seen) inserted since this user last matched
     dismissed_job_ids: list[str] = []
@@ -666,7 +666,7 @@ class JobFeedItem(BaseModel):
     industry: str | None = None
     source_url: str | None = None
     first_seen: str | None = None  # ISO date derived from the feed marker
-    last_seen_at: str | None = None  # ISO date the scraper last confirmed it live
+    last_seen_at: str | None = None  # ISO date of a real open-confirmation, or absent
     is_stale: bool = False  # not confirmed open — warn before Apply 404
     is_active: bool = True
     skills: list[str] = []  # top main_skills display names, capped

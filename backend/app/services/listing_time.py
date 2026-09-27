@@ -41,7 +41,20 @@ State = Literal["confirmed_open", "unconfirmed", "closed"]
 #: figures were ages of `last_seen` and are not part of this set.
 CONFIRM_WITHIN = timedelta(days=7)
 
-__all__ = ["CONFIRM_WITHIN", "ListingTime", "State", "verdict"]
+#: The retired crawler column. `verdict` reads it to recognise the
+#: 2026-07-11 copy. A caller selects this onto the row it passes in
+#: and does not interpret the value.
+SEED_COLUMN = "last_seen"
+
+__all__ = [
+    "CONFIRM_WITHIN",
+    "ListingTime",
+    "SEED_COLUMN",
+    "State",
+    "day",
+    "marker",
+    "verdict",
+]
 
 
 @dataclass(frozen=True)
@@ -172,3 +185,20 @@ def _calendar_day(value: Any) -> date | None:
         except ValueError:
             return None
     return None
+
+
+def day(value: Any) -> date | None:
+    """A YYYYMMDD marker or an ISO date, as a calendar day.
+
+    The only conversion. Unparseable is None: not the raw text, not an
+    exception.
+    """
+    return _calendar_day(value)
+
+
+def marker(when: date) -> int:
+    """The integer a discovery column stores for this calendar day.
+
+    A query bound. This function does not read a clock.
+    """
+    return when.year * 10_000 + when.month * 100 + when.day

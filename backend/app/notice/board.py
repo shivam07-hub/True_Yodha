@@ -31,8 +31,8 @@ def _open_set_fingerprint(rows: tuple[NoticeRecord, ...]) -> str:
     An open cause includes its count, so another user hitting the same bug is
     news. A blocked cause includes only the power-of-two band, so the paid
     compute gate does not page every day it ticks, and does page when it
-    doubles. Dead-man probes do not reach this: a repeat probe refreshes
-    last_seen and leaves the count alone.
+    doubles.     Dead-man probes do not reach this: a repeat probe refreshes
+    last_seen_at and leaves the count alone.
     """
     parts: list[str] = []
     for row in rows:
@@ -109,7 +109,7 @@ class NoticeBook:
         "Moved" is the open set plus the counts that mean a person was hurt
         again. An open cause mails when its count changes. A blocked cause
         mails when its count doubles. A dead-man probe does neither: it
-        refreshes last_seen and leaves the count alone, so a belt that is
+        refreshes last_seen_at and leaves the count alone, so a belt that is
         still dead does not page every five minutes.
 
         Monday always sends, so a quiet week still proves the Action is alive —

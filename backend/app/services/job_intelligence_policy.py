@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 
 from app.services.listing_time import verdict as listing_time
 
@@ -73,30 +73,13 @@ def parse_datetime(value: object) -> datetime | None:
     return parsed
 
 
-def marker_to_iso_date(value: object) -> str | None:
-    if isinstance(value, datetime):
-        return value.date().isoformat()
-    if isinstance(value, date):
-        return value.isoformat()
-    text = str(value or "").strip()
-    if len(text) == 8 and text.isdigit():
-        try:
-            return datetime.strptime(text, "%Y%m%d").date().isoformat()
-        except ValueError:
-            return None
-    try:
-        return date.fromisoformat(text[:10]).isoformat()
-    except ValueError:
-        return None
-
-
 def listing_confidence(
     row: dict,
     *,
     now: datetime,
 ) -> tuple[str, bool]:
-    """Stored lifecycle wins. Where there is none, a fresh `last_seen` is not
-    evidence the listing is open — only a confirmation is."""
+    """Stored lifecycle wins. Where there is none, only a confirmation
+    says the listing is open."""
     when = listing_time(row, now=now)
     is_stale = when.state != "confirmed_open"
     closure_reports = _count(row, "apply_link_closed_count") + _count(

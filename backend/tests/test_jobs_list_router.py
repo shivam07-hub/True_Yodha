@@ -68,6 +68,15 @@ class _FakeQuery:
         self._order = (key, desc)
         return self
 
+    @property
+    def not_(self) -> "_FakeQuery":
+        return self
+
+    def is_(self, key: str, value: str) -> "_FakeQuery":
+        if value == "null":
+            self._rows = [row for row in self._rows if row.get(key) is not None]
+        return self
+
     def limit(self, count: int) -> "_FakeQuery":
         self._limit = count
         return self
@@ -421,12 +430,12 @@ def _clear_feed_ts_cache() -> None:
     debounce._LOCAL_CLAIMS.clear()
 
 
-def test_get_feed_updated_at_uses_last_seen_date() -> None:
+def test_get_feed_updated_at_uses_the_newest_receipt() -> None:
     _clear_feed_ts_cache()
     db = _SearchFakeDB({
         "jobs": [
-            {"last_seen": 20260519},
-            {"last_seen": 20260520},
+            {"ingested_at": "2026-05-19T08:00:00+00:00"},
+            {"ingested_at": "2026-05-20T18:30:00+00:00"},
         ]
     })
 

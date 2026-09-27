@@ -115,7 +115,7 @@ Myro is.
 
 ## Public Vocab Lock (PR2, 2026-05-26)
 
-User-facing labels for four surfaces. Code identifiers (file names, components, hooks, CSS classes, DB columns, routes, GA4 event keys) are **frozen** at their old names — only visible copy moved. Backend service `forge_service.py`, table `forge_sessions`, column `user_profiles.ninja_name`, routes `/forge` / `/intel` (alias for `/market`) / `/home` / `/profile/{ninja_name}` are durable contracts and intentionally retain the old vocabulary.
+User-facing labels for four surfaces. Code identifiers (file names, components, hooks, CSS classes, DB columns, routes, GA4 event keys) are **frozen** at their old names — only visible copy moved. Table `forge_sessions`, column `user_profiles.ninja_name`, routes `/forge` / `/intel` (alias for `/market`) / `/home` / `/profile/{ninja_name}` are durable contracts and intentionally retain the old vocabulary. Level thresholds live in `frontend/lib/level-thresholds.ts`.
 
 | Surface | User-facing label | Old aliases to avoid in copy |
 |---------|------------------|------------------------------|

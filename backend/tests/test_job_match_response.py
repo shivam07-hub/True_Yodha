@@ -36,7 +36,7 @@ def test_to_job_match_preserves_row_batch_week_for_historical_cards() -> None:
 
     assert match.batch_week == date(2026, 5, 25)
     assert match.first_seen == "2026-06-01"
-    assert match.last_seen_at == "2020-01-01"
+    assert match.last_seen_at is None
     assert match.is_stale is True
     assert match.is_active is False
     assert match.is_recommended is True
