@@ -21,12 +21,12 @@ import { DirectionChoice } from "@/components/onboarding/direction-choice"
 import { LocationChoice } from "@/components/onboarding/location-choice"
 import { StepHead } from "@/components/journey/journey-chrome"
 import { formatCount } from "@/lib/format"
+import { MAX_TARGET_LOCATIONS } from "@/lib/location-catalog"
 import type { CareerBand, CareerBandOption, RoleFamily, TargetSeniority } from "@/lib/api"
 import { FamilySkills } from "@/components/target-role/family-skills"
 import { cn } from "@/lib/utils"
 
 export const MAX_ROLES = 3
-export const MAX_LOCATIONS = 3
 
 const SENIORITY_LABEL: Record<Exclude<TargetSeniority, "any">, string> = {
   intern: "Internship", entry: "Entry-level", mid: "Mid-level",
@@ -280,13 +280,13 @@ export function WhereStep({
     <>
       <StepHead
         title="Where"
-        lede={`Up to ${MAX_LOCATIONS} cities you would actually move for, or remote. Leave it open and Myro searches everywhere.`}
+        lede={`Up to ${MAX_TARGET_LOCATIONS} cities you would actually move for, or remote. Leave it open and Myro searches everywhere.`}
       />
       <LocationChoice
         totalOpen={totalOpen}
         options={options}
         selected={selected}
-        max={MAX_LOCATIONS}
+        max={MAX_TARGET_LOCATIONS}
         onChange={onChange}
       />
     </>
