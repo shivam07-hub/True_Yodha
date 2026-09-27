@@ -28,7 +28,7 @@ Item numbers are historical and carry no priority meaning.
 
 | Work | Where | State |
 |---|---|---|
-| **Job ingestion stopped 2026-09-17** | scraper repo `CLAUDE.md` → PENDING WORK 00 | **re-measured 2026-09-27: 0 new jobs in 7 days, 5 in 18.** 2026-09-09 was a 23,140-row BULK LOAD, not a healthy rate — the stop is 09-17. Corpus is FROZEN, not shrinking: retirements are **0 in 14 days**, not 2,715 in 6. Alarm shipped (#16 · 3d); the fix is Shivam's |
+| **Job ingestion stopped 2026-09-09** | scraper repo `CLAUDE.md` → PENDING WORK 00 | **Heartbeat, 2026-09-27: `max(job_source_runs.started_at)` = 2026-09-09, 438h — 2.6× the 168h `stalled` threshold.** Not 09-17: the only row since is ONE job with `ingestion_source='extension'` and a null `last_source_run_id` — a user saving through the extension, the exact masking `ingestion_health` warns about (**never measure this with `jobs.ingested_at`**). 09-09 was a 23,140-row bulk load, not a rate. Corpus FROZEN, not shrinking. `dead_man:job_ingestion` has been **open since 09-23, firing daily** — the alarm works; nobody is home to hear it. Structural fix below; the scraper bug is Shivam's |
 | Event-driven matching slices 3-5 | #36 | slices 1-2 shipped |
 | Ranked job-skill importance | #37 | blocked on scraper repo |
 | Semantic retrieval slices 2-3 | Tier 4 | blocked on scraper repo |
@@ -37,6 +37,12 @@ Item numbers are historical and carry no priority meaning.
 
 Engine built. This stage is about making tailoring the obvious next step after a
 match, not new machinery.
+
+### Revenue-gated — the FIRST thing when the platform earns (Shivam, 2026-09-27)
+
+| Work | Why it waits, and why it goes first when money starts |
+|---|---|
+| **Move job ingestion off a laptop and onto scheduled infrastructure** — Railway cron beside the verifier, which is reliable *precisely because* it runs there | Ingestion has **never** been scheduled. Seven run-days in 120, gaps of **32 · 19 · 5 · 2 · 1 · 1 · 18(open)** — it runs when Shivam runs it, from a local Codex automation. Every gap maps to him being busy, so fixing the scraper's own bug changes nothing structural: the next 32-day gap arrives the next time he is heads-down. Measured cost on 2026-09-27: **47,462 active jobs, ZERO younger than 7 days, mean age 42 days, 35% over 60 days, and only 8.4% re-verified in the last 14.** The corpus is not shrinking — it is aging, invisibly, and the core asset of a job product is its freshness. Gated on revenue because it is paid infrastructure, like #16's DB capacity; unblocked the day there is money to pay for it, and first in line then |
 
 ### Architecture specs — written 2026-09-27, Cursor implements
 
