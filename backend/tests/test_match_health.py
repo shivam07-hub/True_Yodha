@@ -47,7 +47,9 @@ def _health(repo, rows, *, upload=None, now=None, monkeypatch):
         def ranking_profile(self):
             return {}
     monkeypatch.setattr(jobs_workflow.targeting, "for_ranking", lambda repo, uid: _Brief())
-    return jobs_workflow.compute_match_health(repo, "u1", rows, now=now)
+    return jobs_workflow.compute_match_health(
+        repo, "u1", rows, now=now, freshness="not_asked"
+    )
 
 
 def test_vetted_when_any_row_has_eval(monkeypatch) -> None:
@@ -136,10 +138,12 @@ def test_covered_leaves_every_existing_verdict_alone(monkeypatch) -> None:
     assert health == "vetted"
 
 
-def test_freshness_not_asked_is_not_a_verdict(monkeypatch) -> None:
-    """Every caller that does not pay for the profile columns gets exactly the
-    answer it got before this state existed."""
+def test_not_asked_keeps_the_pre_state_answer(monkeypatch) -> None:
+    """A caller with no profile read says so. The answer is the one from
+    before Match Freshness existed. A real state is what the tests above name."""
     rows = [_row(vetted=False)]
     assert _health(_FakeRepo(), rows, monkeypatch=monkeypatch) == "overlap_only"
-    health = jobs_workflow.compute_match_health(_FakeRepo(), "u1", rows, freshness=None)
+    health = jobs_workflow.compute_match_health(
+        _FakeRepo(), "u1", rows, freshness="not_asked"
+    )
     assert health == "overlap_only"

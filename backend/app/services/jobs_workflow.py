@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Any, Literal
 
 from app.repositories.job_tracks import JobTracksRepository
@@ -11,7 +11,7 @@ from app.repositories.jobs import JobsRepository
 from app.repositories.scores import ScoresRepository
 from app.services import direction, job_importer, job_tracks, llm_ranker, onboarding_service
 from app.services.llm_provider import LLMProvider, get_judgment_provider
-from app.services.matching import candidate_pool, ranking, targeting
+from app.services.matching import candidate_pool, match_freshness, ranking, targeting
 from app.services.scoring.aspirations import fetch_aspiration_skills
 
 logger = logging.getLogger(__name__)
@@ -50,10 +50,10 @@ def _match_pool_nonempty(repo: JobsRepository, user_id: str) -> bool:
 def compute_match_health(
     repo: JobsRepository,
     user_id: str,
-    match_rows: list[dict[str, Any]],
+    match_rows: list[dict],
     *,
-    now: Any = None,
-    freshness: Any = None,
+    now: datetime | None = None,
+    freshness: match_freshness.Freshness | Literal["not_asked"],
 ) -> MatchHealth:
     """Honest state of a user's job matches, for the trust banner + free re-vet.
 
@@ -72,19 +72,15 @@ def compute_match_health(
     - ``empty``        — nothing to surface (no CV/skills, or the market genuinely
       has no overlapping jobs). NOT a failure; no retry offered.
 
-    `freshness` is a **Match Freshness** state supplied by the caller — the profile
-    columns it reads are not on this module's path, and only callers that already
-    pay for them should. Omitted (None) means "not asked", never "fine": the
-    answer is then exactly what it was before this state existed.
+    `freshness` is required. `"not_asked"` is the pre-state answer, and only a
+    caller that holds no profile may pass it. A Match Freshness state is the
+    one `match_freshness.state` already named.
     """
-    from datetime import datetime, timezone
-
     from app.repositories import cv_upload_jobs
 
     if freshness == "outstanding":
         return "stale_direction"
     if freshness == "running" and not match_rows:
-        # A run IS in flight for a direction saved minutes ago. Never `failed`.
         return "computing"
 
     if match_rows:

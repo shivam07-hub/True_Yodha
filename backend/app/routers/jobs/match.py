@@ -28,6 +28,18 @@ from app.services.job_projection import last_monday, to_job_match
 router = APIRouter()
 
 
+def _inventory_and_freshness(repo: JobsRepository, user_id: str):
+    """The inventory count and the Match Freshness state, one wave member.
+
+    The count's RPC already opens `user_profiles` for `last_match_run_at`.
+    The freshness columns are the rest of that same row, read here so the
+    banner can name `stale_direction` without a fourth fan-out section.
+    """
+    profile = repo.match_freshness_inputs(user_id)
+    count = new_inventory.count_for_user(repo, user_id)
+    return count, match_freshness.state(profile)
+
+
 @router.get("/my-skills/demand", response_model=UserSkillDemandResponse)
 def get_my_skill_demand(
     location_scoped: bool = False,
@@ -93,7 +105,7 @@ def get_job_matches(
             # 216ms; a 1-hop /cv/versions is 281ms). Whether this or the 46KB
             # raw_stack read actually sets the wave's wall time is what the
             # fanout.slow breakdown is here to answer — do not assume.
-            "new_jobs_count": lambda: new_inventory.count_for_user(repo, uid),
+            "new_jobs_count": lambda: _inventory_and_freshness(repo, uid),
         },
         label="jobs.matches",
     )
@@ -131,18 +143,20 @@ def get_job_matches(
     # Read in the concurrent wave above.
     # `None` = the count timed out. Nothing to announce and nothing to promise;
     # it is not zero, but it is not a number we can put on screen either.
-    new_jobs_count = reads["new_jobs_count"] or 0
+    new_jobs_count, freshness = reads["new_jobs_count"]
+    new_jobs_count = new_jobs_count or 0
 
     # The prompt the user actually sees. Projected off the read path so the feed
     # never waits on the inbox write, debounced inside the repo.
     if new_jobs_count > 0:
         background_tasks.add_task(new_inventory.announce_for_user, principal.id, new_jobs_count)
 
-    # No freshness here on purpose: a read for it would be a new round trip on
-    # the hottest authed path (`test_read_contract`), and `/users/me` already
-    # holds the two columns. `match_run_outstanding` on the profile is the same
-    # fact, paid for once, on a read every authed page already makes.
-    match_health = jobs_workflow.compute_match_health(repo, principal.id, rows)
+    # The two timestamps ride in the same wave member as the inventory count.
+    # A fourth section would blow the fan-out budget; omitting the state is
+    # what let a changed direction read as vetted.
+    match_health = jobs_workflow.compute_match_health(
+        repo, principal.id, rows, freshness=freshness
+    )
     vetted_count = sum(1 for r in rows if r.get("overall_score") is not None)
 
     return JobMatchesResponse(
