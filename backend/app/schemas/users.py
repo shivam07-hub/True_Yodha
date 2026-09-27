@@ -12,8 +12,37 @@ CareerBand = Literal[
 ]
 
 
+class DirectionOut(BaseModel):
+    """What this person is aiming at — the ONE answer every surface renders.
+
+    Before this, nine places in the frontend rebuilt the target from the raw
+    columns below and five of them disagreed: two fell back to `target_roles`,
+    Practice stopped at `target_role_title`, `/market` read `target_roles`
+    alone, and the CV page answered "needs a target?" from whether the scoping
+    key was empty — so a user whose scope was blank was told to pick a target
+    that their own Career Path page was showing them.
+
+    The raw columns stay on the wire for now; this is what a surface reads.
+    """
+
+    #: Shown to humans.
+    titles: list[str] = []
+    #: What the matcher scopes on. Corpus families — the SAME strings as
+    #: `titles` for anyone the picker wrote (CONTEXT.md §1023).
+    families: list[str] = []
+    primary_title: str | None = None
+    #: The one answer to "does this person need a target?". Titles alone count.
+    is_set: bool = False
+    #: A role-targeted search will scope on something.
+    is_runnable: bool = False
+    #: What a search can honestly promise: targeted · skills_only · none.
+    scope_mode: str = "none"
+
+
 class UserProfileResponse(BaseModel):
     email: EmailStr
+    #: Read this, not the raw target columns.
+    direction: DirectionOut | None = None
     full_name: str | None
     linkedin_url: str | None
     target_roles: list[str]

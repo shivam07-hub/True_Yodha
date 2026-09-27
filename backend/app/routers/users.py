@@ -27,7 +27,7 @@ from app.schemas import (
 from app.services import followed_companies
 from app.services import forward_pass
 from app.services.matching import match_freshness
-from app.services import skill_correction, targeting_write
+from app.services import direction, skill_correction, targeting_write
 from app.services.job_eligibility import (
     career_band_for_profile,
     reported_target_seniority,
@@ -74,6 +74,10 @@ def get_me(
     # Read AFTER the pass: it may have just enqueued the run, and the honest
     # answer is still "outstanding" until that run lands and stamps.
     profile["match_run_outstanding"] = match_freshness.is_outstanding(profile)
+    # Computed AFTER the pass, for the same reason `match_run_outstanding` is:
+    # a pass may have just restored a scope, and the honest answer is the one
+    # that includes it. Pure and free — the profile is already in hand.
+    profile["direction"] = direction.of(profile).to_dict()
     has_cv, skills_confirmed = reads["baseline"]
     profile["has_cv"] = has_cv
     profile["skills_confirmed"] = skills_confirmed

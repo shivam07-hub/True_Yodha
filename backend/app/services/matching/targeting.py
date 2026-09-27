@@ -43,7 +43,10 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.services.direction import Direction
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +70,19 @@ class TargetingBrief:
 
     # ── ranking half ─────────────────────────────────────────────────────────
 
+    def direction(self) -> "Direction":
+        """What this person is aiming at — the SAME answer `/users/me` renders.
+
+        One definition for the screen and for the run. The Career Ops run read
+        the raw scoping key in seven places and derived the aspiration skills
+        from it, so a blank scope meant a run with no idea what the person
+        wanted — and it said nothing, because the fallback to skill overlap was
+        silent. `scope_mode` is what ends that silence.
+        """
+        from app.services.direction import of
+
+        return of(self.profile)
+
     def ranking_profile(self) -> dict[str, Any]:
         """The targeting dict the matcher + Career Ops prompt consume.
 
@@ -79,6 +95,10 @@ class TargetingBrief:
             prof["known_facts"] = [
                 f"{fact.kind}: {fact.text}" for fact in self.facts[:_PROMPT_FACTS_CAP]
             ]
+        # What this run can honestly promise. Carried on the same dict every
+        # ranking path already reads, so a caller cannot scope on nothing
+        # without the answer travelling beside it.
+        prof["scope_mode"] = self.direction().scope_mode
         return prof
 
     # ── pre-flight half ──────────────────────────────────────────────────────
