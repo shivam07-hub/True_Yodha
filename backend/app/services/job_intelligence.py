@@ -16,6 +16,7 @@ from app.services.job_intelligence_policy import (
     validate_feedback,
     visible_count,
 )
+from app.services.listing_time import verdict as listing_time
 
 
 @dataclass(frozen=True)
@@ -249,12 +250,11 @@ def _to_job_pulse(row: dict, *, now: datetime) -> JobPulse:
     confidence, is_stale = listing_confidence(row, now=now)
     outcome_count = row.get("outcome_count")
     quality_count = row.get("quality_report_count")
+    confirmed = listing_time(row, now=now).confirmed_at
     return JobPulse(
         job_id=str(row["job_id"]),
         first_seen_at=marker_to_iso_date(row.get("first_seen")),
-        last_verified_at=marker_to_iso_date(
-            row.get("last_verified_live_at") or row.get("last_seen")
-        ),
+        last_verified_at=confirmed.date().isoformat() if confirmed else None,
         is_stale=is_stale,
         listing_confidence=confidence,
         tracking_count=visible_count(
