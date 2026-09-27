@@ -8,7 +8,7 @@
  * already reads.
  *
  * Blurbs are Finlatics' own program lines, tightened to one sentence.
- * Prep shows them on hover/click before the apply form.
+ * Prep shows them on the card, beside the apply link.
  */
 
 export const FINLATICS_ORIGIN = "https://www.finlatics.com"
@@ -120,6 +120,12 @@ export const FINLATICS_PROGRAMS: readonly FinlaticsProgram[] = [
     blurb: "Python in Colab. Supervised and unsupervised learning algorithms.",
   },
 ]
+
+/** The programme's photo, cropped from Finlatics' own info card
+ *  (1080×560, one aspect for all eleven so the card never jumps height). */
+export function finlaticsPhotoSrc(program: FinlaticsProgram): string {
+  return `/finlatics/${program.id}.jpg`
+}
 
 export function finlaticsHref(program: FinlaticsProgram, src = FINLATICS_SRC): string {
   const url = new URL(program.path, FINLATICS_ORIGIN)

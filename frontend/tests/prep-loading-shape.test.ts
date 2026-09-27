@@ -44,7 +44,7 @@ test("The rail carries the head, the pips, then training above skill path and au
   assert.ok(train > 0 && skill > train && audit > skill, "rail order changed")
 })
 
-test("The Finlatics block shows three matched programmes, never the catalogue", () => {
+test("With rooms, the Finlatics block shows three matched programmes, not the catalogue", () => {
   const train = code("components/preparations/training-card.tsx")
   const trainCss = read("components/preparations/training-card.css")
 
@@ -59,6 +59,35 @@ test("The Finlatics block shows three matched programmes, never the catalogue", 
   // Only the matched card spends accent.
   assert.match(trainCss, /\.prp-course\.is-matched/)
   assert.match(trainCss, /\.prp-train \{[\s\S]*?margin-top:\s*auto/)
+})
+
+test("No rooms: the rail picks a Finlatics programme, the main column shows it", () => {
+  const shell = code("components/preparations/prep-shell.tsx")
+  const rail = code("components/preparations/prep-rail.tsx")
+  const shelf = code("components/preparations/training-shelf.tsx")
+  const shelfCss = read("components/preparations/training-shelf.css")
+
+  // The dashed "Nothing to prep yet" box is gone; the shelf takes its place.
+  assert.doesNotMatch(shell, /Nothing to prep yet/)
+  assert.match(shell, /<TrainingDetail\b/)
+  assert.match(rail, /<TrainingPicker\b/)
+  // The picker stands where rooms would, above skill path and audit.
+  assert.ok(rail.indexOf("<TrainingPicker") < rail.indexOf("<SkillPathRail"))
+
+  // Matched on the target band through the Skill path's own query — no
+  // second request for the same payload.
+  assert.match(shell, /useCareerSkillPath\(\)/)
+  assert.match(shell, /\.training\b/)
+  assert.doesNotMatch(shell, /careerSkillPath\.get\(/)
+
+  // One programme, one photo, the canonical Button — not a hand-rolled CTA.
+  assert.match(shelf, /finlaticsPhotoSrc\(program\)/)
+  assert.match(shelf, /FINLATICS_BRAND_LABEL/)
+  assert.match(shelf, /FINLATICS_APPLY_LABEL/)
+  assert.match(shelf, /from "@\/components\/ui\/button"/)
+  assert.doesNotMatch(shelf, /prp-btn/)
+  // The `why` is not clickable, so it does not wear the interactive colour.
+  assert.match(shelfCss, /\.prp-program-why \{[^}]*color: var\(--tm-text\);/)
 })
 
 test("Skeleton matches the live workspace so the swap does not move the page", () => {

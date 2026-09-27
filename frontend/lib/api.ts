@@ -6170,7 +6170,8 @@ export interface PrepLadderResponse {
   rooms: LadderRoom[]
   totals: LadderTotals
   training: TrainingMatch[]
-  training_note: string
+  /** Null when no room is live — there is no board to say anything about. */
+  training_note: string | null
 }
 
 /** Step 3's record for one room. `rehearsed` holds STORY ids, not requirement
