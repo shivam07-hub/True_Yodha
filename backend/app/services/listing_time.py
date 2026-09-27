@@ -4,7 +4,8 @@ Readers used to subtract `now − last_seen` and believe they were measuring
 re-observation. `last_seen` has never moved on any row, so that subtraction
 was discovery age. This module is the only place that answers the four
 questions, converts a YYYYMMDD marker, or names how long a confirmation
-stays sayable. It does no I/O and reads no clock.
+stays sayable. `ListingTime.card()` is how a verdict reads on a job card.
+It does no I/O and reads no clock.
 
 | Question | Column | On the verdict |
 |---|---|---|
@@ -70,6 +71,19 @@ class ListingTime:
     #: Distinct from `confirmed_at`: a close stamps this and does not stamp
     #: `last_verified_live_at`. None when absent or unparseable.
     checked_at: datetime | None = None
+
+    def card(self) -> dict[str, Any]:
+        """The three listing fields every job card carries, from this verdict.
+
+        The only place a verdict becomes wire fields. A card that built them
+        itself handed the raw YYYYMMDD integer to a string field and omitted
+        `is_stale`, which then defaulted to "confirmed open".
+        """
+        return {
+            "first_seen": None if self.discovered_on is None else self.discovered_on.isoformat(),
+            "last_seen_at": None if self.confirmed_at is None else self.confirmed_at.date().isoformat(),
+            "is_stale": self.state != "confirmed_open",
+        }
 
 
 def verdict(row: Mapping[str, Any], *, now: datetime) -> ListingTime:

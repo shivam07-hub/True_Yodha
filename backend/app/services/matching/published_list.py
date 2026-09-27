@@ -7,7 +7,10 @@ pool, or the skills the skipped roles asked for.
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
+
+from app.services.listing_time import verdict as listing_time
 
 SHOW_FLOOR = 3.5
 WORTH = frozenset({"Apply", "Negotiate"})
@@ -227,7 +230,7 @@ def _card(row: dict[str, Any]) -> dict[str, Any]:
         "max_years_experience": job.get("max_years_experience"),
         "industry": job.get("industry"),
         "source_url": job.get("apply_url"),
-        "first_seen": job.get("first_seen"),
+        **listing_time(job, now=datetime.now(timezone.utc)).card(),
         "is_active": bool(job.get("is_active", True)),
         "skills": skills[:8],
         "matched_skills": matched,

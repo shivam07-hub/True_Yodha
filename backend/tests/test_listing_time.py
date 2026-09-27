@@ -224,3 +224,27 @@ def test_day_is_total_and_marker_is_the_column_integer():
     assert day("not a day") is None
     assert day(None) is None
     assert marker(date(2026, 4, 26)) == 20260426
+
+
+def test_a_card_reads_the_verdict_not_the_column():
+    """The /market card handed the raw integer to a string field and 500'd
+    for every user with a kept job. A card's three listing fields come from
+    one verdict, and the marker never reaches the wire as an integer."""
+    unconfirmed = verdict(_row(), now=NOW).card()
+    assert unconfirmed == {
+        "first_seen": "2026-07-11",
+        "last_seen_at": None,
+        "is_stale": True,
+    }
+
+    stamp = NOW - timedelta(days=1)
+    confirmed = verdict(_row(last_verified_live_at=stamp.isoformat()), now=NOW).card()
+    assert confirmed == {
+        "first_seen": "2026-07-11",
+        "last_seen_at": stamp.date().isoformat(),
+        "is_stale": False,
+    }
+
+
+def test_a_card_with_no_marker_says_so():
+    assert verdict(_row(first_seen=None), now=NOW).card()["first_seen"] is None

@@ -1743,9 +1743,7 @@ class JobsRepository:
             "max_years_experience": row.get("max_years_experience"),
             "industry": row.get("industry_group") or row.get("industry"),
             "source_url": row.get("apply_url"),
-            "first_seen": None if when.discovered_on is None else when.discovered_on.isoformat(),
-            "last_seen_at": None if when.confirmed_at is None else when.confirmed_at.date().isoformat(),
-            "is_stale": when.state != "confirmed_open",
+            **when.card(),
             "is_active": bool(row.get("is_active", True)),
             "listing_confidence": row.get("listing_confidence"),
             "last_verified_live_at": row.get("last_verified_live_at"),
@@ -1755,8 +1753,8 @@ class JobsRepository:
             "target_role_match": role_match,
         }
 
-    #: The finite list's size. One number, read by the API response so the copy
-    #: ("40 roles, chosen for you") can never drift from what was returned.
+    #: How many jobs `shortlist_jobs` returns by default. Partner alerts read it.
+    #: The authed /market list is `matching/published_list` and has no cap.
     SHORTLIST_SIZE = 40
 
     def shortlist_jobs(
@@ -1767,9 +1765,12 @@ class JobsRepository:
         target_roles: list[str] | None = None,
         limit: int | None = None,
     ) -> list[dict[str, Any]]:
-        """The finite list: every job this person should see, and nothing else.
+        """Deterministic retrieval: the jobs this person should see, no LLM.
 
-        Replaces `feed_jobs`, which sampled 500 rows ordered by a date 88% of the
+        Partner alerts ride it. The authed /market list does not — since
+        2026-09-26 it is what the career-ops judge kept (`published_list`).
+
+        Replaced `feed_jobs`, which sampled 500 rows ordered by a date 88% of the
         corpus shared and filtered them for the user afterwards. One user's whole
         feed measured 34 jobs out of 38,824 and her Match Quality recall was 0%.
         `candidates_for_user` filters the WHOLE corpus per user first and ranks

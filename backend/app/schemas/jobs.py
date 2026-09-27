@@ -214,9 +214,11 @@ class JobMatchResponse(BaseModel):
     work_mode: str | None = None
     min_years_experience: int | None = None
     max_years_experience: int | None = None
-    first_seen: str | None = None
-    last_seen_at: str | None = None
-    is_stale: bool = False
+    # Listing time: from `ListingTime.card()`, never defaulted. A default of
+    # False was a builder that forgot saying "confirmed open".
+    first_seen: str | None
+    last_seen_at: str | None
+    is_stale: bool
     is_active: bool = True
     # Matching Brain (Career Ops 5-axis eval) — null until the LLM stage runs
     overall_score: float | None = None  # 0.0–5.0
@@ -643,7 +645,7 @@ class JobSearchResponse(BaseModel):
 
 
 class JobFeedItem(BaseModel):
-    """One job card in the authed /market feed (browse, not scored)."""
+    """One job card: the authed /market list (`published_list`) and Agent Picks."""
 
     job_id: str
     job_title: str
@@ -665,9 +667,11 @@ class JobFeedItem(BaseModel):
     max_years_experience: int | None = None
     industry: str | None = None
     source_url: str | None = None
-    first_seen: str | None = None  # ISO date derived from the feed marker
-    last_seen_at: str | None = None  # ISO date of a real open-confirmation, or absent
-    is_stale: bool = False  # not confirmed open — warn before Apply 404
+    # Listing time: from `ListingTime.card()`, never defaulted. A default of
+    # False was a builder that forgot saying "confirmed open".
+    first_seen: str | None  # ISO discovery day
+    last_seen_at: str | None  # ISO day of a real open-confirmation, or None
+    is_stale: bool  # not confirmed open — warn before Apply 404
     is_active: bool = True
     skills: list[str] = []  # top main_skills display names, capped
     matched_skills: list[str] = []  # which of the requesting user's CV skills this job needs (T3-1)

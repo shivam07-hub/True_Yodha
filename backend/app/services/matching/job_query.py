@@ -8,8 +8,8 @@ dict. It does NOT rewrite public_job_query / search_jobs_by_filters —
 those stay the single home of the query SQL. See CONTEXT.md "JobQuery".
 
 There is no `feed` resolver: the authed /market list is not a filtered search.
-`JobsRepository.shortlist_jobs` asks `candidates_for_user` for the forty jobs one
-person should see, and a FilterSpec has nothing to say about it.
+It is what this person's career-ops judge kept (`matching/published_list`), and a
+FilterSpec has nothing to say about it.
 """
 from __future__ import annotations
 

@@ -3,11 +3,12 @@
 Deliberately LLM-free. Myro's ranked match is user-pulled because ranking costs
 provider budget and Shivam's model is "compute follows intent" (see
 `services/new_inventory.py`). A partner alert fires for people who are not on the
-site and may never come back, so it rides the same deterministic retrieval the
-/market list uses — `shortlist_jobs`, which asks `candidates_for_user` for the
-jobs this one person should see — and never the Matching Brain. One retrieval for
-both surfaces is the point: while the feed sampled 500 rows by a shared date, a
-partner carrying 37% of our users was being handed the same arbitrary slice. Cached brain verdicts are not consulted either:
+site and may never come back, so it rides deterministic retrieval —
+`shortlist_jobs`, which asks `candidates_for_user` for the jobs this one person
+should see — and never the Matching Brain. The authed /market list is a
+different read: what the career-ops judge kept (`published_list`).
+While the feed sampled 500 rows by a shared date, a partner carrying 37% of our
+users was being handed an arbitrary slice. Cached brain verdicts are not consulted either:
 a payload that sometimes carries a score and sometimes doesn't is worse for the
 partner than one that never does.
 

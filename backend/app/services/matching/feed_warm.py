@@ -45,7 +45,7 @@ _WARM_CLAIM_SECONDS = 180
 # purpose (CEO decision): a real "top picks" set, not the whole feed. Everything
 # below stays fast deterministic overlap.
 # Named for the warm, not for the list: `repositories.jobs.SHORTLIST_SIZE` is 40
-# and means the length of the finite list. Two numbers shared one name until
+# and is `shortlist_jobs`' default depth. Two numbers shared one name until
 # 2026-09-25, which is one grep away from a wrong constant.
 WARM_SHORTLIST_SIZE = 10
 

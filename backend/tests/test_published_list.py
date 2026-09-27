@@ -73,3 +73,42 @@ def test_a_replaced_cv_is_named_while_the_new_one_is_read() -> None:
     assert text is not None
     assert text.startswith("These matches are for the CV you replaced.")
     assert "Read 0 of 40 jobs" in text
+
+
+def test_a_kept_job_is_a_valid_card() -> None:
+    """`jobs.first_seen` is a YYYYMMDD integer. The card passed it through,
+    `JobFeedItem` refused it, and /jobs/feed returned 500 to all 53 users
+    with a kept job (Notice `ValidationError:list.py:<listcomp>`)."""
+    from app.schemas.jobs import JobFeedItem
+    from app.services.matching.published_list import _card
+
+    card = JobFeedItem(**_card({
+        "job_id": "j1",
+        "overall_score": 4.2,
+        "recommendation": "Apply",
+        "jobs": {
+            "job_title": "Data Analyst",
+            "first_seen": 20260915,
+            "last_seen": 20260915,
+            "is_active": True,
+            "listing_confidence": "active",
+            "last_verified_live_at": None,
+        },
+    }))
+
+    assert card.first_seen == "2026-09-15"
+    assert card.last_seen_at is None
+    # Never checked is not confirmed open.
+    assert card.is_stale is True
+
+
+def test_a_card_that_omits_listing_time_does_not_validate() -> None:
+    """A default of `is_stale=False` let a builder that forgot the field
+    claim every listing was confirmed open. The card must say."""
+    import pytest
+    from pydantic import ValidationError
+
+    from app.schemas.jobs import JobFeedItem
+
+    with pytest.raises(ValidationError):
+        JobFeedItem(job_id="j1", job_title="t", company_name=None, job_description=None)
