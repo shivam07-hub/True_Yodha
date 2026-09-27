@@ -56,9 +56,11 @@ def test_fresh_inflow_raises_pulse() -> None:
 
 def test_staleness_lowers_pulse() -> None:
     fresh = compute_pulse(50, 5, 0)
-    stale = compute_pulse(50, 5, 40)  # beyond the 21-day window → freshness 0
+    stale = compute_pulse(50, 5, 40)  # past the confirmation window → freshness 0
     assert fresh is not None and stale is not None
     assert fresh > stale
+    # 21 days used to sit inside a private window. It is the same zero as 40.
+    assert compute_pulse(50, 5, 21) == stale
 
 
 def test_missing_last_seen_treated_as_stale_not_crash() -> None:
