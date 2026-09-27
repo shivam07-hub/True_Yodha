@@ -88,6 +88,8 @@ def test_silent_belt_opens_a_dead_man_notice(monkeypatch):
     _patch(monkeypatch, FakeDB(_ago(96)))
     try:
         assert check_belt().state == "stalled"
+        from app.services.probe import VERIFIER, open_notice
+        open_notice(VERIFIER, "stalled")
         rows = book.snapshot()
         assert len(rows) == 1
         assert rows[0].cause_key == "dead_man:listing_verifier"

@@ -110,18 +110,10 @@ def compute_match_health(
     return "failed" if _match_pool_nonempty(repo, user_id) else "empty"
 
 
-def _iso_age_seconds(ref: Any, now: Any) -> float | None:
-    from datetime import datetime, timezone
+def _iso_age_seconds(ref: object, now: datetime) -> float | None:
+    from app.services.probe import age_seconds
 
-    if not ref:
-        return None
-    try:
-        ts = datetime.fromisoformat(str(ref))
-    except (ValueError, TypeError):
-        return None
-    if ts.tzinfo is None:
-        ts = ts.replace(tzinfo=timezone.utc)
-    return (now - ts).total_seconds()
+    return age_seconds(ref, now)
 
 
 # Two-tier brain sizing (career-ops shape). The deterministic pre-filter hands a

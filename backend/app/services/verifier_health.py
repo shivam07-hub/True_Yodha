@@ -18,48 +18,17 @@ from datetime import datetime, timedelta, timezone
 
 from app.config import settings
 from app.database import get_supabase_admin
+from app.services.probe import BeltState, _age_hours, remember, reset_cache as _reset
 
 log = logging.getLogger(__name__)
 
 
-@dataclass
-class _CachedCheck:
-    at: datetime
-    state: str
-    stale_hours: float | None
-    productive_stale_hours: float | None
-    priority_backlog: int | None
-
-
-_cache: _CachedCheck | None = None
-
-
 @dataclass(frozen=True)
 class BeltHealth:
-    state: str  # ok | degraded | stalled | unknown
+    state: BeltState
     stale_hours: float | None
     productive_stale_hours: float | None = None
     priority_backlog: int | None = None
-
-
-def _age_hours(raw: object, now: datetime) -> float | None:
-    if not raw:
-        return None
-    try:
-        stamp = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if stamp.tzinfo is None:
-        stamp = stamp.replace(tzinfo=timezone.utc)
-    return round((now - stamp).total_seconds() / 3600, 2)
-
-
-def _emit(health: BeltHealth) -> BeltHealth:
-    if health.state in ("stalled", "degraded"):
-        from app.notice import Sighting, observe
-
-        observe(Sighting.dead_man(belt="listing_verifier"))
-    return health
 
 
 def _evaluate(now: datetime) -> BeltHealth:
@@ -80,7 +49,7 @@ def _evaluate(now: datetime) -> BeltHealth:
         # Nothing ever claimed. Real on a fresh corpus, and still worth saying
         # out loud — an unstarted belt and a dead one look identical to a user.
         log.warning("metric job_verifier.alert reason=never_ran")
-        return _emit(BeltHealth("stalled", None))
+        return BeltHealth("stalled", None)
 
     stale_hours = _age_hours(raw_attempt, now)
     productive_stale_hours = _age_hours(snapshot.get("last_productive"), now)
@@ -95,9 +64,9 @@ def _evaluate(now: datetime) -> BeltHealth:
             "metric job_verifier.alert reason=dead_man stale_hours=%.2f threshold_hours=%d",
             stale_hours, settings.verifier_dead_man_hours,
         )
-        return _emit(BeltHealth(
+        return BeltHealth(
             "stalled", stale_hours, productive_stale_hours, priority_backlog
-        ))
+        )
     if (
         productive_stale_hours is None
         or productive_stale_hours > settings.verifier_dead_man_hours
@@ -109,37 +78,22 @@ def _evaluate(now: datetime) -> BeltHealth:
             settings.verifier_dead_man_hours,
             priority_backlog,
         )
-        return _emit(BeltHealth(
+        return BeltHealth(
             "degraded", stale_hours, productive_stale_hours, priority_backlog
-        ))
+        )
     return BeltHealth("ok", stale_hours, productive_stale_hours, priority_backlog)
 
 
 def check_belt(now: datetime | None = None) -> BeltHealth:
-    """Belt health, at most one DB read per configured interval."""
-    global _cache
+    """Belt health, at most one DB read per configured interval.
+
+    Returns a state and writes nothing. Opening the Notice is `probe.open_notice`.
+    """
     now = now or datetime.now(timezone.utc)
     interval = timedelta(minutes=settings.verifier_health_interval_minutes)
-    if _cache is not None and now - _cache.at < interval:
-        return BeltHealth(
-            _cache.state,
-            _cache.stale_hours,
-            _cache.productive_stale_hours,
-            _cache.priority_backlog,
-        )
-
-    health = _evaluate(now)
-    _cache = _CachedCheck(
-        at=now,
-        state=health.state,
-        stale_hours=health.stale_hours,
-        productive_stale_hours=health.productive_stale_hours,
-        priority_backlog=health.priority_backlog,
-    )
-    return health
+    return remember("verifier", now, interval, lambda: _evaluate(now))
 
 
 def reset_cache() -> None:
     """Test seam — drops the throttle window."""
-    global _cache
-    _cache = None
+    _reset("verifier")

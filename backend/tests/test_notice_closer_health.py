@@ -54,7 +54,10 @@ def _check(monkeypatch, rows, *, boom=False, emitted=None):
     if emitted is not None:
         import app.notice as notice
         monkeypatch.setattr(notice, "observe", lambda sighting: emitted.append(sighting))
-    return notice_closer_health.check_closer(NOW)
+    health = notice_closer_health.check_closer(NOW)
+    from app.services.probe import CLOSER, open_notice
+    open_notice(CLOSER, health.state)
+    return health
 
 
 def _ran(hours_ago: float) -> list[dict]:
