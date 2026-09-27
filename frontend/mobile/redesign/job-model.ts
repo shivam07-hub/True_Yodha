@@ -198,7 +198,7 @@ export function feedItemToRow(j: JobFeedItem): MobileJobRow {
     role: j.job_title,
     location: j.location ?? j.location_city ?? j.location_country ?? null,
     mode: j.location_mode ?? null,
-    ago: compactAge(j.last_seen_at ?? j.first_seen),
+    ago: compactAge(j.first_seen),
     fit,
     verdict: j.verdict,
     grade: null,
@@ -207,7 +207,10 @@ export function feedItemToRow(j: JobFeedItem): MobileJobRow {
     matched,
     gaps,
     sourceUrl: j.source_url ?? null,
-    verified: j.last_seen_at ? `verified ${compactAge(j.last_seen_at)} ago` : "",
+    verified:
+      j.is_stale || !j.last_verified_live_at
+        ? ""
+        : `verified ${compactAge(j.last_verified_live_at)} ago`,
     move: "",
   })
 }

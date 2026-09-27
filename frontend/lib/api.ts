@@ -3830,8 +3830,9 @@ export interface JobFeedItem {
   industry?: string | null
   source_url?: string | null
   first_seen?: string | null
-  last_seen_at?: string | null  // ISO date the scraper last confirmed it live
-  is_stale?: boolean            // unseen >21d — warn before the Apply link 404s
+  last_seen_at?: string | null  // discovery marker; not a check
+  last_verified_live_at?: string | null
+  is_stale?: boolean            // not confirmed open — warn before the Apply link 404s
   is_active: boolean
   skills: string[]
   matched_skills?: string[]  // which of `skills` the user's CV covers — ✓/✗ chip marking (T3-1)
