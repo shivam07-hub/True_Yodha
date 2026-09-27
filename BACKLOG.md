@@ -119,6 +119,14 @@ residual. This file holds open work. Closed work leaves.
 
 ### TIER 1 — do next (high value ÷ low effort)
 
+- **Notice digest triage, 2026-09-28** (hello@himyro.com, 20 open). Closed on Develop: `/jobs/feed` card 500 (`0dd2927e`) and the direction-write 500 (`6df73e5d`). **Both still live on prod**: branch `notice-close/record-from-profile-and-market-card` (from `main`, two commits, only those Notices' files) needs Shivam's push to `main`. Open, each root-caused from Railway/Supabase logs:
+  - `create_user_if_absent` on `POST /partner/v1/sso/session` (28): **a race, not a lookup miss.** Two identical SSO calls in one second; GoTrue's second insert hits `users_email_partial_key` and returns 500 "Database error creating new user", not `email_exists`. The winner links fine; the partner sees a 500 on ~18% of new seats (28/156). Fix needs a takeover-gate design call: the loser should read the seat the winner linked.
+  - `work_lane:initial_match:APIError` (16, since 09-20): `candidate_jobs_for_user` hits `57014` statement timeout. Retry recovered the one checked. `/read-path-perf` the RPC plan before anything else; tied to #16.
+  - `upsert_application` (2): `PUT /jobs/applications/{id}` for a deleted job trips `job_verification_interest_job_id_fkey`.
+  - `dead_man:listing_verifier` `failed-close`: false alarm. The verifier sweeps; with a frozen corpus most sweeps are `targets=0`, `last_productive` ages past the 2h `verifier_dead_man_hours` and reads `degraded`. Idle is not degraded.
+  - Stale, no recurrence 3–20 days, most from the 09-05→13 saturation: `baseline_state`, `add_practice_save`, `_persist_cv_upload_phase`, `snapshot_refresh`, `safe_read /comments`, `fetch_all_rows`, `get_cached_match_evals`, `cv_upload_analysis`, `cv_structured_enrich`, `feed_warm`. Verify each, then close with a proof so the digest shows only live causes.
+  - Snapshot drift: 38 of 112 current `career_target_snapshots` disagree with their profile, 10 canonical profiles have none. `record_career_target` replaces a drifted row on the user's next direction save; whether to heal on visit (forward pass) is a decision, not built.
+
 3. **#16 production read latency — SOFTWARE CLOSED 2026-08-13; PAID CAPACITY GATE BLOCKS LAUNCH.** Original report: Rishabh Guha (`6b624e2e-…`), "credentials not shown after login", 20 Jul ~18:41 IST. Not auth, not data — every authed call returned 200, they just took ~5,200–5,900ms together. **The old diagnosis on this line ("blocked AnyIO/Supabase connection capacity, not compute… measure the pooler ceiling") was wrong and cost follow-up sessions.**
 
    The code/DB closeout is now complete: verifier claims 3,210ms → 28.6ms;
