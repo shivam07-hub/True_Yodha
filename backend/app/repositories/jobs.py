@@ -2938,6 +2938,7 @@ class JobsRepository:
                 "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
                 "archetype, legitimacy_tier, legitimacy_reason, "
                 "level_strategy, personalization, star_pointers, pick_reason, "
+                "ctc_low_lpa, ctc_high_lpa, ctc_basis, "
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
                 "location_country, location_mode, location_quality, locations, apply_url, "
                 "job_summary, job_description, "
@@ -2988,7 +2989,10 @@ class JobsRepository:
         _MATCH_EVAL_BADGE_COLS
         + ", summary, application_angle, role_fit, comp_fit, growth_fit, "
         "culture_fit, risk_score, strengths, concerns, "
-        "level_strategy, personalization, star_pointers, pick_reason"
+        "level_strategy, personalization, star_pointers, pick_reason, "
+        # A cached verdict is re-persisted by the next run (`ranking.rank` merges
+        # it into `evaluations`); leave these out and that write blanks them.
+        "ctc_low_lpa, ctc_high_lpa, ctc_basis, breaks"
     )
 
     def get_cached_match_evals(
@@ -3100,6 +3104,7 @@ class JobsRepository:
                 "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
                 "archetype, legitimacy_tier, legitimacy_reason, "
                 "level_strategy, personalization, star_pointers, pick_reason, "
+                "ctc_low_lpa, ctc_high_lpa, ctc_basis, "
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
                 "location_country, location_mode, location_quality, locations, apply_url, job_description)"
             )
@@ -3146,6 +3151,7 @@ class JobsRepository:
                 "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
                 "archetype, legitimacy_tier, legitimacy_reason, "
                 "level_strategy, personalization, star_pointers, pick_reason, "
+                "ctc_low_lpa, ctc_high_lpa, ctc_basis, "
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
                 "location_country, location_mode, location_quality, locations, apply_url, "
                 "job_summary, job_description, "

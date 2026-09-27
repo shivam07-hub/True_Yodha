@@ -113,6 +113,8 @@ a.fc-co:hover { color: var(--tm-interactive); }
   font-size: var(--tm-fs-caption); font-weight: 500;
   padding: 2px 9px; border-radius: var(--tm-button-radius); border: 1px solid var(--tm-border-soft); color: var(--tm-text-muted);
 }
+.fc-pay { font-variant-numeric: tabular-nums; }
+.fc-pay.is-below { color: var(--tm-warning-text, var(--tm-warning)); border-color: var(--tm-warning-border); }
 
 /* the reading line — clamped on row cards, free on immersive */
 .fc-snip {

@@ -23,7 +23,7 @@ import logging
 from typing import Any, Sequence
 
 from app.services.job_intelligence_policy import is_recommendable_listing
-from app.services.matching import direction_fit, passed_on as passed_on_read, targeting
+from app.services.matching import admission, direction_fit, passed_on as passed_on_read, targeting
 
 logger = logging.getLogger(__name__)
 
@@ -194,7 +194,12 @@ def regenerate_for_user(
     Called right after a sweep recompute so the editorial band always reflects
     the latest brain verdicts. Best-effort by contract — the caller swallows;
     a pick-gen failure must never break the recompute or the notification."""
-    stack = repo.get_user_match_stack(user_id)
+    # Admission first: the same "may this person see it" the /market list asks,
+    # so a pick is never a job the list itself would hide.
+    stack = admission.admitted(
+        targeting.for_ranking(repo, user_id).ranking_profile(),
+        repo.get_user_match_stack(user_id),
+    )
     families = brief_families(repo, user_id)
     vocabulary = targeting.direction_vocabulary(repo, families)
     rejected = passed_on_read.for_user(repo, user_id, target_families=families)

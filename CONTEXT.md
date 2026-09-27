@@ -1579,3 +1579,48 @@ here, not widening it in place.
 writes back. Seeding the Order from the scalar while the profile held three
 cities meant opening the modal and pressing Run narrowed the user's own
 targeting — the bug had no error, no log, and looked like a display gap.
+
+---
+
+## Deal-Breaker
+
+What a person has said they will not take, read one way
+(`app/services/deal_breakers.py`). The store is `user_profiles.deal_breakers`,
+the person's own sentences. `read(profile)` splits them into two kinds, enforced
+differently on purpose:
+
+- **Pay Floor** — a pay sentence ("less than 30 lakhs", "Pay floor ₹35 LPA"),
+  read as LPA; the strictest wins. **A floor never hides a job** (Shivam,
+  2026-09-28): Indian listings rarely print pay, so hiding on it would hide on a
+  guess. The brain gives every verdict a `[low, high]` band (`ctc_low_lpa`,
+  `ctc_high_lpa`, `ctc_basis` = stated | estimated, from company and competitor
+  bands) and the card says when even the top of the band is under the floor
+  (`pay_below_floor`).
+- **Won't-Take** — every other line, numbered in the prompt. The brain returns
+  the numbers a posting breaks; `llm_ranker.gate_verdict` turns them into the
+  person's words (`user_job_matches.breaks`) and makes the verdict **Skip**,
+  whatever the model recommended. No surface shows a Skip, so that write is the
+  one place a won't-take is enforced.
+
+`PAY` (the "this sentence is about pay" regex) lives here and
+`preflight/normalise` imports it. Prompt v4 carries the change, so each user's
+verdicts are re-rated on their next Search; nothing is backfilled.
+
+## Admission
+
+**May this person be shown this judged job, today?** (`matching/admission.py`).
+A verdict is written against the targeting held when it was computed; it is
+shown against the targeting held now. `admit(profile, job)` checks the three
+facts that move in between, and returns the first that bars it:
+
+- `closed` — the listing is explicitly `is_active = false` (absent is not closed);
+- `location` — `match_credibility.location_compatible`, the city decision
+  §Target Location assigns there;
+- `level` — `job_eligibility.stated_range_admits`, the rule the pool admits by.
+
+Read by the `/market` list (`published_list.assemble`) and Agent Picks
+(`agent_picks.regenerate_for_user`). Before it, `/market` read score and verdict
+alone: on 2026-09-28 one person's list held 24 of 56 cards outside the cities
+they had confirmed, and a Brussels requisition the scraper had tagged "India"
+(`location_city = 'India'` on 579 live jobs — the scraper repo's to fix).
+A won't-take is not checked here: that is a Skip at the write (§Deal-Breaker).

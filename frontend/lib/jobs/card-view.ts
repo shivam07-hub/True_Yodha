@@ -95,6 +95,30 @@ export interface FeedCardData {
   ageIso: string | null
   /** The top-right fit slot view-model. The card renders `<FitIndicator>` from it. */
   fit: FitView
+  /** The role's pay band, when the brain placed one. Never a reason to hide a card. */
+  pay?: PayView | null
+}
+
+/** A pay band on a card. `estimated` is the brain's placement from company and
+ *  competitor bands; otherwise the posting printed it. `belowFloor` is decided
+ *  server-side (the top of the band under the person's floor), never here. */
+export interface PayView {
+  label: string
+  estimated: boolean
+  belowFloor: boolean
+}
+
+/** INR lakhs per annum → "₹36–48L", "~" in front when estimated. */
+export function payView(
+  job: { ctc_low_lpa?: number | null; ctc_high_lpa?: number | null; ctc_basis?: string | null; pay_below_floor?: boolean | null },
+): PayView | null {
+  const low = job.ctc_low_lpa
+  const high = job.ctc_high_lpa
+  if (low == null || high == null) return null
+  const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
+  const band = low === high ? `₹${fmt(low)}L` : `₹${fmt(low)}–${fmt(high)}L`
+  const estimated = job.ctc_basis !== "stated"
+  return { label: estimated ? `~${band}` : band, estimated, belowFloor: job.pay_below_floor === true }
 }
 
 /** Compact relative-age badge from an ISO date (day granular). */
@@ -158,6 +182,7 @@ export function feedDataFromMatch(
     skillCount: skillCountOf(matchedSkills, missingSkills),
     ageIso: job.first_seen ?? null,
     fit: src.fit != null ? { kind: "score", value: src.fit, verdict: job.verdict } : null,
+    pay: payView(job),
   }
 }
 
@@ -205,6 +230,7 @@ export function feedDataFromFeedItem(
     fit: job.verdict && job.verdict !== "checking"
       ? { kind: "score", value: matchFitScore(job), verdict: job.verdict }
       : marketFit(job, hasCv),
+    pay: payView(job),
   }
 }
 

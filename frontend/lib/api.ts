@@ -3359,6 +3359,10 @@ export interface JobMatch {
   archetype?: string | null                                        // Block A — role archetype
   legitimacy_tier?: "high_confidence" | "caution" | "suspicious" | string | null // Block G
   legitimacy_reason?: string | null
+  /** Pay band in INR lakhs per annum; `ctc_basis` says whether the posting printed it or Myro estimated it. */
+  ctc_low_lpa?: number | null
+  ctc_high_lpa?: number | null
+  ctc_basis?: "stated" | "estimated" | null
   // Scraper lifecycle (Job Intelligence) — now carried on /jobs/matches.
   // `last_seen_at` = scraper observation time, powers "Last verified".
   // `first_seen` = discovery age / sort only. Never the publication clock.
@@ -3865,6 +3869,12 @@ export interface JobFeedItem {
   on_direction?: boolean
   level_stated?: boolean
   checked_recently?: boolean
+  /** Pay band in INR lakhs per annum, and whether even its top is under the
+   *  person's pay floor. A floor never hides a card — it is said here. */
+  ctc_low_lpa?: number | null
+  ctc_high_lpa?: number | null
+  ctc_basis?: "stated" | "estimated" | null
+  pay_below_floor?: boolean | null
 }
 
 /** One card in the "Myro Agent Picks" band — a feed card plus the Career-Ops

@@ -281,7 +281,7 @@ async def rank_one(
     system_prompt = llm_ranker.build_system_prompt(eval_profile, eval_profile["cv_markdown"])
     outcome = await llm_ranker.evaluate_job(job, system_prompt, provider)
     if outcome.kind == "ok" and isinstance(outcome.value, dict):
-        llm_ranker.gate_growth_fit(eval_profile, outcome.value)
+        llm_ranker.gate_verdict(eval_profile, outcome.value)
     return outcome
 
 

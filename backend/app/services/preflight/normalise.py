@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import re
 
+from app.services.deal_breakers import PAY as _PAY
 from app.services.preflight.lines import LineKind, OrderLine
 
 #: Says NO to something. The single signal that separates an exclusion from a
@@ -56,7 +57,6 @@ _LOCATION = re.compile(
     r"open to relocat|willing to relocat|relocat\w*\s+to)\b",
     re.I,
 )
-_PAY = re.compile(r"(₹|\brs\.?\s*\d|\blakhs?\b|\blpa\b|\bctc\b|total comp|pay floor|\bcrores?\b)", re.I)
 #: True of the person, actionable by nobody. No listing is filtered on these, so
 #: they must not consume a slot — and must not be deleted either.
 _NON_FILTER = re.compile(

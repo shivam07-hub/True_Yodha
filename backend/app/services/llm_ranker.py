@@ -32,15 +32,16 @@ from typing import Any
 
 from supabase import Client
 
-from app.services import reader_voice
+from app.services import deal_breakers, reader_voice
 from app.services.llm_provider import LLMProvider, LLMProviderError
 from app.services.model_outcome import ModelOutcome
 
 logger = logging.getLogger(__name__)
 
-_MAX_TOKENS = 900
+_MAX_TOKENS = 1000
 _RECOMMENDATIONS = {"Apply", "Negotiate", "Skip"}
 _LEGITIMACY_TIERS = {"high_confidence", "caution", "suspicious"}
+_CTC_BASES = {"stated", "estimated"}
 # Bound on concurrent per-job LLM calls. Keep low — the provider chain fails over
 # per call and free tiers rate-limit. See docs/MATCHING_BRAIN_CHANGE.md risks.
 _CONCURRENCY = 3
@@ -98,7 +99,10 @@ NO_TARGET_ROLES = "not set"
 #: on file. The previous prompt printed "Career goal: not specified" and still
 #: asked for the score. Cached rows are not rewritten; until each user returns
 #: and is re-rated, the feed holds both vintages.
-PROMPT_VERSION = "v3-growth-when-goal"
+#: v4 (2026-09-28): deal-breakers split into a pay floor and numbered won't-take
+#: lines; the brain names the lines a posting breaks and estimates its pay band.
+#: Pay never makes a Skip.
+PROMPT_VERSION = "v4-pay-band-breaks"
 
 #: Literal non-answers that have been stored as a career goal. The prod case is
 #: a column of "No". Scoring growth against that is the same failure as scoring
@@ -157,6 +161,34 @@ def gate_growth_fit(profile: dict[str, Any], parsed: dict[str, Any]) -> dict[str
     return parsed
 
 
+def gate_verdict(profile: dict[str, Any], parsed: dict[str, Any]) -> dict[str, Any]:
+    """Every rule the prompt states that the write must not trust the model on.
+
+    Growth judged against no goal is dropped. A posting that breaks a won't-take
+    line is a Skip, whatever the model recommended — the list, the picks and the
+    recommended flag all hide a Skip, so this is the one place a deal-breaker is
+    enforced. `breaks` leaves as the person's own words, so the stored verdict
+    says which line it honoured even after they edit the list.
+    """
+    gate_growth_fit(profile, parsed)
+    broken = deal_breakers.read(profile).broken(list(parsed.get("breaks") or []))
+    parsed["breaks"] = broken
+    if broken:
+        parsed["recommendation"] = "Skip"
+    return parsed
+
+
+def _ctc_band(value: Any) -> tuple[float | None, float | None]:
+    """`[low, high]` in LPA, ordered, or nothing. A single number is not a band."""
+    if not isinstance(value, (list, tuple)) or len(value) != 2:
+        return None, None
+    low = _clamp(value[0], 0.0, 2000.0, None)
+    high = _clamp(value[1], 0.0, 2000.0, None)
+    if low is None or high is None or high == 0.0:
+        return None, None
+    return (low, high) if low <= high else (high, low)
+
+
 def build_system_prompt(profile: dict[str, Any], cv_markdown: str) -> str:
     """Career Ops evaluator persona, driven by the per-user profile.
 
@@ -165,7 +197,11 @@ def build_system_prompt(profile: dict[str, Any], cv_markdown: str) -> str:
     """
     roles = ", ".join(profile.get("target_roles") or []) or NO_TARGET_ROLES
     location = preferred_locations(profile)
-    deal_breakers = ", ".join(profile.get("deal_breakers") or []) or "none specified"
+    stated = deal_breakers.read(profile)
+    wont_take = (
+        "; ".join(f"{i}) {line}" for i, line in enumerate(stated.wont_take, start=1))
+        or "none stated"
+    )
     career_goal = career_goal_of(profile)
     superpower = superpower_of(profile)
     cv_block = (cv_markdown or "").strip()[:4000] or "No CV on file — infer from the skill profile."
@@ -177,7 +213,9 @@ def build_system_prompt(profile: dict[str, Any], cv_markdown: str) -> str:
         identity.append(f"- Career goal: {career_goal}")
     if superpower:
         identity.append(f"- Superpower: {superpower}")
-    identity.append(f"- Deal-breakers: {deal_breakers}")
+    identity.append(f"- Won't take: {wont_take}")
+    if stated.pay_floor_lpa is not None:
+        identity.append(f"- Pay floor: ₹{stated.pay_floor_lpa:g} LPA")
     identity_block = "\n".join(identity)
     if career_goal:
         growth_axis = (
@@ -216,7 +254,7 @@ CV:
 
 Score the posting on a 0.0–5.0 scale (use decimals; NEVER round to whole numbers):
 - role_fit: match to skills, experience, seniority, and the candidate's target roles
-- comp_fit: likely compensation vs the candidate's level/market (infer if undisclosed)
+- comp_fit: likely compensation vs the candidate's pay floor, or their level/market when no floor is set (infer if undisclosed)
 {growth_axis}
 - culture_fit: alignment with the candidate's work style and the org implied
 - risk_score: stability / over-qualification / mis-fit risk (HIGHER = riskier)
@@ -239,7 +277,8 @@ Then give this specific candidate their strategy for THIS posting (Career Ops st
 Rules:
 - Reward strong alignment with the candidate's target roles; penalise roles far outside them. ("not set" means the candidate has NOT told us what they want: judge role fit from the CV alone, and do not penalise distance from a target that does not exist.)
 - Reward the candidate's preferred location; flag relocation risk otherwise (do not hard-fail).
-- If the posting clearly violates a stated deal-breaker, recommendation MUST be "Skip" and the summary must name the deal-breaker. ("none specified" means no hard filters.)
+- If the posting clearly breaks a won't-take line, list that line's number in `breaks`, recommendation MUST be "Skip", and the summary must name the line. ("none stated" means no hard filters.)
+- Pay never makes a posting Skip. Give `ctc_lpa`: the annual CTC band in INR lakhs for THIS title at THIS company in THIS city at this level, as [low, high]. If the posting states pay, use it and set ctc_basis "stated". Otherwise estimate it from what this company and its direct competitors pay for the same title and level (salary surveys, published bands), set ctc_basis "estimated", and keep the band honest rather than narrow. null only when you cannot place the company or the level at all.
 {growth_rule}
 {angle_rule}
 - If overall_score < 3.5, recommendation MUST be "Skip" and summary must say why not to apply.
@@ -266,7 +305,10 @@ Respond ONLY with valid JSON, no prose outside it, matching exactly:
   "legitimacy_reason": "short phrase naming the strongest signal",
   "level_strategy": "one sentence on level fit + how to play it",
   "personalization": "2-3 sentences tailoring THIS candidate's application, grounded in the CV",
-  "star_pointers": ["real CV project/achievement to cite", "..."]
+  "star_pointers": ["real CV project/achievement to cite", "..."],
+  "ctc_lpa": [low, high],
+  "ctc_basis": "stated|estimated",
+  "breaks": [numbers of the won't-take lines this posting breaks]
 }}
 
 `pick_reason` is the ONLY field the candidate reads themselves, and it is written TO them:
@@ -478,6 +520,7 @@ def parse_eval(text: str) -> dict[str, Any] | None:
         rec = "Skip"
     if rec not in _RECOMMENDATIONS:
         rec = None
+    band = _ctc_band(obj.get("ctc_lpa"))
 
     return {
         "overall_score": overall,
@@ -505,6 +548,18 @@ def parse_eval(text: str) -> dict[str, Any] | None:
         "personalization": (str(obj["personalization"]).strip()[:1000] or None) if obj.get("personalization") else None,
         "star_pointers": [str(s).strip()[:160] for s in (obj.get("star_pointers") or []) if str(s).strip()][:4],
         "pick_reason": _reader_line(obj.get("pick_reason")),
+        # Pay band and broken lines. `gate_verdict` turns the indices into the
+        # person's words and enforces the Skip; the parse only validates shape.
+        "ctc_low_lpa": band[0],
+        "ctc_high_lpa": band[1],
+        "ctc_basis": (
+            obj.get("ctc_basis") if obj.get("ctc_basis") in _CTC_BASES and band[0] is not None
+            else ("estimated" if band[0] is not None else None)
+        ),
+        "breaks": [
+            int(i) for i in (obj.get("breaks") if isinstance(obj.get("breaks"), list) else [])
+            if isinstance(i, (int, float)) and not isinstance(i, bool) and float(i).is_integer()
+        ],
     }
 
 
@@ -588,7 +643,7 @@ async def evaluate_all(
                 logger.warning("rank on_progress callback failed", exc_info=True)
         ev = outcome.value if outcome.kind == "ok" else None
         if isinstance(ev, dict):
-            gate_growth_fit(profile, ev)
+            gate_verdict(profile, ev)
         return str(job["job_id"]), ev
 
     results = await asyncio.gather(*(_one(j) for j in top_jobs))
@@ -710,6 +765,10 @@ def persist_matches(
             "personalization": ev.get("personalization"),
             "pick_reason": ev.get("pick_reason"),
             "star_pointers": ev.get("star_pointers") or [],
+            "ctc_low_lpa": ev.get("ctc_low_lpa"),
+            "ctc_high_lpa": ev.get("ctc_high_lpa"),
+            "ctc_basis": ev.get("ctc_basis"),
+            "breaks": ev.get("breaks") or [],
             "is_recommended": is_recommended,
             "baseline_version_id": baseline_version_id,
             "target_context_hash": credibility.context_hash,
