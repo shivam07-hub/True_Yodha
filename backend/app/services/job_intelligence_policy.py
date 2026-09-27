@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
+from app.services.listing_time import verdict as listing_time
+
 PERSONAL_FEEDBACK_REASONS = frozenset(
     {
         "not_my_role",
@@ -28,8 +30,6 @@ QUALITY_FEEDBACK_REASONS = frozenset(
 )
 FEEDBACK_SURFACES = frozenset({"dashboard", "market", "job_detail", "other"})
 PRIVACY_COHORT_MIN = 5
-STALE_AFTER_DAYS = 21
-LIKELY_CLOSED_AFTER_DAYS = 45
 LISTING_CONFIDENCE_VALUES = frozenset(
     {"active", "uncertain", "likely_closed", "closed"}
 )
@@ -90,21 +90,15 @@ def marker_to_iso_date(value: object) -> str | None:
         return None
 
 
-def days_since_marker(value: object, *, now: datetime) -> int | None:
-    iso_date = marker_to_iso_date(value)
-    if iso_date is None:
-        return None
-    observed = date.fromisoformat(iso_date)
-    return max(0, (now.date() - observed).days)
-
-
 def listing_confidence(
     row: dict,
     *,
     now: datetime,
 ) -> tuple[str, bool]:
-    age_days = days_since_marker(row.get("last_seen"), now=now)
-    is_stale = age_days is not None and age_days > STALE_AFTER_DAYS
+    """Stored lifecycle wins. Where there is none, a fresh `last_seen` is not
+    evidence the listing is open — only a confirmation is."""
+    when = listing_time(row, now=now)
+    is_stale = when.state != "confirmed_open"
     closure_reports = _count(row, "apply_link_closed_count") + _count(
         row, "posting_inactive_count"
     )
@@ -120,13 +114,7 @@ def listing_confidence(
         return "closed", is_stale
     if closure_reports >= 2:
         return "likely_closed", is_stale
-    if (
-        age_days is not None
-        and age_days > LIKELY_CLOSED_AFTER_DAYS
-        and looks_old >= 2
-    ):
-        return "likely_closed", is_stale
-    if age_days is None or is_stale or closure_reports >= 1 or looks_old >= 2:
+    if is_stale or closure_reports >= 1 or looks_old >= 2:
         return "uncertain", is_stale
     return "active", is_stale
 

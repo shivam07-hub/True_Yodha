@@ -54,7 +54,7 @@ def _pulse_row(
 @pytest.mark.parametrize(
     ("row", "expected"),
     [
-        (_pulse_row("active"), "active"),
+        (_pulse_row("discovery"), "uncertain"),
         (_pulse_row("uncertain", last_seen=20260501), "uncertain"),
         (
             _pulse_row(
@@ -80,6 +80,26 @@ def test_job_pulse_applies_listing_confidence_policy(
     pulse = intelligence.pulses([row["job_id"]])[0]
 
     assert pulse.listing_confidence == expected
+
+
+def test_a_confirmation_is_what_makes_an_unstamped_listing_active() -> None:
+    now = datetime(2026, 6, 13, tzinfo=timezone.utc)
+    confirmed = _pulse_row("confirmed", last_seen=20260601)
+    confirmed["last_verified_live_at"] = "2026-06-12T15:04:00+00:00"
+    stored = _pulse_row("stored")
+    stored["listing_confidence"] = "active"
+    intelligence = JobIntelligence(
+        _PulseRepository([confirmed, stored]),  # type: ignore[arg-type]
+        feed_cache=FeedStateCache(),
+        now=lambda: now,
+    )
+
+    by_id = {pulse.job_id: pulse for pulse in intelligence.pulses(["confirmed", "stored"])}
+
+    assert by_id["confirmed"].listing_confidence == "active"
+    assert by_id["confirmed"].is_stale is False
+    assert by_id["stored"].listing_confidence == "active"
+    assert by_id["stored"].is_stale is True
 
 
 def test_job_pulse_suppresses_small_community_cohorts() -> None:
