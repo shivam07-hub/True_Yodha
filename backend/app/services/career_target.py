@@ -17,7 +17,7 @@ from app.services.job_eligibility import (
     canonical_source_seniority,
 )
 
-MAX_TARGET_LOCATIONS = 3
+MAX_TARGET_LOCATIONS = 5
 
 
 def is_canonical_direction(profile: dict[str, Any]) -> bool:

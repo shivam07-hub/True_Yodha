@@ -1548,7 +1548,7 @@ The JD a user is already working — distinct from a live marketplace row. Feed 
 one.** `user_profiles.target_locations[]` is the store; `target_location` is a
 derived scalar kept for legacy readers (a CV contact line shows one city, and
 that is the only place the scalar is the right answer). `MAX_TARGET_LOCATIONS`
-(3) is the cap, enforced once in `targeting_write` and read by everything that
+(5) is the cap, enforced once in `targeting_write` and read by everything that
 needs it — never written down a second time.
 
 The full path, scrape → card:

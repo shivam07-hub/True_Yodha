@@ -1,6 +1,7 @@
 """Order → four-slot spec. The interface is `resolve()`, tested with Order fixtures."""
 from __future__ import annotations
 
+from app.services.career_target import MAX_TARGET_LOCATIONS
 from app.services.preflight import lines as ops
 from app.services.preflight import payload
 
@@ -158,7 +159,7 @@ def test_the_slot_view_is_the_spec_addressed_by_line_id():
     # An unanswered line is on no slot — it is not part of the order yet.
     assert slots["lean"]["line_ids"] == []
     # Every slot states its own arity, so nothing downstream re-derives it.
-    assert slots["target_locations"]["arity"] == 3
+    assert slots["target_locations"]["arity"] == MAX_TARGET_LOCATIONS
     assert slots["deal_breakers"]["arity"] == 6
 
 
@@ -214,16 +215,16 @@ def test_the_location_slot_holds_the_cities_the_user_named() -> None:
     assert payload.project(order)["target_locations"] == ["Mumbai", "Bengaluru"]
 
 
-def test_a_fourth_location_contests_rather_than_being_dropped() -> None:
+def test_a_location_past_the_cap_contests_rather_than_being_dropped() -> None:
     """The cap is `MAX_TARGET_LOCATIONS`, the one `targeting_write` enforces.
 
-    Over it, the slot places nothing and asks — silently truncating to three
+    Over it, the slot places nothing and asks — silently truncating to the cap
     would be the arity-1 bug with a bigger number.
     """
     order = ops.Order(
         lines=[
             line(kind="location", text=city, status="kept")
-            for city in ("Mumbai", "Bengaluru", "Pune", "Chennai")
+            for city in ("Mumbai", "Bengaluru", "Pune", "Chennai", "Hyderabad", "Gurugram")
         ]
     )
     result = payload.resolve(order)
