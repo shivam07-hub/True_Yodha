@@ -90,6 +90,27 @@ test("No rooms: the rail picks a Finlatics programme, the main column shows it",
   assert.match(shelfCss, /\.prp-program-why \{[^}]*color: var\(--tm-text\);/)
 })
 
+test("Prep speaks the platform's primitives: canonical Button, token radii, no inline layout", () => {
+  const files = ["closing-panel", "coverage-panel", "brief-card", "drill-panel", "prep-room"]
+  for (const name of files) {
+    const src = code(`components/preparations/${name}.tsx`)
+    // The hand-rolled .prp-btn is gone; every CTA is components/ui/button.
+    assert.doesNotMatch(src, /prp-btn|prp-stage-btn/, `${name} hand-rolls a button`)
+    // Inline style only to reach a value (a var or a computed width) — never
+    // margins, gaps or flex written into the JSX.
+    assert.doesNotMatch(src, /style=\{\{\s*(margin|display|gap|alignSelf|textDecoration|background: "transparent")/, `${name} lays out inline`)
+  }
+  assert.match(code("components/preparations/closing-panel.tsx"), /from "@\/components\/ui\/button"/)
+  assert.match(code("components/preparations/prep-room.tsx"), /from "@\/components\/ui\/button"/)
+  // The offer banner is the celebration; an emoji on top is the slop version.
+  assert.doesNotMatch(read("components/preparations/closing-panel.tsx"), /\u{1F389}/u)
+
+  const css = read("components/preparations/preparations.css") + read("components/preparations/training-card.css")
+  assert.doesNotMatch(css, /\.prp-btn\b/)
+  assert.doesNotMatch(css, /border-radius:\s*\d+px/, "a radius off the token scale")
+  assert.doesNotMatch(css, /filter:\s*brightness/)
+})
+
 test("Skeleton matches the live workspace so the swap does not move the page", () => {
   const skel = code("components/preparations/prep-skeleton.tsx")
 

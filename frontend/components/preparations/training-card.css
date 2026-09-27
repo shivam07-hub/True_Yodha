@@ -1,8 +1,9 @@
 /* Training by Finlatics — the rail's bottom block (Unified Prep v2, 2b).
 
-   Three cards, not eleven. The matched one is the only place accent is spent
-   in this block: its border, its wash and its `why` dot all say "this one is
-   about your board". The other two are the partner's shelf and read as a list.
+   Three cards, not eleven. The matched card's interactive border is the only
+   accent in this block and says "this one is about your board". Its `why` is
+   a claim, not a control, so it reads as --tm-text rather than the
+   interactive colour (2026-09-28). The other two are the partner's shelf.
 
    Tokens only. The design's hexes ARE the token values — #4fc7f6 is
    --tm-interactive, rgba(79,199,246,0.42) is --tm-int-border — so nothing here
@@ -80,13 +81,11 @@
 .prp-course:focus-within {
   border-color: var(--tm-int-border);
 }
-/* The matched card. Wash + accent border, so the eye lands on the one card
-   that answers a question the board actually asked. */
+/* The matched card. The border alone carries it; a gradient wash on top was
+   atmosphere, not information. */
 .prp-course.is-matched {
   border-color: var(--tm-int-border);
-  background:
-    linear-gradient(135deg, var(--tm-int-bg-wash) 0%, transparent 70%),
-    var(--tm-surface);
+  background: var(--tm-surface);
 }
 
 .prp-course-head {
@@ -135,8 +134,8 @@
   flex-shrink: 0;
   background: var(--tm-border);
 }
-.prp-course.is-matched .prp-course-why { color: var(--tm-interactive-text); }
-.prp-course.is-matched .prp-course-dot { background: var(--tm-interactive); }
+.prp-course.is-matched .prp-course-why { color: var(--tm-text); }
+.prp-course.is-matched .prp-course-dot { background: var(--tm-text-muted); }
 
 .prp-course-blurb {
   margin: 0;

@@ -18,6 +18,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
+import { ChevronDown } from "lucide-react"
 import {
   cv as cvApi,
   type ApplicationResponse,
@@ -35,6 +36,7 @@ import { StatusPicker } from "@/components/cv/pipeline/StatusPicker"
 import { NotesEditor } from "@/components/cv/pipeline/NotesEditor"
 import { useTrackerBoard } from "@/components/cv/pipeline/useTrackerBoard"
 import { ReachSection } from "@/components/dashboard/reach-section"
+import { Button } from "@/components/ui/button"
 import { daysInStage, roomStage, needsStageCheck, followUpLine, STEP_LABELS } from "./prep-model"
 import { CoveragePanel } from "./coverage-panel"
 import { RehearsePanel } from "./rehearse-panel"
@@ -194,15 +196,17 @@ export function PrepRoom({
           </p>
         </div>
         <div className="prp-room-stage">
-          <button
-            type="button"
-            className="prp-stage-btn"
+          <Button
+            variant="neutral"
+            size="sm"
             onClick={() => setPickerOpen((v) => !v)}
             aria-haspopup="listbox"
             aria-expanded={pickerOpen}
           >
-            <span style={{ color: stageMeta?.color }}>●</span> {stageMeta?.label ?? app.status} ▾
-          </button>
+            <span className="prp-stage-dot" style={{ background: stageMeta?.color }} aria-hidden />
+            {stageMeta?.label ?? app.status}
+            <ChevronDown aria-hidden strokeWidth={1.5} />
+          </Button>
           {pickerOpen && (
             <StatusPicker current={app.status} onPick={pickStage} onClose={() => setPickerOpen(false)} />
           )}
@@ -312,7 +316,7 @@ export function PrepRoom({
             </details>
           ) : null}
 
-          <section className="prp-sec db" aria-label="Reach the people" style={{ background: "transparent" }}>
+          <section className="prp-sec prp-reach db" aria-label="Reach the people">
             <ReachSection
               job={{ job_id: app.job_id, title: app.title, company: app.company, job_description: app.job_description }}
               token={token}
@@ -333,7 +337,7 @@ export function PrepRoom({
             </>
           ) : null}
         </div>
-        <div style={{ marginTop: 8 }}>
+        <div className="prp-record-notes">
           <NotesEditor
             initial={app.notes}
             saveState={

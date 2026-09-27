@@ -11,6 +11,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { upskilling, type ReadinessRow, type StartGapResponse } from "@/lib/api"
+import { Button } from "@/components/ui/button"
 import { QuizRunner } from "@/components/skills/upskilling/quiz-runner"
 import type { QuizQuestion } from "@/components/skills/upskilling/types"
 import { Icon } from "@/components/skills/upskilling/icons"
@@ -62,13 +63,16 @@ export function DrillPanel({ token, jobId }: { token: string; jobId: string }) {
 
   if (phase.kind === "idle" || phase.kind === "starting") {
     return (
-      <div>
-        <p className="prp-sec-note" style={{ marginBottom: 10 }}>
-          Test yourself on this job&rsquo;s skills.
-        </p>
-        <button type="button" className="prp-btn" onClick={() => void start()} disabled={phase.kind === "starting"}>
-          {phase.kind === "starting" ? "Preparing questions…" : "Start the drill"}
-        </button>
+      <div className="prp-sec-stack">
+        <p className="prp-sec-note">Test yourself on this job&rsquo;s skills.</p>
+        <Button
+          variant="neutral"
+          size="sm"
+          loading={phase.kind === "starting"}
+          onClick={() => void start()}
+        >
+          {phase.kind === "starting" ? "Preparing questions" : "Start the drill"}
+        </Button>
       </div>
     )
   }
@@ -127,7 +131,7 @@ export function DrillPanel({ token, jobId }: { token: string; jobId: string }) {
             </div>
           </div>
           {row.band !== "ready" ? (
-            <Link href={row.practice_href || "/practice"} className="prp-req-action" style={{ textDecoration: "none" }}>
+            <Link href={row.practice_href || "/practice"} className="prp-req-action">
               Level up <Icon name="bolt" size={10} />
             </Link>
           ) : null}
