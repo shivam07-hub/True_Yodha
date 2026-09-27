@@ -116,7 +116,7 @@ ASPIRATION_READ = 1000
 
 def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Cards worth showing, plus the honest account of the pile still open."""
-    from app.services import onboarding_service
+    from app.services import direction, onboarding_service
     from app.services.matching import targeting
 
     profile = targeting.for_ranking(repo, user_id).ranking_profile()
@@ -126,7 +126,7 @@ def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, A
     )
     profile["baseline_version_id"] = latest
     ctx = onboarding_service.eval_context_key(profile)
-    roles = [str(r) for r in (profile.get("target_roles") or []) if str(r).strip()]
+    roles = list(direction.of(profile).families)
     countries = profile.get("target_location_countries") or None
     pool: list[str] = []
     bound = False

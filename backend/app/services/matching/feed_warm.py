@@ -30,6 +30,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from app.services import direction
 from app.services import background, llm_ranker, onboarding_service
 from app.services.llm_provider import LLMProvider
 from app.services.matching import direction_fit, on_demand, published_list, ranking, targeting
@@ -254,7 +255,7 @@ async def run_feed_warm(
         if text:
             profile["cv_markdown"] = text
 
-    roles = [str(r) for r in (profile.get("target_roles") or []) if str(r).strip()]
+    roles = list(direction.of(profile).families)
     if not roles:
         return 0
     countries = profile.get("target_location_countries") or None

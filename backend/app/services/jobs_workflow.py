@@ -9,7 +9,7 @@ from typing import Any, Literal
 from app.repositories.job_tracks import JobTracksRepository
 from app.repositories.jobs import JobsRepository
 from app.repositories.scores import ScoresRepository
-from app.services import job_importer, job_tracks, llm_ranker, onboarding_service
+from app.services import direction, job_importer, job_tracks, llm_ranker, onboarding_service
 from app.services.llm_provider import LLMProvider, get_judgment_provider
 from app.services.matching import candidate_pool, ranking, targeting
 from app.services.scoring.aspirations import fetch_aspiration_skills
@@ -438,7 +438,8 @@ async def compute_job_matches(
     # What this run tells the brain. Computed once from the same profile the
     # ranking uses, so the skip gate and the rows it writes agree by construction.
     run_eval_ctx = onboarding_service.eval_context_key(profile)
-    target_roles_count = len(profile.get("target_roles") or [])
+    run_direction = direction.of(profile)
+    target_roles_count = len(run_direction.families)
     target_countries = profile.get("target_location_countries") or []
     if not target_countries and profile.get("target_location_country"):
         target_countries = [profile["target_location_country"]]
@@ -496,7 +497,7 @@ async def compute_job_matches(
     # `target_role_titles`, which is free text on the legacy and pre-flight paths
     # and, since the families were made the visible name, is usually a copy of
     # this same list anyway.
-    title_roles = profile.get("target_roles") or []
+    title_roles = list(direction.of(profile).families)
     excluded_set = set(excluded_job_ids or [])
 
     # Two-phase persist. The per-job reasoning below is the 166-220s a user watches

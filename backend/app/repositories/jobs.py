@@ -2651,15 +2651,25 @@ class JobsRepository:
         return rows
 
     def get_user_target_roles(self, user_id: str) -> list[str]:
+        """The families this person's search scopes on — `direction.of`, not the
+        raw column.
+
+        It read `target_roles` straight off the row, which is how a blank scope
+        reached `fetch_aspiration_skills` as `[]` and the aspiration half of the
+        run quietly became market-demand guesswork. Same question, same answer
+        as `/users/me` and `TargetingBrief.direction()`.
+        """
+        from app.services.direction import of
+
         data = safe_read(
             self._db.table("user_profiles")
-            .select("target_roles")
+            .select("target_roles,target_role_titles,target_role_title")
             .eq("id", user_id)
             .maybe_single(),
             default=None,
             context="user_target_roles",
         )
-        return (data or {}).get("target_roles") or []
+        return list(of(data or {}).families)
 
     def get_user_eligibility_preferences(self, user_id: str) -> dict[str, Any]:
         """Profile-backed Career Band and seniority gates for feed/ranking.
