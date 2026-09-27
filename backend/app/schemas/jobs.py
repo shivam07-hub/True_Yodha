@@ -667,7 +667,7 @@ class JobFeedItem(BaseModel):
     source_url: str | None = None
     first_seen: str | None = None  # ISO date derived from the feed marker
     last_seen_at: str | None = None  # ISO date the scraper last confirmed it live
-    is_stale: bool = False  # last_seen older than STALE_AFTER_DAYS — warn before Apply 404
+    is_stale: bool = False  # not confirmed open — warn before Apply 404
     is_active: bool = True
     skills: list[str] = []  # top main_skills display names, capped
     matched_skills: list[str] = []  # which of the requesting user's CV skills this job needs (T3-1)

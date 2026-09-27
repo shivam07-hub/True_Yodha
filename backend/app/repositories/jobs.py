@@ -22,6 +22,7 @@ from app.services.background import debounce
 from app.services.industry_grouping import normalize_industry_group
 from app.services.job_history import attach_jobs
 from app.services.job_intelligence_policy import is_recommendable_listing
+from app.services.listing_time import verdict as listing_time
 from app.services.xp_policy import UPSKILLING_SET_SIZE
 from app.services.job_eligibility import (
     career_band_for_job,
@@ -310,14 +311,6 @@ def _marker_to_dt(value: Any) -> datetime | None:
     return _parse_iso_dt(_job_feed_marker_to_iso(value))
 
 
-def _is_marker_stale(value: Any) -> bool:
-    """True when a last_seen marker is older than STALE_AFTER_DAYS."""
-    dt = _marker_to_dt(value)
-    if dt is None:
-        return False
-    return (datetime.now(dt.tzinfo) - dt).days > STALE_AFTER_DAYS
-
-
 def _marker_int(value: Any) -> int | None:
     """A jobs first_seen/last_seen marker as a comparable YYYYMMDD int, or None.
 
@@ -333,12 +326,9 @@ def _marker_int(value: Any) -> int | None:
 
 
 def _fresh_cutoff_marker(days: int = STALE_AFTER_DAYS) -> int:
-    """YYYYMMDD int for `today - days` — the freshness floor for matching.
+    """YYYYMMDD int for `today - days` — a discovery-age floor for matching.
 
-    A job whose last_seen is below this hasn't re-appeared in a crawl within the
-    window and is treated as stale/likely-delisted (same threshold the UI uses to
-    badge a listing stale — see `_is_marker_stale`). Kept as one constant so the
-    matcher and the badge can never disagree.
+    This is not the stale badge. The badge asks `listing_time.verdict`.
     """
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     return int(cutoff.strftime("%Y%m%d"))
@@ -1788,7 +1778,7 @@ class JobsRepository:
             "source_url": row.get("apply_url"),
             "first_seen": _job_feed_marker_to_iso(row.get("first_seen")),
             "last_seen_at": _job_feed_marker_to_iso(row.get("last_seen")),
-            "is_stale": _is_marker_stale(row.get("last_seen")),
+            "is_stale": listing_time(row, now=datetime.now(timezone.utc)).state != "confirmed_open",
             "is_active": bool(row.get("is_active", True)),
             "listing_confidence": row.get("listing_confidence"),
             "last_verified_live_at": row.get("last_verified_live_at"),

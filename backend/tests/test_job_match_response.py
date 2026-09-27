@@ -1,10 +1,11 @@
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 from pydantic import ValidationError
 
-from app.services.job_projection import MATCH_JD_SNIPPET_CHARS, to_job_match
+from app.repositories.jobs import JobsRepository
 from app.schemas import MatchEval
+from app.services.job_projection import MATCH_JD_SNIPPET_CHARS, to_job_match
 
 
 def test_to_job_match_preserves_row_batch_week_for_historical_cards() -> None:
@@ -42,6 +43,48 @@ def test_to_job_match_preserves_row_batch_week_for_historical_cards() -> None:
     assert match.baseline_version_id == 17
     assert match.target_context_hash == "current-target"
     assert match.seniority_compatibility == "compatible"
+
+
+def _match(jobs: dict):
+    return to_job_match(
+        {
+            "id": 1,
+            "job_id": "job-1",
+            "overlap_score": 70,
+            "matched_skills": [],
+            "is_recommended": True,
+            "jobs": jobs,
+        },
+        date(2026, 6, 1),
+    )
+
+
+def test_a_recent_discovery_is_stale_until_it_is_confirmed_open():
+    """Yesterday's crawl marker used to read as fresh. Nothing checked it."""
+    today = int(datetime.now(timezone.utc).strftime("%Y%m%d"))
+    job = {
+        "first_seen": today,
+        "last_seen": today,
+        "is_active": True,
+        "listing_confidence": "active",
+    }
+
+    assert _match(job).is_stale is True
+    assert JobsRepository._feed_shape_row(job, None)["is_stale"] is True
+
+
+def test_a_confirmed_listing_is_not_stale_however_old_discovery_is():
+    stamp = datetime.now(timezone.utc) - timedelta(days=1)
+    job = {
+        "first_seen": 20200101,
+        "last_seen": 20200101,
+        "is_active": True,
+        "listing_confidence": "active",
+        "last_verified_live_at": stamp.isoformat(),
+    }
+
+    assert _match(job).is_stale is False
+    assert JobsRepository._feed_shape_row(job, None)["is_stale"] is False
 
 
 @pytest.mark.parametrize("label", ["compatible", "incompatible", "unknown", None])
