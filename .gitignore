@@ -120,3 +120,6 @@ tmp/
 
 # Closed-job unload bundles (job_archive_v1 JSON + CSV). Laptop disk only.
 job_unloads/
+
+# Finlatics partner material (docs, decks, infocard images). Local reference only.
+Finlatics/
