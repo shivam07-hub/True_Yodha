@@ -23,7 +23,6 @@ interface HeroProps {
   companiesAdded7d?: number
   latestBatchIso?: string | null
   consoleCompanies?: ConsoleCompany[]
-  uptime: string
 }
 
 export function IntelHero(props: HeroProps) {
@@ -36,8 +35,7 @@ export function IntelHero(props: HeroProps) {
         </div>
         <h1 className="sr-only">Live public job-market mirror</h1>
         <p className="tm-intel-lede tm-intel-lede-lead">
-          A self-hosted, open-source model has been fetching job listings for{" "}
-          <span className="tm-intel-ink">{props.uptime}</span>.
+          A self-hosted, open-source model fetches the listings on this page.
         </p>
 
         <HeroStats

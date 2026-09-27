@@ -596,7 +596,7 @@ def build_location_scope(prefs: list[str] | None) -> tuple[str | None, tuple[str
 class MarketAnalyticsCompiler:
     """Compiles raw market rows into deterministic analytics payloads."""
 
-    def compile(self, rows: list[dict[str, Any]]) -> dict[str, Any]:
+    def compile(self, rows: list[dict[str, Any]], *, now: datetime | None = None) -> dict[str, Any]:
         company_counts: Counter[str] = Counter()
         industry_counts: Counter[str] = Counter()
         role_counts: Counter[str] = Counter()
@@ -613,14 +613,17 @@ class MarketAnalyticsCompiler:
         company_velocity_bins: dict[str, list[int]] = {}
         company_country_counters: dict[str, Counter[str]] = {}
         company_industry_counters: dict[str, Counter[str]] = {}
-        now_utc = datetime.now(timezone.utc)
+        now_utc = now if now is not None else datetime.now(timezone.utc)
+        if now_utc.tzinfo is None:
+            now_utc = now_utc.replace(tzinfo=timezone.utc)
+        else:
+            now_utc = now_utc.astimezone(timezone.utc)
         bin_floor = (now_utc - timedelta(days=13)).replace(hour=0, minute=0, second=0, microsecond=0)
         today_floor = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
         one_hr_floor = now_utc - timedelta(hours=1)
         seven_d_floor = now_utc - timedelta(days=7)
         total_jobs_today = 0
         jobs_added_1h = 0
-        earliest_first_seen: datetime | None = None
 
         for row in rows:
             company = (row.get("company_name") or "").strip()
@@ -660,13 +663,11 @@ class MarketAnalyticsCompiler:
                     delta_days = (created_at_dt - bin_floor).days
                     if 0 <= delta_days < 14:
                         bins[delta_days] += 1
-            if created_at_dt is not None:
-                if created_at_dt >= today_floor:
-                    total_jobs_today += 1
-                if created_at_dt >= one_hr_floor:
-                    jobs_added_1h += 1
-                if earliest_first_seen is None or created_at_dt < earliest_first_seen:
-                    earliest_first_seen = created_at_dt
+            received_at = listing_time(row, now=now_utc).received_at
+            if received_at is not None and received_at >= one_hr_floor:
+                jobs_added_1h += 1
+            if created_at_dt is not None and created_at_dt >= today_floor:
+                total_jobs_today += 1
             if industry:
                 industry_counts[industry] += 1
                 industry_skill_counters.setdefault(industry, Counter()).update(skills)
@@ -723,7 +724,6 @@ class MarketAnalyticsCompiler:
             "total_companies": len(company_counts),
             "total_industries": len(industry_counts),
             "latest_batch": str(max(batch_dates)) if batch_dates else None,
-            "scraper_started": earliest_first_seen.isoformat() if earliest_first_seen else None,
             "total_jobs_today": total_jobs_today,
             "jobs_added_1h": jobs_added_1h,
             "companies_added_7d": companies_added_7d,
@@ -888,7 +888,7 @@ class JobsRepository:
             columns=(
                 "job_id, company_name, industry, industry_group, role_domain, batch_date, "
                 "location, location_raw, location_city, location_country, location_mode, location_quality, locations, "
-                "main_skills, first_seen, last_seen"
+                "main_skills, first_seen, last_seen, ingested_at"
             ),
             query_builder=query_builder,
         )

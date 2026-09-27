@@ -3960,7 +3960,6 @@ export interface MarketAnalytics {
   total_companies: number
   total_industries: number
   latest_batch?: string | null
-  scraper_started?: string | null
   total_jobs_today?: number
   jobs_added_1h?: number
   companies_added_7d?: number

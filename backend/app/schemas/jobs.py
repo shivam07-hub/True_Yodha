@@ -889,7 +889,6 @@ class MarketAnalyticsResponse(BaseModel):
     total_companies: int
     total_industries: int
     latest_batch: str | None
-    scraper_started: str | None = None
     total_jobs_today: int = 0
     jobs_added_1h: int = 0
     companies_added_7d: int = 0
@@ -912,7 +911,6 @@ class MarketAnalyticsSummaryResponse(BaseModel):
     total_companies: int
     total_industries: int
     latest_batch: str | None
-    scraper_started: str | None = None
     total_jobs_today: int = 0
     jobs_added_1h: int = 0
     companies_added_7d: int = 0
