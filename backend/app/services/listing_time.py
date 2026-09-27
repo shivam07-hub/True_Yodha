@@ -53,6 +53,10 @@ class ListingTime:
     received_at: datetime | None
     confirmed_at: datetime | None
     discovered_on: date | None
+    #: When a verifier opened the page (`last_conclusive_verification_at`).
+    #: Distinct from `confirmed_at`: a close stamps this and does not stamp
+    #: `last_verified_live_at`. None when absent or unparseable.
+    checked_at: datetime | None = None
 
 
 def verdict(row: Mapping[str, Any], *, now: datetime) -> ListingTime:
@@ -61,10 +65,11 @@ def verdict(row: Mapping[str, Any], *, now: datetime) -> ListingTime:
     `now` is required. This function does not read a clock.
     """
     if not isinstance(row, Mapping):
-        return ListingTime("unconfirmed", None, None, None)
+        return ListingTime("unconfirmed", None, None, None, None)
 
     received_at = _instant(row.get("ingested_at"))
     discovered_on = _calendar_day(row.get("first_seen"))
+    checked_at = _instant(row.get("last_conclusive_verification_at"))
     stamp = _instant(row.get("last_verified_live_at"))
     confirmed_at = None
     if stamp is not None and not _is_seeded(stamp, row.get("last_seen")):
@@ -81,7 +86,7 @@ def verdict(row: Mapping[str, Any], *, now: datetime) -> ListingTime:
         state = "confirmed_open"
     else:
         state = "unconfirmed"
-    return ListingTime(state, received_at, confirmed_at, discovered_on)
+    return ListingTime(state, received_at, confirmed_at, discovered_on, checked_at)
 
 
 def _is_closed(row: Mapping[str, Any]) -> bool:

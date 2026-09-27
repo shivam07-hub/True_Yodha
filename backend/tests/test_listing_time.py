@@ -194,6 +194,24 @@ def test_a_string_and_a_datetime_stamp_agree():
     assert as_dt.state == "confirmed_open"
 
 
+def test_a_conclusive_check_is_not_the_seeded_stamp():
+    """The close path stamps `last_conclusive_verification_at` and leaves the
+    seeded `last_verified_live_at` alone. The when of the check is the first."""
+    got = verdict(
+        _row(
+            last_verified_live_at="2026-07-11T00:00:00+00:00",
+            last_conclusive_verification_at="2026-09-26T15:04:00+00:00",
+            is_active=False,
+            listing_confidence="closed",
+        ),
+        now=NOW,
+    )
+
+    assert got.state == "closed"
+    assert got.confirmed_at is None
+    assert got.checked_at == datetime(2026, 9, 26, 15, 4, tzinfo=timezone.utc)
+
+
 def test_now_has_no_default():
     import inspect
 
