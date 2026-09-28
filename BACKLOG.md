@@ -28,7 +28,7 @@ Item numbers are historical and carry no priority meaning.
 
 | Work | Where | State |
 |---|---|---|
-| **Job ingestion stopped 2026-09-09** | scraper repo `CLAUDE.md` → PENDING WORK 00 | **corpus shrinking: 1 job in 9 days, 2,715 retired in 6.** Alarm shipped (#16 · 3d); the fix is Shivam's |
+| **Job ingestion stopped 2026-09-09** | scraper repo `CLAUDE.md` → PENDING WORK 00 | **Heartbeat, 2026-09-27: `max(job_source_runs.started_at)` = 2026-09-09, 438h — 2.6× the 168h `stalled` threshold.** Not 09-17: the only row since is ONE job with `ingestion_source='extension'` and a null `last_source_run_id` — a user saving through the extension, the exact masking `ingestion_health` warns about (**never measure this with `jobs.ingested_at`**). 09-09 was a 23,140-row bulk load, not a rate. Corpus FROZEN, not shrinking. `dead_man:job_ingestion` has been **open since 09-23, firing daily** — the alarm works; nobody is home to hear it. Structural fix below; the scraper bug is Shivam's |
 | Event-driven matching slices 3-5 | #36 | slices 1-2 shipped |
 | Ranked job-skill importance | #37 | blocked on scraper repo |
 | Semantic retrieval slices 2-3 | Tier 4 | blocked on scraper repo |
@@ -37,6 +37,28 @@ Item numbers are historical and carry no priority meaning.
 
 Engine built. This stage is about making tailoring the obvious next step after a
 match, not new machinery.
+
+### Revenue-gated — the FIRST thing when the platform earns (Shivam, 2026-09-27)
+
+| Work | Why it waits, and why it goes first when money starts |
+|---|---|
+| **Move job ingestion off a laptop and onto scheduled infrastructure** — Railway cron beside the verifier, which is reliable *precisely because* it runs there | Ingestion has **never** been scheduled. Seven run-days in 120, gaps of **32 · 19 · 5 · 2 · 1 · 1 · 18(open)** — it runs when Shivam runs it, from a local Codex automation. Every gap maps to him being busy, so fixing the scraper's own bug changes nothing structural: the next 32-day gap arrives the next time he is heads-down. Measured cost on 2026-09-27: **47,462 active jobs, ZERO younger than 7 days, mean age 42 days, 35% over 60 days, and only 8.4% re-verified in the last 14.** The corpus is not shrinking — it is aging, invisibly, and the core asset of a job product is its freshness. Gated on revenue because it is paid infrastructure, like #16's DB capacity; unblocked the day there is money to pay for it, and first in line then |
+
+### Architecture specs — written 2026-09-27, Cursor implements
+
+We hold the architecture; Cursor does the engineering. Both docs are the spec;
+do not re-derive them. Each numbered step is its own commit, six gates green.
+
+| Spec | Covers | First step |
+|---|---|---|
+| [ARCHITECTURE_LISTING_TIME.md](ARCHITECTURE_LISTING_TIME.md) `56592675` | `last_seen` is dead (0 of 52,717 rows ever updated); 52% of active jobs wear a verification stamp seeded from it | **Shivam's**: migration nulling the 24,551 false stamps |
+| [ARCHITECTURE_CONTRACTS_BY_TYPE.md](ARCHITECTURE_CONTRACTS_BY_TYPE.md) `a8741e45` | `compute_match_health`'s optional `freshness` restores the pre-fix bug at 2 of 3 callers; four hand-rolled dead-man probes, one of which writes inside a read | Make `freshness` required |
+
+⚠️ `jobs_added_1h` on the public landing page is structurally **0 for 23 hours
+of every day** (`repositories/jobs.py:644,629,676` — a day marker compared to
+`now − 1h`). Fix from `ingested_at` or delete the field. In the first spec.
+
+---
 
 ### Standing obligations — not a stage
 
@@ -96,6 +118,14 @@ owes you a measurement.
 residual. This file holds open work. Closed work leaves.
 
 ### TIER 1 — do next (high value ÷ low effort)
+
+- **Notice digest, 2026-09-28 — every open code cause root-caused and fixed on Develop; production waits on `main`.** 20 open Notices in the hello@himyro.com digest. Each fix carries a `NOTICE_CAUSE_KEY` proof; the closer settles a Notice only when its proof is on `origin/main`, so **the next Develop → `main` merge closes them**. DB changes are already live (one Supabase).
+  - **Code, awaiting `main`:** `/jobs/feed` card 500 for all 53 users with a kept job (`0dd2927e`) · direction-save 500, snapshot written as the service role in one call (`6df73e5d`) · partner SSO create race, ~18% of new seats (`b2744bc6`) · CV layout lost to echoed redaction tokens (`82f7787a`) · a finished upload refunded 200 coins (`467d6d97`) · statement timeouts filed as capacity, API and work lanes (`5844bb38`, `b2139cba`) · verifier idle ≠ dead (`dc1fa8cd`) · Career Path retitles stale snapshots on visit, 38 people (`fcadf5ab`). Hotfix branch `notice-close/record-from-profile-and-market-card` (local, from `main`) carries only the first two if the full merge must wait.
+  - **Live now (DB):** Match Run pool ids-first, 7.6s → 1.9s warm on a 30-skill CV (`c7902f36`, ARCHITECTURE_READ_PATH §21) · applications to unloaded listings save (`a16b7b75`) · snapshot table holds 5 cities (`2d42582a`) · verifier heartbeat + productive clock from `jobs` (`dc1fa8cd`).
+  - **Closed by earlier fixes, proofs added:** `add_practice_save` and `_persist_cv_upload_phase` (CHECKs, `01a94cfb`, 09-08) · `get_cached_match_evals` (deploy before its column; `fb6675e8` adds the DDL contract test).
+  - **Shivam — decisions:** (1) the Develop → `main` merge. (2) `20260915181000_observation_thin_ledger.sql` is NOT applied: it deletes verifier observations and drops an index; its snapshot half is superseded by `20260928120000`; apply the delete or retire the file. (3) job `6d859a43` was refunded 200 coins for a finished upload (`coin_ledger`, `worker_replaced`); claw back or let it stand. (4) Deploy ordering: `eval_outcome` shipped before its column existed, and `eval_context_hash` had no migration file for six weeks (`20260928130000` now declares it). A pre-deploy schema check would catch the first kind; not built.
+  - **Still open, not agent code:** `dead_man:job_ingestion` (scraper, Stage 2 row above) · `capacity_503` / `slow_200:capacity_queue` (#16 paid gate) · `slow_200:reads_over_budget` (the latency ledger, below).
+  - **Measured, not built:** 2 of 426 baselines have no CV layout (both ≤30 days); a re-upload heals them; reach too small for a pass.
 
 3. **#16 production read latency — SOFTWARE CLOSED 2026-08-13; PAID CAPACITY GATE BLOCKS LAUNCH.** Original report: Rishabh Guha (`6b624e2e-…`), "credentials not shown after login", 20 Jul ~18:41 IST. Not auth, not data — every authed call returned 200, they just took ~5,200–5,900ms together. **The old diagnosis on this line ("blocked AnyIO/Supabase connection capacity, not compute… measure the pooler ceiling") was wrong and cost follow-up sessions.**
 

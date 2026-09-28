@@ -243,7 +243,5 @@ def commit(users_repo: UsersRepository, user_id: str, patch: dict[str, Any]) -> 
     if updates:
         direction_changed = bool(users_repo.update_profile(user_id, updates))
     profile = users_repo.get_profile(user_id)
-    db = getattr(users_repo, "_db", None)
-    if db is not None:
-        record_from_profile(db, user_id, before, profile or {})
+    record_from_profile(user_id, profile or {})
     return TargetCommit(profile, direction_changed, leans_changed)

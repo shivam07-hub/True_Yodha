@@ -11,9 +11,11 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { ArrowRight } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { cv as cvApi, jobs as jobsApi, type ApplicationResponse } from "@/lib/api"
 import { ReviewModal } from "@/components/cv/pipeline/ReviewModal"
+import { Button } from "@/components/ui/button"
 
 const OUTCOME_LINE: Record<string, string> = {
   offer: "Offer received.",
@@ -43,7 +45,7 @@ export function ClosingPanel({
     <div>
       {isOffer ? (
         <div className="prp-offer-banner">
-          <div className="big">🎉 Offer at {app.company ?? "this company"}</div>
+          <div className="big">Offer at {app.company ?? "this company"}</div>
           <div className="sub">The prep worked. Log how the process went — it sharpens Myro for everyone.</div>
         </div>
       ) : (
@@ -51,7 +53,7 @@ export function ClosingPanel({
       )}
 
       {kept > 0 && (
-        <div className="prp-close-keep" style={{ marginTop: 14 }}>
+        <div className="prp-close-keep">
           <span className="n">{kept}</span>
           <span>
             {kept === 1 ? "story" : "stories"} banked while preparing here — they stay yours,
@@ -60,18 +62,18 @@ export function ClosingPanel({
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
+      <div className="prp-close-actions">
         {!reviewed ? (
-          <button type="button" className="prp-btn" onClick={() => setReviewOpen(true)}>
+          <Button variant="neutral" size="sm" onClick={() => setReviewOpen(true)}>
             {isOffer ? "Log the win" : "Log how it went"}
-          </button>
+          </Button>
         ) : (
-          <span className="prp-quiet" style={{ alignSelf: "center" }}>✓ Logged — thanks.</span>
+          <span className="prp-quiet">Review logged</span>
         )}
         {!isOffer && (
-          <Link href="/market" className="prp-btn" style={{ textDecoration: "none" }}>
-            Find similar roles →
-          </Link>
+          <Button variant="neutral" size="sm" nativeButton={false} render={<Link href="/market" />}>
+            Find similar roles <ArrowRight aria-hidden strokeWidth={1.5} />
+          </Button>
         )}
       </div>
 

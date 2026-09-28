@@ -84,6 +84,28 @@ def test_mint_reraises_genuine_create_error() -> None:
         raise AssertionError("expected the genuine error to propagate")
 
 
+def test_a_lost_insert_race_is_named_not_a_bare_500() -> None:
+    """GoTrue's existence check passed, then its insert lost to a concurrent one
+    on users_email_partial_key. It answers 500, not email_exists (2026-09-24)."""
+    api = _AdminApi(create_exc=_FakeAuthError(
+        "Database error creating new user", status=500, code="unexpected_failure",
+    ))
+    try:
+        auth_links.create_user_if_absent(_Admin(api), "new@x.com")
+    except auth_links.CreateRaced:
+        pass
+    else:  # pragma: no cover
+        raise AssertionError("a lost insert race must be named")
+
+
+def test_mint_after_a_lost_race_still_links() -> None:
+    """A double-clicked "email me a link": the sibling made the account."""
+    api = _AdminApi(create_exc=_FakeAuthError(
+        "Database error creating new user", status=500, code="unexpected_failure",
+    ))
+    assert auth_links.mint_login_link(_Admin(api), email="new@x.com", redirect_to=None) == "https://link"
+
+
 def test_is_already_exists_classification() -> None:
     assert auth_links._is_already_exists(_FakeAuthError("dup", 422, "email_exists"))
     assert auth_links._is_already_exists(_FakeAuthError("user already registered", 422, "other"))

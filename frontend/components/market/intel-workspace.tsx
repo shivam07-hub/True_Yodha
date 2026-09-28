@@ -71,7 +71,10 @@ export function IntelWorkspace({ token }: { token: string }) {
   const followedNames = useMemo(() => follow.companies.map((c) => c.company_name), [follow.companies])
   const { alert } = useGapAlert(followedNames, gapSkills)
 
-  const targetRoles = useMemo(() => profile?.target_roles ?? [], [profile?.target_roles])
+  const targetRoles = useMemo(
+    () => profile?.direction?.families ?? [],
+    [profile?.direction?.families],
+  )
   const cvReadiness = useMemo<"ready" | "missing" | "processing" | "failed">(() => {
     if (profile?.has_cv) return "ready"
     return profile?.cv_readiness ?? "missing"

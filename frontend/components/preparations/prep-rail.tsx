@@ -18,6 +18,7 @@ import { displayJobTitle } from "@/lib/jobs/clean-title"
 import { CompanyAvatar, STAGE_META } from "@/components/cv/builder/library-shared"
 import { SkillPathRail } from "./skill-path-rail"
 import { TrainingCard } from "./training-card"
+import { TrainingPicker, type ShelfRow } from "./training-shelf"
 import { AuditCard } from "./audit-card"
 import { STEP_LABELS, STEP_LEGEND, roomStage } from "./prep-model"
 
@@ -98,6 +99,7 @@ export function PrepRail({
   selectedJobId,
   live,
   onOpenRoom,
+  shelf,
 }: {
   token: string
   apps: ApplicationResponse[]
@@ -105,6 +107,8 @@ export function PrepRail({
   selectedJobId: string | null
   live: number
   onOpenRoom: (jobId: string, href: string) => void
+  /** No rooms: the Finlatics picker stands where the room list would. */
+  shelf: { rows: ShelfRow[]; selectedId: string; onSelect: (programId: string) => void } | null
 }) {
   const byJob = new Map((ladder?.rooms ?? []).map((room) => [room.job_id, room]))
 
@@ -120,14 +124,17 @@ export function PrepRail({
             Every room walks the same four steps. Clear a step once and it counts
             wherever it applies.
           </p>
-          <div className="prp-legend">
-            {STEP_LEGEND.map((label) => (
-              <span className="prp-legend-col" key={label}>
-                <span className="prp-legend-label">{label}</span>
-                <span className="prp-legend-bar" aria-hidden />
-              </span>
-            ))}
-          </div>
+          {/* The legend keys the pip columns. With no rooms it keys nothing. */}
+          {apps.length > 0 ? (
+            <div className="prp-legend">
+              {STEP_LEGEND.map((label) => (
+                <span className="prp-legend-col" key={label}>
+                  <span className="prp-legend-label">{label}</span>
+                  <span className="prp-legend-bar" aria-hidden />
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         {apps.length > 0 ? (
@@ -144,7 +151,11 @@ export function PrepRail({
           </div>
         ) : null}
 
-        <TrainingCard matches={ladder?.training} note={ladder?.training_note} />
+        {shelf ? (
+          <TrainingPicker rows={shelf.rows} selectedId={shelf.selectedId} onSelect={shelf.onSelect} />
+        ) : (
+          <TrainingCard matches={ladder?.training} note={ladder?.training_note ?? null} />
+        )}
         <SkillPathRail token={token} />
         <AuditCard token={token} />
       </div>

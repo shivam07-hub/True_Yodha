@@ -225,3 +225,68 @@ def test_read_capacity_opens_a_blocked_notice() -> None:
         assert rows[0].cause_key == "capacity_503:read_capacity"
     finally:
         unbind()
+
+
+# A database statement timeout is the DB-side twin of an httpx read timeout.
+# PostgREST raises it as a plain APIError (57014), so it reached the unhandled
+# boundary and opened an `unhandled_500` Notice keyed to whichever call site it
+# hit: `baseline_state`, `snapshot_refresh`, `safe_read`, `fetch_all_rows` —
+# four one-offs inside the 2026-09-12/13 capacity storm, none reproducible now.
+
+
+def _statement_timeout():
+    from postgrest.exceptions import APIError
+
+    return APIError({
+        "code": "57014", "details": None, "hint": None,
+        "message": "canceling statement due to statement timeout",
+    })
+
+
+def test_a_statement_timeout_is_a_503_and_a_blocked_capacity_notice() -> None:
+    from app.notice import NoticeBook, bind, unbind
+
+    book = NoticeBook.testing()
+    bind(book)
+    try:
+        test_app = FastAPI()
+        install_error_handling(test_app)
+
+        @test_app.get("/heavy")
+        def heavy() -> None:
+            raise _statement_timeout()
+
+        with TestClient(test_app, raise_server_exceptions=False) as client:
+            response = client.get("/heavy")
+
+        assert response.status_code == 503
+        assert response.headers["retry-after"] == "2"
+        assert "57014" not in response.text
+        rows = book.snapshot()
+        assert [(r.cause_class, r.status) for r in rows] == [("capacity_503", "blocked")]
+        assert rows[0].cause_key == "capacity_503:db.statement_timeout"
+    finally:
+        unbind()
+
+
+def test_any_other_postgrest_error_is_still_an_unhandled_500() -> None:
+    from postgrest.exceptions import APIError
+
+    from app.notice import NoticeBook, bind, unbind
+
+    book = NoticeBook.testing()
+    bind(book)
+    try:
+        test_app = FastAPI()
+        install_error_handling(test_app)
+
+        @test_app.get("/fk")
+        def fk() -> None:
+            raise APIError({"code": "23503", "details": None, "hint": None, "message": "fk"})
+
+        with TestClient(test_app, raise_server_exceptions=False) as client:
+            assert client.get("/fk").status_code == 500
+
+        assert [r.cause_class for r in book.snapshot()] == ["unhandled_500"]
+    finally:
+        unbind()

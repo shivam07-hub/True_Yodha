@@ -529,3 +529,53 @@ class TestAnonAndAuthedParseAgreeOnLiteralSkills:
 
         assert out["skills_detected"] == []
         assert out["provider_failed"] is True
+
+
+
+NOTICE_CAUSE_KEY = "work_lane:cv_structured_enrich:HTTPException"
+
+
+class _EchoProvider:
+    """Copies the first redaction token it was shown into the summary, the way
+    a verbatim-copy prompt does."""
+
+    def __init__(self, mangle: bool = False) -> None:
+        self.mangle = mangle
+
+    async def complete(self, messages, max_tokens=4096, temperature=None):  # noqa: ANN001
+        import json
+        import re
+
+        token = re.search(r"\[REDACTED_[A-Z]+_\d+\]", messages[-1]["content"]).group(0)
+        if self.mangle:
+            token = token.replace("_1]", "]")
+        return json.dumps({"summary": f"References on request: {token}"})
+
+
+_ECHO_CV = (
+    "EXPERIENCE\n"
+    "Research Assistant, Lab of Things (2023-2024)\n"
+    "Coordinated references; contact the lab at lab.office@univ.edu for letters.\n"
+    "Built dashboards in Power BI for twelve departments across the campus.\n"
+)
+
+
+@pytest.mark.asyncio
+async def test_the_structured_reparse_restores_what_it_redacted(monkeypatch) -> None:
+    monkeypatch.setattr(cv_parser, "get_llm_provider", lambda: _EchoProvider())
+
+    outcome = await cv_parser.reparse_structured_only(_ECHO_CV)
+
+    assert outcome.kind == "ok"
+    assert "lab.office@univ.edu" in str(outcome.value)
+    assert "[REDACTED" not in str(outcome.value)
+
+
+@pytest.mark.asyncio
+async def test_a_mangled_token_is_a_permanent_outcome_not_a_retry(monkeypatch) -> None:
+    """The save guard would refuse it on every retry. Say so once."""
+    monkeypatch.setattr(cv_parser, "get_llm_provider", lambda: _EchoProvider(mangle=True))
+
+    outcome = await cv_parser.reparse_structured_only(_ECHO_CV)
+
+    assert outcome.kind == "malformed"

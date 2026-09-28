@@ -10,12 +10,12 @@ from uuid import UUID
 from app.repositories.job_intelligence import JobIntelligenceRepository
 from app.services.job_intelligence_policy import (
     listing_confidence,
-    marker_to_iso_date,
     parse_datetime,
     response_signal,
     validate_feedback,
     visible_count,
 )
+from app.services.listing_time import day, verdict as listing_time
 
 
 @dataclass(frozen=True)
@@ -204,8 +204,10 @@ class JobIntelligence:
             feed_version=str(publication["run_id"]),
             published_at=parse_datetime(publication.get("created_at")),
             imported_job_count=int(publication.get("total_rows") or 0),
-            latest_batch_date=marker_to_iso_date(
-                self.repository.latest_job_batch_marker()
+            latest_batch_date=(
+                None
+                if (batch_day := day(self.repository.latest_job_batch_marker())) is None
+                else batch_day.isoformat()
             ),
         )
 
@@ -249,12 +251,12 @@ def _to_job_pulse(row: dict, *, now: datetime) -> JobPulse:
     confidence, is_stale = listing_confidence(row, now=now)
     outcome_count = row.get("outcome_count")
     quality_count = row.get("quality_report_count")
+    discovered = day(row.get("first_seen"))
+    confirmed = listing_time(row, now=now).confirmed_at
     return JobPulse(
         job_id=str(row["job_id"]),
-        first_seen_at=marker_to_iso_date(row.get("first_seen")),
-        last_verified_at=marker_to_iso_date(
-            row.get("last_verified_live_at") or row.get("last_seen")
-        ),
+        first_seen_at=None if discovered is None else discovered.isoformat(),
+        last_verified_at=confirmed.date().isoformat() if confirmed else None,
         is_stale=is_stale,
         listing_confidence=confidence,
         tracking_count=visible_count(

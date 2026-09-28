@@ -176,6 +176,10 @@ async def _sweep() -> None:
         priority_stale_hours, duration,
     )
     _alert_on_unproductive_sweep(targets, counts)
+    repo.record_sweep(
+        targets=len(targets),
+        productive=sum(n for result, n in counts.items() if result in _CONCLUSIVE),
+    )
     _refresh_skill_demand_if_changed(counts, retired)
 
 

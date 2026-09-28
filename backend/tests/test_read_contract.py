@@ -68,6 +68,10 @@ class _CountingJobsRepo:
         self._record("count_new_jobs_for_user")
         return 0
 
+    def match_freshness_inputs(self, user_id: str) -> dict:
+        self._record("match_freshness_inputs")
+        return {}
+
     def record_recommendation_exposures(self, user_id: str, rows: list[dict], *, surface: str) -> int:
         self._record("record_recommendation_exposures")
         return len(rows)
@@ -99,6 +103,7 @@ _MATCHES_EXPECTED_READS = {
     "get_user_match_stack",
     "get_feed_updated_at",
     "count_new_jobs_for_user",
+    "match_freshness_inputs",  # same wave member as the count; not a fourth section
 }
 
 

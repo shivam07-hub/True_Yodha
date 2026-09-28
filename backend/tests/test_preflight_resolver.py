@@ -1,6 +1,7 @@
-"""Order → six-slot spec. The interface is `resolve()`, tested with Order fixtures."""
+"""Order → four-slot spec. The interface is `resolve()`, tested with Order fixtures."""
 from __future__ import annotations
 
+from app.services.career_target import MAX_TARGET_LOCATIONS
 from app.services.preflight import lines as ops
 from app.services.preflight import payload
 
@@ -32,29 +33,22 @@ def test_resolve_collapses_normalized_duplicates_silently() -> None:
     assert result.used_line_ids == ("a", "c")
 
 
-def test_three_kept_goals_are_an_arity_conflict_not_a_silent_first() -> None:
+def test_a_kept_goal_is_not_a_slot_and_stays_visible() -> None:
+    """career_goal left the spec. A kept line must not write the column, and
+    must not vanish — `_dedupe` drops anything with no slot."""
     order = ops.Order(
         lines=[
             line(id="g1", kind="goal", text="Staff engineer"),
             line(id="g2", kind="goal", text="Founding PM"),
-            line(id="g3", kind="goal", text="Research scientist"),
+            line(id="s", kind="strength", text="debugging"),
         ]
     )
     result = payload.resolve(order)
     assert "career_goal" not in result.spec
-    assert len(result.conflicts) == 1
-    conflict = result.conflicts[0]
-    assert conflict.slot == "career_goal"
-    assert conflict.kind == "arity"
-    assert conflict.line_ids == ("g1", "g2", "g3")
-    assert result.used_line_ids == ()
-
-
-def test_a_single_goal_still_fills_the_slot() -> None:
-    order = ops.Order(lines=[line(kind="goal", text="Staff engineer")])
-    result = payload.resolve(order)
-    assert result.spec["career_goal"] == "Staff engineer"
+    assert "superpower" not in result.spec
     assert result.conflicts == ()
+    assert result.used_line_ids == ()
+    assert set(result.facts) == {"g1", "g2", "s"}
 
 
 def test_wont_take_against_the_same_lean_is_a_contradiction() -> None:
@@ -165,7 +159,7 @@ def test_the_slot_view_is_the_spec_addressed_by_line_id():
     # An unanswered line is on no slot — it is not part of the order yet.
     assert slots["lean"]["line_ids"] == []
     # Every slot states its own arity, so nothing downstream re-derives it.
-    assert slots["target_locations"]["arity"] == 3
+    assert slots["target_locations"]["arity"] == MAX_TARGET_LOCATIONS
     assert slots["deal_breakers"]["arity"] == 6
 
 
@@ -221,16 +215,16 @@ def test_the_location_slot_holds_the_cities_the_user_named() -> None:
     assert payload.project(order)["target_locations"] == ["Mumbai", "Bengaluru"]
 
 
-def test_a_fourth_location_contests_rather_than_being_dropped() -> None:
+def test_a_location_past_the_cap_contests_rather_than_being_dropped() -> None:
     """The cap is `MAX_TARGET_LOCATIONS`, the one `targeting_write` enforces.
 
-    Over it, the slot places nothing and asks — silently truncating to three
+    Over it, the slot places nothing and asks — silently truncating to the cap
     would be the arity-1 bug with a bigger number.
     """
     order = ops.Order(
         lines=[
             line(kind="location", text=city, status="kept")
-            for city in ("Mumbai", "Bengaluru", "Pune", "Chennai")
+            for city in ("Mumbai", "Bengaluru", "Pune", "Chennai", "Hyderabad", "Gurugram")
         ]
     )
     result = payload.resolve(order)

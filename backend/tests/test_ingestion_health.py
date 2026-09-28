@@ -63,7 +63,10 @@ def _check(monkeypatch, rows, *, boom=False, now=NOW, emitted=None):
     if emitted is not None:
         import app.notice as notice
         monkeypatch.setattr(notice, "observe", lambda s: emitted.append(s))
-    return ingestion_health.check_ingestion(now), client
+    health = ingestion_health.check_ingestion(now)
+    from app.services.probe import INGESTION, open_notice
+    open_notice(INGESTION, health.state)
+    return health, client
 
 
 def _ran(hours_ago: float) -> list[dict]:
@@ -82,6 +85,17 @@ def test_past_the_target_cadence_is_degraded_and_quiet(monkeypatch) -> None:
     assert health.state == "degraded"
     # Measured, never mailed: we know we are behind 72h and a permanently open
     # row is a row nobody reads.
+    assert emitted == []
+
+
+def test_asking_does_not_open_a_notice(monkeypatch) -> None:
+    emitted: list = []
+    import app.notice as notice
+    monkeypatch.setattr(notice, "observe", lambda s: emitted.append(s))
+    client = _FakeClient(_ran(9 * 24))
+    monkeypatch.setattr(ingestion_health, "get_supabase_admin", lambda: client)
+    health = ingestion_health.check_ingestion(NOW)
+    assert health.state == "stalled"
     assert emitted == []
 
 

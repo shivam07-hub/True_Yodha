@@ -40,10 +40,20 @@ def test_an_unanswered_guess_never_clears_the_stored_column() -> None:
 
 def test_answering_no_to_everything_in_a_slot_does_clear_it() -> None:
     """"Myro runs on the lines above and nothing else" — an emptied slot is empty."""
+    order = ops.Order(lines=[line(id="w", kind="wont_take", text="Large corporations")])
+    order, _ = ops.drop(order, "w", now="2026-08-24T00:00:00Z")
+    spec = payload.project(order)
+    assert spec["deal_breakers"] == []
+
+
+def test_dropping_a_goal_does_not_null_the_column() -> None:
+    """The slot is gone, so a leftover goal line cannot write NULL over a
+    career_goal intent chat still records."""
     order = ops.Order(lines=[line(id="g", kind="goal", text="Staff engineer")])
     order, _ = ops.drop(order, "g", now="2026-08-24T00:00:00Z")
     spec = payload.project(order)
-    assert spec["career_goal"] is None
+    assert "career_goal" not in spec
+    assert "superpower" not in spec
 
 
 def test_a_slot_that_never_existed_is_absent_not_cleared() -> None:

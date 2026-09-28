@@ -32,47 +32,15 @@ from datetime import datetime, timedelta, timezone
 
 from app.config import settings
 from app.database import get_supabase_admin
+from app.services.probe import BeltState, _age_hours, remember, reset_cache as _reset
 
 log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
 class IngestionHealth:
-    state: str  # ok | degraded | stalled | unknown
+    state: BeltState
     stale_hours: float | None
-
-
-@dataclass
-class _CachedCheck:
-    at: datetime
-    state: str
-    stale_hours: float | None
-
-
-_cache: _CachedCheck | None = None
-
-
-def _age_hours(raw: object, now: datetime) -> float | None:
-    if not raw:
-        return None
-    try:
-        stamp = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if stamp.tzinfo is None:
-        stamp = stamp.replace(tzinfo=timezone.utc)
-    return round((now - stamp).total_seconds() / 3600, 2)
-
-
-def _emit(health: IngestionHealth) -> IngestionHealth:
-    """Open the Notice. `stalled` only — `degraded` is the 72h target we are
-    knowingly behind, and a row that is always open teaches people to skip the
-    digest. `observe` never mails (ADR-0021); the daily digest is the one send.
-    """
-    from app.notice import Sighting, observe
-
-    observe(Sighting.dead_man(belt="job_ingestion"))
-    return health
 
 
 def _evaluate(now: datetime) -> IngestionHealth:
@@ -95,7 +63,7 @@ def _evaluate(now: datetime) -> IngestionHealth:
         # saying out loud: an unstarted belt and a dead one look identical to a
         # user staring at a corpus that never grows.
         log.warning("metric job_ingestion.alert reason=never_ran")
-        return _emit(IngestionHealth("stalled", None))
+        return IngestionHealth("stalled", None)
 
     stale_hours = _age_hours(rows[0].get("started_at"), now)
     if stale_hours is None:
@@ -105,7 +73,7 @@ def _evaluate(now: datetime) -> IngestionHealth:
             "metric job_ingestion.alert reason=dead_man stale_hours=%.2f threshold_hours=%d",
             stale_hours, settings.ingestion_stalled_hours,
         )
-        return _emit(IngestionHealth("stalled", stale_hours))
+        return IngestionHealth("stalled", stale_hours)
     if stale_hours >= settings.ingestion_degraded_hours:
         # Visible, deliberately quiet. The target is 72h; compute cannot hold it
         # yet, and paging on a known constraint teaches people to ignore pages.
@@ -118,19 +86,15 @@ def _evaluate(now: datetime) -> IngestionHealth:
 
 
 def check_ingestion(now: datetime | None = None) -> IngestionHealth:
-    """Ingestion health, at most one DB read per configured interval."""
-    global _cache
+    """Ingestion health, at most one DB read per configured interval.
+
+    Returns a state and writes nothing. Opening the Notice is `probe.open_notice`.
+    """
     now = now or datetime.now(timezone.utc)
     interval = timedelta(minutes=settings.ingestion_health_interval_minutes)
-    if _cache is not None and now - _cache.at < interval:
-        return IngestionHealth(_cache.state, _cache.stale_hours)
-
-    health = _evaluate(now)
-    _cache = _CachedCheck(at=now, state=health.state, stale_hours=health.stale_hours)
-    return health
+    return remember("ingestion", now, interval, lambda: _evaluate(now))
 
 
 def reset_cache() -> None:
     """Test seam — drops the throttle window."""
-    global _cache
-    _cache = None
+    _reset("ingestion")

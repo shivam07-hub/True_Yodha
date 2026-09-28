@@ -11,6 +11,7 @@ from app.schemas.career_path_api import (
     LearningPathRequestResponse,
     SkillCertificatePublic,
 )
+from app.services import forward_pass
 from app.services.career_skill_path_read import assemble
 from app.services.career_target import current_snapshot
 
@@ -22,6 +23,8 @@ def get_career_skill_path(
     principal: Principal = Depends(get_principal),
 ) -> CareerSkillPathResponse:
     payload = assemble(get_supabase_admin(), principal.id)
+    # The page that shows the snapshot title is the door that retitles it.
+    forward_pass.on_career_path_read(principal.id, payload.get("snapshot"))
     return CareerSkillPathResponse(**payload)
 
 

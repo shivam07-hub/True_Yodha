@@ -216,7 +216,9 @@ class TestAssembly:
         result = prep_ladder_read.assemble(_FakeRepo(rooms=[]), "u1")
         assert result["rooms"] == []
         assert result["training"] == []
-        assert result["training_note"] == "Nothing in your live rooms is short a level right now."
+        # No rooms, so nothing may be said about rooms. The screen matches on
+        # the target band instead (/career-skill-path `training`).
+        assert result["training_note"] is None
 
 
 def test_endpoint_returns_the_ladder() -> None:

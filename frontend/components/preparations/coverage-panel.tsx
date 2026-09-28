@@ -13,6 +13,7 @@
 import * as React from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { cv as cvApi, type CoverageRow } from "@/lib/api"
+import { Button } from "@/components/ui/button"
 
 const MARKER: Record<string, { glyph: string; cls: string }> = {
   covered: { glyph: "●", cls: "covered" },
@@ -35,14 +36,9 @@ function GapComposer({
       />
       <div className="prp-gapq-foot">
         <span className="prp-gapq-hint">Saved as a career story — reusable in your CV and every interview.</span>
-        <button
-          type="button"
-          className="prp-btn primary"
-          disabled={tooShort || banking}
-          onClick={() => onBank(value)}
-        >
-          {banking ? "Banking…" : "Bank it"}
-        </button>
+        <Button size="sm" disabled={tooShort} loading={banking} onClick={() => onBank(value)}>
+          {banking ? "Banking" : "Bank it"}
+        </Button>
       </div>
     </div>
   )

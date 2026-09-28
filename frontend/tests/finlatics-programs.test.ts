@@ -12,6 +12,7 @@ import {
   FINLATICS_SRC,
   finlaticsHomeHref,
   finlaticsHref,
+  finlaticsPhotoSrc,
 } from "../lib/finlatics-programs"
 
 test("the rail lists the eleven landing programs, Financial Analyst first", () => {
@@ -87,5 +88,13 @@ test("the Excel program uses src; the rest use utm_src — matching the landing 
     assert.equal(program.attr, "utm_src")
     assert.equal(url.searchParams.get("utm_src"), "myroref")
     assert.equal(url.searchParams.get("src"), null)
+  }
+})
+
+test("every program has its info-card photo committed under /public/finlatics", () => {
+  for (const program of FINLATICS_PROGRAMS) {
+    const src = finlaticsPhotoSrc(program)
+    assert.equal(src, `/finlatics/${program.id}.jpg`)
+    assert.ok(existsSync(join(process.cwd(), "public", src)), `${program.id} photo missing`)
   }
 })

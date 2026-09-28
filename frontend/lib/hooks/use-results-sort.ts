@@ -16,7 +16,7 @@ import { useCallback, useEffect, useState } from "react"
 export type ResultsSortKey =
   | "velocity"   // week-over-week delta in created_at bins
   | "open"       // raw open-role count
-  | "recency"    // most recently updated (last_seen)
+  | "recency"    // most recently updated
   | "alpha"      // company name A→Z
 
 export interface ResultsSortSemantics {

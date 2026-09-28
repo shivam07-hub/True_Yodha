@@ -53,8 +53,6 @@ export type SlotKey =
   | "target_locations"
   | "deal_breakers"
   | "lean"
-  | "career_goal"
-  | "superpower"
 
 export interface OrderConflict {
   slot: string
@@ -65,7 +63,7 @@ export interface OrderConflict {
 }
 
 /**
- * One of the six slots, as the resolver left it.
+ * One of the four slots, as the resolver left it.
  *
  * `line_ids` is the PLACED set — deduped, uncontested, within arity, and
  * identical to what reaches the profile patch. The client renders these; it no

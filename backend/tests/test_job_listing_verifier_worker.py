@@ -138,3 +138,27 @@ def test_sweep_never_counts_exact_backlogs_inline() -> None:
 
     assert ".pending_count(" not in source
     assert ".priority_pending_count(" not in source
+
+
+def test_a_sweep_with_nothing_due_still_leaves_a_heartbeat(monkeypatch) -> None:
+    """An idle belt and a dead one looked the same to the dead-man."""
+    class _Repo:
+        def __init__(self, _db) -> None:  # noqa: ANN001
+            self.swept: list[tuple[int, int]] = []
+            _Repo.last = self
+
+        def claim_targets(self, **_kw):  # noqa: ANN003
+            return []
+
+        def retire_eligible(self, *, limit: int) -> int:
+            return 0
+
+        def record_sweep(self, *, targets: int, productive: int) -> None:
+            self.swept.append((targets, productive))
+
+    monkeypatch.setattr(job_listing_verifier, "ListingVerificationRepository", _Repo)
+    monkeypatch.setattr(job_listing_verifier, "get_supabase_admin", lambda: object())
+
+    asyncio.run(job_listing_verifier._sweep())
+
+    assert _Repo.last.swept == [(0, 0)]

@@ -160,7 +160,7 @@ export function FeedCard({
   const exp = experienceLabel(data.minYears, data.maxYears)
   const showMode = data.locationMode && (!data.location || !data.location.toLowerCase().includes(data.locationMode))
   const hasLoc = data.locations.length > 0 || data.location || showMode
-  const hasMeta = data.careerBand || data.seniority || exp
+  const hasMeta = data.careerBand || data.seniority || exp || data.pay
   // The fit slot is derived from the data by default; an explicit `fit` node overrides.
   const fitNode = fit ?? <FitIndicator fit={data.fit} size={fitSize} />
   const hasFit = fit != null || data.fit != null
@@ -265,6 +265,14 @@ export function FeedCard({
               {data.careerBand ? <span className="fc-metachip">{CAREER_BAND_LABEL[data.careerBand] ?? data.careerBand}</span> : null}
               {data.seniority ? <span className="fc-metachip">{data.seniority}</span> : null}
               {exp ? <span className="fc-metachip">{exp}</span> : null}
+              {data.pay ? (
+                <span
+                  className={`fc-metachip fc-pay${data.pay.belowFloor ? " is-below" : ""}`}
+                  title={`${data.pay.estimated ? "Estimated from company and peer pay bands" : "Stated on the posting"}${data.pay.belowFloor ? " · under your pay floor" : ""}`}
+                >
+                  {data.pay.label}
+                </span>
+              ) : null}
             </div>
           ) : null}
 

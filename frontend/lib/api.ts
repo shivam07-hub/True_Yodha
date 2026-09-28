@@ -406,10 +406,36 @@ export const auth = {
 
 // ── User ──────────────────────────────────────────────────────────────────────
 
+/** What this person is aiming at — the ONE answer, computed by the backend.
+ *
+ *  Nine surfaces used to rebuild this from the raw columns below and five of
+ *  them disagreed: two fell back to `target_roles`, Practice stopped at
+ *  `target_role_title`, `/market` read `target_roles` alone, and the CV page
+ *  answered "needs a target?" from whether the scoping key was empty — so
+ *  someone whose scope was blank was told to pick a target their own Career
+ *  Path page was showing them. Read this; never the raw columns. */
+export interface Direction {
+  /** Shown to humans. */
+  titles: string[]
+  /** What the matcher scopes on. Corpus families — the SAME strings as
+   *  `titles` for anyone the role picker wrote. Never render these. */
+  families: string[]
+  primary_title: string | null
+  /** The one answer to "does this person need a target?". Titles alone count. */
+  is_set: boolean
+  /** A role-targeted search will scope on something. */
+  is_runnable: boolean
+  /** What a search can honestly promise. `skills_only` must be SAID on the
+   *  surface — the run matched on skills, not on their role. */
+  scope_mode: "targeted" | "skills_only" | "none"
+}
+
 export interface UserProfile {
   email: string
   full_name: string | null
   linkedin_url: string | null
+  /** Read this instead of the four raw target fields below. */
+  direction?: Direction | null
   target_roles: string[]
   target_role_title?: string | null
   target_role_titles?: string[]
@@ -3333,6 +3359,10 @@ export interface JobMatch {
   archetype?: string | null                                        // Block A — role archetype
   legitimacy_tier?: "high_confidence" | "caution" | "suspicious" | string | null // Block G
   legitimacy_reason?: string | null
+  /** Pay band in INR lakhs per annum; `ctc_basis` says whether the posting printed it or Myro estimated it. */
+  ctc_low_lpa?: number | null
+  ctc_high_lpa?: number | null
+  ctc_basis?: "stated" | "estimated" | null
   // Scraper lifecycle (Job Intelligence) — now carried on /jobs/matches.
   // `last_seen_at` = scraper observation time, powers "Last verified".
   // `first_seen` = discovery age / sort only. Never the publication clock.
@@ -3804,8 +3834,9 @@ export interface JobFeedItem {
   industry?: string | null
   source_url?: string | null
   first_seen?: string | null
-  last_seen_at?: string | null  // ISO date the scraper last confirmed it live
-  is_stale?: boolean            // unseen >21d — warn before the Apply link 404s
+  last_seen_at?: string | null  // discovery marker; not a check
+  last_verified_live_at?: string | null
+  is_stale?: boolean            // not confirmed open — warn before the Apply link 404s
   is_active: boolean
   skills: string[]
   matched_skills?: string[]  // which of `skills` the user's CV covers — ✓/✗ chip marking (T3-1)
@@ -3838,6 +3869,12 @@ export interface JobFeedItem {
   on_direction?: boolean
   level_stated?: boolean
   checked_recently?: boolean
+  /** Pay band in INR lakhs per annum, and whether even its top is under the
+   *  person's pay floor. A floor never hides a card — it is said here. */
+  ctc_low_lpa?: number | null
+  ctc_high_lpa?: number | null
+  ctc_basis?: "stated" | "estimated" | null
+  pay_below_floor?: boolean | null
 }
 
 /** One card in the "Myro Agent Picks" band — a feed card plus the Career-Ops
@@ -3933,7 +3970,6 @@ export interface MarketAnalytics {
   total_companies: number
   total_industries: number
   latest_batch?: string | null
-  scraper_started?: string | null
   total_jobs_today?: number
   jobs_added_1h?: number
   companies_added_7d?: number
@@ -4177,7 +4213,7 @@ export interface TopCompaniesAtResponse {
   value: string
   companies: CompanyHiringItem[]
 }
-export type TopCompaniesSort = "roles" | "last_seen"
+export type TopCompaniesSort = "roles" | "discovered"
 
 export interface GlobalJobHit {
   job_id: string
@@ -6144,7 +6180,8 @@ export interface PrepLadderResponse {
   rooms: LadderRoom[]
   totals: LadderTotals
   training: TrainingMatch[]
-  training_note: string
+  /** Null when no room is live — there is no board to say anything about. */
+  training_note: string | null
 }
 
 /** Step 3's record for one room. `rehearsed` holds STORY ids, not requirement

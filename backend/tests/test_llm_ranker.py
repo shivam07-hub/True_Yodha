@@ -664,3 +664,130 @@ def test_the_prompt_says_past_skills_do_not_set_direction() -> None:
     assert "PAST SKILLS QUALIFY A CANDIDATE; THEY DO NOT SET THEIR DIRECTION" in prompt
     assert "pick_reason" in prompt
     assert 'Use "Apply" only at 4.0+' in prompt
+
+
+# ── growth_fit only when a goal is actually on file ─────────────────────────
+
+def test_no_goal_is_omitted_rather_than_scored_as_not_specified() -> None:
+    """~2,000 verdicts were generated against "Career goal: not specified"."""
+    prompt = llm_ranker.build_system_prompt({}, "CV text")
+    assert "not specified" not in prompt
+    assert "Career goal:" not in prompt
+    assert "Superpower:" not in prompt
+    assert "growth_fit MUST be null" in prompt
+    assert '"growth_fit": null' in prompt
+    assert "application_angle" in prompt
+    assert "do not invent one" in prompt
+
+
+def test_a_real_goal_is_what_growth_fit_is_judged_against() -> None:
+    prompt = llm_ranker.build_system_prompt(
+        {"career_goal": "lead a platform team", "superpower": "debugging production"},
+        "CV text",
+    )
+    assert "Career goal: lead a platform team" in prompt
+    assert "Superpower: debugging production" in prompt
+    assert "Judge growth_fit against the career goal above (lead a platform team)." in prompt
+    assert '"growth_fit": float' in prompt
+    assert "Frame application_angle around this superpower: debugging production." in prompt
+
+
+def test_an_aspiration_fact_counts_as_the_goal_when_the_column_is_empty() -> None:
+    prompt = llm_ranker.build_system_prompt(
+        {"known_facts": ["aspiration: move into platform work"]},
+        "CV text",
+    )
+    assert "Career goal: move into platform work" in prompt
+    assert llm_ranker.career_goal_of({"career_goal": "No", "known_facts": ["aspiration: lead a team"]}) == "lead a team"
+
+
+def test_a_growth_score_against_no_goal_is_dropped() -> None:
+    parsed = {"growth_fit": 4.2, "overall_score": 4.0}
+    assert llm_ranker.gate_growth_fit({}, parsed)["growth_fit"] is None
+    kept = {"growth_fit": 4.2}
+    assert llm_ranker.gate_growth_fit({"career_goal": "lead a team"}, kept)["growth_fit"] == 4.2
+
+
+def test_prompt_version_names_the_pay_band_rule() -> None:
+    assert llm_ranker.PROMPT_VERSION == "v4-pay-band-breaks"
+
+
+# ── Deal-Breaker: numbered won't-take lines, a pay floor, a pay band ───────────
+
+_BREAKER_PROFILE: dict[str, Any] = {
+    "target_roles": ["Sales"],
+    "deal_breakers": [
+        "Avoids early-stage start-ups",
+        "less than 30 lakhs",
+        "Avoids roles focused on financial accounting",
+    ],
+}
+
+
+def test_the_prompt_numbers_wont_take_lines_and_states_the_floor_apart() -> None:
+    prompt = llm_ranker.build_system_prompt(_BREAKER_PROFILE, "CV")
+    assert (
+        "- Won't take: 1) Avoids early-stage start-ups; "
+        "2) Avoids roles focused on financial accounting"
+    ) in prompt
+    assert "- Pay floor: ₹30 LPA" in prompt
+    # Pay is not a won't-take line, so it cannot be answered as a break.
+    assert "3) less than 30 lakhs" not in prompt
+    assert "Pay never makes a posting Skip." in prompt
+
+
+def test_no_lines_reads_as_none_stated_and_no_floor_line() -> None:
+    prompt = llm_ranker.build_system_prompt({"target_roles": ["Sales"]}, "CV")
+    assert "- Won't take: none stated" in prompt
+    assert "- Pay floor:" not in prompt
+
+
+def test_parse_reads_the_pay_band_ordered_and_the_break_numbers() -> None:
+    parsed = llm_ranker.parse_eval(
+        '{"overall_score": 4.1, "recommendation": "Apply", '
+        '"ctc_lpa": [48, 36], "ctc_basis": "estimated", "breaks": [2, "1", true, 1.5]}'
+    )
+    assert parsed is not None
+    assert (parsed["ctc_low_lpa"], parsed["ctc_high_lpa"]) == (36.0, 48.0)
+    assert parsed["ctc_basis"] == "estimated"
+    # Only whole numbers are line numbers.
+    assert parsed["breaks"] == [2]
+
+
+def test_a_single_number_is_not_a_band() -> None:
+    parsed = llm_ranker.parse_eval('{"overall_score": 4.1, "ctc_lpa": 40, "ctc_basis": "stated"}')
+    assert parsed is not None
+    assert parsed["ctc_low_lpa"] is None and parsed["ctc_high_lpa"] is None
+    assert parsed["ctc_basis"] is None
+
+
+def test_a_broken_line_is_a_skip_whatever_the_model_said() -> None:
+    parsed = llm_ranker.parse_eval('{"overall_score": 4.4, "recommendation": "Apply", "breaks": [1]}')
+    assert parsed is not None
+    llm_ranker.gate_verdict(_BREAKER_PROFILE, parsed)
+    assert parsed["recommendation"] == "Skip"
+    assert parsed["breaks"] == ["Avoids early-stage start-ups"]
+
+
+def test_a_break_number_with_no_line_behind_it_changes_nothing() -> None:
+    parsed = llm_ranker.parse_eval('{"overall_score": 4.4, "recommendation": "Apply", "breaks": [9]}')
+    assert parsed is not None
+    llm_ranker.gate_verdict(_BREAKER_PROFILE, parsed)
+    assert parsed["recommendation"] == "Apply"
+    assert parsed["breaks"] == []
+
+
+def test_persist_writes_the_pay_band_and_the_broken_lines() -> None:
+    db = _FakeDB()
+    llm_ranker.persist_matches(
+        db=db,  # type: ignore[arg-type]
+        user_id="user-1",
+        batch_week=date(2026, 9, 28),
+        top_jobs=[{"job_id": "job-1", "overlap_score": 60.0}],
+        evaluations={"job-1": _eval(
+            ctc_low_lpa=36.0, ctc_high_lpa=48.0, ctc_basis="estimated", breaks=[],
+        )},
+    )
+    row = db.tape["rows"][0]
+    assert (row["ctc_low_lpa"], row["ctc_high_lpa"], row["ctc_basis"]) == (36.0, 48.0, "estimated")
+    assert row["breaks"] == []

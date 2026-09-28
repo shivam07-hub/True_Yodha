@@ -112,6 +112,7 @@ def test_assemble_gates_without_a_snapshot(monkeypatch) -> None:
     assert out["needs_target"] is True
     assert out["snapshot"] is None
     assert out["next_action"]["kind"] == "choose_target"
+    assert out["training"] == []
 
 
 def test_credibility_uses_source_seniority_not_title() -> None:
@@ -150,4 +151,5 @@ def test_targeting_columns_only_write_through_commit() -> None:
     assert "targeting_write.commit" in intent
     assert '{"target_locations": locations, "target_location"' not in intent
     assert 'users_repo.update_profile(user_id, {"target_seniority": value})' not in onboarding
-    assert "record_from_profile(db, user_id, before, profile or {})" in writer
+    assert "record_from_profile(user_id, profile or {})" in writer
+

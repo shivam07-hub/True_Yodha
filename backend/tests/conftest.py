@@ -39,3 +39,30 @@ def _reset_test_account_memo() -> Any:
     test_accounts.reset_cache()
     yield
     test_accounts.reset_cache()
+
+
+class RecordedSnapshotWrites:
+    """The service-role client `career_target.record_from_profile` holds."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, dict[str, Any]]] = []
+
+    def rpc(self, name: str, params: dict[str, Any]) -> "RecordedSnapshotWrites":
+        self.calls.append((name, params))
+        return self
+
+    def execute(self) -> None:
+        return None
+
+
+@pytest.fixture(autouse=True)
+def snapshot_writes(monkeypatch: pytest.MonkeyPatch) -> RecordedSnapshotWrites:
+    """Every direction write ends in `record_from_profile`, which holds its own
+    service-role client. With a real `.env` that client is production: no test
+    writes a career target there. A test that cares reads `.calls`.
+    """
+    from app.services import career_target
+
+    writes = RecordedSnapshotWrites()
+    monkeypatch.setattr(career_target, "get_supabase_admin", lambda: writes)
+    return writes

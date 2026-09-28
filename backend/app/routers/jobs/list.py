@@ -12,10 +12,10 @@ from app.repositories.company_signals import (
 from app.repositories.jobs import (
     CompanySearchUnavailable,
     JobsRepository,
-    _job_feed_marker_to_iso,
     get_public_jobs_repository,
     get_token_jobs_repository,
 )
+from app.services.listing_time import SEED_COLUMN, day
 from app.services.matching import feed_warm, published_list
 from app.services.matching.filter_spec import FilterSpec
 from app.services.matching.job_query import JobQuery
@@ -53,6 +53,11 @@ from app.schemas.company_gap_signals import CompanyGapSignalItem, CompanyGapSign
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _iso_day(value: object) -> str | None:
+    found = day(value)
+    return None if found is None else found.isoformat()
 
 
 @router.get("/feed/hidden", response_model=list[HiddenJobItem])
@@ -103,7 +108,6 @@ def get_my_analytics(
         total_companies=analytics["total_companies"],
         total_industries=analytics["total_industries"],
         latest_batch=analytics["latest_batch"],
-        scraper_started=analytics.get("scraper_started"),
         total_jobs_today=analytics.get("total_jobs_today", 0),
         jobs_added_1h=analytics.get("jobs_added_1h", 0),
         companies_added_7d=analytics.get("companies_added_7d", 0),
@@ -254,7 +258,6 @@ def get_market_analytics(
         total_companies=analytics["total_companies"],
         total_industries=analytics["total_industries"],
         latest_batch=analytics["latest_batch"],
-        scraper_started=analytics.get("scraper_started"),
         total_jobs_today=analytics.get("total_jobs_today", 0),
         jobs_added_1h=analytics.get("jobs_added_1h", 0),
         companies_added_7d=analytics.get("companies_added_7d", 0),
@@ -513,13 +516,9 @@ def list_company_open_roles(
                 location_city=r.get("location_city"),
                 location_country=r.get("location_country"),
                 location_mode=r.get("location_mode"),
-                # Age = the company's actual posting date (date_posted). first_seen/
-                # last_seen are OUR crawl markers — a fresh crawl batch writes them
-                # ≈now, so using them made every role read a misleading "0m ago".
-                # Fall back to crawl markers only when date_posted is NULL (legacy rows).
-                created_at=_job_feed_marker_to_iso(
-                    r.get("date_posted") or r.get("first_seen") or r.get("last_seen")
-                ),
+                # Age is the company's posting date. Discovery is the fallback
+                # when that date was never stored. A crawler marker is not an age.
+                created_at=_iso_day(r.get("date_posted") or r.get("first_seen")),
             )
             for r in rows
         ],
@@ -530,7 +529,7 @@ def list_company_open_roles(
 def list_top_companies_at(
     industry: str | None = None,
     city: str | None = None,
-    sort_by: Literal["roles", "last_seen"] = "roles",
+    sort_by: str = "roles",
     limit: Annotated[int, Query(ge=1, le=20)] = 8,
     repo: JobsRepository = Depends(get_public_jobs_repository),
 ) -> TopCompaniesAtResponse:
@@ -546,7 +545,14 @@ def list_top_companies_at(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Provide exactly one of industry or city.",
         )
-    rows = repo.list_top_companies_at(industry=industry, city=city, limit=limit, sort_by=sort_by)
+    # A client that has not refreshed still sends the retired crawler token.
+    # Both that token and "discovered" are discovery order.
+    requested: Literal["roles", "discovered"] = (
+        "discovered" if sort_by in {"discovered", SEED_COLUMN} else "roles"
+    )
+    rows = repo.list_top_companies_at(
+        industry=industry, city=city, limit=limit, sort_by=requested
+    )
     return TopCompaniesAtResponse(
         kind="industry" if industry else "city",
         value=industry or city or "",
@@ -580,7 +586,7 @@ def global_search_jobs(
                 location_city=r.get("location_city"),
                 location_country=r.get("location_country"),
                 location_mode=r.get("location_mode"),
-                created_at=_job_feed_marker_to_iso(r.get("first_seen")),
+                created_at=_iso_day(r.get("first_seen")),
             )
             for r in rows
         ],

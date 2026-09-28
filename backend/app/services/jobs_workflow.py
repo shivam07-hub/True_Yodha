@@ -3,15 +3,15 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Any, Literal
 
 from app.repositories.job_tracks import JobTracksRepository
 from app.repositories.jobs import JobsRepository
 from app.repositories.scores import ScoresRepository
-from app.services import job_importer, job_tracks, llm_ranker, onboarding_service
+from app.services import direction, job_importer, job_tracks, llm_ranker, onboarding_service
 from app.services.llm_provider import LLMProvider, get_judgment_provider
-from app.services.matching import candidate_pool, ranking, targeting
+from app.services.matching import candidate_pool, match_freshness, ranking, targeting
 from app.services.scoring.aspirations import fetch_aspiration_skills
 
 logger = logging.getLogger(__name__)
@@ -50,10 +50,10 @@ def _match_pool_nonempty(repo: JobsRepository, user_id: str) -> bool:
 def compute_match_health(
     repo: JobsRepository,
     user_id: str,
-    match_rows: list[dict[str, Any]],
+    match_rows: list[dict],
     *,
-    now: Any = None,
-    freshness: Any = None,
+    now: datetime | None = None,
+    freshness: match_freshness.Freshness | Literal["not_asked"],
 ) -> MatchHealth:
     """Honest state of a user's job matches, for the trust banner + free re-vet.
 
@@ -72,19 +72,15 @@ def compute_match_health(
     - ``empty``        — nothing to surface (no CV/skills, or the market genuinely
       has no overlapping jobs). NOT a failure; no retry offered.
 
-    `freshness` is a **Match Freshness** state supplied by the caller — the profile
-    columns it reads are not on this module's path, and only callers that already
-    pay for them should. Omitted (None) means "not asked", never "fine": the
-    answer is then exactly what it was before this state existed.
+    `freshness` is required. `"not_asked"` is the pre-state answer, and only a
+    caller that holds no profile may pass it. A Match Freshness state is the
+    one `match_freshness.state` already named.
     """
-    from datetime import datetime, timezone
-
     from app.repositories import cv_upload_jobs
 
     if freshness == "outstanding":
         return "stale_direction"
     if freshness == "running" and not match_rows:
-        # A run IS in flight for a direction saved minutes ago. Never `failed`.
         return "computing"
 
     if match_rows:
@@ -114,18 +110,10 @@ def compute_match_health(
     return "failed" if _match_pool_nonempty(repo, user_id) else "empty"
 
 
-def _iso_age_seconds(ref: Any, now: Any) -> float | None:
-    from datetime import datetime, timezone
+def _iso_age_seconds(ref: object, now: datetime) -> float | None:
+    from app.services.probe import age_seconds
 
-    if not ref:
-        return None
-    try:
-        ts = datetime.fromisoformat(str(ref))
-    except (ValueError, TypeError):
-        return None
-    if ts.tzinfo is None:
-        ts = ts.replace(tzinfo=timezone.utc)
-    return (now - ts).total_seconds()
+    return age_seconds(ref, now)
 
 
 # Two-tier brain sizing (career-ops shape). The deterministic pre-filter hands a
@@ -438,7 +426,8 @@ async def compute_job_matches(
     # What this run tells the brain. Computed once from the same profile the
     # ranking uses, so the skip gate and the rows it writes agree by construction.
     run_eval_ctx = onboarding_service.eval_context_key(profile)
-    target_roles_count = len(profile.get("target_roles") or [])
+    run_direction = direction.of(profile)
+    target_roles_count = len(run_direction.families)
     target_countries = profile.get("target_location_countries") or []
     if not target_countries and profile.get("target_location_country"):
         target_countries = [profile["target_location_country"]]
@@ -496,7 +485,7 @@ async def compute_job_matches(
     # `target_role_titles`, which is free text on the legacy and pre-flight paths
     # and, since the families were made the visible name, is usually a copy of
     # this same list anyway.
-    title_roles = profile.get("target_roles") or []
+    title_roles = list(direction.of(profile).families)
     excluded_set = set(excluded_job_ids or [])
 
     # Two-phase persist. The per-job reasoning below is the 166-220s a user watches

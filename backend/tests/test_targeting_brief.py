@@ -45,7 +45,12 @@ def test_for_ranking_without_client_carries_no_facts():
 
     brief = for_ranking(FakeRepo(), "u1")
     assert brief.facts == []
-    assert brief.ranking_profile() == {"target_roles": ["Software Development"]}
+    ranking = brief.ranking_profile()
+    assert "known_facts" not in ranking, "no client means no facts ride along"
+    assert ranking["target_roles"] == ["Software Development"]
+    # `scope_mode` travels on every ranking dict from 2026-09-27 — what the run
+    # can honestly promise, beside what it is scoping on.
+    assert ranking["scope_mode"] == "targeted"
 
 
 # ── preflight gap-fill ───────────────────────────────────────────────────────

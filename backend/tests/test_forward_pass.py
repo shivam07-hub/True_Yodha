@@ -319,3 +319,69 @@ def test_the_years_pass_is_not_on_the_cv_read_door():
     Level step. On a CV read it would reshape her matches with nothing on screen to
     say so, which is the silent enrichment `964f1587` ruled out."""
     assert "cv_years" not in dict(forward_pass.PASSES)
+
+
+# ── The Career Path title that nobody chose ──────────────────────────────────
+# 20260909120000 replaced corpus-label titles ("Custom Software Engineer") in
+# PROFILES with the family name; snapshots kept the label. 38 people, all
+# title-only drift, all snapshots from 2026-09-07 or earlier. Career Path renders
+# the snapshot title.
+
+
+def _snap(title: str, family: str = "Software Development") -> dict:
+    return {"id": "s1", "role_title": title, "role_family": family}
+
+
+def test_a_snapshot_titled_by_its_family_is_left_alone(monkeypatch):
+    monkeypatch.setattr(forward_pass.debounce, "claim", lambda *_a: pytest.fail("no claim"))
+
+    assert forward_pass.on_career_path_read("u1", _snap("Software Development")) is False
+    assert forward_pass.on_career_path_read("u1", None) is False
+
+
+def test_a_label_the_user_never_chose_is_brought_forward_once(monkeypatch):
+    from app.services import background
+
+    claims: set[str] = set()
+    monkeypatch.setattr(
+        forward_pass.debounce, "claim",
+        lambda key, ttl: key not in claims and not claims.add(key),
+    )
+    enqueued: list[tuple[str, dict]] = []
+    monkeypatch.setattr(
+        background, "enqueue", lambda lane, name, **kw: enqueued.append((name, kw["payload"])),
+    )
+
+    assert forward_pass.on_career_path_read("u1", _snap("Custom Software Engineer")) is True
+    assert forward_pass.on_career_path_read("u1", _snap("Custom Software Engineer")) is False
+    assert enqueued == [("career_target_sync", {"user_id": "u1"})]
+
+
+def test_the_sync_writes_only_a_canonical_direction(monkeypatch, snapshot_writes):
+    """A pass never supersedes: restore_scope_from_snapshot needs the family a
+    stale snapshot still holds for the people whose profile lost it."""
+    import asyncio
+
+    from app.services import career_target
+
+    profiles = {
+        "canonical": {"target_role_titles": ["Software Development"],
+                      "target_roles": ["Software Development"], "target_seniority": "mid"},
+        "scope_lost": {"target_role_titles": ["Software Development"], "target_roles": [],
+                       "target_seniority": "mid"},
+    }
+
+    class _Users:
+        def __init__(self, _db) -> None:  # noqa: ANN001
+            pass
+
+        def get_profile(self, user_id: str) -> dict:
+            return profiles[user_id]
+
+    monkeypatch.setattr(career_target, "UsersRepository", _Users)
+
+    asyncio.run(career_target._career_target_sync({"user_id": "scope_lost"}, True))
+    assert snapshot_writes.calls == []
+
+    asyncio.run(career_target._career_target_sync({"user_id": "canonical"}, True))
+    assert [params["p_role_title"] for _, params in snapshot_writes.calls] == ["Software Development"]

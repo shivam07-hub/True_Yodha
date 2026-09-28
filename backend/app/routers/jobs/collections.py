@@ -14,6 +14,7 @@ from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.schemas import CollectionResponse
 from app.services.collections import PENDING_INTENT_AFTER, resolve_collection
 from app.services import jobs_workflow
+from app.services.matching import match_freshness
 from app.services.concurrent_reads import run_concurrently
 
 from app.services.job_projection import last_monday
@@ -40,8 +41,11 @@ def get_collection(
             "applications": lambda: repo.get_user_applications(uid),
             "dismissed": lambda: set(repo.get_dismissed_job_card_ids(uid)),
             "tailored": lambda: cv_repo.latest_for_jobs(uid),
-            "pending": lambda: repo.get_pending_apply_intent_job_ids(
-                uid, older_than=now - PENDING_INTENT_AFTER
+            "pending": lambda: (
+                repo.get_pending_apply_intent_job_ids(
+                    uid, older_than=now - PENDING_INTENT_AFTER
+                ),
+                match_freshness.state(repo.match_freshness_inputs(uid)),
             ),
         },
         label="jobs.collections",
@@ -50,14 +54,15 @@ def get_collection(
     # Dependent on `dismissed` — the stack read takes it rather than paying a
     # second round trip for the same set (same rule as /jobs/matches).
     match_rows = repo.get_user_match_stack(uid, dismissed=dismissed)
+    pending, freshness = reads["pending"] or (set(), "not_asked")
     return resolve_collection(
         applications=reads["applications"] or [],
         match_rows=match_rows,
         dismissed_job_ids=dismissed,
         tailored_by_job=reads["tailored"] or {},
-        pending_intent_job_ids=reads["pending"] or set(),
+        pending_intent_job_ids=pending or set(),
         batch_week=last_monday(),
-        # Same health the /jobs/matches banner reads — one rule, one module, so a
-        # surface that stopped reading that endpoint does not lose the trust banner.
-        match_health=jobs_workflow.compute_match_health(repo, uid, match_rows),
+        match_health=jobs_workflow.compute_match_health(
+            repo, uid, match_rows, freshness=freshness
+        ),
     )

@@ -6,6 +6,8 @@ from fastapi import Depends
 from postgrest.exceptions import APIError
 from supabase import Client
 
+from app.services.listing_time import SEED_COLUMN
+
 from app.database import get_supabase_admin
 from app.db_safe import safe_read
 from app.deps import get_user_db
@@ -38,13 +40,13 @@ class JobIntelligenceRepository:
     def latest_job_batch_marker(self) -> object:
         result = (
             self.admin_db.table("jobs")
-            .select("last_seen")
-            .order("last_seen", desc=True)
+            .select("batch_date")
+            .order("batch_date", desc=True)
             .limit(1)
             .execute()
         )
         rows = result.data or []
-        return rows[0].get("last_seen") if rows else None
+        return rows[0].get("batch_date") if rows else None
 
     def find_feedback(
         self,
@@ -113,7 +115,7 @@ class JobIntelligenceRepository:
         jobs = (
             self.admin_db.table("jobs")
             .select(
-                "job_id, first_seen, last_seen, is_active, listing_confidence, "
+                f"job_id, first_seen, {SEED_COLUMN}, is_active, listing_confidence, "
                 "last_verified_live_at"
             )
             .in_("job_id", job_ids)

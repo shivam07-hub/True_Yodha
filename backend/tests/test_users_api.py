@@ -173,7 +173,7 @@ def test_get_me_reports_failed_when_latest_upload_failed_and_no_baseline() -> No
     assert body["cv_upload_error_code"] == "poll_timeout"
 
 
-def test_update_profile_writes_through_token_repository() -> None:
+def test_update_profile_writes_through_token_repository(snapshot_writes) -> None:
     repo = _FakeUsersRepository(profile=_profile_row())
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[users.get_token_users_repository] = lambda: repo
@@ -187,6 +187,9 @@ def test_update_profile_writes_through_token_repository() -> None:
     assert response.status_code == 200
     assert response.json()["full_name"] == "Grace Hopper"
     assert repo.updates == [("u1", {"full_name": "Grace Hopper"})]
+    # The profile is written with the user's token; the snapshot is not. That
+    # split 500'd this route 18 times (`authenticated` may only read snapshots).
+    assert [name for name, _ in snapshot_writes.calls] == ["record_career_target"]
 
 
 def test_update_profile_grants_linkedin_xp_once_when_linkedin_added(monkeypatch) -> None:

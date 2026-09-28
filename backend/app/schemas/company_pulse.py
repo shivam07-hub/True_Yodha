@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 class CompanyPulseItem(BaseModel):
     company_name: str
-    # Live roles right now (last_seen within the freshness window).
+    # Live roles right now.
     open_roles: int
     # New roles first seen in the last 7 days.
     weekly_delta: int

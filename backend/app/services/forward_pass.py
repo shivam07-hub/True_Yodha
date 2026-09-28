@@ -349,6 +349,97 @@ def finish_outstanding_match(user_id: str, profile: dict[str, Any]) -> bool:
         return False
 
 
+def restore_scope_from_snapshot(user_id: str, profile: dict[str, Any]) -> bool:
+    """Put back the matcher's scope from the direction we still remember.
+
+    29 people hold a role title with an empty scope. The 2026-09-15 phantom
+    repair put them there, correctly: their scope keys were raw typed titles
+    that named no corpus family, so the matcher returned nothing. The repair
+    dropped the junk; it could not supply the family it did not own.
+
+    The snapshot did own it. `career_target_snapshots` is first-class and the
+    profile is its projection (`targeting_write.commit`), so for anyone whose
+    live snapshot still names a real family the answer was never lost — only
+    the copy the matcher reads. Their Career Path page shows that family today
+    while a search returns nothing, which is the disagreement this ends.
+
+    A heal, not a backfill: it finishes work the user started — they chose this
+    direction — and it fires on the visit they were already making. Written
+    through `commit`, so the snapshot, the score and the match refresh exactly
+    as a real Direction save does, and `_scope_direction` re-checks the family
+    against the corpus on the way through. A family that has since left the
+    corpus is dropped there rather than restored, which is the correct answer.
+    """
+    try:
+        from app.database import get_supabase_admin
+        from app.repositories.users import UsersRepository
+        from app.services import targeting_write
+        from app.services.career_target import current_snapshot
+
+        titles = _clean_names(profile.get("target_role_titles"))
+        if not titles or _clean_names(profile.get("target_roles")):
+            return False  # nothing to show, or nothing missing
+        db = get_supabase_admin()
+        snapshot = current_snapshot(db, user_id)
+        family = str((snapshot or {}).get("l2_role_family") or "").strip()
+        if not family:
+            return False  # genuinely target-less; the picker asks them instead
+        if not _claim("scope_restore", user_id):
+            return False
+        targeting_write.commit(UsersRepository(db), user_id, {
+            "target_role_titles": titles,
+            "role_families": [family],
+        })
+        logger.info("metric forward_pass.scope_restored user=%s family=%s", user_id, family)
+        return True
+    except Exception as exc:  # noqa: BLE001 — a read must never fail on a forward pass
+        logger.warning(
+            "metric forward_pass.failed pass=scope_restore user=%s reason=%s",
+            user_id, exc.__class__.__name__,
+        )
+        return False
+
+
+def on_career_path_read(user_id: str, snapshot: dict[str, Any] | None) -> bool:
+    """Retitle a Career Path snapshot the user never titled, on the visit that shows it.
+
+    20260909120000 replaced corpus-label titles ("Custom Software Engineer",
+    the family's modal job title) in PROFILES with the family name, and left
+    the snapshots alone. Measured 2026-09-28: 38 people whose current snapshot
+    disagrees with their profile on the title only, every one written on
+    2026-09-07 or earlier. Career Path renders that title.
+
+    The check is free — the page already holds the snapshot — and pure: a
+    title that is not its own family. A user who typed their own title also
+    passes it; for them the job is a no-op, because `record_career_target`
+    writes nothing when the snapshot already agrees with the profile.
+    """
+    if not snapshot:
+        return False
+    title = str(snapshot.get("role_title") or "").strip()
+    family = str(snapshot.get("role_family") or "").strip()
+    if not title or title == family:
+        return False
+    if not _claim("career_snapshot", user_id):
+        return False
+    try:
+        from app.services import background
+
+        background.enqueue(
+            background.LANE_FAST,
+            "career_target_sync",
+            payload={"user_id": user_id},
+        )
+        logger.info("metric forward_pass.career_snapshot_enqueued user=%s", user_id)
+        return True
+    except Exception as exc:  # noqa: BLE001 — a read must never fail on a forward pass
+        logger.warning(
+            "metric forward_pass.failed pass=career_snapshot user=%s reason=%s",
+            user_id, exc.__class__.__name__,
+        )
+        return False
+
+
 def on_profile_read(user_id: str, profile: dict[str, Any]) -> None:
     """What `/users/me` — the shell on every authed page — can put right.
 
@@ -358,6 +449,11 @@ def on_profile_read(user_id: str, profile: dict[str, Any]) -> None:
     second pass rather than queueing the same work twice.
     """
     if _promote_catch_all_primary(user_id, profile):
+        return
+    # Before the match pass: restoring the scope IS a direction change, and
+    # `commit` enqueues its own run. Finishing an outstanding run first would
+    # run it against the empty scope we are about to fill.
+    if restore_scope_from_snapshot(user_id, profile):
         return
     finish_outstanding_match(user_id, profile)
 

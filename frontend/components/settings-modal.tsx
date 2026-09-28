@@ -18,7 +18,7 @@ import { FollowCompanyControl } from "@/components/companies/follow-company-cont
 import { billing, jobs, users } from "@/lib/api"
 import type { ProfileUpdate } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import { catalogFromAnalytics, suggestLocations } from "@/lib/location-catalog"
+import { MAX_TARGET_LOCATIONS, catalogFromAnalytics, suggestLocations } from "@/lib/location-catalog"
 import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 import { loadRazorpay } from "@/lib/razorpay"
 import { AccountDeletionPanel } from "@/components/settings/account-deletion-panel"
@@ -97,7 +97,6 @@ const normalizeLinkedIn = (v: string): string | null => {
   if (!t) return null
   return /^https?:\/\//i.test(t) ? t : `https://${t}`
 }
-const MAX_TARGET_LOCATIONS = 5
 const normalizeLocations = (locations: string[]): string[] => {
   const seen = new Set<string>()
   return locations.reduce<string[]>((acc, loc) => {
@@ -454,11 +453,8 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
 
   const followedCompanies = following.companies
   const targetRoleTitles =
-    profile?.target_role_titles?.length
-      ? profile.target_role_titles
-      : profile?.target_role_title
-        ? [profile.target_role_title]
-        : (profile?.target_roles ?? [])
+    // One answer from the backend — see `Direction` in lib/api.
+    profile?.direction?.titles ?? []
 
   // Following-tab save state, derived from the follow hook so the indicator can
   // sit inline next to the chips. Flashes "✓ Saved" briefly once an in-flight

@@ -10,6 +10,7 @@
 import * as React from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { jobs as jobsApi, type PrepBrief } from "@/lib/api"
+import { Button } from "@/components/ui/button"
 import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
 import { useXPStore } from "@/store/xpStore"
 
@@ -80,24 +81,24 @@ export function BriefCard({ token, jobId }: { token: string; jobId: string }) {
   if (brief) return <BriefView brief={brief} />
 
   return (
-    <div>
-      <p className="prp-sec-note" style={{ marginBottom: 10 }}>
+    <div className="prp-sec-stack">
+      <p className="prp-sec-note">
         Your stories, their likely questions, a day-of plan — one page.
       </p>
       {/* The brief is written FROM the rehearsal. Buying it first spends coins
           on a thinner page; say so once, here, rather than after the charge. */}
-      <p className="prp-sec-note" style={{ marginBottom: 10 }}>
+      <p className="prp-sec-note">
         Best after step 3 — it is written from the answers you rehearse.
       </p>
-      <button
-        type="button"
-        className="prp-btn primary"
-        disabled={buy.isPending || state.isLoading}
+      <Button
+        size="sm"
+        disabled={state.isLoading}
+        loading={buy.isPending}
         onClick={() => gate.attempt(() => buy.mutate())}
       >
-        {buy.isPending ? "Writing your brief…" : `Get the day-of brief · ${BRIEF_COST}`}
-      </button>
-      {buy.isError ? <p className="prp-err" style={{ marginTop: 8 }}>Couldn&rsquo;t build the brief right now — nothing was charged. Try again.</p> : null}
+        {buy.isPending ? "Writing your brief" : `Get the day-of brief · ${BRIEF_COST}`}
+      </Button>
+      {buy.isError ? <p className="prp-err">Couldn&rsquo;t build the brief right now — nothing was charged. Try again.</p> : null}
     </div>
   )
 }

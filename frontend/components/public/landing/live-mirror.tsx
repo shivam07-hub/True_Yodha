@@ -1,7 +1,6 @@
 "use client"
 
 import { IntelHero } from "@/components/public/intel/intel-hero"
-import { useScraperUptime } from "@/components/public/intel/intel-filters"
 import type { MarketAnalytics } from "@/lib/api"
 import "@/components/public/intel-pane.css"
 import "./landing-live-mirror.css"
@@ -21,8 +20,6 @@ export function LandingLiveMirror({
   jobsCount: number
   companiesCount: number
 }) {
-  const uptime = useScraperUptime(analytics?.scraper_started)
-
   return (
     <div className="lp-live-mirror" id="live-mirror">
       <div className="lp-wrap">
@@ -36,7 +33,6 @@ export function LandingLiveMirror({
           companiesAdded7d={analytics?.companies_added_7d ?? 0}
           latestBatchIso={analytics?.latest_batch ?? null}
           consoleCompanies={analytics?.by_company ?? []}
-          uptime={uptime}
         />
       </div>
     </div>

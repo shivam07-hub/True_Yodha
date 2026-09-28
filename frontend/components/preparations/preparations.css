@@ -31,24 +31,13 @@
   align-items: center;
   gap: 8px;
 }
-.prp-stage-btn {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-caption);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 6px 12px;
-  border-radius: var(--tm-button-radius);
-  border: 1px solid var(--tm-border);
-  background: transparent;
-  color: var(--tm-text);
-  cursor: pointer;
+/* The stage trigger is the canonical neutral Button; this is its status dot. */
+.prp-stage-dot {
+  width: 8px;
+  height: 8px;
   flex-shrink: 0;
+  border-radius: 50%;
 }
-.prp-stage-btn:hover { border-color: var(--tm-interactive); }
 
 /* quiet inline stage-check (one line, never a modal) */
 .prp-stagecheck {
@@ -89,6 +78,9 @@
   color: var(--tm-text-faint);
 }
 .prp-sec-note { font-size: var(--tm-fs-caption); color: var(--tm-text-muted); }
+/* A note or two above one action. The gap is the spacing; nothing inline. */
+.prp-sec-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.prp-sec-stack > p { margin: 0; }
 .prp-sec-spacer { flex: 1; }
 
 /* coverage rows */
@@ -136,6 +128,7 @@
 }
 .prp-req-story b { color: var(--tm-text-muted); font-weight: 600; }
 .prp-req-action {
+  text-decoration: none;
   font-size: var(--tm-fs-caption);
   font-weight: 600;
   color: var(--tm-interactive-text);
@@ -158,7 +151,7 @@
   color: var(--tm-text);
   background: var(--tm-bg);
   border: 1px solid var(--tm-border);
-  border-radius: 10px;
+  border-radius: var(--tm-radius-lg);
   padding: 10px 12px;
 }
 .prp-gapq textarea:focus { outline: none; border-color: var(--tm-interactive); }
@@ -170,27 +163,6 @@
 }
 .prp-gapq-hint { font-size: var(--tm-fs-caption); color: var(--tm-text-faint); flex: 1; }
 
-.prp-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--tm-fs-caption);
-  font-weight: 600;
-  padding: 7px 14px;
-  border-radius: var(--tm-button-radius);
-  border: 1px solid var(--tm-border);
-  background: transparent;
-  color: var(--tm-text);
-  cursor: pointer;
-}
-.prp-btn:hover:not(:disabled) { border-color: var(--tm-interactive); }
-.prp-btn:disabled { opacity: 0.5; cursor: default; }
-.prp-btn.primary {
-  background: var(--tm-interactive);
-  border-color: var(--tm-interactive);
-  color: var(--tm-interactive-fg);
-}
-.prp-btn.primary:hover:not(:disabled) { filter: brightness(1.05); }
 
 /* rehearse cards */
 .prp-reh-count {
@@ -241,7 +213,7 @@
   align-items: flex-start;
   gap: 12px;
   border: 1px solid var(--tm-border-soft);
-  border-radius: 12px;
+  border-radius: var(--tm-radius-card);
   padding: var(--tm-card-pad);
   margin-bottom: 10px;
 }
@@ -284,19 +256,28 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-top: 16px;
   padding: var(--tm-card-pad);
   border: 1px solid var(--tm-border-soft);
-  border-radius: 12px;
+  border-radius: var(--tm-radius-card);
   background: color-mix(in srgb, var(--tm-interactive) 5%, transparent);
   font-size: var(--tm-fs-body);
   color: var(--tm-text);
   line-height: 1.5;
 }
+/* A count, not a control: --tm-text at size, never the interactive colour. */
 .prp-close-keep .n {
   font-family: var(--tm-font-mono);
   font-size: var(--tm-fs-heading);
   font-weight: 600;
-  color: var(--tm-interactive-text);
+  color: var(--tm-text);
+}
+.prp-close-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
 }
 .prp-offer-banner {
   text-align: center;
@@ -324,6 +305,9 @@
 }
 
 .prp-err { font-size: var(--tm-fs-caption); color: var(--tm-danger); }
+/* ReachSection needs the dashboard's .db token scope, not its surface. */
+.prp-sec.prp-reach { background: transparent; }
+.prp-record-notes { margin-top: 8px; }
 .prp-quiet { font-size: var(--tm-fs-caption); color: var(--tm-text-faint); }
 
 /* drill embed wraps the up-* quiz kit — give it breathing room only */
@@ -786,7 +770,7 @@
 .prp-level-rungs > span {
   width: 28px;
   height: 28px;
-  border-radius: 7px;
+  border-radius: var(--tm-radius);
   display: inline-flex;
   align-items: center;
   justify-content: center;

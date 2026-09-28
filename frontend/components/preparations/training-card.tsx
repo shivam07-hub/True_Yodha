@@ -41,7 +41,7 @@ export function TrainingCard({
   note,
 }: {
   matches?: TrainingMatch[]
-  note?: string
+  note: string | null
 }) {
   const rows = (matches?.length ? matches : FALLBACK)
     .map((match) => ({ match, program: BY_ID.get(match.program_id) }))

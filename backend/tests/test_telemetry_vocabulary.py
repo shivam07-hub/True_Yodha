@@ -22,6 +22,10 @@ import pytest
 
 from app.routers.telemetry import CV_UPLOAD_PHASES, CV_UPLOAD_OUTCOMES
 
+# The Notice was this drift: the CHECK rejected `confirm` and `direction` until
+# migration 20260908b, and every rejected write surfaced as a 500.
+NOTICE_CAUSE_KEY = "unhandled_500:APIError:app/routers/telemetry.py:_persist_cv_upload_phase"
+
 ROOT = Path(__file__).resolve().parents[2]
 MIGRATIONS = ROOT / "database" / "migrations"
 API_TS = ROOT / "frontend" / "lib" / "api.ts"

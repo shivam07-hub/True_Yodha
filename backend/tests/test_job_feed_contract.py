@@ -69,7 +69,8 @@ def test_marks_multi_location_values_as_unknown_without_fallback() -> None:
             "job_id": "gh_789",
             "job_title": "Software Engineer",
             "Location": "2 Locations",
-        }
+        },
+        default_batch_date=date(2026, 4, 26),
     )
 
     assert row["location"] == "2 Locations"
@@ -89,5 +90,15 @@ def test_rejects_non_list_skill_shapes() -> None:
                 "job_id": "wd_123",
                 "job_title": "Data Engineer",
                 "main_skills": {"Python": True},
+            }
+        )
+
+
+def test_a_row_without_a_batch_day_is_rejected() -> None:
+    with pytest.raises(JobFeedContractError, match="batch_date is required"):
+        normalize_job_feed_row(
+            {
+                "job_id": "wd_123",
+                "job_title": "Data Engineer",
             }
         )

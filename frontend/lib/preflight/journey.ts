@@ -1,5 +1,5 @@
 /**
- * Myro Search as a journey — five steps over the same six-slot Order.
+ * Myro Search as a journey — five steps over the same four-slot Order.
  *
  * The modal used to be ONE canvas holding everything: six slot groups, the
  * facts, the say band, the heard fold, the undo row and the run bar, stacked
@@ -67,8 +67,8 @@ export const STEPS: readonly StepDef[] = [
   {
     key: "about",
     title: "About you",
-    lede: "Where this is heading, and what you are strongest at.",
-    slots: ["career_goal", "superpower"],
+    lede: "True of you. None of this filters the search.",
+    slots: [],
     optional: true,
   },
   {
@@ -99,7 +99,9 @@ export function indexOfStep(key: StepKey): number {
  * the question and the thing it was about were never on screen together.
  *
  * `fact` files to no slot at all (a notice period, a visa status) and is shown
- * on About you, which is what it is about.
+ * on About you, which is what it is about. `goal` and `strength` file to no
+ * slot either — those columns are not collected here — and a leftover line
+ * still has to land somewhere the user can see.
  */
 const KIND_STEP: Record<LineKind, StepKey> = {
   role: "work",
@@ -121,8 +123,6 @@ const SLOT_STEP: Record<SlotKey, StepKey> = {
   target_locations: "where",
   deal_breakers: "preferences",
   lean: "preferences",
-  career_goal: "about",
-  superpower: "about",
 }
 
 export function stepForSlot(slot: SlotKey): StepKey {

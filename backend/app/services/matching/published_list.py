@@ -7,7 +7,10 @@ pool, or the skills the skipped roles asked for.
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
+
+from app.services.listing_time import verdict as listing_time
 
 SHOW_FLOOR = 3.5
 WORTH = frozenset({"Apply", "Negotiate"})
@@ -116,8 +119,8 @@ ASPIRATION_READ = 1000
 
 def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Cards worth showing, plus the honest account of the pile still open."""
-    from app.services import onboarding_service
-    from app.services.matching import targeting
+    from app.services import deal_breakers, direction, onboarding_service
+    from app.services.matching import admission, targeting
 
     profile = targeting.for_ranking(repo, user_id).ranking_profile()
     latest = (
@@ -126,7 +129,7 @@ def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, A
     )
     profile["baseline_version_id"] = latest
     ctx = onboarding_service.eval_context_key(profile)
-    roles = [str(r) for r in (profile.get("target_roles") or []) if str(r).strip()]
+    roles = list(direction.of(profile).families)
     countries = profile.get("target_location_countries") or None
     pool: list[str] = []
     bound = False
@@ -159,10 +162,12 @@ def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, A
             source = previous
             cv_replaced = True
 
-    visible = order_by_score([
+    # Worth showing by the verdict, then shown only if the listing is still open
+    # and still fits where and at what level this person looks NOW.
+    visible = order_by_score(admission.admitted(profile, [
         row for row in source
         if worth_showing(row.get("overall_score"), row.get("recommendation"))
-    ])
+    ]))
     skipped = [
         row for row in source
         if not worth_showing(row.get("overall_score"), row.get("recommendation"))
@@ -175,10 +180,10 @@ def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, A
     read = sum(1 for job_id in pool if job_id in judged)
     pending = max(0, len(pool) - read)
     reading = pending > 0
-    cleared = len(visible) if not cv_replaced else sum(
-        1 for row in current
+    cleared = len(visible) if not cv_replaced else len(admission.admitted(profile, [
+        row for row in current
         if worth_showing(row.get("overall_score"), row.get("recommendation"))
-    )
+    ]))
     cause = None if reading or cv_replaced else larger_cut(len(pool), len(visible))
     skills = skill_lines(skipped) if cause == "skills" else []
     text = notice(
@@ -191,7 +196,8 @@ def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, A
         skills=skills,
         cv_replaced=cv_replaced,
     )
-    return [_card(row) for row in visible], {
+    floor = deal_breakers.read(profile).pay_floor_lpa
+    return [_card(row, floor) for row in visible], {
         "reading": reading,
         "read": read,
         "pending": pending,
@@ -202,8 +208,9 @@ def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, A
     }
 
 
-def _card(row: dict[str, Any]) -> dict[str, Any]:
+def _card(row: dict[str, Any], floor: float | None = None) -> dict[str, Any]:
     from app.schemas.jobs import MatchEval
+    from app.services.deal_breakers import below_floor
 
     job = row.get("jobs") or {}
     me = MatchEval.model_validate(row)
@@ -227,7 +234,7 @@ def _card(row: dict[str, Any]) -> dict[str, Any]:
         "max_years_experience": job.get("max_years_experience"),
         "industry": job.get("industry"),
         "source_url": job.get("apply_url"),
-        "first_seen": job.get("first_seen"),
+        **listing_time(job, now=datetime.now(timezone.utc)).card(),
         "is_active": bool(job.get("is_active", True)),
         "skills": skills[:8],
         "matched_skills": matched,
@@ -242,4 +249,8 @@ def _card(row: dict[str, Any]) -> dict[str, Any]:
         "verdict": me.verdict,
         "is_strong": me.is_strong,
         "track_id": row.get("track_id"),
+        "ctc_low_lpa": me.ctc_low_lpa,
+        "ctc_high_lpa": me.ctc_high_lpa,
+        "ctc_basis": me.ctc_basis,
+        "pay_below_floor": below_floor(floor, me.ctc_high_lpa),
     }

@@ -918,12 +918,20 @@ async def _run_cv_upload_stages(
 async def _fail_and_refund(
     job_id: str, user_id: str, *, error_code: str, detail: str,
 ) -> None:
-    """Refund the upload charge if one was made, then mark the job failed.
+    """Mark the job failed, and refund the upload charge only if THIS call did.
 
-    The refund RPC is idempotent on (ref_table, ref_id) — re-invocation for
-    the same job_id returns the current balance without crediting again.
-    Worker retries are therefore safe.
+    The transition comes first. On 2026-09-17 a deploy killed a worker mid-job,
+    the stall recovery re-ran it to `done`, and RQ then declared the first
+    attempt abandoned: the refund ran before the `processing` guard and paid
+    200 coins back for a CV that had been analysed. The refund RPC is also
+    idempotent on (ref_table, ref_id), so a retried handler cannot pay twice.
     """
+    if not upload_jobs_repo.claim_failed(job_id, error_code=error_code, error_detail=detail):
+        _log.warning(
+            "metric cv_upload.refund_skipped job=%s reason=not_processing code=%s",
+            job_id, error_code,
+        )
+        return
     try:
         await refund(
             user_id, CV_UPLOAD_XP_COST, "cv_upload", reason=error_code,
@@ -933,12 +941,7 @@ async def _fail_and_refund(
     except Exception as exc:  # pragma: no cover — refund must never crash a job
         _log.exception("Refund failed for job=%s user=%s: %s", job_id, user_id, exc)
         refunded = False
-    upload_jobs_repo.mark_failed(
-        job_id,
-        error_code=error_code,
-        error_detail=detail,
-        refunded=refunded,
-    )
+    upload_jobs_repo.settle_failed(job_id, refunded=refunded)
 
 
 # ── Status read ───────────────────────────────────────────────────────────────

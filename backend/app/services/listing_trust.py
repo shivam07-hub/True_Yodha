@@ -36,28 +36,17 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from app.services.listing_time import CONFIRM_WITHIN, verdict as listing_time
+
 __all__ = ["CHECKED_FRESH_DAYS", "checked_cutoff", "verification_claim", "was_checked_within"]
 
-#: How long a conclusive check stays sayable. Seven days is the promise a user
-#: can test by clicking; past it the honest word is "not checked lately", not a
-#: quieter version of "verified".
-CHECKED_FRESH_DAYS = 7
+#: How long a conclusive check stays sayable. The number lives on listing
+#: time; past it the honest word is "not checked lately".
+CHECKED_FRESH_DAYS = CONFIRM_WITHIN.days
 
 
 def checked_cutoff(*, days: int = CHECKED_FRESH_DAYS, now: datetime | None = None) -> datetime:
     return (now or datetime.now(timezone.utc)) - timedelta(days=days)
-
-
-def _parse(value: Any) -> datetime | None:
-    if isinstance(value, datetime):
-        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
-    if not value:
-        return None
-    try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 
 def _verdict_was_live(row: dict[str, Any]) -> bool:
@@ -79,8 +68,9 @@ def was_checked_within(
 ) -> bool:
     """True only if a verifier fetched this listing inside the window AND found
     it live. Both halves, or the claim is not one."""
-    checked = _parse(row.get("last_conclusive_verification_at"))
-    if not (checked and checked >= checked_cutoff(days=days, now=now)):
+    moment = now or datetime.now(timezone.utc)
+    checked = listing_time(row, now=moment).checked_at
+    if not (checked and checked >= checked_cutoff(days=days, now=moment)):
         return False
     return _verdict_was_live(row)
 
@@ -101,13 +91,14 @@ def verification_claim(
     `unchecked` is NOT "dead", and must never be rendered as one. It is the
     absence of evidence, which the surface discloses so the reader can decide.
     """
-    checked = _parse(row.get("last_conclusive_verification_at"))
+    moment = now or datetime.now(timezone.utc)
+    checked = listing_time(row, now=moment).checked_at
     if checked is None:
         state = "unchecked"
     elif not _verdict_was_live(row):
         # Checked, and the answer was no. Never dressed as a softer word.
         state = "closed"
-    elif checked >= checked_cutoff(days=days, now=now):
+    elif checked >= checked_cutoff(days=days, now=moment):
         state = "checked"
     else:
         state = "stale"

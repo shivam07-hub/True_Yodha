@@ -22,6 +22,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from app.services.listing_time import CONFIRM_WITHIN
+
 # A company with this many live roles saturates the volume component. Chosen so
 # the biggest MNCs (~a few hundred open roles) land near the top of the scale
 # while a 20-role company still reads as meaningfully active.
@@ -30,9 +32,8 @@ VOLUME_SATURATION = 150
 # company refreshing a fifth of its roles in a week is hiring hard.
 MOMENTUM_TURNOVER = 0.20
 MOMENTUM_FLOOR = 5  # small companies: 5 new roles this week already reads hot
-# Freshness decays to zero over the same window the feed uses to call a listing
-# stale, so pulse and the stale badge can never disagree.
-FRESHNESS_WINDOW_DAYS = 21
+# Freshness decays to zero over the one window a confirmation stays sayable.
+# The old 21 was an age of the crawler marker, which never ticked.
 
 _W_VOLUME = 0.5
 _W_MOMENTUM = 0.3
@@ -69,7 +70,7 @@ def _freshness_component(days_since_last_seen: int | None) -> float:
         return 0.0
     if days_since_last_seen <= 0:
         return 1.0
-    return max(0.0, 1.0 - days_since_last_seen / FRESHNESS_WINDOW_DAYS)
+    return max(0.0, 1.0 - days_since_last_seen / CONFIRM_WITHIN.days)
 
 
 def compute_pulse(

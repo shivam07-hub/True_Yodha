@@ -46,7 +46,7 @@ class FilterSpec:
     so every mapper omits them.
 
     There is no feed mapper. The authed /market list is not a filtered search —
-    `shortlist_jobs` asks `candidates_for_user` for one person's forty jobs — so the
+    it is what this person's career-ops judge kept (`published_list`) — so the
     sort lens, the skill-match floor, the follow filter and the stretch toggle that
     only ``feed_kwargs`` ever read went with it.
     """

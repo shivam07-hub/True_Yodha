@@ -20,6 +20,7 @@ Import this for its side effects only — the imports below ARE the contents.
 from __future__ import annotations
 
 import app.services.career_reservoir  # noqa: F401  role_dedup, story_ingest
+import app.services.career_target  # noqa: F401  career_target_sync
 import app.services.certificate_to_cv  # noqa: F401  certificate_to_cv
 import app.services.cv_skill_edit  # noqa: F401  skill_retag
 import app.services.cv_stray_heal  # noqa: F401  stray_skill_heal

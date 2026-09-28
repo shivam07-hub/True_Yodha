@@ -98,4 +98,5 @@ class PrepLadderResponse(BaseModel):
     rooms: list[LadderRoom] = Field(default_factory=list)
     totals: LadderTotals
     training: list[TrainingMatch] = Field(default_factory=list)
-    training_note: str
+    #: None when no room is live — there is no board to say anything about.
+    training_note: str | None = None

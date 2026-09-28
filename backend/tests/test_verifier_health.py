@@ -7,11 +7,12 @@ from app.services.verifier_health import check_belt
 
 
 class FakeDB:
-    def __init__(self, value, *, productive=None, priority_due=0, raises=False):
+    def __init__(self, value, *, productive=None, priority_due=0, raises=False, swept=None):
         self.value = value
         self.productive = value if productive is None else productive
         self.priority_due = priority_due
         self.raises = raises
+        self.swept = swept
         self.reads = 0
 
     def rpc(self, name, params):
@@ -27,6 +28,7 @@ class FakeDB:
             "last_attempt": self.value,
             "last_productive": self.productive,
             "priority_due": self.priority_due,
+            "last_sweep": self.swept,
         }
         return type("Response", (), {"data": data})()
 
@@ -88,6 +90,8 @@ def test_silent_belt_opens_a_dead_man_notice(monkeypatch):
     _patch(monkeypatch, FakeDB(_ago(96)))
     try:
         assert check_belt().state == "stalled"
+        from app.services.probe import VERIFIER, open_notice
+        open_notice(VERIFIER, "stalled")
         rows = book.snapshot()
         assert len(rows) == 1
         assert rows[0].cause_key == "dead_man:listing_verifier"
@@ -125,3 +129,41 @@ def test_check_is_throttled_so_probe_frequency_never_drives_db_load(monkeypatch)
 
     check_belt(now + timedelta(minutes=6))
     assert db.reads == 2
+
+
+NOTICE_CAUSE_KEY = "dead_man:listing_verifier"
+
+# 2026-09-28: all 48,099 schedule rows had been attempted within the 7-day
+# window, so most sweeps claimed nothing and `last_attempt` stood still while
+# the cron ran every 15 minutes. Idle read as dead: dead_man:listing_verifier
+# opened, closed and reopened into failed-close.
+
+
+def test_an_idle_belt_that_is_sweeping_is_healthy(monkeypatch):
+    _patch(monkeypatch, FakeDB(_ago(10), productive=_ago(10), swept=_ago(0.2)))
+
+    assert check_belt().state == "ok"
+
+
+def test_a_belt_that_stopped_sweeping_is_stalled(monkeypatch, caplog):
+    _patch(monkeypatch, FakeDB(_ago(5), productive=_ago(5), swept=_ago(5)))
+
+    with caplog.at_level("WARNING"):
+        belt = check_belt()
+
+    assert belt.state == "stalled"
+    assert "job_verifier.alert reason=dead_man" in caplog.text
+
+
+def test_claims_are_sweep_evidence_before_the_first_heartbeat(monkeypatch):
+    """A claim happens inside a sweep, so a recent one proves the belt ran even
+    while the heartbeat row does not exist yet."""
+    _patch(monkeypatch, FakeDB(_ago(0.2), swept=None))
+
+    assert check_belt().state == "ok"
+
+
+def test_claiming_work_and_concluding_none_is_still_degraded(monkeypatch):
+    _patch(monkeypatch, FakeDB(_ago(0.2), productive=_ago(5), swept=_ago(0.1)))
+
+    assert check_belt().state == "degraded"

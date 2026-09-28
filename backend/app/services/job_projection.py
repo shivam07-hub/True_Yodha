@@ -8,10 +8,10 @@ service that needed one imported `app.routers`, and three call sites
 import with a comment naming the load cycle they were dodging. A projection is
 not a router concern; it lives here, and services import it directly.
 """
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-from app.repositories.jobs import _is_marker_stale, _job_feed_marker_to_iso
+from app.services.listing_time import verdict as listing_time
 from app.schemas import ApplicationResponse, CVBadge, JobMatchResponse, MatchEval
 
 
@@ -57,6 +57,7 @@ def to_job_match(row: dict, batch_week: date) -> JobMatchResponse:
     # MatchEval is tolerant (extra ignored), so it never narrows the read.
     ev = MatchEval.model_validate(row)
     jd_snippet, jd_truncated = _jd_snippet(job.get("job_description"))
+    when = listing_time(job, now=datetime.now(timezone.utc))
     return JobMatchResponse(
         id=row["id"],
         job_id=row["job_id"],
@@ -89,9 +90,7 @@ def to_job_match(row: dict, batch_week: date) -> JobMatchResponse:
         work_mode=job.get("work_mode"),
         min_years_experience=job.get("min_years_experience"),
         max_years_experience=job.get("max_years_experience"),
-        first_seen=_job_feed_marker_to_iso(job.get("first_seen")),
-        last_seen_at=_job_feed_marker_to_iso(job.get("last_seen")),
-        is_stale=_is_marker_stale(job.get("last_seen")),
+        **when.card(),
         is_active=bool(job.get("is_active", True)),
         overall_score=ev.overall_score,
         grade=ev.grade,
@@ -111,6 +110,9 @@ def to_job_match(row: dict, batch_week: date) -> JobMatchResponse:
         level_strategy=ev.level_strategy,
         personalization=ev.personalization,
         star_pointers=ev.star_pointers,
+        ctc_low_lpa=ev.ctc_low_lpa,
+        ctc_high_lpa=ev.ctc_high_lpa,
+        ctc_basis=ev.ctc_basis,
         is_recommended=ev.is_recommended,
         baseline_version_id=ev.baseline_version_id,
         target_context_hash=ev.target_context_hash,

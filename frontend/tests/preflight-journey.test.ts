@@ -143,8 +143,7 @@ test("every line kind has a step, and it is the step that edits its slot", () =>
 
 test("every slot has a step, and no slot is orphaned", () => {
   const slots: SlotKey[] = [
-    "target_role_titles", "target_locations", "deal_breakers",
-    "lean", "career_goal", "superpower",
+    "target_role_titles", "target_locations", "deal_breakers", "lean",
   ]
   for (const slot of slots) {
     assert.ok(STEPS.some((s) => s.key === stepForSlot(slot)), `${slot} routes to a real step`)

@@ -22,6 +22,19 @@ from __future__ import annotations
 from typing import Any
 
 _EXISTS_CODES = {"email_exists", "user_already_exists"}
+_RACE_MESSAGE = "database error creating new user"
+
+
+class CreateRaced(Exception):
+    """GoTrue's insert for this address lost to a concurrent one.
+
+    Its existence check passed, then the insert hit `users_email_partial_key`,
+    and it answers 500 "Database error creating new user" — not
+    `email_exists`. Measured 2026-09-24: two partner SSO calls for one new
+    address inside one second, one 200 and one 500. The same message covers
+    any database failure in that insert, so a caller confirms the account
+    before acting on it.
+    """
 
 
 def mint_login_link(admin: Any, *, email: str, redirect_to: str | None) -> str:
@@ -69,6 +82,8 @@ def create_user_if_absent(admin: Any, email: str) -> str | None:
     except Exception as exc:  # noqa: BLE001 — classified below, genuine errors re-raised
         if _is_already_exists(exc):
             return None
+        if _is_create_race(exc):
+            raise CreateRaced(email) from exc
         raise
     user = getattr(created, "user", None)
     return str(user.id) if user and getattr(user, "id", None) else None
@@ -76,8 +91,16 @@ def create_user_if_absent(admin: Any, email: str) -> str | None:
 
 def _ensure_user(admin: Any, email: str) -> None:
     """Create the account if it does not exist; a duplicate is the expected
-    returning-user case."""
-    create_user_if_absent(admin, email)
+    returning-user case, and so is a lost race (a double-clicked send). If the
+    race was really a database failure, the link minted next says so."""
+    try:
+        create_user_if_absent(admin, email)
+    except CreateRaced:
+        return
+
+
+def _is_create_race(exc: Exception) -> bool:
+    return getattr(exc, "status", None) == 500 and _RACE_MESSAGE in str(exc).lower()
 
 
 def _is_already_exists(exc: Exception) -> bool:

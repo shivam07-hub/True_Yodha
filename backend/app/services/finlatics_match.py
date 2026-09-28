@@ -1,4 +1,6 @@
-"""finlatics_match — which three Finlatics programmes this user's rooms argue for.
+"""finlatics_match — which Finlatics programmes this user's rooms argue for.
+
+With no rooms, `for_target` argues from the target band instead.
 
 Design: `UNIFIED_PREP_V2.md` (repo root) — the rail's bottom block.
 
@@ -67,6 +69,21 @@ class SkillGap:
     required_level: int
     company: str | None
     has_drill: bool
+
+
+@dataclass(frozen=True)
+class TargetGap:
+    """One skill the user's target band asks for that they have not shown.
+
+    The no-rooms counterpart of `SkillGap`: the claim is the band's demand,
+    the same "N of M roles" the Skill path meter beside it states.
+    """
+
+    taxonomy_key: str
+    display_name: str
+    required_level: int | None
+    skill_jobs: int
+    band_jobs: int
 
 
 @dataclass(frozen=True)
@@ -193,6 +210,34 @@ def select(gaps: list[SkillGap], *, size: int = RAIL_SIZE) -> list[ProgramMatch]
         if program_id not in {match.program_id for match in out}:
             out.append(ProgramMatch(program_id=program_id, why=None, matched=False))
     return out
+
+
+def target_why(gap: TargetGap) -> str:
+    """`Covers Machine Learning L3 · asked in 412 of 660 roles in your band`."""
+    level = f" L{gap.required_level}" if gap.required_level else ""
+    return (
+        f"Covers {_display(gap.display_name)}{level} · "
+        f"asked in {gap.skill_jobs} of {gap.band_jobs} roles in your band"
+    )
+
+
+def for_target(gaps: list[TargetGap]) -> list[ProgramMatch]:
+    """Every programme that covers a target-band gap, most-asked first.
+
+    Prep with no rooms has no board to argue from, so the band does. All
+    matches come back, not three: the screen lists the whole catalogue and
+    floats these to the top. A programme that covers nothing is not returned —
+    the caller fills from its own catalogue, and an absent row claims nothing.
+    """
+    ranked: list[tuple[int, int, ProgramMatch]] = []
+    for index, program_id in enumerate(PROGRAM_ORDER):
+        covered = [gap for gap in gaps if covers(program_id, gap.taxonomy_key)]
+        if not covered:
+            continue
+        top = max(covered, key=lambda gap: (gap.skill_jobs, gap.required_level or 0))
+        ranked.append((top.skill_jobs, -index, ProgramMatch(program_id, target_why(top), True)))
+    ranked.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    return [match for _, _, match in ranked]
 
 
 def rail_note(*, has_gaps: bool, bottleneck_step: int) -> str:

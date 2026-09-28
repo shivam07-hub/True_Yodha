@@ -279,7 +279,10 @@ async def rank_one(
     """On-demand single-job brain. Returns a Model Outcome, never a collapsed None."""
     eval_profile = _eval_profile(profile, cv_markdown)
     system_prompt = llm_ranker.build_system_prompt(eval_profile, eval_profile["cv_markdown"])
-    return await llm_ranker.evaluate_job(job, system_prompt, provider)
+    outcome = await llm_ranker.evaluate_job(job, system_prompt, provider)
+    if outcome.kind == "ok" and isinstance(outcome.value, dict):
+        llm_ranker.gate_verdict(eval_profile, outcome.value)
+    return outcome
 
 
 def _eval_profile(profile: dict[str, Any], cv_markdown: str) -> dict[str, Any]:

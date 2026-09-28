@@ -31,8 +31,6 @@ _EYEBROW: dict[str, str] = {
     "lean": "DRAWN TO",
     "role": "THE WORK",
     "pay_floor": "PAY FLOOR",
-    "goal": "WHERE YOU'RE HEADED",
-    "strength": "BEST AT",
 }
 _WHY: dict[str, str] = {
     "location": "From where you said you'd work.",
@@ -40,8 +38,6 @@ _WHY: dict[str, str] = {
     "lean": "This only tilts the ranking, it never excludes a role. A guess.",
     "role": "The work you just named.",
     "pay_floor": "A floor, not a target — roles under it drop out.",
-    "goal": "In your words, tidied.",
-    "strength": "In your words, tidied.",
 }
 
 
@@ -159,10 +155,10 @@ def from_utterance(
             push("lean", soft, "drawn to", costly=False)
     if diff.get("salary"):
         push("pay_floor", diff["salary"], "pay floor", costly=False)
-    if diff.get("career_goal"):
-        push("goal", diff["career_goal"], "where you're headed", costly=False)
-    if diff.get("superpower"):
-        push("strength", diff["superpower"], "best at", costly=False)
+
+    # career_goal and superpower are not slots. A proposal whose yes cannot
+    # write the column is a question with no effect. Intent chat still records
+    # a volunteered one, on its own apply path.
 
     # A SECOND SEARCH, when they named two kinds of work rather than one said
     # twice. One question, answered like any other row — "Marketing sounds like

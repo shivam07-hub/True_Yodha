@@ -137,6 +137,18 @@ def test_proofs_from_tests_read_the_marker(tmp_path: Path) -> None:
     assert proofs[0].on_main is True
 
 
+def test_one_file_may_close_several_causes(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "test_notice_close_demo.py").write_text(
+        'NOTICE_CAUSE_KEY = "unhandled_500:APIError:app/a.py:f"\n'
+        'NOTICE_CAUSE_KEY = "unhandled_500:APIError:app/b.py:g"\n',
+        encoding="utf-8",
+    )
+    keys = [p.cause_key for p in proofs_from_tests(tests, sha="sha", on_main=True)]
+    assert keys == ["unhandled_500:APIError:app/a.py:f", "unhandled_500:APIError:app/b.py:g"]
+
+
 def test_closer_does_not_author_a_pr() -> None:
     closer = (Path(__file__).resolve().parents[1] / "app" / "notice" / "closer.py").read_text()
     assert "maybe_author" not in closer

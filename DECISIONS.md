@@ -19,9 +19,8 @@ disagree, code wins and this line gets fixed in the same commit.
   any more. `user_skills.forge_sessions_count` survives as a display counter.
   Do not design a mechanic on it — see ARCHIVE.md #11.
 - **Skill levels advance on quiz clears**, not time. Thresholds
-  `{L0→L1: 1, L1→L2: 3, L2→L3: 9, L3→L4: 27}` live in TWO files that must agree:
-  `backend/app/services/forge_service.py:LEVEL_THRESHOLDS` and
-  `frontend/lib/level-thresholds.ts`. Change one, change both.
+  `{L0→L1: 1, L1→L2: 3, L2→L3: 9, L3→L4: 27}` live in
+  `frontend/lib/level-thresholds.ts`.
 
 ---
 

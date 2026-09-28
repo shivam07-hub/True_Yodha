@@ -2,7 +2,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 
 import type { JobFeedItem, JobMatch } from "../lib/api"
-import { feedDataFromFeedItem, feedDataFromMatch } from "../lib/jobs/card-view"
+import { feedDataFromFeedItem, feedDataFromMatch, payView } from "../lib/jobs/card-view"
 
 function feedItem(partial: Partial<JobFeedItem>): JobFeedItem {
   return {
@@ -140,4 +140,20 @@ test("dashboard: absent missing_skills is tolerated (no gap chips)", () => {
   })
   assert.ok(data.chips.every((c) => !c.missing))
   assert.equal(data.chips.filter((c) => c.matched).length, 2)
+})
+
+test("a pay band reads as lakhs, marked when estimated", () => {
+  assert.deepEqual(payView({ ctc_low_lpa: 36, ctc_high_lpa: 48, ctc_basis: "estimated" }), {
+    label: "~₹36–48L",
+    estimated: true,
+    belowFloor: false,
+  })
+  assert.equal(payView({ ctc_low_lpa: 40, ctc_high_lpa: 40, ctc_basis: "stated" })?.label, "₹40L")
+  assert.equal(payView({ ctc_low_lpa: 22.5, ctc_high_lpa: 30, ctc_basis: "estimated" })?.label, "~₹22.5–30L")
+})
+
+test("under the floor is the server's word, and no band is no chip", () => {
+  assert.equal(payView({ ctc_low_lpa: 24, ctc_high_lpa: 32, ctc_basis: "estimated", pay_below_floor: true })?.belowFloor, true)
+  assert.equal(payView({ ctc_low_lpa: null, ctc_high_lpa: 32 }), null)
+  assert.equal(payView({}), null)
 })

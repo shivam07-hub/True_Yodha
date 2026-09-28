@@ -1,5 +1,5 @@
 import { backendRequest } from "@/lib/api"
-import type { OnboardingResult } from "@/lib/api"
+import type { OnboardingResult, TrainingMatch } from "@/lib/api"
 
 export type SourceSeniority = "intern" | "entry" | "mid" | "senior" | "lead" | "executive"
 export type SkillState = "on_cv" | "practised" | "not_evidenced"
@@ -96,6 +96,9 @@ export interface CareerSkillPath {
   anchor: BandSkillMap | null
   higher: BandSkillMap | null
   learning_repos?: LearningRepoLink[]
+  /** Finlatics programmes covering a gap in the anchor band, most-asked first.
+   *  Matches only — Prep with no rooms lists the rest of the catalogue after. */
+  training?: TrainingMatch[]
   next_action: {
     kind: string
     label: string

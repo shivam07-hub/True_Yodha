@@ -14,49 +14,25 @@ from datetime import datetime, timedelta, timezone
 
 from app.config import settings
 from app.database import get_supabase_admin
+from app.services.probe import BeltState, _age_hours, remember, reset_cache as _reset
 
 log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
 class CloserHealth:
-    state: str  # ok | stalled | unknown
+    state: BeltState  # ok | stalled | unknown
     stale_hours: float | None
-
-
-@dataclass
-class _CachedCheck:
-    at: datetime
-    state: str
-    stale_hours: float | None
-
-
-_cache: _CachedCheck | None = None
-
-
-def _age_hours(raw: object, now: datetime) -> float | None:
-    if not raw:
-        return None
-    try:
-        stamp = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if stamp.tzinfo is None:
-        stamp = stamp.replace(tzinfo=timezone.utc)
-    return round((now - stamp).total_seconds() / 3600, 2)
 
 
 def check_closer(now: datetime | None = None) -> CloserHealth:
-    """Closer liveness, at most one DB read per configured interval."""
-    global _cache
+    """Closer liveness, at most one DB read per configured interval.
+
+    Returns a state and writes nothing. Opening the Notice is `probe.open_notice`.
+    """
     now = now or datetime.now(timezone.utc)
     interval = timedelta(minutes=settings.notice_closer_health_interval_minutes)
-    if _cache is not None and now - _cache.at < interval:
-        return CloserHealth(_cache.state, _cache.stale_hours)
-
-    health = _evaluate(now)
-    _cache = _CachedCheck(at=now, state=health.state, stale_hours=health.stale_hours)
-    return health
+    return remember("notice_closer", now, interval, lambda: _evaluate(now))
 
 
 def _evaluate(now: datetime) -> CloserHealth:
@@ -87,14 +63,10 @@ def _evaluate(now: datetime) -> CloserHealth:
             stale_hours,
             settings.notice_closer_stale_hours,
         )
-        from app.notice import Sighting, observe
-
-        observe(Sighting.dead_man(belt="notice_closer"))
         return CloserHealth("stalled", stale_hours)
     return CloserHealth("ok", stale_hours)
 
 
 def reset_cache() -> None:
     """Test seam — drops the throttle window."""
-    global _cache
-    _cache = None
+    _reset("notice_closer")

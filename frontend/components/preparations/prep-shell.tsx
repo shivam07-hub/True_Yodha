@@ -26,9 +26,11 @@ import { useQuery } from "@tanstack/react-query"
 import Link from "next/link"
 import { jobs as jobsApi, preparations, type ApplicationResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { useCareerSkillPath } from "@/lib/hooks/use-career-skill-path"
 import { PrepSkeleton } from "./prep-skeleton"
 import { PrepRail } from "./prep-rail"
 import { PrepRoom } from "./prep-room"
+import { TrainingDetail, shelfRows } from "./training-shelf"
 import { furthestBehind, ladderOrder, liveRoomCount, roomStage } from "./prep-model"
 import "@/app/(authed)/home/mission-control.css"
 
@@ -98,6 +100,12 @@ export function PrepShell({
     staleTime: 60 * 1000,
   })
 
+  // No rooms: the Finlatics shelf takes their place, matched on the target
+  // band. Same query key as the Skill path block, so no second request.
+  const skillPathQ = useCareerSkillPath()
+  // Null follows the best match; a pick holds even when the match lands later.
+  const [programId, setProgramId] = React.useState<string | null>(null)
+
   if (appsQ.isLoading) return <PrepSkeleton />
 
   const apps = appsQ.data ?? []
@@ -106,6 +114,10 @@ export function PrepShell({
   const app = ordered.find((a) => a.job_id === selectedId) ?? null
   const room = ladderQ.data?.rooms.find((r) => r.job_id === selectedId)
   const totals = ladderQ.data?.totals
+  const shelf = ordered.length === 0 && !chosen.jobId
+    ? shelfRows(skillPathQ.data?.training)
+    : null
+  const picked = shelf ? shelf.find((row) => row.program.id === programId) ?? shelf[0] : null
   const behind = totals
     ? furthestBehind(
         (ladderQ.data?.rooms ?? []).filter((r) => r.job_id !== selectedId),
@@ -123,6 +135,14 @@ export function PrepShell({
           selectedJobId={selectedId}
           live={liveRoomCount(apps)}
           onOpenRoom={openRoom}
+          shelf={shelf && picked ? {
+            rows: shelf,
+            selectedId: picked.program.id,
+            onSelect: (id) => {
+              setProgramId(id)
+              window.scrollTo({ top: 0 })
+            },
+          } : null}
         />
         <div className="mc-ws-main">
           {app ? (
@@ -140,13 +160,9 @@ export function PrepShell({
               This room doesn&rsquo;t exist — the job isn&rsquo;t in your pipeline.{" "}
               <Link href="/preparations">Back to Preparations</Link>
             </div>
-          ) : (
-            <div className="prp-empty">
-              Nothing to prep yet.{" "}
-              <Link href="/collections">Apply to a job in Collections</Link> and its
-              room opens here.
-            </div>
-          )}
+          ) : picked ? (
+            <TrainingDetail row={picked} />
+          ) : null}
         </div>
       </div>
     </div>

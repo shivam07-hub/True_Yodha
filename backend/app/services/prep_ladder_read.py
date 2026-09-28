@@ -88,7 +88,9 @@ def _empty() -> dict[str, Any]:
             "rooms": 0,
         },
         "training": [],
-        "training_note": finlatics_match.rail_note(has_gaps=False, bottleneck_step=1),
+        # No live room, so no sentence about rooms. Prep matches this user on
+        # their target band instead (`/career-skill-path` → `training`).
+        "training_note": None,
     }
 
 

@@ -11,6 +11,7 @@ from collections.abc import Callable
 from typing import Any
 
 from app.notice.types import CloseProof, Sighting
+from app.services.probe import INGESTION, VERIFIER, BeltState
 
 _logger = logging.getLogger("app.notice")
 
@@ -79,12 +80,12 @@ def harvest_railway(
 def harvest_belts(
     *,
     skill_awaiting: int | None,
-    verifier_state: str | None,
+    verifier_state: BeltState | None,
     sha: str,
     on_main: bool,
     alert_above: int = 100,
-    ingestion_state: str | None = None,
-    closer_state: str | None = None,
+    ingestion_state: BeltState | None = None,
+    closer_state: BeltState | None = None,
 ) -> tuple[list[Sighting], list[CloseProof]]:
     sightings: list[Sighting] = []
     proofs: list[CloseProof] = []
@@ -100,8 +101,8 @@ def harvest_belts(
                     on_main=on_main,
                 )
             )
-    if verifier_state in {"stalled", "degraded"}:
-        sightings.append(Sighting.dead_man(belt="listing_verifier"))
+    if verifier_state in VERIFIER.opens_on:
+        sightings.append(Sighting.dead_man(belt=VERIFIER.belt))
     elif verifier_state == "ok":
         proofs.append(
             CloseProof(
@@ -114,8 +115,8 @@ def harvest_belts(
     # Ingestion opens only when stalled (168h). `degraded` is the 72h aim we
     # are knowingly behind, so it must not open a permanent row — and it must
     # not close a real stall. A scraper dead for six days is not a recovery.
-    if ingestion_state == "stalled":
-        sightings.append(Sighting.dead_man(belt="job_ingestion"))
+    if ingestion_state in INGESTION.opens_on:
+        sightings.append(Sighting.dead_man(belt=INGESTION.belt))
     elif ingestion_state == "ok":
         proofs.append(
             CloseProof(

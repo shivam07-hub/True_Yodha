@@ -169,7 +169,7 @@ The frontend's responsive posture. One of `mobile` | `desktop`. Source of truth 
 
 ## Forge Session
 
-> **User-facing label (PR2):** *Practice session*. The domain glossary keeps the DB-aligned name `Forge Session` because identifiers (`forge_sessions` table, `forge_service.py`, `useForgeSession` hook, `/forge` route) are durable contracts. See `UBIQUITOUS_LANGUAGE.md § Public Vocab Lock` for the full mapping.
+> **User-facing label (PR2):** *Practice session*. The domain glossary keeps the DB-aligned name `Forge Session` because identifiers (`forge_sessions` table, `useForgeSession` hook, `/forge` route) are durable contracts. See `UBIQUITOUS_LANGUAGE.md § Public Vocab Lock` for the full mapping.
 
 An open-ended interval of deliberate practice on one skill. Stored as **bursts** in `forge_sessions` rows (any `duration_minutes > 0`) and aggregated on `user_skills.total_forge_minutes`. A "session" toward level threshold is the derived unit `total_forge_minutes // 25` — partial bursts accrue across the day and survive reloads. Users are never punished for stopping mid-25-min.
 
@@ -1008,7 +1008,7 @@ Migration `20260804_target_updated_at.sql` wrote the contract down and `04ef9f3b
 
 The single read for "what Myro knows about what this user wants" — one module (`app/services/matching/targeting.py`) assembles the confirmed `user_profiles` targeting columns AND the `user_memory` fact store (authored + distilled) so no consumer re-assembles its own subset.
 
-**CareerTargetSnapshot is the unit of truth for a direction change** (`career_target_snapshots`, current row = `superseded_at IS NULL`). `targeting_write.commit` is the only writer for role, family, seniority, locations, freshness, and the compatibility projection. Score, skill path, and personalized matches read `GET /career-skill-path` (or a narrow projection of it). `user_profiles.target_roles` remains the matcher scoping key until every consumer reads the snapshot. Legacy `any` seniority is compatibility data only — never coerced to `entry`. Job-card seniority is Firecrawl `jobs.seniority_level` only.
+**CareerTargetSnapshot is the unit of truth for a direction change** (`career_target_snapshots`, current row = `superseded_at IS NULL`). `targeting_write.commit` is the only writer for role, family, seniority, locations, freshness, and the compatibility projection. The snapshot row itself is written by one database function, `record_career_target` (service role only, one transaction: supersede + insert, no-op when the current row already names the direction), called from `career_target.record_from_profile(user_id, profile)`, which holds its own service-role client — owners may read snapshots, no user token may write them. Score, skill path, and personalized matches read `GET /career-skill-path` (or a narrow projection of it). `user_profiles.target_roles` remains the matcher scoping key until every consumer reads the snapshot. Legacy `any` seniority is compatibility data only — never coerced to `entry`. Job-card seniority is Firecrawl `jobs.seniority_level` only.
 
 **Two constructors, two halves**
 
@@ -1536,7 +1536,7 @@ Whether a job we surface still exists. Two triggers, one truth — every verdict
 
 **Liveness is not freshness.** `last_seen` records when the scraper last *ingested* a row, not when anyone confirmed it exists — while the scraper does not re-crawl, `last_seen` carries no liveness information at all and must not be rendered as if it does.
 
-**Unload.** Any gone-signal writes `listing_confidence=closed` and starts a one-hour clock (`quarantine_until` / `deletion_eligible_at`): one complete scrape miss, last_seen older than 30 days, verifier close (strong or weak), or a user report that the apply link is dead. `likely_closed` is leftover enum, not a holding pen. The card leaves Collection immediately. After the hour, the verifier writes a `job_archive_v1` bundle to a local `job_unloads/` tree, then `retire_closed_jobs` deletes those ids. Child DELETE triggers that maintain `job_verification_interest` do not run after the job row is gone (that derived row CASCADEs). Nothing is written to Supabase Storage. Railway skips unload unless `JOB_UNLOAD_ARCHIVE_DIR` points at a real disk. User history is snapshotted into `job_applications` / `cv_versions` first. A scrape that sees the posting again writes it back as live. Restore from `backend/`: `python -m scripts.restore_job_archive path/to/archive_dir`. The scraper does not delete rows on publish.
+**Unload.** Any gone-signal writes `listing_confidence=closed` and starts a one-hour clock (`quarantine_until` / `deletion_eligible_at`): one complete scrape miss, verifier close (strong or weak), or a user report that the apply link is dead. `likely_closed` is leftover enum, not a holding pen. The card leaves Collection immediately. After the hour, the verifier writes a `job_archive_v1` bundle to a local `job_unloads/` tree, then `retire_closed_jobs` deletes those ids. Child DELETE triggers that maintain `job_verification_interest` do not run after the job row is gone (that derived row CASCADEs). Nothing is written to Supabase Storage. Railway skips unload unless `JOB_UNLOAD_ARCHIVE_DIR` points at a real disk. User history is snapshotted into `job_applications` / `cv_versions` first. A scrape that sees the posting again writes it back as live. Restore from `backend/`: `python -m scripts.restore_job_archive path/to/archive_dir`. The scraper does not delete rows on publish.
 
 ## Tracked Listing
 
@@ -1548,7 +1548,7 @@ The JD a user is already working — distinct from a live marketplace row. Feed 
 one.** `user_profiles.target_locations[]` is the store; `target_location` is a
 derived scalar kept for legacy readers (a CV contact line shows one city, and
 that is the only place the scalar is the right answer). `MAX_TARGET_LOCATIONS`
-(3) is the cap, enforced once in `targeting_write` and read by everything that
+(5) is the cap, enforced once in `targeting_write` and read by everything that
 needs it — never written down a second time.
 
 The full path, scrape → card:
@@ -1579,3 +1579,48 @@ here, not widening it in place.
 writes back. Seeding the Order from the scalar while the profile held three
 cities meant opening the modal and pressing Run narrowed the user's own
 targeting — the bug had no error, no log, and looked like a display gap.
+
+---
+
+## Deal-Breaker
+
+What a person has said they will not take, read one way
+(`app/services/deal_breakers.py`). The store is `user_profiles.deal_breakers`,
+the person's own sentences. `read(profile)` splits them into two kinds, enforced
+differently on purpose:
+
+- **Pay Floor** — a pay sentence ("less than 30 lakhs", "Pay floor ₹35 LPA"),
+  read as LPA; the strictest wins. **A floor never hides a job** (Shivam,
+  2026-09-28): Indian listings rarely print pay, so hiding on it would hide on a
+  guess. The brain gives every verdict a `[low, high]` band (`ctc_low_lpa`,
+  `ctc_high_lpa`, `ctc_basis` = stated | estimated, from company and competitor
+  bands) and the card says when even the top of the band is under the floor
+  (`pay_below_floor`).
+- **Won't-Take** — every other line, numbered in the prompt. The brain returns
+  the numbers a posting breaks; `llm_ranker.gate_verdict` turns them into the
+  person's words (`user_job_matches.breaks`) and makes the verdict **Skip**,
+  whatever the model recommended. No surface shows a Skip, so that write is the
+  one place a won't-take is enforced.
+
+`PAY` (the "this sentence is about pay" regex) lives here and
+`preflight/normalise` imports it. Prompt v4 carries the change, so each user's
+verdicts are re-rated on their next Search; nothing is backfilled.
+
+## Admission
+
+**May this person be shown this judged job, today?** (`matching/admission.py`).
+A verdict is written against the targeting held when it was computed; it is
+shown against the targeting held now. `admit(profile, job)` checks the three
+facts that move in between, and returns the first that bars it:
+
+- `closed` — the listing is explicitly `is_active = false` (absent is not closed);
+- `location` — `match_credibility.location_compatible`, the city decision
+  §Target Location assigns there;
+- `level` — `job_eligibility.stated_range_admits`, the rule the pool admits by.
+
+Read by the `/market` list (`published_list.assemble`) and Agent Picks
+(`agent_picks.regenerate_for_user`). Before it, `/market` read score and verdict
+alone: on 2026-09-28 one person's list held 24 of 56 cards outside the cities
+they had confirmed, and a Brussels requisition the scraper had tagged "India"
+(`location_city = 'India'` on 579 live jobs — the scraper repo's to fix).
+A won't-take is not checked here: that is a Skip at the write (§Deal-Breaker).

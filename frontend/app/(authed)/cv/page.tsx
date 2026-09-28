@@ -665,7 +665,10 @@ function CVPage() {
                   biggestDragDomain: biggestDrag,
                   // Same fact the market nudge reads, so the two never disagree
                   // about whether this user still owes the spine a target.
-                  needsTarget: (profileQuery.data?.target_roles ?? []).length === 0,
+                  // `is_set`, not an empty scoping key: someone whose scope is blank still
+                  // named the work, and telling them to pick a target they can see on
+                  // Career Path is how a product reads as broken.
+                  needsTarget: !(profileQuery.data?.direction?.is_set ?? false),
                   reveal: cvData ? {
                     fixCount: runContentChecks(cvData).length,
                     strongDomain: strongWeakFromCache().strong,

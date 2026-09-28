@@ -73,3 +73,36 @@ def test_a_replaced_cv_is_named_while_the_new_one_is_read() -> None:
     assert text is not None
     assert text.startswith("These matches are for the CV you replaced.")
     assert "Read 0 of 40 jobs" in text
+
+
+def test_a_card_that_omits_listing_time_does_not_validate() -> None:
+    """A default of `is_stale=False` let a builder that forgot the field
+    claim every listing was confirmed open. The card must say."""
+    import pytest
+    from pydantic import ValidationError
+
+    from app.schemas.jobs import JobFeedItem
+
+    with pytest.raises(ValidationError):
+        JobFeedItem(job_id="j1", job_title="t", company_name=None, job_description=None)
+
+
+def test_a_card_says_when_its_pay_band_sits_under_the_floor() -> None:
+    """A floor never hides a card. It is said on the card instead."""
+    from app.schemas.jobs import JobFeedItem
+    from app.services.matching.published_list import _card
+
+    row = {
+        "job_id": "j1",
+        "overall_score": 4.2,
+        "recommendation": "Apply",
+        "ctc_low_lpa": 24.0,
+        "ctc_high_lpa": 32.0,
+        "ctc_basis": "estimated",
+        "jobs": {"job_title": "Account Executive", "company_name": "Acme", "is_active": True},
+    }
+    card = JobFeedItem(**_card(row, 35.0))
+    assert (card.ctc_low_lpa, card.ctc_high_lpa, card.ctc_basis) == (24.0, 32.0, "estimated")
+    assert card.pay_below_floor is True
+    # No floor stated: nothing to be under.
+    assert JobFeedItem(**_card(row, None)).pay_below_floor is None

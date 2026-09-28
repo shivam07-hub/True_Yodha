@@ -317,3 +317,58 @@ def test_the_dispatcher_tells_handlers_which_cause_it_was() -> None:
         assert seen[0]["_abandoned"] is False
     finally:
         monkeypatch_target.pop("_probe", None)
+
+
+NOTICE_CAUSE_KEY = "work_lane:cv_upload_analysis:AbandonedJobError"
+
+
+def test_a_job_that_already_finished_is_not_refunded(monkeypatch: pytest.MonkeyPatch) -> None:
+    """2026-09-17 15:25: a deploy killed the worker mid-upload, the stall recovery
+    re-ran the job and it finished `done`, then RQ declared the first attempt
+    abandoned. The failure handler refunded 200 coins for a CV it had analysed:
+    the refund ran before the only guard, `status = 'processing'`."""
+    import asyncio
+
+    refunds: list[str] = []
+    settled: list[bool] = []
+
+    async def _refund(user_id, *_a, **kw):  # noqa: ANN001
+        refunds.append(kw["ref_id"])
+
+    monkeypatch.setattr(cv_workflow, "refund", _refund)
+    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "claim_failed", lambda *_a, **_k: False)
+    monkeypatch.setattr(
+        cv_workflow.upload_jobs_repo, "settle_failed",
+        lambda _job_id, *, refunded: settled.append(refunded),
+    )
+
+    asyncio.run(cv_workflow._fail_and_refund(
+        "job-done", "u", error_code="worker_replaced", detail="restart",
+    ))
+
+    assert refunds == []
+    assert settled == []
+
+
+def test_a_job_this_call_failed_is_refunded_and_says_so(monkeypatch: pytest.MonkeyPatch) -> None:
+    import asyncio
+
+    refunds: list[str] = []
+    settled: list[bool] = []
+
+    async def _refund(user_id, *_a, **kw):  # noqa: ANN001
+        refunds.append(kw["ref_id"])
+
+    monkeypatch.setattr(cv_workflow, "refund", _refund)
+    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "claim_failed", lambda *_a, **_k: True)
+    monkeypatch.setattr(
+        cv_workflow.upload_jobs_repo, "settle_failed",
+        lambda _job_id, *, refunded: settled.append(refunded),
+    )
+
+    asyncio.run(cv_workflow._fail_and_refund(
+        "job-live", "u", error_code="provider_unavailable", detail="busy",
+    ))
+
+    assert refunds == ["job-live"]
+    assert settled == [True]

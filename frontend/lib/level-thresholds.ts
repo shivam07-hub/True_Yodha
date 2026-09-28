@@ -1,7 +1,5 @@
 /**
  * Forge session counts per L→L+1 advancement.
- * Mirror of backend app/services/forge_service.py LEVEL_THRESHOLDS.
- * Update both together.
  */
 export const LEVEL_THRESHOLDS: Record<number, number> = {
   0: 1,

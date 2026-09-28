@@ -20,6 +20,10 @@ SeniorityCompat = Literal["compatible", "incompatible", "unknown"]
 # checking  → provisional: the async brain hasn't run yet, number is overlap-only
 MatchVerdict = Literal["strong", "worth_it", "stretch", "checking"]
 
+#: Where a pay band came from: printed on the posting, or placed by the brain
+#: from company and competitor bands (`deal_breakers`, prompt v4).
+CtcBasis = Literal["stated", "estimated"]
+
 # Thresholds on the brain's 0–5 overall_score (see MatchEval.match_score/verdict).
 # The overlap floor is the hard guarantee behind "cannot read strong with 2/8
 # skills even if the brain is generous" — the number is the brain's holistic view,
@@ -120,6 +124,10 @@ class MatchEval(BaseModel):
     #: NULL on rows rated before the v2 prompt — the card falls back to `summary`
     #: until that row is re-rated, which happens when its inputs move.
     pick_reason: str | None = None
+    #: Pay band, INR lakhs per annum. NULL on rows rated before prompt v4.
+    ctc_low_lpa: float | None = None
+    ctc_high_lpa: float | None = None
+    ctc_basis: CtcBasis | None = None
 
     # ── Match Verdict ─────────────────────────────────────────────────────────
     # The whole "how good is this, what should they do" decision, behind three
@@ -214,9 +222,11 @@ class JobMatchResponse(BaseModel):
     work_mode: str | None = None
     min_years_experience: int | None = None
     max_years_experience: int | None = None
-    first_seen: str | None = None
-    last_seen_at: str | None = None
-    is_stale: bool = False
+    # Listing time: from `ListingTime.card()`, never defaulted. A default of
+    # False was a builder that forgot saying "confirmed open".
+    first_seen: str | None
+    last_seen_at: str | None
+    is_stale: bool
     is_active: bool = True
     # Matching Brain (Career Ops 5-axis eval) — null until the LLM stage runs
     overall_score: float | None = None  # 0.0–5.0
@@ -237,6 +247,9 @@ class JobMatchResponse(BaseModel):
     level_strategy: str | None = None            # 6-block — level fit + how to play it
     personalization: str | None = None           # 6-block — per-candidate application tailoring
     star_pointers: list[str] = []                # 6-block — candidate's own STAR stories to cite
+    ctc_low_lpa: float | None = None             # pay band, INR LPA (deal_breakers)
+    ctc_high_lpa: float | None = None
+    ctc_basis: CtcBasis | None = None
     is_recommended: bool = False
     baseline_version_id: int | None = None
     target_context_hash: str | None = None
@@ -247,7 +260,7 @@ class JobMatchesResponse(BaseModel):
     jobs: list[JobMatchResponse]
     batch_week: date        # Monday of the current week's batch
     total: int
-    feed_updated_at: datetime | None = None    # MAX(jobs.last_seen) — when the feed last refreshed
+    feed_updated_at: datetime | None = None    # newest ingested_at — when a row last arrived
     matches_computed_at: datetime | None = None  # when this user's matches were last computed
     new_jobs_count: int = 0  # genuinely-new live jobs (first_seen) inserted since this user last matched
     dismissed_job_ids: list[str] = []
@@ -643,7 +656,7 @@ class JobSearchResponse(BaseModel):
 
 
 class JobFeedItem(BaseModel):
-    """One job card in the authed /market feed (browse, not scored)."""
+    """One job card: the authed /market list (`published_list`) and Agent Picks."""
 
     job_id: str
     job_title: str
@@ -665,9 +678,11 @@ class JobFeedItem(BaseModel):
     max_years_experience: int | None = None
     industry: str | None = None
     source_url: str | None = None
-    first_seen: str | None = None  # ISO date derived from the feed marker
-    last_seen_at: str | None = None  # ISO date the scraper last confirmed it live
-    is_stale: bool = False  # last_seen older than STALE_AFTER_DAYS — warn before Apply 404
+    # Listing time: from `ListingTime.card()`, never defaulted. A default of
+    # False was a builder that forgot saying "confirmed open".
+    first_seen: str | None  # ISO discovery day
+    last_seen_at: str | None  # ISO day of a real open-confirmation, or None
+    is_stale: bool  # not confirmed open — warn before Apply 404
     is_active: bool = True
     skills: list[str] = []  # top main_skills display names, capped
     matched_skills: list[str] = []  # which of the requesting user's CV skills this job needs (T3-1)
@@ -692,6 +707,13 @@ class JobFeedItem(BaseModel):
     #: profile — which is every card for the 83% who have one search, and every
     #: card in the browse tail, which no search found at all.
     track_id: int | None = None
+    #: Pay band, INR lakhs per annum, and whether even its top sits under the
+    #: person's pay floor. A floor never hides a card; it is said here instead.
+    #: None when there is no band or no floor.
+    ctc_low_lpa: float | None = None
+    ctc_high_lpa: float | None = None
+    ctc_basis: CtcBasis | None = None
+    pay_below_floor: bool | None = None
     #: Why this job is on the list. The three facts retrieval decided it on, so a
     #: card can say what it was chosen for — a list of forty that cannot say why
     #: is indistinguishable from forty that were not chosen.
@@ -889,7 +911,6 @@ class MarketAnalyticsResponse(BaseModel):
     total_companies: int
     total_industries: int
     latest_batch: str | None
-    scraper_started: str | None = None
     total_jobs_today: int = 0
     jobs_added_1h: int = 0
     companies_added_7d: int = 0
@@ -912,7 +933,6 @@ class MarketAnalyticsSummaryResponse(BaseModel):
     total_companies: int
     total_industries: int
     latest_batch: str | None
-    scraper_started: str | None = None
     total_jobs_today: int = 0
     jobs_added_1h: int = 0
     companies_added_7d: int = 0

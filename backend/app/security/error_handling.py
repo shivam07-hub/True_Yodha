@@ -11,6 +11,7 @@ from uuid import uuid4
 import httpx
 
 from fastapi import FastAPI, Request
+from postgrest.exceptions import APIError
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -214,6 +215,41 @@ async def _upstream_timeout_handler(
     )
 
 
+_STATEMENT_TIMEOUT = "57014"
+
+
+async def _postgrest_error_handler(request: Request, exc: APIError) -> JSONResponse:
+    """A statement timeout is the database-side twin of an httpx read timeout.
+
+    PostgREST raises it as a plain APIError, so it reached the unhandled
+    boundary: a 500, and an `unhandled_500` Notice keyed to whichever call site
+    the slow query happened to run from. Four such one-offs landed in one
+    capacity storm (2026-09-12/13), each looking like its own bug. It gets the
+    same honest 503 + Retry-After as the read timeout, under its own limiter.
+    Every other PostgREST error is still an unhandled 500.
+    """
+    if getattr(exc, "code", None) != _STATEMENT_TIMEOUT:
+        return await _unhandled_exception_handler(request, exc)
+    _log.warning(
+        "metric db.statement_timeout method=%s path=%s",
+        request.method,
+        request.url.path,
+    )
+    observe(
+        Sighting.statement_timeout(
+            correlation_id=_correlation_id(request),
+            method=request.method,
+            path=request.url.path,
+        )
+    )
+    return _response(
+        request=request,
+        status_code=503,
+        detail=UPSTREAM_TIMEOUT_DETAIL,
+        headers={"Retry-After": "2"},
+    )
+
+
 async def _unhandled_exception_handler(
     request: Request,
     _exc: Exception,
@@ -251,4 +287,5 @@ def install_error_handling(app: FastAPI) -> None:
     app.add_exception_handler(RequestValidationError, _validation_exception_handler)
     app.add_exception_handler(ReadCapacityExceeded, _read_capacity_exceeded_handler)
     app.add_exception_handler(httpx.TimeoutException, _upstream_timeout_handler)
+    app.add_exception_handler(APIError, _postgrest_error_handler)
     app.add_exception_handler(Exception, _unhandled_exception_handler)
