@@ -186,12 +186,17 @@ async def warm_feed_shortlist(
     return written
 
 
-def enqueue_feed_warm(user_id: str) -> bool:
+def enqueue_feed_warm(user_id: str, *, announce: bool = False) -> bool:
     """Queue the shortlist warm. Returns whether one is in flight.
 
     False when a live match run owns the judgment lane — the caller paints
     the list as it is. True when this call queued the job, or an earlier
     call already holds the claim. Either way the request does not rank.
+
+    `announce` is for a drain nobody is watching: the person saved a direction
+    or uploaded a CV and left. Each round then tells the bell what it found,
+    so they come back to "N fresh matches" instead of an empty list. A drain
+    started from /market leaves it off — they are looking at the rows land.
     """
     from app.services.job_refresh._dispatch import user_has_live_refresh
 
@@ -203,7 +208,7 @@ def enqueue_feed_warm(user_id: str) -> bool:
     background.enqueue(
         background.LANE_FAST,
         "feed_warm",
-        payload={"user_id": user_id},
+        payload={"user_id": user_id, "announce": announce},
     )
     return True
 
@@ -217,13 +222,34 @@ def _cached_evals(repo: Any, user_id: str, job_ids: list[str]) -> dict[str, Any]
     return found
 
 
-def _continue_drain(user_id: str, baseline_version_id: int | None) -> None:
+def _continue_drain(user_id: str, baseline_version_id: int | None, announce: bool) -> None:
     """Queue the next batch without taking the claim the first POST already holds."""
     background.enqueue(
         background.LANE_FAST,
         "feed_warm",
-        payload={"user_id": user_id, "baseline_version_id": baseline_version_id},
+        payload={
+            "user_id": user_id,
+            "baseline_version_id": baseline_version_id,
+            "announce": announce,
+        },
     )
+
+
+def _announce_round(
+    repo: Any, user_id: str, profile: dict[str, Any], batch: list[str], eval_ctx: str,
+) -> None:
+    """Tell the bell what this round added to the list: rows the judge cleared
+    for this direction that the list will actually show (Admission)."""
+    from app.services.matching import admission, match_run
+
+    ids = set(batch)
+    worth = [
+        row for row in repo.get_user_match_stack(user_id)
+        if str(row.get("job_id") or "") in ids
+        and row.get("eval_context_hash") == eval_ctx
+        and published_list.worth_showing(row.get("overall_score"), row.get("recommendation"))
+    ]
+    match_run.announce_fresh(repo, user_id, admission.admitted(profile, worth))
 
 
 async def run_feed_warm(
@@ -232,6 +258,7 @@ async def run_feed_warm(
     user_id: str,
     *,
     baseline_version_id: int | None = None,
+    announce: bool = False,
 ) -> int:
     """Judge the next batch of aspiration-matched jobs on one CV.
 
@@ -286,10 +313,12 @@ async def run_feed_warm(
                 user_id, len(pending),
             )
             return 0
+        if announce:
+            _announce_round(repo, user_id, profile, batch, eval_ctx)
     if len(pending) > len(batch):
-        _continue_drain(user_id, locked)
+        _continue_drain(user_id, locked, announce)
     elif latest is not None and locked != latest:
-        _continue_drain(user_id, latest)
+        _continue_drain(user_id, latest, announce)
     return written
 
 
@@ -312,4 +341,5 @@ async def _feed_warm_handler(payload: dict[str, Any], allow_retry: bool) -> None
     repo = JobsRepository(db, db)
     await run_feed_warm(
         repo, get_judgment_provider(), user_id, baseline_version_id=baseline,
+        announce=bool(payload.get("announce")),
     )
