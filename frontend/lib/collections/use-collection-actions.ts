@@ -108,14 +108,18 @@ export function useCollectionActions(token: string): CollectionActions {
   /**
    * The answer to "did you submit?". A yes writes `applied` — the user's own
    * claim, which is the only thing that may advance the stage. A no leaves the
-   * entry exactly where it is and simply stops the asking.
+   * entry exactly where it is and stops the asking — on the server, not just in
+   * this cache: a "Not yet" kept only here came back on the next load, every
+   * load, and a question that never stops is one people learn to skip.
    */
   const answerPending = useCallback((jobId: string, submitted: boolean) => {
     qc.setQueryData<CollectionResponse>(key, (c) =>
       patchEntry(c, jobId, submitted ? { stage: "applied", status: "applied", pending_apply: false } : { pending_apply: false }),
     )
-    if (!submitted) return
-    void jobsApi.updateApplication(token, jobId, { status: "applied" }).then(refresh)
+    void (submitted
+      ? jobsApi.updateApplication(token, jobId, { status: "applied" })
+      : jobsApi.answerApplyIntent(token, jobId)
+    ).then(refresh)
   }, [key, qc, refresh, token])
 
   return {

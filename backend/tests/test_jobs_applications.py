@@ -22,6 +22,18 @@ class _FakeJobsRepository:
         self.match_evals: dict[str, dict[str, Any]] = {}
         self.application_rows_by_job: dict[str, dict[str, Any]] = {}
         self.application_upserts: list[tuple[str, str, dict[str, Any]]] = []
+        self.pending_intent_job_ids: set[str] = set()
+        self.answered: list[tuple[str, str]] = []
+
+    def get_pending_apply_intent_job_ids(
+        self, user_id: str, *, older_than: Any, newer_than: Any
+    ) -> set[str]:
+        assert user_id == "user-123"
+        assert newer_than < older_than
+        return self.pending_intent_job_ids
+
+    def answer_apply_intents(self, user_id: str, job_id: str) -> None:
+        self.answered.append((user_id, job_id))
 
     def dismiss_saved_job(self, user_id: str, job_id: str) -> bool:
         self.dismissed_saved_jobs.append((user_id, job_id))
@@ -171,6 +183,68 @@ def test_apply_click_records_an_attempt_without_marking_application_applied() ->
             },
         )
     ]
+    # A click with no row files the job as saved, so the question has a home.
+    assert repo.application_upserts == [
+        ("user-123", "job-456", {"status": "saved", "source": "user_discovery"})
+    ]
+
+
+def test_apply_click_on_a_tracked_job_leaves_its_row_alone() -> None:
+    repo = _FakeJobsRepository()
+    repo.application_rows_by_job["job-456"] = _make_application_row(
+        app_id=7, job_id="job-456", company="Acme"
+    )
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="user-123", email=None, token="token-123")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/jobs/job-456/apply-intents",
+                json={
+                    "client_event_id": "123e4567-e89b-12d3-a456-426614174001",
+                    "surface": "collections",
+                    "destination_type": "direct_role",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+    assert response.status_code == 204
+    assert repo.application_upserts == []
+
+
+def test_not_yet_answers_the_question_so_it_stops() -> None:
+    repo = _FakeJobsRepository()
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="user-123", email=None, token="token-123")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    try:
+        with TestClient(app) as client:
+            response = client.post("/jobs/job-456/apply-intents/answer")
+    finally:
+        app.dependency_overrides.clear()
+    assert response.status_code == 204
+    assert repo.answered == [("user-123", "job-456")]
+
+
+def test_get_applications_flags_an_unanswered_click_on_a_saved_row_only() -> None:
+    repo = _FakeJobsRepository()
+    applied = _make_application_row(app_id=2, job_id="sent", company="Sent Co")
+    applied["status"] = "applied"
+    repo.applications_rows = [
+        _make_application_row(app_id=1, job_id="owed", company="Owed Co"),
+        applied,
+    ]
+    repo.pending_intent_job_ids = {"owed", "sent"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="user-123", email=None, token="token-123")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    app.dependency_overrides[get_token_cv_repository] = lambda: _FakeCVRepository(latest={})
+    try:
+        with TestClient(app) as client:
+            response = client.get("/jobs/applications")
+    finally:
+        app.dependency_overrides.clear()
+    assert response.status_code == 200
+    flags = {row["job_id"]: row["pending_apply"] for row in response.json()}
+    assert flags == {"owed": True, "sent": False}
 
 
 def test_saving_a_discovered_job_writes_the_saved_intent() -> None:

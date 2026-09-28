@@ -248,3 +248,18 @@ test("the scoped rung never pre-empts a real next step", () => {
   )
   assert.equal(next.href, "/cv?jobId=infosys")
 })
+
+test("an unanswered apply click is asked after interview prep and before new work", () => {
+  const owed = app({ job_id: "g", company: "Genpact", pending_apply: true })
+  const ready = app({ job_id: "r", company: "Ready Co", cv_badge: badge })
+  const next = deriveNextAction([ready, owed], undefined, { cvPresence: "present", now: NOW })
+  assert.equal(next.label, "Did you apply to Genpact?")
+  assert.equal(next.href, "/collections?jobId=g")
+
+  const prep = deriveNextAction(
+    [owed, app({ job_id: "i", company: "Interview Co", status: "interviewing" })],
+    undefined,
+    { cvPresence: "present", now: NOW },
+  )
+  assert.equal(prep.label, "Prep Interview Co interview")
+})

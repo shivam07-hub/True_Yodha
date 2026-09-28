@@ -3695,6 +3695,8 @@ export interface ApplicationResponse {
   /** Deliberate apply/preparation intent. Priority jobs lead Collections. */
   /** Persisted Career Ops fit for this saved role, when it has been ranked. */
   match_score?: number | null
+  /** They clicked Apply here and have not said whether they submitted. */
+  pending_apply?: boolean
   is_first_offer?: boolean
   cv_badge?: CVBadge | null
   coins_earned?: number | null
@@ -4538,6 +4540,13 @@ export const jobs = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(input),
+    }),
+  /** "Not yet" / "Couldn't apply": the "did you submit?" question is answered
+   *  and stops. "Yes" answers it through `updateApplication`. */
+  answerApplyIntent: (token: string, jobId: string) =>
+    request<void>(`/jobs/${encodeURIComponent(jobId)}/apply-intents/answer`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
     }),
   /** Is this listing still live? Verified on demand when the last verdict is
    *  stale, so a ghost is caught before the user spends effort on it. */

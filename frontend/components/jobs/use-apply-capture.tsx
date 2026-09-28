@@ -243,9 +243,12 @@ export function useApplyCapture({
         await persistStatus("applied")
       }, "submitted")
     } else {
-      run(() => persistStatus("saved"), "saved")
+      run(async () => {
+        await persistStatus("saved")
+        await jobs.answerApplyIntent(token, job.job_id)
+      }, "saved")
     }
-  }, [enqueueQuality, onSubmitted, persistStatus, run, target.kind])
+  }, [enqueueQuality, job.job_id, onSubmitted, persistStatus, run, target.kind, token])
 
   /**
    * A report is the opposite of a save. Reporting a dead or wrong listing used
@@ -265,8 +268,10 @@ export function useApplyCapture({
   const reportIssue = React.useCallback((issue: ApplyIssue) => {
     enqueueQuality(issueFeedbackReason(issue))
     setState("reported")
-    if (issue === "technical") return
     run(async () => {
+      // "Couldn't apply" is an answer too: the question stops either way.
+      await jobs.answerApplyIntent(token, job.job_id)
+      if (issue === "technical") return
       await jobs.dismissMatchCard(token, job.job_id)
       // `["jobs"]` is the prefix over the feed, the match stack and the pulses
       // the Closed chip reads; the liveness key carries this surface's own gate.

@@ -3639,7 +3639,7 @@ class JobsRepository:
         ).execute()
 
     def get_pending_apply_intent_job_ids(
-        self, user_id: str, *, older_than: datetime
+        self, user_id: str, *, older_than: datetime, newer_than: datetime
     ) -> set[str]:
         """Jobs this user clicked Apply on and never answered for.
 
@@ -3648,16 +3648,31 @@ class JobsRepository:
         them. Prod had 15 intents and 0 that ever became `applied`, because the
         only ask was an inline band rendered 1.2s after the click — on a card the
         user had already tabbed away from.
+
+        Answered clicks are not asked again (`answered_at`), and a click older
+        than `newer_than` has expired: `Not yet` used to clear only the local
+        cache, so the same question returned on every load and was learned as
+        noise — 29 clicks, 1 answer (2026-09-28).
         """
         _ = user_id
         rows = safe_read(
             self._db.table("job_apply_intents")
             .select("job_id")
+            .is_("answered_at", "null")
+            .gte("clicked_at", newer_than.isoformat())
             .lte("clicked_at", older_than.isoformat()),
             default=[],
             context="pending_apply_intents",
         )
         return {str(r["job_id"]) for r in (rows or []) if r.get("job_id")}
+
+    def answer_apply_intents(self, user_id: str, job_id: str) -> None:
+        """Stop asking "did you submit?" about this job. Every answer lands here:
+        Yes, Not yet, and Couldn't apply. RLS scopes the update to the caller's
+        rows, and the column grant lets it touch `answered_at` only."""
+        self._db.table("job_apply_intents").update(
+            {"answered_at": datetime.now(timezone.utc).isoformat()}
+        ).eq("user_id", user_id).eq("job_id", job_id).is_("answered_at", "null").execute()
 
     def mark_first_offer_if_unset(self, user_id: str, timestamp_iso: str) -> bool:
         # Q6: set first_offer_at exactly once per user. Returns True only when this

@@ -43,8 +43,14 @@ test("a technical error reports without hiding the job", () => {
 test("answering the return prompt still persists status", () => {
   // Guards the fix against being applied one level too high: "Yes"/"Not yet"
   // must keep writing applied/saved.
-  assert.match(hook, /run\(\(\) => persistStatus\("saved"\), "saved"\)/)
+  assert.match(hook, /await persistStatus\("saved"\)\s*\n\s*await jobs\.answerApplyIntent\(token, job\.job_id\)/)
   assert.match(hook, /await persistStatus\("applied"\)/)
+})
+
+test("every answer stops the asking, on the server", () => {
+  // "Not yet" used to clear only the local cache, so the question came back on
+  // every load. Couldn't-apply answers it too, inside run() so a failure shows.
+  assert.match(hook, /run\(async \(\) => \{\s*\n\s*\/\/ "Couldn't apply" is an answer too[^\n]*\n\s*await jobs\.answerApplyIntent/)
 })
 
 test("neither surface thanks the user by claiming it kept the job", () => {

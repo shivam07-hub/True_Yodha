@@ -24,6 +24,7 @@ from app.schemas import (
     JobUrlExtractRequest,
 )
 from app.services import cv_of_record, job_liveness, jobs_workflow, xp_service
+from app.services.collections import PENDING_INTENT_AFTER, PENDING_INTENT_FOR
 from app.services.job_extract_backstop import backfill_fields, is_valid_company, is_valid_role
 from app.services.cv_parser import extract_raw_text
 from app.services.job_file_parser import (
@@ -62,6 +63,13 @@ def record_apply_intent(
             "destination_type": body.destination_type,
         },
     )
+    # A click is at least a save. Without a row the "did you submit?" question
+    # had nowhere to live: a job opened from Search and never saved was asked
+    # about on no surface at all. Saved claims nothing about submitting.
+    if not repo.get_application_with_job(principal.id, job_id):
+        repo.upsert_application(
+            principal.id, job_id, {"status": "saved", "source": "user_discovery"}
+        )
     # An apply is the strongest liveness signal we get for free: someone is
     # about to spend real effort on this listing. Re-verify it out of band so the
     # corpus learns from intent, without adding latency to the click.
@@ -125,6 +133,12 @@ def get_applications(
     # One CV-skill read powers the ✓/✗ chip split for every tracked card (esp.
     # extension-added jobs, which carry no precomputed match).
     skill_keys = repo.user_skill_keys(principal.id)
+    now = datetime.now(timezone.utc)
+    pending = repo.get_pending_apply_intent_job_ids(
+        principal.id,
+        older_than=now - PENDING_INTENT_AFTER,
+        newer_than=now - PENDING_INTENT_FOR,
+    )
     out: list[ApplicationResponse] = []
     for row in rows:
         company = (row.get("jobs") or {}).get("company_name")
@@ -135,9 +149,24 @@ def get_applications(
                 cv_badge_from_row(latest_by_company.get(company)),
                 skill_keys,
                 MatchEval.model_validate(match_row).match_score if match_row else None,
+                pending_apply=(
+                    str(row.get("job_id") or "") in pending
+                    and str(row.get("status") or "saved") == "saved"
+                ),
             )
         )
     return out
+
+
+@router.post("/{job_id}/apply-intents/answer", status_code=status.HTTP_204_NO_CONTENT)
+def answer_apply_intent(
+    job_id: str,
+    principal: Principal = Depends(get_principal),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> None:
+    """"Not yet" or "Couldn't apply": the question is answered and stops.
+    "Yes" goes through `PUT /applications/{job_id}`, which answers it too."""
+    repo.answer_apply_intents(principal.id, job_id)
 
 
 @router.post("/import/preview", response_model=JobImportPreviewResponse)
@@ -353,6 +382,9 @@ def update_application(
         is_first_offer = repo.mark_first_offer_if_unset(user_id, now)
 
     repo.upsert_application(user_id, job_id, updates)
+    # Any move past saved answers "did you submit?" for this job.
+    if body.status != "saved":
+        repo.answer_apply_intents(user_id, job_id)
 
     # Freeze the CV of record on the FIRST move into `applied`. The tracker is
     # how people actually mark an application, and until now it remembered

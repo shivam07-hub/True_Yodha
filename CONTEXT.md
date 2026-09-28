@@ -835,13 +835,16 @@ The one state-derived action that moves a candidate through the active job-searc
 **Ladder**
 
 1. No Main CV → upload a CV.
-2. An interview or a due application follow-up → prepare or check in; time-sensitive commitments outrank new work.
-3. A saved role with a tailored CV but no confirmed submission → review and apply.
-4. A saved role without a tailored CV → tailor the highest-`match_score` saved role.
-5. No saved role → find a role to tailor in Jobs.
+2. An interview → prepare; time-sensitive commitments outrank new work.
+3. An unanswered Apply click → "Did you apply to {company}?", pointing at its Collections row. Asked before memory of submitting fades; any answer (Yes, Not yet, Couldn't apply) sets `job_apply_intents.answered_at` and stops it, and a click older than 30 days is no longer asked.
+4. A due application follow-up → check in.
+5. A saved role with a tailored CV but no confirmed submission → review and apply.
+6. A saved role without a tailored CV → tailor the highest-`match_score` saved role.
+7. No saved role → find a role to tailor in Jobs.
 
 **Invariants**
 - A **Saved Role** is an intended application whether its source is `system_match`, a user save, or an imported job. Source never changes eligibility for tailoring.
+- **An Apply click is at least a save.** It files the job as `saved` when it has no row, so the "did you submit?" question always has a home. Saved never claims a submission; only the person's Yes moves a job to `applied`.
 - `ApplicationResponse.match_score` is projected from the durable `user_job_matches` evaluation on the Applications read, so Next Best Step does not depend on a warmed feed cache to choose the highest-fit role.
 - A confirmed application returns to the remaining saved-role queue when there is no more urgent interview or follow-up. It stays visible in Applications for tracking; it is not silently treated as complete.
 

@@ -6,6 +6,7 @@ CONTEXT.md → Collection Record.
 from .resolve import (
     LIVENESS_DOWN,
     PENDING_INTENT_AFTER,
+    PENDING_INTENT_FOR,
     STAGE_ORDER,
     resolve_collection,
 )
@@ -13,6 +14,7 @@ from .resolve import (
 __all__ = [
     "LIVENESS_DOWN",
     "PENDING_INTENT_AFTER",
+    "PENDING_INTENT_FOR",
     "STAGE_ORDER",
     "resolve_collection",
 ]
