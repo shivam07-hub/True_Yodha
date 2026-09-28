@@ -293,3 +293,16 @@ class ListingVerificationRepository:
 
     def retire_eligible(self, *, limit: int = 500) -> int:
         return archive_then_retire(self.db, limit=limit, now=self.now)
+
+    def record_sweep(self, *, targets: int, productive: int) -> None:
+        """Stamp that a sweep ran, whether or not anything was due.
+
+        The dead-man's liveness clock. A claim only moves `last_attempt_at`
+        when rows were due, so a belt with nothing to do looked dead.
+        """
+        self.db.table("verifier_sweep_heartbeat").upsert({
+            "id": True,
+            "swept_at": self.now().isoformat(),
+            "targets": targets,
+            "productive": productive,
+        }).execute()

@@ -45,13 +45,22 @@ def _evaluate(now: datetime) -> BeltHealth:
     if not isinstance(snapshot, dict):
         return BeltHealth("unknown", None)
     raw_attempt = snapshot.get("last_attempt")
-    if not raw_attempt:
-        # Nothing ever claimed. Real on a fresh corpus, and still worth saying
+    raw_sweep = snapshot.get("last_sweep")
+    if not raw_attempt and not raw_sweep:
+        # Nothing ever ran. Real on a fresh corpus, and still worth saying
         # out loud — an unstarted belt and a dead one look identical to a user.
         log.warning("metric job_verifier.alert reason=never_ran")
         return BeltHealth("stalled", None)
 
-    stale_hours = _age_hours(raw_attempt, now)
+    # Liveness is the newest evidence that a sweep ran. The sweep heartbeat is
+    # stamped even when nothing is due; a claim only when rows were. On
+    # 2026-09-28 every schedule row had been attempted inside the 7-day window,
+    # so claims stood still while the cron ran every 15 minutes, and idle read
+    # as dead. A claim still counts: it happens inside a sweep.
+    claim_hours = _age_hours(raw_attempt, now)
+    sweep_hours = _age_hours(raw_sweep, now)
+    known = [h for h in (claim_hours, sweep_hours) if h is not None]
+    stale_hours = min(known) if known else None
     productive_stale_hours = _age_hours(snapshot.get("last_productive"), now)
     try:
         priority_backlog = int(snapshot.get("priority_due"))
@@ -67,7 +76,12 @@ def _evaluate(now: datetime) -> BeltHealth:
         return BeltHealth(
             "stalled", stale_hours, productive_stale_hours, priority_backlog
         )
-    if (
+    # Degraded is work claimed and nothing concluded. With nothing claimed
+    # recently there was no work to conclude — idle, which is healthy.
+    claimed_recently = (
+        claim_hours is not None and claim_hours <= settings.verifier_dead_man_hours
+    )
+    if claimed_recently and (
         productive_stale_hours is None
         or productive_stale_hours > settings.verifier_dead_man_hours
     ):
