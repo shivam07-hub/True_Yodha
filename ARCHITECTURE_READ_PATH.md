@@ -2087,3 +2087,46 @@ people return. The 33% between admissible and shown is the employer cap, where
 both sides keep two and disagree on which two; that is ranking, and ranking has
 already had one confident change measured and reverted, so it waits for a second
 persona rather than another guess.
+
+## 21. The Match Run pool: ids first, then jobs (2026-09-28)
+
+**Report.** Notice `work_lane:initial_match:APIError`, 16 since 2026-09-20: a new
+user's first Match Run died on `57014` inside `candidate_jobs_for_user`. The
+one traced (user `2edd93f4`) recovered on retry two minutes later.
+
+**Measured.** `pg_stat_statements`, first page (no cursor): 119 calls, mean
+3.3–3.7s, **max 7,983ms** — the authenticator's 8s `statement_timeout`, a
+ceiling, not a cost. Cursor pages: mean 122–174ms.
+
+EXPLAIN on that user's real 30 skills (two generic: "Communication",
+"Customer Service"), service role:
+
+| Shape | Probes into `jobs` | Buffers | Sort | Time |
+|---|---|---|---|---|
+| old: join all, distinct-on, limit | 29,853 | 125k | 23,977 rows, **external merge to disk** | 7,595ms warm · 17,727ms cold |
+| new: distinct ids sorted, lateral probe to the limit | 2,809 | 23k | 3.5k tuples, in memory | 1,858ms warm (342ms as `authenticated`) |
+
+The planner estimated 404 rows for the join and got 29,853 — skill frequency is
+skewed, and a generic skill touches ~1,000 jobs each. Only ~36% of the jobs a
+skill touches are active, which is why probing in id order and stopping at the
+page wins.
+
+**Through the function**, six timed samples each (a SQL function with a `SET`
+clause is not inlined; its body is planned with parameters): a data-science
+key set, old body then new function — old `3674 220 219 218 219 218`ms, new
+`1046 77 77 77 77 76`ms. First call cold in both; I/O dominates cold, and the
+new shape reads a fifth of the buffers.
+
+Result sets proven identical for page 1, a cursor page, and a country filter
+(`EXCEPT` both ways, 0 rows). Migration
+`20260928100000_candidate_jobs_ids_first.sql`; shape pinned by
+`test_candidate_jobs_rpc.py::test_the_pool_sorts_ids_before_it_opens_a_job`.
+
+**Not done, on purpose.** A covering `job_skills (skill_id, job_id)` index would
+make the ids half index-only, but it is ~20MB more on the instance whose memory
+is #16's launch gate, and the rewrite already clears the ceiling. Measure the
+next Notice before adding it.
+
+**Open.** The caller still re-runs the ids half on every page (up to 20); a
+generic-skill CV's pool is ~8.6k active jobs, ~9 pages. Collapsing that into one
+read needs the 1,000-row PostgREST cap answered first.

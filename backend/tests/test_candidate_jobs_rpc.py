@@ -153,3 +153,35 @@ def test_candidate_jobs_migration_keeps_location_and_freshness_semantics() -> No
     assert "revoke all on function public.candidate_jobs_for_user" in sql
     assert "grant execute on function public.candidate_jobs_for_user" in sql
     assert "notify pgrst, 'reload schema';" in sql
+
+
+NOTICE_CAUSE_KEY = "work_lane:initial_match:APIError"
+
+IDS_FIRST = (
+    Path(__file__).parents[2]
+    / "database/migrations/20260928100000_candidate_jobs_ids_first.sql"
+)
+
+
+def _body(sql: str) -> str:
+    return sql.split("as $$", 1)[1].split("$$;", 1)[0]
+
+
+def test_the_pool_sorts_ids_before_it_opens_a_job() -> None:
+    """A 30-skill CV with two generic skills joined 29,853 skill rows to `jobs`
+    one probe at a time, sorted the survivors to disk, and hit the 8s timeout
+    on the first page of a new user's Match Run. Distinct ids first, then the
+    jobs a page needs: 2,809 probes, a fifth of the buffers."""
+    body = _body(IDS_FIRST.read_text())
+
+    ids_at = body.index("from public.job_skills js")
+    jobs_at = body.index("from public.jobs j")
+    assert ids_at < jobs_at
+    assert "cross join lateral" in body
+    assert "join public.jobs" not in body
+    # The cursor narrows the ids, not the probed jobs.
+    assert "js.job_id > p_after_job_id" in body
+    # Same eligibility as the first definition.
+    assert "j.is_active is true and j.listing_confidence = 'active'" in body
+    assert "lower(btrim(j.location_country)) = any(p_countries)" in body
+    assert "lower(btrim(j.location_mode)) in ('remote', 'hybrid')" in body
