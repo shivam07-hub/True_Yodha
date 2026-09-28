@@ -16,7 +16,6 @@ from fastapi.testclient import TestClient
 from app.deps import CurrentUser, get_current_user
 from app.main import app
 from app.repositories.cv import get_token_cv_repository
-from app.routers.cv import upload as cv_upload
 from app.services import cv_workflow
 
 
@@ -388,7 +387,14 @@ def test_background_run_refunds_and_fails_on_provider_outage(monkeypatch) -> Non
     monkeypatch.setattr(cv_workflow, "refund", _refund)
 
     failed_calls: list[dict] = []
-    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_failed", lambda job_id, **kw: failed_calls.append({"job_id": job_id, **kw}))
+    monkeypatch.setattr(
+        cv_workflow.upload_jobs_repo, "claim_failed",
+        lambda job_id, **kw: failed_calls.append({"job_id": job_id, **kw}) or True,
+    )
+    monkeypatch.setattr(
+        cv_workflow.upload_jobs_repo, "settle_failed",
+        lambda job_id, *, refunded: failed_calls[-1].update(refunded=refunded),
+    )
     monkeypatch.setattr(cv_workflow.upload_jobs_repo, "claim_for_completion", lambda _job_id: True)
     monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_done", lambda *a, **k: pytest.fail("should not mark done"))
 
@@ -487,7 +493,11 @@ def test_background_run_refunds_when_no_skills_extracted(monkeypatch) -> None:
     monkeypatch.setattr(cv_workflow, "refund", _refund)
 
     failed_calls: list[dict] = []
-    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_failed", lambda job_id, **kw: failed_calls.append(kw))
+    monkeypatch.setattr(
+        cv_workflow.upload_jobs_repo, "claim_failed",
+        lambda job_id, **kw: failed_calls.append(kw) or True,
+    )
+    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "settle_failed", lambda *_a, **_k: None)
     monkeypatch.setattr(cv_workflow.upload_jobs_repo, "claim_for_completion", lambda _job_id: True)
     monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_done", lambda *a, **k: pytest.fail("should not mark done"))
 

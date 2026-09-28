@@ -239,6 +239,38 @@ def mark_done(
     return True
 
 
+def claim_failed(job_id: str, *, error_code: str, error_detail: str) -> bool:
+    """Move a job from `processing` to `failed`. True only when this call did.
+
+    The one guard a refund may stand behind: a job that already finished — the
+    stall recovery re-ran it — is not this caller's to fail, or to refund.
+    """
+    admin = get_supabase_admin()
+    result = admin.table(_TABLE).update({
+        "status": "failed",
+        "current_phase": "failed",
+        "error_code": error_code,
+        "error_detail": error_detail,
+        "xp_refunded": False,
+        "finished_at": datetime.now(timezone.utc).isoformat(),
+        "lease_expires_at": None,
+    }).eq("id", job_id).eq("status", "processing").execute()
+    return bool(result.data or [])
+
+
+def settle_failed(job_id: str, *, refunded: bool) -> None:
+    """Record whether the claimed failure was refunded, then tell the user."""
+    admin = get_supabase_admin()
+    if refunded:
+        admin.table(_TABLE).update({"xp_refunded": True}).eq("id", job_id).execute()
+    try:
+        NotificationsRepository(admin, admin).record_cv_analysis_failed(
+            job_id, refunded=refunded
+        )
+    except Exception as exc:  # notification projection must not change job truth
+        _log.warning("CV job %s failure notification failed: %s", job_id, exc)
+
+
 def mark_failed(
     job_id: str,
     *,
@@ -246,24 +278,12 @@ def mark_failed(
     error_detail: str,
     refunded: bool,
 ) -> bool:
-    admin = get_supabase_admin()
-    result = admin.table(_TABLE).update({
-        "status": "failed",
-        "current_phase": "failed",
-        "error_code": error_code,
-        "error_detail": error_detail,
-        "xp_refunded": refunded,
-        "finished_at": datetime.now(timezone.utc).isoformat(),
-        "lease_expires_at": None,
-    }).eq("id", job_id).eq("status", "processing").execute()
-    if not (result.data or []):
+    """Fail a job with a refund outcome already known (nothing was charged, or
+    the caller settled it). A refund decided on the failure itself goes
+    through `claim_failed` first — see `cv_workflow._fail_and_refund`."""
+    if not claim_failed(job_id, error_code=error_code, error_detail=error_detail):
         return False
-    try:
-        NotificationsRepository(admin, admin).record_cv_analysis_failed(
-            job_id, refunded=refunded
-        )
-    except Exception as exc:  # notification projection must not change job truth
-        _log.warning("CV job %s failure notification failed: %s", job_id, exc)
+    settle_failed(job_id, refunded=refunded)
     return True
 
 
