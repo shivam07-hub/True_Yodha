@@ -15,6 +15,7 @@ import pytest
 from app.security.personal_data import (
     contains_redaction_token,
     redact_personal_data_text,
+    restore_redactions,
     sanitize_cv_text_for_ai,
 )
 from app.services.cv_contact import header_lines, looks_like_phone, parse_contact
@@ -155,3 +156,31 @@ def test_clean_payloads_pass_the_gate():
     assert not contains_redaction_token(
         {"contact": {"name": "Ashwani Maurya"}, "experience": [{"bullets": ["Edited 20+ videos"]}]}
     )
+
+
+
+# ── A parse that copies bullets verbatim gets its identifiers back locally ────
+# 2026-09-24: the structured re-parse echoed `[REDACTED_EMAIL]` from a bullet,
+# the save guard refused it, and the job retried the same input four times.
+
+
+def test_a_ledger_numbers_tokens_and_puts_the_originals_back():
+    ledger: dict[str, str] = {}
+    text = "Write to a@x.com or a@x.com; the lab is b@y.io"
+
+    out = redact_personal_data_text(text, ledger=ledger)
+
+    assert "a@x.com" not in out and "b@y.io" not in out
+    assert out.count("[REDACTED_EMAIL_1]") == 2
+    assert "[REDACTED_EMAIL_2]" in out
+    # A numbered token is still a token at every write boundary.
+    assert contains_redaction_token(out)
+    assert restore_redactions({"bullets": [out]}, ledger) == {"bullets": [text]}
+
+
+def test_without_a_ledger_tokens_stay_fixed():
+    assert redact_personal_data_text("a@x.com") == "[REDACTED_EMAIL]"
+
+
+def test_a_token_the_ledger_does_not_hold_is_left_for_the_gate():
+    assert restore_redactions("see [REDACTED_EMAIL_9]", {}) == "see [REDACTED_EMAIL_9]"

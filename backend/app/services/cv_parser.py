@@ -47,7 +47,11 @@ from app.services.cv_structured_shape import (  # noqa: F401
 )
 from app.services.cv_explicit_skills import extract_explicit_skills, reconcile_skill_signals
 from app.services.cv_skill_evidence import apply_cv_evidence_rules
-from app.security.personal_data import sanitize_cv_text_for_ai
+from app.security.personal_data import (
+    contains_redaction_token,
+    restore_redactions,
+    sanitize_cv_text_for_ai,
+)
 from app.services.llm_provider import LLMProvider, LLMProviderError, get_llm_provider
 from app.services.model_outcome import ModelOutcome
 from app.services.taxonomy_loader import _name_index, lookup_by_name
@@ -226,7 +230,8 @@ async def _llm_extract(
         (list[dict], None)  — skills parsed but structured payload missing/invalid (degraded but usable)
         (None, None)        — every provider failed or returned unparseable output
     """
-    truncated = sanitize_cv_text_for_ai(cv_text)[:_CV_TEXT_CHAR_LIMIT]
+    ledger: dict[str, str] = {}
+    truncated = sanitize_cv_text_for_ai(cv_text, ledger=ledger)[:_CV_TEXT_CHAR_LIMIT]
     messages = [
         {"role": "system", "content": _SYSTEM_PROMPT},
         {"role": "user", "content": (
@@ -241,6 +246,12 @@ async def _llm_extract(
         return None, None
 
     skills, structured = _parse_llm_json(raw)
+    skills, structured = restore_redactions([skills, structured], ledger)
+    if structured is not None and contains_redaction_token(structured):
+        # The model altered a token, so its original cannot be put back. The
+        # save gate would refuse the CV; absent is honest, half is not.
+        logger.warning("metric cv.redaction_echo path=full_parse")
+        structured = None
     if skills is None:
         logger.warning("CV extraction: provider responded but returned unparseable JSON")
     elif structured is None:
@@ -562,7 +573,8 @@ async def reparse_structured_only(raw_text: str) -> ModelOutcome:
     if not raw_text or len(raw_text.strip()) < _MIN_RAW_TEXT_LEN:
         return ModelOutcome.invalid_input("short_text")
 
-    truncated = sanitize_cv_text_for_ai(raw_text)[:_CV_TEXT_CHAR_LIMIT]
+    ledger: dict[str, str] = {}
+    truncated = sanitize_cv_text_for_ai(raw_text, ledger=ledger)[:_CV_TEXT_CHAR_LIMIT]
     messages = [
         {"role": "system", "content": _STRUCTURED_ONLY_PROMPT},
         {"role": "user", "content": (
@@ -616,6 +628,13 @@ async def reparse_structured_only(raw_text: str) -> ModelOutcome:
 
     if not isinstance(parsed, dict):
         return ModelOutcome.malformed("not_object")
+    # The prompt copies bullets verbatim, so the tokens it was shown come back.
+    parsed = restore_redactions(parsed, ledger)
+    if contains_redaction_token(parsed):
+        # A token the model altered. Retrying the same text at temperature 0
+        # returns the same thing, and the save gate refuses it every time.
+        logger.warning("metric cv.redaction_echo path=structured_reparse")
+        return ModelOutcome.malformed("redaction_echo")
     payload = attach_contact(_validate_structured(parsed), raw_text)
     if not isinstance(payload, dict):
         return ModelOutcome.malformed("empty_structure")
