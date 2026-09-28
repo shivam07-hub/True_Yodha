@@ -221,3 +221,40 @@ def test_run_failure_sync_swallows_handler_crash():
         dispatch.run_failure_sync(job, None, None, None, None)  # swallowed, no raise
     finally:
         _clear_failure("t_boom")
+
+
+NOTICE_CAUSE_KEY = "work_lane:feed_warm:ReadTimeout"
+
+
+@pytest.mark.parametrize(
+    ("exc", "key"),
+    [
+        ("read_timeout", "capacity_503:upstream.read_timeout"),
+        ("statement_timeout", "capacity_503:db.statement_timeout"),
+    ],
+)
+def test_a_lane_that_ran_out_on_a_slow_database_is_capacity(exc, key):
+    """2026-09-25: feed_warm's write to user_job_matches read-timed-out after
+    its retries and opened `work_lane:feed_warm:ReadTimeout` — the API files the
+    same slow database under capacity_503. One cause, one blocked row, and the
+    lane stays visible as its `last` path."""
+    import httpx
+    from postgrest.exceptions import APIError
+
+    from app.notice import NoticeBook, bind, unbind
+
+    error = {
+        "read_timeout": httpx.ReadTimeout("timed out"),
+        "statement_timeout": APIError({"code": "57014", "details": None, "hint": None,
+                                       "message": "canceling statement due to statement timeout"}),
+    }[exc]
+    book = NoticeBook.testing()
+    bind(book)
+    try:
+        job = _FakeJob(["feed_warm", {"user_id": "u1"}])
+        dispatch.run_failure_sync(job, None, type(error), error, None)
+        rows = book.snapshot()
+        assert [(r.cause_key, r.status) for r in rows] == [(key, "blocked")]
+        assert rows[0].last_path == "feed_warm"
+    finally:
+        unbind()

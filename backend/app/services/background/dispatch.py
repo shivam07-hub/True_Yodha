@@ -239,6 +239,28 @@ def run_job_sync(job_type: str, payload: dict[str, Any]) -> None:
     asyncio.run(_invoke(job_type, payload, allow_retry=True))
 
 
+def _failure_sighting(job: Any, job_type: str, terminal: str, exc_value: Any) -> Any:
+    """What a lane that ran out of retries was, for the Notice board.
+
+    A database that stayed too slow across the whole retry ladder — an httpx
+    read timeout, or Postgres cancelling at `statement_timeout` (57014) — is
+    the same capacity cause the API files under `capacity_503`. It opened
+    `work_lane:feed_warm:ReadTimeout` on 2026-09-25 as if the lane had a bug.
+    The job type rides as the path, so the digest still names the lane.
+    """
+    import httpx
+    from postgrest.exceptions import APIError
+
+    from app.notice import Sighting
+
+    where = {"correlation_id": str(getattr(job, "id", "") or ""), "method": "JOB", "path": job_type}
+    if isinstance(exc_value, httpx.TimeoutException):
+        return Sighting.upstream_timeout(**where)
+    if isinstance(exc_value, APIError) and getattr(exc_value, "code", None) == "57014":
+        return Sighting.statement_timeout(**where)
+    return Sighting.work_lane(job_type=job_type, terminal_class=terminal)
+
+
 def run_failure_sync(job: Any, connection: Any, exc_type: Any, exc_value: Any, tb: Any) -> None:
     """RQ on_failure callback — fires once, after retries are exhausted.
 
@@ -254,11 +276,9 @@ def run_failure_sync(job: Any, connection: Any, exc_type: Any, exc_value: Any, t
             return
         job_type, payload = args[0], args[1]
         terminal = getattr(exc_type, "__name__", None) or "unknown"
-        from app.notice import Sighting, observe
+        from app.notice import observe
 
-        observe(
-            Sighting.work_lane(job_type=str(job_type), terminal_class=str(terminal))
-        )
+        observe(_failure_sighting(job, str(job_type), str(terminal), exc_value))
         fn = _FAILURE_HANDLERS.get(job_type)
         if fn is None:
             return
