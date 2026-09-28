@@ -46,8 +46,8 @@ async def _skill_retag_handler(payload: dict[str, Any], allow_retry: bool) -> No
     """Bulk-lane Background Job (ADR-0008) for the post-skill-edit re-tag.
 
     Builds its own admin-scoped repos — the worker has no request context.
-    run_async_retag is best-effort (swallows its own errors + always stamps
-    recompute_finished_at), so it is terminal: no retry path needed.
+    A model that failed to read the CV is retried by RQ; everything else is
+    terminal and stamps `recompute_finished_at`.
     """
     admin_db = get_supabase_admin()
     await run_async_retag(
@@ -56,6 +56,15 @@ async def _skill_retag_handler(payload: dict[str, Any], allow_retry: bool) -> No
         payload["user_id"],
         payload["baseline_id"],
         payload["new_body_text"],
+        allow_retry=allow_retry,
+    )
+
+
+@background.failure_handler("skill_retag")
+async def _skill_retag_exhausted(payload: dict[str, Any]) -> None:
+    """Retries ran out. The score stays what it was; stop the client's wait."""
+    _stamp_recompute_finished(
+        CVVersionsRepository(get_supabase_admin()), int(payload["baseline_id"])
     )
 
 
@@ -302,29 +311,51 @@ async def run_async_retag(
     user_id: str,
     baseline_id: int,
     new_body_text: str,
+    *,
+    allow_retry: bool = False,
 ) -> None:
     """Background task: parse_cv_text → record_cv_score → stamp recompute_finished_at.
 
-    Runs after the sync save returns 201. Exceptions are logged and the stamp
-    is still written so the frontend stops polling — better stale-but-final
-    than infinite poll on a tagger blip.
+    Runs after the sync save returns 201. The stamp tells the client to stop
+    polling, so it must not claim a score that was never computed.
+
+    A model that failed to read the CV (`provider_failed`) used to fall through
+    to `recompute_score` over the OLD skills and stamp finished: the edit was
+    marked scored and was not (2026-09-28, an edit whose extraction returned
+    unparseable JSON). On the RQ path that failure now raises for a retry, and
+    `_skill_retag_exhausted` stamps when retries run out. In-process, with no
+    retry to wait for, the score is left alone and the stamp stops the wait.
+    Any other exception keeps the old contract: logged, then stamped.
     """
     try:
         parsed = await cv_parser.parse_cv_text(new_body_text)
-        skills_detected = parsed.get("skills_detected") or []
-        if skills_detected:
-            scoring.record_cv_score(
-                scores_repo, user_id, skills_detected, cv_text=new_body_text,
+        if parsed.get("provider_failed"):
+            logger.warning(
+                "metric cv.retag_provider_failed user=%s baseline=%s retry=%s",
+                user_id, baseline_id, allow_retry,
             )
+            if allow_retry:
+                raise background.TransientJobError("provider")
         else:
-            scoring.recompute_score(scores_repo, user_id)
+            skills_detected = parsed.get("skills_detected") or []
+            if skills_detected:
+                scoring.record_cv_score(
+                    scores_repo, user_id, skills_detected, cv_text=new_body_text,
+                )
+            else:
+                scoring.recompute_score(scores_repo, user_id)
+    except background.TransientJobError:
+        raise
     except Exception:
         logger.exception("Async re-tag failed for user=%s baseline=%s", user_id, baseline_id)
-    finally:
-        cv_repo.client.table("cv_versions") \
-            .update({"recompute_finished_at": "now()"}) \
-            .eq("id", baseline_id) \
-            .execute()
+    _stamp_recompute_finished(cv_repo, baseline_id)
+
+
+def _stamp_recompute_finished(cv_repo: CVVersionsRepository, baseline_id: int) -> None:
+    cv_repo.client.table("cv_versions") \
+        .update({"recompute_finished_at": "now()"}) \
+        .eq("id", baseline_id) \
+        .execute()
 
 
 # ── New-baseline composer ─────────────────────────────────────────────────────
