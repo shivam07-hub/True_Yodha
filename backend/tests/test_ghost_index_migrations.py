@@ -205,3 +205,18 @@ def test_the_refresh_is_scheduled_off_peak() -> None:
     """34.3s and 273k buffers on shared Free/Nano compute. 20:40 UTC is ~02:10
     IST — the quietest hour for an India-first product."""
     assert "'40 20 * * *'" in SCHEDULE
+
+
+LIVE_FROM_JOBS = (MIGRATIONS / "20260928140000_ghost_index_live_from_jobs.sql").read_text()
+
+
+def test_a_live_confirmation_counts_wherever_the_verifier_records_it() -> None:
+    """The verifier stopped writing `seen_live` observations on 2026-09-15 and
+    stamps `jobs.last_verified_live_at` instead. Reading only the diary froze
+    the index's live side: 11,091 published live against 19,000 measured.
+    History is kept — the union, not a swap — and the method is unchanged."""
+    cte = LIVE_FROM_JOBS.split("with verifier_live as (")[1].split("select\n    j.job_id")[0]
+    assert "observer = 'verifier' and result = 'seen_live'" in cte
+    assert "last_verified_live_at" in cte
+    assert "union all" in cte
+    assert "v_method   text := 'ghost-index-v2'" in LIVE_FROM_JOBS
