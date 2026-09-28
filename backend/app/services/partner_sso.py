@@ -101,6 +101,12 @@ def _mint_connect_token() -> tuple[str, str, str]:
     return raw, hash_connect_token(raw), expires.isoformat()
 
 
+# A call that lost the create race waits this long, at most, for the winner to
+# link the seat: the winner's create took 468ms on 2026-09-24 and the link
+# follows it. Only the race path pays it.
+_RACE_POLLS = 20
+_RACE_POLL_SECONDS = 0.15
+
 # An SSO call past this is logged with its hops. Same line as route.slow: past a
 # second of backend time, the partner's user is already waiting on us.
 _SLOW_MS = 1000.0
@@ -120,6 +126,32 @@ def _mint(admin: Any, email: str, redirect_to: str, marks: dict[str, float]) -> 
         return auth_links.mint_login_link_for_existing_user(
             admin, email=email, redirect_to=redirect_to
         )
+
+
+def _linked_at(link: dict[str, Any] | None, email: str) -> bool:
+    """This seat is through the gate, for this address."""
+    return bool(
+        link
+        and link.get("link_state") == "linked"
+        and link.get("user_id")
+        and str(link.get("email") or "").lower() == email
+    )
+
+
+def _await_sibling_link(
+    repo: PartnersRepository, partner_id: str, external_id: str, email: str
+) -> dict[str, Any] | None:
+    """The seat a concurrent call for this partner user linked, or None.
+
+    Only this partner's seat for this external id, linked at this address,
+    counts — the same seat `_linked_at` accepts at the top of the gate.
+    """
+    for _ in range(_RACE_POLLS):
+        time.sleep(_RACE_POLL_SECONDS)
+        link = repo.get_link(partner_id, external_id)
+        if _linked_at(link, email):
+            return link
+    return None
 
 
 def start_session(
@@ -173,12 +205,7 @@ def _start_session(
     # Already through the gate on a previous call — and still the same address.
     # An email CHANGE re-opens the gate: the partner may now be naming somebody
     # else's account.
-    if (
-        existing
-        and existing.get("link_state") == "linked"
-        and existing.get("user_id")
-        and str(existing.get("email") or "").lower() == email
-    ):
+    if _linked_at(existing, email):
         return SsoOutcome(
             mode="direct",
             login_url=_mint(admin, email, redirect_to, marks),
@@ -187,8 +214,30 @@ def _start_session(
             message="Sign-in link minted.",
         )
 
+    race: auth_links.CreateRaced | None = None
     with _hop(marks, "create_user"):
-        created_user_id = auth_links.create_user_if_absent(admin, email)
+        try:
+            created_user_id = auth_links.create_user_if_absent(admin, email)
+        except auth_links.CreateRaced as exc:
+            race, created_user_id = exc, None
+
+    if race is not None:
+        # A sibling call for a new address is creating it right now. Its seat,
+        # once linked, is what the guard above would have accepted — so wait
+        # for exactly that, and write nothing: a consent seat claimed here is
+        # one the winner's link would wipe. No seat of ours, no guess.
+        with _hop(marks, "await_sibling"):
+            won = _await_sibling_link(repo, partner.partner_id, external_id, email)
+        if won is None:
+            raise race
+        logger.info("metric partner_sso.linked partner=%s mode=create_raced", partner.slug)
+        return SsoOutcome(
+            mode="direct",
+            login_url=_mint(admin, email, redirect_to, marks),
+            connect_url=None,
+            user_ref=str(won.get("id") or ""),
+            message="Sign-in link minted.",
+        )
 
     if created_user_id:
         # Nobody has ever used this address on Myro. Linking it now cannot take

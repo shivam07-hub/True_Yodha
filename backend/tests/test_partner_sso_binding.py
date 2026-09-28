@@ -615,3 +615,71 @@ def test_a_slow_session_names_its_hops_at_warning(monkeypatch, caplog):
     assert line.levelno == logging.WARNING
     for hop in ("get_link", "create_user", "link_seat", "mint"):
         assert f"{hop}=" in line.getMessage()
+
+
+# --- Two SSO calls for one NEW address, inside one second --------------------
+
+NOTICE_CAUSE_KEY = "unhandled_500:AuthApiError:app/services/auth_links.py:create_user_if_absent"
+
+# 2026-09-24 17:30:26: GoTrue created the account for one call (200, 468ms) and
+# refused the other with 500 "Database error creating new user" — its insert
+# lost on `users_email_partial_key`. The winner linked the seat; the partner got
+# a 500 for the loser. 28 of 156 new partner seats since 09-05.
+
+
+class _SeatAppears(_FakeRepo):
+    """`get_link` answers from a script, one read at a time."""
+
+    def __init__(self, reads: list[dict | None]) -> None:
+        super().__init__(link=None)
+        self.reads = list(reads)
+
+    def get_link(self, partner_id, external_id):  # noqa: ANN001
+        return self.reads.pop(0) if self.reads else self.link
+
+
+def _raced(admin, email):  # noqa: ANN001
+    raise partner_sso.auth_links.CreateRaced(email)
+
+
+def test_a_lost_create_race_returns_the_seat_the_winner_linked(monkeypatch):
+    monkeypatch.setattr(partner_sso, "_RACE_POLL_SECONDS", 0)
+    monkeypatch.setattr(partner_sso.auth_links, "create_user_if_absent", _raced)
+    monkeypatch.setattr(
+        partner_sso.auth_links,
+        "mint_login_link_for_existing_user",
+        lambda admin, **kw: "https://app/magic",
+    )
+    winner = {"id": "seat1", "link_state": "linked", "user_id": "u-new", "email": "new@example.com"}
+    repo = _SeatAppears([None, None, None, winner])
+
+    outcome = partner_sso.start_session(
+        repo, SimpleNamespace(), partner=CREDENTIAL,
+        external_id="ext-1", email="New@Example.com", full_name=None,
+    )
+
+    assert outcome.mode == "direct"
+    assert outcome.login_url == "https://app/magic"
+    assert outcome.user_ref == "seat1"
+    # The loser writes nothing: no second link, no consent seat the winner's
+    # link would then wipe, and no second profile seed.
+    assert repo.links == []
+    assert repo.claims == []
+    assert outcome.provision is None
+
+
+def test_a_lost_race_never_takes_a_seat_this_call_does_not_own(monkeypatch):
+    """A seat linked at a DIFFERENT address, or never linked at all, is not
+    proof the sibling was this partner user. Re-raise; do not guess."""
+    monkeypatch.setattr(partner_sso, "_RACE_POLL_SECONDS", 0)
+    monkeypatch.setattr(partner_sso.auth_links, "create_user_if_absent", _raced)
+    other = {"id": "seat1", "link_state": "linked", "user_id": "u-x", "email": "other@example.com"}
+    repo = _SeatAppears([other] * 50)
+
+    with pytest.raises(partner_sso.auth_links.CreateRaced):
+        partner_sso.start_session(
+            repo, SimpleNamespace(), partner=CREDENTIAL,
+            external_id="ext-1", email="new@example.com", full_name=None,
+        )
+    assert repo.links == []
+    assert repo.claims == []
