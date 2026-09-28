@@ -589,9 +589,11 @@ Two halves:
   primitive. No surface re-derives it, and none falls back to `/companies`.
 - **Capture** (`components/jobs/use-apply-capture.tsx`, headless) — arms in the
   same act as transport (`onApply` / `open`), so a user can never be sent out
-  without being asked on return "was this still live?". A "gone" answer fires a
-  `quality: apply_link_closed` feedback event and offers a "find similar roles"
-  recovery. It emits `state` (`idle | asking | gone`); each design system renders
+  without being asked on return "Did you submit?" (Yes / Not yet / Couldn't
+  apply). Yes writes `applied`; Couldn't apply asks what blocked them, and a
+  "gone" answer fires a `quality: apply_link_closed` feedback event. Every
+  answer sets `job_apply_intents.answered_at`; an unanswered click is asked
+  again by the Next chip and on its Collections row (§Next Best Step). It emits `state` (`idle | asking | gone`); each design system renders
   its own band (`ApplyCapturePrompt` web `--tm-*`, `ApplyCapturePromptMobile`
   `.mm-*`) — the presentation is a real seam with two adapters.
 
