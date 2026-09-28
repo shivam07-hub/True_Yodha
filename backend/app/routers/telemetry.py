@@ -3,7 +3,7 @@ import logging
 from typing import Literal, get_args
 
 from fastapi import APIRouter, BackgroundTasks, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.database import get_supabase_admin
@@ -72,6 +72,27 @@ CV_UPLOAD_OUTCOMES: tuple[str, ...] = get_args(
 )
 
 
+class CoreLoopStepPayload(BaseModel):
+    #: The steps between a best job and an application that no other table
+    #: records. Saving is `job_applications`, a tailored CV is `cv_versions`, a
+    #: Mentor run is `coin_ledger`, an apply click is `job_apply_intents`; these
+    #: are the gaps between them. On 2026-09-28 the funnel read 44 shown -> 11
+    #: saved -> 6 tailored and nobody could say where in between people stopped.
+    step: Literal[
+        "card_tailor", "panel_opened", "panel_tailor",
+        "editor_opened", "mentor_opened", "downloaded",
+    ]
+    job_id: str = Field(min_length=1, max_length=200)
+    surface: str | None = Field(default=None, max_length=40)
+
+
+#: Tied to the `core_loop_events.step` CHECK and to `CoreLoopStep` in
+#: lib/api.ts by `test_telemetry_vocabulary`.
+CORE_LOOP_STEPS: tuple[str, ...] = get_args(
+    CoreLoopStepPayload.model_fields["step"].annotation
+)
+
+
 def _persist_route_perf(payload: RoutePerfPayload, user_id: str) -> None:
     _write("route_perf_events", {
         "user_id": user_id,
@@ -105,6 +126,31 @@ def _write(table: str, row: dict) -> bool:
     except Exception as exc:  # noqa: BLE001 — a dropped beacon must be visible, never fatal
         _log.warning("metric telemetry.persist_failed table=%s error=%s", table, exc)
         return False
+
+
+def _persist_loop_step(payload: CoreLoopStepPayload, user_id: str) -> None:
+    _write("core_loop_events", {
+        "user_id": user_id,
+        "job_id": payload.job_id,
+        "step": payload.step,
+        "surface": payload.surface,
+        "occurred_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+
+@router.post("/loop-step", status_code=202)
+def record_loop_step(
+    payload: CoreLoopStepPayload,
+    background_tasks: BackgroundTasks,
+    principal: Principal = Depends(get_principal),
+) -> dict:
+    """Accept one core-loop step and answer; write it after the response.
+
+    Most callers navigate the moment they fire this (a Tailor click opens the
+    CV editor), so they send it `keepalive` and read nothing back.
+    """
+    background_tasks.add_task(_persist_loop_step, payload, principal.id)
+    return {"ok": True}
 
 
 @router.post("/route-perf", status_code=202)

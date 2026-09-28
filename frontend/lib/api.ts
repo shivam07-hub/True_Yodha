@@ -2488,6 +2488,34 @@ export function emitJourneyPhase(
   })
 }
 
+/** The core-loop steps no other table records (`core_loop_events`). Saving,
+ *  tailoring, a Mentor run and an apply click each have their own record; these
+ *  are the gaps between them. Tied to `CORE_LOOP_STEPS` and the SQL CHECK by
+ *  `test_telemetry_vocabulary` — keep this union on one line. */
+export type CoreLoopStep = "card_tailor" | "panel_opened" | "panel_tailor" | "editor_opened" | "mentor_opened" | "downloaded"
+
+const CORE_LOOP_TELEMETRY_PATH = "/v1/telemetry/loop-step"
+
+/**
+ * Record one core-loop step for one job. Fire-and-forget and `keepalive`:
+ * most callers navigate the moment they fire it (a Tailor click opens the CV
+ * editor), and telemetry must never be able to fail the step it watches.
+ */
+export function emitLoopStep(
+  token: string | null | undefined,
+  step: CoreLoopStep,
+  jobId: string | null | undefined,
+  surface?: string,
+): void {
+  if (!BASE || !token || !jobId) return
+  fetch(`${BASE}${CORE_LOOP_TELEMETRY_PATH}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ step, job_id: jobId, surface: surface ?? null }),
+    keepalive: true,
+  }).catch(() => {})
+}
+
 function _emitCVUploadTelemetry(
   token: string,
   payload: {
