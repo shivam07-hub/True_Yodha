@@ -27,17 +27,17 @@ def proofs_from_tests(
             text = path.read_text(encoding="utf-8")
         except OSError:
             continue
-        match = _MARKER.search(text)
-        if match is None:
-            continue
-        proofs.append(
-            CloseProof(
-                cause_key=match.group(1),
-                test_nodeid=f"{path.as_posix()}::NOTICE_CAUSE_KEY",
-                sha=sha,
-                on_main=on_main,
+        # One file may close several causes that share one root cause — the
+        # same reading `proofs_from_git_ref` already gives, line by line.
+        for match in _MARKER.finditer(text):
+            proofs.append(
+                CloseProof(
+                    cause_key=match.group(1),
+                    test_nodeid=f"{path.as_posix()}::NOTICE_CAUSE_KEY",
+                    sha=sha,
+                    on_main=on_main,
+                )
             )
-        )
     return proofs
 
 

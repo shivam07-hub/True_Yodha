@@ -84,6 +84,22 @@ class Sighting:
         )
 
     @staticmethod
+    def statement_timeout(
+        *,
+        correlation_id: str,
+        method: str,
+        path: str,
+    ) -> Sighting:
+        """Postgres cancelled the query at `statement_timeout` (57014)."""
+        return Sighting(
+            cause_class="capacity_503",
+            correlation_id=correlation_id,
+            method=method,
+            path=path,
+            limiter="db.statement_timeout",
+        )
+
+    @staticmethod
     def process_death(*, process: str, death_kind: str) -> Sighting:
         return Sighting(
             cause_class="process_death",
