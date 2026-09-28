@@ -33,6 +33,15 @@
 /* .tm-triage-save superseded by <CapturePill> (the unified capture control). */
 .tm-triage-share { color: var(--tm-text-muted); }
 .tm-triage-share:hover { border-color: var(--tm-border); color: var(--tm-text); }
+/* Tailor CV — the card's primary action, so the one filled accent in the row.
+   capture-pill.css keeps Save a quiet outline for exactly this reason. */
+.tm-triage-tailor {
+  border-color: var(--tm-interactive); background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
+}
+.tm-triage-tailor:hover, .tm-triage-tailor:focus-visible {
+  border-color: var(--tm-interactive-hover); background: var(--tm-interactive-hover);
+}
 
 /* ── compact control bar: search-icon · rank · Filters (market-feed redesign) ─ */
 .tm-feed-bar {

@@ -16,11 +16,11 @@
  */
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
-import { cv as cvApi, jobs as jobsApi, users } from "@/lib/api"
+import { cv as cvApi, emitLoopStep, jobs as jobsApi, users } from "@/lib/api"
 import { GapSession } from "./gap-session"
 import { TailorWeave } from "./tailor-weave"
 import "./tailor-weave.css"
@@ -89,6 +89,10 @@ export function PlaygroundView({
   const [applyOpen, setApplyOpen] = useState(false)
   const [exportConfirm, setExportConfirm] = useState(false)
   const [pdfBusy, setPdfBusy] = useState(false)
+  // Arriving here for a job is a core-loop step no other table records: before
+  // 2026-09-28 nobody could say whether people reached the editor and stopped,
+  // or never came.
+  useEffect(() => { emitLoopStep(token, "editor_opened", jobId, "cv") }, [token, jobId])
   const [railRequest, setRailRequest] = useState<{ tab: "fixes" | "skills"; n: number } | null>(null)
   const sheetWrapRef = useRef<HTMLDivElement>(null)
   const pendingTemplateRef = useRef<CVTemplate>(DEFAULT_TEMPLATE)
@@ -243,9 +247,12 @@ export function PlaygroundView({
     setPdfBusy(true)
     try {
       await exportSheetPdf(token, el, pdfFilename)
+      emitLoopStep(token, "downloaded", jobId, "pdf")
       try { localStorage.setItem("myro-cv-template-v1", template) } catch { /* storage blocked */ }
     } catch {
+      // The browser's print dialog can still be cancelled, so it is its own surface.
       printCvPage(pdfFilename)
+      emitLoopStep(token, "downloaded", jobId, "print")
     } finally {
       setPdfBusy(false)
     }

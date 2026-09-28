@@ -57,9 +57,16 @@ export function LocationLine({ job }: { job: JobFeedItem }) {
   )
 }
 
-// ── triage buttons (Save / Skip — the curation front door) ───────────────────
+// ── triage buttons (Skip / Save / Tailor CV — the curation front door) ───────
 
-export function TriageButtons({ job, onSave, onSkip }: { job: JobFeedItem; onSave: () => void; onSkip: () => void }) {
+export function TriageButtons({ job, onSave, onSkip, onTailor }: {
+  job: JobFeedItem
+  onSave: () => void
+  onSkip: () => void
+  /** Save this job and open the CV editor for it. The card's primary action:
+   *  Save is the quiet outline beside it (capture-pill.css). */
+  onTailor?: () => void
+}) {
   const label = job.job_title ? `${job.job_title}${job.company_name ? ` at ${job.company_name}` : ""}` : undefined
   return (
     <div style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
@@ -76,6 +83,16 @@ export function TriageButtons({ job, onSave, onSkip }: { job: JobFeedItem; onSav
           pill only ever shows its rest state here; the confirmation + next-step
           live in the upgraded triage band. */}
       <CapturePill status="rest" onSave={onSave} label={label} />
+      {onTailor ? (
+        <button
+          type="button"
+          aria-label={label ? `Tailor CV for ${label}` : "Tailor CV for this job"}
+          onClick={e => { e.stopPropagation(); onTailor() }}
+          className="tm-triage-btn tm-triage-tailor"
+        >
+          Tailor CV
+        </button>
+      ) : null}
       <ShareJobButton job={job} />
     </div>
   )
@@ -92,7 +109,7 @@ export function CardBrainBadges({ job }: { job: JobFeedItem }) {
 // ── the card (web list) ──────────────────────────────────────────────────────
 
 export function JobCard({
-  job, pulse, hasCv, onOpen, onSave, onSkip, lede,
+  job, pulse, hasCv, onOpen, onSave, onSkip, onTailor, lede,
 }: {
   job: JobFeedItem
   pulse?: JobPulse
@@ -100,6 +117,7 @@ export function JobCard({
   onOpen: () => void
   onSave: () => void
   onSkip: () => void
+  onTailor?: () => void
   /** Agent Picks pass Myro's reason for the pick; the feed passes nothing. */
   lede?: React.ReactNode
 }) {
@@ -111,7 +129,7 @@ export function JobCard({
       onOpen={onOpen}
       badges={<CardBrainBadges job={job} />}
       pulse={<PulseRow pulse={pulse} bare />}
-      actions={<TriageButtons job={job} onSave={onSave} onSkip={onSkip} />}
+      actions={<TriageButtons job={job} onSave={onSave} onSkip={onSkip} onTailor={onTailor} />}
       lede={lede}
     />
   )

@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { jobs, type JobFeedItem, type JobPulse, type QualityReasonCode } from "@/lib/api"
+import { emitLoopStep, jobs, type JobFeedItem, type JobPulse, type QualityReasonCode } from "@/lib/api"
 import { ApiError } from "@/lib/api-error"
 import { POSTING_CLOSED_NOTICE } from "@/lib/jobs/detail-model"
 import { QUALITY_REASONS } from "@/lib/jobs/feedback"
@@ -54,10 +54,14 @@ export function JobDetailDrawer({
     ? pulse.quality_report_count
     : null
 
+  // Opening this panel is a core-loop step no other table records.
+  useEffect(() => { emitLoopStep(token, "panel_opened", job.job_id, "market") }, [token, job.job_id])
+
   // Capture the save, then cross straight into the build stage for THIS job —
   // /cv?jobId opens the tailoring playground (not the generic home).
   const saveAndTailor = () => {
     if (!saved) { onSave(); setSaved(true) }
+    emitLoopStep(token, "panel_tailor", job.job_id, "market")
     router.push(`/cv?jobId=${encodeURIComponent(job.job_id)}`)
   }
 

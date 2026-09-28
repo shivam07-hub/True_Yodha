@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { jobs as jobsApi, type JobFeedItem } from "@/lib/api"
+import { emitLoopStep, jobs as jobsApi, type JobFeedItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import type { CareerBand } from "@/lib/api"
 import { activeFilterCount, applyViewFilters, type FeedFilters } from "@/components/market/feed-types"
@@ -175,7 +175,23 @@ export function JobsSurface({
     setTimeout(() => setSharedId(null), 1500)
     snack({ msg: "Link copied" })
   }
-  const doTailor = (jobId: string) => { setDetailId(null); router.push(`/cv?jobId=${encodeURIComponent(jobId)}`) }
+  const doTailor = (jobId: string) => {
+    setDetailId(null)
+    emitLoopStep(token, "panel_tailor", jobId, "mobile_feed")
+    router.push(`/cv?jobId=${encodeURIComponent(jobId)}`)
+  }
+  // The card's own Tailor CV: save it (so it lands in Collections with its CV),
+  // then open the editor for it. One tap from a best job to tailoring.
+  const tailorFromCard = (job: JobFeedItem) => {
+    setShowSwipeHint(false)
+    triage(job, "saved")
+    emitLoopStep(token, "card_tailor", job.job_id, "mobile_feed")
+    router.push(`/cv?jobId=${encodeURIComponent(job.job_id)}`)
+  }
+  const openDetail = (jobId: string) => {
+    setDetailId(jobId)
+    emitLoopStep(token, "panel_opened", jobId, "mobile_feed")
+  }
   const doApply = () => {
     if (applyCapture.target.url) applyCapture.open()
     else snack({ msg: "No official opening found" })
@@ -270,10 +286,11 @@ export function JobsSurface({
                 first={i === 0}
                 hint={showSwipeHint && i === 0}
                 shared={sharedId === entry.row.id}
-                onOpen={() => setDetailId(entry.row.id)}
+                onOpen={() => openDetail(entry.row.id)}
                 onSave={() => doSave(entry.job)}
                 onSkip={() => doSkip(entry.job)}
                 onShare={() => doShare(entry.job)}
+                onTailor={() => tailorFromCard(entry.job)}
               />
             ),
           )
