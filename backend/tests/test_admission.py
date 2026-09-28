@@ -52,8 +52,10 @@ def test_a_listing_whose_city_is_its_country_is_not_in_a_named_city() -> None:
     assert admission.admit(_PROFILE, brussels_as_india).barred_by == "location"
 
 
-def test_the_employers_stated_years_must_overlap_seven_to_nine() -> None:
-    assert admission.admit(_PROFILE, _job(min_years_experience=2, max_years_experience=5)).barred_by == "level"
+def test_the_employers_minimum_must_be_within_nine_years() -> None:
+    # Eight years spans 7-9. A role asking fewer is admitted; over-qualification
+    # is the brain's call, not the gate's.
+    assert admission.admit(_PROFILE, _job(min_years_experience=2, max_years_experience=5)).admitted
     assert admission.admit(_PROFILE, _job(min_years_experience=5, max_years_experience=8)).admitted
     # "3+ years" states no ceiling, so it reaches eight.
     assert admission.admit(_PROFILE, _job(min_years_experience=3)).admitted

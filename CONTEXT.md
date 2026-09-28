@@ -1246,8 +1246,10 @@ before a job reaches the feed or the Career Ops ranking pool.
 
 **Default policy**
 
-- Level admission is the employer's stated `[min, max]` years, overlapping the
-  person's span. Known years are `[years - 1, years + 1]`. Unknown years use
+- Level admission is the employer's stated minimum within reach: at most the
+  top of the person's span. **There is no floor** (2026-09-28): a role asking
+  fewer years than the person has is admitted, and the brain grades
+  over-qualification. Known years span `[years - 1, years + 1]`. Unknown years use
   the target band's span (`intern [0,1]`, `entry [0,2]`, `mid [2,5]`,
   `senior [5,8]`, `lead [8,12]`, `executive [12,40]`). No readable band is
   `[0, 40]`. None is not zero.
@@ -1616,7 +1618,8 @@ facts that move in between, and returns the first that bars it:
 - `closed` — the listing is explicitly `is_active = false` (absent is not closed);
 - `location` — `match_credibility.location_compatible`, the city decision
   §Target Location assigns there;
-- `level` — `job_eligibility.stated_range_admits`, the rule the pool admits by.
+- `level` — `job_eligibility.stated_range_admits`, the rule the pool admits by:
+  the employer's minimum within the person's years + 1, no floor.
 
 Read by the `/market` list (`published_list.assemble`) and Agent Picks
 (`agent_picks.regenerate_for_user`). Before it, `/market` read score and verdict
