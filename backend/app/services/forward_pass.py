@@ -400,6 +400,46 @@ def restore_scope_from_snapshot(user_id: str, profile: dict[str, Any]) -> bool:
         return False
 
 
+def on_career_path_read(user_id: str, snapshot: dict[str, Any] | None) -> bool:
+    """Retitle a Career Path snapshot the user never titled, on the visit that shows it.
+
+    20260909120000 replaced corpus-label titles ("Custom Software Engineer",
+    the family's modal job title) in PROFILES with the family name, and left
+    the snapshots alone. Measured 2026-09-28: 38 people whose current snapshot
+    disagrees with their profile on the title only, every one written on
+    2026-09-07 or earlier. Career Path renders that title.
+
+    The check is free — the page already holds the snapshot — and pure: a
+    title that is not its own family. A user who typed their own title also
+    passes it; for them the job is a no-op, because `record_career_target`
+    writes nothing when the snapshot already agrees with the profile.
+    """
+    if not snapshot:
+        return False
+    title = str(snapshot.get("role_title") or "").strip()
+    family = str(snapshot.get("role_family") or "").strip()
+    if not title or title == family:
+        return False
+    if not _claim("career_snapshot", user_id):
+        return False
+    try:
+        from app.services import background
+
+        background.enqueue(
+            background.LANE_FAST,
+            "career_target_sync",
+            payload={"user_id": user_id},
+        )
+        logger.info("metric forward_pass.career_snapshot_enqueued user=%s", user_id)
+        return True
+    except Exception as exc:  # noqa: BLE001 — a read must never fail on a forward pass
+        logger.warning(
+            "metric forward_pass.failed pass=career_snapshot user=%s reason=%s",
+            user_id, exc.__class__.__name__,
+        )
+        return False
+
+
 def on_profile_read(user_id: str, profile: dict[str, Any]) -> None:
     """What `/users/me` — the shell on every authed page — can put right.
 

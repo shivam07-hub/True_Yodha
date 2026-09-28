@@ -11,6 +11,8 @@ from typing import Any
 from supabase import Client
 
 from app.database import get_supabase_admin
+from app.repositories.users import UsersRepository
+from app.services import background
 from app.services.job_eligibility import (
     SOURCE_SENIORITY,
     adjacent_source_bands,
@@ -99,6 +101,22 @@ def record_from_profile(user_id: str, profile: dict[str, Any]) -> None:
         ),
         "p_locations": _locations(profile),
     }).execute()
+
+
+@background.handler("career_target_sync")
+async def _career_target_sync(payload: dict[str, Any], allow_retry: bool) -> None:
+    """Bring a returning user's snapshot up to the direction their profile holds.
+
+    Enqueued by `forward_pass.on_career_path_read`. Writes only a canonical
+    direction: a pass never supersedes, because `restore_scope_from_snapshot`
+    reads the family a stale snapshot still holds for people whose profile lost
+    it. `record_career_target` is a no-op when the snapshot already agrees.
+    """
+    user_id = str(payload["user_id"])
+    profile = UsersRepository(get_supabase_admin()).get_profile(user_id) or {}
+    if not is_canonical_direction(profile):
+        return
+    record_from_profile(user_id, profile)
 
 
 __all__ = [
