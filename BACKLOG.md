@@ -52,6 +52,7 @@ do not re-derive them. Each numbered step is its own commit, six gates green.
 | Spec | Covers | First step |
 |---|---|---|
 | [ARCHITECTURE_LISTING_TIME.md](ARCHITECTURE_LISTING_TIME.md) `56592675` | `last_seen` is dead (0 of 52,717 rows ever updated); 52% of active jobs wear a verification stamp seeded from it | **Shivam's**: migration nulling the 24,551 false stamps |
+| **#55 [ARCHITECTURE_RETURN_LOOP.md](ARCHITECTURE_RETURN_LOOP.md) — a returning user finds their list** (2026-09-29) | The loop's *repeat* is broken: /market shows a verdict only if its `eval_context_hash` equals today's key, and that key hashes the prompt version and every distilled memory fact — so each prompt bump hid all 210 lists at once (3 since 09-16), and each memory distill hides one. Re-reading starts only on /market. Picks and Collections apply no currency rule at all. Nothing reaches people outside the app (bell 100% unread; no fresh-matches email). Batch 1: 3 of 4 instant seekers return to 0 cards | **Shivam's three decisions (§6)** — show stale verdicts marked (recommended), email digest yes/cadence/consent, re-rate budget. Then S0 measure → S1 Verdict Currency module (0 judge calls) |
 | [ARCHITECTURE_CONTRACTS_BY_TYPE.md](ARCHITECTURE_CONTRACTS_BY_TYPE.md) `a8741e45` | `compute_match_health`'s optional `freshness` restores the pre-fix bug at 2 of 3 callers; four hand-rolled dead-man probes, one of which writes inside a read | Make `freshness` required |
 
 ⚠️ `jobs_added_1h` on the public landing page is structurally **0 for 23 hours
