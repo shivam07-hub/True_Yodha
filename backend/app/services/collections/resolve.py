@@ -37,6 +37,10 @@ LIVENESS_DOWN = frozenset({"closed", "likely_closed"})
 #: has to ask again rather than leave the entry looking untouched forever.
 PENDING_INTENT_AFTER = timedelta(minutes=10)
 
+#: How long an unanswered click stays a question. Past this the person no longer
+#: remembers whether they submitted, so asking only teaches them to skip it.
+PENDING_INTENT_FOR = timedelta(days=30)
+
 #: Low rung → high rung. The entry's stage is the highest one it has reached.
 STAGE_ORDER: tuple[str, ...] = (STAGE_FOUND, STAGE_SAVED, STAGE_TAILORED, STAGE_APPLIED)
 

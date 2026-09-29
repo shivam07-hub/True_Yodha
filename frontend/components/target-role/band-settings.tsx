@@ -46,5 +46,5 @@ export function BandSettings({ value }: { value: CareerBand[] }) {
       .then(() => queryClient.invalidateQueries({ queryKey: dataKeys.profile() }))
   }
 
-  return <BandChoice options={options.data ?? []} selected={draft} onChange={commit} layout="rows" />
+  return <BandChoice options={options.data ?? []} selected={draft} onChange={commit} />
 }

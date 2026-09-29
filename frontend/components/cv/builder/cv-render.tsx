@@ -7,6 +7,7 @@
 
 import { useEffect, useRef } from "react"
 import type { CVStructured } from "@/lib/api"
+import { useSectionTitle } from "@/components/cv/section-titles-provider"
 
 interface CVRenderProps {
   cv: CVStructured
@@ -30,6 +31,7 @@ function kwMatch(text: string, needle: string): boolean {
 
 export function CVRender({ cv, contact, focusSkill }: CVRenderProps) {
   const containerRef = useRef<HTMLElement>(null)
+  const title = useSectionTitle()
 
   useEffect(() => {
     if (!focusSkill || !containerRef.current) return
@@ -59,14 +61,14 @@ export function CVRender({ cv, contact, focusSkill }: CVRenderProps) {
 
       {cv.summary && (
         <>
-          <h2>Summary</h2>
+          <h2>{title("summary")}</h2>
           <p className="cv-summary">{cv.summary}</p>
         </>
       )}
 
       {cv.experience.length > 0 && (
         <>
-          <h2>Experience</h2>
+          <h2>{title("experience")}</h2>
           {cv.experience.map((e, ei) => (
             <div key={ei}>
               <div className="cv-role-head">
@@ -86,7 +88,7 @@ export function CVRender({ cv, contact, focusSkill }: CVRenderProps) {
 
       {cv.projects.length > 0 && (
         <>
-          <h2>Projects</h2>
+          <h2>{title("projects")}</h2>
           {cv.projects.map((p, pi) => (
             <div key={pi}>
               <div className="cv-role-head">
@@ -103,7 +105,7 @@ export function CVRender({ cv, contact, focusSkill }: CVRenderProps) {
 
       {cv.education.length > 0 && (
         <>
-          <h2>Education</h2>
+          <h2>{title("education")}</h2>
           {cv.education.map((ed, i) => (
             <div key={i} className="cv-role-head" style={{ marginTop: 4 }}>
               <div>
@@ -119,14 +121,14 @@ export function CVRender({ cv, contact, focusSkill }: CVRenderProps) {
 
       {cv.skills_line && (
         <>
-          <h2>Skills</h2>
+          <h2>{title("skills_line")}</h2>
           <div className="cv-skills">{cv.skills_line}</div>
         </>
       )}
 
       {cv.certs.length > 0 && (
         <>
-          <h2>Certifications</h2>
+          <h2>{title("certs")}</h2>
           <ul>
             {cv.certs.map((c, i) => <li key={i}>{c}</li>)}
           </ul>

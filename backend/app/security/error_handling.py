@@ -147,8 +147,20 @@ async def _http_exception_handler(
 
 async def _validation_exception_handler(
     request: Request,
-    _exc: RequestValidationError,
+    exc: RequestValidationError,
 ) -> JSONResponse:
+    # The client gets nothing, so the log carries WHERE and WHICH RULE — never
+    # the value. A stale cap rejecting a fourth city read as a bare "422" here.
+    fields = ",".join(
+        ".".join(str(part) for part in error.get("loc", ())) + f":{error.get('type', '')}"
+        for error in exc.errors()[:5]
+    )
+    _log.warning(
+        "metric request.validation_failed method=%s path=%s fields=%s",
+        request.method,
+        request.url.path,
+        redact_sensitive_text(fields),
+    )
     return _response(
         request=request,
         status_code=422,

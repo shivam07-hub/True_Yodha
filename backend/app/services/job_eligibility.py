@@ -261,23 +261,22 @@ def person_year_span(profile: dict[str, Any]) -> tuple[float, float]:
 
 
 def stated_range_admits(profile: dict[str, Any], job: dict[str, Any]) -> bool:
-    """Whether this job's level fits, by the years the employer stated.
+    """Whether this job's level is within reach, by the years the employer stated.
 
-    The `cand` predicate in `candidates_for_user`: the two ranges overlap.
-    A missing job bound is 0 or 40, so an unstated side does not reject.
+    The `cand` predicate in `candidates_for_user`: the employer's minimum is at
+    most the top of the person's span. There is no floor — a role asking fewer
+    years than the person has is admitted, and the brain grades
+    over-qualification (Shivam, 2026-09-28). An unstated minimum is 0.
     The seniority tag is read only when both bounds are null, and then only
     to reject a senior-side tag for a person whose centre is under 5.
     """
     lo, hi = person_year_span(profile)
     centre = (lo + hi) / 2.0
     job_lo = job.get("min_years_experience")
-    job_hi = job.get("max_years_experience")
-    if job_lo is None and job_hi is None:
+    if job_lo is None and job.get("max_years_experience") is None:
         tag = str(job.get("seniority_level") or "").strip().casefold()
         return not (tag in _SENIOR_LEVEL_TAGS and centre < _SENIOR_TAG_CENTRE)
-    low = 0.0 if job_lo is None else float(job_lo)
-    high = 40.0 if job_hi is None else float(job_hi)
-    return low <= hi and high >= lo
+    return (0.0 if job_lo is None else float(job_lo)) <= hi
 
 
 def job_is_eligible(

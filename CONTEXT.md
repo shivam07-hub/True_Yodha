@@ -589,9 +589,11 @@ Two halves:
   primitive. No surface re-derives it, and none falls back to `/companies`.
 - **Capture** (`components/jobs/use-apply-capture.tsx`, headless) — arms in the
   same act as transport (`onApply` / `open`), so a user can never be sent out
-  without being asked on return "was this still live?". A "gone" answer fires a
-  `quality: apply_link_closed` feedback event and offers a "find similar roles"
-  recovery. It emits `state` (`idle | asking | gone`); each design system renders
+  without being asked on return "Did you submit?" (Yes / Not yet / Couldn't
+  apply). Yes writes `applied`; Couldn't apply asks what blocked them, and a
+  "gone" answer fires a `quality: apply_link_closed` feedback event. Every
+  answer sets `job_apply_intents.answered_at`; an unanswered click is asked
+  again by the Next chip and on its Collections row (§Next Best Step). It emits `state` (`idle | asking | gone`); each design system renders
   its own band (`ApplyCapturePrompt` web `--tm-*`, `ApplyCapturePromptMobile`
   `.mm-*`) — the presentation is a real seam with two adapters.
 
@@ -728,6 +730,7 @@ Anything a user downloads or prints that represents their CV — PDF, DOCX, nati
 - `body_text` is provenance (raw upload extraction for baselines), never render input.
 - No plain-text re-parsing renderer may exist. The reportlab `/cv/download-pdf` path was deleted 2026-07-03 after it shipped a user a mangled artifact no surface ever previewed (skills exploded per-line, `₹` → `■`).
 - Surfaces without a visible sheet (one-tap `DownloadCVButton`) mount `PdfPage` hidden and export the same DOM — never a different renderer.
+- **Section headings are the person's own** (2026-09-29). `user_profiles.cv_section_titles` maps a section key to a renamed heading; an absent key is the default. One reader: `SectionTitlesProvider` (mounted once in the authed layout) feeds `useSectionTitle()`, which the editor paper, `PdfPage`, the apply preview and the mobile editor all call, and the DOCX payload carries the same map (`visible.titles`). Renaming is opt-in: click the heading on an editable CV; empty or the default resets. On the profile, not the CV Version: the heading is how they name their work on every CV, and `cv_structured` keeps its seven keys. Outside the provider (public preview) every heading is the default. Defaults and rules live in `cv_section_order.py` and are mirrored by `lib/cv/section-titles.ts`.
 - The failure shape is pinned by `backend/tests/test_cv_artifact_golden.py` (₹ survives, skills line stays one line, legacy route stays deleted); preview fidelity by `test_cv_pdf_html.py` (stylesheet + font byte-sync).
 
 ---
@@ -835,13 +838,16 @@ The one state-derived action that moves a candidate through the active job-searc
 **Ladder**
 
 1. No Main CV → upload a CV.
-2. An interview or a due application follow-up → prepare or check in; time-sensitive commitments outrank new work.
-3. A saved role with a tailored CV but no confirmed submission → review and apply.
-4. A saved role without a tailored CV → tailor the highest-`match_score` saved role.
-5. No saved role → find a role to tailor in Jobs.
+2. An interview → prepare; time-sensitive commitments outrank new work.
+3. An unanswered Apply click → "Did you apply to {company}?", pointing at its Collections row. Asked before memory of submitting fades; any answer (Yes, Not yet, Couldn't apply) sets `job_apply_intents.answered_at` and stops it, and a click older than 30 days is no longer asked.
+4. A due application follow-up → check in.
+5. A saved role with a tailored CV but no confirmed submission → review and apply.
+6. A saved role without a tailored CV → tailor the highest-`match_score` saved role.
+7. No saved role → find a role to tailor in Jobs.
 
 **Invariants**
 - A **Saved Role** is an intended application whether its source is `system_match`, a user save, or an imported job. Source never changes eligibility for tailoring.
+- **An Apply click is at least a save.** It files the job as `saved` when it has no row, so the "did you submit?" question always has a home. Saved never claims a submission; only the person's Yes moves a job to `applied`.
 - `ApplicationResponse.match_score` is projected from the durable `user_job_matches` evaluation on the Applications read, so Next Best Step does not depend on a warmed feed cache to choose the highest-fit role.
 - A confirmed application returns to the remaining saved-role queue when there is no more urgent interview or follow-up. It stays visible in Applications for tracking; it is not silently treated as complete.
 
@@ -985,6 +991,7 @@ The ONE module every match surface routes through (`app/services/matching/match_
 - `notify=False` where the user watches the reveal live (paid Refresh, onboarding initial); background runs (sweep, future login-confirm async) notify — debounced 12h, so it's spam-safe.
 - The **100-coin charge** (`MATCH_RUN_COST`) is a property of a run but lives at the entry seam that owns the wallet + reveal ticket (`job_refresh` charges at dispatch, `_dispatch` refunds on failure). This module owns the WORK, not the charge.
 - Callers: `job_refresh/_pipeline` (paid Refresh worker), `cv_workflow` (onboarding initial), `scrape_sweep` (background sweep). Every one now gets identical outputs.
+- **The initial run starts the reading of the rest of the pool** (`cv_workflow._trigger_initial_match_compute` → `feed_warm.enqueue_feed_warm(announce=True)`, 2026-09-28). A run judges a handful; the /market pool is read 8 at a time, and used to start only when the person next opened /market — so a direction change came back as two cards. The initial run follows a direction save or a CV upload, work the person started, so this is a forward pass. An announcing drain tells the bell each round through `match_run.announce_fresh`, the same writer the run uses: one unread "N fresh matches" item that grows, counting only rows Admission will show. A drain started from /market does not announce — they are watching the rows land. The background sweep never starts one.
 - **A run that searched nothing stamps nothing.** `cache_hit` and `needs_onboarding` return before a profile is read, so they carry no `context_key` — and since 2026-09-25 that means neither half of the marker is written, not just a null key. The timestamp is not bookkeeping: **Match Freshness** reads it, so a bare stamp from a no-op run permanently answers "were these matches computed for the direction this user holds" with a lie. A missed stamp on a real run is logged (`metric match_run.stamp_missed`) and left to the forward pass — re-raising would re-run a full LLM compute to repair one column.
 
 ---
@@ -1246,8 +1253,10 @@ before a job reaches the feed or the Career Ops ranking pool.
 
 **Default policy**
 
-- Level admission is the employer's stated `[min, max]` years, overlapping the
-  person's span. Known years are `[years - 1, years + 1]`. Unknown years use
+- Level admission is the employer's stated minimum within reach: at most the
+  top of the person's span. **There is no floor** (2026-09-28): a role asking
+  fewer years than the person has is admitted, and the brain grades
+  over-qualification. Known years span `[years - 1, years + 1]`. Unknown years use
   the target band's span (`intern [0,1]`, `entry [0,2]`, `mid [2,5]`,
   `senior [5,8]`, `lead [8,12]`, `executive [12,40]`). No readable band is
   `[0, 40]`. None is not zero.
@@ -1616,7 +1625,8 @@ facts that move in between, and returns the first that bars it:
 - `closed` — the listing is explicitly `is_active = false` (absent is not closed);
 - `location` — `match_credibility.location_compatible`, the city decision
   §Target Location assigns there;
-- `level` — `job_eligibility.stated_range_admits`, the rule the pool admits by.
+- `level` — `job_eligibility.stated_range_admits`, the rule the pool admits by:
+  the employer's minimum within the person's years + 1, no floor.
 
 Read by the `/market` list (`published_list.assemble`) and Agent Picks
 (`agent_picks.regenerate_for_user`). Before it, `/market` read score and verdict

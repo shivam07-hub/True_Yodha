@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 
 
 CareerBand = Literal[
@@ -74,6 +74,8 @@ class UserProfileResponse(BaseModel):
     myrology_unlocked: bool = False
     myrology_interested: bool = False
     accent_pref: Literal["signal", "forge"] = "signal"
+    #: Renamed CV section headings; absent key = default (`cv_section_order`).
+    cv_section_titles: dict[str, str] | None = None
 
 
 class UpdateProfileResponse(UserProfileResponse):
@@ -104,6 +106,15 @@ class UpdateProfileRequest(BaseModel):
     superpower: str | None = None
     myrology_interested: bool | None = None
     accent_pref: Literal["signal", "forge"] | None = None
+    #: The WHOLE map, normalised on the way in. `{}` resets every heading.
+    cv_section_titles: dict[str, str] | None = None
+
+    @field_validator("cv_section_titles")
+    @classmethod
+    def _normalise_titles(cls, value: dict[str, str] | None) -> dict[str, str] | None:
+        from app.services.cv_section_order import normalize_section_titles
+
+        return None if value is None else normalize_section_titles(value)
 
 
 class UserSkillItem(BaseModel):

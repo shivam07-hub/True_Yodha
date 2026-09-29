@@ -17,8 +17,9 @@
 -- `jobs.last_conclusive_verification_at` alone. Observations said 19:01 while
 -- the jobs column said 02:01 the next day. It reads the jobs column now, through
 -- `idx_jobs_conclusive_verification` (predicate matched, one index row).
--- 20260915181000_observation_thin_ledger.sql made the same move but was never
--- applied, and it also deletes observations — that part is not this migration.
+-- (20260915181000_observation_thin_ledger.sql made the same move, was never
+-- applied, and was retired on 2026-09-28: its delete would have erased the
+-- verifier seen_live rows the Ghost Job Index still read.)
 --
 -- Additive. Reverse: drop the table, and re-apply verifier_health_snapshot
 -- from 20260813092000_verifier_diagnostics_schedule.sql (the body live before).

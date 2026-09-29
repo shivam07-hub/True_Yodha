@@ -72,9 +72,9 @@ Every pass is in `backend/app/services/forward_pass.py`; `PASSES` answers "what 
 - **Commit finished work to `Develop` — standing approval, no need to ask.**
   When green, `git add` ONLY your own files, commit, push. **Never `git add -A`
   or `.`** — the tree usually holds someone else's uncommitted work.
-- **Supabase migrations — apply them yourself, same session.** Then
-  `NOTIFY pgrst, 'reload schema';` and spot-check the changed object. Additive
-  and reversible only. Anything destructive needs Shivam first.
+- **Supabase migrations — apply them yourself, BEFORE pushing the code that
+  reads them.** Then `NOTIFY pgrst, 'reload schema';` and spot-check. Additive,
+  reversible; destructive needs Shivam. `/health/ready` names a missing column.
 - **Never hardcode keys.** `.env` only, never committed.
 - **Root-cause only.** No try/except, type cast or `|| undefined` to make a
   symptom disappear. If the trade-off is unclear, ask before writing code.

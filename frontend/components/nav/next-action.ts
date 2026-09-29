@@ -97,6 +97,18 @@ export function deriveNextAction(
     }
   }
 
+  // An Apply click nobody answered. Asked where they land next, before memory of
+  // whether they submitted fades; any answer stops it on the server. The inline
+  // band on the card had one answer in 29 clicks — it asked once, at a moment
+  // the person had already moved on.
+  const owed = apps.find((a) => a.pending_apply)
+  if (owed) {
+    return {
+      label: `Did you apply to ${name(owed)}?`,
+      href: `/collections?jobId=${encodeURIComponent(owed.job_id)}`,
+    }
+  }
+
   const due = apps.find((a) => needsStageCheck(a, now) || followUpLine(a, now) !== null)
   if (due) {
     return { label: `Check on ${name(due)}`, href: `/preparations/${encodeURIComponent(due.job_id)}` }

@@ -125,6 +125,7 @@ def to_application(
     cv_badge: CVBadge | None = None,
     user_skill_keys: set[str] | None = None,
     match_score: int | None = None,
+    pending_apply: bool = False,
 ) -> ApplicationResponse:
     job = row.get("jobs") or {}
     # First-class card data. `skills` = the job's skills; `matched`/`missing` split
@@ -155,6 +156,7 @@ def to_application(
         created_at=row["created_at"],
         last_stage_changed_at=row.get("last_stage_changed_at"),
         match_score=match_score,
+        pending_apply=pending_apply,
         cv_badge=cv_badge,
         skills=skills,
         matched_skills=matched,

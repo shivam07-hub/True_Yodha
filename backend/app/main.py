@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 from app.config import settings
 from app.request_timing import RequestTimingMiddleware
@@ -234,6 +234,35 @@ async def _start_reservoir_ingest_sweep() -> None:
     from app.services.reservoir_ingest_sweep import run_forever
 
     asyncio.create_task(run_forever())
+
+
+@app.on_event("startup")
+async def _check_schema_contract() -> None:
+    """Probe the columns the code names before this build takes traffic.
+
+    See `app.schema_contract`: `/health/ready` answers from this result. Only a
+    deployed service has a deploy to gate; local runs and tests skip the probe.
+    """
+    from app.config import settings
+
+    if not settings.railway_service_name or not settings.supabase_service_key:
+        return
+    from app import schema_contract
+    from app.database import get_supabase_admin
+
+    await asyncio.to_thread(schema_contract.check_at_boot, get_supabase_admin())
+
+
+@app.get("/health/ready", include_in_schema=False)
+async def ready() -> JSONResponse:
+    """200 when every column the code names exists; 503 naming the ones that
+    do not. What a deploy gate asks — `/health` stays the liveness report."""
+    from app import schema_contract
+
+    missing = schema_contract.missing_at_boot()
+    if missing:
+        return JSONResponse({"status": "schema_mismatch", "missing": missing}, status_code=503)
+    return JSONResponse({"status": "ready"})
 
 
 @app.get("/robots.txt", include_in_schema=False, response_class=PlainTextResponse)

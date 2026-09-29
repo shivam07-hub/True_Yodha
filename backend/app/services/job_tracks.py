@@ -27,10 +27,10 @@ from __future__ import annotations
 from typing import Any
 
 from app.repositories.job_tracks import JobTracksRepository
+from app.services.career_target import MAX_TARGET_ROLES
 
 __all__ = [
     "MAX_TRACKS",
-    "MAX_TRACK_ROLE_TITLES",
     "PROFILE_TRACK_POSITION",
     "Track",
     "can_open_another",
@@ -43,10 +43,6 @@ __all__ = [
 #: marketing, consulting, product — and a fourth parallel search is a signal
 #: someone has stopped choosing rather than a need the product should serve.
 MAX_TRACKS = 3
-
-#: Same cap as `SLOT_ARITY["target_role_titles"]`, because it is the same axis
-#: said about a different search.
-MAX_TRACK_ROLE_TITLES = 6
 
 #: Track 1. Not a row — see the module docstring.
 PROFILE_TRACK_POSITION = 1
@@ -85,7 +81,11 @@ class Track:
 
 
 def normalise_role_titles(values: Any) -> list[str]:
-    """Trimmed, de-duplicated case-insensitively, capped. Order is the user's."""
+    """Trimmed, de-duplicated case-insensitively, capped. Order is the user's.
+
+    Capped at `MAX_TARGET_ROLES` — the profile's own cap, because a track's
+    titles are the same axis said about a different search.
+    """
     if not isinstance(values, list):
         return []
     seen: list[str] = []
@@ -96,7 +96,7 @@ def normalise_role_titles(values: Any) -> list[str]:
             continue
         lowered.add(text.casefold())
         seen.append(text)
-        if len(seen) >= MAX_TRACK_ROLE_TITLES:
+        if len(seen) >= MAX_TARGET_ROLES:
             break
     return seen
 

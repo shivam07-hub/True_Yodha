@@ -72,6 +72,29 @@ def test_request_validation_details_are_not_exposed() -> None:
     assert "integer_parsing" not in response.text
 
 
+def test_a_rejected_request_logs_which_field_but_never_its_value(caplog) -> None:
+    """The client is told nothing; the log must say WHICH field.
+
+    A 422 on `PUT /onboarding/target` read only "422" in the Railway log and
+    `reason=unknown` in telemetry, so a fourth city being rejected by a stale
+    cap of 3 looked like nothing at all. The location and the rule are enough
+    to find it; the value is the user's and stays out.
+    """
+    test_app = FastAPI()
+    install_error_handling(test_app)
+
+    @test_app.post("/validate")
+    def validate(_payload: _Payload) -> dict[str, bool]:
+        return {"ok": True}
+
+    with caplog.at_level("WARNING"), TestClient(test_app) as client:
+        client.post("/validate", json={"count": "not-an-integer"})
+
+    lines = [r.getMessage() for r in caplog.records if "request.validation_failed" in r.getMessage()]
+    assert lines == ["metric request.validation_failed method=POST path=/validate fields=body.count:int_parsing"]
+    assert "not-an-integer" not in caplog.text
+
+
 def test_safe_domain_client_error_keeps_actionable_detail() -> None:
     test_app = FastAPI()
     install_error_handling(test_app)

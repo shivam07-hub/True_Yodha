@@ -40,10 +40,13 @@ export interface AgentPicksBandProps {
   /** Jobs tab passes its feed triage so one undo slot covers pick and feed. */
   onSave?: (job: JobFeedItem) => void
   onSkip?: (job: JobFeedItem) => void
+  /** Open the CV editor for a pick. The band saves it first, through its own
+   *  triage. Omitted where the surface has no Tailor action on its cards. */
+  openTailor?: (job: JobFeedItem) => void
 }
 
 export function AgentPicksBand({
-  token, hasCv = true, context = "feed", onSave, onSkip, renderCard,
+  token, hasCv = true, context = "feed", onSave, onSkip, openTailor, renderCard,
 }: AgentPicksBandProps) {
   const [openJob, setOpenJob] = React.useState<AgentPickItem | null>(null)
   const qc = useQueryClient()
@@ -119,6 +122,7 @@ export function AgentPicksBand({
                 onOpen={() => setOpenJob(pick)}
                 onSave={() => triage.save(pick)}
                 onSkip={() => triage.skip(pick)}
+                onTailor={openTailor ? () => { triage.save(pick); openTailor(pick) } : undefined}
                 lede={<AgentPickLede pick={pick} />}
               />
             )}

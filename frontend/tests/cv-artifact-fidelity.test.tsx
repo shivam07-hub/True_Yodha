@@ -23,6 +23,7 @@ import test from "node:test"
 import { renderToStaticMarkup } from "react-dom/server"
 
 import { PdfPage, type PdfPageContact } from "../components/cv/builder/pdf-page"
+import { SectionTitlesScope } from "../components/cv/section-titles-provider"
 import type { CVStructured } from "../lib/api"
 
 const CONTACT: PdfPageContact = {
@@ -168,4 +169,23 @@ test("hidden items are the only thing allowed to disappear", () => {
   const bulletsShown = (markup: string) =>
     CV.experience.flatMap(r => r.bullets).filter(b => markup.includes(b)).length
   assert.equal(bulletsShown(render()), 4)
+})
+
+test("a renamed heading is on the sheet every download is cut from", () => {
+  const withProject: CVStructured = {
+    ...CV,
+    projects: [{ name: "Myro", dates: "2026", bullets: ["Built a career platform"] }],
+  }
+  const html = renderToStaticMarkup(
+    <SectionTitlesScope titles={{ projects: "Projects and Agentic Pursuits" }}>
+      <PdfPage cv={withProject} hidden={new Set()} contact={CONTACT} />
+    </SectionTitlesScope>,
+  )
+  assert.ok(html.includes("<h2>Projects and Agentic Pursuits</h2>"))
+  assert.ok(!html.includes("<h2>Projects</h2>"))
+  assert.ok(html.includes("<h2>Experience</h2>"))
+
+  // Outside any scope (public preview): the default heading.
+  const plain = renderToStaticMarkup(<PdfPage cv={withProject} hidden={new Set()} contact={CONTACT} />)
+  assert.ok(plain.includes("<h2>Projects</h2>"))
 })

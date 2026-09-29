@@ -65,7 +65,8 @@ export function CvPaneToolbar({
 
       <div className="cvw-fill" data-band={band}>
         <span className="cvw-fill-stats">
-          {lineCount} lines · ~{wordCount} words · {pages} · {pageFill.pct}%
+          <span className="cvw-fill-counts">{lineCount} lines · ~{wordCount} words · </span>
+          {pages} · {pageFill.pct}%
         </span>
         <span
           className="cvw-fill-bar"

@@ -21,12 +21,10 @@ import { DirectionChoice } from "@/components/onboarding/direction-choice"
 import { LocationChoice } from "@/components/onboarding/location-choice"
 import { StepHead } from "@/components/journey/journey-chrome"
 import { formatCount } from "@/lib/format"
-import { MAX_TARGET_LOCATIONS } from "@/lib/location-catalog"
+import { MAX_TARGET_LOCATIONS, MAX_TARGET_ROLES } from "@/lib/career-target"
 import type { CareerBand, CareerBandOption, RoleFamily, TargetSeniority } from "@/lib/api"
 import { FamilySkills } from "@/components/target-role/family-skills"
 import { cn } from "@/lib/utils"
-
-export const MAX_ROLES = 3
 
 const SENIORITY_LABEL: Record<Exclude<TargetSeniority, "any">, string> = {
   intern: "Internship", entry: "Entry-level", mid: "Mid-level",
@@ -62,12 +60,12 @@ export function RoleStep({
   onShowSearch: (open: boolean) => void
   onSearch: (term: string) => void
 }) {
-  const full = selected.length >= MAX_ROLES
+  const full = selected.length >= MAX_TARGET_ROLES
   return (
     <>
       <StepHead
         title="The work"
-        lede={`Up to ${MAX_ROLES} kinds of work you want next. Myro searches on these.`}
+        lede="Every kind of work you would take. Myro searches on all of them."
       />
       <div className="mt-6 space-y-2">
         {families.map((family) => {

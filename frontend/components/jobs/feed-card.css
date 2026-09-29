@@ -297,10 +297,11 @@ a.fc-co:hover { color: var(--tm-interactive); }
 .fc-card .tm-pulse .tm-pulse-item:not(.tm-pulse-warn):not(.tm-pulse-signal) { color: var(--tm-text-muted); }
 
 /* ── action row ───────────────────────────────────────────────────────────── */
-/* PRODUCT LOCK (2026-06-22): the triage trio (Not interested · Save · Share) is
-   ALWAYS one line — it never wraps to a second row. The squeeze on a narrow phone
-   is absorbed by collapsing Share to its glyph only (label hidden ≤600px, below),
-   which frees enough width for the two text pills to sit on one line. */
+/* PRODUCT LOCK (2026-06-22): the triage row (Not interested · Save · Share, and
+   Tailor CV on /market cards since 2026-09-28) is ALWAYS one line — it never wraps
+   to a second row. The squeeze on a narrow screen is absorbed by collapsing Share
+   to its glyph only (label hidden ≤600px, below). Phones render the mobile
+   SwipeCard, not this row. */
 .fc-actions { display: flex; align-items: center; flex-wrap: nowrap; gap: 10px; }
 .fc-actions > * { flex: 1 1 auto; }
 /* Share is the lowest-priority action — on phones it shrinks to its glyph and

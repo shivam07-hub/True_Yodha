@@ -271,7 +271,7 @@ def test_enqueue_feed_warm_queues_the_job_and_does_not_rank(monkeypatch: Any) ->
     assert enqueued == [(
         "fast",
         "feed_warm",
-        {"payload": {"user_id": "u1"}},
+        {"payload": {"user_id": "u1", "announce": False}},
     )]
 
 
@@ -330,7 +330,96 @@ def test_the_drain_finishes_on_the_cv_it_started_with(monkeypatch: Any) -> None:
     assert written == feed_warm.DRAIN_BATCH
     assert seen["profile"]["baseline_version_id"] == 1
     assert seen["profile"]["cv_markdown"] == "the cv this read started with"
-    assert enqueued == [{"user_id": "u1", "baseline_version_id": 1}]
+    assert enqueued == [{"user_id": "u1", "baseline_version_id": 1, "announce": False}]
+
+
+def test_an_unwatched_drain_tells_the_bell_only_what_the_list_will_show(monkeypatch: Any) -> None:
+    """Saved a direction and left: each round announces the rows it cleared
+    that Admission lets through — not the Skips, not a city they never named."""
+    announced: list[list[str]] = []
+    enqueued: list[dict[str, Any]] = []
+
+    class _Repo:
+        def get_user_profile_targeting(self, _user_id: str) -> dict[str, Any]:
+            return {
+                "target_roles": ["Sales"],
+                "target_locations": ["Bengaluru"],
+                "target_location_countries": ["India"],
+                "cv_markdown": "cv",
+            }
+
+        def get_latest_baseline_id(self, _user_id: str) -> int:
+            return 1
+
+        def get_candidate_job_ids_for_roles(self, _roles: list[str], **_kw: Any) -> list[str]:
+            return ["keep", "skip", "chennai"]
+
+        def get_cached_match_evals(self, _user_id: str, _ids: list[str]) -> dict[str, Any]:
+            return {}
+
+        def get_user_match_stack(self, _user_id: str) -> list[dict[str, Any]]:
+            ctx = feed_warm.onboarding_service.eval_context_key(seen["profile"])
+            here = {"is_active": True, "location_city": "Bengaluru", "location_country": "India"}
+            return [
+                {"job_id": "keep", "eval_context_hash": ctx, "overall_score": 4.1,
+                 "recommendation": "Apply", "jobs": here},
+                {"job_id": "skip", "eval_context_hash": ctx, "overall_score": 4.4,
+                 "recommendation": "Skip", "jobs": here},
+                {"job_id": "chennai", "eval_context_hash": ctx, "overall_score": 4.0,
+                 "recommendation": "Apply",
+                 "jobs": {**here, "location_city": "Chennai"}},
+                {"job_id": "older", "eval_context_hash": ctx, "overall_score": 4.9,
+                 "recommendation": "Apply", "jobs": here},
+            ]
+
+    seen: dict[str, Any] = {}
+
+    async def _warm(_repo: Any, _provider: Any, _user_id: str, ids: list[str], **kw: Any) -> int:
+        seen["profile"] = kw["profile"]
+        return len(ids)
+
+    monkeypatch.setattr(feed_warm, "warm_feed_shortlist", _warm)
+    monkeypatch.setattr(
+        feed_warm.background, "enqueue",
+        lambda _lane, _job, **kwargs: enqueued.append(kwargs["payload"]),
+    )
+    from app.services.matching import match_run
+
+    monkeypatch.setattr(
+        match_run, "announce_fresh",
+        lambda _repo, _uid, rows: announced.append([r["job_id"] for r in rows]),
+    )
+
+    asyncio.run(feed_warm.run_feed_warm(
+        _Repo(), object(), "u1", announce=True,  # type: ignore[arg-type]
+    ))
+
+    assert announced == [["keep"]]
+    assert enqueued == []  # three jobs fit in one round
+
+
+def test_a_drain_someone_is_watching_does_not_ring_the_bell(monkeypatch: Any) -> None:
+    class _Repo:
+        def get_user_profile_targeting(self, _user_id: str) -> dict[str, Any]:
+            return {"target_roles": ["Sales"], "cv_markdown": "cv"}
+
+        def get_latest_baseline_id(self, _user_id: str) -> int:
+            return 1
+
+        def get_candidate_job_ids_for_roles(self, _roles: list[str], **_kw: Any) -> list[str]:
+            return ["a"]
+
+        def get_cached_match_evals(self, _user_id: str, _ids: list[str]) -> dict[str, Any]:
+            return {}
+
+        def get_user_match_stack(self, _user_id: str) -> list[dict[str, Any]]:
+            raise AssertionError("a watched drain read the stack to announce")
+
+    async def _warm(*_args: Any, **_kw: Any) -> int:
+        return 1
+
+    monkeypatch.setattr(feed_warm, "warm_feed_shortlist", _warm)
+    assert asyncio.run(feed_warm.run_feed_warm(_Repo(), object(), "u1")) == 1  # type: ignore[arg-type]
 
 
 def test_a_warm_already_in_flight_is_pending_and_not_queued_again(monkeypatch: Any) -> None:

@@ -311,6 +311,10 @@ MIRROR_SCORE_COLUMNS = frozenset({
     "rank_tier",
     "skills_assessed",
     "version",
+    # Stamped on every write. It was left to the column default, so an update
+    # kept the row's first insert time and `/scores` served a months-old
+    # "computed" date for a score recomputed that day.
+    "computed_at",
 })
 
 
@@ -328,6 +332,7 @@ def _persist_score(
         "rank_tier":       projection.rank_tier,
         "skills_assessed": projection.skills_assessed,
         "version":         SCORE_FORMULA_VERSION,
+        "computed_at":     datetime.now(timezone.utc).isoformat(),
     }
     assert set(payload) == MIRROR_SCORE_COLUMNS, (
         "mirror_scores payload drifted from its declared columns: "

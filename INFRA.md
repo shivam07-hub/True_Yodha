@@ -23,6 +23,8 @@ Railway project = **`clever-embrace`** (`a15c0013-…`), ONE Railway environment
 
 All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK.
 
+- **Healthcheck needs `PORT=8000`.** The app binds a fixed 8000 (`backend/Dockerfile` CMD) and both API domains target 8000, but Railway's healthcheck probes the port it injects. `mirror-backend-dev` runs `healthcheckPath=/health/ready` with `PORT=8000`; without the variable every deploy fails "service unavailable" while the app is up (2026-09-28, 14h). Set the variable before the path on any service.
+
 - **Frontend (Vercel project `truemirror`, 2 envs):** Production env → domain **`himyro.com`** (+`www`, +legacy `truemirror.vercel.app`), `NEXT_PUBLIC_API_URL = https://api.himyro.com`. Preview/Develop env → `NEXT_PUBLIC_API_URL = https://truemirror.up.railway.app` (dev backend). (Prod cutover from `truemirror.up.railway.app`→`api.himyro.com` done 2026-06-03.)
 - **Request chain (prod):** `himyro.com` → `api.himyro.com` (mirror-backend-prod, `main`) → Supabase + Redis; heavy LLM jobs → Redis → `True_Yodha` worker.
 - **Shared-infra couplings (known, accepted at this scale):** (a) dev + prod jobs share ONE Redis queue + ONE `llm:budget:slots` bucket — a dev test upload competes with prod traffic. (b) Worker tracks `Develop` while prod API tracks `main` → prod jobs are processed by slightly-ahead worker code. Full per-env isolation (separate Redis + `api-dev.himyro.com`) is documented but NOT built — see `docs/runbooks/railway-dev-main-env-split.md`.

@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from app.routers.telemetry import CV_UPLOAD_PHASES, CV_UPLOAD_OUTCOMES
+from app.routers.telemetry import CORE_LOOP_STEPS, CV_UPLOAD_PHASES, CV_UPLOAD_OUTCOMES
 
 # The Notice was this drift: the CHECK rejected `confirm` and `direction` until
 # migration 20260908b, and every rejected write surfaced as a 500.
@@ -110,3 +110,12 @@ def test_the_frontend_covers_every_phase_between_its_two_unions() -> None:
 def test_the_frontend_sends_no_outcome_the_api_rejects() -> None:
     unknown = _ts_union("CVUploadTelemetryOutcome") - set(CV_UPLOAD_OUTCOMES)
     assert not unknown, f"the emitter can send {sorted(unknown)}, which the API 422s"
+
+
+
+# ── the core loop's steps: one vocabulary, three spellings ───────────────────
+
+
+def test_the_core_loop_steps_agree_in_python_sql_and_typescript() -> None:
+    assert _sql_check_values("core_loop_events", "step") == set(CORE_LOOP_STEPS)
+    assert _ts_union("CoreLoopStep") == set(CORE_LOOP_STEPS)

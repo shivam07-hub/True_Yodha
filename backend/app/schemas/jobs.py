@@ -443,6 +443,9 @@ class ApplicationResponse(BaseModel):
     # Persisted Career Ops fit for this tracked role. The global Next action uses
     # this durable value to choose the best saved role even before a feed cache warms.
     match_score: int | None = None
+    #: They clicked Apply on this job and have not said whether they submitted.
+    #: The Next chip asks first; Collections holds the question on the row.
+    pending_apply: bool = False
     is_first_offer: bool = False                    # Q6 — set true on the first-ever offer per user (transient)
     cv_badge: CVBadge | None = None                 # CV3/CV4 — Company CV Thread head for this row's company
     # First-class card data: a tracked job (incl. extension-added) renders the

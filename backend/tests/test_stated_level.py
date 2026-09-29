@@ -50,7 +50,8 @@ def test_python_spans_and_tags_are_the_sql_ones() -> None:
     assert "v_hi := v_years + 1" in code
     assert "(p.years_experience is null)" in code
     assert "coalesce(p.lo, 0)::numeric <= v_hi" in code
-    assert "coalesce(p.hi, 40)::numeric >= v_lo" in code
+    # No floor: a role asking fewer years than the person has is admitted.
+    assert "coalesce(p.hi, 40)::numeric >= v_lo" not in code
     assert "p.lo is null and p.hi is null" in code
     assert "v_centre < 5" in code
 
@@ -133,6 +134,12 @@ _CASES = [
         "null years are not zero: a mid band still overlaps 2-4",
         {"years_experience": None, "target_seniority": "mid"},
         {"min_years_experience": 2, "max_years_experience": 4},
+        True,
+    ),
+    (
+        "a role asking fewer years is admitted: 2-5 for an 8-year person",
+        {"years_experience": 8},
+        {"min_years_experience": 2, "max_years_experience": 5},
         True,
     ),
     (

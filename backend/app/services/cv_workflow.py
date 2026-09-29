@@ -63,6 +63,13 @@ async def _trigger_initial_match_compute(
             excluded_job_ids=[],
             notify=False,
         )
+        # The run judges a handful; the rest of their pool is read 8 at a time.
+        # Start that reading now, at the save, rather than on their next visit
+        # to /market — they come back to a list, and the bell says so (Shivam,
+        # 2026-09-28). Finishing work they started: a forward pass, not a sweep.
+        from app.services.matching import feed_warm
+
+        feed_warm.enqueue_feed_warm(user_id, announce=True)
     except Exception as exc:
         # Log, then re-raise. Swallowing made RQ report Job OK, so a timed-out
         # run was never retried and compute_match_health could not see `failed`

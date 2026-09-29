@@ -46,19 +46,6 @@ export interface PaperBind {
   openDraft: (key: "summary" | "skills") => void
 }
 
-const HEAD: Record<SectionKey, string> = {
-  summary: "Summary",
-  experience: "Experience",
-  projects: "Projects",
-  skills_line: "Skills",
-  education: "Education",
-  certs: "Certifications",
-}
-
-export function sectionLabel(key: SectionKey): string {
-  return HEAD[key]
-}
-
 export function PaperSection({ section, bind }: { section: SectionKey; bind: PaperBind }) {
   if (section === "summary") return <SummaryBody bind={bind} />
   if (section === "experience") return <ExperienceBody bind={bind} />

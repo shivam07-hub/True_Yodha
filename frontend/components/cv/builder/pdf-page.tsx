@@ -12,6 +12,7 @@ import type { CVStructured } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
 import { normalizeSectionOrder } from "@/lib/cv/section-order"
 import type { CVTemplate } from "@/lib/cv/templates"
+import { useSectionTitle } from "@/components/cv/section-titles-provider"
 
 export interface PdfPageContact {
   name: string
@@ -80,6 +81,7 @@ export function PdfPage({
   cv, hidden, contact, company, template = "classic", footerMarkHidden = false,
   onBulletClick, selectedBulletId = null, sectionOrder,
 }: PdfPageProps) {
+  const title = useSectionTitle()
   const renderBullets = (bullets: string[], section: "exp_bullet" | "proj_bullet", ei: number) =>
     bullets
       .map((b, bi) => ({ id: itemId(section, ei * 100 + bi, b), text: b }))
@@ -119,7 +121,7 @@ export function PdfPage({
         if (key === "summary" && cv.summary && !summaryHidden) {
           return (
             <div key={key}>
-              <h2>Summary</h2>
+              <h2>{title("summary")}</h2>
               <div className="pdf-summary">{cv.summary}</div>
             </div>
           )
@@ -127,7 +129,7 @@ export function PdfPage({
         if (key === "experience" && visibleExperience.length > 0) {
           return (
             <div key={key}>
-              <h2>Experience</h2>
+              <h2>{title("experience")}</h2>
               {visibleExperience.map((e, ei) => (
                 <div key={ei}>
                   <div className="pdf-role-head">
@@ -150,7 +152,7 @@ export function PdfPage({
         if (key === "projects" && visibleProjects.length > 0) {
           return (
             <div key={key}>
-              <h2>Projects</h2>
+              <h2>{title("projects")}</h2>
               {visibleProjects.map((p, pi) => (
                 <div key={pi}>
                   <div className="pdf-role-head">
@@ -168,7 +170,7 @@ export function PdfPage({
         if (key === "education" && visibleEdu.length > 0) {
           return (
             <div key={key}>
-              <h2>Education</h2>
+              <h2>{title("education")}</h2>
               {visibleEdu.map((ed, i) => (
                 <div key={i} className="pdf-edu">
                   <div className="pdf-role-head">
@@ -188,7 +190,7 @@ export function PdfPage({
         if (key === "skills_line" && cv.skills_line && !skillsHidden) {
           return (
             <div key={key}>
-              <h2>Skills</h2>
+              <h2>{title("skills_line")}</h2>
               <div className="pdf-skills-line">{cv.skills_line}</div>
             </div>
           )
@@ -196,7 +198,7 @@ export function PdfPage({
         if (key === "certs" && visibleCerts.length > 0) {
           return (
             <div key={key}>
-              <h2>Certifications</h2>
+              <h2>{title("certs")}</h2>
               <ul>{visibleCerts.map((c, i) => <li key={i}>{c}</li>)}</ul>
             </div>
           )

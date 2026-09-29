@@ -41,6 +41,7 @@ export function MarketJobsColumn({
   onSkillFacetChange,
   onSave,
   onSkip,
+  openTailor,
   loading,
   judgment,
   visibleJobs,
@@ -76,6 +77,7 @@ export function MarketJobsColumn({
   onSkillFacetChange?: (skill: string | null) => void
   onSave: (j: JobFeedItem) => void
   onSkip: (j: JobFeedItem) => void
+  openTailor: (j: JobFeedItem, surface: "market" | "agent_pick") => void
   loading: boolean
   judgment: MarketJudgment | null
   visibleJobs: JobFeedItem[]
@@ -139,7 +141,7 @@ export function MarketJobsColumn({
       <SetupNudge token={token} style={{ marginTop: 14 }} />
 
       {!q && !skillFacet && !filters.roleFamily ? (
-        <AgentPicksBand token={token} hasCv={hasCv} context="feed" onSave={onSave} onSkip={onSkip} />
+        <AgentPicksBand token={token} hasCv={hasCv} context="feed" onSave={onSave} onSkip={onSkip} openTailor={j => openTailor(j, "agent_pick")} />
       ) : null}
 
       <div style={{ marginTop: 8 }}>
@@ -228,7 +230,7 @@ export function MarketJobsColumn({
                       companyAction={row.story.kind === "company" ? followCompany.action(row.story.company) : undefined}
                     />
                   ) : (
-                    <JobCard job={row.job} pulse={pulses.get(row.job.job_id)} hasCv={hasCv} onOpen={() => onOpenJob(row.job)} onSave={() => onSave(row.job)} onSkip={() => onSkip(row.job)} />
+                    <JobCard job={row.job} pulse={pulses.get(row.job.job_id)} hasCv={hasCv} onOpen={() => onOpenJob(row.job)} onSave={() => onSave(row.job)} onSkip={() => onSkip(row.job)} onTailor={() => { onSave(row.job); openTailor(row.job, "market") }} />
                   )
                 }
               />

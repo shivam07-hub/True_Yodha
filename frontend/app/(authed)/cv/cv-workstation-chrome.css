@@ -114,20 +114,6 @@
 .cvw-line.cvw-pulse { animation: cvw-pulse 1.2s var(--tm-ease); }
 @media (prefers-reduced-motion: reduce) { .cvw-line.cvw-pulse { animation: none; } }
 
-/* The quieter of the two header actions. Download is the primary everywhere —
-   it is what the user came for and it cannot misfire. Apply opens an external
-   page and arms the capture prompt, so it asks for a deliberate second look. */
-.cvb-v2-secondarybtn {
-  flex: none; cursor: pointer; white-space: nowrap;
-  border: 1px solid var(--tm-border); background: transparent; color: var(--tm-text);
-  padding: 10px 16px; border-radius: var(--tm-button-radius, 10px);
-  font-family: var(--tm-font-sans); font-size: var(--tm-fs-body); font-weight: 600;
-  transition: border-color var(--tm-dur-fast) var(--tm-ease);
-}
-.cvb-v2-secondarybtn:hover { border-color: var(--tm-int-border); }
-.cvb-v2-secondarybtn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-
 /* Education / certification entries edit in place, but the CV is paper, not a
    form: the field is invisible until the user reaches for it. Without this the
    two closing sections render as a stack of boxed inputs and the document stops

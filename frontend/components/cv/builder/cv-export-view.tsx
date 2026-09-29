@@ -34,6 +34,7 @@ import { printCvPage } from "@/lib/cv/print-cv"
 import { exportSheetPdf, triggerBlobDownload, withRetry } from "@/lib/cv/sheet-pdf"
 import { masterFilename } from "@/lib/cv/download-master"
 import { selectVisibleCV } from "@/lib/cv/visible-cv"
+import { useSectionTitles } from "@/components/cv/section-titles-provider"
 import { ApplyRow } from "@/components/jobs/apply-row"
 import { useApplyCapture } from "@/components/jobs/use-apply-capture"
 import { ApplyCapturePrompt } from "@/components/jobs/apply-capture-prompt"
@@ -216,10 +217,11 @@ export function CVExportView({
   const [trackError, setTrackError] = useState<string | null>(null)
   const submittedSnapshotWritten = useRef(false)
   useEffect(() => { submittedSnapshotWritten.current = false }, [jobId])
+  const sectionTitles = useSectionTitles()
 
   async function recordSubmittedCv() {
     if (!jobId || submittedSnapshotWritten.current) return
-    const visible = selectVisibleCV(cv, hidden, sectionOrder)
+    const visible = selectVisibleCV(cv, hidden, sectionOrder, sectionTitles)
     await cvApi.applySnapshot(token, {
       job_id: jobId,
       cv_snapshot: {
@@ -276,7 +278,7 @@ export function CVExportView({
     setDocxError(null)
     setDocxBusy(true)
     try {
-      const visible = selectVisibleCV(cv, hidden, sectionOrder)
+      const visible = selectVisibleCV(cv, hidden, sectionOrder, sectionTitles)
       const docxName = filename.replace(/\.pdf$/i, "") + ".docx"
       const blob = await withRetry(() => cvApi.exportDocx(token, {
         visible,

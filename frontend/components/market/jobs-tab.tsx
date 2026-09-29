@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useViewport } from "@/mobile"
-import type { JobFeedItem } from "@/lib/api"
+import { emitLoopStep, type JobFeedItem } from "@/lib/api"
 import { useJobFeed } from "./use-job-feed"
 import { useFeedWarm } from "./use-feed-warm"
 import { usePulses } from "@/lib/hooks/use-pulses"
@@ -216,6 +216,15 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
 
   const onSave = (j: JobFeedItem) => triage(j, "saved")
   const onSkip = (j: JobFeedItem) => triage(j, "skipped")
+  // A card's Tailor CV: the caller saves through its own triage (feed or Agent
+  // Picks, each with its own undo), then this opens the CV editor for THIS job.
+  // One click from a best job to tailoring; on 2026-09-28 the path went
+  // card -> drawer -> editor, and 44 people shown a best job became 6 who
+  // tailored one.
+  const openTailor = (j: JobFeedItem, surface: "market" | "agent_pick") => {
+    emitLoopStep(token, "card_tailor", j.job_id, surface)
+    router.push(`/cv?jobId=${encodeURIComponent(j.job_id)}`)
+  }
 
   const railProps = {
     token, scope, feed: allJobs, pulses, cvReady: hasCv,
@@ -270,6 +279,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
         onSkillFacetChange={onSkillFacetChange}
         onSave={onSave}
         onSkip={onSkip}
+        openTailor={openTailor}
         loading={loading}
         judgment={judgment}
         visibleJobs={visibleJobs}

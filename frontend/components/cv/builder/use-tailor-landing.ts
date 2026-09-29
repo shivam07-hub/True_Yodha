@@ -9,7 +9,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { cv as cvApi } from "@/lib/api"
+import { cv as cvApi, emitLoopStep } from "@/lib/api"
 import {
   factsFromGet,
   landingStep,
@@ -44,8 +44,10 @@ export function useTailorLanding(opts: {
     if (!opts.mentorRequested || mentorOpened.current || !ready) return
     mentorOpened.current = true
     setFocusGap(null)
-    setOverlay(overlayFor(step))
-  }, [opts.mentorRequested, ready, step])
+    const next = overlayFor(step)
+    if (next) emitLoopStep(opts.token, "mentor_opened", opts.jobId, "link")
+    setOverlay(next)
+  }, [opts.mentorRequested, ready, step, opts.token, opts.jobId])
 
   const showLead = !(ready && step === "paper")
   const leadCost = ready && willCharge(step) ? WEAVE_COST : undefined
@@ -58,7 +60,10 @@ export function useTailorLanding(opts: {
     onHeader: () => {
       const next = overlayFor(weaveGet.isSuccess ? step : "proof")
       setFocusGap(null)
-      if (next) setOverlay(next)
+      if (next) {
+        emitLoopStep(opts.token, "mentor_opened", opts.jobId, "cv_header")
+        setOverlay(next)
+      }
     },
     openGapsMap: (requirement?: string) => {
       setFocusGap(requirement ?? null)

@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog"
 import { MobileBulletList } from "./mobile-bullet-list"
 import { EMPTY_CONTACT, moveItem, type MobileCVSection } from "./mobile-cv-model"
+import { useSectionTitle } from "@/components/cv/section-titles-provider"
 
 interface Props {
   token: string
@@ -23,6 +24,7 @@ interface Props {
 }
 
 export function MobileCVSectionEditor({ token, section, cv, accountEmail, onChange }: Props) {
+  const title = useSectionTitle()
   const patch = (mutate: (draft: CVStructured) => void) => {
     const draft = structuredClone(cv)
     mutate(draft)
@@ -73,7 +75,7 @@ export function MobileCVSectionEditor({ token, section, cv, accountEmail, onChan
   if (section === "summary") {
     return (
       <label className="tm-mcv-field">
-        <span>Summary</span>
+        <span>{title("summary")}</span>
         <textarea
           rows={8}
           value={cv.summary ?? ""}
@@ -86,7 +88,7 @@ export function MobileCVSectionEditor({ token, section, cv, accountEmail, onChan
   if (section === "skills") {
     return (
       <label className="tm-mcv-field">
-        <span>Skills</span>
+        <span>{title("skills_line")}</span>
         <textarea
           rows={6}
           value={cv.skills_line ?? ""}

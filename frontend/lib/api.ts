@@ -461,6 +461,8 @@ export interface UserProfile {
   myrology_unlocked?: boolean
   myrology_interested?: boolean
   accent_pref?: "signal" | "forge"
+  /** Renamed CV section headings; an absent key reads as the default. */
+  cv_section_titles?: Partial<Record<string, string>> | null
   /** A direction is set and no Match Run has landed for it. Carried here because
    *  `users.me` already reads the two columns it compares — asking /jobs/matches
    *  for the same fact would be a new round trip on the hottest authed path. */
@@ -492,6 +494,8 @@ export interface ProfileUpdate {
   superpower?: string | null
   myrology_interested?: boolean
   accent_pref?: "signal" | "forge"
+  /** The whole map; the server normalises it. `{}` resets every heading. */
+  cv_section_titles?: Partial<Record<string, string>>
 }
 
 export interface UserSkillItem {
@@ -2488,6 +2492,34 @@ export function emitJourneyPhase(
   })
 }
 
+/** The core-loop steps no other table records (`core_loop_events`). Saving,
+ *  tailoring, a Mentor run and an apply click each have their own record; these
+ *  are the gaps between them. Tied to `CORE_LOOP_STEPS` and the SQL CHECK by
+ *  `test_telemetry_vocabulary` — keep this union on one line. */
+export type CoreLoopStep = "card_tailor" | "panel_opened" | "panel_tailor" | "editor_opened" | "mentor_opened" | "downloaded"
+
+const CORE_LOOP_TELEMETRY_PATH = "/v1/telemetry/loop-step"
+
+/**
+ * Record one core-loop step for one job. Fire-and-forget and `keepalive`:
+ * most callers navigate the moment they fire it (a Tailor click opens the CV
+ * editor), and telemetry must never be able to fail the step it watches.
+ */
+export function emitLoopStep(
+  token: string | null | undefined,
+  step: CoreLoopStep,
+  jobId: string | null | undefined,
+  surface?: string,
+): void {
+  if (!BASE || !token || !jobId) return
+  fetch(`${BASE}${CORE_LOOP_TELEMETRY_PATH}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ step, job_id: jobId, surface: surface ?? null }),
+    keepalive: true,
+  }).catch(() => {})
+}
+
 function _emitCVUploadTelemetry(
   token: string,
   payload: {
@@ -3695,6 +3727,8 @@ export interface ApplicationResponse {
   /** Deliberate apply/preparation intent. Priority jobs lead Collections. */
   /** Persisted Career Ops fit for this saved role, when it has been ranked. */
   match_score?: number | null
+  /** They clicked Apply here and have not said whether they submitted. */
+  pending_apply?: boolean
   is_first_offer?: boolean
   cv_badge?: CVBadge | null
   coins_earned?: number | null
@@ -4538,6 +4572,13 @@ export const jobs = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(input),
+    }),
+  /** "Not yet" / "Couldn't apply": the "did you submit?" question is answered
+   *  and stops. "Yes" answers it through `updateApplication`. */
+  answerApplyIntent: (token: string, jobId: string) =>
+    request<void>(`/jobs/${encodeURIComponent(jobId)}/apply-intents/answer`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
     }),
   /** Is this listing still live? Verified on demand when the last verdict is
    *  stale, so a ghost is caught before the user spends effort on it. */

@@ -7,6 +7,8 @@ import { Icon, type IconName } from "@/components/cv/builder/icons"
 import { Button } from "@/components/ui/button"
 import { useMasterAutosave } from "@/lib/hooks/use-master-autosave"
 import { MobileCVSectionEditor } from "./mobile-cv-sections"
+import { useSectionTitle } from "@/components/cv/section-titles-provider"
+import type { SectionKey } from "@/lib/cv/section-order"
 import { MobileDocumentPreview } from "./mobile-document-preview"
 import {
   previewContact,
@@ -16,6 +18,16 @@ import {
 } from "./mobile-cv-model"
 
 const SESSION_SECTION_KEY = "myro-mobile-cv-section-v1"
+
+/** The mobile tab that edits each CV section; its label is the person's heading. */
+const HEADING_KEY: Partial<Record<MobileCVSection, SectionKey>> = {
+  summary: "summary",
+  experience: "experience",
+  projects: "projects",
+  skills: "skills_line",
+  education: "education",
+  certifications: "certs",
+}
 
 const SECTIONS: { key: MobileCVSection; label: string; icon: IconName }[] = [
   { key: "contact", label: "Contact", icon: "target" },
@@ -44,6 +56,7 @@ export function MobileMainEditor({ token, profile, onClose, initialSection = nul
   })
   const [section, setSection] = useState<MobileCVSection | null>(initialSection)
   const [preview, setPreview] = useState(false)
+  const title = useSectionTitle()
 
   useEffect(() => {
     try {
@@ -70,7 +83,12 @@ export function MobileMainEditor({ token, profile, onClose, initialSection = nul
   if (!paper) return null
 
   const cv = withContact(paper)
-  const activeLabel = SECTIONS.find(item => item.key === section)?.label ?? "Edit Main CV"
+  const labelOf = (item: (typeof SECTIONS)[number]) => {
+    const heading = HEADING_KEY[item.key]
+    return heading ? title(heading) : item.label
+  }
+  const active = SECTIONS.find(item => item.key === section)
+  const activeLabel = active ? labelOf(active) : "Edit Main CV"
   const saveLabel = status === "error"
     ? "Couldn’t save"
     : status === "saving"
@@ -119,7 +137,7 @@ export function MobileMainEditor({ token, profile, onClose, initialSection = nul
                 <button type="button" key={item.key} onClick={() => openSection(item.key)}>
                   <span className="tm-mcv-section-icon"><Icon name={item.icon} size={22} /></span>
                   <span className="tm-mcv-section-copy">
-                    <strong>{item.label}</strong>
+                    <strong>{labelOf(item)}</strong>
                     <small className={missingPhone ? "is-warning" : ""}>
                       {missingPhone ? "Add a phone number" : sectionSummary(item.key, cv)}
                     </small>

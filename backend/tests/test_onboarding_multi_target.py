@@ -9,6 +9,7 @@ distinction that is easy to get wrong: `[]` (Anywhere) vs omitted (leave alone).
 
 from __future__ import annotations
 
+from app.services.career_target import MAX_TARGET_LOCATIONS, MAX_TARGET_ROLES
 from app.services.onboarding_service import (
     _normalize_families,
     _normalize_locations,
@@ -16,10 +17,12 @@ from app.services.onboarding_service import (
 )
 
 
-def test_locations_dedupe_preserve_order_and_cap_at_three() -> None:
+def test_locations_dedupe_preserve_order_and_cap_at_the_target_cap() -> None:
+    """This test used to pin 3 — and so pinned the bug: the cap moved to 5 and
+    this normaliser kept dropping the fourth and fifth city silently."""
     assert _normalize_locations(None, ["Pune", " Pune ", "Bengaluru"]) == ["Pune", "Bengaluru"]
     assert _normalize_locations(None, [f"City{i}" for i in range(9)]) == [
-        f"City{i}" for i in range(3)
+        f"City{i}" for i in range(MAX_TARGET_LOCATIONS)
     ]
 
 
@@ -48,3 +51,10 @@ def test_singular_family_still_works() -> None:
         "Data Science"
     ]
     assert _normalize_families("Cloud", None) == ["Cloud"]
+
+
+def test_families_cap_at_the_target_cap_not_three() -> None:
+    families = [f"Family {i}" for i in range(MAX_TARGET_ROLES + 3)]
+    assert _normalize_families(None, families) == families[:MAX_TARGET_ROLES]
+    titles = [f"Title {i}" for i in range(MAX_TARGET_ROLES + 3)]
+    assert role_title_updates(titles)["target_role_titles"] == titles[:MAX_TARGET_ROLES]

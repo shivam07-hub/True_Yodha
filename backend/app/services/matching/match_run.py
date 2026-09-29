@@ -129,7 +129,16 @@ def _notify_fresh_matches(repo: Any, user_id: str, before_ids: set[str]) -> None
     else overlap) so opening the bell is the reward (Backlog #36 N1). Debounce (12h) is
     enforced in `record_fresh_matches`, so calling it on every run is spam-safe."""
     stack = repo.get_user_match_stack(user_id)
-    new_rows = [r for r in stack if str(r.get("job_id") or "") not in before_ids]
+    announce_fresh(
+        repo, user_id, [r for r in stack if str(r.get("job_id") or "") not in before_ids]
+    )
+
+
+def announce_fresh(repo: Any, user_id: str, new_rows: list[dict[str, Any]]) -> None:
+    """The one way a batch of new matches reaches the bell: a single unread
+    'fresh_matches' item whose count grows (`record_fresh_matches` merges within
+    its window), led by the best of the batch. The match run and the /market
+    drain both announce through here, so the item reads the same either way."""
     if not new_rows:
         return
 

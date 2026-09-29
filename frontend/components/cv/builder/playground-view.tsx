@@ -9,7 +9,8 @@
  *
  * Two header actions, not one: Download is the primary — it is what the user
  * came for and it cannot misfire — and Apply is the ghost beside it, because it
- * opens an external page and arms the apply-capture prompt. The named door
+ * opens an external page and arms the apply-capture prompt. Once the downloaded
+ * file matches the sheet, Apply takes the accent: it is the next step. The named door
  * Tailor with Mentor sits on this header too (one verb, cost on that control).
  * The raw JD now opens from the job line itself; the pane toolbar belongs to
  * EDIT/SHEET and the page-fill meter.
@@ -20,7 +21,7 @@ import { useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
-import { cv as cvApi, jobs as jobsApi, users } from "@/lib/api"
+import { cv as cvApi, emitLoopStep, jobs as jobsApi, users } from "@/lib/api"
 import { GapSession } from "./gap-session"
 import { TailorWeave } from "./tailor-weave"
 import "./tailor-weave.css"
@@ -49,6 +50,8 @@ import type { CVPlaygroundState } from "@/lib/hooks/use-cv-playground"
 import { DetailDrawer } from "@/components/jobs/detail-drawer"
 import { DetailHeader } from "@/components/jobs/detail-header"
 import { useApplyCapture } from "@/components/jobs/use-apply-capture"
+import { useSectionTitles } from "@/components/cv/section-titles-provider"
+import { useLoopStepOnce } from "@/lib/hooks/use-loop-step-once"
 import { ApplyCapturePrompt } from "@/components/jobs/apply-capture-prompt"
 import { similarRolesHref } from "@/lib/jobs/similar-roles"
 import { applyRoleMove, remapRoleHiddenIids } from "./cv-pointer-order"
@@ -89,6 +92,10 @@ export function PlaygroundView({
   const [applyOpen, setApplyOpen] = useState(false)
   const [exportConfirm, setExportConfirm] = useState(false)
   const [pdfBusy, setPdfBusy] = useState(false)
+  // Arriving here for a job is a core-loop step no other table records: before
+  // 2026-09-28 nobody could say whether people reached the editor and stopped,
+  // or never came.
+  useLoopStepOnce(token, "editor_opened", jobId, "cv")
   const [railRequest, setRailRequest] = useState<{ tab: "fixes" | "skills"; n: number } | null>(null)
   const sheetWrapRef = useRef<HTMLDivElement>(null)
   const pendingTemplateRef = useRef<CVTemplate>(DEFAULT_TEMPLATE)
@@ -125,6 +132,16 @@ export function PlaygroundView({
     phone: cv.contact?.phone?.trim() || "",
     linkedin: cv.contact?.linkedin?.trim() || profile?.linkedin_url || "",
   }), [cv, profile])
+  // The sheet as PdfPage draws it, from exactly its inputs. A download records
+  // this key; while the sheet still matches, the file in hand IS this CV and
+  // the next step is Apply. An edit after the download hands the accent back
+  // to Download, so nobody applies with a file that lacks their last change.
+  const sectionTitles = useSectionTitles()
+  const sheetKey = useMemo(() => JSON.stringify([
+    cv, Array.from(hiddenItems).sort(), sectionOrder, sectionTitles, pdfContact, m.company,
+    selectedVersion?.footer_mark_hidden ?? false,
+  ]), [cv, hiddenItems, sectionOrder, sectionTitles, pdfContact, m.company, selectedVersion?.footer_mark_hidden])
+  const [downloadedSheet, setDownloadedSheet] = useState<string | null>(null)
   const pdfFilename = useMemo(() => {
     const slug = (s: string | null | undefined) =>
       (s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")
@@ -240,12 +257,18 @@ export function PlaygroundView({
           clone.setAttribute("data-cv-template", template)
           return clone
         })()
+    const exported = sheetKey
     setPdfBusy(true)
     try {
       await exportSheetPdf(token, el, pdfFilename)
+      emitLoopStep(token, "downloaded", jobId, "pdf")
+      setDownloadedSheet(exported)
       try { localStorage.setItem("myro-cv-template-v1", template) } catch { /* storage blocked */ }
     } catch {
+      // The browser's print dialog can still be cancelled, so it is its own surface.
       printCvPage(pdfFilename)
+      emitLoopStep(token, "downloaded", jobId, "print")
+      setDownloadedSheet(exported)
     } finally {
       setPdfBusy(false)
     }
@@ -297,6 +320,7 @@ export function PlaygroundView({
         onSecondary={() => setApplyOpen(true)}
         secondaryDisabled={!applyHref}
         secondaryHint={applyHref ? `Open ${m.company} careers` : "No application link yet"}
+        secondaryLeads={downloadedSheet === sheetKey && !!applyHref}
         saveState={autosaving ? "Saving…" : autosaved ? "Saved" : ""}
         onBack={onBackToBaseline}
         onReqPill={() => setRailRequest(p => ({ tab: "skills", n: (p?.n ?? 0) + 1 }))}

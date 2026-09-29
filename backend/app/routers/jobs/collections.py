@@ -12,7 +12,7 @@ from app.deps import Principal, get_principal
 from app.repositories.cv import CVVersionsRepository, get_token_cv_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.schemas import CollectionResponse
-from app.services.collections import PENDING_INTENT_AFTER, resolve_collection
+from app.services.collections import PENDING_INTENT_AFTER, PENDING_INTENT_FOR, resolve_collection
 from app.services import jobs_workflow
 from app.services.matching import match_freshness
 from app.services.concurrent_reads import run_concurrently
@@ -43,7 +43,9 @@ def get_collection(
             "tailored": lambda: cv_repo.latest_for_jobs(uid),
             "pending": lambda: (
                 repo.get_pending_apply_intent_job_ids(
-                    uid, older_than=now - PENDING_INTENT_AFTER
+                    uid,
+                    older_than=now - PENDING_INTENT_AFTER,
+                    newer_than=now - PENDING_INTENT_FOR,
                 ),
                 match_freshness.state(repo.match_freshness_inputs(uid)),
             ),
