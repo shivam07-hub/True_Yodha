@@ -19,7 +19,7 @@ from app.database import get_supabase_admin
 from app.repositories.role_families import RoleFamiliesRepository
 from app.repositories.users import UsersRepository
 from app.services import onboarding_service
-from app.services.career_target import MAX_TARGET_LOCATIONS, record_from_profile
+from app.services.career_target import record_from_profile, target_locations
 from app.services.job_eligibility import (
     CAREER_BANDS,
     career_band_for_profile,
@@ -143,14 +143,7 @@ def derive(updates: dict[str, Any], before: dict[str, Any]) -> dict[str, Any]:
         else:
             updates["target_seniority"] = canonical_source_seniority(raw) or None
     if "target_locations" in updates:
-        seen: list[str] = []
-        for value in updates.get("target_locations") or []:
-            text = str(value or "").strip()
-            if text and text not in seen:
-                seen.append(text)
-            if len(seen) >= MAX_TARGET_LOCATIONS:
-                break
-        updates["target_locations"] = seen
+        updates["target_locations"] = target_locations(updates.get("target_locations") or [])
     return updates
 
 

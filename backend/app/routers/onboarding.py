@@ -11,6 +11,7 @@ from app.repositories.onboarding import OnboardingRepository
 from app.security import redact_sensitive_text
 from app.services import cv_workflow, onboarding_first_role, onboarding_service
 from app.services.baseline_generator import generate_baseline, validate_answer
+from app.services.career_target import MAX_TARGET_LOCATIONS, MAX_TARGET_ROLES
 from app.services.skill_overrides import apply_skill_overrides
 from app.services.job_eligibility import CareerBand
 from app.services.skill_confirmation import confirm_baseline_skills
@@ -36,12 +37,12 @@ class ExperienceRequest(BaseModel):
 
 
 class TargetRequest(BaseModel):
-    # Single role (back-compat) OR a list of 1-5 titles (multi-role chips).
+    # Single role (back-compat) OR a list of titles (multi-role chips).
     # `role_titles` wins when present; otherwise `role_title` folds into a list.
     role_title: str | None = Field(default=None, min_length=2, max_length=120)
-    role_titles: list[str] | None = Field(default=None, max_length=5)
+    role_titles: list[str] | None = Field(default=None, max_length=MAX_TARGET_ROLES)
     role_family: str | None = Field(default=None, min_length=2, max_length=200)
-    role_families: list[str] | None = Field(default=None, max_length=5)
+    role_families: list[str] | None = Field(default=None, max_length=MAX_TARGET_ROLES)
     # Optional so a point-of-use "edit role" (issue #145) can change only the
     # role(s); save_target preserves the user's existing seniority/location.
     seniority: Seniority | None = None
@@ -53,7 +54,7 @@ class TargetRequest(BaseModel):
     location: str | None = Field(default=None, min_length=2, max_length=160)
     # Plural form. `[]` is a real answer ("Anywhere"), distinct from omitting the
     # field, which means "leave my saved locations alone".
-    locations: list[str] | None = Field(default=None, max_length=3)
+    locations: list[str] | None = Field(default=None, max_length=MAX_TARGET_LOCATIONS)
     # The direction axis this step never asked for. Same omitted-vs-empty rule as
     # locations: `[]` clears, absent preserves. `avoid` is what the matcher must
     # rank away from; `lean` is what it should rank toward. Sentences, not chips —

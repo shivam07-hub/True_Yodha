@@ -31,7 +31,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from app.services.career_target import MAX_TARGET_LOCATIONS
+from app.services.career_target import MAX_TARGET_LOCATIONS, MAX_TARGET_ROLES
 from app.services.preflight.lines import Order, OrderLine
 
 Presence = Literal["stated", "cleared", "absent", "contested"]
@@ -42,7 +42,7 @@ Presence = Literal["stated", "cleared", "absent", "contested"]
 #: slot could not hold "Mumbai. Bangalore is also fine" — the second city was
 #: dropped at the door while /market, onboarding and Settings all took both.
 SLOT_ARITY: dict[str, int] = {
-    "target_role_titles": 6,
+    "target_role_titles": MAX_TARGET_ROLES,
     "target_locations": MAX_TARGET_LOCATIONS,
     "deal_breakers": 6,
     "lean": 6,

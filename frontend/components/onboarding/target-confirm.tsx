@@ -24,8 +24,9 @@ import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import { StepActions, StepBack, StepRibbon } from "@/components/journey/journey-chrome"
 import { StickyOnboardingActionBar } from "@/components/onboarding/sticky-action-bar"
 import {
-  BandStep, DirectionStep, LevelStep, MAX_ROLES, RoleStep, WhereStep,
+  BandStep, DirectionStep, LevelStep, RoleStep, WhereStep,
 } from "@/components/onboarding/target-steps"
+import { MAX_TARGET_ROLES } from "@/lib/career-target"
 import { invalidateTargetRoleData } from "@/lib/domain-data"
 import { useCareerBandOptions } from "@/lib/hooks/use-career-bands"
 import {
@@ -294,7 +295,7 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
     setSelected((current) => {
       const without = current.filter((pick) => pick.family !== family.family)
       if (without.length !== current.length) return withRealPrimary(without)
-      if (current.length >= MAX_ROLES) return current
+      if (current.length >= MAX_TARGET_ROLES) return current
       // A direction found outside your fields means the fields were wrong, not
       // that the pick is. Myro widens rather than refusing — which is also why
       // the search box is never band-scoped.

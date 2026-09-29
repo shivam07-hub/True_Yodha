@@ -24,13 +24,13 @@ from supabase import Client
 from app.repositories.user_memory import UserMemoryRepository
 from app.repositories.users import UsersRepository
 from app.services import myro_voice, onboarding_service
+from app.services.career_target import MAX_TARGET_ROLES
 from app.services.llm_provider import LLMProvider, LLMProviderError
 
 logger = logging.getLogger("myro.intent_chat")
 
 _MAX_TOKENS = 500
 _MAX_TURNS = 12  # bound the conversation the model sees
-MAX_ROLES = onboarding_service.MAX_TARGET_ROLES
 
 _TASK = (
     "THIS SURFACE: the feed disappointed them. You are shaping the search after "
@@ -213,7 +213,7 @@ def _coerce_diff(diff: Any) -> dict[str, Any] | None:
 
     def _titles(key: str) -> list[str]:
         raw = diff.get(key)
-        return [s.strip() for s in raw if isinstance(s, str) and s.strip()][:MAX_ROLES] if isinstance(raw, list) else []
+        return [s.strip() for s in raw if isinstance(s, str) and s.strip()][:MAX_TARGET_ROLES] if isinstance(raw, list) else []
 
     def _scalar(key: str, allowed: set[str] | None = None) -> str | None:
         v = diff.get(key)
@@ -261,7 +261,7 @@ def _second_search(raw: Any) -> dict[str, Any] | None:
         return None
     label = str(raw.get("label") or "").strip()
     titles = raw.get("role_titles")
-    titles = [s.strip() for s in titles if isinstance(s, str) and s.strip()][:MAX_ROLES] if isinstance(titles, list) else []
+    titles = [s.strip() for s in titles if isinstance(s, str) and s.strip()][:MAX_TARGET_ROLES] if isinstance(titles, list) else []
     if not label or not titles:
         return None
     return {"label": label[:80], "role_titles": titles}
@@ -282,7 +282,7 @@ def apply_diff(db: Client, user_id: str, diff: dict[str, Any]) -> dict[str, Any]
     for t in add:
         if t.casefold() not in {x.casefold() for x in new_titles}:
             new_titles.append(t)
-    new_titles = new_titles[:MAX_ROLES]
+    new_titles = new_titles[:MAX_TARGET_ROLES]
 
     roles_changed = new_titles and [t.casefold() for t in new_titles] != [t.casefold() for t in current]
     seniority = diff.get("seniority")

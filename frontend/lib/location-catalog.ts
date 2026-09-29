@@ -10,9 +10,6 @@
  * in lockstep — a name the normalizer rewrites must still be findable here.
  */
 
-/** How many target cities a person may hold. Mirrors backend `career_target.MAX_TARGET_LOCATIONS`. */
-export const MAX_TARGET_LOCATIONS = 5
-
 export type LocationEntry = {
   name: string
   count: number

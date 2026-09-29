@@ -16,6 +16,7 @@ from app.repositories.role_families import RoleFamiliesRepository
 from app.repositories.scores import ScoresRepository
 from app.repositories.users import UsersRepository
 from app.services import background, scoring
+from app.services.career_target import MAX_TARGET_ROLES, target_locations
 from app.services.concurrent_reads import run_concurrently
 from app.services.experience_years import seniority_from_cv
 from app.services.job_eligibility import chosen_bands_for_profile
@@ -129,9 +130,6 @@ def eval_matches_context(row: dict[str, Any] | None, eval_ctx: str) -> bool:
     what makes the next Search correct without a backfill.
     """
     return bool(row) and (row or {}).get("eval_context_hash") == eval_ctx
-
-
-MAX_TARGET_ROLES = 5
 
 
 def _normalize_role_titles(
@@ -273,13 +271,7 @@ def _normalize_locations(
     An empty list is meaningful — it is "Anywhere", the user's explicit choice to
     drop every city filter — so it is never conflated with "not supplied".
     """
-    raw = locations if locations is not None else ([location] if location else [])
-    seen: list[str] = []
-    for value in raw:
-        cleaned = (value or "").strip()
-        if cleaned and cleaned not in seen:
-            seen.append(cleaned)
-    return seen[:3]
+    return target_locations(locations if locations is not None else ([location] if location else []))
 
 
 def _normalize_families(
@@ -292,7 +284,7 @@ def _normalize_families(
         cleaned = (value or "").strip()
         if cleaned and cleaned not in seen:
             seen.append(cleaned)
-    return seen[:5]
+    return seen[:MAX_TARGET_ROLES]
 
 
 def role_title_updates(
@@ -336,7 +328,7 @@ def save_target(
 ) -> None:
     """Canonical target-role write (issue #145 · multi-role, User Memory Phase 0).
 
-    The user targets up to 5 human role titles (chips). Those titles are the
+    The user targets up to `MAX_TARGET_ROLES` human role titles (chips). Those titles are the
     source-of-record (`target_role_titles`); `target_roles` (taxonomy clusters,
     the matcher scoping key) is the DERIVED union from the selected family, and
     `target_role_title` stays the PRIMARY = titles[0] for back-compat + the score

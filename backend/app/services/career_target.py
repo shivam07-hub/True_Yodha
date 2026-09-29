@@ -6,6 +6,7 @@ writes that row through one database function, `record_career_target`.
 """
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Any
 
 from supabase import Client
@@ -19,7 +20,38 @@ from app.services.job_eligibility import (
     canonical_source_seniority,
 )
 
+#: The two caps on a career target, and the only place either is a number.
+#:
+#: Each was restated per surface and they drifted: `eec3075e` raised cities to 5
+#: here while the request model still said 3, so every fourth city was a 422 and
+#: one user retried Direction fourteen times without getting through; the save
+#: path's own normaliser still said 3 behind that. Roles were 3 on the screen, 5
+#: in the request, 5 in the chat, 6 in Myro Search and Job Tracks. The request
+#: model, every write path, the Search slot and Job Tracks read these;
+#: `frontend/lib/career-target.ts` repeats them and `test_target_limits.py` holds
+#: the two languages equal.
 MAX_TARGET_LOCATIONS = 5
+#: Kinds of work (role families). Wide on purpose: a person names every kind of
+#: work they would take, and retrieval ORs across them into one ranked list, so
+#: the width costs nothing per role. The cap stops an unbounded array, nothing
+#: more — nobody reaches it by clicking.
+MAX_TARGET_ROLES = 20
+
+
+def target_locations(values: Iterable[object]) -> list[str]:
+    """Cities as stored: stripped, de-duplicated (first wins), capped.
+
+    `[]` in is `[]` out. An empty list is "Anywhere", an answer, and never falls
+    back to anything.
+    """
+    seen: list[str] = []
+    for value in values:
+        text = str(value or "").strip()
+        if text and text not in seen:
+            seen.append(text)
+        if len(seen) >= MAX_TARGET_LOCATIONS:
+            break
+    return seen
 
 
 def is_canonical_direction(profile: dict[str, Any]) -> bool:
@@ -54,14 +86,7 @@ def _locations(profile: dict[str, Any]) -> list[str]:
     if not isinstance(raw, list):
         single = str(profile.get("target_location") or "").strip()
         return [single] if single else []
-    seen: list[str] = []
-    for value in raw:
-        text = str(value or "").strip()
-        if text and text not in seen:
-            seen.append(text)
-        if len(seen) >= MAX_TARGET_LOCATIONS:
-            break
-    return seen
+    return target_locations(raw)
 
 
 def current_snapshot(db: Client, user_id: str) -> dict[str, Any] | None:
@@ -121,10 +146,12 @@ async def _career_target_sync(payload: dict[str, Any], allow_retry: bool) -> Non
 
 __all__ = [
     "MAX_TARGET_LOCATIONS",
+    "MAX_TARGET_ROLES",
     "SOURCE_SENIORITY",
     "adjacent_source_bands",
     "canonical_source_seniority",
     "current_snapshot",
     "is_canonical_direction",
     "record_from_profile",
+    "target_locations",
 ]

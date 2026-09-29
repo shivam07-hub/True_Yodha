@@ -8,8 +8,8 @@ from typing import Any
 
 import pytest
 
+from app.services.career_target import MAX_TARGET_ROLES
 from app.services.job_tracks import (
-    MAX_TRACK_ROLE_TITLES,
     MAX_TRACKS,
     Track,
     can_open_another,
@@ -93,7 +93,8 @@ def test_stored_tracks_render_in_position_order_whatever_the_read_returned():
 def test_role_titles_are_deduplicated_case_insensitively_and_capped():
     out = normalise_role_titles(["Consulting", "consulting", " Strategy "])
     assert out == ["Consulting", "Strategy"]
-    assert len(normalise_role_titles([f"Role {n}" for n in range(20)])) == MAX_TRACK_ROLE_TITLES
+    many = [f"Role {n}" for n in range(MAX_TARGET_ROLES + 5)]
+    assert len(normalise_role_titles(many)) == MAX_TARGET_ROLES
 
 
 def test_role_titles_keep_the_order_the_user_gave():
