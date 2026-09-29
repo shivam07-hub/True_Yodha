@@ -96,11 +96,16 @@ interface PlaygroundHeaderProps {
   onJobLine?: () => void
   /** The second, quieter action beside the primary. Download is the primary on
    *  every surface (it is what the user came for and it cannot misfire); Apply
-   *  opens an external page and arms the capture prompt, so it stays a ghost. */
+   *  opens an external page and arms the capture prompt, so it is a ghost until
+   *  `secondaryLeads` says the primary's work is done. */
   secondaryLabel?: string
   onSecondary?: () => void
   secondaryHint?: string
   secondaryDisabled?: boolean
+  /** The secondary takes the one accent: the file in hand is this sheet, so
+   *  the next step is Apply. Desktop keeps positions and moves only emphasis;
+   *  a phone gives the accent its wide first slot (playground-v2-rail.css). */
+  secondaryLeads?: boolean
   /** The one named door — Tailor with Mentor. Accent. Cost only when this tap charges. */
   leadLabel?: string
   leadCost?: number
@@ -114,8 +119,14 @@ export function PlaygroundHeader({
   brandLabel, scoreCaption, hideScore, statusValue, hideBack, hideApply,
   backLabel = "Back to CV library",
   onSaveJobMeta, onJobLine, secondaryLabel, onSecondary, secondaryHint, secondaryDisabled,
-  leadLabel, leadCost, onLead,
+  secondaryLeads, leadLabel, leadCost, onLead,
 }: PlaygroundHeaderProps) {
+  // One accent on the header, on the step that comes next: Apply once the
+  // downloaded file is this sheet, else the Mentor door while it is offered,
+  // else Download.
+  const accent = secondaryLeads && secondaryLabel && onSecondary && !secondaryDisabled
+    ? "secondary" : onLead ? "lead" : "primary"
+  const rank = (slot: typeof accent) => (accent === slot ? "cvb-v2-applybtn" : "cvb-v2-secondarybtn")
   const shown = useCountUp(ready)
   const [menuOpen, setMenuOpen] = useState(false)
   const isMaster = variant === "master"
@@ -233,7 +244,7 @@ export function PlaygroundHeader({
       {!isMaster && delta > 0 && <span className="cvb-v2-deltachip mono">▲ +{delta} raised</span>}
 
       {leadLabel && onLead && (
-        <button type="button" className="cvb-v2-applybtn" onClick={onLead}>
+        <button type="button" className={rank("lead")} onClick={onLead}>
           {leadLabel}
           {leadCost != null && <span className="cvb-v2-leadcost">{leadCost}</span>}
         </button>
@@ -242,7 +253,7 @@ export function PlaygroundHeader({
       {secondaryLabel && onSecondary && (
         <button
           type="button"
-          className="cvb-v2-secondarybtn"
+          className={rank("secondary")}
           onClick={onSecondary}
           disabled={secondaryDisabled}
           title={secondaryHint}
@@ -254,7 +265,7 @@ export function PlaygroundHeader({
       {!hideApply && (
         <button
           type="button"
-          className={onLead ? "cvb-v2-secondarybtn" : "cvb-v2-applybtn"}
+          className={rank("primary")}
           onClick={onApply}
           disabled={!canApply}
           title={applyHint}
