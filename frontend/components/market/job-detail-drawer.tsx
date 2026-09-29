@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { emitLoopStep, jobs, type JobFeedItem, type JobPulse, type QualityReasonCode } from "@/lib/api"
+import { useLoopStepOnce } from "@/lib/hooks/use-loop-step-once"
 import { ApiError } from "@/lib/api-error"
 import { POSTING_CLOSED_NOTICE } from "@/lib/jobs/detail-model"
 import { QUALITY_REASONS } from "@/lib/jobs/feedback"
@@ -55,7 +56,7 @@ export function JobDetailDrawer({
     : null
 
   // Opening this panel is a core-loop step no other table records.
-  useEffect(() => { emitLoopStep(token, "panel_opened", job.job_id, "market") }, [token, job.job_id])
+  useLoopStepOnce(token, "panel_opened", job.job_id, "market")
 
   // Capture the save, then cross straight into the build stage for THIS job —
   // /cv?jobId opens the tailoring playground (not the generic home).

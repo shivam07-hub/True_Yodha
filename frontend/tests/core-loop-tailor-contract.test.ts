@@ -54,10 +54,10 @@ test("the phone card offers the same action, saved first", () => {
 })
 
 test("the three blind steps and the Mentor door are recorded", () => {
-  assert.match(drawer, /useEffect\(\(\) => \{ emitLoopStep\(token, "panel_opened", job\.job_id, "market"\) \}/)
+  assert.match(drawer, /useLoopStepOnce\(token, "panel_opened", job\.job_id, "market"\)/)
   assert.match(drawer, /emitLoopStep\(token, "panel_tailor", job\.job_id, "market"\)/)
   assert.match(surface, /emitLoopStep\(token, "panel_opened", jobId, "mobile_feed"\)/)
-  assert.match(playground, /useEffect\(\(\) => \{ emitLoopStep\(token, "editor_opened", jobId, "cv"\) \}/)
+  assert.match(playground, /useLoopStepOnce\(token, "editor_opened", jobId, "cv"\)/)
   const exported = playground.indexOf("await exportSheetPdf(token, el, pdfFilename)")
   const downloaded = playground.indexOf('emitLoopStep(token, "downloaded", jobId, "pdf")')
   assert.ok(exported > -1 && downloaded > exported, "a download is recorded only after the PDF arrived")
@@ -67,4 +67,9 @@ test("the three blind steps and the Mentor door are recorded", () => {
 test("the step survives the navigation it precedes", () => {
   const fn = api.slice(api.indexOf("export function emitLoopStep"))
   assert.match(fn.slice(0, 700), /keepalive: true/)
+})
+
+test("an open is one row: a token refresh or a StrictMode re-run is not a second visit", () => {
+  const hook = readFileSync(new URL("../lib/hooks/use-loop-step-once.ts", import.meta.url), "utf8")
+  assert.match(hook, /if \(!token \|\| !jobId \|\| sentFor\.current === jobId\) return\n\s+sentFor\.current = jobId\n\s+emitLoopStep\(token, step, jobId, surface\)/)
 })

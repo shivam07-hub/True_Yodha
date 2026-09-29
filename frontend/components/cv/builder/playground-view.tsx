@@ -17,7 +17,7 @@
  */
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
@@ -51,6 +51,7 @@ import { DetailDrawer } from "@/components/jobs/detail-drawer"
 import { DetailHeader } from "@/components/jobs/detail-header"
 import { useApplyCapture } from "@/components/jobs/use-apply-capture"
 import { useSectionTitles } from "@/components/cv/section-titles-provider"
+import { useLoopStepOnce } from "@/lib/hooks/use-loop-step-once"
 import { ApplyCapturePrompt } from "@/components/jobs/apply-capture-prompt"
 import { similarRolesHref } from "@/lib/jobs/similar-roles"
 import { applyRoleMove, remapRoleHiddenIids } from "./cv-pointer-order"
@@ -94,7 +95,7 @@ export function PlaygroundView({
   // Arriving here for a job is a core-loop step no other table records: before
   // 2026-09-28 nobody could say whether people reached the editor and stopped,
   // or never came.
-  useEffect(() => { emitLoopStep(token, "editor_opened", jobId, "cv") }, [token, jobId])
+  useLoopStepOnce(token, "editor_opened", jobId, "cv")
   const [railRequest, setRailRequest] = useState<{ tab: "fixes" | "skills"; n: number } | null>(null)
   const sheetWrapRef = useRef<HTMLDivElement>(null)
   const pendingTemplateRef = useRef<CVTemplate>(DEFAULT_TEMPLATE)
