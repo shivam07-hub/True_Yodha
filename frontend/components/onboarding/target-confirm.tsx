@@ -273,10 +273,11 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
    * four screens to change one is the toll a stepped flow must not charge.
    */
   const needs: Record<StepKey, boolean> = {
-    // Asked once. A stored answer means this person has been here, so a returning
-    // user reviewing their direction does not pay the toll of a screen they have
-    // already settled. Never blocking either way — it opens pre-answered.
-    band: (result.selected?.career_bands ?? []).length === 0,
+    // What is on screen, like `work` and `level`. It read the SAVED bands, so the
+    // dot stayed on the Field step for the whole flow after a person accepted the
+    // pre-tick. The opening step is still the Field step on a first visit: this
+    // is evaluated before the pre-tick lands, while `bands` is empty.
+    band: bands.length === 0,
     work: selected.length === 0,
     level: !seniority,
     where: false, // Leaving it open searches everywhere. That is an answer.
