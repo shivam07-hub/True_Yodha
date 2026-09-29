@@ -16,10 +16,16 @@
  * drift ADR-0022 was written to remove.
  *
  * Counts are two different facts and both are needed. 17,960 jobs across 235
- * directions and 234 jobs across 8 are not the same offer, and a card showing
+ * kinds of work and 234 jobs across 8 are not the same offer, and a card showing
  * only the job count presents them as equals. The order is by fit against the
  * user's own skills; the fit itself is never printed, because a band is not a
  * score.
+ *
+ * What IS printed is the evidence behind it, with its denominator: "18 of your
+ * 34 skills asked here". The corpus totals said how big a field is and nothing
+ * about the person choosing it. Names alone made a field matching 2 skills look
+ * as strong as one matching 18, so the count carries the strength and the names
+ * carry the why.
  */
 
 import { Check } from "lucide-react"
@@ -27,6 +33,19 @@ import { Check } from "lucide-react"
 import { formatCount } from "@/lib/format"
 import type { CareerBand, CareerBandOption } from "@/lib/api"
 import { cn } from "@/lib/utils"
+
+/** The evidence line, or null when there is no CV to read — the card then says
+ *  nothing rather than claiming "none of yours" about a CV it never saw. */
+export function bandEvidence(option: CareerBandOption): string | null {
+  const total = option.cv_skill_count
+  const matched = option.matched_count
+  if (total == null || matched == null) return null
+  const skills = total === 1 ? "skill" : "skills"
+  if (matched === 0) return `None of your ${formatCount(total)} ${skills} asked here yet`
+  const names = (option.matched_skills ?? []).join(", ")
+  const head = `${formatCount(matched)} of your ${formatCount(total)} ${skills} asked here`
+  return names ? `${head} · ${names}` : head
+}
 
 /** The whole vocabulary. Four, and the reason there is no "and 3 more". */
 export const CAREER_BAND_LABEL: Record<CareerBand, string> = {
@@ -67,6 +86,7 @@ export function BandChoice({
     >
       {options.map((option) => {
         const picked = selected.includes(option.band)
+        const evidence = bandEvidence(option)
         return (
           <button
             key={option.band}
@@ -84,9 +104,14 @@ export function BandChoice({
               <span className="block text-[length:var(--tm-fs-body)] font-medium text-[var(--tm-text)]">
                 {CAREER_BAND_LABEL[option.band]}
               </span>
+              {evidence ? (
+                <span className="mt-1 block text-pretty text-[length:var(--tm-fs-caption)] text-[var(--tm-text)]">
+                  {evidence}
+                </span>
+              ) : null}
               <span className="mt-1 block text-[length:var(--tm-fs-caption)] text-[var(--tm-text-muted)]">
                 {formatCount(option.job_count)} open · {formatCount(option.family_count)}{" "}
-                {option.family_count === 1 ? "direction" : "directions"}
+                {option.family_count === 1 ? "kind of work" : "kinds of work"}
               </span>
             </span>
             {picked ? (

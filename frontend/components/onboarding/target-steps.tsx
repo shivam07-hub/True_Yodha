@@ -153,7 +153,7 @@ export function BandStep({
     <>
       <StepHead
         title="Your field"
-        lede="Pick every field you would take work in. Myro suggests directions from inside them; search still reaches everything."
+        lede="Every field you would take work in."
       />
       <div className="mt-6">
         <BandChoice options={options} selected={selected} onChange={onChange} />

@@ -2130,3 +2130,34 @@ next Notice before adding it.
 **Open.** The caller still re-runs the ids half on every page (up to 20); a
 generic-skill CV's pool is ~8.6k active jobs, ~9 pages. Collapsing that into one
 read needs the 1,000-row PostgREST cap answered first.
+
+## 22. The Field card's evidence rides the band read (2026-09-30)
+
+**Change.** `career_band_options` (`GET /roles/bands`, and the onboarding
+`awaiting_target` payload) now returns, per band, how many of the caller's CV
+skills a family in the band lists among its twelve `core_skills`, out of how
+many the CV holds, and the three most widely asked. Same function, same single
+round trip. Migration `20260930100000_career_band_evidence.sql`.
+
+**Measured**, warm, service role, the heaviest CV in the table (73 skill ids;
+the mean is 15):
+
+| Shape | Time |
+|---|---|
+| before, body inlined | 9.3ms |
+| evidence half alone | 4.6ms |
+| after, body inlined | ~14ms |
+| after, through the function (body planned per call) | 26ms warm · 88ms first call |
+
+**What I got wrong first.** Ranking evidence by the fit weights gave Design &
+Creative (fit 0.56) three skill names, because generic skills carry a trace
+weight in nearly every family — a card claiming a fit that is not there. The
+evidence now uses `core_skills`, the vocabulary Direction Fit grades against.
+And a draft that read the parameter through a `caller` CTE referenced twice got
+it materialised: the planner lost the array's size (98 estimated, 3,795 real)
+and flipped the labels join to a 2,709-loop nested scan, 23.5ms. Reading the
+parameter directly keeps the hash join.
+
+**Not measured.** The live endpoint: it needs an authed token, and the QA login
+goes to the real API. Take five warm `x-process-time` samples on
+`/roles/bands` after the next deploy.

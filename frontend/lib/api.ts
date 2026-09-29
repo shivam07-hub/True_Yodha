@@ -984,6 +984,13 @@ export interface CareerBandOption {
   job_count: number
   family_count: number
   fit: number
+  /** How many skills the CV holds. `null` = no CV to read, never 0. */
+  cv_skill_count?: number | null
+  /** How many of them a family in this band lists among the twelve it most
+   *  demands. `0` is a finding ("none asked here"); `null` is no CV. */
+  matched_count?: number | null
+  /** The most widely asked of those, at most three. */
+  matched_skills?: string[] | null
 }
 
 export interface RoleFamilyLocation {
