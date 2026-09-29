@@ -8,6 +8,10 @@
 @media (max-width: 900px) {
   .cvw-toolbar { position: static; padding: 10px 14px; }
   .cvw-fill-stats { display: none; }
+  /* With the stats gone the bar is all of .cvw-fill, which already shrinks to
+     what EDIT/SHEET and undo leave. At `flex: none` the bar did not: it ran 8px
+     into the padding at 375 and off the screen edge at 320. */
+  .cvw-fill-bar { flex-shrink: 1; }
   /* The chip row IS the triage at this size — three 24px tiles do not fit at
      375px, and showing both would be the same count said twice. */
   .cvw-triage { display: none; }
@@ -113,20 +117,6 @@
 }
 .cvw-line.cvw-pulse { animation: cvw-pulse 1.2s var(--tm-ease); }
 @media (prefers-reduced-motion: reduce) { .cvw-line.cvw-pulse { animation: none; } }
-
-/* The quieter of the two header actions. Download is the primary everywhere —
-   it is what the user came for and it cannot misfire. Apply opens an external
-   page and arms the capture prompt, so it asks for a deliberate second look. */
-.cvb-v2-secondarybtn {
-  flex: none; cursor: pointer; white-space: nowrap;
-  border: 1px solid var(--tm-border); background: transparent; color: var(--tm-text);
-  padding: 10px 16px; border-radius: var(--tm-button-radius, 10px);
-  font-family: var(--tm-font-sans); font-size: var(--tm-fs-body); font-weight: 600;
-  transition: border-color var(--tm-dur-fast) var(--tm-ease);
-}
-.cvb-v2-secondarybtn:hover { border-color: var(--tm-int-border); }
-.cvb-v2-secondarybtn:disabled { opacity: 0.4; cursor: not-allowed; }
-
 
 /* Education / certification entries edit in place, but the CV is paper, not a
    form: the field is invisible until the user reaches for it. Without this the

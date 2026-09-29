@@ -19,7 +19,7 @@ const read = (path: string) =>
 const weave = read("components/cv/builder/tailor-weave.tsx")
 const api = read("lib/api.ts")
 const list = read("components/cv/builder/cv-pointer-list.tsx")
-const css = read("app/(authed)/cv/cv-workstation.css")
+const css = ["base", "rail", "chrome"].map(part => read(`app/(authed)/cv/cv-workstation-${part}.css`)).join("\n")
 
 const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "")
 

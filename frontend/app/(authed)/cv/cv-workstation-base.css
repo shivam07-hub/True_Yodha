@@ -1,0 +1,301 @@
+/* ── CV workstation — hierarchy redesign ─────────────────────────────────────
+   Handoff: "CV Playground — hierarchy", approved direction 2a (built on 1c).
+   Supersedes the rail structure on PublicPlayground, MasterWorkspace and
+   PlaygroundView.
+
+   The original defect was that nothing on the screen had a rank: the CV bullet
+   being fixed, the rail row talking about it, and the provenance tag under that
+   row all rendered at 12–13.5px in --tm-text. Four ranks now, and no two share
+   a size + weight + colour:
+
+     1  the next action      heading/600 sans, --tm-text   (one accent-ringed
+                                                            card; the only
+                                                            full-width button)
+     2  the CV bullet        --tm-fs-cv-line, --tm-cv-line (largest body text
+                                                            in the product)
+     3  rail issue rows      caption/600 sans, --tm-text
+     4  provenance / counts  caption mono, --tm-text-faint, uppercase
+
+   Severity is one custom property (--cvw-sev) set by [data-sev], so the gutter,
+   the row wash, the offender underline and the triage tile all read the same
+   value and can never drift apart.
+
+   Two size notes, both deliberate:
+   · the triage numerals are --tm-fs-title (24px) where the handoff drew 28.
+     The scale has no 28 rung; free-typing one to match a mock is how a scale dies.
+   · provenance is --tm-fs-caption. */
+
+/* ── severity ── */
+.cvb-v2 [data-sev="blocking"]  { --cvw-sev: var(--tm-danger); }
+.cvb-v2 [data-sev="weak"]      { --cvw-sev: var(--tm-warning); }
+.cvb-v2 [data-sev="optional"]  { --cvw-sev: var(--tm-text-faint); }
+.cvb-v2 [data-sev="on-target"] { --cvw-sev: var(--tm-success); }
+
+/* ── pane toolbar: EDIT / SHEET + the page-fill meter ── */
+.cvw-toolbar {
+  position: sticky; top: 64px; z-index: 20;
+  display: flex; align-items: center; gap: 14px; padding: 10px 24px;
+  background: var(--tm-surface); border-bottom: 1px solid var(--tm-border-soft);
+}
+.cvw-seg {
+  display: inline-flex; flex: none; gap: 2px; padding: 2px;
+  background: var(--tm-surface-2); border-radius: var(--tm-radius-lg, 8px);
+}
+.cvw-seg-btn {
+  border: 0; background: transparent; cursor: pointer;
+  padding: 6px 16px; border-radius: 6px;
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-caption); font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--tm-text-muted);
+  transition: background var(--tm-dur-fast) var(--tm-ease), color var(--tm-dur-fast) var(--tm-ease);
+}
+.cvw-seg-btn:hover { color: var(--tm-text); }
+.cvw-seg-btn[aria-pressed="true"] { background: var(--tm-surface); color: var(--tm-text); }
+.cvw-seg-btn:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: 2px; }
+
+.cvw-fill { display: flex; align-items: center; gap: 10px; margin-left: auto; min-width: 0; }
+.cvw-fill-stats {
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption);
+  letter-spacing: 0.06em; color: var(--tm-text-faint); white-space: nowrap;
+}
+.cvw-fill-bar {
+  flex: none; width: 90px; height: 4px; border-radius: 2px;
+  background: var(--tm-surface-2); overflow: hidden;
+}
+.cvw-fill-bar > span {
+  display: block; height: 100%; border-radius: 2px; background: var(--tm-success);
+  transition: width 0.4s var(--tm-ease);
+}
+.cvw-fill[data-band="over"] .cvw-fill-bar > span { background: var(--tm-danger); }
+.cvw-fill[data-band="tight"] .cvw-fill-bar > span { background: var(--tm-warning); }
+
+/* ── the document ── */
+.cvw-doc { display: flex; flex-direction: column; }
+.cvw-sec {
+  display: flex; align-items: center; gap: 8px;
+  margin: 22px 2px 8px;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--tm-interactive-text);
+}
+.cvw-sec .cvw-drag { opacity: 1; flex: none; }
+/* A renamable heading reads as the heading until touched. */
+.cvw-sec-name {
+  all: unset; cursor: text; border-radius: 4px;
+  font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit;
+  min-width: 0; overflow-wrap: anywhere;
+}
+.cvw-sec-name:hover { text-decoration: underline dotted; text-underline-offset: 4px; }
+.cvw-sec-rename {
+  font: inherit; letter-spacing: inherit; text-transform: none; color: var(--tm-text);
+  background: transparent; border: none; border-bottom: 1px solid var(--tm-interactive);
+  padding: 0 0 2px; width: min(100%, 40ch); min-width: 0; outline: none;
+}
+.cvw-doc > .cvw-sec:first-child { margin-top: 0; }
+
+.cvw-card {
+  background: var(--tm-surface); border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-xl, 8px); overflow: hidden;
+}
+.cvw-idcard { padding: 20px 22px; }
+.cvw-idname {
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-heading); font-weight: 600;
+  letter-spacing: -0.01em; color: var(--tm-cv-line);
+}
+.cvw-idrole { margin-top: 2px; font-size: var(--tm-fs-body); color: var(--tm-text-muted); }
+.cvw-idgrid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 4px 24px; margin-top: 12px;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); color: var(--tm-text-muted);
+}
+
+.cvw-rolehead {
+  display: flex; align-items: center; gap: 8px; padding: 14px 20px;
+  border-bottom: 1px solid var(--tm-border-soft);
+}
+.cvw-rolehead .cvw-drag { opacity: 1; flex: none; }
+.cvw-roletitle {
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-body); font-weight: 600;
+  color: var(--tm-text); min-width: 0;
+}
+.cvw-roleco { font-size: var(--tm-fs-caption); color: var(--tm-text-muted); min-width: 0; }
+.cvw-roledates {
+  margin-left: auto; flex: none;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); color: var(--tm-text-faint);
+}
+
+/* ── rank 2 · the bullet row ──
+   3px severity gutter is the mark. The row itself is paper — a full-bleed
+   wash turned every pointer into a poster card and fought the document. */
+.cvw-line {
+  display: grid; grid-template-columns: 3px minmax(0, 1fr) auto;
+  align-items: start; column-gap: 16px;
+  background: transparent;
+  border-bottom: 1px solid var(--tm-border-faint);
+}
+.cvw-line:last-child { border-bottom: 0; }
+.cvw-gutter { align-self: stretch; background: var(--cvw-sev, transparent); }
+.cvw-linebody { padding: 14px 0 14px 4px; min-width: 0; }
+.cvw-linetext {
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-cv-line); font-weight: 400;
+  line-height: 1.6; color: var(--tm-cv-line); white-space: pre-wrap; word-break: break-word;
+}
+.cvw-linetext.mono { font-family: var(--tm-font-mono); font-size: var(--tm-fs-body); }
+/* The offending phrase, underlined in its own severity. Inset shadow rather
+   than text-decoration: it survives a wrap and never touches the glyphs.
+   `background: none` is load-bearing — <mark> ships a solid yellow highlight in
+   every UA stylesheet, which painted a block over the phrase instead of
+   underlining it, in a colour that belongs to no severity we have. */
+.cvw-off {
+  background: none; color: inherit;
+  /* The handoff draws -8px; at our 16px/1.6 line box that fills half the glyph
+     height and reads as a highlighter block, not an underline. -3px lands just
+     under the baseline, so the phrase stays readable and the mark stays a mark.
+     The alpha goes up to keep it visible at the thinner weight. */
+  box-shadow: inset 0 -3px 0 color-mix(in oklab, var(--cvw-sev) 55%, transparent);
+}
+
+.cvw-verdict {
+  flex: none; padding: 16px 20px 0 0;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-weight: 600;
+  letter-spacing: 0.06em; color: var(--cvw-sev, var(--tm-text-faint));
+  background: none; border: 0; white-space: nowrap;
+}
+button.cvw-verdict { cursor: pointer; }
+.cvw-v-dense { display: none; }
+button.cvw-verdict:hover { color: var(--tm-text); }
+button.cvw-verdict:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: 2px; }
+
+.cvw-lineacts {
+  display: flex; gap: 2px; margin-top: 8px;
+  opacity: 0; transition: opacity var(--tm-dur-fast) var(--tm-ease);
+}
+.cvw-line:hover .cvw-lineacts,
+.cvw-line:focus-within .cvw-lineacts { opacity: 1; }
+@media (hover: none) { .cvw-lineacts { opacity: 1; } }
+.cvw-lineact {
+  border: 0; background: none; cursor: pointer; padding: 3px 7px; border-radius: 6px;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption);
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--tm-text-faint);
+}
+.cvw-lineact:hover { color: var(--tm-text); background: var(--tm-surface-2); }
+.cvw-lineact[aria-pressed="true"] { color: var(--tm-interactive-text); }
+.cvw-lineact:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: 2px; }
+
+.cvw-hist { display: flex; gap: 2px; flex: none; }
+.cvw-hist-btn {
+  border: 0; background: none; cursor: pointer; padding: 6px; border-radius: 6px;
+  color: var(--tm-text-muted); display: grid; place-items: center;
+}
+.cvw-hist-btn:hover:not(:disabled) { color: var(--tm-text); background: var(--tm-surface-2); }
+.cvw-hist-btn:disabled { opacity: 0.35; cursor: default; }
+.cvw-hist-btn:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: 2px; }
+
+.cvw-hidden-chrome { margin: 24px 2px 8px; }
+.cvw-hidden-count {
+  border: 0; background: none; cursor: pointer; padding: 0;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--tm-text-faint);
+}
+.cvw-hidden-count:hover { color: var(--tm-text); }
+.cvw-hidden-list {
+  list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px;
+}
+.cvw-hidden-list li {
+  display: flex; align-items: baseline; gap: 12px;
+  font-size: var(--tm-fs-caption); color: var(--tm-text-muted);
+}
+.cvw-hidden-text { flex: 1; min-width: 0; }
+.cvw-hidden-list .cvw-lineact { opacity: 1; }
+
+.cvw-edit {
+  width: 100%; resize: vertical; margin: 2px 0;
+  background: var(--tm-surface-2); border: 1px solid var(--tm-int-border);
+  border-radius: var(--tm-radius, 6px); padding: 10px 12px; color: var(--tm-cv-line);
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-cv-line); line-height: 1.6;
+}
+.cvw-edit:focus { outline: none; border-color: var(--tm-interactive); }
+
+/* ── rank 1 · the rewrite, inline under the line ──
+   The rail never expands a rewrite. That is the whole point of the triage
+   split: the rail decides WHAT to fix, the paper is where it gets fixed. */
+.cvw-rw {
+  margin: 12px 0 2px; border: 1px solid var(--tm-interactive);
+  border-radius: var(--tm-radius-xl, 8px); background: var(--tm-int-bg-wash);
+  padding: 14px 16px;
+}
+.cvw-rw-head { display: flex; align-items: baseline; gap: 10px; }
+.cvw-rw-label {
+  flex: 1; font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--tm-interactive-text);
+}
+.cvw-rw-count {
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption);
+  letter-spacing: 0.06em; color: var(--tm-text-faint);
+}
+.cvw-rw-text {
+  margin: 10px 0 0;
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-heading); font-weight: 600;
+  line-height: 1.5; color: var(--tm-text);
+}
+.cvw-rw-text b { color: var(--tm-interactive-text); font-weight: 600; }
+.cvw-rw-why { margin: 8px 0 0; font-size: var(--tm-fs-caption); line-height: 1.5; color: var(--tm-text-muted); }
+.cvw-rw-foot { display: flex; align-items: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.cvw-rw-primary {
+  border: 0; cursor: pointer; background: var(--tm-interactive); color: var(--tm-interactive-fg);
+  padding: 10px 18px; border-radius: var(--tm-button-radius, 10px);
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-body); font-weight: 600;
+  transition: background var(--tm-dur-fast) var(--tm-ease);
+}
+.cvw-rw-primary:hover { background: var(--tm-interactive-hover); }
+.cvw-rw-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.cvw-rw-ghost {
+  border: 1px solid var(--tm-border); background: transparent; color: var(--tm-text); cursor: pointer;
+  padding: 10px 16px; border-radius: var(--tm-button-radius, 10px);
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-body); font-weight: 600;
+}
+.cvw-rw-ghost:hover { border-color: var(--tm-int-border); }
+.cvw-rw-discard {
+  margin-left: auto; border: 0; background: none; cursor: pointer; padding: 6px 2px;
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-caption); color: var(--tm-text-muted);
+}
+.cvw-rw-discard:hover { color: var(--tm-text); }
+.cvw-rw-error { margin: 10px 0 0; font-size: var(--tm-fs-caption); color: var(--tm-danger); }
+.cvw-rw-ask { margin: 10px 0 0; font-size: var(--tm-fs-body); line-height: 1.5; color: var(--tm-text); }
+.cvw-rw-input {
+  width: 100%; margin-top: 8px; resize: vertical;
+  background: var(--tm-surface); border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius, 6px); padding: 8px 10px; color: var(--tm-text);
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-body);
+}
+.cvw-rw-input:focus { outline: none; border-color: var(--tm-interactive); }
+.cvw-rw-angles { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.cvw-rw-angle {
+  border: 1px solid var(--tm-border); background: transparent; cursor: pointer;
+  padding: 4px 10px; border-radius: var(--tm-button-radius); color: var(--tm-text-muted);
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption);
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+.cvw-rw-angle[aria-selected="true"] {
+  border-color: var(--tm-interactive); color: var(--tm-interactive-text);
+}
+
+/* ── empty section: dashed placeholder, never omitted ──
+   An omitted section is invisible; a dashed one is a hole the reader can see
+   and close. §3 of the handoff. */
+.cvw-empty {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  padding: 16px 20px; cursor: pointer;
+  border: 1px dashed var(--cvw-sev, var(--tm-border)); border-radius: var(--tm-radius-xl, 8px);
+  background: color-mix(in oklab, var(--cvw-sev, transparent) 8%, transparent);
+}
+.cvw-empty-copy {
+  flex: 1; min-width: 0;
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-body);
+  color: var(--tm-text-faint);
+}
+.cvw-empty-add {
+  flex: none; font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); font-weight: 600;
+  letter-spacing: 0.06em; color: var(--cvw-sev, var(--tm-interactive-text));
+}
+.cvw-empty:hover { border-color: var(--cvw-sev, var(--tm-interactive)); }
+.cvw-empty:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: 2px; }
+
