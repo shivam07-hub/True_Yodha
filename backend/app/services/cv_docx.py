@@ -18,7 +18,7 @@ from docx import Document
 from docx.enum.text import WD_TAB_ALIGNMENT
 from docx.shared import Pt, RGBColor
 
-from app.services.cv_section_order import normalize_section_order
+from app.services.cv_section_order import normalize_section_order, section_title
 
 _DARK = RGBColor(0x0A, 0x0A, 0x0A)
 _BODY = RGBColor(0x1A, 0x1A, 0x1A)
@@ -81,6 +81,8 @@ def generate_cv_docx(visible: dict[str, Any], contact: dict[str, Any], template:
         cr.font.size = Pt(s["body"] - 1.5)
         cr.font.color.rgb = _MUTED
 
+    titles = visible.get("titles") or {}
+
     def heading(text: str) -> None:
         hp = doc.add_paragraph()
         hp.paragraph_format.space_before = Pt(8)
@@ -123,7 +125,7 @@ def generate_cv_docx(visible: dict[str, Any], contact: dict[str, Any], template:
         summary = (visible.get("summary") or "").strip()
         if not summary:
             return
-        heading("Summary")
+        heading(section_title("summary", titles))
         sp = doc.add_paragraph()
         sp.paragraph_format.space_after = Pt(s["space_after"])
         sr = sp.add_run(summary)
@@ -134,7 +136,7 @@ def generate_cv_docx(visible: dict[str, Any], contact: dict[str, Any], template:
         experience = [e for e in (visible.get("experience") or []) if (e.get("bullets") or [])]
         if not experience:
             return
-        heading("Experience")
+        heading(section_title("experience", titles))
         for e in experience:
             company = (e.get("company") or "").strip()
             role_line(e.get("role") or "", f"  ·  {company}" if company else "", (e.get("dates") or "").strip())
@@ -144,7 +146,7 @@ def generate_cv_docx(visible: dict[str, Any], contact: dict[str, Any], template:
         projects = [p for p in (visible.get("projects") or []) if (p.get("bullets") or [])]
         if not projects:
             return
-        heading("Projects")
+        heading(section_title("projects", titles))
         for pr in projects:
             role_line(pr.get("name") or "", "", (pr.get("dates") or "").strip())
             bullets(pr.get("bullets") or [])
@@ -153,7 +155,7 @@ def generate_cv_docx(visible: dict[str, Any], contact: dict[str, Any], template:
         education = visible.get("education") or []
         if not education:
             return
-        heading("Education")
+        heading(section_title("education", titles))
         for ed in education:
             degree = (ed.get("degree") or "").strip()
             grade = (ed.get("grade") or "").strip()
@@ -164,7 +166,7 @@ def generate_cv_docx(visible: dict[str, Any], contact: dict[str, Any], template:
         skills_line = (visible.get("skills_line") or "").strip()
         if not skills_line:
             return
-        heading("Skills")
+        heading(section_title("skills_line", titles))
         kp = doc.add_paragraph()
         kp.paragraph_format.space_after = Pt(s["space_after"])
         kr = kp.add_run(skills_line)
@@ -175,7 +177,7 @@ def generate_cv_docx(visible: dict[str, Any], contact: dict[str, Any], template:
         certs = [c for c in (visible.get("certs") or []) if (c or "").strip()]
         if not certs:
             return
-        heading("Certifications")
+        heading(section_title("certs", titles))
         bullets(certs)
 
     emitters = {

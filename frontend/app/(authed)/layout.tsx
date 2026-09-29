@@ -1,5 +1,6 @@
 import { AppShell } from "@/components/app-shell"
 import { ParticleMomentProvider } from "@/components/particle"
+import { SectionTitlesProvider } from "@/components/cv/section-titles-provider"
 
 // Mounts the app chrome (top-bar / sidebar / particle bg / forge clock) ONCE for
 // every authed surface. Navigating between authed pages keeps this shell mounted —
@@ -14,7 +15,10 @@ import { ParticleMomentProvider } from "@/components/particle"
 export default function AuthedLayout({ children }: { children: React.ReactNode }) {
   return (
     <ParticleMomentProvider>
-      <AppShell>{children}</AppShell>
+      {/* The person's CV section headings, read by every CV render below. */}
+      <SectionTitlesProvider>
+        <AppShell>{children}</AppShell>
+      </SectionTitlesProvider>
     </ParticleMomentProvider>
   )
 }

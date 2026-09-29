@@ -9,6 +9,7 @@
 import type { CVStructured } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
 import { normalizeSectionOrder, type SectionKey } from "@/lib/cv/section-order"
+import type { SectionTitles } from "@/lib/cv/section-titles"
 
 export interface VisibleExperience { role: string; company: string; dates: string; bullets: string[] }
 export interface VisibleProject { name: string; dates: string; bullets: string[] }
@@ -22,12 +23,15 @@ export interface VisibleCV {
   skills_line: string
   certs: string[]
   order: SectionKey[]
+  /** The person's renamed headings; the DOCX prints what the sheet showed. */
+  titles: SectionTitles
 }
 
 export function selectVisibleCV(
   cv: CVStructured,
   hidden: Set<string>,
   sectionOrder?: string[] | null,
+  titles?: SectionTitles | null,
 ): VisibleCV {
   const keepBullets = (bullets: string[], section: "exp_bullet" | "proj_bullet", ei: number) =>
     bullets.filter((b, bi) => !hidden.has(itemId(section, ei * 100 + bi, b)))
@@ -57,5 +61,6 @@ export function selectVisibleCV(
     skills_line: skillsHidden ? "" : (cv.skills_line ?? ""),
     certs,
     order: normalizeSectionOrder(sectionOrder),
+    titles: titles ?? {},
   }
 }

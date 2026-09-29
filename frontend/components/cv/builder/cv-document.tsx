@@ -25,7 +25,9 @@ import { CvIdentityCard, type IdentityLines } from "./cv-identity-card"
 import { CvLineRow } from "./cv-line-row"
 import { CvHiddenChrome } from "./cv-hidden-chrome"
 import { GripDots } from "./cv-grip"
-import { PaperSection, sectionLabel, type PaperBind } from "./cv-paper-sections"
+import { PaperSection, type PaperBind } from "./cv-paper-sections"
+import { useRenameSection, useSectionTitle } from "@/components/cv/section-titles-provider"
+import { DEFAULT_SECTION_TITLES, MAX_SECTION_TITLE } from "@/lib/cv/section-titles"
 import { applyBulletMove, remapHiddenIids, type PointerKind } from "./cv-pointer-order"
 import { verdictLabel, verdictLabelDense, type LineVerdict } from "./cv-severity"
 import type { PointerRowModel } from "./cv-pointer-list"
@@ -189,6 +191,7 @@ export function CvDocument(props: CvDocumentProps) {
   }
 
   const hiddenLines = onToggleHidden ? collectHiddenLines(cv, hidden) : []
+  const title = useSectionTitle()
 
   return (
     <div className="cvw-doc">
@@ -205,7 +208,13 @@ export function CvDocument(props: CvDocumentProps) {
           {order.map(key => {
             if (key === "projects" && cv.projects.length === 0 && !canDragSections) return null
             return (
-            <SortableSection key={key} id={key} disabled={!canDragSections} label={sectionLabel(key)}>
+            <SortableSection
+              key={key}
+              id={key}
+              disabled={!canDragSections}
+              label={title(key)}
+              heading={<SectionHeading sectionKey={key} label={title(key)} renamable={!!onPatch} />}
+            >
               <PaperSection section={key} bind={bind} />
             </SortableSection>
             )
@@ -221,11 +230,12 @@ export function CvDocument(props: CvDocumentProps) {
 }
 
 function SortableSection({
-  id, disabled, label, children,
+  id, disabled, label, heading, children,
 }: {
   id: string
   disabled: boolean
   label: string
+  heading: ReactNode
   children: ReactNode
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id, disabled })
@@ -240,10 +250,60 @@ function SortableSection({
             <GripDots />
           </button>
         )}
-        {label}
+        {heading}
       </div>
       {children}
     </div>
+  )
+}
+
+/**
+ * A section heading the person can rename. Opt-in: nothing changes until they
+ * click it. Enter or leaving the field saves, Escape keeps what was there, and
+ * an empty name goes back to the default. The heading is theirs, so it follows
+ * them onto every CV (profile `cv_section_titles`).
+ */
+function SectionHeading({
+  sectionKey, label, renamable,
+}: {
+  sectionKey: SectionKey
+  label: string
+  renamable: boolean
+}) {
+  const { rename } = useRenameSection()
+  const [draft, setDraft] = useState<string | null>(null)
+  if (!renamable) return <>{label}</>
+  if (draft === null) {
+    return (
+      <button
+        type="button"
+        className="cvw-sec-name tm-control-focus"
+        onClick={() => setDraft(label)}
+        title="Rename section"
+      >
+        {label}
+      </button>
+    )
+  }
+  const commit = () => {
+    if (draft.trim() !== label) rename(sectionKey, draft)
+    setDraft(null)
+  }
+  return (
+    <input
+      className="cvw-sec-rename"
+      value={draft}
+      maxLength={MAX_SECTION_TITLE}
+      placeholder={DEFAULT_SECTION_TITLES[sectionKey]}
+      aria-label={`Rename ${DEFAULT_SECTION_TITLES[sectionKey]} section`}
+      autoFocus
+      onChange={(e) => setDraft(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") { e.preventDefault(); commit() }
+        if (e.key === "Escape") { e.preventDefault(); setDraft(null) }
+      }}
+      onBlur={commit}
+    />
   )
 }
 

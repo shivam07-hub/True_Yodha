@@ -461,6 +461,8 @@ export interface UserProfile {
   myrology_unlocked?: boolean
   myrology_interested?: boolean
   accent_pref?: "signal" | "forge"
+  /** Renamed CV section headings; an absent key reads as the default. */
+  cv_section_titles?: Partial<Record<string, string>> | null
   /** A direction is set and no Match Run has landed for it. Carried here because
    *  `users.me` already reads the two columns it compares — asking /jobs/matches
    *  for the same fact would be a new round trip on the hottest authed path. */
@@ -492,6 +494,8 @@ export interface ProfileUpdate {
   superpower?: string | null
   myrology_interested?: boolean
   accent_pref?: "signal" | "forge"
+  /** The whole map; the server normalises it. `{}` resets every heading. */
+  cv_section_titles?: Partial<Record<string, string>>
 }
 
 export interface UserSkillItem {

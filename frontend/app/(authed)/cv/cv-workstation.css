@@ -80,6 +80,18 @@
   letter-spacing: 0.12em; text-transform: uppercase; color: var(--tm-interactive-text);
 }
 .cvw-sec .cvw-drag { opacity: 1; flex: none; }
+/* A renamable heading reads as the heading until touched. */
+.cvw-sec-name {
+  all: unset; cursor: text; border-radius: 4px;
+  font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit;
+  min-width: 0; overflow-wrap: anywhere;
+}
+.cvw-sec-name:hover { text-decoration: underline dotted; text-underline-offset: 4px; }
+.cvw-sec-rename {
+  font: inherit; letter-spacing: inherit; text-transform: none; color: var(--tm-text);
+  background: transparent; border: none; border-bottom: 1px solid var(--tm-interactive);
+  padding: 0 0 2px; width: min(100%, 40ch); min-width: 0; outline: none;
+}
 .cvw-doc > .cvw-sec:first-child { margin-top: 0; }
 
 .cvw-card {

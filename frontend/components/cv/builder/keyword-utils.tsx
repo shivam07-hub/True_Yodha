@@ -1,5 +1,5 @@
 /**
- * Keyword highlight helpers — used by LivePreview and bullet meta chips.
+ * Keyword highlight helpers — used by bullet meta chips.
  * Targets refer to the JD/required skills the user is tailoring against.
  */
 import { Fragment, type ReactNode } from "react"

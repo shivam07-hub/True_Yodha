@@ -730,6 +730,7 @@ Anything a user downloads or prints that represents their CV — PDF, DOCX, nati
 - `body_text` is provenance (raw upload extraction for baselines), never render input.
 - No plain-text re-parsing renderer may exist. The reportlab `/cv/download-pdf` path was deleted 2026-07-03 after it shipped a user a mangled artifact no surface ever previewed (skills exploded per-line, `₹` → `■`).
 - Surfaces without a visible sheet (one-tap `DownloadCVButton`) mount `PdfPage` hidden and export the same DOM — never a different renderer.
+- **Section headings are the person's own** (2026-09-29). `user_profiles.cv_section_titles` maps a section key to a renamed heading; an absent key is the default. One reader: `SectionTitlesProvider` (mounted once in the authed layout) feeds `useSectionTitle()`, which the editor paper, `PdfPage`, the apply preview and the mobile editor all call, and the DOCX payload carries the same map (`visible.titles`). Renaming is opt-in: click the heading on an editable CV; empty or the default resets. On the profile, not the CV Version: the heading is how they name their work on every CV, and `cv_structured` keeps its seven keys. Outside the provider (public preview) every heading is the default. Defaults and rules live in `cv_section_order.py` and are mirrored by `lib/cv/section-titles.ts`.
 - The failure shape is pinned by `backend/tests/test_cv_artifact_golden.py` (₹ survives, skills line stays one line, legacy route stays deleted); preview fidelity by `test_cv_pdf_html.py` (stylesheet + font byte-sync).
 
 ---

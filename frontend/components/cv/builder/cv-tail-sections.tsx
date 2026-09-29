@@ -14,6 +14,7 @@
 
 import type { CVStructured } from "@/lib/api"
 import { EmptySection } from "./cv-empty-section"
+import { useSectionTitle } from "@/components/cv/section-titles-provider"
 
 interface CvTailSectionsProps {
   cv: CVStructured
@@ -25,6 +26,7 @@ interface CvTailSectionsProps {
 }
 
 export function CvTailSections({ cv, onPatch, only }: CvTailSectionsProps) {
+  const title = useSectionTitle()
   const addEducation = () => onPatch?.(d => ({
     ...d,
     education: [...d.education, { institution: "", degree: "", dates: "", grade: "", location: "" }],
@@ -38,7 +40,7 @@ export function CvTailSections({ cv, onPatch, only }: CvTailSectionsProps) {
     <>
       {showEdu && (
         <>
-          {!hideHeads && <div className="cvw-sec" id="cvw-sec-education">Education</div>}
+          {!hideHeads && <div className="cvw-sec" id="cvw-sec-education">{title("education")}</div>}
           {cv.education.length === 0 ? (
             <EmptySection
               copy="Empty — where you studied, one line."
@@ -90,7 +92,7 @@ export function CvTailSections({ cv, onPatch, only }: CvTailSectionsProps) {
 
       {showCerts && (
         <>
-          {!hideHeads && <div className="cvw-sec" id="cvw-sec-certs">Certifications</div>}
+          {!hideHeads && <div className="cvw-sec" id="cvw-sec-certs">{title("certs")}</div>}
           {cv.certs.length === 0 ? (
             <EmptySection
               copy="Empty — optional, and only worth a line if a cert names a tool the job asks for."

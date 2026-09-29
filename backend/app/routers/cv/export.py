@@ -81,6 +81,11 @@ class VisibleCV(BaseModel):
     education: list[VisibleEducation] = Field(default_factory=list)
     skills_line: str = ""
     certs: list[str] = Field(default_factory=list)
+    #: Section order the preview used. Missing from this model until 2026-09-29,
+    #: so pydantic dropped it and every .docx came out in the default order.
+    order: list[str] = Field(default_factory=list)
+    #: The person's renamed headings (`cv_section_order.section_title`).
+    titles: dict[str, str] = Field(default_factory=dict)
 
 
 class CVDocxRequest(BaseModel):

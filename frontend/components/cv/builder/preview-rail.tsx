@@ -10,6 +10,7 @@
 
 import type { CVStructured } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
+import { useSectionTitle } from "@/components/cv/section-titles-provider"
 import type { PageFill } from "@/lib/cv/page-fill"
 
 export interface SheetContact {
@@ -26,6 +27,7 @@ interface V2SheetProps {
 }
 
 export function V2Sheet({ cv, hidden, contact, compact }: V2SheetProps) {
+  const title = useSectionTitle()
   const experience = cv.experience
     .map((e, ei) => ({
       ...e,
@@ -83,7 +85,7 @@ export function V2Sheet({ cv, hidden, contact, compact }: V2SheetProps) {
       {education.length > 0 && (
         <div className="cvb-v2-sheet-role">
           <div className="cvb-v2-sheet-rolehead">
-            <span className="cvb-v2-sheet-roletitle">Education</span>
+            <span className="cvb-v2-sheet-roletitle">{title("education")}</span>
           </div>
           {education.map((ed, i) => (
             <div key={`ed-${i}`} className="cvb-v2-sheet-rolehead">
@@ -99,7 +101,7 @@ export function V2Sheet({ cv, hidden, contact, compact }: V2SheetProps) {
       {skillsVisible && (
         <div className="cvb-v2-sheet-role">
           <div className="cvb-v2-sheet-rolehead">
-            <span className="cvb-v2-sheet-roletitle">Skills</span>
+            <span className="cvb-v2-sheet-roletitle">{title("skills_line")}</span>
           </div>
           <p className="cvb-v2-sheet-skills">{cv.skills_line}</p>
         </div>
@@ -108,7 +110,7 @@ export function V2Sheet({ cv, hidden, contact, compact }: V2SheetProps) {
       {certs.length > 0 && (
         <div className="cvb-v2-sheet-role">
           <div className="cvb-v2-sheet-rolehead">
-            <span className="cvb-v2-sheet-roletitle">Certifications</span>
+            <span className="cvb-v2-sheet-roletitle">{title("certs")}</span>
           </div>
           <ul className="cvb-v2-sheet-bullets">
             {certs.map((c, i) => <li key={i}>{c}</li>)}
