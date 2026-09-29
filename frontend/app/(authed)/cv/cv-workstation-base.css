@@ -36,6 +36,7 @@
   position: sticky; top: 64px; z-index: 20;
   display: flex; align-items: center; gap: 14px; padding: 10px 24px;
   background: var(--tm-surface); border-bottom: 1px solid var(--tm-border-soft);
+  container-type: inline-size;
 }
 .cvw-seg {
   display: inline-flex; flex: none; gap: 2px; padding: 2px;
@@ -57,8 +58,15 @@
   font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption);
   letter-spacing: 0.06em; color: var(--tm-text-faint); white-space: nowrap;
 }
+/* The editor column is ~600px at a 1024 window, and the stats would not wrap
+   or shrink: the bar ran 64px past the column into the rail's Fixes tab. The
+   counts yield first, the page fact ("one page · 100%") never does, and the bar
+   shrinks to what is left — on every width, so no phone override is needed. */
+@container (max-width: 679px) {
+  .cvw-fill-counts { display: none; }
+}
 .cvw-fill-bar {
-  flex: none; width: 90px; height: 4px; border-radius: 2px;
+  flex: 0 1 auto; width: 90px; min-width: 24px; height: 4px; border-radius: 2px;
   background: var(--tm-surface-2); overflow: hidden;
 }
 .cvw-fill-bar > span {

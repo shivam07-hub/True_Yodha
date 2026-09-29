@@ -8,10 +8,6 @@
 @media (max-width: 900px) {
   .cvw-toolbar { position: static; padding: 10px 14px; }
   .cvw-fill-stats { display: none; }
-  /* With the stats gone the bar is all of .cvw-fill, which already shrinks to
-     what EDIT/SHEET and undo leave. At `flex: none` the bar did not: it ran 8px
-     into the padding at 375 and off the screen edge at 320. */
-  .cvw-fill-bar { flex-shrink: 1; }
   /* The chip row IS the triage at this size — three 24px tiles do not fit at
      375px, and showing both would be the same count said twice. */
   .cvw-triage { display: none; }

@@ -78,6 +78,15 @@
 }
 .cvb-v2-metacta:hover { border-color: var(--tm-interactive); background: var(--tm-int-bg-hover); color: var(--tm-interactive-text); }
 
+/* 901–1279px: the header is ONE sticky 64px row (the toolbar and rail stick at
+   64), and it cannot hold the job line, this pill, the score and three actions.
+   The job line took the loss — 12px wide at 1024, with ⋯ pushed off-screen. The
+   pill opens the same Skills tab the rail shows beside it, so it yields; the job
+   being tailored never does. The master's meta CTA shares the class and stays. */
+@media (min-width: 901px) and (max-width: 1279px) {
+  .cvb-v2-reqpill:not(.cvb-v2-metacta) { display: none; }
+}
+
 .cvb-v2-headspacer { flex: 1; }
 .cvb-v2-savestate { font-size: var(--tm-fs-caption); color: var(--tm-text-faint); white-space: nowrap; }
 
