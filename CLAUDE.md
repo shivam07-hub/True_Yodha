@@ -153,7 +153,7 @@ the scraper), the Chrome extension, tailoring as the obvious next step. Evidence
 bank has no surface — grill first, #45 artboard 2a. Promoting the gap loop out
 of prep rooms is BACKLOG #12, unpicked.
 
-Standing: 113 beta items unverified (built ≠ closed); last consumer CTA is ₹199/month Personalised Engagement ([OFFERING.md](OFFERING.md)). Checkout is a Razorpay subscription at 19900 paise; live charges need `RAZORPAY_ENGAGEMENT_PLAN_ID`.
+Standing: 113 beta items unverified (built ≠ closed); the closer is a one-time ₹199 Apply Pack — 500 coins + one 24h Human Check (ENG2, build #56 [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md)).
 
 ---
 

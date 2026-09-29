@@ -54,6 +54,7 @@ do not re-derive them. Each numbered step is its own commit, six gates green.
 | [ARCHITECTURE_LISTING_TIME.md](ARCHITECTURE_LISTING_TIME.md) `56592675` | `last_seen` is dead (0 of 52,717 rows ever updated); 52% of active jobs wear a verification stamp seeded from it | **Shivam's**: migration nulling the 24,551 false stamps |
 | **#55 [ARCHITECTURE_RETURN_LOOP.md](ARCHITECTURE_RETURN_LOOP.md) — a returning user finds their list** (2026-09-29) | The loop's *repeat* is broken: /market shows a verdict only if its `eval_context_hash` equals today's key, and that key hashes the prompt version and every distilled memory fact — so each prompt bump hid all 210 lists at once (3 since 09-16), and each memory distill hides one. Re-reading starts only on /market. Picks and Collections apply no currency rule at all. Nothing reaches people outside the app (bell 100% unread; no fresh-matches email). Batch 1: 3 of 4 instant seekers return to 0 cards | **Shivam's three decisions (§6)** — show stale verdicts marked (recommended), email digest yes/cadence/consent, re-rate budget. Then S0 measure → S1 Verdict Currency module (0 judge calls) |
 | [ARCHITECTURE_CONTRACTS_BY_TYPE.md](ARCHITECTURE_CONTRACTS_BY_TYPE.md) `a8741e45` | `compute_match_health`'s optional `freshness` restores the pre-fix bug at 2 of 3 callers; four hand-rolled dead-man probes, one of which writes inside a read | Make `freshness` required |
+| **#56 [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) — one pack, one settlement** (2026-09-30, Shivam) | Revenue ever ₹198. One ₹199 **Apply Pack** (500 coins + 1 Human Check, 24h) sold from two doors — the out-of-coins modal and "Human check before you apply" — replaces the ₹99 coin pack and the ₹199/month subscription (0 plans, 0 reviews in prod). Today: the ₹199 button hangs on any refusal, a failed grant is never retried, an unknown product unlocks Myrology, coins bypass the ledger | S1: migrations M1–M2 + `settle()` with an in-memory store under test |
 
 ⚠️ `jobs_added_1h` on the public landing page is structurally **0 for 23 hours
 of every day** (`repositories/jobs.py:644,629,676` — a day marker compared to
@@ -66,7 +67,7 @@ of every day** (`repositories/jobs.py:644,629,676` — a day marker compared to
 | Work | State |
 |---|---|
 | 113 beta feedback items logged unverified | built ≠ closed; each needs deploy + test + user evidence |
-| ₹199 Personalised Engagement | checkout in code; live charges need Razorpay plan id ([OFFERING.md](OFFERING.md) / INFRA.md) |
+| ₹199 Apply Pack | superseded the monthly engagement 2026-09-30 — build is #56 [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) |
 | Brand token audit · landing visual warmth | #20, approved |
 | `qa:mobile` into CI | needs playwright + QA creds as repo secrets |
 | Newsletter: Issue 017 OG image · regenerate April dashboards | open |
@@ -193,7 +194,7 @@ measured Free/Nano database ceiling, not unfinished application work.
 
 ### TIER 2 — bounded, meaningful
 
-7. **#33 ₹199 Personalised Engagement — operator remaining** (ENG1 / [OFFERING.md](OFFERING.md)): checkout is Razorpay Subscriptions at 19900 paise / month; one human pass per IST billing month. Still owed by Shivam: create the Razorpay plan, set `RAZORPAY_ENGAGEMENT_PLAN_ID` + webhook events, reviewer email/token. LinkedIn door is `/job-switch-plan?utm_source=linkedin_services`. Do not keep ₹99 as a cheaper CTA.
+7. **#33 → superseded by #56 (2026-09-30, Shivam).** The monthly subscription is retired with no live plans; the one-time ₹199 Apply Pack replaces it and the ₹99 coin pack. Spec and Shivam's checklist: [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) §7. The LinkedIn door `/job-switch-plan?utm_source=linkedin_services` survives as a redirect to `/apply-pack`.
 
 7b. **✅ CLOSED 2026-09-18 — the tailor's reword now actually reaches the reservoir.**
     The diagnosis was right and the evidence was worse than the note claimed:

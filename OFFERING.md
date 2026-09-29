@@ -2,6 +2,12 @@
 ### The last CTA, the scene, and how LinkedIn Services joins the product
 Locked 2026-09-17 · Shivam. Cockpit: [CLAUDE.md](CLAUDE.md).
 
+> **Superseded 2026-09-30 (Shivam, ENG2).** The closer is now a one-time ₹199
+> **Apply Pack** — 500 coins + one Human Check (24h) — sold from the out-of-coins
+> modal and from "Human check before you apply". The monthly subscription and the
+> ₹99 coin pack fold into it. Build and contract: [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md).
+> The rest of this file is history until #56 S5 rewrites it.
+
 This file is the commercial contract. Checkout charges ₹199 / month via
 Razorpay Subscriptions (`job_switch_plan` at 19900 paise). New checkouts
 503 until `RAZORPAY_ENGAGEMENT_PLAN_ID` is set. The ₹999 audit stays a
