@@ -40,15 +40,12 @@ export function BandChoice({
   options,
   selected,
   onChange,
-  layout = "cards",
 }: {
   /** Server order is fit order. Rendered as given — re-sorting here would put a
    *  second ranking rule in the client. */
   options: CareerBandOption[]
   selected: CareerBand[]
   onChange: (next: CareerBand[]) => void
-  /** `cards` for a step that owns the screen, `rows` inside a sheet or modal. */
-  layout?: "cards" | "rows"
 }) {
   const toggle = (band: CareerBand) => {
     onChange(
@@ -59,11 +56,12 @@ export function BandChoice({
   }
 
   return (
+    // One column on every surface. Two columns inside the 512px Direction step
+    // left ~220px per label: two of the four names wrapped and the counts under
+    // them zig-zagged across rows. The step after it lists role families as rows
+    // too, so the same kind of choice now reads one way.
     <div
-      className={cn(
-        "grid gap-2",
-        layout === "cards" ? "sm:grid-cols-2" : "grid-cols-1",
-      )}
+      className="grid grid-cols-1 gap-2"
       role="group"
       aria-label="Career bands"
     >

@@ -173,8 +173,8 @@ export default function OnboardingResultPage() {
     <main className="min-h-dvh bg-[var(--tm-bg)] text-[var(--tm-text)]">
       {skillConfirm ? body : (
         <>
-          <header className="border-b border-[var(--tm-border-soft)]"><div className="mx-auto flex h-16 max-w-5xl items-center px-5 sm:px-8"><MyroLogo size={25} /><span className="ml-2 text-base font-semibold">Myro</span></div></header>
-          <div className="mx-auto flex min-h-[calc(100dvh-64px)] max-w-5xl flex-col px-5 py-6 sm:px-8 sm:py-8">
+          <header className="border-b border-[var(--tm-border-soft)]"><div className="mx-auto flex h-16 max-w-5xl items-center px-[var(--tm-page-px)]"><MyroLogo size={25} /><span className="ml-2 text-base font-semibold">Myro</span></div></header>
+          <div className="mx-auto flex min-h-[calc(100dvh-64px)] max-w-5xl flex-col px-[var(--tm-page-px)] py-6 sm:py-8">
             {journeyStep && (
               <JourneyProgress
                 current={journeyStep === 2 ? 2 : 1}

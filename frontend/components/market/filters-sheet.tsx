@@ -142,7 +142,6 @@ export function FiltersSheet({
               options={bandOptions.data ?? []}
               selected={draftCareerBands}
               onChange={setDraftCareerBands}
-              layout="rows"
             />
           </Section>
 

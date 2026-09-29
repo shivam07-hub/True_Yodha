@@ -401,7 +401,10 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
   const skippable = step === "where" && locations.length === 0
 
   return (
-    <section className="w-full max-w-lg pb-40" aria-labelledby="target-title">
+    // Centred here, not by the host: this component owns a centred sticky bar,
+    // so it owns the axis too. On /market the host was a plain padded div, the
+    // column sat on the left gutter and Continue on the viewport's centre line.
+    <section className="mx-auto w-full max-w-lg pb-40" aria-labelledby="target-title">
       <div className="mb-5 flex flex-col gap-3">
         <div className="flex items-center gap-2">
           {at > 0 ? (
@@ -477,7 +480,11 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
         />
       ) : null}
 
-      <StickyOnboardingActionBar error={error} contentClassName="max-w-lg px-5 pt-3 sm:px-8">
+      {/* `box-content` puts the gutter OUTSIDE the 512px box, so the button is
+          exactly the column's width. Padding inside `max-w-lg` made it 64px
+          narrower than the cards above it. The gutter is the page token, the
+          same one both hosts pad the column with. */}
+      <StickyOnboardingActionBar contentClassName="box-content max-w-lg px-[var(--tm-page-px)] pt-3">
         <StepActions
           primaryLabel={
             isLast
@@ -491,9 +498,11 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
           }
           /* The block is stated, not implied by a dead button. A disabled
              control with no reason beside it is the state the user cannot
-             act on. */
+             act on. A failed save rides the same slot: above the button, on
+             the column's left edge, read before the next press. */
           note={
-            isLast && !canSubmit
+            error ? <span role="alert" className="text-[var(--tm-danger)]">{error}</span>
+            : isLast && !canSubmit
               ? !selected.length ? "No role yet — Myro searches on the work."
                 : !seniority ? "No level yet."
                   : "Claim your Myro name to finish."
