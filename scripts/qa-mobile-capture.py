@@ -75,8 +75,6 @@ SURFACES = [
     ("tokens", "/tokens"),
     # the funnel: skill confirmation is the stage-one gate
     ("onboarding-result", "/onboarding/result"),
-    # reachable from /me and the feedback hub
-    ("beta-feedback", "/beta-feedback"),
     ("mission", "/mission"),
     ("job-switch-plan", "/job-switch-plan"),
     # public routes the app links out to — same chrome, no bottom nav
@@ -337,8 +335,8 @@ TEXT_CUT_RATIO = 0.4
 # beautifully — while the top bar and the bottom nav around it stay dark,
 # because the surface pinned its own hexes instead of reading tokens. That is
 # the exact shape of the 2026-07 bug this whole gate exists for (background
-# owner and text-token owner differ, nothing checks they agree), and it is
-# still live on /beta-feedback, which pins `background: #eef0eb`.
+# owner and text-token owner differ, nothing checks they agree). /beta-feedback
+# pinned `background: #eef0eb` until it was deleted on 2026-09-13.
 #
 # So resolve what the main content is REALLY painted on and check it against
 # the theme, rather than trusting that a surface opted into the token system.

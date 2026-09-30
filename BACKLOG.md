@@ -66,7 +66,7 @@ of every day** (`repositories/jobs.py:644,629,676` — a day marker compared to
 
 | Work | State |
 |---|---|
-| 113 beta feedback items logged unverified | built ≠ closed; each needs deploy + test + user evidence |
+| Authed QA of the CV machine | checklist below — run with the QA account after the baggage cut, 375px + desktop, light + dark |
 | ₹199 Apply Pack | superseded the monthly engagement 2026-09-30 — build is #56 [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) |
 | Brand token audit · landing visual warmth | #20, approved |
 | `qa:mobile` into CI | needs playwright + QA creds as repo secrets |
@@ -74,6 +74,41 @@ of every day** (`repositories/jobs.py:644,629,676` — a day marker compared to
 | Junk job titles at source | belongs in `firecrawl_Supabase`, not here |
 | B2B recruiter/referral phase 2 | needs a PRD first — not frontend polish |
 | Ghost Job Index: newsletter issue + OG image | index SHIPPED `4d6bb705`→`fa267ce2`; Shivam chose page-first, so distribution is deliberately deferred, not forgotten |
+
+#### Authed QA checklist — the CV machine (from the beta ledger, 2026-09-30)
+
+The 113 cohort reports (June–July) were tagged by loop step and the cohort rows
+deleted (Shivam). Only what touches the machine — upload, tailor, download,
+apply — survives here, as checks. A check that fails becomes a fresh item with
+evidence; one that passes is struck. Report ids point into
+`docs/beta-testing/closure-ledger/beta-feedback-closure-ledger.jsonl` (git).
+
+- **U1 · Upload on a phone.** Android Chrome, mobile data, a normal PDF: progress
+  shows at once, the screen never freezes, it finishes or fails *with a reason*,
+  and a retry does not make you pick the file again. *17 reports* — 20 25 30 45
+  63 71 75 76 97 111 141 144 (stuck at 20%) 145 146 147 + one unnumbered; same
+  hole as the 221 `signed-url` starts with no terminal outcome (#16 §3d).
+- **U2 · Hard PDFs parse.** Two-column layout, a scanned/image-heavy PDF, LinkedIn
+  and GitHub as embedded hyperlinks, 10th / 12th / college percentages kept
+  apart, stack skills (HTML, CSS, JS, MySQL) detected. — 36 46 72 100 105 133
+- **U3 · Onboarding on a phone.** The primary-role step waits for your choice;
+  every seniority option is tappable. — 96 143
+- **U4 · After upload, the next step is obvious.** Acceptance for the front door
+  (grill D6: "Which job do you want?"). *The single biggest theme, 17 reports* —
+  19 21 27 34 39 41 58 59 79 85 87 89 92 102 106 107 136
+- **T1 · Paste a JD → the CV actually changes toward it.** Bullets rewritten
+  against the JD's terms, not generic "add numbers" tips. — 31 66 90 148
+- **T2 · Tailoring never swaps in a life you did not live.** Acceptance for the
+  fabricated-role guard (grill D7). — 73 126
+- **T3 · After a tailored CV, you can find it and act on it** (edit, download,
+  apply). — 24 114
+- **A1 · Apply opens the company's own posting and never hangs** — not a Google
+  search, not an aggregator. — 22 112 128
+
+Archived, not checks (non-machine themes): score unexplained or target role not
+editable (11) · job relevance, thin fields, senior roles for freshers, location
+and fresher filters (13) · slow score or tab switches (6) · Skills/Forge (9) ·
+Tracker (3) · no problem or not actionable (~25).
 
 **Decision-gated, do not pick up:** Myrology pricing · legal (#17, counsel) ·
 per-skill percentile (#39) · publish portability (#32) · teal-field loading (#18 PR2).

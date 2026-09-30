@@ -125,7 +125,6 @@ worker. A test upload on dev writes to production data. Full map: [INFRA.md](INF
 | Domain language and code seams | [CONTEXT.md](CONTEXT.md) |
 | Architecture map of the code | `graphify-out/GRAPH_REPORT_frontend.md` |
 | **Every loop + its production reach number** | [FEATURE_LOOP_REGISTRY.md](docs/FEATURE_LOOP_REGISTRY.md) |
-| Beta feedback closure state | `docs/beta-testing/closure-ledger/` |
 
 Only `graphify-out/GRAPH_REPORT_frontend.md` is the code. `/docs` and `.claude/`
 are gitignored — a NEW file under either is invisible, so put new docs at the
@@ -153,7 +152,7 @@ the scraper), the Chrome extension, tailoring as the obvious next step. Evidence
 bank has no surface — grill first, #45 artboard 2a. Promoting the gap loop out
 of prep rooms is BACKLOG #12, unpicked.
 
-Standing: 113 beta items unverified (built ≠ closed); the closer is a one-time ₹199 Apply Pack — 500 coins + one 24h Human Check (ENG2, build #56 [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md)).
+Standing: the authed QA checklist for the CV machine lives in BACKLOG (the beta cohort ledger closed 2026-09-30); the closer is a one-time ₹199 Apply Pack — 500 coins + one 24h Human Check (ENG2, build #56 [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md)).
 
 ---
 

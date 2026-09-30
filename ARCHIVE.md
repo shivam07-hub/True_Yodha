@@ -6,6 +6,18 @@
 
 ---
 
+## CLOSED 2026-09-30 — the beta cohort ledger
+
+The 113 intern-beta reports (2026-06-14 → 07-21) were tagged by loop step. The
+eight checks that touch the CV machine (upload, tailor, download, apply) moved to
+BACKLOG's authed QA checklist; everything else is summarised there and archived.
+Shivam then deleted the cohort rows from `user_feedback`, the exporter, its
+tests and the one-submission index (`20260930150000`). The only copy of the text
+is `docs/beta-testing/closure-ledger/beta-feedback-closure-ledger.jsonl` in git.
+The feedback button still writes to `user_feedback`.
+
+---
+
 ## SUPERSEDED 2026-09-17 — ₹99 Job-Switch Plan is no longer the closer
 
 The one-time ₹99 Personalised Job-Switch Plan (BACKLOG #33, two reviews / 120

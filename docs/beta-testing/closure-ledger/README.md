@@ -1,3 +1,14 @@
+# Beta Feedback Closure Ledger — CLOSED 2026-09-30
+
+The intern-beta cohort (113 reports, 2026-06-14 → 07-21) is closed. The reports
+were tagged by loop step; the checks that touch the CV machine live in
+BACKLOG.md → "Authed QA checklist — the CV machine". The source rows were deleted
+from `user_feedback` (migration `20260930150000_retire_beta_cohort_feedback.sql`)
+and the exporter was removed, so **this JSONL is the only copy of the text**.
+Do not expect to refresh it.
+
+---
+
 # Beta Feedback Closure Ledger
 
 This directory is the machine-checkable closure registry for the beta program.
