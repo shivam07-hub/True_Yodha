@@ -111,10 +111,11 @@ same slice. The interface is the test surface: drive the hook, assert states.
 
 ### B2. Partner SSO lands on the upload, not on /market
 
-After `partnerConnect.approve`, route by the onboarding position the app already
-computes (`useOnboardingState` / `onboarding.result`): no CV → `/onboarding`
-(upload → skills → the door); a finished journey → `/market` as today. One
-routing rule, shared with `app/onboarding/page.tsx:41-42`, not a second copy.
+**Partner users go through onboarding like everyone else.** After
+`partnerConnect.approve`, `router.replace("/onboarding")` instead of `/market`.
+`/onboarding` already sends a finished journey on to `/market` and a half-finished
+one to `/onboarding/result` (`app/onboarding/page.tsx:41-42`) — one routing rule,
+no second copy in the connect page.
 
 ### C. "Paste a job" on /market
 
@@ -167,7 +168,7 @@ Clicks = `core_loop_events` rows between them.
 
 | # | Slice | Done when |
 |---|---|---|
-| S0 | B2 · partner SSO lands on the upload when there is no CV | A partner test login with no CV reaches `/onboarding`; one with a finished journey reaches `/market` |
+| S0 | B2 · partner SSO goes through onboarding | A partner login with no CV lands on the upload; one with a finished journey still reaches `/market` |
 | S1 | `use-job-import` + both skins; delete the duplicate logic | Hook tests: link → review → imported; extract fails → paste-instead |
 | S2 | Backend: `awaiting_job_choice`, `POST /onboarding/first-job`, generalised `saved_first_role` | Tests: door kind appears after skills; first-job completes with a tailor receipt; idempotent retry |
 | S3 | Door screen + `JourneyProgress` labels + telemetry migration | Upload → paste → playground on dev with the QA account, desktop and 375px |
