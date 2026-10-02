@@ -15,7 +15,7 @@ import { useQuery } from "@tanstack/react-query"
 import { CommandRail } from "@/components/mission-control/command-rail"
 import { pickBestPerTrack } from "@/lib/jobs/match-verdict"
 import { useTracks } from "@/lib/hooks/use-tracks"
-import { deriveNextBestSteps } from "@/lib/onboarding/next-best-steps"
+import { deriveNextBestSteps, jobsOnPublishedFeed } from "@/lib/onboarding/next-best-steps"
 import { adaptiveGreeting } from "@/lib/mission-control/greeting"
 import { HeroLoading } from "@/components/mission-control/hero-loading"
 import { MobileBanner } from "@/components/home/mobile-banner"
@@ -28,6 +28,8 @@ import { computeStreakFromDates } from "@/lib/forge-helpers"
 import { useHomeBootstrap } from "@/lib/hooks/use-home-bootstrap"
 import { useJobMatches } from "@/lib/hooks/use-job-matches"
 import { useViewport } from "@/mobile"
+import { useFeedScope } from "@/lib/hooks/use-feed-scope"
+import { jobFeedQueryKey } from "@/components/market/job-feed-query-key"
 import { useLaneYields } from "@/store/matchRunStore"
 
 
@@ -57,6 +59,12 @@ export function MissionHeroRail({ token, onSettled }: { token: string | null; on
   // because the bundle waited on them (up to 12.4s in prod). They load on their
   // own clock, in parallel, and fill the job step of nextBestSteps when they land.
   const jobsQuery = useJobMatches(token, !yieldLane)
+  const scope = useFeedScope(profileQuery.data?.target_locations)
+  const feedQuery = useQuery({
+    queryKey: token ? jobFeedQueryKey({ token, scope }) : ["jobFeed", "signed-out"],
+    queryFn: () => jobs.feed(token!),
+    enabled: false,
+  })
   const applicationsQuery = useQuery({
     queryKey: dataKeys.applications(),
     queryFn: () => jobs.applications(token!),
@@ -141,22 +149,32 @@ export function MissionHeroRail({ token, onSettled }: { token: string | null; on
     // hidden behind whichever search happened to score higher.
     const labels = new Map(tracks.map((t) => [t.id, t.label]))
     const best = pickBestPerTrack(jobsData?.jobs ?? [], tracks)
+    const picks = best.map((job) => ({
+      jobId: job.job_id,
+      title: job.title,
+      company: job.company,
+      fit: job.match_score,
+      searchLabel: tracks.length > 1 ? (labels.get(job.track_id ?? null) ?? undefined) : undefined,
+    }))
+    const published = feedQuery.data
+      ? feedQuery.data.jobs.map((job) => ({
+          jobId: job.job_id,
+          title: job.job_title,
+          company: job.company_name,
+          fit: job.match_score ?? null,
+        }))
+      : null
+    const railJobs = jobsOnPublishedFeed(picks, published)
     return deriveNextBestSteps({
       score,
       gapSkills: scoreData.gap_skills ?? [],
       domainScores: scoreData.domain_scores ?? {},
-      bestJobs: best.map((job) => ({
-        jobId: job.job_id,
-        title: job.title,
-        company: job.company,
-        fit: job.match_score,
-        searchLabel: tracks.length > 1 ? (labels.get(job.track_id ?? null) ?? undefined) : undefined,
-      })),
-      // The tailor deep-link takes the first search's best. A CV is tailored for
-      // ONE job, and the first search is the one the user has been running.
-      tailorJobId: best[0]?.job_id ?? null,
+      bestJobs: railJobs,
+      // The tailor deep-link is a job on this list. A CV tailored to a company
+      // the column does not contain is the same contradiction as naming it here.
+      tailorJobId: railJobs[0]?.jobId ?? null,
     })
-  }, [scoreData, jobsData, score, tracks])
+  }, [scoreData, jobsData, score, tracks, feedQuery.data])
 
   const coreLoading = !settled || scoreQuery.isLoading || profileQuery.isLoading
 

@@ -42,12 +42,46 @@ export interface BestJobInput {
   jobId: string
   title: string
   company: string | null
-  /** Match strength 0–100. */
-  fit: number
+  /** Match strength 0–100. Null when the published card has no fit yet. */
+  fit: number | null
   /** The search that found it, in the user's own words. Absent for a
    *  single-search user, whose step keeps the generic "Best-fit job" eyebrow —
    *  naming a search that has no sibling explains nothing. */
   searchLabel?: string
+}
+
+/** A job the published feed is actually showing. */
+export interface PublishedJob {
+  jobId: string
+  title: string
+  company: string | null
+  fit: number | null
+}
+
+/**
+ * The rail may name a company only when that job is on the published feed.
+ *
+ * `null` means the feed has not loaded: name nothing, so a matches-stack job
+ * cannot flash ahead of the list. A pick that is not on the feed is dropped.
+ * When the feed has cards and none of the picks are among them, the step is
+ * the first card in judge order.
+ */
+export function jobsOnPublishedFeed(
+  picks: BestJobInput[],
+  published: PublishedJob[] | null,
+): BestJobInput[] {
+  if (published === null) return []
+  const ids = new Set(published.map((job) => job.jobId))
+  const kept = picks.filter((job) => ids.has(job.jobId))
+  if (kept.length > 0) return kept
+  const first = published[0]
+  if (!first) return []
+  return [{
+    jobId: first.jobId,
+    title: first.title,
+    company: first.company,
+    fit: first.fit,
+  }]
 }
 
 export interface NextStepsInput {
@@ -137,7 +171,9 @@ export function deriveNextBestSteps(input: NextStepsInput): NextBestStep[] {
         rank: 2 + i,
         eyebrow: best.searchLabel ?? "Best-fit job",
         title: `Apply to ${best.title}${at}`,
-        detail: `${best.fit}% fit — your strongest match right now.`,
+        detail: best.fit == null
+          ? "On the list Myro kept for you."
+          : `${best.fit}% fit. Your strongest match right now.`,
         // /collections directly, not /home. `/home` is a retired redirect stub
         // that forwards `?jobId=` here, so pointing at it cost every click an
         // extra client-side hop. The stub stays for bookmarks and old emails —
@@ -145,7 +181,7 @@ export function deriveNextBestSteps(input: NextStepsInput): NextBestStep[] {
         href: `/collections?jobId=${encodeURIComponent(best.jobId)}`,
         cta: "View job",
         short: best.company ? `Apply · ${best.company}` : "Apply to top match",
-        metric: `${best.fit}%`,
+        metric: best.fit == null ? undefined : `${best.fit}%`,
       })
     })
   } else {

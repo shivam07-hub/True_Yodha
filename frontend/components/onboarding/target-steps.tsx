@@ -252,7 +252,7 @@ export function LevelStep({
           />
           {yearsSource === "cv" && years != null ? (
             <span className="text-sm text-[var(--tm-text-muted)]">
-              Read from your CV — correct it if it is wrong.
+              Read from your CV. Correct it if it is wrong.
             </span>
           ) : null}
         </div>

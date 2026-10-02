@@ -48,18 +48,17 @@ def test_skill_lines_come_from_the_skipped_concerns() -> None:
     assert lines == ["SQL", "stakeholder updates", "a portfolio piece"]
 
 
-def test_the_notice_while_reading_is_the_count_and_not_the_cause() -> None:
+def test_the_notice_while_reading_is_not_the_count() -> None:
     text = notice(
-        reading=True, read=23, total=80, cleared=8, bound=False,
+        reading=True,
         cause="skills", skills=["SQL"], cv_replaced=False,
     )
-    assert text == "Read 23 of 80 jobs. 8 worth your time."
-    assert "SQL" not in (text or "")
+    assert text is None
 
 
 def test_a_finished_short_list_says_which_cut_was_larger() -> None:
     text = notice(
-        reading=False, read=200, total=200, cleared=8, bound=False,
+        reading=False,
         cause="skills", skills=["SQL", "a portfolio piece"], cv_replaced=False,
     )
     assert text == cause_line("skills", ["SQL", "a portfolio piece"])
@@ -67,12 +66,11 @@ def test_a_finished_short_list_says_which_cut_was_larger() -> None:
 
 def test_a_replaced_cv_is_named_while_the_new_one_is_read() -> None:
     text = notice(
-        reading=True, read=0, total=40, cleared=0, bound=False,
+        reading=True,
         cause=None, skills=[], cv_replaced=True,
     )
-    assert text is not None
-    assert text.startswith("These matches are for the CV you replaced.")
-    assert "Read 0 of 40 jobs" in text
+    assert text == "These matches are for the CV you replaced. Reading the one you saved."
+    assert "Read 0" not in (text or "")
 
 
 def test_a_card_that_omits_listing_time_does_not_validate() -> None:

@@ -179,6 +179,15 @@ test("the brain warm is deferred to J1 and lives outside the feed hook", () => {
   // how desktop and mobile drifted apart before.
   assert.match(desktop, /useFeedWarm\(/)
   assert.match(mobile, /useFeedWarm\(/)
+  assert.match(desktop, /warmAccepted/)
+  assert.match(warm, /acceptedFor === signature/)
+  const column = readFileSync(new URL("../components/market/market-jobs-column.tsx", import.meta.url), "utf8")
+  const judgment = readFileSync(new URL("../components/market/market-judgment.tsx", import.meta.url), "utf8")
+  assert.match(column, /warmAccepted/)
+  assert.doesNotMatch(column, /warming/)
+  assert.match(judgment, /Opening roles in your direction/)
+  assert.match(judgment, /cv_replaced/)
+  assert.doesNotMatch(judgment, /judgment\.reading \|\|/)
 })
 
 test("a live match run yields every J1/J2 Market fetch", () => {

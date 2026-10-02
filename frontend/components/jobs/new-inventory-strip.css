@@ -24,6 +24,20 @@
   border-color: var(--tm-interactive);
 }
 
+.tm-newinv-strip[data-quiet="true"] {
+  border-color: var(--tm-border-soft);
+  background: transparent;
+  color: var(--tm-text-muted);
+}
+.tm-newinv-strip[data-quiet="true"]:hover {
+  border-color: var(--tm-border);
+}
+.tm-newinv-strip[data-quiet="true"] .tm-newinv-count,
+.tm-newinv-strip[data-quiet="true"] .tm-newinv-copy,
+.tm-newinv-strip[data-quiet="true"] .tm-newinv-cta {
+  color: var(--tm-text-muted);
+}
+
 .tm-newinv-count {
   font-family: var(--tm-font-mono);
   font-size: var(--tm-fs-body);

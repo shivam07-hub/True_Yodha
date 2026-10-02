@@ -21,6 +21,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 
+import { WeaveLoom } from "@/components/cv/builder/mentor-thinking"
 import { StepActions, StepBack, StepRibbon } from "@/components/journey/journey-chrome"
 import { StickyOnboardingActionBar } from "@/components/onboarding/sticky-action-bar"
 import {
@@ -133,6 +134,7 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
   const [ninja, setNinja] = useState(() => (result.ninja?.ninja_name ?? "").toLowerCase())
   const [ninjaClaimed, setNinjaClaimed] = useState(() => Boolean(result.ninja?.claimed))
   const [busy, setBusy] = useState(false)
+  const [saveLine, setSaveLine] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   /**
@@ -251,6 +253,7 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
    * answered, and the screen must not argue.
    */
   const proposedRef = useRef(false)
+  const submitLock = useRef(false)
   useEffect(() => {
     if (proposedRef.current) return
     if (selected.length > 0) { proposedRef.current = true; return }
@@ -260,7 +263,12 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
     if (mayPropose(top)) setSelected([top])
   }, [suggested, selected.length])
   const listed = searching ? (searchedFamilies.data ?? []) : suggested
-  const families = [...selected, ...listed.filter((row) => !selected.some((p) => p.family === row.family))]
+  // A pick changes colour where it stands. Hoisting `selected` above `listed`
+  // made every click jump to the top. A family that is not in this list (a
+  // search hit after the box is cleared) still has to be visible, so it follows
+  // the list instead of leading it.
+  const inList = new Set(listed.map((row) => row.family))
+  const families = [...listed, ...selected.filter((row) => !inList.has(row.family))]
   const totalOpen = selected.reduce((sum, family) => sum + family.open_count, 0)
   const ninjaOk = ninjaClaimed || NAME_RE.test(ninja.trim())
   const canSubmit = selected.length > 0 && Boolean(seniority) && ninjaOk && !busy
@@ -320,7 +328,8 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
    * Emitted from `submit()` only — the one place the step can end on purpose.
    */
   async function submit() {
-    if (!canSubmit || !seniority) return
+    if (submitLock.current || !canSubmit || !seniority) return
+    submitLock.current = true
     setBusy(true); setError(null)
     // The target either reached the database or it did not, and four things
     // inside this `try` run AFTER it lands — the cache invalidation, the
@@ -339,8 +348,11 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
           emitJourneyPhase(token, "direction", "failed", { reasonCode: "ninja_name_invalid" })
           setError("Myro name: 3–32 characters, lowercase letters, numbers, dashes.")
           setBusy(false)
+          setSaveLine(null)
+          submitLock.current = false
           return
         }
+        setSaveLine("Claiming your Myro name.")
         const res = await usersApi.updateNinjaName(token, chosen)
         trackEvent("ninja_name_claimed", {
           choice: res.ninja_name === (result.ninja?.ninja_name ?? "").toLowerCase() ? "kept" : "edited",
@@ -349,6 +361,7 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
         setNinjaClaimed(true)
         setNinja(res.ninja_name)
       }
+      setSaveLine("Saving your direction.")
       await onboarding.saveTarget(token, {
         // The FAMILY, not `label`. What the person chose is the cluster, and
         // `target_role_titles` is what Settings chips, Practice and the score
@@ -388,6 +401,8 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
       router.replace("/market")
     } catch (reason) {
       setBusy(false)
+      setSaveLine(null)
+      submitLock.current = false
       const detail = reason instanceof Error ? reason.message : "Could not save your direction."
       // Only when nothing was written. Covers the two writes that can fail
       // before the target lands: claiming the Myro name, and saving the target
@@ -485,13 +500,16 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
           exactly the column's width. Padding inside `max-w-lg` made it 64px
           narrower than the cards above it. The gutter is the page token, the
           same one both hosts pad the column with. */}
-      <StickyOnboardingActionBar contentClassName="box-content max-w-lg px-[var(--tm-page-px)] pt-3">
+      <StickyOnboardingActionBar
+        contentClassName="box-content max-w-lg px-[var(--tm-page-px)] pt-3"
+        above={saveLine ? (
+          <div className="mx-auto box-content max-w-lg px-[var(--tm-page-px)] pb-1 pt-3">
+            <WeaveLoom align="inline" lines={[saveLine]} settled={false} />
+          </div>
+        ) : null}
+      >
         <StepActions
-          primaryLabel={
-            isLast
-              ? busy ? "Taking you to Market…" : "Go to Market"
-              : "Continue"
-          }
+          primaryLabel={isLast ? "Go to Market" : "Continue"}
           primaryDisabled={
             isLast
               ? !canSubmit
@@ -500,11 +518,14 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
           /* The block is stated, not implied by a dead button. A disabled
              control with no reason beside it is the state the user cannot
              act on. A failed save rides the same slot: above the button, on
-             the column's left edge, read before the next press. */
+             the column's left edge, read before the next press.
+             `canSubmit` is false while the save is in flight, and that used
+             to fall through to "Claim your Myro name" on a name already claimed. */
           note={
             error ? <span role="alert" className="text-[var(--tm-danger)]">{error}</span>
+            : saveLine ? null
             : isLast && !canSubmit
-              ? !selected.length ? "No role yet — Myro searches on the work."
+              ? !selected.length ? "No role yet. Myro searches on the work."
                 : !seniority ? "No level yet."
                   : "Claim your Myro name to finish."
               : step === "work" && selected.length === 0

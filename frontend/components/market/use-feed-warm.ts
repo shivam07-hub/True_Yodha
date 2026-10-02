@@ -48,6 +48,7 @@ export function useFeedWarm({
   const qc = useQueryClient()
   const yieldLane = useLaneYields()
   const [warming, setWarming] = useState(false)
+  const [acceptedFor, setAcceptedFor] = useState<string | null>(null)
   const [watching, setWatching] = useState(false)
   // Keys already accepted this mount. A yielded call is NOT recorded — ranking
   // owns the judgment lane, and a shed warm must retry after.
@@ -70,6 +71,7 @@ export function useFeedWarm({
         if (cancelled) return
         if (!res.pending) return
         attempted.current.add(signature)
+        setAcceptedFor(signature)
         const current = qc.getQueryData<JobFeedResponse>(queryKey)
         const reading = current?.judgment?.reading ?? false
         const ranked = current?.ranked_count ?? 0
@@ -118,5 +120,5 @@ export function useFeedWarm({
     },
   })
 
-  return { warming }
+  return { warming, accepted: acceptedFor === signature }
 }

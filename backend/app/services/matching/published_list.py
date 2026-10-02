@@ -61,15 +61,6 @@ def skill_lines(skipped: list[dict[str, Any]], *, limit: int = 5) -> list[str]:
     return seen
 
 
-def progress_line(read: int, total: int, cleared: int, *, bound: bool) -> str:
-    opened = (
-        f"the {total} most recently checked jobs that match your aspirations"
-        if bound
-        else f"{total} jobs"
-    )
-    return f"Read {read} of {opened}. {cleared} worth your time."
-
-
 def cause_line(cause: str, skills: list[str]) -> str:
     if cause == "skills" and skills:
         named = _join(skills)
@@ -85,20 +76,21 @@ def cause_line(cause: str, skills: list[str]) -> str:
 def notice(
     *,
     reading: bool,
-    read: int,
-    total: int,
-    cleared: int,
-    bound: bool,
     cause: str | None,
     skills: list[str],
     cv_replaced: bool,
 ) -> str | None:
+    """The one sentence, once the read has something to say.
+
+    While jobs are still being opened the count lives on `read` / `pending` /
+    `cleared` and the client draws it beside the loom. A sentence here used to
+    say "Read 0 of the 1000 most recently checked…", which named an unfinished
+    window as a finished judgment.
+    """
     parts: list[str] = []
     if cv_replaced:
         parts.append("These matches are for the CV you replaced. Reading the one you saved.")
-    if reading:
-        parts.append(progress_line(read, total, cleared, bound=bound))
-    elif cause and not cv_replaced:
+    if not reading and cause and not cv_replaced:
         parts.append(cause_line(cause, skills))
     text = " ".join(parts).strip()
     return text or None
@@ -112,8 +104,9 @@ def _join(items: list[str]) -> str:
     return f"{', '.join(items[:-1])}, and {items[-1]}"
 
 
-# How many aspiration-matched jobs one read will open. Hitting it is named
-# in the notice. It is not a silent membership cap.
+# How many aspiration-matched jobs one read will open. The cap is the
+# window the client counts. It is not a silent membership cap, and hitting
+# it is not worded as "most recently checked".
 ASPIRATION_READ = 1000
 
 
@@ -132,7 +125,6 @@ def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, A
     roles = list(direction.of(profile).families)
     countries = profile.get("target_location_countries") or None
     pool: list[str] = []
-    bound = False
     if roles and hasattr(repo, "get_candidate_job_ids_for_roles"):
         pool = [
             str(job_id) for job_id in (
@@ -143,7 +135,6 @@ def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, A
                 ) or []
             ) if job_id
         ]
-        bound = len(pool) >= ASPIRATION_READ
 
     stack = list(repo.get_user_match_stack(user_id) or [])
     current = [
@@ -180,18 +171,10 @@ def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, A
     read = sum(1 for job_id in pool if job_id in judged)
     pending = max(0, len(pool) - read)
     reading = pending > 0
-    cleared = len(visible) if not cv_replaced else len(admission.admitted(profile, [
-        row for row in current
-        if worth_showing(row.get("overall_score"), row.get("recommendation"))
-    ]))
     cause = None if reading or cv_replaced else larger_cut(len(pool), len(visible))
     skills = skill_lines(skipped) if cause == "skills" else []
     text = notice(
         reading=reading,
-        read=read,
-        total=len(pool),
-        cleared=cleared,
-        bound=bound,
         cause=cause,
         skills=skills,
         cv_replaced=cv_replaced,
@@ -205,6 +188,7 @@ def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, A
         "notice": text,
         "cause": cause,
         "skills": skills,
+        "cv_replaced": cv_replaced,
     }
 
 

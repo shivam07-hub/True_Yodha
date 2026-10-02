@@ -4,7 +4,7 @@ import type { Dispatch, SetStateAction } from "react"
 import { useRouter } from "next/navigation"
 import { Search, X } from "lucide-react"
 import type { JobFeedItem, JobPulse, MarketJudgment } from "@/lib/api"
-import { MarketJudgmentNote } from "./market-judgment"
+import { MarketJudgmentNote, AspirationRead } from "./market-judgment"
 import type { UseFollowCompany } from "@/lib/hooks/use-follow-company"
 import { formatCount } from "@/lib/format"
 import { AgentPicksBand } from "@/components/jobs/agent-picks-band"
@@ -44,6 +44,7 @@ export function MarketJobsColumn({
   openTailor,
   loading,
   judgment,
+  warmAccepted,
   visibleJobs,
   clearBrowse,
   total,
@@ -80,6 +81,8 @@ export function MarketJobsColumn({
   openTailor: (j: JobFeedItem, surface: "market" | "agent_pick") => void
   loading: boolean
   judgment: MarketJudgment | null
+  /** POST /jobs/feed/warm returned pending. Read lines wait for this. */
+  warmAccepted: boolean
   visibleJobs: JobFeedItem[]
   clearBrowse: () => void
   total: number
@@ -94,6 +97,7 @@ export function MarketJobsColumn({
   onStorySecondary: (s: FeedStory) => void
 }) {
   const router = useRouter()
+  const readingEmpty = !loading && Boolean(judgment?.reading) && visibleJobs.length === 0
 
   return (
     <>
@@ -140,13 +144,20 @@ export function MarketJobsColumn({
 
       <SetupNudge token={token} style={{ marginTop: 14 }} />
 
-      {!q && !skillFacet && !filters.roleFamily ? (
+      {!readingEmpty && !q && !skillFacet && !filters.roleFamily ? (
         <AgentPicksBand token={token} hasCv={hasCv} context="feed" onSave={onSave} onSkip={onSkip} openTailor={j => openTailor(j, "agent_pick")} />
       ) : null}
 
       <div style={{ marginTop: 8 }}>
         {loading ? (
           <FeedSkeleton summary />
+        ) : readingEmpty ? (
+          warmAccepted && judgment ? (
+            <>
+              <AspirationRead judgment={judgment} />
+              <MarketJudgmentNote judgment={judgment} />
+            </>
+          ) : null
         ) : visibleJobs.length === 0 && !judgment?.notice ? (
           <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/collections")} onClear={clearBrowse} onTellMyro={() => openRefreshGate("say")} />
         ) : (

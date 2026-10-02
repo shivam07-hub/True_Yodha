@@ -3975,6 +3975,8 @@ export interface MarketJudgment {
   notice: string | null
   cause: "skills" | "aspirations" | null
   skills: string[]
+  /** The cards on screen were judged against the CV this person replaced. */
+  cv_replaced?: boolean
 }
 
 /** GET /jobs/feed — jobs the judge scored as worth this person's time.

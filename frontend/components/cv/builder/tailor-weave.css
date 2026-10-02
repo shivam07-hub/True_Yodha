@@ -141,8 +141,8 @@
 .tw-int-actions { display: flex; gap: 10px; align-items: center; }
 
 /* ── act: loom (the signature) ─────────────────────────────────────────── */
-/* The loom glyph + narrated-line rules now live in cv-builder.css (shared with
-   BulletRewrite/BulletMerge). This full-stage act just gives them more room. */
+/* The loom glyph and narrated-line rules live in mentor-thinking.css, imported
+   by the component. This full-stage act just gives them more room. */
 .tw-loom { min-height: 300px; }
 
 /* ── act: review (per-role accept) ─────────────────────────────────────── */

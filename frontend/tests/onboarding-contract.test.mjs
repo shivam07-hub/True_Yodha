@@ -133,6 +133,10 @@ test("accepted upload and target are persisted before Market navigation", () => 
     assert.match(steps, new RegExp(`title="${title}"`), `${title} step is missing`)
   }
   assert.match(target, /Go to Market/)
+  assert.doesNotMatch(target, /Taking you to Market/)
+  assert.doesNotMatch(target, /warmFeed/)
+  assert.match(target, /Saving your direction/)
+  assert.match(target, /\.\.\.listed, \.\.\.selected\.filter/)
   assert.match(target, /updateNinjaName/)
   // The name is claimed on the last step; the write still happens here, once.
   assert.match(read("components/onboarding/target-steps.tsx"), /Your Myro name/)

@@ -18,6 +18,8 @@
 
 import { useEffect, useState } from "react"
 
+import "./mentor-thinking.css"
+
 export function MentorThinking({ size = 44 }: { size?: number }) {
   return (
     <span className="tw-think" style={{ width: size, height: size }} role="img" aria-label="Mentor is working">
@@ -41,9 +43,11 @@ interface WeaveLoomProps {
   settled: boolean
   /** ms between line advances while in flight. */
   cadence?: number
+  /** `stage` centres a full wait. `inline` sits on the column's left edge. */
+  align?: "stage" | "inline"
 }
 
-export function WeaveLoom({ lines, settled, cadence = 1500 }: WeaveLoomProps) {
+export function WeaveLoom({ lines, settled, cadence = 1500, align = "stage" }: WeaveLoomProps) {
   const [reached, setReached] = useState(0)
 
   useEffect(() => {
@@ -54,7 +58,7 @@ export function WeaveLoom({ lines, settled, cadence = 1500 }: WeaveLoomProps) {
   }, [reached, settled, lines.length, cadence])
 
   return (
-    <div className="tw-loom" role="status" aria-live="polite">
+    <div className={align === "inline" ? "tw-loom tw-loom-inline" : "tw-loom"} role="status" aria-live="polite">
       <MentorThinking size={48} />
       <ul className="tw-loom-lines">
         {lines.map((line, i) => {
