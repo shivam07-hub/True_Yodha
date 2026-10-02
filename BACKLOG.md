@@ -19,15 +19,16 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 |---|---|---|---|---|
 | 1 | Find the job | **#55** a returning user's list never vanishes | [ARCHITECTURE_RETURN_LOOP.md](ARCHITECTURE_RETURN_LOOP.md) · decisions taken below | S0 measure → S1 Verdict Currency |
 | 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read the funnel on prod after the next merge |
-| 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | spec owed | migration `golden_list_since` |
-| 4 | Front door | **#57** "Which job do you want?" after upload | spec owed | spec |
-| 5 | Tailor + download | **#58** CV Tier A | spec owed | spec |
+| 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) · Cursor | S1 migration + `golden_list.py` |
+| 4 | Front door | **#57** "Which job do you want?" after upload · partner SSO lands on the upload (22% of partner people upload vs 67% direct) | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor | S0 partner landing |
+| 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor | S1 blank certs |
 | 6 | Pay | **#56** the ₹199 Apply Pack | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Cursor | S1 settlement |
 | — | Upload + direction | U1–U3 (QA list) · #46 S6 · #41 speed | below | — |
 | — | Prepare | #45 evidence bank · CS-12 | below | grill first |
 
 Specs Cursor builds from, each slice its own commit with six gates green:
-RETURN_LOOP (#55) · PAYMENTS (#56) ·
+RETURN_LOOP (#55) · PAYMENTS (#56) · FRONT_DOOR (#57) · CV_TIER_A (#58) ·
+GOLDEN_DIGEST (#59) ·
 [ARCHITECTURE_LISTING_TIME.md](ARCHITECTURE_LISTING_TIME.md) (steps 1–2 done:
 de-seed `f7dd4735`, `listing_time.py`; verify 3–6 in code) ·
 [ARCHITECTURE_CONTRACTS_BY_TYPE.md](ARCHITECTURE_CONTRACTS_BY_TYPE.md) (make
@@ -152,7 +153,7 @@ detection. QA check **A1** below: Apply opens the company's own posting.
 
 ## 3 · REPEAT
 
-**#59 Golden-list digest (Shivam, 2026-09-30) — spec owed.** The golden list IS
+**#59 Golden-list digest (Shivam, 2026-09-30) — [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md).** The golden list IS
 the instant-seeker list: one column, `user_profiles.golden_list_since timestamptz`
 (empty = not on it). Shivam sends names; an agent matches, Shivam confirms, the
 agent stamps. The digest goes only to active members: first "you tailored a CV
@@ -163,7 +164,7 @@ for X — apply", then new Apply-grade jobs with a Tailor CV link · at most one
 
 ---
 
-## 4 · FRONT DOOR — #57 (spec owed)
+## 4 · FRONT DOOR — #57 · [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md)
 
 After upload, one screen: **"Which job do you want?"** → paste a link or JD (the
 existing import, `/jobs/import/*`, today only on Collections desktop) · save from
@@ -178,7 +179,7 @@ CV for both. QA check **U4** is its acceptance.
 
 ---
 
-## 5 · TAILOR + DOWNLOAD — #58 CV Tier A (spec owed)
+## 5 · TAILOR + DOWNLOAD — #58 · [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md)
 
 **Tier A, now (Shivam, 2026-09-30):** #49 page-fill meter gates the download ·
 #52 empty certs heading · #50 add a role or project on desktop, and mobile edits
@@ -493,7 +494,6 @@ Tracker (3) · no problem or not actionable (~25).
 
 ## AGENT CHORES — approved, small
 
-- `user_profiles.golden_list_since timestamptz` + a partial index (#59).
 - Drop `user_profiles.last_active_at` — zero code references (Shivam: yes).
 - Delete `backend/scripts/recompute_banded_scores.py` — rescoring every user while
   they are away is a backfill (Shivam: kill).
