@@ -6,6 +6,685 @@
 
 ---
 
+## 2026-10-02 — BACKLOG rebuilt in loop order (CEO grill, 2026-09-30)
+
+Shivam's frame: *"Myro is a CV-building machine for applying to the jobs you want.
+How fast and how easily they can do it is the entire game."* The decisions:
+
+- **D1** North star = qualified applications sent (judge ≥3.5). Cut rule: an item
+  stays open only if it fixes a broken or leaking loop step or brings a user back.
+- **D2** Order = the loop map, broken first. The scraper is its own repo (Shivam).
+- **D3** `Develop` → `main` daily when green, at once for a core-loop fix; closed =
+  on `main` + one real user hit it.
+- **D4** Supabase Pro + Small compute (Shivam).
+- **D5** #55: stale verdicts shown without a label, visible rows re-rated first,
+  one "what changed since {day}" line.
+- **D6** Front door "Which job do you want?" after upload; direction after the
+  first tailored CV; target <10 min, ≤5 clicks.
+- **D7** CV quality Tier A now, Tier B after the front-door numbers.
+- **D8** The golden list is the instant-seeker list — one column,
+  `user_profiles.golden_list_since`; the digest goes only to it.
+- **D9** The Shivam-only pile, sorted. **Done:** stamp de-seed (`f7dd4735`, 26,521
+  rows); the #34 S6 `anon_cv_download_events` migration (the table exists).
+  **Killed:** `recompute_banded_scores.py --apply` (a backfill); the measured
+  window to drop five interim trigram indexes (they carry live scans; they stay).
+  **Parked:** TWA / APK.
+- **D10** One one-time ₹199 Apply Pack (ENG2) replaces the ₹99 coin pack and the
+  ₹199/month subscription — #56 `ARCHITECTURE_PAYMENTS.md`.
+- **D11** Baggage sweep: delete the recruiter/referral workspaces and comments +
+  private notes; Partner SSO and the SEO pages keep running; everything below
+  under *Parked* left the working backlog. **Myrology stays** — a second product
+  line, exempt from the cut rule.
+- **D12** The four stuck ₹499 Myrology orders were Shivam's own account; the 5
+  real opt-ins get the fixed page after #56.
+- **D13** Myro's own accounts flagged `is_test_account` (7). Recount: real
+  revenue ₹0; 3 people, 5 applications.
+- **D14** The beta cohort ledger closed (entry below, 2026-09-30).
+
+### Parked — outside the CV machine (D11), one line each, full text below
+
+- 7c — `cv_points` holds two pointer shapes; inert, tidiness, not urgent.
+- Authed search-intent signal — left as is (Shivam, 2026-09-25).
+- Tier 4 — #39 per-skill percentile · #32 publish portability · #18 PR2 teal
+  field · semantic retrieval slices 2–3 (scraper repo) · paid partner plans.
+- #40 newsletter layout laws — Shivam's content calendar.
+- #32 design-system cascade + chip standardization.
+- #27 landing OG image · #18 dashboard `/home` loading · #19 B2B institutions
+  steps 2–3 (the landing stays) · #20 Enterprise Polish Sprint (PR-K/B/E/F/EMPTY,
+  brand-token audit, landing warmth) · #10 Skill Intelligence redesign + v2/v3.
+- #15 job card lifecycle.
+- Integrator ideas — 7-day tracker branch, Practice as router, referral intel
+  500 XP unlock, company-report split, Myrology report coverage and tiers.
+- Native mobile — TWA v1.5 and Expo v2, with `packages/api-client`, `/v1`,
+  `<ResponsiveStack>`.
+- From the old standing list: newsletter Issue 017 OG image and April dashboards,
+  Ghost Index newsletter issue → content calendar · junk job titles → scraper
+  repo · B2B recruiter/referral phase 2 → parked.
+
+### Closed or superseded — moved verbatim
+
+## PRIORITY ORDER
+
+Derived from the goal in [CLAUDE.md](CLAUDE.md), not from the numbering below.
+Item numbers are historical and carry no priority meaning.
+
+### Stage 1 — understand the platform, download the CV (NOW)
+
+| Work | Where | State |
+|---|---|---|
+| Ship `Develop` → `main` | Shivam only | prod blanks after upload today |
+| Prove the score persists end-to-end | needs one real signup | fix shipped, never run |
+| Upload + download reliability on weak networks | #42, beta ledger | open |
+| Real-device authed QA on a phone | #42 | never done · APK blocker |
+| Read capacity under concurrent load | #16 | software closed; paid DB capacity gate blocks launch |
+| CV rewrite destroys sections the schema can't hold | #47 = #48 | MEASURED: 5 users · path idle since 2026-08-05 · root cause is the closed schema |
+| Download gated by a page-fill meter that is wrong | #49 | blocks CVs that fit; passes CVs that spill |
+| Direction opens blank where it could open answered | #46 S6 | 19% of those who reach it leave with no target; 5 of 27 measured |
+
+### Stage 2 — job matching through Myro Ops (NEXT)
+
+| Work | Where | State |
+|---|---|---|
+| **Job ingestion stopped 2026-09-09** | scraper repo `CLAUDE.md` → PENDING WORK 00 | **Heartbeat, 2026-09-27: `max(job_source_runs.started_at)` = 2026-09-09, 438h — 2.6× the 168h `stalled` threshold.** Not 09-17: the only row since is ONE job with `ingestion_source='extension'` and a null `last_source_run_id` — a user saving through the extension, the exact masking `ingestion_health` warns about (**never measure this with `jobs.ingested_at`**). 09-09 was a 23,140-row bulk load, not a rate. Corpus FROZEN, not shrinking. `dead_man:job_ingestion` has been **open since 09-23, firing daily** — the alarm works; nobody is home to hear it. Structural fix below; the scraper bug is Shivam's |
+| Event-driven matching slices 3-5 | #36 | slices 1-2 shipped |
+| Ranked job-skill importance | #37 | blocked on scraper repo |
+| Semantic retrieval slices 2-3 | Tier 4 | blocked on scraper repo |
+
+### Stage 3 — tailor a CV per job (AFTER)
+
+Engine built. This stage is about making tailoring the obvious next step after a
+match, not new machinery.
+
+### Revenue-gated — the FIRST thing when the platform earns (Shivam, 2026-09-27)
+
+| Work | Why it waits, and why it goes first when money starts |
+|---|---|
+| **Move job ingestion off a laptop and onto scheduled infrastructure** — Railway cron beside the verifier, which is reliable *precisely because* it runs there | Ingestion has **never** been scheduled. Seven run-days in 120, gaps of **32 · 19 · 5 · 2 · 1 · 1 · 18(open)** — it runs when Shivam runs it, from a local Codex automation. Every gap maps to him being busy, so fixing the scraper's own bug changes nothing structural: the next 32-day gap arrives the next time he is heads-down. Measured cost on 2026-09-27: **47,462 active jobs, ZERO younger than 7 days, mean age 42 days, 35% over 60 days, and only 8.4% re-verified in the last 14.** The corpus is not shrinking — it is aging, invisibly, and the core asset of a job product is its freshness. Gated on revenue because it is paid infrastructure, like #16's DB capacity; unblocked the day there is money to pay for it, and first in line then |
+
+### Standing obligations — not a stage
+
+| Work | State |
+|---|---|
+| Authed QA of the CV machine | checklist below — run with the QA account after the baggage cut, 375px + desktop, light + dark |
+| ₹199 Apply Pack | superseded the monthly engagement 2026-09-30 — build is #56 [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) |
+| Brand token audit · landing visual warmth | #20, approved |
+| `qa:mobile` into CI | needs playwright + QA creds as repo secrets |
+| Newsletter: Issue 017 OG image · regenerate April dashboards | open |
+| Junk job titles at source | belongs in `firecrawl_Supabase`, not here |
+| B2B recruiter/referral phase 2 | needs a PRD first — not frontend polish |
+| Ghost Job Index: newsletter issue + OG image | index SHIPPED `4d6bb705`→`fa267ce2`; Shivam chose page-first, so distribution is deliberately deferred, not forgotten |
+
+**Decision-gated, do not pick up:** Myrology pricing · legal (#17, counsel) ·
+per-skill percentile (#39) · publish portability (#32) · teal-field loading (#18 PR2).
+
+## OPEN WORK — VERIFIED 80/20 TRACKER (audited 2026-07-20 · closed items cleared 2026-09-15)
+
+> Audit method: every claim below was checked against `git`/live state, NOT copied from memory or the backlog prose. Re-audit the same way before trusting it — entries rot ([[feedback_verify_backlog_stale]]).
+
+> **2026-08-13 status correction:** Career Ops × verifier parity remains CLOSED
+> in backlog #14. Production read capacity #16's software slices are also
+> CLOSED on `Develop`; its paid-infrastructure load gate remains the launch
+> blocker. Backlog #15 serves active source-grounded, explained, structurally
+> valid questions without a human-review gate. Learning progress remains
+> isolated from CV-derived score and matching truth. A cleared level can enter
+> the Main CV only through the user's explicit, reviewable Skills Refresh or
+> evidence-backed Mentor action; no assessment silently rewrites CV truth.
+
+### Scope rule (locked 2026-07-20)
+
+**An agent's work is DONE when it is verified green and pushed to `Develop` with only its own files staged.** Shivam owns the `main` merge; Railway auto-deploys dev from Develop, so the push IS the dev deploy. **Never write "OWED: main merge" or "OWED: deploy dev backend"** — they are not agent-actionable and they poisoned the tracker (see below). OWED lists should carry only: migrations for Shivam to apply, env vars/provisioning, QA needing a real authed session, content to author, or genuinely-unbuilt slices.
+
+**Cleared 2026-09-15:** twenty-one settled items removed to
+[ARCHIVE.md](ARCHIVE.md); #12 and #13 trimmed from 196 lines to their open
+residual. This file holds open work. Closed work leaves.
+
+### TIER 1 — do next (high value ÷ low effort)
+
+- **Notice digest, 2026-09-28 — every open code cause fixed and on `main` (PR #334, prod deployed 11:50 IST).** Each fix carries a `NOTICE_CAUSE_KEY` proof; the 02:00 UTC closer settles them from `origin/main`. Nothing fixed has fired since the deploy.
+  - **Decided with Shivam, 2026-09-28:** mis-paid 200-coin refund (job `6d859a43`) stands — coins are free grants only, one instance, bug fixed (`467d6d97`); not worth time next to the core loop. Thin-ledger migration retired, never applied (`29cf68bd`): its delete would have erased the rows the Ghost Index read. Ghost Index live side fixed (`d8fc9ea8`): 11,091 → 19,000 live on the next 20:40 UTC refresh. Deploy order: CLAUDE.md rule + boot schema probe at `/health/ready` (`ea165951`; dev answers `ready`).
+  - **Deploy guard (Shivam: yes, 2026-09-28):** `mirror-backend-dev` has `healthcheckPath=/health/ready` **and `PORT=8000`**. ⚠️ Without `PORT` the guard failed every dev deploy for 14h (2026-09-28 07:09 → 21:35 UTC; `ea288f54` … `2c43f0e9` never went live, dev sat on `56a7e8e7`): Railway probes the port it injects, the Dockerfile binds a fixed 8000, the domain routes to 8000, so the app boots clean and the probe reads "service unavailable". The "proof" redeploy `83eaae23` reused the old config and never ran the check. First real pass: `96ee7c6d`. **OWED right after the next Develop → `main` merge that contains `ea165951`, in this order:** confirm `curl https://api.himyro.com/health/ready` answers `ready`; `railway variables -s mirror-backend-prod --set PORT=8000`; wait for that deploy to go green; then
+    `railway api 'mutation($s: String!, $e: String!) { serviceInstanceUpdate(serviceId: $s, environmentId: $e, input: { healthcheckPath: "/health/ready" }) }' --raw-var s=6f9d873b-0efb-4b30-acc6-dfcfc35d44f0 --raw-var e=f6a22e25-8218-48be-8d89-d380dfbada25` and read the build log for `Healthcheck succeeded!` on a FRESH deploy (`railway environment edit --service-config` reports "No changes" for this key; the API works). Never set the path without the port.
+  - **Still open, not agent code:** `dead_man:job_ingestion` (scraper, Stage 2 row above; it also freezes the Ghost Index feed side since 09-09) · `capacity_503` / `slow_200:capacity_queue` (#16 paid gate) · `slow_200:reads_over_budget` (latency ledger, below).
+  - **Measured, not built:** 2 of 426 baselines have no CV layout; a re-upload heals them.
+
+3. **#16 production read latency — SOFTWARE CLOSED 2026-08-13; PAID CAPACITY GATE BLOCKS LAUNCH.** Original report: Rishabh Guha (`6b624e2e-…`), "credentials not shown after login", 20 Jul ~18:41 IST. Not auth, not data — every authed call returned 200, they just took ~5,200–5,900ms together. **The old diagnosis on this line ("blocked AnyIO/Supabase connection capacity, not compute… measure the pooler ceiling") was wrong and cost follow-up sessions.**
+
+   The code/DB closeout is now complete: verifier claims 3,210ms → 28.6ms;
+   the feed plan 8,550ms → 224ms; full descriptions no longer ride the feed;
+   the seven current-user context reads are one RPC; shared caches single-flight;
+   and `/market` J0 is `/users/me` + `/jobs/feed`, with feed-state, matches,
+   applications, notifications and analytics deferred until intent/idle. The
+   canonical evidence and exact acceptance gate are in
+   `ARCHITECTURE_READ_PATH.md`.
+
+   **External gate:** the shared Supabase organization is Free/Nano. The DB is
+   1,118MB (over Nano's 500MB recommended size), `shared_buffers` is 224MB and
+   PostgREST exposes 11 sessions. Warm `/jobs/feed` meets the locked backend
+   target at 477ms p95, but 10 simultaneous Market arrivals (20 reads) measure
+   2,161ms backend p95 with zero errors. Upgrade to paid compute (Small minimum),
+   rerun `market_arrival`, and require backend p95 <500ms with zero failures.
+
+   The actual mechanism, and it explains the "**concurrent company-browsing burst**" detail exactly: `shared_buffers` is 224MB, the `jobs` table is 522MB. Every company page ran `company_name ILIKE` → **sequential scan of all 62,225 rows** → the whole buffer cache evicted → the ~20 other in-flight endpoints then read from disk and finished slow *together*. That co-timing was the symptom, never the cause.
+
+   Why the ILIKE seq-scanned: `idx_jobs_company_name_trgm` is partial on `company_name IS NOT NULL AND btrim(company_name) <> ''`, and the planner can only use a partial index when the query proves its predicate. `ILIKE` proves NOT NULL but never the `btrim`. The index existed for months and was never once chosen.
+
+   **Fixed (both live on prod's DB, no deploy needed for the index):**
+   - non-partial trigram index — `14,821ms → 19.6ms` on the identical query; live `/companies/{slug}` `5,552ms` + an `8,017ms` 503 → **310–410ms steady**. `database/migrations/20260806_jobs_company_name_trgm_usable.sql`
+   - `/jobs/companies/indexable` paged 11,208 rows in 12 OFFSET round trips to count 185 — measured `7,081ms` on prod; now one GROUP BY RPC. `database/migrations/20260806b_indexable_companies_rpc.sql` (code on `Develop`, reaches prod on the next `main` merge)
+
+   **Closed:** `job-listing-verifier` was the biggest shared-DB consumer.
+   Constant-time interest bookkeeping plus schedule read models reduced
+   `claim_verify_targets(25)` from 3,210ms/14,645 buffers to 28.6ms, and
+   `count_verify_due` to 5.6ms.
+
+   **Two reading rules this cost:** rank `pg_stat_statements` by `total_exec_time`, not by what looks slow in the logs. And `max_ms ≈ 7,9xx` does not mean "took 8s" — it means the `authenticator` role's 8s `statement_timeout` killed the query mid-scan. That is what the `/companies` 500s were.
+
+3b. **✅ CLOSED 2026-08-13 — concurrency architecture.** The app-layer defects
+that amplified database pressure are fixed; the remaining failed gate is the
+measured Free/Nano database ceiling, not unfinished application work.
+
+   - **`ReadCapacityLimiter` caps the whole process at 12 concurrent PostgREST GETs** (`backend/app/services/read_capacity.py`, `supabase_read_max_inflight=12`, 250ms queue → 503). When queries take seconds those 12 slots stay occupied and everyone else gets a 503. This is why `/public/stats` returned at **exactly 1004, 1004, 1004, 1004, 1003ms** — five requests released from one queue together — and it is the source of the `/home/bootstrap` and `/scores/map` 503s in the alert mails. **100s of concurrent users is arithmetically impossible against a 12-slot semaphore.**
+   - **Every shared cache is a per-process dict with no single-flight** (`_indexable_companies_cache`, `_pulse_cache`, `_analytics_cache`, `_search_cache`, `/public/stats`). On TTL expiry every concurrent request misses at once and all recompute. It also means **adding replicas makes things worse** — each new process is another cold cache and another stampede.
+   - `run_concurrently` builds a **fresh `ThreadPoolExecutor` per call** — unbounded thread creation under load.
+
+   **Governing principle: public read paths must not touch the `jobs` table on the request path.** `/public/stats` already proves it (snapshot-backed, 1.2ms). Ordered plan — the order is load-bearing:
+   1. ✅ **DONE** — real search index for `/jobs/search/global` (see item 3c).
+   2. ✅ `/jobs/companies/pulse` uses the shared stale-capable cache.
+   3. ✅ Shared caches have single-flight cold fills and stale fallback.
+   4. ✅ The read limiter is 40 and the shared HTTP transport is bounded to it.
+   5. ✅ Re-measured after query and journey fixes. Nano still fails the
+      concurrent-arrival acceptance gate, so compute is now the correct next
+      lever rather than a mask for unfinished software.
+
+3c. **✅ Global search fixed, and it IS on prod — `cd777acb` is an ancestor of `origin/main` (verified 2026-09-15).** `/jobs/search/global` returned 503 for ordinary words (`engineer`, `manager`) because a five-column `ILIKE` OR seq-scanned 62,225 rows and hit the 8s timeout. Cost tracked how *rare* the user's word was. Replaced with `job_search_index` (materialized view of the five search fields concatenated; the same concatenation `_global_search_rank` already ranks against) + the `search_jobs_global` RPC. Measured: `engineer` 4,284ms → 177ms, `quantum` 12,415ms → 22ms; live dev endpoint 210–1,204ms across every term shape, no 503s. Migrations `20260807_job_search_index.sql` + `20260807a_*_interim.sql`; code `cd777acb`.
+   **⚠️ The drop-list on this line was WRONG, and acting on it would have removed live indexes.** It named four interim per-column trigram indexes as serving only the old query. `pg_stat_user_indexes` on prod (stats never reset, so these are lifetime counts) says otherwise: `idx_jobs_job_title_trgm_all` **38** scans, `_location_city_` **65**, `_location_country_` **31**, `_role_domain_` **50**. Non-zero is not proof they are still needed — the counters cannot separate pre-merge from post-merge use — but it IS proof the claim was never measured.
+   **The drop is Shivam's call, and it needs a measured window first** (destructive; 22MB + 8MB + 5.7MB + 10MB back on a Nano instance whose capacity is #16's launch blocker, so it is worth doing right). Method: snapshot `idx_scan` for those four plus `idx_jobs_job_title_trgm` (**1** scan, 22MB, built on `coalesce(...)` not the column) and `idx_jobs_company_name_trgm` (**6**, 10MB, partial predicate the planner cannot prove), re-read in a week, and drop only what did not move. Baseline taken 2026-09-15; the two genuine zeroes today are `idx_jobs_job_content_hash` (5.2MB) and `idx_jobs_has_summary` (1.4MB).
+3d. **#16's instruments, audited 2026-09-24 — two of three were broken, and the 15s ceiling is OURS.** Full numbers in `ARCHITECTURE_READ_PATH.md` §19; do not re-derive them.
+
+    **The ~15s ceiling is `frontend/lib/api.ts:63`, `REQUEST_TIMEOUT_MS = 15_000`.** Railway's p95 clusters at 14,971–15,006ms under status **499 — client closed request**. The server never timed out; the browser aborted at 15s and hung up, and the proxy recorded the abort as the response time. So the figure in §19.1 is a *ceiling*, exactly as playbook Rule 2 says, and every one of those is a user who saw a failure while the backend kept working. LLM endpoints already opt into 60s (`LLM_REQUEST_TIMEOUT_MS`); the 15s default is what every ordinary read gets. **A second, separate ceiling sits at exactly 30,000ms and is NOT identified** — it is not a doubling of the first (the retry at `api.ts:191` fires on 401, not on timeout).
+
+    **Do not build a per-route latency table.** Railway's `http-response-time` already returns p50/p90/p95/p99 per path over 7 days, free, at the edge (project `clever-embrace`, service `mirror-backend-prod`). A table would be a second instrument answering the first one's question, on the compute-constrained DB that IS this item's launch blocker, by writing to the read path it measures. Considered and rejected 2026-09-24.
+
+    **Measured, 168h, prod:** p50 48–548ms · **p95 1,869–14,993ms** against a p95 < 500ms contract. `/users/me` alone: p50 345–642ms, **p95 2,750–4,202ms** — it is on every authed page, and §16 had it at mean 1,690ms, so the percentile is worse than the mean implied. **That is the next latency target**, and it is a better one than another capacity lever because it is one route.
+
+    **Shipped alongside (`82724e84`, `d454a109`):** `route.latency` bucket COUNTS per route template in the log (server time; counts because percentiles cannot be summed across processes) and `RoutePerfProbe` (real-user time, root layout so `/onboarding` is covered, authed `fetch(keepalive)`, carries `network_type`). `route_perf_events` had **zero rows ever** — nothing called the hook, `sendBeacon` cannot carry the Authorization header the endpoint requires, and `ttfa_ms` measured time since page load rather than since the route change. ~10% of uploaders are on 3G/2G, where a 300ms response is not a 300ms wait. **Neither instrument is verified against live traffic yet** — check `grep "metric route.latency"` and `select count(*) from route_perf_events` after the next deploy.
+
+    **Still open here:** `signed-url` has 426 `started` events and **221 with no terminal outcome** — the same hole `direction` had before `b5275528`. It is emitted from `uploadCV` in `frontend/lib/api.ts`.
+
+### TIER 2 — bounded, meaningful
+
+7. **#33 → superseded by #56 (2026-09-30, Shivam).** The monthly subscription is retired with no live plans; the one-time ₹199 Apply Pack replaces it and the ₹99 coin pack. Spec and Shivam's checklist: [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) §7. The LinkedIn door `/job-switch-plan?utm_source=linkedin_services` survives as a redirect to `/apply-pack`.
+
+7b. **✅ CLOSED 2026-09-18 — the tailor's reword now actually reaches the reservoir.**
+    The diagnosis was right and the evidence was worse than the note claimed:
+    `source="tailor"` had written **zero** rows in the life of the feature, and
+    `source="restructure"` — the same positional-anchor bug in `skill_edit.py` —
+    stopped at 28 rows on 2026-07-12, the day the last positional point was
+    current. Both callers had to GUESS an anchor that matched exactly or the
+    write silently did nothing.
+    Fixed by deleting the guess: `append_phrasing` no longer takes an anchor. It
+    finds the point by its TEXT and the new phrasing inherits the anchor that row
+    already carries, so it works for the live `story:{id}` shape and the frozen
+    positional one alike. Both callers lost their `_SECTION_TO_LIST` dance.
+    Held by `test_cv_job_draft_phrasing.py`.
+
+7d. **✅ CLOSED 2026-09-25 `30194e50` — the surface now says when no search has
+    run for your direction.** `stale_direction` is the sixth `MatchHealth` state
+    and is checked before rows, because `get_user_match_stack` is source-blind
+    (warmer and brain-on-open write `user_job_matches` too). It reaches the user
+    through `users.me.match_run_outstanding` — the profile read every authed page
+    already makes — and NOT through `/jobs/matches`, where a read for it is a new
+    round trip that `test_read_contract` refuses. The free re-vet accepts it.
+
+7h. **CLOSED 2026-09-25. The CV evidence rule is the precondition of the write.**
+    `rows_for_user_skills_write` runs before every `user_skills` insert the
+    product can reach (score, `confirm_cv_skills`'s only caller, overrides,
+    diary, and the explicit-skill repair script). A parenthetical token no
+    longer names the whole skill, and a match cannot cross a line onto a
+    heading or sit on a degree line. Existing rows come off on the next CV
+    read via `forward_pass.drop_stray_cv_skills` — not a backfill.
+    What it closed: `79908258` built
+    `cv_skill_evidence.apply_cv_evidence_rules` and called it from two lines
+    (`cv_parser.py:399-401`, `:470`). Every writer of `user_skills` is
+    downstream and uncovered: `scoring/orchestrator.py:341`,
+    `repositories/scores.py:445`, SQL `confirm_cv_skills`
+    (`20260720010000`), `skill_overrides.py:77`, `repositories/diary.py:150`,
+    and `scripts/backfill_cv_explicit_skills.py:83`, which re-mints EXISTING
+    rows as `legacy_confirmed` straight past the guard. Two measured holes in
+    the rule itself: `cv_skill_evidence.py:131` accepts a single token from a
+    parenthetical (so "NLP audit" satisfies "Natural Language Processing
+    (NLP)"), and `cv_explicit_skills.py:124-137` tokenises line-blind, so a
+    match straddles a body word and a section heading ("…VAS business" +
+    "EDUCATION" → the skill "Business Education"). Against the five false skills
+    measured on a real CV, the guard rejects 2.
+    Blast radius one bad row already has: Myro Score domains and gaps, the
+    Direction family ranking and the `mayPropose` pre-tick
+    (`target-confirm.tsx:70`), `candidates_for_user`'s overlap, every prep
+    ladder, and `routers/cv/skills_refresh.py`, which offers to write the false
+    skill onto the user's CV. Forward-only — existing rows stand until that user
+    re-uploads (see `forward_pass.drop_stray_cv_skills` for the pattern).
+    Narrow prior entry: "CV PARSING — SHORT-TOKEN FALSE SKILLS" below; this is
+    the seam version of it, and closing 7h closes that too.
+
+### TIER 3 — needs a decision or a grill BEFORE code
+
+**Level: the stated range wins everywhere — LOCKED 2026-09-25 (Shivam). Built.**
+`job_is_eligible` admits by `stated_range_admits`, the same predicate as
+`candidates_for_user`. The seniority tag is consulted only where the employer
+states nothing. Pinned by `backend/tests/test_stated_level.py`. The verdict
+grade is still `seniority_fit`: a senior-tagged posting whose range fits can
+be matched and still graded `incompatible`. Do not "fix" that by having
+retrieval call the Python function.
+
+8. **#37 ranked job-skill importance** — `/grill-me` first (ordinal vs weight vs 3-tier; extension-only vs whole matcher; sister-repo scraper coordination).
+9. **#36 event-driven matching — Slices 2–5** (notifications inbox/bell → brain-everywhere read audit → Agent Picks auto-gen → "want more" coin expansion). Slice 1 shipped. **✅ Slice 2 VERIFIED ALREADY SHIPPED 2026-07-24** (stale backlog — [[feedback_verify_backlog_stale]]): `NotificationsRepository` + `record_fresh_matches` (debounced, wired into the standardized `run_match` pipeline) + `routers/notifications.py` + `<NotificationBell>` mounted in `authed-top-strip.tsx`, all live on **both Develop and main** (`f76e9e86`/`2115d864`/`519bc677`, none from this session). 11/11 backend tests green. **Remaining: Slices 3 (brain-everywhere read audit) → 4 (Agent Picks auto-gen) → 5 ("want more" coin expansion).** Next agent: confirm which slice to pick up before building — don't assume 3 is next without checking, this same backlog note was already wrong once today.
+10. **#20 leftovers** — ✅ ALL DECISIONS CLOSED 2026-07-24. PR-EMPTY shipped · PR-COACHMARKS DROPPED · PR-SIGNUP-REDESIGN DROPPED (ND14) · **PR-REFERRAL-V1 ✅ ALSO ALREADY SHIPPED** (verified in code 2026-08-04: `frontend/lib/referral.ts` + `user_provisioning.credit_referrer_for_signup` → `reward_coins`; the "build the 3 approved items" line below was itself stale) · PR-BRAND-TOKEN-AUDIT APPROVED-build · PR-LANDING-VISUAL-WARMTH APPROVED-build. **Remaining build = 2 items** (brand-token-audit, landing-warmth) + #32 kit-unification. Re-verify each against code first.
+
+12. **The front door feeds the reservoir — ✅ CLOSED.** `a191350a` made `/cv/upload`
+    enqueue an ingest of its own text; verified on a real upload 2026-09-14
+    (`cv_dump_entries` holds `source='onboarding_cv'`, that user went from zero
+    stories to 3). `806110a8` extended it backwards as a forward pass rather than
+    a backfill, and `964f1587` made it visible on the default `/cv` view. History:
+    [ARCHIVE.md](ARCHIVE.md), commit messages, and CLAUDE.md § THE FORWARD PASS.
+
+    **What is STILL open, and it is a product call, not a coding task:**
+    promoting the gap loop out of prep rooms. Coverage is rung 1 inside a room
+    that 328 of 397 CV-holders never open, yet `e91eef0b` built an entire
+    reservoir from zero by answering three weave gaps and no dump at all —
+    answering a gap is a working front door. Moving that ask to Market,
+    Collections or the CV page has real cost either way. **Do not pick it up in a
+    coding session.** Memory: `project_reservoir_has_one_inhabitant`.
+
+13. **A CV-born story is thin, and nothing marks it as thin — ✅ CLOSED 2026-09-15.**
+    All three grill-locked locks are in code: L1 caps a thin story at `weak` so a
+    scraped bullet can evidence a JD requirement but never close it (`cb51d83b`);
+    L2 folds a gap answer into the SAME story via `upgrades_story_id`, resolved
+    from our cache and never from the client; L3 is the standing completion queue
+    (`97f42192`), riding the profile read at no extra fan-out, with
+    `completion_declined_at` as its one piece of stored state because ADR-0016
+    forbids inventing the number. The 397-user backfill is RETIRED — replaced by
+    the forward pass (`806110a8`), which now also has a door on the default `/cv`
+    view that hands the questions over in place (`964f1587`).
+
+    ⚠️ **The one thing left is a measurement, not a build: `upgrades_story_id` is
+    still 0 in production.** L2's fold has never once run for a real user. Until
+    `964f1587` its only door was a prep room 328 of 397 CV-holders never open.
+    One non-zero row proves the whole chain — CV in, thin story out, capped at
+    `weak`, question asked, answer folded — end to end. Watch that number before
+    building anything further on top of the reservoir.
+
+    Two lessons the live data taught, both already in code. **A word count is not
+    a missing fact**: `missing_from_pointer` flagged a 17-word line that says
+    exactly what it did, so the queue asks only for the number and for a story
+    never told — length stays an edit. **The two asks overlap**, so the server
+    sends both counts and no reader derives one by subtraction.
+
+17. **Practice → certificate → CV is not leaking. Diagnosed 2026-09-13.**
+    21 quiz passers, 2 with a Myro certificate line. The 19 others all passed
+    between 2026-06-19 and 2026-08-24, before `skill_certificates` existed
+    (`01c14fe2`, 2026-08-27). No backfill. Every pass since then (4 attempts,
+    2 users) issued a certificate and landed it on the CV — one via Add to CV
+    (30 Aug, between issue and auto-write), one via the bulk handler (7 Sep).
+    All 21 passers already have a content-bearing baseline, so
+    `certificate_to_cv.no_baseline` is not the miss.
+
+    A backfill of ~96 certificates onto 19 CVs from June–August is a product
+    call: they did not opt in, and the lines would appear months later.
+    Until that call, do not build on this loop. Detail:
+    [FEATURE_LOOP_REGISTRY.md](docs/FEATURE_LOOP_REGISTRY.md) L5.
+
+### SHIVAM-ONLY (no agent action possible)
+
+- `main` merges (all of the above, ongoing).
+- Run `recompute_banded_scores.py --apply`; apply the #34 **S6** `20260705_anon_cv_download_events.sql` migration (+ PostgREST reload).
+- Provision: `job_switch_reviewer_email` + `job_switch_admin_token` (review delivery 503s without them); confirm Vercel prod `NEXT_PUBLIC_RAZORPAY_KEY_ID` is the live pair. Turnstile stays **off** (arm-on-abuse, #30).
+- **#17 counsel-gated legal**: CIN, named Grievance Officer, registered address, liability cap, SDF check.
+- Authed browser QA across the many built-but-uneyeballed surfaces (light+dark+375px).
+
+33. **⚠ SUPERSEDED AS THE CLOSER 2026-09-17 (ENG1).** The last consumer CTA is now ₹199/month Personalised Engagement — [OFFERING.md](OFFERING.md). The locks below are history of the ₹99 one-shot (built, never the live closer). Remaining work is item 7 above: subscription checkout, scene-as-surface, LinkedIn Services × Myro as one queue. Do not ship a ₹99 offer card.
+
+    **Offering + landing funnel realignment — job-gen + ₹99 Job-Switch Plan (GRILL-LOCKED + BUILT 2026-06-27, on Develop + dev).** Triggered by a Perplexity landing critique ("message compression" — himyro.com tries to say CV-optimizer + matcher + intelligence + colleges + newsletter + Myrology at once → cold visitor can't name the product) + Shivam's two new threads (prompt-driven job-gen, ₹99 services tier). Two `/grill-me` passes (offering 8 Qs + ₹99 deliverable 6 Qs) resolved into ONE coherent job-seeker funnel. Full locks + honesty boundary: memory `project_offering_funnel_jobswitch_plan`.
+
+    **BUILT (Develop, deployed dev backend, migration applied to shared Supabase):** (1) landing reorder to locked skeleton + Myrology/Surfaces demoted + "Made with ❤️ in India" footer (`f0d2bb5`); (2) job-gen `POST /public/job-search` (NL parse → real `feed_jobs`, closest-rec relax, never fabricated) — smoke-verified live on dev; NOTE the landing job-gen FRONTEND was later reworked externally to route to `/intel` via `JobSearchConsole` (the `/public/job-search` endpoint stays valid/deployed); (3) ₹99 Personalised Job-Switch Plan (`64700ee`): `job_switch_plans`+`_reviews` tables, `job_switch_plan_service` (living plan + 2 founder reviews/120d, review-1 auto + review-2 on-demand, 5-wd SLA), `job_switch_plan` entitlement product + key-dispatched fulfilment, `/job-switch-plan` router + authed surface. backend 41 passed, tsc 0, lint 0.
+
+    **REMAINING (read item 7, not this list, for the closer):** (a) prod Razorpay for any real charge; (b) the ₹99 offer-card mounts are **not** the next build — do not ship them; (c) reviewer email + `job_switch_admin_token` still required or delivery 503s; (d) ~~₹499/yr~~ retired 2026-09-17, closer is ₹199/month; (e) browser QA the authed plan surface with a real session.
+
+    **Product in one line (updated 2026-09-17):** Drop CV → live Myro Score → type the job you want → see real matches + your exact gap → last CTA is ₹199/month **Personalised Engagement** on that scene. LinkedIn Services Resume Writing is the other door into the same queue.
+
+    **Locked:** (Q1) Spine = CV scored + tailored vs LIVE demand, outcome-worded not platform-soup. (Q2) **Job-gen returns REAL openings ONLY** — NL prompt → LLM parses to structured filters → reuse EXISTING `feed_jobs`/matcher, never fabricated; thinnest durable pipeline, render on existing card. (Q3) Job-gen = landing SECONDARY proof-search (CV dropzone stays hero), gates apply/save to signup, doubles as interactive moat proof. (Q4) ₹99 = skill-mastery coaching to switch-READINESS, NOT placement brokerage. (Q5) ₹99 = automated plan + ONE bounded human checkpoint, one-time INTRO (cash=human, coins=automated per locked boundary). (Q6) Offer trigger = job-gen gap (headline) + score skill-gap (everyday). (Q7) Landing = Hero(CV→score) → job-gen proof → how-it-works(built) → 10-domain chips(built) → ₹99 bridge TEASER → trust/FAQ(built); **Myrology FULLY OFF landing, Coins OFF as a cold-visitor concept, Colleges/Newsletter = nav only.** (Q8) Name = "Personalised Job-Switch Plan" (plain noun = user agency to choose). India: keep "Built in India" tile + add "Made with ❤️ in India" footer.
+
+    **⚠️ Honesty boundary (copy discipline, tightened 2026-09-17):** guidance is ours, conversion is theirs. We do not sell the job, so we do not sell a finish line. Name said "Switch"; promise = switch-**ready**. NEVER guaranteed placement. The ₹199/month closer exists because they may not convert — they keep the scene, we do not owe them the offer. Don't drift into placement-brokerage. Full lock: [OFFERING.md](OFFERING.md) ENG1.
+
+    **LAUNCH GRILL — locked 2026-07-01 (Shivam, `/grill-me`).** The "₹99 deliverable mechanics" carry was STALE — those mechanics were already grill-locked + BUILT 2026-06-27 (verified in code: `job_switch_plan_service.py` + `routers/job_switch_plan.py` live). This grill locked the LAUNCH shape instead: **L1** reviews = LLM-drafted → founder edits+approves DAY 1 (overrides B3 "LLM-assist=future"; build = draft generator → approve-queue → deliver+email); **L2** offer trigger = persistent home-rail card, gap-personalised (real top gap, not generic); **L3** mobile = same card inline in dashboard feed (rail hidden ≤980px); **L4** value LEADS with the human review (auto plan = scaffold); **L5** locked copy verbatim: "A Myro reviewer personally reads, checks and helps build a personalised plan for your job switch"; **L6** go-live = FULL OPEN + Claude builds a kill-switch env flag. **Unblocks owed by Shivam:** (i) reviewer email → `job_switch_reviewer_email` + `job_switch_admin_token` (else review delivery 503s); (ii) `main` merge + confirm Vercel prod `NEXT_PUBLIC_RAZORPAY_KEY_ID` = live `rzp_live_…` matching backend (pair-lockstep, #17); (iii) confirm refund = full refund before a review approved/delivered, non-refundable after. **Build owed by Claude (this is the remaining #33 work):** offer card (2 mounts) + LLM review-draft→approve-queue→deliver + kill-switch + L5 copy. Memory: `project_offering_funnel_jobswitch_plan` (LAUNCH GRILL section).
+    **Unresolved (carry):** (1) ✅ **SUPERSEDED 2026-09-17 (Shivam, ENG1).** The parked ₹499/yr tier is retired. The closer is ₹199/month Personalised Engagement ([OFFERING.md](OFFERING.md)), not a one-shot intro waiting on an offer card. (2) ✅ **BUILT + pushed Develop 2026-07-24.** job-gen thin-market/no-match → show CLOSEST real recommendation, real openings never fabricated. **Discovery mid-build: the backend closest-rec logic (`public_job_query` location-relax + `relaxed: []` field) was ALREADY built + tested (`test_public_job_search.py`, 4/4 green) — but orphaned, since the landing job-gen box was reworked to route to `/intel`'s live search (`useGlobalJobSearch`, a plain trigram lookup with no fallback).** Fix: new `lib/hooks/use-job-gen-fallback.ts` calls the existing `/public/job-search` endpoint ONLY when the fast trigram search settles on zero hits (never per-keystroke — that endpoint is anon-rate-limited 12/hr) and surfaces a "No exact matches. Closest real openings (nearest location)" panel in `intel-results.tsx`. No backend change needed — reused the existing, already-tested logic instead of duplicating it. tsc 0/eslint 0/ui-drift clean/next build ✓. OWED (Shivam): browser QA on `/intel` — search a role+city combo with zero real openings, confirm closest-match cards appear with the location-relaxed note.
+
+## CV PARSING — SHORT-TOKEN FALSE SKILLS (closed 2026-09-25, with 7h)
+
+Sits with the gold-standard gap below: both are "what Myro reads off a CV is not
+what the CV says". This one is narrow, measured, and cheap.
+
+101 `user_skills` rows across **69 of 403 CV users** come from evidence of four
+characters or less. Most are correct (SQL, C++, HTML, AWS, Java). These are not:
+
+| Skill stored | Evidence | What happened |
+|---|---|---|
+| .NET Framework | `net` | substring of "**net** profit" |
+| Microsoft Word | `word` | the ordinary word, lowercased |
+| Rdata | `data` | the ordinary word |
+| Microsoft Office | `Ms` | the title "Ms." |
+| **RPL (Programming Language)** | **`PHP`** | **wrong mapping — a PHP developer loses PHP** |
+| Python | `None` | Python `None` stored as the string |
+| C / R | `C` / `R` | ambiguous single letters (6 users) |
+
+~10 users affected, but each false skill moves both the Myro Score domain
+breakdown and the matcher's overlap. Fix: tokens ≤4 chars match
+case-sensitively on word boundaries with a stoplist (`net`, `word`, `data`,
+`ms`); correct the PHP→RPL mapping; never store `"None"` as evidence. **Forward
+only** — existing rows stand until that user re-uploads.
+
+⚠️ `cv_parser.py` / `cv_skill_evidence.py` / `cv_explicit_skills.py` were
+rewritten by another agent in `79908258`; re-measure before building, the floor
+may already be partly there.
+
+### Parked — moved verbatim
+
+7c. **Two pointer shapes in `cv_points` — and the "frozen layer" half of this is
+    STALE.** *Decision, then a migration. Shivam's call — deleting is destructive.*
+
+    Re-measured 2026-09-18: **2,235 rows, 198 users.** `source="migration"` is
+    1,682 rows, all positional, genuinely frozen since 2026-06-24.
+    `source="manual"` is 525 rows, all `story:{uuid}`, **last written
+    2026-09-17** — that layer is alive and growing, which the old note (407 rows,
+    3 users) predated. `source="restructure"` is 28 positional rows, dead since
+    2026-07-12.
+
+    The positional rows no longer make 7b lie — the mirror reads either shape now
+    — so this is no longer blocking anything. What remains is tidiness: 1,710
+    positional rows are 76% of the table and no writer owns them. `story_pointers`
+    scopes by `story_id`, so they are inert, not dangerous. Migrate onto stories
+    or retire them; either way, one shape. Not urgent.
+
+**The authed search-intent signal lost its writer — LEFT AS IS, deliberately
+(Shivam, 2026-09-25).** Revisit when the memory distiller earns its keep; until then
+it reads 14 rows from July and nobody should read "four signals" as four working
+ones. `SearchQueriesRepository.record`
+used to fire from the feed's `q` param on page 1. The list takes no `q` (search is a
+view filter, corpus search is ⌘K at `/jobs/search/global`), and ⌘K is a public
+endpoint with no user id, so authed search intent is no longer recorded anywhere.
+Either ⌘K gets an authed variant that logs, or we accept that signal is gone —
+it is one decision, not a bug.
+
+### TIER 4 — correctly deferred, DO NOT pick up
+
+- **#39 per-skill band percentile** — gated on peer density (≥20 per band+skill); at current scale every chip would hide.
+- **#32 publish portability** — deferred to 5k users; RAG works, only reproducible re-publish is blocked.
+- **#18 PR2 teal-field loading** — vetoed: it decorates a wait that no longer exists (~1.5s post-login).
+- **Semantic retrieval Slices 2–3** — **externally blocked** on `firecrawl_Supabase` embed-on-ingest + backfill; Slice 1 is inert until then. Not actionable in this repo.
+- **Paid partner plans in Upskilling + Preparations** — deferred to a separate grill/session. Reuse the existing job-gap, assessed-level, project/evidence and preparation architecture; this is a weights-and-connections pass, not a new learning system. Keep free project routes available. The later pass must lock partner catalogue fields, paid disclosure, relevance/ranking, attribution and conversion tracking before implementation. Do not pull this into the landing/Application Plan work.
+
+40. **Newsletter layout laws + acquisition-page density — CORE FIX BUILT + pushed Develop `95f737c9` (2026-07-20); `keyStats` backfilled `375d0c29` (2026-07-23). OWED: `main` merge · QA.** Trigger: Shivam — *"the newsletter is our acquisition page, shared on LinkedIn/Insta, and the spacing genuinely looks ugly."* Measured at ~2000px: the issue page rendered ~1/3 of its width as content, the rest as near-black void. **Three structural root causes, all fixed:** (a) issue page hardcoded `maxWidth: 1040` inside a 2000px viewport → ~480px dead void per side; both surfaces now `min(100%, 1280px)` (`.nl-shell` / `.shell`). Prose measure stays 68ch — the FRAME grew, not the text. (b) **Rail parity** — 300–340px reserved for a subscribe box + 3 links beside a 4000px article → the right third of the page permanently empty after first scroll. Now **ONE shared rail** (`frontend/components/newsletter/rail.tsx` + `rail.module.css`) rendered by BOTH index and issue: subscribe → live corpus proof → 6 issues → topic clusters → score CTA. **Dropped sticky** (it was a crutch for a thin rail; a sticky rail taller than the viewport hides its own bottom). (c) Article header (tag/headline/standfirst/byline) burned the above-fold budget before a single number appeared on a *data* newsletter → byline compressed to one line + optional `keyStats` frontmatter renders a stat strip under the standfirst. **Honesty invariants:** proof numbers read `/public/stats` floored through `frontend/lib/public-stats-display.ts` — extracted out of the `"use client"` `use-landing-data.ts` so a server component can import it, ONE source so landing + newsletter can never quote different numbers; panel **hides entirely** when the endpoint is unreachable (no placeholder counts on a page whose whole claim is real data). `keyStats` is **authored-only, never derived** from the body. **THE 5 LAWS** (full text `docs/NEWSLETTER_LAYOUT_LAWS.md` — ⚠️ `/docs` is GITIGNORED so that file is local-only on Shivam's Mac; canonical copy = memory `project_newsletter_layout_laws`): **L1** no band under ~30% ink (whitespace reads as paper on light, as a failed page on our near-black surface) — never hardcode a px container on these routes; **L2** a reserved rail must fill its main column or lose the column; **L3** prose stays 68ch (`--tm-reading-measure`) — widen the frame, not the text; wide tables/charts break out via `.nl-fullbleed` (most issues don't use it and should); **L4** data above the fold via `keyStats`; **L5** proof real or absent. **✅ `keyStats` BACKFILLED 2026-07-23 (pushed Develop `375d0c29`)** — all 16 issues now carry 3–4 verified figures lifted verbatim from each issue's own TL;DR/dataset (never derived); L4 pays site-wide. **OWED (Shivam):** (1) **prod = `main` merge** — himyro.com serves the old layout until then; (2) browser QA light+dark at 1920/1440/375px, incl. the now-live keyStats strip. **Deliberately NOT built — ✅ CONFIRMED DEFER 2026-07-24 (Shivam), no timeline set:** 3-column article layout at ≥1440px (`[meta 160px | sheet | rail 320px]`) giving `ReadingProgress` + share + section links a left-gutter home — adding a third column before the second one is full would be decoration, not density. Re-judge next time density is reviewed. Green: tsc 0 · eslint 0 · ui-drift clean · `next build` ✓. Memory: `project_newsletter_layout_laws`. Cross-link `project_newsletter_editorial_figure_system`, `project_newsletter_publish_pipeline` (the publish checklist should gain the L4 `keyStats` gate).
+
+39. **Per-skill band percentile (density-gated) — LOGGED 2026-07-18 (grill-locked decision 3 of the banded-score redesign, NOT built — deferred at 296-user scale).** Trigger: the banded Myro Score redesign (backlog closed via `54d0825f`, memory `project_banded_myro_score`). Decision 3 locked a per-skill percentile: same-band, **density-gated (show only where the (band, skill) cell has ≥20 peers, else hide)**, honest tie semantics (share of band-peers at a **strictly lower** level). NOT built because at 296 users the (band, skill) cells are almost all <20 peers → every chip hides → zero visible value now, and a heavy cross-user aggregate read for nothing = speculative. **Scaffolding ready:** `backend/app/services/scoring/percentile.py` already has `percentile_rank` (strictly-below tie semantics) + `MIN_BAND_PEERS = 20`. **Build sketch when density arrives:** (a) repo aggregate — group `user_skills` by (skill_id, matched_level) joined to `user_profiles` band (`target_seniority_for_profile`), filter to the viewer's band, per skill compute peer count + share strictly below the viewer's level; (b) gate ≥20 peers → else omit; (c) endpoint (e.g. `GET /scores/skill-percentiles` or fold into the user-skills payload the forge/skills page reads); (d) frontend chip on the skill card, rendered ONLY when the API supplies a value (conditional, never an empty shell). Bound the aggregate (band-filtered SQL, not full-table scan) before shipping at scale. Cross-link `project_banded_myro_score`, [[feedback_no_cheap_models_judgment]] N/A (pure stat, no LLM). Trigger to pick up: a band grows past ~20 peers holding common skills (watch `user_skills` volume), or Shivam asks for it.
+
+32. **Design-system standardization + button cascade — IN PROGRESS (2026-06-21/22, all on Develop, pushed).** Trigger: Shivam — *"one website / consistency = trust"*; caught the nav rendering as two parallel CSS systems + a logged-in user seeing an anonymous CTA. Principle: standardize the shared concept via a **single source both consumers read**, enforced by a build gate, never by discipline. Full system + file map in memory `project_truyodha_standardization_system`.
+
+    **✅ DONE (pushed):**
+    - **Nav unified** — the public bar's authed tabs now render the canonical `.tm-topbar-link*` + `.tm-nav-content-cluster` classes from `globals.css` (one source, no parallel CSS): same 13px, boxed active tab, order + labels as the app shell.
+    - **`lib/format.ts`** — single date/number/relative formatter (en-IN dates, en-US counts, named presets). All 23 inline `toLocaleDateString`/`toLocaleString` sites migrated; drift floor locked at 0.
+    - **`components/ui/badge.tsx`** — rewritten to `--tm-*` token variants (default/neutral/soft/success/warning/outline); genuine count/status badges migrated (nav "9+", settings count + NEW).
+    - **`components/ui/button.tsx`** — kit completed: added `neutral` (grey/secondary) + `danger` (token-based, kills hardcoded `rgba(255,80,80)`). Now `solid · outline · neutral · danger · ghost · inline`.
+    - **`CompanyLink` everywhere** — Intel company rows (`intel-rows.tsx` CompanyRow + CompanyHiringRow) now render crawlable `<a href="/companies/{name}">` (SEO/AEO + the locked "company name is ALWAYS a link" rule). Company page (`/companies/[slug]`) gained `layout.tsx` (PublicTopNav) + auth-gated the anon score CTA.
+    - **SSR `/companies` directory** (`app/companies/page.tsx`, server-rendered crawlable links, ISR hourly) + **`sitemap.ts`** now emits every company page (were absent entirely).
+    - **`lib/site-routes.ts`** — single route registry; nav + footer + sitemap all DERIVE from it. Add a public page once → flows everywhere.
+    - **Door-check** — `scripts/ui-drift-guard.mjs` (npm `check:ui-drift`, wired into `.github/workflows/frontend-ci.yml`): ratchets hand-rolled patterns (jsHoverStyleMutation, handRolledModalScrim, handRolledPill, rawDateNumberFormat→0) — new drift fails the build, backlog only ratchets DOWN via `-- --update-baseline`; plus `publicRouteCoverage` (a public `app/<seg>/page.tsx` with no registry entry fails the build).
+    - **Buttons migrated so far:** companies-page CTAs · web-chrome sign-out dialog · ReviewModal · ManualAddModal · MyrologyOptInPrompt.
+
+    **REMAINING — REFRAMED 2026-06-22 (the "~80 inline-button files" was inflated; genuine ad-hoc inline drift is mostly already done).** The big remaining "button" surfaces are NOT ad-hoc drift — they're **two cohesive local button kits, already internally consistent:**
+    - **`cvb-btn`** (CV builder — `public-playground` 14, `playground-view` 11, `baseline-view` 7, `cv-export-view`): one `.cvb-btn primary/ghost` class family.
+    - **`up-*`** (upskilling — `quiz-runner`, `results` 27): one `.up-opt`/`.up-iconbtn`/… family.
+
+    Two tracks left, each a decision (not a blind sweep):
+    1. ✅ **DONE 2026-06-22.** Genuine inline stragglers cleared. On inspection there was just one clean stateless inline CTA left — settings-modal "Open feedback hub" → `<Button solid>` (`1f11aba`). Deliberately LEFT: settings Save/Buy (turn green on success = intentional state feedback, not drift), listbox options + category cards (selectors), and the builder-view buttons (all `cvb-*` kit → Track 2, never inline drift). Net: the genuine ad-hoc inline-button drift is now cleared — what a user *sees* is consistent.
+    2. ✅ **BUILT + pushed Develop 2026-07-24** (`5bbde73d` up-* phase + `cebff4e1` cvb-btn phase). All `up-btn`/`up-iconbtn`/`cvb-btn` instances (~93 buttons across 25 files — CV Playground, master workspace, public anon playground, upskilling quiz/results, gap-session/bullet-rewrite/restructure Mentor flows) now render canonical `<Button variant/size>`; both kits' page-local CSS deleted. `up-opt` (quiz answer selector) and `tm-lib-btn`/`csp-done-download` (other local kits, out of scope) untouched. `DownloadCVButton` gained opt-in `variant`/`size` props — only its `cvb-btn` caller switched. Two dead container classes (`cvb-action-group`, `cvb-intel-strip`) found + their orphaned hook rules removed. tsc 0 · eslint 0 · ui-drift clean (rawFontSizeLiteral 1618→1614) · next build ✓. **OWED (Shivam): browser QA CV Playground + upskilling quiz/results, light+dark+375px — no live browser in this session; prod = main merge.**
+
+    **Always LEAVE:** selectors/chips (filter pills, stage chips, severity selectors, star ratings) — a separate future "chip" standardization — and **intentionally-different** buttons (`new-report.tsx` submit is category-colored bug=red/praise=green, not drift). The `ui-drift-guard` keeps NEW inline drift out regardless. Memory: `project_truyodha_standardization_system`, `feedback_standardization_trust`.
+
+27. **Regenerate landing OG image → Engine diagram (LOGGED 2026-06-11, not started).** `app/opengraph-image.tsx` still renders the old CV-hub framing ("one hub for every CV version"). Handoff requires the OG to show the **Engine pipeline diagram + Myro Score badge** with the new claim "Myro — The Career Intelligence Platform" (metadata + JSON-LD already updated in `app/page.tsx`). Mirror the S2 pipeline visual: stage nodes + teal flow lines on `#0a0a0c`, Space Grotesk. Quick win, ship with or after the landing commit.
+
+18. **Dashboard `/home` loading redesign (GRILL LOCKED 2026-06-01, NOT built):** Triggered by shivam.mit20 screenshot — generic "Loading your dashboard…" + a LYING "FIRST CV IN 10 min" first-run pill shown to a veteran (firstRun defaults TRUE while `cv.versions` undefined). 14 decisions locked in `memory/project_dashboard_loading_redesign.md`. Model = **section-readiness** (not phases — `/home` is parallel client queries, not a server job). Two PRs: **PR1** = correctness — kill global `blocking` gate (`home/page.tsx:187`), `SectionGate` composition, co-located real-shape skeletons (reuse real `mc-hero`/`db-row` classes; delete orphaned `HomeSkeleton` mirroring pre-merge layout), per-section 6s tail copy, **pill-bug fix** (`isFirstRun(undefined)` → not-first-run + `.tm-cv-promise` gap CSS), delete floating `top:76` text. **PR2** = the "no-shimmer" cursor/touch-reactive **teal-edges playground** — extend `EdgeGlow` into a shared `<TealField mode=full-bleed|masked>` primitive; field-fill behind real-shape teal-edged cards that crossfade per-section; ambient-never-blocking, compositor-only + hard-teardown-on-ready, no gyro on mobile. Needs one "loading model" ADR (after ADR-0009). Sibling of the CV-upload loading redesign (`project_cv_loading_redesign`).
+
+   **PR2 DECISION 2026-06-13 — DEFERRED (do NOT build now). Shivam's rule: don't trade real speed for decoration.** PR1 (section-readiness skeletons) is shipped and IS the loading state. With #24b deployed + #21 bootstrap parallelized, the post-login load is ~1.5s — there's no longer a multi-second dead gap worth decorating. PR2 is an ambient teal-motion layer that would mount **during** the most latency-sensitive moment (initial paint) and compete for main-thread/GPU exactly when we're trying to paint fast — the precise "vanity over speed" trade Shivam vetoed. Build PR2 ONLY if a future profile proves (a) a genuine >2s unavoidable wait remains on some surface AND (b) the field is provably compositor-only (transform/opacity, `will-change`, zero layout/paint on the main thread) with hard-teardown-on-ready measured in DevTools (no frame drop on the real cards). Until both hold, the skeleton stands alone. The `<TealField>` primitive already exists (callback uses it) — no infra debt from waiting.
+
+19. **B2B Institutions lane — STEP 1 SHIPPED 2026-06-01, growth steps DEFERRED.** Beta-phase decision: ship only the demand-sensing front door, not the platform. **Done this session (pushed to `main`):** (a) `/institutions` canonical marketing route — reuses `<EnterpriseSignup initialMode="institutions">`, indexable, OG, `/signup/institutions` canonical→`/institutions` to dedupe; (b) **header entry** "For Colleges" (`GraduationCap`) in `components/public/top-nav.tsx` + footer "For Colleges" under Product; (c) **CRM hook — ✅ VERIFIED LIVE IN PROD 2026-06-23.** `POST /institutions/apply` schedules a best-effort email to `settings.institutions_lead_email` via `BackgroundTasks` (mirrors Myrology booking-notify; fail-soft, row persisted first). Env `INSTITUTIONS_LEAD_EMAIL` set in Railway. **End-to-end confirmed:** a beta tester submitted via `/institutions` → row `institution_applications` id=1 → notify email landed in Shivam's inbox. Form→DB→email chain + the env are all live (no longer persist-only/silent). The `institution_applications` table + the rich beta-access form already existed. **Re-skin to light also shipped this session:** `/signup/institutions` forced `data-surface=light` on mount + `--tm-radius-md` defined (cards were rendering 0-radius) + `--es-shadow-sm` retuned off dark `rgba(0,0,0,0.4)`. **DEFERRED until we decide to grow B2B (do NOT build until real applications arrive):** Step 2 = proper CRM/pipeline (HubSpot/Salesforce or a lightweight internal review queue UI over `institution_applications`, Slack alert, status workflow). Step 3 = multi-tenant platform — each college = org/tenant, placement-officer admin console, students as sub-users, SSO/SAML (Workspace/365/IdP), domain verification, bulk/CSV student import, cohort dashboards + placement analytics (the 6 capability cards are promises, not built). Also deferred: dedicated long-form `/for-colleges` marketing page with case studies/ROI (today `/institutions` = the rich signup pane doubling as landing), procurement collateral (security doc, DPA, MSA), pricing. Trigger to pick up: inbound beta applications show real business signal. Reverses ADR-0005 "not a B2B sales tool" NOT. Memory: `project_b2b_institutions_lane`.
+
+20. **Enterprise Polish Sprint — Mobile UX + Core Bug Fixes (PLANNED 2026-06-02, ready to code)** — Triggered by deep audit of `reference/` folder: 100+ screenshots, 20+ user feedback docs, and 6 pre-written `reference/mobile-redesign/*/HANDOFF.md` specs. Goal: make Myro feel like an enterprise-grade B2C product. **Everything below is code-ready — no more grilling needed. Claude Code picks up and executes in order.**
+
+   **Overarching theme from 20+ beta users:**
+   - "Don't know what to do first" — no onboarding flow
+   - "Feels robotic / AI-generated" — harsh contrast, technical jargon
+   - "Confusing on mobile" — 6 specific layout bugs all with HANDOFF docs
+   - "Blank or broken states" — Tracker empty state, Intel empty state feel abandoned
+   - "What does this platform actually do?" — identity confusion on first visit
+
+   ---
+
+   ### PR-K — Design Token Foundation (LAND FIRST — all other PRs depend on this)
+   **Spec:** `reference/mobile-redesign/k-tokens/HANDOFF.md` (complete, self-contained)
+   **Files:** `frontend/app/globals.css`, `frontend/tailwind.config.ts`, `frontend/app/cv/cv-builder.css`, `frontend/components/public/public-nav.css`, `frontend/components/public/intel-pane.css`, `frontend/components/skills/domain-accordion-row.css`, `frontend/components/forge/forge-xp-pill.css`
+   **What changes:**
+   - Page bg `#000` → `--bg-page: #0a0a0c` (near-black, not void)
+   - Cards get `--bg-surface: #13141a` (visibly above page — layered depth)
+   - Primary text `#fff` → `--text-primary: #e8e8ea` (off-white, eye-safe)
+   - Cyan text `#22d3ee` → `--accent-text: #67e8f9` (desaturated when used as text, full saturation for icons/buttons only)
+   - Body min-size floor: `16px / 1.55 line-height` everywhere
+   - Full token table in HANDOFF. No hex literals in any new/updated CSS.
+   **Acceptance:** WCAG AAA primary text vs bg-page. Cards have visual lift without border. Reading a skill card paragraph feels comfortable at arm's length.
+
+   ---
+
+   ### PR-B — Signup Simplification (depends on PR-K)
+   **Spec:** `reference/mobile-redesign/b-signup/HANDOFF.md` (complete)
+   **Files:** `frontend/app/signup/page.tsx`, `frontend/components/onboarding/NinjaNameStep.tsx`
+   **What changes:**
+   - REMOVE "SECRET NINJA USER_CODE" field from `/signup` entirely. Real user typed `"dont know it should not be here"` into it — smoking-gun evidence it breaks conversion.
+   - REMOVE the "BACKGROUND" light/dark theme toggle from the signup form.
+   - Signup = 2 fields only: Email + Password. Plus Google button below "or" divider.
+   - Ninja name moves to `NinjaNameStep` in onboarding (already exists per commit `aa7a879`) with auto-generated default (`silent-fox-9k2` pattern) + Skip option.
+   - Referral attribution: if `?ref=` present, show subtle 1-line "Invited by @{name}" above form (SH7).
+   - Backend: `ninja_name` field in signup payload becomes optional — server auto-generates if absent. Verify `suggest_ninja_name` endpoint (`backend/app/routers/profile/public.py`) handles this.
+   - Mirror styling fixes to `/login` for consistency.
+   **Acceptance:** 2-field form, no ninja field, no theme toggle, NinjaNameStep has pre-filled default + Skip, input height ≥44px, input font ≥16px (no iOS auto-zoom).
+
+   ---
+
+   ### PR-E — Skills Overview Mobile Header (depends on PR-K)
+   **Spec:** `reference/mobile-redesign/e-skills-overview/HANDOFF.md` (complete)
+   **Files:** `frontend/app/skills/page.tsx`, `frontend/components/skills/` (score-ring, stat-line), NEW `frontend/components/skills/skills-overview.css`
+   **What changes:**
+   - KILL the horizontal stat-line `8 domains · 21 skills · 0 need proof · 3 below 40%` that wraps one-word-per-line on mobile (confirmed bug in screenshot, named in 2026-05-21 CLAUDE.md QA).
+   - REPLACE with 2×2 stat tile grid on mobile / 1×4 row on tablet+. Each tile: uppercase label (11px, tertiary) + big number (tabular-nums, primary) + thin divider. Pattern = Stripe Dashboard mobile Home. Tap → filtered skill list (`?filter=below-40` etc).
+   - Score ring becomes the visual anchor — increase to ≥120px diameter, explicitly stack ABOVE the stat tiles.
+   - Score commentary ("Building foundation · Next milestone: 20 — Emerging") sits below the ring.
+   - Tab bar (Intel / Map / Audit) stays BELOW the header — never overlapping.
+   - Empty state for 0-skills users: calm prompt to upload CV, not "0 domains · 0 skills…"
+   **Acceptance:** No single-word-per-line wrapping anywhere. 4 stat tiles tap-targetable. Ring ≥120px. All elements above fold or barely scrolling on 375px.
+
+   ---
+
+   ### PR-G — Intel Heatmap Mobile Layout (depends on PR-K)
+   **Spec:** `reference/mobile-redesign/g-intel-heatmap/HANDOFF.md` (complete)
+   **Files:** `frontend/app/intel/page.tsx` or `frontend/components/intel/` heatmap component
+   **Status:** CLOSED for the Codex-assigned PR-5 heatmap slice by `3daff43 fix(ui)`.
+   **What changes:**
+   - Title "Where to invest your skill points" wraps one-word-per-line on mobile (same grid-shrink bug as skills). Fix: title stacks ABOVE the heatmap on mobile, not beside it.
+   - Rotated column headers (skill names) clip text at 375px. Fix: horizontal-scroll heatmap with non-rotated short labels on mobile OR collapse to list view.
+   - Empty cells showing "no roles match" prose → replace with em-dash `—` in cell (tap for explainer).
+   - Sticky header offset on first row (company name hidden behind search bar shadow).
+   **Acceptance:** Title readable on 375px. Column headers legible. Heatmap scrolls horizontally, nothing clips.
+
+   ---
+
+   ### PR-D — CV Playground Score Ring (depends on PR-K)
+   **Spec:** `reference/mobile-redesign/d-cv-playground/HANDOFF.md` (complete)
+   **Files:** `frontend/components/cv/builder/playground-view.tsx` + score ring component
+   **Status:** CLOSED for the Codex-assigned PR-5 playground slice by `3daff43 fix(ui)`.
+   **What changes:**
+   - D1: Score ring center text overlap — `0`, `%`, and `JD MATCH` literally layer on top of each other. Fix: explicit vertical layout — numeral row → `%` baseline-aligned right → "JD MATCH" label as separate row BELOW the ring (not inside center).
+   - D2: "−17 this session" punitive framing → replace with action-oriented copy ("13 skills to add → Forge them") OR drop the negative delta. The chip list below IS the action already.
+   - D3: Job label is generic ("Sciences - Consultant") with no company name — show "Untitled company" explicitly if no company in data.
+   - D4: Title-case chip text (`Time Series Analysis And Forecasting`) → lowercase "and" inside chips.
+   **Acceptance:** Score ring center has clean 3-row layout. No text overlap at any score value 0-100. No punitive framing.
+
+   ---
+
+   ### PR-F — Skill Card Mobile (depends on PR-K + PR-E for tab bar fix)
+   **Spec:** `reference/mobile-redesign/f-skill-card/HANDOFF.md` (complete)
+   **Files:** `frontend/components/skills/skill-card-inline.tsx` + CSS
+   **What changes:**
+   - F1: Sticky "Intel · Map · Audit" tab pill overlaps domain card below it (L3 chip half-hidden). Fix: sticky pill needs solid `--bg-page` background + `box-shadow` to visually detach. OR convert to in-flow element if sticky isn't actually needed.
+   - F2+F3: SE14 regression — mobile buttons show full labels ("Edit CV pointer", "Polish with AI · -20 XP") instead of icons-only at <480px. Fix: add/verify `.tm-skill-card-action-label { display: none }` at <480px. Buttons collapse from 3 full-width stacked (~180px) to one icon row (~48px).
+   **Acceptance:** Tab pill never overlaps cards at any scroll position. At <480px exactly 3 icon buttons in a row with aria-label + title. SE14 enforced.
+
+   ---
+
+   ### PR-JARGON — Language Humanisation (standalone, no deps)
+   **Status:** Codex-assigned feedback jargon slice CLOSED by `3daff43 fix(ui)`; keep the broader checklist below as historical audit context.
+   **No HANDOFF doc** — but 15+ users explicitly called this out. Confirmed list of confusing strings:
+   - "Forge" → keep the name (brand) but ADD a 1-line descriptor: "Forge · skill practice sessions" in the nav tooltip/label
+   - "Immutable commits" → "CV versions"
+   - "Terse, be specific" (Feedback Hub) → "Keep it short and clear"
+   - "Email me when triaged" → "Notify me when reviewed"
+   - "Low cosmetic" (severity) → "Minor visual issue"
+   - "AT RISK" domain pill → add hover tooltip: "This domain has skills below 40% — needs practice"
+   - "BUILDING" domain pill → add hover tooltip with what building means (L1-L2 range)
+   - "Dispatch" anywhere user-visible → plain English equivalent
+   - Feedback form bottom-left: verify it's actually functional (user Ravali + user Aditya both reported broken)
+   **Files:** `components/nav/`, feedback hub component, domain pill component, anywhere these strings appear.
+
+   ---
+
+   ### PR-EMPTY — Empty State Designs (standalone)
+   **Cross-cutting — multiple users reported Tracker + Intel feeling "broken" when empty**
+   - **Tracker empty state:** Replace multiple `+ Add manually` buttons with single focused CTA → "Browse matched jobs →" (routes to /market feed). Remove duplicate affordances.
+   - **Intel heatmap empty state (no followed companies):** Current state unclear. Add single illustration + "Star a company to track its skill demand" + "Browse companies →" CTA. Per IH1 (heatmap = followed companies only).
+   - **Dashboard stats loading:** Section-readiness skeletons (Backlog #18 PR1) — connect to this sprint if not yet built.
+   - **Jobs feed empty state (no matches yet):** "Your matches are computing — usually under 2 minutes" with shimmer skeleton rows, not a blank page.
+   **Files:** `frontend/components/tracker/`, `frontend/components/intel/heatmap.tsx`, `frontend/app/home/page.tsx`
+
+   ---
+
+   ### PR-FORGE-BG — Forge Timer Background Persistence (standalone)
+   **Status:** CLOSED by Codex in `4b28856 fix(forge)`.
+   **Bug:** Forge timer stops/freezes when user navigates away from the Forge tab (user Ravali, user feedback report 2). 25-minute sessions that reset on tab switch are unusable.
+   **Fix direction:** Store forge session `startedAt` + `pausedAt` in localStorage (or Zustand persist). On any page mount, check if an active forge session exists → re-derive elapsed time from `Date.now() - startedAt - pausedMs`. The timer widget should render on any authed page while a session is running (the forge XP pill / widget is already a global element — verify it consumes persisted time).
+   **Files:** `frontend/components/forge/forge-xp-pill.tsx` + forge session state store. Backend `forge_sessions` is already the source of truth for completed sessions — this is a frontend-only time-display fix.
+   **Acceptance:** Start a forge session on /forge, navigate to /cv, navigate back — timer shows correct elapsed time throughout. Tab-close + reopen within session window = timer continues from correct position.
+
+   ---
+
+   **Build order:** PR-K → (PR-B, PR-E, PR-G, PR-D, PR-F in parallel, all depend only on K) → PR-JARGON, PR-EMPTY, PR-FORGE-BG (all standalone, can ship any time after K).
+   **Codex closure note 2026-06-03:** PR-G/PR-D Codex slices, PR-FORGE-BG, and the feedback-jargon slice are closed. PR-EMPTY remains Claude-owned.
+   **Commit pattern:** one PR per item, `fix:` or `feat:` prefix, `tsc --noEmit` + `next lint` clean before merge.
+   Memory file: `memory/project_enterprise_polish_sprint.md` (create on session start).
+
+10. **Skill Intelligence Page — Redesign (in progress)** — Full audit done 2026-05-16. Phased plan below.
+
+15. **Job Card Lifecycle Loop (idea, parked 2026-05-27):** Netflix-style lifecycle model for every job card — track `posted_at`, `first_seen_on_platform_at`, `last_seen_on_platform_at`, `delisted_at`. Pair the job-side lifecycle with a user-side application-stage loop: once a user saves/applies, prompt + track stage transitions (saved → applied → screening → recruiter call → interview → final round → offer/reject) and the dwell time in each stage. Aggregate cross-user signal per company/role: median time-to-first-reply, median screening→interview gap, ghosting rate, offer rate, typical funnel shape. Surface back to users as "what to expect from this company" + sharpen our own match ranking + power a future newsletter/intel surface. Pick up when we redesign the job card to make the experience better — this loop is the data engine that justifies the new card layout. Touches: `jobs` schema (lifecycle timestamps), `job_applications` (already has `status` + `last_stage_changed_at` per Q7), new `application_stage_events` event log, a nudge/reminder cadence for stage updates, and an aggregation RPC for company funnel stats.
+
+## INTEGRATOR ITEMS
+
+### 2026-05-31 - Post-Application Intelligence + Myrology
+
+- **7-day tracker prompt becomes a branch, not a disappointment loop.** Ask "What happened with this application?" and route into Practice:
+  - **No Response Recovery:** mark ghosted/no response, preserve dignity, suggest follow-up/referral path, adjacent targets, and skill practice.
+  - **Moved Forward:** update stage, generate company-specific interview prep, case-study practice, and next milestone tracking.
+- **Practice becomes the central action router** for post-application work: Skill Practice, Referral Route, Interview Prep, No Response Recovery, and Company Intel.
+- **Referral Intelligence = premium tactical loop.** Available from saved/applied jobs, strongest after no response. Initial automated unlock = **500 XP**. Output: ranked referral targets, warm-intro plan, and next actions for the target company/job.
+- **Referral data-source tiers are locked:**
+  - Tier A: API-backed LinkedIn analysis when approved scopes/data access permit.
+  - Tier B: user-assisted fallback via pasted LinkedIn URLs, known contacts, or exported contacts.
+  - Tier C: Myro repository of opted-in referrers plus founder/HITL company notes.
+  - Hard rules: no scraping, no auto-DMs, and no pretending to access LinkedIn graph data that the API does not provide.
+- **Company reports split evidence from advice.** Verified Intel = source-backed facts, founder/HITL notes, hiring-process observations, user-submitted outcomes, referrer availability. Strategy Plan = referral target, case-study angle, skills to practice, follow-up message, interview prep.
+- **Pricing boundary:** XP buys automated intelligence and prioritization. Cash buys human attention, deeper premium reports, astrologer/founder consultation, and eventually access to the company/referrer network.
+- **Myrology stays separate from core Myro.** It is an opt-in premium subbrand, not part of Myro Score or job ranking. The live `/myrology` surface should remain a simple interest/payment/booking funnel, not a live report engine. ⚠️ **"Not a live report engine" bans MYRO COMPUTING a reading — it does not ban rendering one a human wrote.** Read as the latter on 2026-08-26 and used to wrongly block the delivered-map surface; corrected in the same session. The two-lens guardrail below is the real constraint.
+- **Myrology report coverage:** career domains, role archetypes, work environments, abroad/relocation indications, timing/dasha windows, strengths, risks, remedies, and reflection prompts. Requires explicit consent for date, time, and place of birth.
+- **Two-lens guardrail:** Myrology may suggest career directions, but never overrides evidence-backed CV/skills/market recommendations. If Myro data and Myrology agree, use that as a narrative moment. If they conflict, show them as separate lenses. No guaranteed job/interview/abroad claims.
+- ~~**Implementation follow-up:** live code currently treats Myrology as an INR 499 entitlement.~~ **RESOLVED — verified in code 2026-08-26.** `payments.py` `PRODUCTS["myrology"]` is `price_paise=29900`. ₹299, one-time, with 3 lifetime sessions. The ₹499 claim had been stale long enough to be quoted back as a live blocker. **Still decision-gated:** any NEW tier (the handoff proposed ₹1,499 / ₹3,999 "Go Deeper") is a new SKU needing its own `PRODUCTS` entry, entitlement key, refund copy, and a human to deliver it — one astrologer. So is any change to what ₹299 includes.
+
+---
+
+## SKILL INTELLIGENCE PAGE — REDESIGN TRACKER (Backlog #10)
+
+**Phases 1–3 ✅ DONE 2026-05-16** — SkillCard + Log-to-Forge + CV/Intel links · stat-line reframe · `?skill=` deeplink · color-coded domain strip · ScoreRing hero + WeaknessSpotlight · DomainRadar SVG-only · inspector absorbed into radar card · `components/skills/` extraction (page <300 lines). Dead code deleted: `dashboard/domain-drill-dialog.tsx`, `dashboard/domain-radar.tsx`. Full detail in `docs/session-history/2026-05.md`.
+
+**Defer to v2:** domain layer separation · Rename Mirror→Myro in remaining strings · Pillar pages `/careers/*`
+
+**Mobile QA findings (2026-05-21):**
+- `domain-accordion-row.tsx:57` — grid template `20px 1fr auto auto 52px 32px` is 6 cols but row has 5 children + 120px progress bar → overflows 375px viewport. "BIGGEST GAP" badge clipped right edge. Fix: trim unused 32px col + cap progress bar to 70px <720px.
+- Three stacked control rows (VIEW / SORT / SHOW) eat vertical space. Consider single "Filter" pill opening a sheet, or moving SORT + SHOW into ⋯ menu.
+- Above-fold stat line "6 domains · 17 skills · 0 need proof · 3 below 40%" — dense, candidate for 4 mini stat tiles like intel-pane.
+
+**Shareability / Social — Phased:**
+- **v1 (next):** Public profile page (`/profile/{token}`) — live Mirror Score + blurred domain breakdown. Invitation-first (viewer prompted to get their own score). Job co-tracking: two users targeting same job/company see each other's readiness % → accountability loop. Reuses `job_applications` data.
+- **v2:** Skill peer matching — suggest users with complementary skill gaps (strong where you're weak).
+- **v3:** Mentor/mentee — higher Mirror Score users visible to lower-score users in same domain.
+
+**Defer to v3 — Mobile (Play Store):**
+- Extract `lib/api.ts` + `lib/session.ts` into platform-agnostic `packages/api-client/` (inject AsyncStorage adapter for RN, localStorage adapter for web)
+- Add `/v1/` prefix to all backend routes before mobile launch (versioning contract)
+- Mobile auth via Supabase React Native SDK (same backend, AsyncStorage token storage)
+- `device_tokens` table (user_id, fcm_token, platform) + `/push/register` endpoint → FCM/APNs for diary reminders + score update push notifications
+- React Native app (Expo) targets Android Play Store first, iOS second
+- Prerequisite: shareability (public profiles) must ship before mobile — it's the referral hook
+
+---
+
+## MOBILE — v2 NATIVE APK (Backlog #9, v1 PWA ✅ CLOSED 2026-05-19)
+
+v1 PWA detail archived in `docs/session-history/2026-05.md`. v2 kicks off after 1000 PWA users.
+
+### v1.5 — Android APK via TWA (Play Store NOW, ship current PWA — chosen 2026-07-23)
+
+**Decision (Shivam):** ship a Trusted Web Activity wrapper of the existing responsive PWA to the Play Store now — Path A over the full Expo native rewrite (Path B = the v2 section below). Product is 100% mobile-responsive + already has `mobile/redesign/` surfaces; TWA = zero React rewrite, a signed `.aab` in days.
+
+**✅ STEP 1 BUILT + pushed Develop 2026-07-23 (the pre-flight fixes that make TWA install-clean, not read as a webview):**
+- **manifest** ([public/manifest.webmanifest](frontend/public/manifest.webmanifest)) — `start_url` `/home`→`/market` (`/home` is the retired Collections-cutover redirect stub → cold launch was a blank screen then JS-redirect; `/market` is the real Jobs landing + mobile nav tab 1); `background_color`/`theme_color` `#050A18` (pre-#28 navy) → `#F9F9F9` (canonical light Firecrawl paper → correct splash + task-switcher brand).
+- **maskable icon** ([public/brand/icon-512-maskable.png](frontend/public/brand/icon-512-maskable.png)) — was byte-identical to `icon-512.png` (a fake full-bleed dup → adaptive mask would crop the logo). Rebuilt edge-to-edge dark with the signal-dot ring inside the 80% safe zone → survives circle/squircle masks.
+- **service worker** ([public/sw.js](frontend/public/sw.js) + [components/pwa/sw-register.tsx](frontend/components/pwa/sw-register.tsx), mounted in providers) — minimal, prod-only: navigations network-first → cached `/offline` shell fallback; hashed static (`/_next/static`, `/brand`) cache-first; cross-origin API (`api.himyro.com`) untouched. Satisfies install criteria + kills the in-app Chrome error page when offline.
+- **offline shell** ([app/offline/page.tsx](frontend/app/offline/page.tsx)) — self-contained inline-styled, theme-aware, noindex (added to `NON_PUBLIC_SEGMENTS` in the ui-drift guard — utility route, not a nav surface).
+- **assetlinks scaffold** ([public/.well-known/assetlinks.json](frontend/public/.well-known/assetlinks.json)) — placeholder `package_name: com.himyro.app` + `REPLACE_WITH_SIGNING_KEY_SHA256_FINGERPRINT`. **Without this file the TWA shows the Chrome URL bar → reads as a wrapper.** Chicken-and-egg: keystore → SHA-256 → fill this → publish on himyro.com → THEN build APK.
+- Green: tsc 0 · next lint 0 · `next build` ✓ (`/offline` static) · ui-drift clean.
+
+**OWED (Shivam) — the remaining TWA path, in order:**
+1. **`main` merge** (this Develop work → himyro.com must serve the fixed manifest + assetlinks + SW before any APK is built against prod).
+2. **⚠️ THE REAL GATE = one real-device authed mobile QA pass** — the whole `mobile/redesign/` surface (Jobs/Collections/CV/Prep/Profile) was built+pushed but NEVER eyeballed on a real authed mobile session (sandbox has no token). Must verify before an APK puts the bugs in Play Store reviews: login → **CV upload on throttled 3G** (BUG-2 TUS resumable path — the #1 funnel action) → 4 bottom-nav tabs → #41 login waterfall → PR-F `/skills` 375px (sticky-pill overlap + SE14 icon-only buttons).
+3. **Confirm package name** `com.himyro.app` (or pick another reverse-domain).
+4. **Generate upload keystore** → take SHA-256 fingerprint → give it to Claude → Claude fills `assetlinks.json` + commits → merge main.
+5. **Build:** Bubblewrap/PWABuilder → signed `.aab` → **Play Console ($25 one-time)**.
+6. **Native push (FCM)** — the actual retention hook (diary/score/new-match notifications). Needed under TWA too; = v2 prerequisite 3 (`device_tokens` + `POST /push/register`). Do this AFTER install is live, then decide if native shell (Path B) earns its weeks.
+
+---
+
+### v2 — full Expo native (Path B, still gated on 1000 PWA users)
+
+**v2 prerequisites (all must ship first):**
+1. `packages/api-client/` extraction with injectable storage adapter (AsyncStorage/localStorage).
+2. All backend routes prefixed `/v1/` — versioning contract.
+3. `device_tokens` table + `POST /push/register` — FCM/APNs.
+
+**v2 layout:** `mobile-native/` sibling folder (Expo SDK 51+ TS), NOT inside `frontend/`. Native libs land only in `mobile-native/package.json` (Expo-on-Next bundler pollution = Vercel break).
+
+**Decisions still open:** monorepo tool (lean turborepo), auth flow (deep-link vs `expo-auth-session`), diary push cadence (8pm local default), Android-first.
+
+**Open deepenings:**
+- ⏸ `<ResponsiveStack>` primitive — DEFERRED. Trigger: any new page adding 4+ `tm-<page>-*` class hooks.
+- `packages/mobile-shared/` extraction — blocked on `packages/api-client/` + turborepo decision.
+
+---
+
+---
+
 ## CLOSED 2026-09-30 — the beta cohort ledger
 
 The 113 intern-beta reports (2026-06-14 → 07-21) were tagged by loop step. The
