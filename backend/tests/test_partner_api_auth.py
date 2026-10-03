@@ -333,3 +333,41 @@ def test_partner_keys_cannot_reach_the_consent_endpoints(client, monkeypatch):
     )
 
     assert response.status_code == 401
+
+
+def test_a_resolved_key_is_kept_for_a_minute_and_a_wrong_one_never(monkeypatch) -> None:
+    """Every partner call paid a Supabase round trip for a row that changes
+    only on revoke; two in three SSO calls follow another within 60s.
+    Revocation lands within the TTL."""
+    from app.repositories.partners import PartnerCredential
+    from app.security import partner_auth
+
+    reads: list[str] = []
+    good = PartnerCredential(
+        key_id="k1", partner_id="p1", slug="finlatics", name="Finlatics", scopes=frozenset({"sso"})
+    )
+
+    class _Repo:
+        def __init__(self, _db: object) -> None:
+            pass
+
+        def resolve_credential(self, raw_key: str) -> PartnerCredential | None:
+            reads.append(raw_key)
+            return good if raw_key == "mk_live_good" else None
+
+    clock = [1000.0]
+    monkeypatch.setattr(partner_auth, "PartnersRepository", _Repo)
+    monkeypatch.setattr(partner_auth, "get_supabase_admin", lambda: object())
+    monkeypatch.setattr(partner_auth.time, "monotonic", lambda: clock[0])
+
+    assert partner_auth._resolve("mk_live_good") is good
+    assert partner_auth._resolve("mk_live_good") is good
+    assert reads == ["mk_live_good"], "a burst reads the key once"
+
+    assert partner_auth._resolve("mk_live_wrong") is None
+    assert partner_auth._resolve("mk_live_wrong") is None
+    assert reads.count("mk_live_wrong") == 2, "a wrong key is never cached"
+
+    clock[0] += partner_auth._CREDENTIAL_TTL_SECONDS
+    partner_auth._resolve("mk_live_good")
+    assert reads.count("mk_live_good") == 2, "past the TTL a revoke is seen"

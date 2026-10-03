@@ -2191,3 +2191,34 @@ amended.
 **Not measured.** The live endpoints after deploy. Take five warm
 `x-process-time` samples of each route above on the next prod deploy; and the
 next scrape's `metric skill_floor.pipeline_done` for the drain's wall time.
+
+## 24. Partner SSO: the front door pays a ~300ms floor per hop (2026-10-03)
+
+**Why it matters.** 199 of the 209 signups in the 30 days to 2026-10-03 came
+through `POST /partner/v1/sso/session` (Finlatics). 84 calls over four days:
+21% under 1s, median 1.5-2s, **23% between 3 and 5s** — the partner's user waits
+through all of it before the redirect.
+
+**Where the time goes.** `metric partner_sso.slow` names the hops: `get_link`
+210-680ms, `create_user` 200-1,560ms, `link_seat` 220-670ms, `mint` 200-990ms;
+the route ran 0.5-1.3s longer than the gate, which is the credential read before
+it. From a laptop next to the Cloudflare edge (10ms), a one-row PostgREST read
+is ~390ms and `/auth/v1/health` — no database — ~330ms. The floor is the
+project's own compute (gateway, PostgREST and GoTrue share the Nano instance),
+not distance. **Hops are the lever in code; compute (#16) is the lever under
+every hop.**
+
+**Shipped.** The partner credential is kept 60s per process — 474 of 717 SSO
+calls followed the previous one within 60s, so two in three skip a hop; a
+revoke lands within the minute (PARTNER_API.md). On a new account the seat write
+and the magic-link mint run side by side. Returning user: 3 hops → 2 for two
+calls in three. New account: 5 → 3-4.
+
+**What I got wrong first.** I read the bimodal hop times (≈250 vs ≈650ms) as
+cold vs warm connections — httpx drops idle connections after 5s — and raised
+the shared pool's keepalive to 120s, with GoTrue moved onto it. An A/B of the
+returning-user hops, four calls 20s apart: 1,138ms old vs 1,140ms new. TLS ends
+at the nearby edge, so a cold handshake is cheap. Reverted.
+
+**Not measured.** The live route after this reaches `main` — prod serves
+partners. Read `route.latency` for `/partner/v1/sso/session` a week after.
