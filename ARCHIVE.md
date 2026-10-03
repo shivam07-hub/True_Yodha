@@ -18,6 +18,7 @@ Eight open Notices traced to code; every fix on `Develop`, proofs close on `main
 - **slow_200** classifier: a slow query is `slow_read:<file>:<function>`, not a parked
   queue victim (`a256919a`, ADR-0021 amended).
 - **confirm-skills** N+10 → 8 reads (this commit). Closer Railway IDs fixed (`0b59e854`).
+- Later the same day: `extract_skills` 39× (`15cc7105`); confirm-skills 8 reads (`017d30a9`); partner SSO fewer hops — 199/209 signups (`b199f7b7`); company pages one hop, Axis Bank 10.5s → 228ms (`9e9307ec`).
 - Decided (CEO delegated): company-page RPC fold parked (cut rule). Shivam: Pro +
   Small (#16), worker drain seconds, Axis Bank = 18% of live corpus (scraper).
 
