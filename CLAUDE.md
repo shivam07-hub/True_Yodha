@@ -140,7 +140,8 @@ put new docs at the repo root; exception `docs/adr/` (held by
 
 Detail and owners: [BACKLOG.md](BACKLOG.md). Spine (2026-10-02, own accounts
 excluded): **947 signed up → 430 uploaded → 420 scored → 186 with a direction →
-208 matched → 73 collected → 17 tailored → 3 applied.**
+208 matched → 73 collected → 17 tailored → 3 applied.** Returning this week:
+**14** (`last_active_at`, true since 2026-10-03). Run `backend/scripts/loop_reach.py`.
 
 Order is the loop map — broken steps first, nearest the north star first (Shivam, 2026-09-30):
 

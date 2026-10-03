@@ -494,11 +494,12 @@ Tracker (3) · no problem or not actionable (~25).
 
 ## AGENT CHORES — approved, small
 
-- Drop `user_profiles.last_active_at` — zero code references (Shivam: yes).
 - Delete `backend/scripts/recompute_banded_scores.py` — rescoring every user while
   they are away is a backfill (Shivam: kill).
-- Delete the recruiter and referral workspaces (referral loop: 0 users) and
-  comments + private notes on cards (0 comments, 1 note) (Shivam: yes).
+- Delete comments (0 ever; public company pages only) and the private-notes code
+  left behind when its screen went in `0b1b9b16` — keep the table and its one
+  real note. **Keep** `/recruiters`, `/referrals` and their workspaces: public B2B
+  doors with no backend (Shivam, 2026-10-02).
 - Re-verify the "Transformation (Genetics)" family mapping (0 jobs under that
   label on 2026-09-30); fix or close.
 - After Pro: re-measure the anyio threadpool and pool levers.

@@ -35,6 +35,9 @@ How fast and how easily they can do it is the entire game."* The decisions:
   private notes; Partner SSO and the SEO pages keep running; everything below
   under *Parked* left the working backlog. **Myrology stays** — a second product
   line, exempt from the cut rule.
+  *Revised 2026-10-02:* `/recruiters`, `/referrals` and their workspaces stay —
+  public B2B doors with no backend; and `last_active_at` is made true from
+  Supabase sessions instead of dropped.
 - **D12** The four stuck ₹499 Myrology orders were Shivam's own account; the 5
   real opt-ins get the fixed page after #56.
 - **D13** Myro's own accounts flagged `is_test_account` (7). Recount: real
