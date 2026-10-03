@@ -53,12 +53,21 @@ class CareerBandOption(BaseModel):
     numbers offers them as equals.
 
     `fit` orders the cards and is never rendered. A band is not a score.
+
+    The evidence is what IS rendered: how many of the caller's CV skills a family
+    in this band lists among the twelve it most demands, out of how many skills
+    the CV holds, and the three most widely asked. NULL when there is no CV to
+    read — never 0, because "nothing of yours is asked here" is a claim and "we
+    could not read it" is not.
     """
 
     band: CareerBand
     job_count: int
     family_count: int
     fit: float
+    cv_skill_count: int | None = None
+    matched_count: int | None = None
+    matched_skills: list[str] | None = None
 
 
 class RoleLocation(BaseModel):

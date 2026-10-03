@@ -20,14 +20,6 @@ router = APIRouter(prefix="/feedback", tags=["feedback"])
 
 _bearer = HTTPBearer(auto_error=False)
 
-# The retired intern-beta cohort form (deleted 2026-09-13) wrote under this
-# program tag. Its 114 reports ARE the closure ledger — the guard below stays so
-# a general submission can never forge the tag and pollute that record, and
-# backend/scripts/export_beta_feedback_ledger.py still reads the rows. Only the
-# write path is gone; the data and its reader are not.
-BETA_ASSIGNMENT_PROGRAM = "intern_beta_assignment_v1"
-
-
 def _resolve_user_id(credentials: HTTPAuthorizationCredentials | None) -> str | None:
     if not credentials:
         return None
@@ -57,11 +49,6 @@ def submit_feedback(
     idempotency_key: UUID | None = Header(default=None, alias="Idempotency-Key"),
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> FeedbackReceipt:
-    if body.payload.get("program") == BETA_ASSIGNMENT_PROGRAM:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="This feedback program is closed and cannot accept new submissions",
-        )
     user_id = _resolve_user_id(credentials)
     db = get_supabase_admin()
     key = str(idempotency_key) if idempotency_key else None

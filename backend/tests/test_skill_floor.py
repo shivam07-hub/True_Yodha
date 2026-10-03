@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from app.services import skill_floor
 from app.services.skill_extraction import ExtractedSkill
 
@@ -38,8 +40,10 @@ class _DB:
         self._tables, self._rpc = tables, rpc or {}
         self.writes: list[dict[str, Any]] = []
         self.rpc_calls: list[str] = []
+        self.table_calls: list[str] = []
 
     def table(self, name: str) -> _Query:
+        self.table_calls.append(name)
         return _Query(name, [dict(r) for r in self._tables.get(name, [])], self.writes)
 
     def rpc(self, name: str, _params: dict[str, Any]) -> _Query:
@@ -82,9 +86,12 @@ class _ClaimDB(_DB):
         self.rpc_calls.append(name)
         self.rpc_payloads.append((name, params))
         rows: list[dict[str, Any]] = []
-        if name == "claim_jobs_for_skill_floor":
+        if name == "claim_skill_floor_lease":
             rows = self._batches.pop(0) if self._batches else []
         return _Query(name, rows, self.writes)
+
+    def settled(self) -> list[list[str]]:
+        return [params["p_job_ids"] for name, params in self.rpc_payloads if name == "settle_skill_floor_claims"]
 
 
 def test_write_skill_floor_marks_where_the_skills_came_from() -> None:
@@ -155,7 +162,7 @@ def test_drain_claims_from_the_one_work_queue() -> None:
     result = skill_floor.drain_skill_floor_queue(db)
 
     assert result == {"jobs_seen": 1, "jobs_written": 1, "jobs_empty": 0}
-    assert set(db.rpc_calls) == {"claim_jobs_for_skill_floor"}
+    assert set(db.rpc_calls) == {"claim_skill_floor_lease", "settle_skill_floor_claims"}
 
 
 def test_a_barren_job_is_left_for_stage_b_not_terminated() -> None:
@@ -168,8 +175,75 @@ def test_a_barren_job_is_left_for_stage_b_not_terminated() -> None:
     result = skill_floor.drain_skill_floor_queue(db)
 
     assert result["jobs_empty"] == 1
-    assert db.writes == []  # nothing written, and nothing said about the job
-    assert set(db.rpc_calls) == {"claim_jobs_for_skill_floor"}
+    assert db.writes == []  # no skills written, and no lifecycle touched
+    # Stage A's own verdict is recorded, so the job leaves Stage A's queue and
+    # stays in Stage B's.
+    assert db.settled() == [["j2"]]
+
+
+def test_a_batch_costs_the_same_round_trips_for_one_job_or_a_hundred() -> None:
+    # One job at a time was a resolve and an upsert per job: ~50 jobs a minute,
+    # so a 14k-job scrape outran the drain's two-hour timeout (2026-09-30).
+    jobs = [
+        {"job_id": f"j{i}", "job_title": "Data Engineer",
+         "job_description": "Requirements:\nStrong Python and SQL."}
+        for i in range(100)
+    ]
+    db = _ClaimDB([jobs, []])
+
+    result = skill_floor.drain_skill_floor_queue(db)
+
+    assert result == {"jobs_seen": 100, "jobs_written": 100, "jobs_empty": 0}
+    assert db.table_calls.count("skills") == 1, "one resolve for the whole batch"
+    assert len(db.writes) == 1, "one upsert for the whole batch"
+    assert {row["job_id"] for row in db.writes[0]["payload"]} == {job["job_id"] for job in jobs}
+
+
+def test_the_verdict_is_written_only_after_the_skills_land() -> None:
+    # The claim used to BE the verdict, so a drain killed mid-batch stranded
+    # its jobs as "attempted" with no skills: 96 and 37 of them on 2026-09-30.
+    db = _ClaimDB([[{"job_id": "j1", "job_title": "Data Engineer",
+                     "job_description": "Requirements:\nStrong Python."}], []])
+    order: list[str] = []
+    original_rpc = db.rpc
+
+    def rpc(name: str, params: dict[str, Any]) -> _Query:
+        order.append(name)
+        return original_rpc(name, params)
+
+    def table(name: str) -> _Query:
+        order.append(f"table:{name}")
+        return _DB.table(db, name)
+
+    db.rpc = rpc  # type: ignore[method-assign]
+    db.table = table  # type: ignore[method-assign]
+
+    skill_floor.drain_skill_floor_queue(db)
+
+    assert order.index("settle_skill_floor_claims") > order.index("table:job_skills")
+
+
+def test_a_failed_write_leaves_the_lease_unsettled(monkeypatch) -> None:
+    db = _ClaimDB([[{"job_id": "j1", "job_title": "Data Engineer",
+                     "job_description": "Requirements:\nStrong Python."}], []])
+
+    def boom(*_a: Any, **_k: Any) -> dict[str, int]:
+        raise RuntimeError("upsert failed")
+
+    monkeypatch.setattr(skill_floor, "write_skill_floors", boom)
+
+    with pytest.raises(RuntimeError):
+        skill_floor.drain_skill_floor_queue(db)
+
+    assert db.settled() == [], "an unsettled lease is served again; a settled one never is"
+
+
+def test_the_drain_claims_under_its_owner_so_a_retry_takes_its_batch_back() -> None:
+    db = _ClaimDB([[]])
+
+    skill_floor.drain_skill_floor_queue(db, owner="run-7")
+
+    assert db.rpc_payloads[0] == ("claim_skill_floor_lease", {"p_limit": 100, "p_owner": "run-7"})
 
 
 def test_count_missing_floor_separates_the_stall_from_the_backlog() -> None:

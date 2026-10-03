@@ -26,7 +26,9 @@ type Props = {
   value: string
   onChange: (value: string) => void
   onSubmit?: () => void
+  onBlur?: () => void
   onKeyDown?: KeyboardEventHandler<HTMLTextAreaElement>
+  id?: string
   maxLength?: number
   placeholder?: string
   autoFocus?: boolean
@@ -53,7 +55,9 @@ export const SayPad = forwardRef<HTMLTextAreaElement, Props>(function SayPad(
     value,
     onChange,
     onSubmit,
+    onBlur,
     onKeyDown,
+    id,
     maxLength,
     placeholder,
     autoFocus,
@@ -85,6 +89,7 @@ export const SayPad = forwardRef<HTMLTextAreaElement, Props>(function SayPad(
     <div className="say-pad" data-capped={hint ? "true" : undefined}>
       <textarea
         ref={setRefs}
+        id={id}
         className={cn("say-pad-field tm-control-focus", className)}
         data-size={size}
         rows={1}
@@ -98,6 +103,7 @@ export const SayPad = forwardRef<HTMLTextAreaElement, Props>(function SayPad(
         aria-label={ariaLabel}
         {...extra}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
         onKeyDown={(e) => {
           const composing = e.nativeEvent.isComposing || e.keyCode === 229
           if (e.key === "Enter" && !e.shiftKey && !composing) {

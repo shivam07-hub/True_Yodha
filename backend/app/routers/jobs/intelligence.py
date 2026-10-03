@@ -61,7 +61,6 @@ def get_feed_state(
         feed_version=read.state.feed_version,
         published_at=read.state.published_at,
         imported_job_count=read.state.imported_job_count,
-        latest_batch_date=read.state.latest_batch_date,
     )
 
 

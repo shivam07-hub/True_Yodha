@@ -79,30 +79,6 @@ def test_submit_feedback_anonymous_allowed(patch_admin, patch_user) -> None:
     assert "user_id" not in (chain._inserted or {})
 
 
-def test_submit_feedback_rejects_the_closed_beta_assignment_program(
-    patch_admin,
-    patch_user,
-) -> None:
-    patch_admin({"user_feedback": {"inserted_id": 5}})
-    patch_user("u1")
-
-    with TestClient(app) as client:
-        response = client.post(
-            "/feedback",
-            json={
-                "type": "feedback",
-                "payload": {"program": "intern_beta_assignment_v1"},
-            },
-            headers={"Authorization": "Bearer t"},
-        )
-
-    # The cohort form was deleted 2026-09-13, but its 114 reports ARE the
-    # closure ledger — so a general submission must still never be able to forge
-    # the program tag and land among them.
-    assert response.status_code == 422
-    assert "closed" in response.json()["detail"].lower()
-
-
 # ── GET /feedback/my ──────────────────────────────────────────────────────
 
 

@@ -97,7 +97,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   // J1: the brain warms the fit-top shortlist AFTER J0 has painted, then the feed
   // re-reads and the leading cards arrive ranked. Never on the arrival path — see
   // the "Jobs paints its J0 feed before secondary compute" contract test.
-  useFeedWarm({ token, scope, settled })
+  const { accepted: warmAccepted } = useFeedWarm({ token, scope, settled })
 
   // The brain's picks sit at the top; a quiet divider marks where the ranked
   // shortlist ends and the deterministic browse feed begins (so the verdicts
@@ -282,6 +282,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
         openTailor={openTailor}
         loading={loading}
         judgment={judgment}
+        warmAccepted={warmAccepted}
         visibleJobs={visibleJobs}
         clearBrowse={clearBrowse}
         total={total}

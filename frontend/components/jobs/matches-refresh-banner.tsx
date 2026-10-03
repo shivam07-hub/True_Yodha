@@ -9,6 +9,8 @@ import { useParticleMoment } from "@/components/particle"
 import { jobs, users, type MatchHealth } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useJobMatches } from "@/lib/hooks/use-job-matches"
+import { useFeedScope } from "@/lib/hooks/use-feed-scope"
+import { jobFeedQueryKey } from "@/components/market/job-feed-query-key"
 import { openRefreshGate } from "@/store/refreshGateStore"
 import { useLaneYields } from "@/store/matchRunStore"
 import { NewInventoryStrip } from "./new-inventory-strip"
@@ -36,6 +38,21 @@ export function MatchesRefreshBanner({ token }: { token: string | null }) {
   // this cache. Called for its cache side-effect (the bar is the renderer now) —
   // and here also for match_health (the Career-Ops vetting trust banner below).
   const { data: matchesData } = useJobMatches(token, !yieldLane)
+  const { data: profile } = useQuery({
+    queryKey: dataKeys.profile(),
+    queryFn: () => users.me(token!),
+    enabled: !!token,
+    staleTime: 60_000,
+  })
+  const scope = useFeedScope(profile?.target_locations)
+  const { data: feed } = useQuery({
+    queryKey: token ? jobFeedQueryKey({ token, scope }) : ["jobFeed", "signed-out"],
+    queryFn: () => jobs.feed(token!),
+    enabled: false,
+  })
+  // The strip outranks an empty column when it wears the accent. Quiet until
+  // the published list actually has cards.
+  const quietInventory = !feed || feed.jobs.length === 0
 
   // Celebration fires on the done-transition, only when matches were actually
   // written (a "0 new" finish never fakes a payoff). Ref guards the edge.
@@ -73,7 +90,7 @@ export function MatchesRefreshBanner({ token }: { token: string | null }) {
           <span>{refreshVm.progressLabel}</span>
         </div>
       ) : null}
-      {!yieldLane ? <NewInventoryStrip token={token} /> : null}
+      {!yieldLane ? <NewInventoryStrip token={token} quiet={quietInventory} /> : null}
       <MatchVettingBanner token={token} health={matchesData?.match_health} />
       {gate}
     </>

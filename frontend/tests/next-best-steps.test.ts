@@ -138,3 +138,16 @@ test("one search keeps the generic eyebrow and the three-step rail", () => {
   assert.equal(steps.length, 3)
   assert.equal(steps[1].eyebrow, "Best-fit job")
 })
+
+test("a job the published feed does not contain is not named", async () => {
+  const { jobsOnPublishedFeed } = await import("../lib/onboarding/next-best-steps")
+  const picks = [{ jobId: "accenture", title: "Account Director", company: "Accenture", fit: 76 }]
+  assert.deepEqual(jobsOnPublishedFeed(picks, null), [])
+  assert.deepEqual(jobsOnPublishedFeed(picks, []), [])
+  assert.equal(jobsOnPublishedFeed(picks, [{
+    jobId: "other", title: "Strategy Lead", company: "Sanofi", fit: null,
+  }])[0]?.company, "Sanofi")
+  assert.equal(jobsOnPublishedFeed(picks, [{
+    jobId: "accenture", title: "Account Director", company: "Accenture", fit: 76,
+  }])[0]?.company, "Accenture")
+})

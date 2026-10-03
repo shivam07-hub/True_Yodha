@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { X } from "lucide-react"
+import { SayPad } from "@/components/myro/say-pad"
 import { cn } from "@/lib/utils"
 
 /**
@@ -52,32 +53,37 @@ function PhraseList({
   return (
     <div className="mt-4">
       <label htmlFor={id} className="text-sm font-medium text-[var(--tm-text)]">{label}</label>
-      <input
-        id={id}
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); add() } }}
-        onBlur={add}
-        disabled={full}
-        placeholder={full ? "" : placeholder}
-        maxLength={120}
-        className="tm-control-focus mt-2 min-h-11 w-full rounded-md border border-[var(--tm-border)] bg-[var(--tm-surface)] px-3 text-[var(--tm-text)] placeholder:text-[var(--tm-text-faint)] disabled:opacity-45"
-      />
+      <div className="mt-2">
+        <SayPad
+          id={id}
+          size="compact"
+          value={draft}
+          maxLength={120}
+          disabled={full}
+          placeholder={full ? "" : placeholder}
+          aria-label={label}
+          onChange={setDraft}
+          onSubmit={add}
+          onBlur={add}
+          className="rounded-md border border-[var(--tm-border)] bg-[var(--tm-surface)] disabled:opacity-45"
+        />
+      </div>
       {values.length > 0 && (
         <ul className="mt-2 flex flex-wrap gap-2">
           {values.map((value) => (
-            <li key={value}>
+            <li key={value} className="max-w-full">
               <button
                 type="button"
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => onCommit(values.filter((entry) => entry !== value))}
                 aria-label={`Remove ${value}`}
                 className={cn(
-                  "tm-control-focus inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-sm",
+                  "tm-control-focus inline-flex max-w-full items-start gap-1.5 rounded-md border px-3.5 py-2 text-left text-sm",
                   "border-[var(--tm-border)] bg-[var(--tm-surface)] text-[var(--tm-text)]",
                 )}
               >
-                {value}
-                <X className="size-3.5 text-[var(--tm-text-muted)]" aria-hidden />
+                <span className="min-w-0 text-left">{value}</span>
+                <X className="mt-0.5 size-3.5 shrink-0 text-[var(--tm-text-muted)]" aria-hidden />
               </button>
             </li>
           ))}
@@ -97,7 +103,7 @@ export function DirectionChoice({ lean, avoid, proposed, onChange }: Props) {
       <p id="target-direction" className="text-sm font-medium text-[var(--tm-text)]">
         Anything else about the work?{" "}
         <span className="font-normal text-[var(--tm-text-muted)]">
-          {anyProposed ? "Read from your CV — fix anything wrong." : "Optional."}
+          {anyProposed ? "Read from your CV. Fix anything wrong." : "Optional."}
         </span>
       </p>
       <PhraseList

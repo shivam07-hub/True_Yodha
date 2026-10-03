@@ -1329,12 +1329,18 @@ class JobsRepository:
     def list_jobs_at_company(
         self, company: str, *, limit: int = 6, location_country: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Latest N roles at a company. DB-bounded LIMIT — safe for huge companies.
+        """Latest N live roles at a company.
 
         Public-surface read for the /intel Open Roles panel. No skill filter
         (use search_jobs_by_filters for skill-scoped reads). When a country filter
         is active on /intel, scope here too so both panels agree. 24h cache keyed
         on (company, country, limit) — reuses _search_cache shape, sentinel skill ''.
+
+        Live only, and walked through `idx_jobs_live_company_first_seen`. It had
+        neither: the panel titled "Open roles" listed closed ones, and a LIMIT
+        with no index behind its ORDER BY still sorts every row the company
+        has — 17,844 for Axis Bank, 10.6s, past the 8s PostgREST timeout
+        (`capacity_503:upstream.read_timeout`, 2026-10-01).
         """
         company_name = (company or "").strip()
         if not company_name:
@@ -1356,6 +1362,8 @@ class JobsRepository:
                     "date_posted, first_seen"
                 )
                 .eq("company_name", company_name)
+                .eq("is_active", True)
+                .eq("listing_confidence", "active")
             )
             if country:
                 query = query.eq("location_country", country)

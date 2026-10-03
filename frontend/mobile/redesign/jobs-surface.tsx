@@ -12,7 +12,7 @@ import { useJobFeed } from "@/components/market/use-job-feed"
 import { useTracks } from "@/lib/hooks/use-tracks"
 import { trackDividers, unreadBoundary } from "@/lib/jobs/track-sections"
 import { useFeedWarm } from "@/components/market/use-feed-warm"
-import { MarketJudgmentNote } from "@/components/market/market-judgment"
+import { MarketJudgmentNote, AspirationRead } from "@/components/market/market-judgment"
 import { useFeedScope } from "@/lib/hooks/use-feed-scope"
 import { useMyroSearch } from "@/lib/hooks/use-myro-search"
 import { NewInventoryStrip } from "@/components/jobs/new-inventory-strip"
@@ -95,7 +95,7 @@ export function JobsSurface({
   )
   // Same J1 warm as desktop, through the same hook — a surface that warmed its own
   // way is how desktop and mobile drifted apart before.
-  useFeedWarm({ token, scope, settled })
+  const { accepted: warmAccepted } = useFeedWarm({ token, scope, settled })
   const filterCount = activeFilterCount(filters)
 
   /**
@@ -255,20 +255,27 @@ export function JobsSurface({
             so the two skins can never disagree about whether the user was told
             that Myro is holding roles they've never searched. Renders nothing at
             zero. */}
-        {!loading ? <MarketJudgmentNote judgment={judgment} /> : null}
-        {!loading && !isRefreshing ? <NewInventoryStrip token={token} /> : null}
+        {!loading && !(judgment?.reading && visibleJobs.length === 0) ? <MarketJudgmentNote judgment={judgment} /> : null}
+        {!loading && !isRefreshing ? <NewInventoryStrip token={token} quiet={visibleJobs.length === 0} /> : null}
         {/* Curated Agent Picks — default view only (hidden while searching, filtering
             or viewing hidden jobs). Renders nothing when the user has no picks. */}
-        {!loading && !eyeOn && !searchQ && filterCount === 0 ? (
+        {!loading && !eyeOn && !searchQ && filterCount === 0 && !(judgment?.reading && visibleJobs.length === 0) ? (
           <MobileAgentPicks token={token} context="feed" onSave={job => doSave(job)} onSkip={job => doSkip(job)} />
         ) : null}
         {eyeOn ? (
           <HiddenView token={token} snack={snack} />
         ) : loading ? (
           <JobsMobileFeedRows />
+        ) : judgment?.reading && rows.length === 0 ? (
+          warmAccepted ? (
+            <>
+              <AspirationRead judgment={judgment} />
+              <MarketJudgmentNote judgment={judgment} />
+            </>
+          ) : null
         ) : rows.length === 0 && !judgment?.notice ? (
           <div style={{ textAlign: "center", padding: "44px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-            <div style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600 }}>Feed clear 🎯</div>
+            <div style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600 }}>Feed clear</div>
             <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--mm-faint)", lineHeight: 1.5 }}>You&apos;ve triaged everything here.<br />Next: tailor a CV for what you saved.</div>
             <button onClick={() => router.push("/collections")} className="mm-press" style={ctaBtn}>Open Collections</button>
             <button onClick={tellMyro} style={intentLink}>Not what you wanted? Tell Myro →</button>

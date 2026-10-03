@@ -30,7 +30,5 @@
     "/cv-preview": "Anonymous CV preview — entered from the public scorer."
   },
 
-  "debt": {
-    "/beta-feedback": "Cohort research form, one submission per account, 114 rows, last 2026-07-21. Superseded for general feedback by the always-mounted FeedbackHub. Awaiting Shivam: delete, or re-open for a second cohort and give it a door."
-  }
+  "debt": {}
 }

@@ -21,7 +21,18 @@ from ONE database — dev and prod share it (INFRA.md), so these are real people
 from __future__ import annotations
 
 import sys
-from typing import Any
+from datetime import datetime, timedelta, timezone
+from typing import Any, NamedTuple
+
+
+class Within(NamedTuple):
+    """A rolling window on a timestamp column: inside the last `days` days, or —
+    with `before=True` — older than that. Resolved when the count runs, never at
+    import, so a long-lived process cannot freeze yesterday's window."""
+
+    days: int
+    before: bool = False
+
 
 # (label, table, distinct-user column or None for row count, filter)
 STEPS: list[tuple[str, str, str | None, dict[str, Any]]] = [
@@ -35,6 +46,15 @@ STEPS: list[tuple[str, str, str | None, dict[str, Any]]] = [
     ("has a career target", "career_target_snapshots", "user_id", {}),
     ("has job matches", "user_job_matches", "user_id", {}),
     ("collected a role", "job_applications", "user_id", {}),
+    ("tailored a CV for a job", "cv_versions", "user_id", {"job_id": "__not_null__"}),
+    ("applied", "job_applications", "user_id", {"status": "applied"}),
+    # Retention. `last_active_at` is copied from Supabase's session refreshes
+    # once a day (migration 20261003100000) — before that it only ever held the
+    # signup time. Rows, like "signed up", so the test-account filter applies.
+    ("active in the last 7 days", "user_profiles", None,
+     {"is_test_account": False, "last_active_at": Within(7)}),
+    ("returning in the last 7 days", "user_profiles", None,
+     {"is_test_account": False, "last_active_at": Within(7), "created_at": Within(7, before=True)}),
     ("answered a JD gap", "cv_dump_entries", "user_id", {"source": "jd_gap_answer"}),
     ("has a career story", "career_stories", "user_id", {}),
     ("passed a skill quiz", "quiz_attempts", "user_id", {"passed": True}),
@@ -44,10 +64,10 @@ STEPS: list[tuple[str, str, str | None, dict[str, Any]]] = [
     ("arrived via partner SSO", "partner_users", "user_id", {}),
 ]
 
-# The spine, in order — the four-step goal made countable.
+# The spine, in order — the loop made countable, ending at the north star.
 SPINE = [
     "signed up", "uploaded a CV", "got a Myro Score",
-    "has job matches", "collected a role",
+    "has job matches", "collected a role", "tailored a CV for a job", "applied",
 ]
 
 
@@ -82,6 +102,9 @@ def _count(
         for column, value in filters.items():
             if value == "__not_null__":
                 query = query.not_.is_(column, "null")
+            elif isinstance(value, Within):
+                cutoff = (datetime.now(timezone.utc) - timedelta(days=value.days)).isoformat()
+                query = query.lt(column, cutoff) if value.before else query.gte(column, cutoff)
             else:
                 query = query.eq(column, value)
         page = query.range(start, start + _PAGE - 1).execute().data or []

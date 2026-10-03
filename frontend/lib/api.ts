@@ -984,6 +984,13 @@ export interface CareerBandOption {
   job_count: number
   family_count: number
   fit: number
+  /** How many skills the CV holds. `null` = no CV to read, never 0. */
+  cv_skill_count?: number | null
+  /** How many of them a family in this band lists among the twelve it most
+   *  demands. `0` is a finding ("none asked here"); `null` is no CV. */
+  matched_count?: number | null
+  /** The most widely asked of those, at most three. */
+  matched_skills?: string[] | null
 }
 
 export interface RoleFamilyLocation {
@@ -3443,7 +3450,6 @@ export interface FeedState {
   feed_version: string | null
   published_at: string | null
   imported_job_count: number
-  latest_batch_date: string | null
 }
 
 /** Result of a conditional Feed State read — unchanged (304) vs fresh (200). */
@@ -3968,6 +3974,8 @@ export interface MarketJudgment {
   notice: string | null
   cause: "skills" | "aspirations" | null
   skills: string[]
+  /** The cards on screen were judged against the CV this person replaced. */
+  cv_replaced?: boolean
 }
 
 /** GET /jobs/feed — jobs the judge scored as worth this person's time.
@@ -4909,91 +4917,6 @@ export const diary = {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(data),
-    }),
-}
-
-// ── Comments — PUBLIC community notes on job / company / skill entities ──
-// Read is public (no token needed); writing/flagging requires auth. Author is
-// shown via ninja_name only — user_id is never returned by the API.
-export type CommentEntityType = "job" | "skill" | "company"
-
-export interface Comment {
-  id: string
-  entity_type: CommentEntityType
-  entity_id: string
-  body: string
-  created_at: string
-  updated_at: string
-  author_ninja_name: string | null
-  is_own: boolean
-}
-
-export interface CommentListResponse {
-  comments: Comment[]
-  total: number
-}
-
-export interface CommentFlagResponse {
-  comment_id: string
-  report_count: number
-  status: string
-}
-
-function commentAuthHeaders(token: string | null): Record<string, string> {
-  return token ? { Authorization: `Bearer ${token}` } : {}
-}
-
-export const comments = {
-  // Public read — token optional (passed through only so the API can mark is_own).
-  list: (token: string | null, entityType: CommentEntityType, entityId: string) =>
-    request<CommentListResponse>(`/comments?entity_type=${entityType}&entity_id=${encodeURIComponent(entityId)}`, {
-      headers: commentAuthHeaders(token),
-    }),
-  create: (token: string, entityType: CommentEntityType, entityId: string, body: string) =>
-    request<Comment>("/comments", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ entity_type: entityType, entity_id: entityId, body }),
-    }),
-  update: (token: string, commentId: string, body: string) =>
-    request<Comment>(`/comments/${commentId}`, {
-      method: "PATCH",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ body }),
-    }),
-  remove: (token: string, commentId: string) =>
-    request<void>(`/comments/${commentId}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    }),
-  flag: (token: string, commentId: string) =>
-    request<CommentFlagResponse>(`/comments/${commentId}/flag`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    }),
-}
-
-// ── Private notes — the user's OWN note per entity (never public, PV1-safe) ──
-// One living note per entity; PUT upserts, GET returns { body: null } when none.
-export type PrivateNoteEntityType = "job" | "skill" | "company" | "cv"
-
-export interface PrivateNote {
-  entity_type: PrivateNoteEntityType
-  entity_id: string
-  body: string | null
-  updated_at: string | null
-}
-
-export const privateNotes = {
-  get: (token: string, entityType: PrivateNoteEntityType, entityId: string) =>
-    request<PrivateNote>(`/private-notes?entity_type=${entityType}&entity_id=${encodeURIComponent(entityId)}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    }),
-  put: (token: string, entityType: PrivateNoteEntityType, entityId: string, body: string) =>
-    request<PrivateNote>("/private-notes", {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ entity_type: entityType, entity_id: entityId, body }),
     }),
 }
 

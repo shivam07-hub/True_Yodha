@@ -50,7 +50,10 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           OPS_ALERT_EMAIL: ${{ secrets.OPS_ALERT_EMAIL }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_PROJECT_ID: a15c0013-3f6b-4a75-9b7a-4cd6d93c80c7
-          RAILWAY_ENVIRONMENT_ID: 9e77c93e-9f0f-4c29-ac4e-e9c4d39ae6c5
+          # clever-embrace / production (INFRA.md, `railway status`). Until
+          # 2026-10-03 these named a project outside this workspace, so the
+          # death harvest was not pointed at the services it names.
+          RAILWAY_PROJECT_ID: a15c0013-0fb6-491e-9c05-131776713d74
+          RAILWAY_ENVIRONMENT_ID: f6a22e25-8218-48be-8d89-d380dfbada25
           MYRO_ENV: prod
         run: python -m app.notice.closer

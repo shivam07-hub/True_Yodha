@@ -11,9 +11,8 @@ import { CapturePill } from "@/components/jobs/capture-pill"
 import { FeedCard } from "@/components/jobs/feed-card"
 import { feedDataFromCompanyJob } from "@/lib/jobs/card-view"
 import "@/components/jobs/feed-card.css"
-import type { CommentListResponse, CompanyJobCard, CompanyJobsResponse } from "@/lib/api"
+import type { CompanyJobCard, CompanyJobsResponse } from "@/lib/api"
 import { ParticleLoading } from "@/components/loading/particle-loading"
-import { CommentThread } from "@/components/comments/comment-thread"
 import { useSession } from "@/lib/hooks/use-auth"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import { CompanySkillDemandPanel } from "./company-skill-demand-panel"
@@ -80,12 +79,9 @@ function JobRow({
 export function CompanyJobsClient({
   companyName,
   initialData,
-  initialComments,
 }: {
   companyName: string
   initialData: CompanyJobsResponse | null
-  /** Server-fetched company-level notes — seeds the CommentThread into crawlable HTML. */
-  initialComments?: CommentListResponse | null
 }) {
   const { token } = useSession()
   const signup = useSignupGate()
@@ -206,14 +202,6 @@ export function CompanyJobsClient({
             )}
           </>
         )}
-
-        {/* Public community notes on this company. Anyone reads; signed-in users post. */}
-        <div style={{ marginTop: 40, padding: "24px 28px", background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 14 }}>
-          <div className="tm-label-caps" style={{ color: "var(--tm-text-faint)", marginBottom: 12 }}>
-            Notes on {companyName}
-          </div>
-          <CommentThread token={token ?? null} entityType="company" entityId={companyName} placeholder={`Share what you know about applying to ${companyName}…`} initialData={initialComments ?? undefined} />
-        </div>
 
         <CompanyPostingNotesPanel companyName={companyName} />
 

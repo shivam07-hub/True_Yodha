@@ -36,6 +36,8 @@ class Sighting:
     terminal_class: str | None = None
     belt: str | None = None
     slow_kind: str | None = None
+    site_file: str | None = None
+    site_function: str | None = None
 
     @staticmethod
     def unhandled_500(
@@ -130,6 +132,18 @@ class Sighting:
             slow_kind=kind,
             method=method,
             path=path,
+        )
+
+    @staticmethod
+    def slow_read(*, file: str, function: str, method: str, path: str) -> Sighting:
+        """A slow 2xx whose own database round trip was the slow part."""
+        return Sighting(
+            cause_class="slow_200",
+            slow_kind="slow_read",
+            method=method,
+            path=path,
+            site_file=file,
+            site_function=function,
         )
 
 

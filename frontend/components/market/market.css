@@ -304,6 +304,13 @@
   color: var(--tm-text-muted); font-size: var(--tm-fs-body); line-height: 1.5;
 }
 .tm-feed-weak-note strong { color: var(--tm-text); font-weight: 600; }
+.tm-feed-read {
+  margin: 12px 0 0;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-caption);
+  letter-spacing: 0.04em;
+  color: var(--tm-text-muted);
+}
 
 @media (max-width: 719px) {
   .tm-feed-toast { bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); }

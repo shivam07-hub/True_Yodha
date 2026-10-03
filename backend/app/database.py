@@ -17,6 +17,7 @@ Usage in a FastAPI route:
         ...
 """
 
+import time
 from functools import lru_cache
 
 import httpx
@@ -82,12 +83,17 @@ class _RetryingHTTPTransport(httpx.HTTPTransport):
         return self._handle_with_retry(request)
 
     def _handle_with_retry(self, request: httpx.Request) -> httpx.Response:
+        # Timed here, inside the read-capacity claim: the wait for a slot is a
+        # queue, the trip is the query. A Notice names a slow trip's caller.
+        started = time.perf_counter()
         try:
             return super().handle_request(request)
         except self._RETRYABLE:
             if request.method not in ("GET", "HEAD"):
                 raise
             return super().handle_request(request)
+        finally:
+            read_budget.record_round_trip((time.perf_counter() - started) * 1000.0)
 
 
 # ONE transport, shared by every client this module builds.

@@ -4,9 +4,10 @@ Measures wall-clock time for every request, attaches it as the
 ``X-Process-Time`` response header (milliseconds), and logs a structured
 warning when a request crosses the slow threshold. Grep ``metric route.slow``.
 
-Slow 2xx responses open a Notice by kind, never by route: over-budget reads
-are ``slow_200:reads_over_budget``; a slow 200 inside budget is a capacity
-queue victim (``blocked``).
+Slow 2xx responses open a Notice by cause, never by route: over-budget reads
+are ``slow_200:reads_over_budget``; a slow 200 whose own database round trip
+was slow is ``slow_200:slow_read:<file>:<function>``, named for the code that
+asked; anything else is a capacity queue victim (``blocked``).
 """
 
 from __future__ import annotations
@@ -37,6 +38,24 @@ def _route_label(scope: Scope) -> str:
     route = scope.get("route")
     template = getattr(route, "path", None)
     return str(template or scope.get("path", "?"))
+
+
+def _slow_sighting(reads: int, method: str, path: str) -> Sighting:
+    """Which cause a slow 2xx is evidence of.
+
+    Every slow request inside the read budget used to be filed as a capacity
+    queue victim and parked `blocked`. /jobs/feed-state (12s) and /jobs/at
+    (10.6s) were single unindexed queries, not queue victims, and sat among
+    10,095 parked sightings nobody had a reason to read.
+    """
+    if reads > read_budget.READ_BUDGET_PER_REQUEST:
+        return Sighting.slow_200(kind="reads_over_budget", method=method, path=path)
+    trip = read_budget.slowest_round_trip()
+    if trip is not None:
+        return Sighting.slow_read(
+            file=trip.file, function=trip.function, method=method, path=path
+        )
+    return Sighting.slow_200(kind="capacity_queue", method=method, path=path)
 
 
 class RequestTimingMiddleware:
@@ -93,14 +112,7 @@ class RequestTimingMiddleware:
                         reads,
                     )
                     if 200 <= int(status) < 300:
-                        kind = (
-                            "reads_over_budget"
-                            if reads > read_budget.READ_BUDGET_PER_REQUEST
-                            else "capacity_queue"
-                        )
-                        observe(
-                            Sighting.slow_200(kind=kind, method=str(method), path=str(path))
-                        )
+                        observe(_slow_sighting(reads, str(method), str(path)))
             await send(message)
 
         try:

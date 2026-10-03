@@ -153,7 +153,7 @@ export function BandStep({
     <>
       <StepHead
         title="Your field"
-        lede="Pick every field you would take work in. Myro suggests directions from inside them; search still reaches everything."
+        lede="Every field you would take work in."
       />
       <div className="mt-6">
         <BandChoice options={options} selected={selected} onChange={onChange} />
@@ -252,7 +252,7 @@ export function LevelStep({
           />
           {yearsSource === "cv" && years != null ? (
             <span className="text-sm text-[var(--tm-text-muted)]">
-              Read from your CV — correct it if it is wrong.
+              Read from your CV. Correct it if it is wrong.
             </span>
           ) : null}
         </div>

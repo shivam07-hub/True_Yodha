@@ -732,10 +732,12 @@ class MarketJudgment(BaseModel):
     """Where the career-ops read of this person's aspirations stands.
 
     `reading` is true while jobs that match their aspirations are still
-    unjudged. `notice` is the one sentence for that state: the count while
-    the read is open, or the larger cut once it has finished. `shortlist_size`
-    on the parent stays 0 — this list is not truncated, and a cap of 0 is how
-    the client knows not to call the remainder "the closest we found".
+    unjudged. `notice` is the one sentence once that read has a cause, or
+    when the CV on screen is the one they replaced. The count while a read
+    is open is `read` / `pending` / `cleared`; it is not this sentence.
+    `shortlist_size` on the parent stays 0. This list is not truncated, and
+    a cap of 0 is how the client knows not to call the remainder "the closest
+    we found".
     """
 
     reading: bool = False
@@ -745,6 +747,7 @@ class MarketJudgment(BaseModel):
     notice: str | None = None
     cause: Literal["skills", "aspirations"] | None = None
     skills: list[str] = []
+    cv_replaced: bool = False
 
 
 class JobFeedResponse(BaseModel):

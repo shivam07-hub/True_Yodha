@@ -14,7 +14,6 @@ from typing import Any
 
 from app.database import get_supabase_admin_batch
 from app.services import background, skill_floor
-from app.services.background import TransientJobError
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +29,11 @@ def enqueue_drain(run_id: str | None) -> bool:
         JOB_TYPE,
         payload={"run_id": run_id},
         correlation_id=correlation_id,
-        # Stage A spends zero model seconds, but each job still needs database
-        # resolution + upsert round trips. A multi-thousand-job scrape can take
-        # longer than the generic 15-minute user-job timeout.
+        # Stage A spends zero model seconds, but each 100-job batch still needs
+        # a claim, a resolve, an upsert and a settle. A multi-thousand-job
+        # scrape can take longer than the generic 15-minute user-job timeout.
+        # A kill past this is no longer a loss: RQ's retry carries the same
+        # run id, and the lease's owner takes its unsettled batch back at once.
         job_timeout_seconds=JOB_TIMEOUT_SECONDS,
     )
     logger.info("metric skill_floor.enqueued run_id=%s", run_id or "unknown")
@@ -41,22 +42,21 @@ def enqueue_drain(run_id: str | None) -> bool:
 
 @background.handler(JOB_TYPE)
 async def _drain_handler(payload: dict[str, Any], allow_retry: bool) -> None:
-    """Drain every unattempted floor and prove that the work set is empty."""
+    """Drain every unleased floor. The empty claim that ends the loop is the proof.
+
+    It used to re-count the gap afterwards and retry if anything was left. That
+    count is a 1.5s scan that 57014'd under ingest load and turned a finished
+    drain into a crashed one (2026-10-01), and with leases it would also count a
+    concurrent drain's in-flight batch as "left". The six-hourly heartbeat owns
+    the stall question; a drain owns only its own work.
+    """
     db = get_supabase_admin_batch()
-    result = await asyncio.to_thread(skill_floor.drain_skill_floor_queue, db)
-    after = await asyncio.to_thread(skill_floor.count_missing_floor, db)
+    run_id = payload.get("run_id")
+    result = await asyncio.to_thread(skill_floor.drain_skill_floor_queue, db, owner=run_id)
     logger.info(
-        "metric skill_floor.pipeline_done run_id=%s seen=%d written=%d empty=%d "
-        "remaining=%d awaiting_stage_a=%d",
-        payload.get("run_id") or "unknown",
+        "metric skill_floor.pipeline_done run_id=%s seen=%d written=%d empty=%d",
+        run_id or "unknown",
         result["jobs_seen"],
         result["jobs_written"],
         result["jobs_empty"],
-        after.total,
-        after.awaiting_stage_a,
     )
-    if after.awaiting_stage_a:
-        message = f"Stage A drain left {after.awaiting_stage_a} unattempted jobs"
-        if allow_retry:
-            raise TransientJobError(message)
-        logger.error("metric skill_floor.pipeline_incomplete remaining=%d", after.awaiting_stage_a)

@@ -20,7 +20,7 @@ import "./new-inventory-strip.css"
  * moment they run the search (the run stamps `last_match_run_at`, the count goes
  * to 0). Reads the shared matches cache — no request of its own.
  */
-export function NewInventoryStrip({ token }: { token: string | null }) {
+export function NewInventoryStrip({ token, quiet = false }: { token: string | null; quiet?: boolean }) {
   const { data } = useQuery({
     queryKey: dataKeys.jobs(),
     queryFn: () => jobs.matches(token!),
@@ -31,7 +31,7 @@ export function NewInventoryStrip({ token }: { token: string | null }) {
   if (count <= 0) return null
 
   return (
-    <button type="button" className="tm-newinv-strip" onClick={() => openRefreshGate()}>
+    <button type="button" className="tm-newinv-strip" data-quiet={quiet ? "true" : undefined} onClick={() => openRefreshGate()}>
       <span className="tm-newinv-count">{formatCount(count)}</span>
       <span className="tm-newinv-copy">
         new role{count === 1 ? "" : "s"} landed since your last search

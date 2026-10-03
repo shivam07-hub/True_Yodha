@@ -15,11 +15,12 @@ from app.services.job_intelligence import (
 
 
 class _FakeRepository:
-    def __init__(self, publication: dict | None, latest_batch: object = None) -> None:
+    """Only the audit read exists. A feed-state load that reaches for `jobs`
+    (the unindexed `batch_date` scan that 503'd /market) has no method to call."""
+
+    def __init__(self, publication: dict | None) -> None:
         self.publication = publication
-        self.latest_batch = latest_batch
         self.publication_reads = 0
-        self.batch_reads = 0
         self.existing_feedback: dict | None = None
         self.quality_feedback_today = 0
         self.inserted_feedback: dict | None = None
@@ -27,10 +28,6 @@ class _FakeRepository:
     def latest_feed_publication(self) -> dict | None:
         self.publication_reads += 1
         return self.publication
-
-    def latest_job_batch_marker(self) -> object:
-        self.batch_reads += 1
-        return self.latest_batch
 
     def find_feedback(
         self,
@@ -66,7 +63,6 @@ def test_feed_state_uses_successful_audit_as_publication_clock() -> None:
             "created_at": "2026-06-13T08:30:00+00:00",
             "total_rows": 17_956,
         },
-        latest_batch=20260604,
     )
     intelligence = JobIntelligence(repo, feed_cache=FeedStateCache())
 
@@ -77,7 +73,6 @@ def test_feed_state_uses_successful_audit_as_publication_clock() -> None:
     assert result.state.feed_version == "d0fd1be0-2348-4a65-95f1-ded8cfc43cc8"
     assert result.state.published_at == datetime(2026, 6, 13, 8, 30, tzinfo=timezone.utc)
     assert result.state.imported_job_count == 17_956
-    assert result.state.latest_batch_date == "2026-06-04"
 
 
 def test_feed_state_returns_not_modified_for_matching_etag() -> None:
@@ -115,7 +110,6 @@ def test_feed_state_caches_database_reads_within_ttl() -> None:
     intelligence.feed_state()
 
     assert repo.publication_reads == 2
-    assert repo.batch_reads == 2
 
 
 def test_feed_state_has_stable_empty_version_before_first_publication() -> None:
@@ -131,7 +125,6 @@ def test_feed_state_has_stable_empty_version_before_first_publication() -> None:
     assert result.state.feed_version is None
     assert result.state.published_at is None
     assert result.state.imported_job_count == 0
-    assert result.state.latest_batch_date is None
 
 
 def _feedback_command(

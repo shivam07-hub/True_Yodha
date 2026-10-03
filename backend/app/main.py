@@ -12,7 +12,6 @@ from app.routers import (
     auth,
     career_profile,
     career_skill_path,
-    comments,
     companies,
     cv,
     diary,
@@ -28,7 +27,6 @@ from app.routers import (
     myrology,
     newsletter,
     notifications,
-    private_notes,
     onboarding,
     partner,
     partner_connect,
@@ -103,8 +101,6 @@ app.include_router(sector_panel.router)
 app.include_router(jobs.router)
 app.include_router(home.router)
 app.include_router(diary.router)
-app.include_router(comments.router)
-app.include_router(private_notes.router)
 app.include_router(user_memory.router)
 app.include_router(career_profile.router)
 app.include_router(career_skill_path.router)
