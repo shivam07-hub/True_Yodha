@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-10-03 — Notice digest RCA pass (hello@himyro.com, 09-28 → 10-01)
+
+Eight open Notices traced to code; every fix on `Develop`, proofs close on `main`.
+- **feed-state** 12.3s unindexed `batch_date` scan for an unread field → deleted (`f04bf617`).
+- **Stage A drain** outran its 2h timeout and stranded 133 jobs (claim = verdict) →
+  batched writes, lease claim with owner, no post-count (`c183d3f4`); `extract_skills`
+  603 → 15.6ms/job (`15cc7105`). Re-floored 4,827: +2,399 jobs with skills; live
+  jobs invisible to matching 3,709 → 1,989 (genuine empties, settled).
+- **/jobs/at** 10.6s → 1.5ms, live roles only (`d71575f8`).
+- **slow_200** classifier: a slow query is `slow_read:<file>:<function>`, not a parked
+  queue victim (`a256919a`, ADR-0021 amended).
+- **confirm-skills** N+10 → 8 reads (this commit). Closer Railway IDs fixed (`0b59e854`).
+- Decided (CEO delegated): company-page RPC fold parked (cut rule). Shivam: Pro +
+  Small (#16), worker drain seconds, Axis Bank = 18% of live corpus (scraper).
+
+---
+
 ## 2026-10-02 — BACKLOG rebuilt in loop order (CEO grill, 2026-09-30)
 
 Shivam's frame: *"Myro is a CV-building machine for applying to the jobs you want.
