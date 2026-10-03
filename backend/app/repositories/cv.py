@@ -482,19 +482,6 @@ class CVVersionsRepository:
             {"cv_structured": cv_structured}
         ).eq("id", version_id).execute()
 
-    def _baseline_body_text(self, baseline_version_id: int) -> str:
-        result = (
-            self._db.table("cv_versions")
-            .select("body_text")
-            .eq("id", baseline_version_id)
-            .limit(1)
-            .execute()
-        )
-        rows = result.data or []
-        if not rows:
-            return ""
-        return str(rows[0].get("body_text") or "")
-
     def _with_taxonomy_keys(self, skill_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """The evidence rule names a skill. The confirm payload only has ids."""
         missing = [
@@ -531,18 +518,20 @@ class CVVersionsRepository:
         baseline_version_id: int,
         skill_rows: list[dict[str, Any]],
         overrides: list[dict[str, Any]],
+        baseline_body_text: str,
     ) -> str:
         """Atomically publish one baseline's reviewed skills as user truth.
 
         ``confirm_cv_skills`` inserts whatever rows it is given. The evidence
         rule runs here, before that insert, so the SQL writer cannot publish
-        a receipt that does not name its skill.
+        a receipt that does not name its skill. The caller already holds the
+        baseline it is confirming, so its text is passed in, not read again.
         """
         from app.services.cv_skill_evidence import rows_for_user_skills_write
 
         skill_rows = rows_for_user_skills_write(
             self._with_taxonomy_keys(skill_rows),
-            self._baseline_body_text(baseline_version_id),
+            baseline_body_text,
         )
         result = self._db.rpc(
             "confirm_cv_skills",

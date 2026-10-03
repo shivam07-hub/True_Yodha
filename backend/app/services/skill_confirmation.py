@@ -29,11 +29,18 @@ def _normalized_overrides(
     included, and excluding one is already the outcome.
     """
     by_skill: dict[int, dict[str, Any]] = {}
+    named = [
+        key
+        for item in overrides
+        if item.get("skill_id") is None
+        and (key := str(item.get("taxonomy_key") or "").strip())
+    ]
+    ids_by_key = scores_repo.get_skill_ids_for_keys(named) if named else {}
     for item in overrides:
         raw_id = item.get("skill_id")
+        key = str(item.get("taxonomy_key") or "").strip()
         if raw_id is None:
-            key = str(item.get("taxonomy_key") or "").strip()
-            resolved = scores_repo.get_skill_id_for_key(key) if key else None
+            resolved = ids_by_key.get(key) if key else None
             if resolved is None:
                 continue
             skill_id = resolved
@@ -42,6 +49,7 @@ def _normalized_overrides(
         evidence = str(item.get("evidence_text") or "").strip()
         by_skill[skill_id] = {
             "skill_id": skill_id,
+            "taxonomy_key": key,
             "action": item["action"],
             "evidence_text": evidence or _REMOVED_BY_USER,
             "source_location": item.get("source_location") or {},
@@ -53,9 +61,12 @@ def _reviewed_rows(
     base_rows: list[dict[str, Any]],
     overrides: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
+    # `taxonomy_key` rides along: the evidence rule names the skill, and
+    # dropping a key we already hold made the publish path read it back.
     rows = {
         int(row["skill_id"]): {
             "skill_id": int(row["skill_id"]),
+            "taxonomy_key": str(row.get("taxonomy_key") or ""),
             "matched_level": int(row["matched_level"]),
             "proficiency_title": str(row["proficiency_title"]),
             "source": "cv",
@@ -70,6 +81,7 @@ def _reviewed_rows(
         else:
             rows[skill_id] = {
                 "skill_id": skill_id,
+                "taxonomy_key": str(item.get("taxonomy_key") or ""),
                 "matched_level": 1,
                 "proficiency_title": "Scout",
                 "source": "user_override",
@@ -98,18 +110,15 @@ def confirm_baseline_skills(
     confirm followed by 8.2s of re-asking, 16.6s of dead time on one button press.
     """
     cv_repo = CVVersionsRepository(db)
-    baseline = cv_repo.find(baseline_version_id, user_id)
-    latest = cv_repo.latest_baseline(user_id)
-    if (
-        not baseline
-        or baseline.get("kind") != "baseline_upload"
-        or not latest
-        or int(latest["id"]) != baseline_version_id
-    ):
+    # The user's latest baseline upload IS the row being confirmed when the ids
+    # agree; a second read of it by id (`find`) answered nothing this one does not.
+    baseline = cv_repo.latest_baseline(user_id)
+    if not baseline or int(baseline["id"]) != baseline_version_id:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Confirm the latest baseline CV.",
         )
+    body_text = str(baseline.get("body_text") or "")
 
     signals = baseline.get("skills_detected") or []
     scores_repo = ScoresRepository(db)
@@ -117,7 +126,7 @@ def confirm_baseline_skills(
         scores_repo,
         user_id,
         signals,
-        cv_text=str(baseline.get("body_text") or ""),
+        cv_text=body_text,
     )
     normalized = _normalized_overrides(scores_repo, overrides)
     reviewed = _reviewed_rows(base_rows, normalized)
@@ -133,7 +142,7 @@ def confirm_baseline_skills(
             detail="Keep at least one evidence-backed skill.",
         )
 
-    cv_repo.confirm_skills(user_id, baseline_version_id, reviewed, normalized)
+    cv_repo.confirm_skills(user_id, baseline_version_id, reviewed, normalized, body_text)
 
     users_repo = UsersRepository(db)
     profile = users_repo.get_profile(user_id) or {}

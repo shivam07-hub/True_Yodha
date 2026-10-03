@@ -14,12 +14,16 @@ class _CVRepo:
         self.calls = calls
 
     def find(self, _baseline_id: int, _user_id: str) -> dict[str, Any]:
-        return self.baseline
+        # The latest baseline IS the row being confirmed when the ids agree; a
+        # second read of it by id cost a round trip on the button press.
+        raise AssertionError("confirm reads the baseline once, via latest_baseline")
 
     def latest_baseline(self, _user_id: str) -> dict[str, Any]:
         return self.baseline
 
-    def confirm_skills(self, *_args: Any) -> str:
+    def confirm_skills(self, *args: Any) -> str:
+        # The baseline text rides in: confirm_skills used to read it back.
+        assert args[-1] == str(self.baseline.get("body_text") or "")
         self.calls.append("confirm")
         return "2026-07-20T00:00:00+00:00"
 

@@ -1428,7 +1428,7 @@ it fire-and-forget. One change, near-zero risk.
 
 **P3 · Instrument the CV chain before optimising it.** `/cv/upload/finalize` has
 never been under 2,154ms in 11 days and has never been decomposed;
-`confirm-skills` hit 13,084ms once and was never investigated. Point the
+`confirm-skills` hit 13,084ms once and was never investigated *(traced 2026-10-03: N+10 reads, now 8 — §23)*. Point the
 existing `fanout.slow` metric at the funnel. **Rule 0 — do not touch these until
 a number exists.**
 
@@ -2161,3 +2161,33 @@ parameter directly keeps the hash join.
 **Not measured.** The live endpoint: it needs an authed token, and the QA login
 goes to the real API. Take five warm `x-process-time` samples on
 `/roles/bands` after the next deploy.
+
+## 23. The 2026-10-03 Notice pass: four reads that were not what they were filed as
+
+Every one of these sat in the digest as capacity, a queue, or a timeout. Each
+was a single piece of code.
+
+| Route / lane | Before | After | Cause |
+|---|---|---|---|
+| `GET /jobs/feed-state` | 12,264ms (one cold scan, killed at 8s) | one indexed audit read | `jobs ORDER BY batch_date` with no index, for a field no client read — deleted |
+| `GET /jobs/at/{company}` | 10,633ms (Axis Bank) | 1.5ms | no index behind `ORDER BY first_seen LIMIT 6`; also listed closed jobs — `idx_jobs_live_company_first_seen` |
+| `POST /onboarding/baseline/{id}/confirm-skills` | 16 reads (6-skill CV; N+10) | 8 reads, flat in N | per-skill `ensure_skill_in_db`; baseline read 3×; keys read back after review dropped them |
+| Stage A drain (worker) | 603ms CPU / job | 15.6ms / job | `re.search` on strings thrashed `re`'s 512 cache; then a full regex scan per candidate term |
+
+**confirm-skills, traced** — every PostgREST round trip of the real function
+for the QA account, writes stubbed, from a laptop (~300ms/trip): 16 reads,
+5,295ms → 8 reads, 2,488ms on the no-target branch; the has-target branch
+(`get_result`) is 12. Prod logged 18 reads and 4,338ms for user 640.
+`get_result` still re-reads the profile and the baseline the confirm already
+holds — under budget, left for the next pass.
+
+**What was filed wrong, and the fix to the filing.** All four were invisible
+because a slow 2xx inside the read budget was always `slow_200:capacity_queue`,
+opened `blocked`. The transport now times each round trip (inside the
+read-capacity claim, so a wait for a slot never counts) and a 2xx whose own
+trip took ≥500ms opens `slow_200:slow_read:<file>:<function>`. ADR-0021
+amended.
+
+**Not measured.** The live endpoints after deploy. Take five warm
+`x-process-time` samples of each route above on the next prod deploy; and the
+next scrape's `metric skill_floor.pipeline_done` for the drain's wall time.

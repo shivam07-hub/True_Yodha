@@ -363,15 +363,16 @@ def _build_user_skill_rows(
     skill_level_map: dict[str, int],
     signals: list[dict],
 ) -> list[dict]:
-    from app.services.taxonomy_loader import ensure_skill_in_db
+    from app.services.taxonomy_loader import ensure_skills_in_db
 
     # Strongest receipt per skill, not whichever signal happened to be last in
     # the list — a bullet beats a skills-line mention as the reason we scored it.
     evidence_map = best_evidence_by_key(signals)
     now = datetime.now(timezone.utc).isoformat()
+    skill_ids = ensure_skills_in_db(scores_repo.client, list(skill_level_map))
     rows: list[dict[str, Any]] = []
     for key, level in skill_level_map.items():
-        skill_id = ensure_skill_in_db(scores_repo.client, key)
+        skill_id = skill_ids.get(key)
         if skill_id is None:
             continue
         rows.append({

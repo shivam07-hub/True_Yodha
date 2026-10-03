@@ -96,6 +96,36 @@ def get_market_skills(db: Client) -> list[str]:
 
 # ── DB sync ───────────────────────────────────────────────────────────────────
 
+_ENSURE_CHUNK = 100  # taxonomy keys are ~40 chars; bounds the `.in_()` URL
+
+
+def ensure_skills_in_db(db: Client, skill_names: list[str]) -> dict[str, int]:
+    """``ensure_skill_in_db`` for many names: one read per 100, an insert only
+    for the rare name the catalog lacks. Returns {name: skills.id}.
+
+    Resolving a CV's skills one name at a time was N sequential reads on the
+    confirm-skills button — six of the sixteen for a CV naming six skills
+    (traced 2026-10-03).
+    """
+    found: dict[str, int] = {}
+    unique = list(dict.fromkeys(name for name in skill_names if name))
+    for i in range(0, len(unique), _ENSURE_CHUNK):
+        chunk = unique[i:i + _ENSURE_CHUNK]
+        rows = (
+            db.table("skills").select("id, taxonomy_key").in_("taxonomy_key", chunk).execute()
+        ).data or []
+        for row in rows:
+            key, skill_id = row.get("taxonomy_key"), row.get("id")
+            if key and skill_id is not None:
+                found[str(key)] = int(skill_id)
+    for name in unique:
+        if name not in found:
+            skill_id = ensure_skill_in_db(db, name)
+            if skill_id is not None:
+                found[name] = skill_id
+    return found
+
+
 def ensure_skill_in_db(db: Client, skill_name: str) -> int | None:
     """
     Ensures a Lightcast skill exists in the DB `skills` table.

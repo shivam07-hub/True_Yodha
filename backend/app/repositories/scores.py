@@ -181,6 +181,22 @@ class ScoresRepository:
         rows = result.data or []
         return int(rows[0]["id"]) if rows else None
 
+    def get_skill_ids_for_keys(self, taxonomy_keys: list[str]) -> dict[str, int]:
+        """{taxonomy_key: skills.id} for the keys in the catalog, in one read."""
+        if not taxonomy_keys:
+            return {}
+        result = (
+            self._db.table("skills")
+            .select("id, taxonomy_key")
+            .in_("taxonomy_key", list(dict.fromkeys(taxonomy_keys)))
+            .execute()
+        )
+        return {
+            str(row["taxonomy_key"]): int(row["id"])
+            for row in result.data or []
+            if row.get("taxonomy_key") and row.get("id") is not None
+        }
+
     def get_user_skill_row(self, user_id: str, skill_id: int) -> dict[str, Any] | None:
         """One raw user_skills row, including the forge counters.
 
