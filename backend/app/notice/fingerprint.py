@@ -11,7 +11,7 @@ from app.notice.types import CloseProof, Sighting
 _TOKEN = re.compile(r"^[A-Za-z0-9_./-]+$")
 
 _BREAK_KINDS = frozenset({"object_no_job", "job_never_claimed"})
-_SLOW_KINDS = frozenset({"reads_over_budget", "capacity_queue"})
+_SLOW_KINDS = frozenset({"reads_over_budget", "capacity_queue", "slow_read"})
 _DEATH_KINDS = frozenset({"oom", "crash", "failed_deploy", "runner_exit"})
 _BELTS = frozenset({
     "skill_floor",
@@ -52,6 +52,12 @@ def cause_key_for(sighting: Sighting) -> str:
         kind = _token(sighting.slow_kind)
         if kind not in _SLOW_KINDS:
             kind = "capacity_queue"
+        if kind == "slow_read":
+            # The code that asked the slow question, like an unhandled 500's
+            # frame. One slow query is one cause, whichever routes call it.
+            file = (sighting.site_file or "").strip() or "unknown"
+            function = (sighting.site_function or "").strip() or "unknown"
+            return f"slow_200:slow_read:{file}:{function}"
         return f"slow_200:{kind}"
     return f"{sighting.cause_class}:unspecified"
 
