@@ -40,7 +40,6 @@ class _FakeIntelligence:
             feed_version="run-1",
             published_at=datetime(2026, 6, 13, 8, 30, tzinfo=timezone.utc),
             imported_job_count=17_956,
-            latest_batch_date="2026-06-04",
         )
         etag = '"feed-run-1"'
         return FeedStateRead(
@@ -99,7 +98,6 @@ def test_feed_state_returns_payload_and_conditional_headers() -> None:
         "feed_version": "run-1",
         "published_at": "2026-06-13T08:30:00Z",
         "imported_job_count": 17_956,
-        "latest_batch_date": "2026-06-04",
     }
 
 

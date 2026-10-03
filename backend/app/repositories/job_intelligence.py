@@ -37,17 +37,6 @@ class JobIntelligenceRepository:
         rows = result.data or []
         return rows[0] if rows else None
 
-    def latest_job_batch_marker(self) -> object:
-        result = (
-            self.admin_db.table("jobs")
-            .select("batch_date")
-            .order("batch_date", desc=True)
-            .limit(1)
-            .execute()
-        )
-        rows = result.data or []
-        return rows[0].get("batch_date") if rows else None
-
     def find_feedback(
         self,
         user_id: str,

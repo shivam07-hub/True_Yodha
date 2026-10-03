@@ -14,7 +14,6 @@ class FeedStateResponse(BaseModel):
     feed_version: str | None
     published_at: datetime | None
     imported_job_count: int
-    latest_batch_date: str | None
 
 
 class JobFeedbackRequest(BaseModel):

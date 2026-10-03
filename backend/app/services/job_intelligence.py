@@ -23,7 +23,6 @@ class FeedState:
     feed_version: str | None
     published_at: datetime | None
     imported_job_count: int
-    latest_batch_date: str | None
 
 
 @dataclass(frozen=True)
@@ -192,23 +191,22 @@ class JobIntelligence:
         ]
 
     def _load_feed_state(self) -> FeedState:
+        # One indexed read of the audit table and nothing else. This used to
+        # also ask `jobs` for its newest `batch_date` — no index, so a full
+        # scan of the corpus (12.3s measured 2026-10-03) to fill a field no
+        # client read. Past the 8s PostgREST timeout that scan 503'd /market's
+        # freshness check: `capacity_503:upstream.read_timeout`, n=307.
         publication = self.repository.latest_feed_publication()
         if not publication:
             return FeedState(
                 feed_version=None,
                 published_at=None,
                 imported_job_count=0,
-                latest_batch_date=None,
             )
         return FeedState(
             feed_version=str(publication["run_id"]),
             published_at=parse_datetime(publication.get("created_at")),
             imported_job_count=int(publication.get("total_rows") or 0),
-            latest_batch_date=(
-                None
-                if (batch_day := day(self.repository.latest_job_batch_marker())) is None
-                else batch_day.isoformat()
-            ),
         )
 
 

@@ -3450,7 +3450,6 @@ export interface FeedState {
   feed_version: string | null
   published_at: string | null
   imported_job_count: number
-  latest_batch_date: string | null
 }
 
 /** Result of a conditional Feed State read — unchanged (304) vs fresh (200). */
