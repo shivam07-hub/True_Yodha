@@ -118,6 +118,32 @@ is the original grill.
 
     **⚠️ ROLLOUT GATE (Shivam): do NOT ship until BOTH extension-imported AND scraped (firecrawl_Supabase) jobs carry `job_skills` ordinal rank — a two-tier corpus (some jobs ranked, most not) was explicitly rejected.** This makes the item **blocked on sister-repo work**, not agent-actionable alone. Next agent: (1) open the coordination conversation with the scraper side (what does firecrawl_Supabase need to emit ordinal rank per skill it already extracts); (2) only once that path is real, build in this repo: extraction emits ordinal rank from JD language (judgment lane) → `job_skills.rank` column + import-path equivalent (shared-Supabase migration, manual-apply + PostgREST reload) → wire the 4 consumers above.
 
+**Desktop never shows the employer's track record — it was built into a dead
+panel (found 2026-10-03).** `components/dashboard/detail-body.tsx` lost its only
+mount on 2026-09-02 (`e3c38423`, the priority-heart removal); four days later
+`66871eb8` built the employer record into it, so only the phone sheet
+(`mobile/redesign/job-detail-sheet.tsx:112`) ever shows `EmployerRecordNote`. The
+whole subtree is dead — `detail-body`, `lenses`, `more-roles`, `lens-company`,
+`deepeners` — while `dashboard-drawer-content.test.ts` and
+`employer-record.test.ts` still read its text and pass. Mount the employer record
+(and `ListingLiveness`) in the live desktop job panel, retarget those tests at
+it, then delete the subtree on the way past.
+
+**Stage A tags business jobs with a genetics skill — and it is growing
+(re-measured 2026-10-03).** "Transformation (Genetics)" sits on **2,637** jobs
+(2,057 live; 881 from ingests since 2026-09-30) across 101 role families, against
+624 live for "Business Transformation". 2,636 of the rows are `stage_a` — **our**
+writer, `services/skill_floor.py` → `skill_extraction.extract_skills`, not the
+scraper. Cause: `_bare_form_present` (`skill_extraction.py:134`) strips the
+qualifier and trusts capitalisation to separate the senses; business postings
+capitalise "Transformation" too. It feeds the demand profile, so it weights scores,
+prep plans and matching. **Safe now:** a bare-form match inside the span of a
+longer matched skill is dropped (766 jobs carry such a skill; no true match can
+be lost). **Needs a measurement first:** requiring qualifier evidence for bare
+forms changes every job's tags — run `match_quality.py` before and after.
+**Needs Shivam:** removing the 2,636 existing rows (destructive) — or let Stage A
+re-run on the affected jobs once the fix ships.
+
 **CS-14** · **Step 2 of the loop reads zero Career Stories.** *Goal-level gap, found
     2026-09-13. Needs a grill: this is the matcher, not a corner.*
 
@@ -500,8 +526,6 @@ Tracker (3) · no problem or not actionable (~25).
   left behind when its screen went in `0b1b9b16` — keep the table and its one
   real note. **Keep** `/recruiters`, `/referrals` and their workspaces: public B2B
   doors with no backend (Shivam, 2026-10-02).
-- Re-verify the "Transformation (Genetics)" family mapping (0 jobs under that
-  label on 2026-09-30); fix or close.
 - After Pro: re-measure the anyio threadpool and pool levers.
 - Then run the authed QA checklist.
 
