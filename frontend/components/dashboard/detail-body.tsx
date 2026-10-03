@@ -15,7 +15,6 @@ import { jobPlanSections, type JobPlanSectionId } from "@/lib/jobs/detail-model"
 import { EmployerRecordNote } from "@/components/jobs/employer-record-note"
 import { ListingLiveness } from "@/components/jobs/listing-liveness"
 import { LensWhy, jdSnippet, stripTaxonomySuffix } from "./lenses"
-import { CommentThread } from "@/components/comments/comment-thread"
 import { CompanyDrawer } from "@/components/companies/company-drawer"
 import { ReachSection } from "./reach-section"
 import { MoreRoles } from "./more-roles"
@@ -180,18 +179,6 @@ export function DetailBody(p: DetailBodyProps) {
               token={p.token}
               otherRoles={p.otherRoles}
               onJump={p.onJump}
-            />
-          </div>
-        )
-      case "notes":
-        return (
-          <div className="db-dsec" key={id}>
-            <span className="db-label">Notes · what applicants say</span>
-            <CommentThread
-              token={p.token}
-              entityType="job"
-              entityId={p.job.job_id}
-              placeholder={`Leave a note for future applicants to ${company ?? "this role"}…`}
             />
           </div>
         )

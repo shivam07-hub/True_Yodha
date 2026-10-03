@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { cache } from "react"
-import type { CommentListResponse, CompanyJobsResponse } from "@/lib/api"
+import type { CompanyJobsResponse } from "@/lib/api"
 import { publicRead } from "@/lib/public-api"
 import { CompanyJobsClient } from "@/components/companies/company-jobs-client"
 import { RelatedCompanies } from "@/components/companies/related-companies"
@@ -40,42 +40,23 @@ const getCompanyJobs = cache(async (companyName: string): Promise<CompanyJobsRes
   }
 })
 
-// Company-level community notes (public read, no auth → is_own always false in
-// the seed; the signed-in client refetches on mount to resolve edit controls).
-// This is the UGC that becomes the page's crawlable SEO/AEO content.
-const getCompanyNotes = cache(async (companyName: string): Promise<CommentListResponse | null> => {
-  try {
-    return await publicRead<CommentListResponse>(
-      `/comments?entity_type=company&entity_id=${encodeURIComponent(companyName)}`,
-      { missing: "empty", next: { revalidate: 3600 } },
-    )
-  } catch {
-    return null
-  }
-})
-
 export async function generateMetadata(
   { params }: { params: { slug: string } },
 ): Promise<Metadata> {
   const companyName = decodeURIComponent(params.slug)
-  // Same cached reads the page makes → no extra round-trips (React.cache dedupes).
-  const [data, notes] = await Promise.all([
-    getCompanyJobs(companyName),
-    getCompanyNotes(companyName),
-  ])
+  // Same cached read the page makes → no extra round-trip (React.cache dedupes).
+  const data = await getCompanyJobs(companyName)
   const total = data?.total ?? 0
   const canonical = `${BASE}/companies/${encodeURIComponent(companyName)}`
 
   // A company page earns indexing only when it has real crawlable content:
-  // live roles OR first-hand community notes (the "what's it like at X" AEO
-  // text). An empty shell (0 live roles, 0 notes) is the thin page Google
+  // live roles. An empty shell (0 live roles) is the thin page Google
   // crawls then drops as "Crawled - currently not indexed" — worse than not
   // asking. noindex here + omission from the sitemap (see sitemap.ts) keep the
   // request honest. follow:true so Googlebot still walks the links. When the
-  // scraper re-lists roles (or a note lands), ISR flips the page back to
-  // index automatically — no manual step.
-  const hasNotes = (notes?.comments?.length ?? 0) > 0
-  const indexable = total > 0 || hasNotes
+  // scraper re-lists roles, ISR flips the page back to index automatically —
+  // no manual step.
+  const indexable = total > 0
 
   const title = `${companyName} jobs and hiring signals | Myro`
   const description =
@@ -101,15 +82,9 @@ export default async function CompanyJobsPage(
   { params }: { params: { slug: string } },
 ) {
   const companyName = decodeURIComponent(params.slug)
-  // Parallel — the two J0 reads are independent (React.cache dedupes the
-  // getCompanyJobs/notes calls this page + generateMetadata each make).
-  // Skill demand and per-job applicant notes are J2: the client loads them only
-  // after their specific disclosure control is opened.
-  const [data, notes] = await Promise.all([
-    getCompanyJobs(companyName),
-    getCompanyNotes(companyName),
-  ])
-  const canonical = `${BASE}/companies/${encodeURIComponent(companyName)}`
+  // The one J0 read (React.cache dedupes it with generateMetadata). Skill
+  // demand is J2: the client loads it only after its disclosure is opened.
+  const data = await getCompanyJobs(companyName)
 
   // ItemList of the rendered roles — matches on-page content exactly (no invented
   // JobPosting salary/employment data). Helps AI engines chunk the role list.
@@ -128,33 +103,6 @@ export default async function CompanyJobsPage(
         }
       : null
 
-  // DiscussionForumPosting per first-hand community note — the forum-content
-  // rich type Google surfaces and AI answer engines cite heavily for
-  // experiential "what's it like to apply at X" queries. Emitted ONLY for notes
-  // actually rendered in the HTML (company-level notes);
-  // never invented, no ratings. Author = public ninja-name only (PV1).
-  const forumPosts = (notes?.comments ?? [])
-    .map((c) => ({
-      text: c.body,
-      author: c.author_ninja_name,
-      datePublished: c.created_at,
-    }))
-    .filter((p) => p.text?.trim())
-    .slice(0, 25)
-
-  const forumJsonLd =
-    forumPosts.length > 0
-      ? forumPosts.map((p) => ({
-          "@context": "https://schema.org",
-          "@type": "DiscussionForumPosting",
-          headline: `What applicants say about ${companyName}`,
-          text: p.text,
-          datePublished: p.datePublished,
-          url: canonical,
-          author: { "@type": "Person", name: p.author || "A Myro user" },
-        }))
-      : null
-
   return (
     <>
       {jsonLd && (
@@ -163,16 +111,9 @@ export default async function CompanyJobsPage(
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}
-      {forumJsonLd && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(forumJsonLd) }}
-        />
-      )}
       <CompanyJobsClient
         companyName={companyName}
         initialData={data}
-        initialComments={notes}
       />
       <RelatedCompanies current={companyName} />
     </>

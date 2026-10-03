@@ -74,7 +74,7 @@ export function JobDetailSheet({
     hasWhy: !!whyFit,
     matchedCount: matched.length,
     buildCount: gaps.length,
-    supports: { reach: false, jd: false, company: false, notes: false },
+    supports: { reach: false, jd: false, company: false },
   })
 
   return (

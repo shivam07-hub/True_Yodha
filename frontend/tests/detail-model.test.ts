@@ -10,7 +10,7 @@ test("full-data desktop render follows the funnel order", () => {
     hasJd: true,
     hasCompany: true,
   })
-  assert.deepEqual(sections, ["why", "skills", "reach", "jd", "company", "notes"])
+  assert.deepEqual(sections, ["why", "skills", "reach", "jd", "company"])
   assert.deepEqual(sections, [...JOB_PLAN_ORDER])
 })
 
@@ -40,7 +40,7 @@ test("mobile subset — unsupported slots never render, order preserved", () => 
     hasWhy: true,
     matchedCount: 1,
     buildCount: 6,
-    supports: { reach: false, jd: false, company: false, notes: false },
+    supports: { reach: false, jd: false, company: false },
   })
   assert.deepEqual(sections, ["why", "skills"])
 })
@@ -53,7 +53,7 @@ test("missing company and JD gate their sections", () => {
     hasJd: false,
     hasCompany: false,
   })
-  assert.deepEqual(sections, ["skills", "reach", "notes"])
+  assert.deepEqual(sections, ["skills", "reach"])
 })
 
 test("a closed listing is the only state loud enough to guard Apply", () => {

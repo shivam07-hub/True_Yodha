@@ -21,7 +21,6 @@ export type JobPlanSectionId =
   | "reach" // Reach the people — self-gates on search/pack availability
   | "jd" // full job description (kept for Tailor CV grounding)
   | "company" // company report + one-tap-collect More Roles
-  | "notes" // public applicant notes
 
 /** Funnel order — fixed. The Tailor CV hero is the FOOTER of every skin, so
  *  everything above it either builds conviction or collects; everything below
@@ -32,7 +31,6 @@ export const JOB_PLAN_ORDER: readonly JobPlanSectionId[] = [
   "reach",
   "jd",
   "company",
-  "notes",
 ]
 
 /** Liveness states, mirrored from the backend verdict (see CONTEXT.md →
@@ -92,7 +90,7 @@ export interface JobPlanInput {
   loadingSkills?: boolean
   hasJd?: boolean
   hasCompany?: boolean
-  /** Skin supports the section at all (mobile omits reach/jd/company/notes). */
+  /** Skin supports the section at all (mobile omits reach/jd/company). */
   supports?: Partial<Record<JobPlanSectionId, boolean>>
 }
 
@@ -112,8 +110,6 @@ export function jobPlanSections(input: JobPlanInput): JobPlanSectionId[] {
         return !!input.hasJd
       case "company":
         return !!input.hasCompany
-      case "notes":
-        return true
     }
   })
 }
