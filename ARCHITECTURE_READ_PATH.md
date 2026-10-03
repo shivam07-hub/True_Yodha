@@ -2222,3 +2222,23 @@ at the nearby edge, so a cold handshake is cheap. Reverted.
 
 **Not measured.** The live route after this reaches `main` — prod serves
 partners. Read `route.latency` for `/partner/v1/sso/session` a week after.
+
+## 25. Company pages: the count was the cost (2026-10-03)
+
+`/companies/{name}/jobs` opened two `slow_200:slow_read` Notices the morning the
+classifier shipped: the roles RPC and the page's primary-skill read, two hops at
+the ~300ms floor (§24). Inside the RPC, `count(*) over ()` read every matching
+row to number fifty — **Axis Bank, 14,259 live: 10,480ms** for a page whose
+index scan is 14.8ms; an exact live count alone was 3,456ms (14,678 heap fetches
+— `jobs` churns all day, so its visibility map is never current).
+
+One call now: the page, primary skills per row (top five by required level),
+and the count from `company_directory` — the Tier-0 per-company live count,
+refreshed by the 06:15 cron and exact against live that day. `has_next` comes
+from one extra row, never the snapshot; a company newer than the directory
+counts the rows it shows. Axis Bank: **228ms, one hop**. Migration
+`20261003150000`.
+
+`company_pulse_snapshot` was the obvious source and is wrong: it has never
+refreshed (§ next entry, owed). Read `snapshot_refresh_state` before trusting a
+Tier-0 table.

@@ -4005,37 +4005,33 @@ class JobsRepository:
 
         No call site ever passed a wildcard — `.ilike()` here was case-insensitive
         EXACT match, which `lower(x) = lower(y)` reproduces exactly.
+
+        **2026-10-03: the count was the cost, and the skills were a second hop.**
+        `count(*) over ()` read every matching row to number fifty: Axis Bank
+        (14,259 live) took 10,480ms for a page whose index scan is 14.8ms. The
+        total now comes from `company_directory`, primary skills ride in the same
+        call, and the route makes one Supabase hop instead of two: 228ms.
         """
         start = max(0, (page - 1)) * page_size
+        # One round trip: the page, its primary skills, and the company's count
+        # from the `company_directory` snapshot (migration 20261003150000). One
+        # row more than the page answers "is there a next page" from the rows
+        # themselves, never from a count refreshed at the last ingest.
         rows = (
             self._db.rpc(
                 "company_open_roles_page",
-                {"p_company": company_name, "p_limit": page_size, "p_offset": start},
+                {"p_company": company_name, "p_limit": page_size + 1, "p_offset": start},
             ).execute()
         ).data or []
-        page_rows = [dict(r) for r in rows if r.get("job_id")]
-        # `count(*) over ()` rides on every row; identical on all of them. Absent
-        # only when the page is empty, where the total is 0 by construction.
-        total = int(page_rows[0].pop("total_count", 0) or 0) if page_rows else 0
-        for row in page_rows:
-            row.pop("total_count", None)
+        fetched = [dict(r) for r in rows if r.get("job_id")]
+        has_next = len(fetched) > page_size
+        page_rows = fetched[:page_size]
+        snapshot_total = int(page_rows[0].get("total_count") or 0) if page_rows else 0
+        # A company that arrived after the last directory refresh still counts
+        # the roles it is showing; the page is never larger than its own total.
+        total = max(snapshot_total, start + len(page_rows) + (1 if has_next else 0))
         for row in page_rows:
             _hydrate_location_fields(row)
-
-        job_ids = [r["job_id"] for r in page_rows if r.get("job_id")]
-        skill_map: dict[str, list[str]] = {jid: [] for jid in job_ids}
-        if job_ids:
-            sk_rows = fetch_job_skill_rows_for_ids(
-                self._db,
-                job_ids,
-                columns="job_id, is_primary, skills(display_name)",
-            )
-            for sr in sk_rows:
-                jid = sr.get("job_id")
-                if sr.get("is_primary") and jid and jid in skill_map:
-                    dn = ((sr.get("skills") or {}).get("display_name") or "").strip()
-                    if dn and len(skill_map[jid]) < 5:
-                        skill_map[jid].append(dn)
 
         return {
             "company_name": company_name,
@@ -4048,14 +4044,13 @@ class JobsRepository:
                     "location_city": r.get("location_city"),
                     "location_country": r.get("location_country"),
                     "location_mode": r.get("location_mode"),
-                    "primary_skills": skill_map.get(r["job_id"], []),
+                    "primary_skills": list(r.get("primary_skills") or []),
                 }
                 for r in page_rows
-                if r.get("job_id")
             ],
             "page": page,
             "page_size": page_size,
-            "has_next": (start + page_size) < total,
+            "has_next": has_next,
         }
 
 
