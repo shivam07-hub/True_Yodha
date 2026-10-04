@@ -527,7 +527,6 @@ Tracker (3) · no problem or not actionable (~25).
   real note. **Keep** `/recruiters`, `/referrals` and their workspaces: public B2B
   doors with no backend (Shivam, 2026-10-02).
 - After Pro: re-measure the anyio threadpool and pool levers.
-- **Dead Tier-0 belts (found 2026-10-03):** `role_families` last succeeded 09-07, `skill_closeness` and `company_pulse` never — the HTTP→PostgREST rail hits `safeupdate` (WHERE-less DELETE) and the 8s `authenticator` timeout. Move them to the in-DB `run_snapshot_sql_refresh` cron rail; add a snapshot dead-man Notice. Spawned as its own task.
 - After the next prod deploy: five warm `x-process-time` samples of `/jobs/feed-state`, `/jobs/at/{c}`, `/companies/{c}/jobs`, confirm-skills; a week of `route.latency` for `/partner/v1/sso/session`.
 - Then run the authed QA checklist.
 

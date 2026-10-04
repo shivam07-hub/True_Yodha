@@ -6,6 +6,17 @@
 
 ---
 
+## 2026-10-04 — Dead Tier-0 refreshes moved into the database
+
+`role_families` (last success 09-07), `skill_closeness` and `company_pulse` (never)
+ran over PostgREST as `authenticator` — `safeupdate` + 8s — and took 58.0s / 22.7s /
+15.7s. Now pg_cron → `run_snapshot_sql_refresh`, hourly; `core_skills` refreshes with
+`role_families` (had no caller since 09-16); daily "due" 24h → 20h (analytics was
+every other day); anon EXECUTE revoked on six refreshes. Dead-man
+`dead_man:snapshot.<task>` at 48h. Migration `20261004100000`, ARCHITECTURE_READ_PATH §26.
+
+---
+
 ## 2026-10-03 — Notice digest RCA pass (hello@himyro.com, 09-28 → 10-01)
 
 Eight open Notices traced to code; every fix on `Develop`, proofs close on `main`.

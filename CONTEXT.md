@@ -406,8 +406,9 @@ the compare strip as a live jobs query.
 **Invariants**
 
 - `pulse` is `None` when a company has no live roles — never a fabricated 0.
-- Refresh runs on ingest through the snapshot lease, same rail as Company
-  Directory. Stale is stamped by `refreshed_at`, not by a per-request scan.
+- Refresh runs inside the database on the snapshot lease (pg_cron →
+  `run_snapshot_sql_refresh`, 15.7s), after a scraper finalize or 20h without a
+  success. Stale is stamped by `refreshed_at`, not by a per-request scan.
 - Formula (`compute_pulse`, sparkline) lives in one Python module. SQL only
   aggregates the three raw markers.
 
@@ -459,7 +460,7 @@ A headless engine (`createTaxonomy({ fetch })`, the `field-motion.ts` precedent)
 
 ## Skill Closeness
 
-**Two skills are close when real jobs ask for them together** — never when a taxonomy files them under the same heading. `skill_closeness` (skill → its 20 closest, with lift, jobs and company count) is a Tier-0 snapshot on the shared lease, task `skill_closeness`, ~28.6s per ingest. 7,287 bonds across 1,122 skills.
+**Two skills are close when real jobs ask for them together** — never when a taxonomy files them under the same heading. `skill_closeness` (skill → its 20 closest, with lift, jobs and company count) is a Tier-0 snapshot on the shared lease, task `skill_closeness`, refreshed inside the database (22.7s — never over PostgREST, whose 8s limit it cannot meet). 8,953 bonds on 2026-10-04.
 
 Counted **across companies**: a bond needs three or more employers and no single one supplying over half its jobs, because 67.4% of the raw bonds were one company's copy-pasted template. PostgreSQL's strongest bonds are MongoDB, NoSQL, Spring Boot, Kubernetes and Microservices — four different L2 clusters.
 

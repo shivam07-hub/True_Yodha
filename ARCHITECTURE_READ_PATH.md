@@ -2234,11 +2234,77 @@ index scan is 14.8ms; an exact live count alone was 3,456ms (14,678 heap fetches
 
 One call now: the page, primary skills per row (top five by required level),
 and the count from `company_directory` — the Tier-0 per-company live count,
-refreshed by the 06:15 cron and exact against live that day. `has_next` comes
+refreshed by the 06:15 cron and exact against live that day (every other
+day until §26). `has_next` comes
 from one extra row, never the snapshot; a company newer than the directory
 counts the rows it shows. Axis Bank: **228ms, one hop**. Migration
 `20261003150000`.
 
-`company_pulse_snapshot` was the obvious source and is wrong: it has never
-refreshed (§ next entry, owed). Read `snapshot_refresh_state` before trusting a
-Tier-0 table.
+`company_pulse_snapshot` was the obvious source and was wrong: it had never
+refreshed (§26). Read `snapshot_refresh_state` before trusting a Tier-0 table.
+
+## 26. Three Tier-0 refreshes could not finish where they ran (2026-10-04)
+
+`snapshot_refresh_state`, 2026-10-03: `role_families` last succeeded **09-07**
+(52 attempts, `21000 DELETE requires a WHERE clause`); `skill_closeness` never
+(38, same); `company_pulse` never (36, `57014` statement timeout). Every
+`company_pulse_snapshot` row was the 09-17 migration seed — Axis Bank 9,893 open
+roles against 14,259 live. Direction's labels, weights, profile and band counts
+were 26 days old. Each failure was written to a row nobody read.
+
+**Cause.** They ran on the HTTP rail: the 06:15 cron posts to the API, which
+calls each refresh over PostgREST — as `authenticator`, whose role config
+preloads `safeupdate` (a WHERE-less DELETE is refused) and stops every statement
+at 8s. Measured as postgres, each in a rolled-back transaction:
+
+| task | runtime | output |
+|---|---|---|
+| role_families | **58.0s** (52.4s + 2.3s core_skills) | 332 families, 75,479 weights, 130,170 profile rows, 4 bands |
+| skill_closeness | **22.7s** | 8,953 bonds (7,287 stored) |
+| company_pulse | **15.7s** | 280 companies (268 stored) |
+
+All three are over 8s: `WHERE true` alone would have swapped 21000 for 57014.
+
+**Fix (`20261004100000`).** They run inside the database, on the rail
+skill_demand, job_search, ghost_index and sector_panel already use: pg_cron as
+postgres (no `safeupdate`, no timeout) → `run_snapshot_sql_refresh(task)`,
+hourly at :20 / :45 / :55. The run claims only a pending or failed task, so it
+works after a scraper finalize (`force=true` marks every task pending), after
+20h without a success, or to retry a failure. The three left `REFRESH_TASKS`;
+service_role lost EXECUTE on them, so the PostgREST path cannot be wired back.
+
+Found on the way, same migration:
+
+- **`refresh_direction_core_skills` had no caller.** Its migration (09-16) says
+  it "runs after [the labels refresh], never instead of it", and wired it to
+  nothing. Direction Fit's 12-skill vocabulary was a one-off. It now runs inside
+  the `role_families` task (+2.3s).
+- **"Due" was 24h, and the daily cron missed it by seconds.** At 06:15:00 a
+  success stamped 06:15:08 the day before is 23h59m52s old — not due. analytics
+  and company_directory refreshed every *other* day. Due is now 20h.
+- **anon and authenticated held EXECUTE on six SECURITY DEFINER refreshes**,
+  each of which rewrites a table. company_directory (~2.5s) fits inside anon's
+  3s. Revoked; the HTTP rail keeps service_role on the two it still calls.
+
+**The dead-man.** `services/snapshot_health.py`, on `/health` and in the
+closer's harvest: a task with no success in 48h (`snapshot_refresh.STALE_AFTER`,
+the status route's rule), or none ever, opens `dead_man:snapshot.<task>` — one
+Notice per task, so the digest names the snapshot, and each closes when its own
+task is fresh again. 48h is a missed daily run plus most of another; the hourly
+retry has had ~24 attempts by then.
+
+**Verified live, 2026-10-04 — first pg_cron runs** (`cron.job_run_details`):
+
+| task | cron run | `last_success_at` | result |
+|---|---|---|---|
+| skill_closeness | 08:45, **16.1s** | never → 10-04 08:45 | 8,953 bonds, 1,233 skills, every bond ≥3 companies |
+| company_pulse | 08:55, **12.2s** | never → 10-04 08:55 | 280 rows, all stamped 08:55 |
+| role_families | 09:20, **71.8s** | 09-07 → 10-04 09:20 | 332 families, 75,474 weights, 130,157 profile rows, 4 bands, core_skills on all 332 |
+
+The WHERE-less DELETEs ran, and two runs went past 8s: the cron session has
+neither limit. The dead-man, evaluated read-only against live state, flagged
+`role_families` alone before 09:20 and nothing after.
+
+⚠️ Still two definitions: pulse `open_roles` counts `last_seen` within 21 days
+(Axis Bank 10,496), `company_directory.active_count` counts live rows (14,259).
+The refresh is right; the definition is a separate decision.
