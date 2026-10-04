@@ -231,6 +231,8 @@ class Settings(BaseSettings):
     # lands a few hours late; 36h is a missed day, not that lateness.
     notice_closer_stale_hours: int = 36
     notice_closer_health_interval_minutes: int = 5
+    # Tier-0 snapshot refreshes. Staleness itself is `snapshot_refresh.STALE_AFTER`.
+    snapshot_health_interval_minutes: int = 5
 
     @property
     def release_tier(self) -> str:

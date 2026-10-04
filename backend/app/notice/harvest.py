@@ -7,11 +7,12 @@ import logging
 import os
 import shutil
 import subprocess
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
+from app.notice.fingerprint import cause_key_for
 from app.notice.types import CloseProof, Sighting
-from app.services.probe import INGESTION, VERIFIER, BeltState
+from app.services.probe import INGESTION, SNAPSHOTS, VERIFIER, BeltState, snapshot_belt
 
 _logger = logging.getLogger("app.notice")
 
@@ -86,6 +87,7 @@ def harvest_belts(
     alert_above: int = 100,
     ingestion_state: BeltState | None = None,
     closer_state: BeltState | None = None,
+    snapshot_states: Mapping[str, BeltState] | None = None,
 ) -> tuple[list[Sighting], list[CloseProof]]:
     sightings: list[Sighting] = []
     proofs: list[CloseProof] = []
@@ -138,6 +140,23 @@ def harvest_belts(
                 on_main=on_main,
             )
         )
+    # Each Tier-0 snapshot task is its own belt: a stale one opens, a fresh one
+    # is its own recovery. One refreshing must not close another that is not.
+    for task, state in sorted((snapshot_states or {}).items()):
+        sighting = Sighting.dead_man(belt=snapshot_belt(task).belt)
+        if state == "stalled":
+            sightings.append(sighting)
+        elif state == "ok" and task in SNAPSHOTS:
+            # An undeclared task keys to `dead_man:unknown`, which it must not
+            # close: that row may be another belt's.
+            proofs.append(
+                CloseProof(
+                    cause_key=cause_key_for(sighting),
+                    test_nodeid=f"harvest:snapshot.{task}_fresh",
+                    sha=sha,
+                    on_main=on_main,
+                )
+            )
     return sightings, proofs
 
 

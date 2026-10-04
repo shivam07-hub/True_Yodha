@@ -7,6 +7,7 @@ import traceback
 from pathlib import Path
 
 from app.notice.types import CloseProof, Sighting
+from app.services.probe import SNAPSHOTS
 
 _TOKEN = re.compile(r"^[A-Za-z0-9_./-]+$")
 
@@ -18,6 +19,7 @@ _BELTS = frozenset({
     "listing_verifier",
     "job_ingestion",
     "notice_closer",
+    *(declaration.belt for declaration in SNAPSHOTS.values()),
 })
 
 

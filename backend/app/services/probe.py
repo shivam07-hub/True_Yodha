@@ -30,9 +30,38 @@ INGESTION = Declaration("job_ingestion", frozenset({"stalled"}))
 VERIFIER = Declaration("listing_verifier", frozenset({"stalled", "degraded"}))
 CLOSER = Declaration("notice_closer", frozenset({"stalled"}))
 
+#: One belt per Tier-0 snapshot task — the rows of `snapshot_refresh_state`,
+#: held to that table's check constraint by `test_snapshot_health`. Each task is
+#: its own Notice, so the digest names which snapshot went stale and each closes
+#: on its own recovery.
+SNAPSHOT_TASKS = (
+    "analytics",
+    "company_directory",
+    "company_pulse",
+    "ghost_index",
+    "job_search",
+    "role_families",
+    "sector_panel",
+    "skill_closeness",
+    "skill_demand",
+)
+SNAPSHOTS = {
+    task: Declaration(f"snapshot.{task}", frozenset({"stalled"}))
+    for task in SNAPSHOT_TASKS
+}
+
+
+def snapshot_belt(task: str) -> Declaration:
+    """A task's belt. One the declarations do not name still opens — as
+    `dead_man:unknown`, which is loud, never silent."""
+    return SNAPSHOTS.get(task) or Declaration(f"snapshot.{task}", frozenset({"stalled"}))
+
+
 __all__ = [
     "CLOSER",
     "INGESTION",
+    "SNAPSHOTS",
+    "SNAPSHOT_TASKS",
     "VERIFIER",
     "BeltState",
     "Declaration",
@@ -40,6 +69,7 @@ __all__ = [
     "open_notice",
     "remember",
     "reset_cache",
+    "snapshot_belt",
 ]
 
 

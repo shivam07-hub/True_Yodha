@@ -117,6 +117,50 @@ def test_a_running_closer_is_a_recovery() -> None:
     assert proofs[0].test_nodeid.startswith("harvest:")
 
 
+def test_each_snapshot_task_opens_and_closes_on_its_own() -> None:
+    """role_families refreshing must not close skill_closeness, which has not."""
+    sightings, proofs = harvest_belts(
+        skill_awaiting=None,
+        verifier_state=None,
+        snapshot_states={
+            "role_families": "ok",
+            "skill_closeness": "stalled",
+            "company_pulse": "stalled",
+        },
+        sha="abc",
+        on_main=True,
+    )
+    assert {cause_key_for(item) for item in sightings} == {
+        "dead_man:snapshot.skill_closeness",
+        "dead_man:snapshot.company_pulse",
+    }
+    assert {proof.cause_key for proof in proofs} == {"dead_man:snapshot.role_families"}
+    assert proofs[0].test_nodeid.startswith("harvest:")
+
+
+def test_an_undeclared_fresh_task_closes_nothing() -> None:
+    _, proofs = harvest_belts(
+        skill_awaiting=None,
+        verifier_state=None,
+        snapshot_states={"brand_new_snapshot": "ok"},
+        sha="abc",
+        on_main=True,
+    )
+    assert proofs == []
+
+
+def test_unknown_snapshot_state_neither_opens_nor_closes() -> None:
+    sightings, proofs = harvest_belts(
+        skill_awaiting=None,
+        verifier_state=None,
+        snapshot_states={},
+        sha="abc",
+        on_main=True,
+    )
+    assert sightings == []
+    assert proofs == []
+
+
 def test_upload_stall_harvest() -> None:
     assert harvest_upload_stalls(False) == []
     assert cause_key_for(harvest_upload_stalls(True)[0]) == (

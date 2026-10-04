@@ -19,6 +19,7 @@ from app.notice.postgres import PostgresNoticeStore
 from app.notice.proofs import proofs_from_git_ref
 from app.notice.types import CloseProof
 from app.services.email_service import send_email
+from app.services.probe import BeltState
 
 _logger = logging.getLogger("uvicorn.error")
 
@@ -75,6 +76,13 @@ def harvest_into(book: NoticeBook, repo: Path) -> list[CloseProof]:
         ingestion_state = ingestion_health.check_ingestion().state
     except Exception:
         _logger.exception("metric notice.harvest_ingestion_failed")
+    snapshot_states: dict[str, BeltState] | None = None
+    try:
+        from app.services import snapshot_health
+
+        snapshot_states = snapshot_health.check_snapshots().tasks
+    except Exception:
+        _logger.exception("metric notice.harvest_snapshots_failed")
     try:
         result = (
             get_supabase_admin()
@@ -97,6 +105,7 @@ def harvest_into(book: NoticeBook, repo: Path) -> list[CloseProof]:
         verifier_state=verifier_state,
         ingestion_state=ingestion_state,
         closer_state="ok",
+        snapshot_states=snapshot_states,
         sha=sha,
         on_main=True,
     )

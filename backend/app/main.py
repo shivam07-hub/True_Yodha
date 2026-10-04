@@ -282,8 +282,13 @@ async def health_check() -> dict:
     # probe frequency doesn't drive DB load, and it never changes `status`: a
     # stalled verifier degrades listing freshness, it does not make the API
     # unhealthy.
-    from app.services import ingestion_health, notice_closer_health, verifier_health
-    from app.services.probe import CLOSER, INGESTION, VERIFIER, open_notice
+    from app.services import (
+        ingestion_health,
+        notice_closer_health,
+        snapshot_health,
+        verifier_health,
+    )
+    from app.services.probe import CLOSER, INGESTION, VERIFIER, open_notice, snapshot_belt
 
     belt = verifier_health.check_belt()
     open_notice(VERIFIER, belt.state)
@@ -296,6 +301,11 @@ async def health_check() -> dict:
     # tells a day that sent nothing from a closer that never started.
     closer = notice_closer_health.check_closer()
     open_notice(CLOSER, closer.state)
+    # The Tier-0 snapshots. Three failed every refresh from 2026-09-07 to 10-04,
+    # each failure recorded where nobody looked. One Notice per task.
+    snapshots = snapshot_health.check_snapshots()
+    for task in snapshots.stalled:
+        open_notice(snapshot_belt(task), "stalled")
     return {
         "status": "ok",
         "ingestion": intake.state,
@@ -306,4 +316,6 @@ async def health_check() -> dict:
         "verifier_priority_backlog": belt.priority_backlog,
         "notice_closer": closer.state,
         "notice_closer_stale_hours": closer.stale_hours,
+        "snapshots": snapshots.state,
+        "snapshots_stalled": snapshots.stalled,
     }
