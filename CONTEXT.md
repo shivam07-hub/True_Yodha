@@ -405,9 +405,13 @@ the compare strip as a live jobs query.
 
 **Invariants**
 
+- `open_roles` is the live count — `is_active` and `listing_confidence =
+  'active'`, the predicate `company_directory.active_count` counts. A company's
+  open roles is one number on every surface; never a crawl window over
+  `last_seen` (retired).
 - `pulse` is `None` when a company has no live roles — never a fabricated 0.
 - Refresh runs inside the database on the snapshot lease (pg_cron →
-  `run_snapshot_sql_refresh`, 15.7s), after a scraper finalize or 20h without a
+  `run_snapshot_sql_refresh`, ~12s), after a scraper finalize or 20h without a
   success. Stale is stamped by `refreshed_at`, not by a per-request scan.
 - Formula (`compute_pulse`, sparkline) lives in one Python module. SQL only
   aggregates the three raw markers.
