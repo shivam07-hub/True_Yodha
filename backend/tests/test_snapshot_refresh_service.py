@@ -45,10 +45,7 @@ def test_request_is_one_fast_persisted_rpc() -> None:
         analytics_refresh=lambda *_: {},
         skill_refresh=lambda: {},
         search_refresh=lambda: {},
-        role_family_refresh=lambda: {},
         company_directory_refresh=lambda: {},
-        company_pulse_refresh=lambda: {},
-        skill_closeness_refresh=lambda: {},
     )
 
     assert service.request(trigger="batch-finalize", force=True) == db.requested
@@ -71,25 +68,54 @@ def test_one_refresh_failure_is_persisted_and_does_not_gate_the_others() -> None
         analytics_refresh=analytics,
         skill_refresh=lambda: ran.append("skill_demand") or {"rows": 374},
         search_refresh=lambda: ran.append("job_search") or {"rows": 74379},
-        role_family_refresh=lambda: ran.append("role_families") or {"families": 334},
         company_directory_refresh=lambda: ran.append("company_directory") or {"companies": 232},
-        company_pulse_refresh=lambda: ran.append("company_pulse") or {"companies": 410},
-        skill_closeness_refresh=lambda: ran.append("skill_closeness") or {"rows": 7287},
     )
 
     service.process(
-        ["analytics", "skill_demand", "job_search", "role_families", "company_directory"],
+        ["analytics", "skill_demand", "job_search", "company_directory"],
         trigger="batch-finalize",
         force=True,
     )
 
-    assert ran == [
-        "analytics", "skill_demand", "job_search", "role_families", "company_directory",
-    ]
-    assert [row["p_success"] for row in db.finished] == [False, True, True, True, True]
+    assert ran == ["analytics", "skill_demand", "job_search", "company_directory"]
+    assert [row["p_success"] for row in db.finished] == [False, True, True, True]
     assert "batch deadline" in db.finished[0]["p_error"]
     assert db.finished[1]["p_result"] == {"rows": 374}
-    # The role typeahead's Tier-0 refresh is a sibling, not a special case: it
-    # runs even though analytics failed first, and its result is persisted.
-    assert db.finished[3]["p_result"] == {"families": 334}
-    assert db.finished[4]["p_result"] == {"companies": 232}
+    # The company directory is a sibling, not a special case: it runs even
+    # though analytics failed first, and its result is persisted.
+    assert db.finished[3]["p_result"] == {"companies": 232}
+
+
+def test_the_in_database_tasks_are_never_claimed_over_postgrest() -> None:
+    """A scraper finalize marks every task pending, and `request` hands all of
+    them back. role_families, skill_closeness and company_pulse cannot finish
+    as `authenticator` (safeupdate, 8s) — they failed that way for 26 days.
+    Their pending rows are left for pg_cron's `run_snapshot_sql_refresh`."""
+    db = _DB()
+    db.requested = ["role_families", "skill_closeness", "company_pulse", "ghost_index"]
+    service = SnapshotRefreshService(
+        db,
+        analytics_refresh=lambda *_: {},
+        skill_refresh=lambda: {},
+        search_refresh=lambda: {},
+        company_directory_refresh=lambda: {},
+    )
+
+    tasks = service.request(trigger="batch-finalize", force=True)
+    service.process(list(db.requested), trigger="batch-finalize", force=True)
+
+    assert tasks == []
+    assert [name for name, _ in db.calls] == ["request_snapshot_refresh"]
+
+
+def test_staleness_is_one_rule_and_never_succeeded_is_stale() -> None:
+    from datetime import datetime, timedelta, timezone
+
+    from app.services.snapshot_refresh import STALE_AFTER, is_stale
+
+    now = datetime(2026, 10, 4, 8, 0, tzinfo=timezone.utc)
+    assert is_stale(None, now)
+    assert is_stale((now - STALE_AFTER - timedelta(minutes=1)).isoformat(), now)
+    assert not is_stale((now - STALE_AFTER + timedelta(minutes=1)).isoformat(), now)
+    # role_families on 2026-10-03: last success 2026-09-07.
+    assert is_stale("2026-09-07T19:52:21+00:00", now)
