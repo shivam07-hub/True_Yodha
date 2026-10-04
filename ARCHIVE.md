@@ -6,6 +6,15 @@
 
 ---
 
+## 2026-10-04 — Company Demand Pulse counts live roles
+
+Pulse `open_roles` was `last_seen` within 21 days (retired column); now the
+`company_directory` live predicate. Pulse sum 50,260 → 57,522 = live; 82 of 280
+companies corrected (Axis Bank 10,496 → 14,259, Wipro "no live roles" → 2,768).
+Migration `20261004120000`, ARCHITECTURE_READ_PATH §26.
+
+---
+
 ## 2026-10-04 — Dead Tier-0 refreshes moved into the database
 
 `role_families` (last success 09-07), `skill_closeness` and `company_pulse` (never)

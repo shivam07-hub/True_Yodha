@@ -2305,6 +2305,30 @@ The WHERE-less DELETEs ran, and two runs went past 8s: the cron session has
 neither limit. The dead-man, evaluated read-only against live state, flagged
 `role_families` alone before 09:20 and nothing after.
 
-⚠️ Still two definitions: pulse `open_roles` counts `last_seen` within 21 days
-(Axis Bank 10,496), `company_directory.active_count` counts live rows (14,259).
-The refresh is right; the definition is a separate decision.
+**One definition of open roles (`20261004120000`).** Once the pulse refreshed,
+it disagreed with the directory: `open_roles` counted rows with `last_seen`
+within 21 days, `company_directory.active_count` counts live rows. /companies
+put both on one screen — Axis Bank's pulse card 10,496, its row beneath 14,259.
+`last_seen` is retired as a time signal (ARCHITECTURE_LISTING_TIME, locked
+09-27), so this was a stale reader, not a product fork. The pulse now counts
+the directory's predicate verbatim (`is_active` and `listing_confidence =
+'active'`) under its own case-and-whitespace fold.
+
+| | before | after |
+|---|---|---|
+| pulse sum vs live | 50,260 vs 57,522 | **57,522 = 57,522** |
+| companies counted wrong | 82 of 280 | **0** |
+| rows counted, not live / live, not counted | 1,188 / 8,450 | 0 / 0 |
+| pulse 0-100 changed | — | 35 companies; 8 "—" → a score (Wipro, 2,768 live → 50), 4 a score → "—" (EY India 81, BDO 73, Meta 71, PMI 21), the rest ≤14 points |
+| refresh, rolled back as postgres | 13.9s | **11.6s** |
+
+`weekly_delta`, the inflow series and `last_seen_at` are unchanged on all 280
+rows (checked against the prior snapshot in the same transaction). Seeded
+through the rail, marking only `company_pulse` pending — `force` queues every
+task, role_families' 58s too.
+
+⚠️ `last_seen_at` — the freshness input, 20% of the pulse — is still
+`max(coalesce(last_seen, first_seen))` over every row, live or not: Wipro's
+2,768 live roles score freshness 0 off a 09-09 marker. `compute_pulse` already
+decays it over `CONFIRM_WITHIN`, a confirmation window; what feeds it is the
+next decision, not this migration's.
