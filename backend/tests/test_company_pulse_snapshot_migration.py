@@ -42,3 +42,40 @@ def test_refresh_registers_on_the_existing_lease() -> None:
     assert "snapshot_refresh_state_task_check" in sql
     assert "skill_closeness" in sql
     assert "notify pgrst, 'reload schema'" in sql
+
+
+LIVE_ROLES = MIGRATION.parent / "20261004120000_company_pulse_counts_live_roles.sql"
+
+
+def _refresh_body(sql: str) -> str:
+    body = sql.split("create or replace function public.refresh_company_pulse()")[1]
+    return body.split("$$;")[0]
+
+
+def test_open_roles_is_the_directory_live_count_not_a_crawl_window() -> None:
+    """Pulse said Axis Bank had 10,496 open roles; the row under it on /companies
+    said 14,259. `last_seen` is retired; live has one predicate, the directory's."""
+    body = _refresh_body(LIVE_ROLES.read_text())
+    assert "(j.is_active is true and j.listing_confidence = 'active') as is_live" in body
+    assert "count(*) filter (where is_live)::integer as open_roles" in body
+    assert "v_fresh" not in body
+    assert "last_seen >=" not in body
+    # Weekly inflow and the 30-day series keep their first_seen windows.
+    assert "first_seen >= v_week" in body
+    assert "v_today - 7" in body
+    assert "v_today - 29" in body
+    assert "security definer" in body
+
+
+def test_live_roles_refresh_stays_on_the_database_rail() -> None:
+    sql = LIVE_ROLES.read_text()
+    assert "grant execute" not in sql
+    assert (
+        "revoke all on function public.refresh_company_pulse()\n"
+        "  from public, anon, authenticated, service_role"
+    ) in sql
+    # Seeds through the lease, queuing this task alone — force would queue all.
+    assert "select public.request_snapshot_refresh(" not in sql
+    assert "where task = 'company_pulse'" in sql
+    assert "select public.run_snapshot_sql_refresh('company_pulse'" in sql
+    assert "notify pgrst, 'reload schema'" in sql

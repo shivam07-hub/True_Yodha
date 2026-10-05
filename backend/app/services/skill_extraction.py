@@ -126,8 +126,28 @@ def _skill_terms(skill_name: str) -> tuple[str, str | None]:
     return full, bare
 
 
+@lru_cache(maxsize=16_384)
+def _term_pattern(needle: str) -> re.Pattern[str]:
+    """One compiled pattern per taxonomy term, kept across jobs (~0.9KB each).
+
+    `re.search` with a string compiles through `re`'s own cache, which holds
+    512 patterns. A single JD probes ~550 terms, so that cache cycled on every
+    job and every term was recompiled every time: 89% of Stage A's CPU went to
+    `re._compile`, ~230ms a job, and a 4,827-job drain spent 18 minutes of CPU
+    (2026-10-03). The patterns did not change; only where they are kept.
+    """
+    return re.compile(rf"{_LEFT_GUARD}{re.escape(needle)}{_RIGHT_GUARD}")
+
+
 def _find(haystack: str, needle: str) -> tuple[int, int] | None:
-    match = re.search(rf"{_LEFT_GUARD}{re.escape(needle)}{_RIGHT_GUARD}", haystack)
+    # The pattern is the escaped literal between two guards, so it can only
+    # match where the literal occurs. A substring test is that question at C
+    # speed: it changes the cost, never the answer. Most of the ~2,500 terms a
+    # real JD's first tokens nominate are absent, and each regex scan of a
+    # 5.7KB description costs ~110µs.
+    if needle not in haystack:
+        return None
+    match = _term_pattern(needle).search(haystack)
     return match.span() if match else None
 
 

@@ -1,7 +1,12 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.services import ingestion_health, notice_closer_health, verifier_health
+from app.services import (
+    ingestion_health,
+    notice_closer_health,
+    snapshot_health,
+    verifier_health,
+)
 
 
 def test_health_check(monkeypatch) -> None:
@@ -23,6 +28,14 @@ def test_health_check(monkeypatch) -> None:
         "check_closer",
         lambda *a, **k: notice_closer_health.CloserHealth("ok", 2.0),
     )
+    snapshot_health.reset_cache()
+    monkeypatch.setattr(
+        snapshot_health,
+        "check_snapshots",
+        lambda *a, **k: snapshot_health.SnapshotHealth(
+            "stalled", {"job_search": "ok", "role_families": "stalled"}
+        ),
+    )
 
     with TestClient(app) as client:
         response = client.get("/health")
@@ -38,6 +51,8 @@ def test_health_check(monkeypatch) -> None:
         "verifier_priority_backlog": None,
         "notice_closer": "ok",
         "notice_closer_stale_hours": 2.0,
+        "snapshots": "stalled",
+        "snapshots_stalled": ["role_families"],
     }
 
 

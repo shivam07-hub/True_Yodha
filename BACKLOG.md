@@ -527,7 +527,7 @@ Tracker (3) · no problem or not actionable (~25).
   real note. **Keep** `/recruiters`, `/referrals` and their workspaces: public B2B
   doors with no backend (Shivam, 2026-10-02).
 - After Pro: re-measure the anyio threadpool and pool levers.
-- After the Develop → main merge that carries `c183d3f4`: drop `claim_jobs_for_skill_floor(integer)` — `origin/main` still calls it; Develop uses `claim_skill_floor_lease`.
+- After the next prod deploy: five warm `x-process-time` samples of `/jobs/feed-state`, `/jobs/at/{c}`, `/companies/{c}/jobs`, confirm-skills; a week of `route.latency` for `/partner/v1/sso/session`.
 - Then run the authed QA checklist.
 
 ## COMPANY OBLIGATIONS — off the working backlog

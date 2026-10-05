@@ -14,6 +14,8 @@ refuses to serve prod traffic it cannot count.
 from __future__ import annotations
 
 import logging
+import threading
+import time
 from typing import Any
 
 from fastapi import BackgroundTasks, Depends, HTTPException, Request, status
@@ -21,7 +23,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.config import settings
 from app.database import get_supabase_admin
-from app.repositories.partners import PartnerCredential, PartnersRepository
+from app.repositories.partners import PartnerCredential, PartnersRepository, hash_key
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +53,40 @@ return current
 """
 
 _bearer = HTTPBearer(auto_error=False)
+
+# A resolved credential is kept for a minute, per process. Every partner call
+# paid one Supabase round trip (a ~300ms floor, even for a one-row read) for a
+# row that changes only on revoke or suspend, before its own work began. 474 of
+# the 717 SSO calls in the 30 days to 2026-10-03 came within 60s of the one
+# before. A revoke or suspension therefore
+# takes effect within this window, not on the next call. Only a key that
+# resolved is kept: a wrong key is re-checked every time, and cannot fill the
+# cache. Keyed by the key's hash, never the key.
+_CREDENTIAL_TTL_SECONDS = 60.0
+_CREDENTIAL_CACHE_MAX = 256
+_credential_cache: dict[str, tuple[float, PartnerCredential]] = {}
+_credential_lock = threading.Lock()
+
+
+def _resolve(raw_key: str) -> PartnerCredential | None:
+    digest = hash_key(raw_key)
+    now = time.monotonic()
+    with _credential_lock:
+        hit = _credential_cache.get(digest)
+        if hit is not None and now - hit[0] < _CREDENTIAL_TTL_SECONDS:
+            return hit[1]
+    credential = PartnersRepository(get_supabase_admin()).resolve_credential(raw_key)
+    if credential is not None:
+        with _credential_lock:
+            if len(_credential_cache) >= _CREDENTIAL_CACHE_MAX:
+                _credential_cache.clear()
+            _credential_cache[digest] = (now, credential)
+    return credential
+
+
+def reset_credential_cache() -> None:
+    with _credential_lock:
+        _credential_cache.clear()
 _redis_client: Any = None
 
 
@@ -113,8 +149,7 @@ def get_partner_credential(
             detail="Missing partner API key.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    repo = PartnersRepository(get_supabase_admin())
-    credential = repo.resolve_credential(credentials.credentials.strip())
+    credential = _resolve(credentials.credentials.strip())
     if credential is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -122,7 +157,9 @@ def get_partner_credential(
             headers={"WWW-Authenticate": "Bearer"},
         )
     _enforce_rate_limit(credential.key_id)
-    background_tasks.add_task(repo.touch_key, credential.key_id)
+    background_tasks.add_task(
+        PartnersRepository(get_supabase_admin()).touch_key, credential.key_id
+    )
     request.state.partner_slug = credential.slug
     return credential
 

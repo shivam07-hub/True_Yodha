@@ -1428,7 +1428,7 @@ it fire-and-forget. One change, near-zero risk.
 
 **P3 · Instrument the CV chain before optimising it.** `/cv/upload/finalize` has
 never been under 2,154ms in 11 days and has never been decomposed;
-`confirm-skills` hit 13,084ms once and was never investigated. Point the
+`confirm-skills` hit 13,084ms once and was never investigated *(traced 2026-10-03: N+10 reads, now 8 — §23)*. Point the
 existing `fanout.slow` metric at the funnel. **Rule 0 — do not touch these until
 a number exists.**
 
@@ -2161,3 +2161,174 @@ parameter directly keeps the hash join.
 **Not measured.** The live endpoint: it needs an authed token, and the QA login
 goes to the real API. Take five warm `x-process-time` samples on
 `/roles/bands` after the next deploy.
+
+## 23. The 2026-10-03 Notice pass: four reads that were not what they were filed as
+
+Every one of these sat in the digest as capacity, a queue, or a timeout. Each
+was a single piece of code.
+
+| Route / lane | Before | After | Cause |
+|---|---|---|---|
+| `GET /jobs/feed-state` | 12,264ms (one cold scan, killed at 8s) | one indexed audit read | `jobs ORDER BY batch_date` with no index, for a field no client read — deleted |
+| `GET /jobs/at/{company}` | 10,633ms (Axis Bank) | 1.5ms | no index behind `ORDER BY first_seen LIMIT 6`; also listed closed jobs — `idx_jobs_live_company_first_seen` |
+| `POST /onboarding/baseline/{id}/confirm-skills` | 16 reads (6-skill CV; N+10) | 8 reads, flat in N | per-skill `ensure_skill_in_db`; baseline read 3×; keys read back after review dropped them |
+| Stage A drain (worker) | 603ms CPU / job | 15.6ms / job | `re.search` on strings thrashed `re`'s 512 cache; then a full regex scan per candidate term |
+
+**confirm-skills, traced** — every PostgREST round trip of the real function
+for the QA account, writes stubbed, from a laptop (~300ms/trip): 16 reads,
+5,295ms → 8 reads, 2,488ms on the no-target branch; the has-target branch
+(`get_result`) is 12. Prod logged 18 reads and 4,338ms for user 640.
+`get_result` still re-reads the profile and the baseline the confirm already
+holds — under budget, left for the next pass.
+
+**What was filed wrong, and the fix to the filing.** All four were invisible
+because a slow 2xx inside the read budget was always `slow_200:capacity_queue`,
+opened `blocked`. The transport now times each round trip (inside the
+read-capacity claim, so a wait for a slot never counts) and a 2xx whose own
+trip took ≥500ms opens `slow_200:slow_read:<file>:<function>`. ADR-0021
+amended.
+
+**Not measured.** The live endpoints after deploy. Take five warm
+`x-process-time` samples of each route above on the next prod deploy; and the
+next scrape's `metric skill_floor.pipeline_done` for the drain's wall time.
+
+## 24. Partner SSO: the front door pays a ~300ms floor per hop (2026-10-03)
+
+**Why it matters.** 199 of the 209 signups in the 30 days to 2026-10-03 came
+through `POST /partner/v1/sso/session` (Finlatics). 84 calls over four days:
+21% under 1s, median 1.5-2s, **23% between 3 and 5s** — the partner's user waits
+through all of it before the redirect.
+
+**Where the time goes.** `metric partner_sso.slow` names the hops: `get_link`
+210-680ms, `create_user` 200-1,560ms, `link_seat` 220-670ms, `mint` 200-990ms;
+the route ran 0.5-1.3s longer than the gate, which is the credential read before
+it. From a laptop next to the Cloudflare edge (10ms), a one-row PostgREST read
+is ~390ms and `/auth/v1/health` — no database — ~330ms. The floor is the
+project's own compute (gateway, PostgREST and GoTrue share the Nano instance),
+not distance. **Hops are the lever in code; compute (#16) is the lever under
+every hop.**
+
+**Shipped.** The partner credential is kept 60s per process — 474 of 717 SSO
+calls followed the previous one within 60s, so two in three skip a hop; a
+revoke lands within the minute (PARTNER_API.md). On a new account the seat write
+and the magic-link mint run side by side. Returning user: 3 hops → 2 for two
+calls in three. New account: 5 → 3-4.
+
+**What I got wrong first.** I read the bimodal hop times (≈250 vs ≈650ms) as
+cold vs warm connections — httpx drops idle connections after 5s — and raised
+the shared pool's keepalive to 120s, with GoTrue moved onto it. An A/B of the
+returning-user hops, four calls 20s apart: 1,138ms old vs 1,140ms new. TLS ends
+at the nearby edge, so a cold handshake is cheap. Reverted.
+
+**Not measured.** The live route after this reaches `main` — prod serves
+partners. Read `route.latency` for `/partner/v1/sso/session` a week after.
+
+## 25. Company pages: the count was the cost (2026-10-03)
+
+`/companies/{name}/jobs` opened two `slow_200:slow_read` Notices the morning the
+classifier shipped: the roles RPC and the page's primary-skill read, two hops at
+the ~300ms floor (§24). Inside the RPC, `count(*) over ()` read every matching
+row to number fifty — **Axis Bank, 14,259 live: 10,480ms** for a page whose
+index scan is 14.8ms; an exact live count alone was 3,456ms (14,678 heap fetches
+— `jobs` churns all day, so its visibility map is never current).
+
+One call now: the page, primary skills per row (top five by required level),
+and the count from `company_directory` — the Tier-0 per-company live count,
+refreshed by the 06:15 cron and exact against live that day (every other
+day until §26). `has_next` comes
+from one extra row, never the snapshot; a company newer than the directory
+counts the rows it shows. Axis Bank: **228ms, one hop**. Migration
+`20261003150000`.
+
+`company_pulse_snapshot` was the obvious source and was wrong: it had never
+refreshed (§26). Read `snapshot_refresh_state` before trusting a Tier-0 table.
+
+## 26. Three Tier-0 refreshes could not finish where they ran (2026-10-04)
+
+`snapshot_refresh_state`, 2026-10-03: `role_families` last succeeded **09-07**
+(52 attempts, `21000 DELETE requires a WHERE clause`); `skill_closeness` never
+(38, same); `company_pulse` never (36, `57014` statement timeout). Every
+`company_pulse_snapshot` row was the 09-17 migration seed — Axis Bank 9,893 open
+roles against 14,259 live. Direction's labels, weights, profile and band counts
+were 26 days old. Each failure was written to a row nobody read.
+
+**Cause.** They ran on the HTTP rail: the 06:15 cron posts to the API, which
+calls each refresh over PostgREST — as `authenticator`, whose role config
+preloads `safeupdate` (a WHERE-less DELETE is refused) and stops every statement
+at 8s. Measured as postgres, each in a rolled-back transaction:
+
+| task | runtime | output |
+|---|---|---|
+| role_families | **58.0s** (52.4s + 2.3s core_skills) | 332 families, 75,479 weights, 130,170 profile rows, 4 bands |
+| skill_closeness | **22.7s** | 8,953 bonds (7,287 stored) |
+| company_pulse | **15.7s** | 280 companies (268 stored) |
+
+All three are over 8s: `WHERE true` alone would have swapped 21000 for 57014.
+
+**Fix (`20261004100000`).** They run inside the database, on the rail
+skill_demand, job_search, ghost_index and sector_panel already use: pg_cron as
+postgres (no `safeupdate`, no timeout) → `run_snapshot_sql_refresh(task)`,
+hourly at :20 / :45 / :55. The run claims only a pending or failed task, so it
+works after a scraper finalize (`force=true` marks every task pending), after
+20h without a success, or to retry a failure. The three left `REFRESH_TASKS`;
+service_role lost EXECUTE on them, so the PostgREST path cannot be wired back.
+
+Found on the way, same migration:
+
+- **`refresh_direction_core_skills` had no caller.** Its migration (09-16) says
+  it "runs after [the labels refresh], never instead of it", and wired it to
+  nothing. Direction Fit's 12-skill vocabulary was a one-off. It now runs inside
+  the `role_families` task (+2.3s).
+- **"Due" was 24h, and the daily cron missed it by seconds.** At 06:15:00 a
+  success stamped 06:15:08 the day before is 23h59m52s old — not due. analytics
+  and company_directory refreshed every *other* day. Due is now 20h.
+- **anon and authenticated held EXECUTE on six SECURITY DEFINER refreshes**,
+  each of which rewrites a table. company_directory (~2.5s) fits inside anon's
+  3s. Revoked; the HTTP rail keeps service_role on the two it still calls.
+
+**The dead-man.** `services/snapshot_health.py`, on `/health` and in the
+closer's harvest: a task with no success in 48h (`snapshot_refresh.STALE_AFTER`,
+the status route's rule), or none ever, opens `dead_man:snapshot.<task>` — one
+Notice per task, so the digest names the snapshot, and each closes when its own
+task is fresh again. 48h is a missed daily run plus most of another; the hourly
+retry has had ~24 attempts by then.
+
+**Verified live, 2026-10-04 — first pg_cron runs** (`cron.job_run_details`):
+
+| task | cron run | `last_success_at` | result |
+|---|---|---|---|
+| skill_closeness | 08:45, **16.1s** | never → 10-04 08:45 | 8,953 bonds, 1,233 skills, every bond ≥3 companies |
+| company_pulse | 08:55, **12.2s** | never → 10-04 08:55 | 280 rows, all stamped 08:55 |
+| role_families | 09:20, **71.8s** | 09-07 → 10-04 09:20 | 332 families, 75,474 weights, 130,157 profile rows, 4 bands, core_skills on all 332 |
+
+The WHERE-less DELETEs ran, and two runs went past 8s: the cron session has
+neither limit. The dead-man, evaluated read-only against live state, flagged
+`role_families` alone before 09:20 and nothing after.
+
+**One definition of open roles (`20261004120000`).** Once the pulse refreshed,
+it disagreed with the directory: `open_roles` counted rows with `last_seen`
+within 21 days, `company_directory.active_count` counts live rows. /companies
+put both on one screen — Axis Bank's pulse card 10,496, its row beneath 14,259.
+`last_seen` is retired as a time signal (ARCHITECTURE_LISTING_TIME, locked
+09-27), so this was a stale reader, not a product fork. The pulse now counts
+the directory's predicate verbatim (`is_active` and `listing_confidence =
+'active'`) under its own case-and-whitespace fold.
+
+| | before | after |
+|---|---|---|
+| pulse sum vs live | 50,260 vs 57,522 | **57,522 = 57,522** |
+| companies counted wrong | 82 of 280 | **0** |
+| rows counted, not live / live, not counted | 1,188 / 8,450 | 0 / 0 |
+| pulse 0-100 changed | — | 35 companies; 8 "—" → a score (Wipro, 2,768 live → 50), 4 a score → "—" (EY India 81, BDO 73, Meta 71, PMI 21), the rest ≤14 points |
+| refresh, rolled back as postgres | 13.9s | **11.6s** |
+
+`weekly_delta`, the inflow series and `last_seen_at` are unchanged on all 280
+rows (checked against the prior snapshot in the same transaction). Seeded
+through the rail, marking only `company_pulse` pending — `force` queues every
+task, role_families' 58s too.
+
+⚠️ `last_seen_at` — the freshness input, 20% of the pulse — is still
+`max(coalesce(last_seen, first_seen))` over every row, live or not: Wipro's
+2,768 live roles score freshness 0 off a 09-09 marker. `compute_pulse` already
+decays it over `CONFIRM_WITHIN`, a confirmation window; what feeds it is the
+next decision, not this migration's.

@@ -41,6 +41,17 @@ def _reset_test_account_memo() -> Any:
     test_accounts.reset_cache()
 
 
+@pytest.fixture(autouse=True)
+def _reset_partner_credential_cache() -> Any:
+    """A partner key resolved in one test must not stay valid in the next: a
+    revoked-key test run after a valid-key test would pass for the wrong reason."""
+    from app.security import partner_auth
+
+    partner_auth.reset_credential_cache()
+    yield
+    partner_auth.reset_credential_cache()
+
+
 class RecordedSnapshotWrites:
     """The service-role client `career_target.record_from_profile` holds."""
 

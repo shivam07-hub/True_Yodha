@@ -40,6 +40,7 @@ from urllib.parse import urlencode
 from app.config import settings
 from app.repositories.partners import PartnerCredential, PartnersRepository
 from app.services import auth_links, email_service
+from app.services.concurrent_reads import run_concurrently
 
 logger = logging.getLogger(__name__)
 
@@ -249,17 +250,30 @@ def _start_session(
         # route runs it after responding; /auth/post-signin seeds again the
         # moment the user lands, and the seed is idempotent, so either order
         # converges on the same row — full_name included.
-        with _hop(marks, "link_seat"):
-            link = repo.link_new_seat(
-                partner_id=partner.partner_id,
-                external_id=external_id,
-                email=email,
-                user_id=created_user_id,
-            )
+        #
+        # The seat write and the mint are independent once the account exists,
+        # so they run side by side: on this path they were two of four
+        # sequential Supabase hops (link_seat 220-670ms, mint 200-990ms on prod,
+        # 2026-10-03), and every hop has a ~300ms floor however small. Either failing still fails the call; a minted link whose
+        # seat write failed is never returned, so it reaches nobody.
+        def _link() -> dict[str, Any]:
+            with _hop(marks, "link_seat"):
+                return repo.link_new_seat(
+                    partner_id=partner.partner_id,
+                    external_id=external_id,
+                    email=email,
+                    user_id=created_user_id,
+                )
+
+        both = run_concurrently(
+            {"link": _link, "mint": lambda: _mint(admin, email, redirect_to, marks)},
+            label="partner_sso.new_account",
+        )
+        link = both["link"]
         logger.info("metric partner_sso.linked partner=%s mode=new_account", partner.slug)
         return SsoOutcome(
             mode="direct",
-            login_url=_mint(admin, email, redirect_to, marks),
+            login_url=both["mint"],
             connect_url=None,
             user_ref=str(link.get("id") or ""),
             message="Account created and linked.",

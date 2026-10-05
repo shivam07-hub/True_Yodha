@@ -6,6 +6,44 @@
 
 ---
 
+## 2026-10-04 — Company Demand Pulse counts live roles
+
+Pulse `open_roles` was `last_seen` within 21 days (retired column); now the
+`company_directory` live predicate. Pulse sum 50,260 → 57,522 = live; 82 of 280
+companies corrected (Axis Bank 10,496 → 14,259, Wipro "no live roles" → 2,768).
+Migration `20261004120000`, ARCHITECTURE_READ_PATH §26.
+
+---
+
+## 2026-10-04 — Dead Tier-0 refreshes moved into the database
+
+`role_families` (last success 09-07), `skill_closeness` and `company_pulse` (never)
+ran over PostgREST as `authenticator` — `safeupdate` + 8s — and took 58.0s / 22.7s /
+15.7s. Now pg_cron → `run_snapshot_sql_refresh`, hourly; `core_skills` refreshes with
+`role_families` (had no caller since 09-16); daily "due" 24h → 20h (analytics was
+every other day); anon EXECUTE revoked on six refreshes. Dead-man
+`dead_man:snapshot.<task>` at 48h. Migration `20261004100000`, ARCHITECTURE_READ_PATH §26.
+
+---
+
+## 2026-10-03 — Notice digest RCA pass (hello@himyro.com, 09-28 → 10-01)
+
+Eight open Notices traced to code; every fix on `Develop`, proofs close on `main`.
+- **feed-state** 12.3s unindexed `batch_date` scan for an unread field → deleted (`f04bf617`).
+- **Stage A drain** outran its 2h timeout and stranded 133 jobs (claim = verdict) →
+  batched writes, lease claim with owner, no post-count (`c183d3f4`); `extract_skills`
+  603 → 15.6ms/job (`15cc7105`). Re-floored 4,827: +2,399 jobs with skills; live
+  jobs invisible to matching 3,709 → 1,989 (genuine empties, settled).
+- **/jobs/at** 10.6s → 1.5ms, live roles only (`d71575f8`).
+- **slow_200** classifier: a slow query is `slow_read:<file>:<function>`, not a parked
+  queue victim (`a256919a`, ADR-0021 amended).
+- **confirm-skills** N+10 → 8 reads (this commit). Closer Railway IDs fixed (`0b59e854`).
+- Later the same day: `extract_skills` 39× (`15cc7105`); confirm-skills 8 reads (`017d30a9`); partner SSO fewer hops — 199/209 signups (`b199f7b7`); company pages one hop, Axis Bank 10.5s → 228ms (`9e9307ec`).
+- Decided (CEO delegated): company-page RPC fold parked (cut rule). Shivam: Pro +
+  Small (#16), worker drain seconds, Axis Bank = 18% of live corpus (scraper).
+
+---
+
 ## 2026-10-02 — BACKLOG rebuilt in loop order (CEO grill, 2026-09-30)
 
 Shivam's frame: *"Myro is a CV-building machine for applying to the jobs you want.

@@ -277,6 +277,9 @@ python -m scripts.partner_admin list
 python -m scripts.partner_admin revoke --prefix <key_prefix>
 ```
 
+A revoke or suspension takes effect within 60 seconds: each API process keeps
+a key it has resolved for one minute (`app/security/partner_auth.py`).
+
 Two scheduled calls make the push half work. Both are guarded by
 `X-Scrape-Token`:
 
