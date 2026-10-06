@@ -54,7 +54,7 @@ actually answer it. Readers ask the question. Nobody touches the columns.**
 | Question | Column | Type | Status |
 |---|---|---|---|
 | When did Myro receive this row? | `ingested_at` | timestamptz | 99.96% clean, currently unused for this |
-| When did Myro last **confirm** it is open? | `last_verified_live_at` | timestamptz | real, running today — **once de-seeded** |
+| When did Myro last **confirm** it is open? | `last_conclusive_verification_at`, when that check found it live | timestamptz | real — **not `last_verified_live_at`**, see step 7 |
 | What day did the crawler discover it? | `first_seen` | int YYYYMMDD | fine for display + sort only |
 | When did the crawler last see it? | ~~`last_seen`~~ | — | **dead. Retired as a time signal.** |
 
@@ -99,8 +99,10 @@ freshness threshold.
 
 - YYYYMMDD ↔ date conversion.
 - The threshold numbers, which become **one** set instead of seven.
-- The de-seeding predicate — how we tell a genuine verification stamp from the
-  2026-07-11 copy.
+- How we tell the verifier's live verdict from a crawl sighting (step 7). This
+  replaced the de-seeding predicate, which can no longer pass anything.
+- `CARD_COLUMNS` — the columns the verdict reads. Every card select carries
+  them; a select that drops one reads every card it builds as unconfirmed.
 
 ### What the module must NOT own
 
@@ -181,7 +183,8 @@ behaviour was wrong:
 - `company_pulse.py:35` `FRESHNESS_WINDOW_DAYS` → the module. Done: it decays
   over `CONFIRM_WITHIN`, and since `20261006090000` its input is the verifier's
   last check on a live row, not the marker.
-- `listing_trust.verification_claim` → takes the verdict.
+- `listing_trust.verification_claim` → takes the verdict. Done 2026-10-06:
+  it reads WHAT the check found from `confirmed_at` (step 7).
 - Frontend: `card-view.ts:159,202`, `mobile/redesign/job-model.ts:201,210`
   (desktop says discovery age, mobile says `verified {age} ago` off the same
   dead marker — they disagree today for the same row).
@@ -219,6 +222,89 @@ gone-signal that marks a listing closed. Both cannot hold. The second must go:
 with `last_seen` frozen and ingestion stopped, it would close listings the
 verifier confirmed open today, purely for having been discovered a month ago.
 
+### 7 · A crawl sighting is not a confirmation — ✅ SHIPPED 2026-10-06
+
+`confirmed_at` read `last_verified_live_at` with only the seed guard in front
+of it. Two writers stamp that column, and `listing_trust` already said only
+one of them is a check:
+
+| Write | `last_verified_live_at` | `last_conclusive_verification_at` | `reactivated_at` |
+|---|---|---|---|
+| verifier, live (`job_listing_verification.record`) | T | T | T |
+| verifier, closed / redirected / wrong role | – | T | – |
+| crawler, feed sighting (scraper `apply_seen`) | T | – | T, only if it was not active |
+
+No database function writes any of the three (checked in `pg_proc`). The
+crawler also writes `is_active = true` and `listing_confidence = 'active'`, so
+it overrides a verifier's close.
+
+**The rule.** `confirmed_at` is the last conclusive check, and only when that
+check found the listing live: `last_conclusive_verification_at` equals
+`last_verified_live_at` or `reactivated_at`. Only the verifier's live verdict
+stamps the conclusive clock in the same instant as either. `reactivated_at` is
+the witness that survives: the crawler re-stamps the live stamp on every row
+it sees, and leaves `reactivated_at` alone on one already active. On every
+live row, `last_verified_live_at = last_conclusive_verification_at` implied
+`reactivated_at` matched too (0 exceptions, 2026-10-06).
+`test_job_listing_verification_repository` pins the write this relies on.
+
+**Rejected:**
+
+- *Live stamp within N seconds of the check.* The crawler re-stamps the live
+  column on every live row of every company it crawls, so each crawl erases
+  the verifier's confirmations: 1,892 genuine in-window checks on the day, and
+  again on the next crawl.
+- *The check on a live row* (what `listing_trust` read). The crawler re-activates
+  rows the verifier found closed or redirected; 1,021 rows would have been
+  confirmed by a check that said gone.
+
+**Measured on production 2026-10-06, before the change:**
+
+| | now | after | lose | gain |
+|---|---|---|---|---|
+| Rows not closed (60,361), `confirmed_open` | 8,124 | 7,652 | 2,479 | 2,007 |
+| Real users' cards, matches computed in 30 days (9,598) | 5,455 | 4,556 | 909 | 10 |
+
+The 2,479 lost are 1,457 crawl sightings (595 never checked, 862 checked
+19h–7d before the sighting — every one stamped 2026-10-01, a day off the
+0930 discovery marker) and 1,022 whose later check said `redirected`, so the
+card called them confirmed off an earlier live stamp. Of real users' 909,
+908 are the redirected kind, across 8 people. The 2,007 gained are verifier
+checks the seed guard hid because the check or a sighting landed on the UTC
+day of discovery. The "hide low confidence" filter that hides `is_stale` cards
+is off by default; with it off, no card leaves a list.
+
+`listing_trust`: of active rows with a check, `checked` 8,667 → 7,646 (1,021
+become `closed`) and 2,237 old checks move `stale` → `closed`. The partner
+field `last_verified_live_at` is null for those rows.
+
+**Deleted:** `_is_seeded`. The 2026-07-11 copy cannot pass the rule — its
+`last_verified_live_at` was nulled by step 1 and it never wrote
+`reactivated_at` — and the guard was rejecting genuine checks made on the
+discovery day. The verdict no longer reads `last_seen`.
+
+**Not changed, still reading the raw stamp:**
+
+- `job_liveness` (the intent gate) reports `verified_live_at` straight from
+  `last_verified_live_at`, so the apply-time liveness chip can date a feed
+  sighting as a verification.
+- `record_recommendation_exposures` logs the raw stamp as `verified_live_at`
+  at show time.
+- `get_candidate_job_ids_for_roles` orders retrieval by it — the write-seam
+  split `listing_trust` already defers to the retrieval work.
+- `listing_time` and `listing_trust` still read the lifecycle differently: a
+  row `uncertain` after failed fetches, or `likely_closed`, whose last check
+  found it live, is `confirmed_open` on a card and `closed` in the trust block.
+- `20260805b` copied the live stamp into the conclusive clock once. A row
+  untouched since carries that pair (8 live rows); all are dated on or before
+  2026-08-05, so they never read `confirmed_open`.
+
+**When to move the write side instead.** If the verifier stops stamping
+`reactivated_at` on every live verdict, the rule loses its witness and every
+card checked before the next crawl reads unconfirmed — the contract test fails
+first. The durable fix then is a verifier-only column (e.g.
+`last_found_live_at`), written by the live branch alone.
+
 ---
 
 ## Out of scope, deliberately
@@ -239,3 +325,8 @@ verifier confirmed open today, purely for having been discovered a month ago.
 - One grep for `last_seen` across `backend/app` and `frontend` returns only the
   module and the scraper-facing write path.
 - `jobs_added_1h` is non-zero outside 00:00–01:00 UTC, or gone.
+- No card is confirmed by a sighting: `select count(*) from jobs where is_active
+  and listing_confidence = 'active' and last_verified_live_at >= now() - interval
+  '7 days' and last_conclusive_verification_at is distinct from last_verified_live_at
+  and last_conclusive_verification_at is distinct from reactivated_at` counts rows
+  whose live stamp is a sighting; the verdict calls every one `unconfirmed`.
