@@ -4073,7 +4073,8 @@ export interface CompanyPulseItem {
   weekly_delta: number
   pulse: number | null
   series: number[]
-  last_seen_at?: string | null
+  /** When a verifier last opened one of its live roles and a live posting answered. */
+  last_checked_at?: string | null
 }
 
 export interface CompanyPulseResponse {

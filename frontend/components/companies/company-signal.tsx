@@ -136,7 +136,7 @@ export interface CompanyPulseData {
   weekly_delta: number
   pulse: number | null
   series: number[]
-  last_seen_at?: string | null
+  last_checked_at?: string | null
 }
 
 interface CardProps {

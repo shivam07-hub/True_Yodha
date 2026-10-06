@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pytest
@@ -5,6 +6,7 @@ from postgrest.exceptions import APIError
 
 from app.repositories.jobs import JobsRepository
 from app.routers.jobs.list import get_indexable_companies
+from app.schemas.company_pulse import CompanyPulseItem
 from app.services import shared_cache
 from app.services.background import debounce
 from app.services.company_pulse import (
@@ -12,6 +14,7 @@ from app.services.company_pulse import (
     build_series,
     build_series_from_histogram,
     compute_pulse,
+    project_item,
     sort_key_for,
 )
 
@@ -63,9 +66,30 @@ def test_staleness_lowers_pulse() -> None:
     assert compute_pulse(50, 5, 21) == stale
 
 
-def test_missing_last_seen_treated_as_stale_not_crash() -> None:
+def test_never_checked_scores_freshness_zero_not_crash() -> None:
     p = compute_pulse(50, 5, None)
     assert p is not None and 0 <= p <= 100
+    # Absence is not a check: no check reads exactly like one past the window.
+    assert p == compute_pulse(50, 5, 40)
+
+
+def test_freshness_reads_the_last_check_not_a_crawl_marker() -> None:
+    """Wipro, 2026-10-06: 2,768 live roles, 1,105 checked that week, scored
+    freshness 0 off a 09-09 crawl marker. The pulse ages the check."""
+    now = datetime(2026, 10, 6, 9, 0, tzinfo=timezone.utc)
+    checked = project_item(
+        company_name="Wipro",
+        open_roles=2768,
+        last_checked_at=now - timedelta(hours=2),
+        now=now,
+    )
+    unchecked = project_item(company_name="Wipro", open_roles=2768, now=now)
+    assert checked["pulse"] == compute_pulse(2768, 0, 0)
+    assert unchecked["pulse"] == compute_pulse(2768, 0, None)
+    assert checked["pulse"] - unchecked["pulse"] == 20
+    assert checked["last_checked_at"] == (now - timedelta(hours=2)).isoformat()
+    assert "last_seen_at" not in checked
+    assert set(checked) == set(CompanyPulseItem.model_fields)
 
 
 def test_series_length_and_empty() -> None:

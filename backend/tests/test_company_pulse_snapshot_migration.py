@@ -79,3 +79,56 @@ def test_live_roles_refresh_stays_on_the_database_rail() -> None:
     assert "where task = 'company_pulse'" in sql
     assert "select public.run_snapshot_sql_refresh('company_pulse'" in sql
     assert "notify pgrst, 'reload schema'" in sql
+
+
+CHECKED = MIGRATION.parent / "20261006090000_company_pulse_freshness_is_a_check.sql"
+
+
+def test_freshness_is_the_last_check_on_a_live_row_not_a_crawl_marker() -> None:
+    """Wipro, 2026-10-06: 2,768 live roles, 1,105 checked that week, freshness 0
+    off a 09-09 crawl marker. Freshness ages listing_trust's "checked": the
+    verifier opened a live role and a live posting answered."""
+    body = _refresh_body(CHECKED.read_text())
+    assert (
+        "max(last_conclusive_verification_at) filter (where is_live) as last_checked_at"
+        in body
+    )
+    # Not the crawler's marker, nor the stamp the crawler also writes, nor receipt.
+    assert "last_seen" not in body
+    assert "last_verified_live_at" not in body
+    assert "ingested_at" not in body
+    # One name, one meaning: the upsert writes the new column only.
+    assert "last_checked_at = excluded.last_checked_at" in body
+    assert "last_seen_at" not in body
+
+
+def test_checked_refresh_keeps_open_roles_weekly_and_series() -> None:
+    body = _refresh_body(CHECKED.read_text())
+    assert "(j.is_active is true and j.listing_confidence = 'active') as is_live" in body
+    assert "count(*) filter (where is_live)::integer as open_roles" in body
+    assert "first_seen >= v_week" in body
+    assert "v_today - 7" in body
+    assert "v_today - 29" in body
+    assert "delete from public.company_pulse_snapshot where refreshed_at <> v_now" in body
+    assert "security definer" in body
+    assert "set search_path = ''" in body
+
+
+def test_checked_column_is_additive_and_refresh_stays_on_the_database_rail() -> None:
+    sql = CHECKED.read_text()
+    assert (
+        "alter table public.company_pulse_snapshot\n"
+        "  add column if not exists last_checked_at timestamptz"
+    ) in sql
+    # The retired column waits for main to carry the new reader; never dropped here.
+    assert "drop column" not in sql
+    assert "grant execute" not in sql
+    assert (
+        "revoke all on function public.refresh_company_pulse()\n"
+        "  from public, anon, authenticated, service_role"
+    ) in sql
+    # Seeds through the lease, queuing this task alone — force would queue all.
+    assert "select public.request_snapshot_refresh(" not in sql
+    assert "where task = 'company_pulse'" in sql
+    assert "select public.run_snapshot_sql_refresh('company_pulse'" in sql
+    assert "notify pgrst, 'reload schema'" in sql

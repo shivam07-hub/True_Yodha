@@ -30,7 +30,7 @@ class CompanySignalsRepository:
         try:
             rows = safe_read(
                 self._db.table("company_pulse_snapshot")
-                .select("sort_key, open_roles, weekly_delta, last_seen_at, inflow_by_day")
+                .select("sort_key, open_roles, weekly_delta, last_checked_at, inflow_by_day")
                 .in_("sort_key", keys),
                 default=[],
                 context="company_pulse_snapshot",
@@ -57,7 +57,7 @@ def _item(company_name: str, row: dict[str, Any] | None, now: datetime) -> dict[
         company_name=company_name,
         open_roles=int(row.get("open_roles") or 0),
         weekly_delta=int(row.get("weekly_delta") or 0),
-        last_seen_at=_as_utc(row.get("last_seen_at")),
+        last_checked_at=_as_utc(row.get("last_checked_at")),
         inflow_by_day=_inflow(row.get("inflow_by_day")),
         now=now,
     )
