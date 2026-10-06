@@ -318,7 +318,7 @@ export function PrepRoom({
 
           <section className="prp-sec prp-reach db" aria-label="Reach the people">
             <ReachSection
-              job={{ job_id: app.job_id, title: app.title, company: app.company, job_description: app.job_description }}
+              job={{ job_id: app.job_id, company: app.company }}
               token={token}
               active
             />

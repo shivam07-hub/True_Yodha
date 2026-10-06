@@ -19,12 +19,11 @@ import { useXPStore } from "@/store/xpStore"
 const PACK_COST = 50
 
 /** Structural subset — JobMatch satisfies it, and so does an ApplicationResponse
- *  mapped by the Preparations room. Only what reach actually reads. */
+ *  mapped by the Preparations room. Only what reach actually reads: the search
+ *  reads the job by id server-side, the log labels it by company. */
 export interface ReachJobRef {
   job_id: string
-  title: string
   company: string | null
-  job_description?: string | null
 }
 
 function CopyRow({ label, text }: { label: string; text: string }) {
@@ -69,12 +68,7 @@ export function ReachSection({ job, token, active }: { job: ReachJobRef; token: 
   // Free searches — deterministic + cheap, so fetch as soon as the detail opens.
   const search = useQuery({
     queryKey: ["reach-search", job.job_id],
-    queryFn: () =>
-      jobsApi.reachSearch(token, {
-        job_title: job.title,
-        company: job.company,
-        job_description: job.job_description ?? "",
-      }),
+    queryFn: () => jobsApi.reachSearch(token, job.job_id),
     enabled: !!token && !!job.job_id && active,
     staleTime: 30 * 60 * 1000,
   })

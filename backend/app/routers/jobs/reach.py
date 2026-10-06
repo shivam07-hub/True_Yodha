@@ -1,17 +1,22 @@
 """Reach Intelligence router — "who to reach out to" for a job.
 
-The free tier (ADR-0018 L2): given a job's title/description/company, return
-the roles to search for + search URLs the user opens in their OWN browser.
-Stateless, no persist, no LLM, no coin charge. Myro constructs queries; it
-never fetches or stores the results. The paid 50-coin outreach pack (drafted
-message + timing + warm intros) is a separate endpoint (v1 build slice 4).
+The free tier (ADR-0018 Path 2): for a job Myro holds, return the roles to
+search for + search URLs the user opens in their OWN browser. No persist, no
+LLM, no coin charge. Myro constructs queries; it never fetches or stores the
+results. The paid 50-coin outreach pack (drafted message + timing + warm
+intros) is the other endpoint.
+
+Both read the job by id from Myro's own record. The caller names the job; it
+never re-describes it. The free search used to take title/company/JD in the
+body, so a caller holding only the id (the extension on a return visit) sent
+blanks and got "add a company or role" on a page that had both.
 """
 from __future__ import annotations
 
 import json
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.deps import Principal, get_principal
 from app.repositories.connections import (
@@ -36,12 +41,6 @@ router = APIRouter()
 _PACK_PROMPT_KEY = DeepeningKey.REACH_PACK
 
 
-class ReachSearchRequest(BaseModel):
-    job_title: str = Field(default="", max_length=300)
-    company: str | None = Field(default=None, max_length=200)
-    job_description: str = Field(default="", max_length=20_000)
-
-
 class ReachSearchModel(BaseModel):
     label: str
     url: str
@@ -62,17 +61,26 @@ def _to_model(search: ReachSearch | None) -> ReachSearchModel | None:
     return ReachSearchModel(label=search.label, url=search.url, kind=search.kind)
 
 
-@router.post("/reach/search", response_model=ReachSearchResponse)
+def _job_or_404(repo: JobsRepository, job_id: str) -> dict:
+    rows = repo.get_jobs_by_ids([job_id])
+    if not rows:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    return rows[0]
+
+
+@router.get("/{job_id}/reach/search", response_model=ReachSearchResponse)
 def reach_search(
-    body: ReachSearchRequest,
+    job_id: str,
     _principal: Principal = Depends(get_principal),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> ReachSearchResponse:
     """Free, deterministic reach searches for a job. Auth-gated (ties the
     action to a connected account) but not coin-gated."""
+    meta = _job_or_404(repo, job_id)
     intel = build_reach_intel(
-        job_title=body.job_title,
-        job_description=body.job_description,
-        company=body.company,
+        job_title=meta.get("job_title") or "",
+        job_description=meta.get("job_description") or "",
+        company=meta.get("company_name") or None,
     )
     return ReachSearchResponse(
         reporting_target=intel.reporting_target,
@@ -140,10 +148,7 @@ async def create_reach_pack(
         balance = await xp_service.get_xp_balance(user_id)
         return ReachPackResponse(purchased=True, pack=cached, new_coin_balance=balance)
 
-    jobs_meta = repo.get_jobs_by_ids([job_id])
-    if not jobs_meta:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
-    meta = jobs_meta[0]
+    meta = _job_or_404(repo, job_id)
     role = meta.get("job_title") or ""
     company = meta.get("company_name") or ""
     description = meta.get("job_description") or ""

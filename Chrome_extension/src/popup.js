@@ -17,13 +17,13 @@ const elements = {
   reachView: document.querySelector("#reach-view"),
   errorView: document.querySelector("#error-view"),
   trackButton: document.querySelector("#track-button"),
-  reachFrontButton: document.querySelector("#reach-front-button"),
   connectButton: document.querySelector("#connect-button"),
   retryButton: document.querySelector("#retry-button"),
   saveButton: document.querySelector("#save-button"),
   reachButton: document.querySelector("#reach-button"),
   reviewButton: document.querySelector("#review-button"),
   reachLead: document.querySelector("#reach-lead"),
+  reachMore: document.querySelector("#reach-more"),
   reachAlternates: document.querySelector("#reach-alternates"),
   reachMyroLink: document.querySelector("#reach-myro-link"),
   reachBackButton: document.querySelector("#reach-back-button"),
@@ -151,8 +151,8 @@ function renderFitHook(preview) {
   elements.fitHook.hidden = false
 }
 
-// Read the active tab + extract the job draft. Shared by Track and the
-// front-screen "Find people to reach" (both start from the current page).
+// Read the active tab + extract the job draft. Shared by Save and "Fix job
+// details" on a return visit (both start from the current page).
 async function captureDraft() {
   const snapshot = await getActiveSnapshot(browserPreview)
   const draft = extractFromDocument(documentFromSnapshot(snapshot), snapshot.url, snapshot.selectedText)
@@ -270,6 +270,7 @@ async function saveCurrentJob() {
     // returned no job_id.
     elements.trackerLink.href = tailorLinkFor(web, jobId)
     elements.trackerLink.textContent = hasId ? "Tailor your CV" : "Open tracker"
+    elements.reachButton.hidden = !hasId
     setStatus("Saved")
     setView("saved")
   } catch (error) {
@@ -313,11 +314,15 @@ async function raiseFitInMyro(event) {
 
 function renderReach(intel) {
   const primary = intel.primary
+  const alternates = intel.alternates || []
+  // The search is built from the saved job's own row, so an empty answer means
+  // the job carries no title or company — not that the page is missing one.
   elements.reachLead.textContent = primary
     ? `Opened a search for ${primary.label}. These are the people to reach out to and network with.`
-    : "Add a company or role on the page, then try again."
+    : "This job has no role or company to search for yet. Fix job details, then try again."
+  elements.reachMore.hidden = alternates.length === 0
   elements.reachAlternates.innerHTML = ""
-  for (const search of intel.alternates || []) {
+  for (const search of alternates) {
     const btn = document.createElement("button")
     btn.type = "button"
     btn.className = "button ghost reach-item"
@@ -325,12 +330,10 @@ function renderReach(intel) {
     btn.addEventListener("click", () => openTab(search.url))
     elements.reachAlternates.appendChild(btn)
   }
-  // Deep-link into this job's plan in Myro. Slice 3 lands the reach pack in the
-  // job drawer; until then this opens the job's CV/tailor workspace.
+  // The job's room holds the Reach log (ADR-0018 Path 3): the person the user
+  // finds in that search is nominated there, not in the popup.
   const web = frontendBaseUrl(state.config.apiUrl)
-  elements.reachMyroLink.href = state.savedJobId
-    ? `${web}/cv?jobId=${encodeURIComponent(state.savedJobId)}`
-    : `${web}/home`
+  elements.reachMyroLink.href = `${web}/preparations/${encodeURIComponent(state.savedJobId)}`
 }
 
 function previewReachIntel() {
@@ -343,47 +346,19 @@ function previewReachIntel() {
   }
 }
 
-// Free reach search (ADR-0018): ask the backend which roles to look for, open
-// the top search in the user's OWN browser, show alternates. Assumes
-// state.{roleName,companyName,jobDescription} are populated by the caller.
+// Free reach search (ADR-0018 Path 2): the backend reads the saved job by id and
+// says which roles to look for; the top search opens in the user's OWN browser.
+// Reach is offered only once the job is saved — the id is the whole input.
 async function runReach() {
   const intel = browserPreview
     ? previewReachIntel()
-    : await reachSearch(state.config.apiUrl, state.config.token, {
-        jobTitle: state.roleName,
-        company: state.companyName,
-        jobDescription: state.jobDescription,
-      })
+    : await reachSearch(state.config.apiUrl, state.config.token, state.savedJobId)
   renderReach(intel)
   if (intel.primary?.url) openTab(intel.primary.url)
   setStatus("Reach")
   setView("reach")
 }
 
-// Front-screen fast path: capture the current page, then reach — no track/save.
-// One click from a job page → the search opens. (1-2 screens, no burying.)
-async function findPeopleFromPage() {
-  try {
-    setStatus("Reading page", true)
-    elements.reachFrontButton.disabled = true
-    const draft = await captureDraft()
-    if (!draft.jobDescription || draft.jobDescription.length < 80) {
-      setStatus("Needs selection")
-      throw new Error("Select the job description on the page and click Find people to reach again.")
-    }
-    state.roleName = draft.roleName || ""
-    state.companyName = draft.companyName || ""
-    state.jobDescription = draft.jobDescription || ""
-    state.savedJobId = ""
-    await runReach()
-  } catch (error) {
-    showError(error)
-  } finally {
-    elements.reachFrontButton.disabled = false
-  }
-}
-
-// Post-save path (saved-view): reach off the already-captured state.
 async function findPeopleToReach() {
   try {
     setStatus("Finding people", true)
@@ -491,6 +466,7 @@ async function showTrackedIfKnown() {
     elements.savedTitle.textContent = record.title || "This job"
     elements.trackerLink.href = tailorLinkFor(web, record.job_id)
     elements.trackerLink.textContent = record.job_id ? "Tailor your CV" : "Open tracker"
+    elements.reachButton.hidden = !record.job_id
     setStatus("Tracked")
     setView("saved")
     return true
@@ -511,7 +487,6 @@ async function init() {
 
   elements.trackButton.addEventListener("click", trackCurrentJob)
   elements.fitLink?.addEventListener("click", raiseFitInMyro)
-  elements.reachFrontButton?.addEventListener("click", findPeopleFromPage)
   elements.connectButton?.addEventListener("click", connectMyro)
   elements.retryButton.addEventListener("click", () => setView("ready"))
   elements.saveButton.addEventListener("click", saveCurrentJob)

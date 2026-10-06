@@ -28,53 +28,22 @@ def teardown_function() -> None:
     app.dependency_overrides.clear()
 
 
-def test_reach_search_returns_deterministic_searches():
-    client = _client()
-    resp = client.post(
-        "/jobs/reach/search",
-        json={
-            "job_title": "Netscribes - Manager - Presales - Data Analytics",
-            "company": "Netscribes",
-            "job_description": "Role : Presales\nReporting to : VP\nEngage with clients.",
-        },
-    )
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["reporting_target"] == "VP"
-    assert body["primary"]["kind"] == "linkedin"
-    assert "linkedin.com/search/results/people" in body["primary"]["url"]
-    assert body["target_titles"]
-
-
-def test_reach_search_requires_auth():
-    app.dependency_overrides.clear()
-    client = TestClient(app)
-    resp = client.post("/jobs/reach/search", json={"job_title": "x", "company": "y"})
-    assert resp.status_code in (401, 403)
-
-
-def test_reach_search_empty_body_is_graceful():
-    client = _client()
-    resp = client.post("/jobs/reach/search", json={})
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["primary"] is None
-    assert body["alternates"] == []
-
-
 class _FakeJobsRepo:
-    def __init__(self) -> None:
+    def __init__(self, jobs: dict[str, dict] | None = None) -> None:
         self.deepenings: dict[str, str] = {}
+        self.jobs = jobs if jobs is not None else {
+            "j1": {
+                "job_title": "Manager, Presales",
+                "company_name": "Netscribes",
+                "job_description": "Engage with clients. Reporting to : VP",
+            }
+        }
 
     def get_deepening(self, _user_id: str, _job_id: str, key: str):
         return self.deepenings.get(key)
 
-    def get_jobs_by_ids(self, _job_ids: list[str]) -> list[dict]:
-        return [{
-            "job_title": "Manager, Presales",
-            "company_name": "Netscribes",
-            "job_description": "Engage with clients. Reporting to : VP",
-        }]
+    def get_jobs_by_ids(self, job_ids: list[str]) -> list[dict]:
+        return [self.jobs[j] for j in job_ids if j in self.jobs]
 
     def upsert_deepening(self, _user_id: str, _job_id: str, key: str, value: str) -> None:
         self.deepenings[key] = value
@@ -132,3 +101,50 @@ def test_reach_pack_provider_failure_is_503_and_never_charges(monkeypatch):
     # The whole point: no deliverable, no LLM value delivered, no coins taken.
     assert charged == []
     assert repo.deepenings == {}
+
+
+def _search_client(repo: _FakeJobsRepo) -> TestClient:
+    client = _client()
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    return client
+
+
+def test_reach_search_reads_the_job_by_id():
+    """The caller names the job; Myro reads title/company/JD from its own row."""
+    repo = _FakeJobsRepo({
+        "ext_abc": {
+            "job_title": "Netscribes - Manager - Presales - Data Analytics",
+            "company_name": "Netscribes",
+            "job_description": "Role : Presales\nReporting to : VP\nEngage with clients.",
+        }
+    })
+    resp = _search_client(repo).get("/jobs/ext_abc/reach/search")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["reporting_target"] == "VP"
+    assert body["primary"]["kind"] == "linkedin"
+    assert "linkedin.com/search/results/people" in body["primary"]["url"]
+    assert "Netscribes" in body["primary"]["label"]
+    assert body["target_titles"]
+
+
+def test_reach_search_unknown_job_is_404_not_an_empty_search():
+    """The defect this shape removes: a caller with no job details used to get a
+    200 with primary=None, rendered as "add a company or role on the page"."""
+    resp = _search_client(_FakeJobsRepo({})).get("/jobs/missing/reach/search")
+    assert resp.status_code == 404
+
+
+def test_reach_search_requires_auth():
+    app.dependency_overrides.clear()
+    client = TestClient(app)
+    resp = client.get("/jobs/j1/reach/search")
+    assert resp.status_code in (401, 403)
+
+
+def test_reach_search_has_no_body_driven_twin():
+    """One input shape. The stateless POST that trusted caller-sent fields is gone."""
+    resp = _search_client(_FakeJobsRepo()).post(
+        "/jobs/reach/search", json={"job_title": "x", "company": "y"}
+    )
+    assert resp.status_code in (404, 405)

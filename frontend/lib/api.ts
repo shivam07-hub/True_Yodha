@@ -4718,13 +4718,12 @@ export const jobs = {
     request<{ job_id: string; job_description: string }>(`/jobs/${jobId}/description`, {
       headers: { Authorization: `Bearer ${token}` },
     }),
-  /** Free reach search (ADR-0018): roles to search for + URLs the user opens
-   *  in their own browser. Myro never fetches the results. */
-  reachSearch: (token: string, body: { job_title: string; company?: string | null; job_description?: string }) =>
-    request<ReachSearchResponse>(`/jobs/reach/search`, {
-      method: "POST",
+  /** Free reach search (ADR-0018 Path 2): roles to search for + URLs the user
+   *  opens in their own browser. Myro reads the job by id from its own record
+   *  and never fetches the results. */
+  reachSearch: (token: string, jobId: string) =>
+    request<ReachSearchResponse>(`/jobs/${encodeURIComponent(jobId)}/reach/search`, {
       headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify(body),
     }),
   /** Purchased-state for a job's outreach pack — no charge (UI gate). */
   getReachPack: (token: string, jobId: string) =>

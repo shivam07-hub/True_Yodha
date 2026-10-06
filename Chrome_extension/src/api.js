@@ -86,15 +86,11 @@ export async function fetchCareerProfile(apiUrl, token) {
   return request(apiUrl, token, "/career-profile", null, false, "GET")
 }
 
-// Reach Intelligence (ADR-0018): the backend derives which leader roles to
-// search for and returns search URLs the user opens in their OWN browser.
-// Myro never fetches the results — free, no coin charge.
-export async function reachSearch(apiUrl, token, { jobTitle, company, jobDescription }) {
-  return request(apiUrl, token, "/jobs/reach/search", {
-    job_title: jobTitle || "",
-    company: company || null,
-    job_description: jobDescription || "",
-  })
+// Reach Intelligence (ADR-0018 Path 2): the backend reads the saved job by id,
+// derives which leader roles to search for, and returns search URLs the user
+// opens in their OWN browser. Myro never fetches the results — free, no coins.
+export async function reachSearch(apiUrl, token, jobId) {
+  return request(apiUrl, token, `/jobs/${encodeURIComponent(jobId)}/reach/search`, null, false, "GET")
 }
 
 export async function saveImport(apiUrl, token, state) {
