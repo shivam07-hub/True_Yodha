@@ -93,6 +93,13 @@ export async function reachSearch(apiUrl, token, jobId) {
   return request(apiUrl, token, `/jobs/${encodeURIComponent(jobId)}/reach/search`, null, false, "GET")
 }
 
+// Page Entry: "which of my jobs is this page?" — the popup's first read. The
+// server matches the URL against the user's own Collection and stages it with
+// the same resolver as the Collections surface. `entry` is null for a new page.
+export async function pageEntry(apiUrl, token, url) {
+  return request(apiUrl, token, "/jobs/collections/page", { url })
+}
+
 export async function saveImport(apiUrl, token, state) {
   return request(apiUrl, token, "/jobs/import", {
     source_url: state.sourceUrl,

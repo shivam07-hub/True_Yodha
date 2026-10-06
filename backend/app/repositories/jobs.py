@@ -3520,6 +3520,27 @@ class JobsRepository:
 
     # ── applications ───────────────────────────────────────────────────────────
 
+    def get_user_application_pages(self, user_id: str) -> list[dict[str, Any]]:
+        """Every application row with only what page identity and staging read.
+
+        The extension asks "which of my jobs is this page?" on every popup open,
+        so this is the lean twin of `get_user_applications`: no JD, no card
+        columns — URLs, the title/company it names, and liveness.
+        """
+        rows = (
+            self._db.table("job_applications")
+            .select("id, job_id, status, source, notes, created_at, applied_at")
+            .eq("user_id", user_id)
+            .execute()
+        ).data or []
+        attach_jobs(
+            rows,
+            self._db,
+            "job_title, company_name, apply_url, source_url, is_active, listing_confidence, "
+            "date_posted, first_seen, last_verified_live_at",
+        )
+        return rows
+
     def get_user_applications(self, user_id: str) -> list[dict[str, Any]]:
         # NOTE: job_applications carries no FK to jobs (20260711c retirement
         # migration) — attach_jobs joins in Python instead of a PostgREST embed.

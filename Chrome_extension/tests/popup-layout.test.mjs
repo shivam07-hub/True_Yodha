@@ -30,3 +30,17 @@ describe("azure brand tokens", () => {
     assert.doesNotMatch(styles, /rgba\(0,\s*245,\s*212/)
   })
 })
+
+describe("hidden attribute", () => {
+  it("wins over every display rule, so a hidden button never renders", () => {
+    assert.match(styles, /\[hidden\]\s*\{\s*display:\s*none\s*!important;?\s*\}/)
+  })
+})
+
+describe("first screen", () => {
+  it("offers Save only — reach waits for a saved job (ADR-0018 amendment)", () => {
+    const ready = popupHtml.slice(popupHtml.indexOf('id="ready-view"'), popupHtml.indexOf('id="review-view"'))
+    assert.match(ready, /id="track-button"/)
+    assert.doesNotMatch(ready, /Find people to reach/)
+  })
+})

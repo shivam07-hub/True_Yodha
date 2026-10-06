@@ -1237,6 +1237,28 @@ CV history. An unanswered apply intent is deleted with the listing.
   ladder, the liveness rule, the landing rule and the origin label are tested
   once there, not through each skin.
 
+### Page Entry
+
+**"Which of my jobs is this page?"** — the Chrome extension's first read on
+open (`POST /jobs/collections/page`, `app/services/collections/page.py`). It
+matches the page URL against the user's OWN applications and stages the match
+through the resolver above, so the popup shows the same stage as Collections and
+offers that stage's one next step: saved → tailor, tailored → apply, applied →
+prepare.
+
+- **The server holds the answer; the extension holds none.** The popup used to
+  keep `{job_id, title}` per URL in `chrome.storage`: it never knew a stage,
+  never saw a job saved from Myro's list, and on a return visit held too little
+  to act on (reach went out with a blank job).
+- **Page identity is one rule, in `page.py`.** Host case-folded, fragment and
+  tracking parameters (`utm_*`, `src`, `gh_src`, …) dropped, the stored URL's
+  remaining parameters must all be on the page, and the ATS apply step
+  (`…/R123/apply`) is the posting at `…/R123`. A careers index never claims the
+  jobs under it.
+- **Only the user's own applications are searched.** An Apply click is at least
+  a save, so every job they went to apply to from Myro is there; the corpus is
+  never scanned on a popup open.
+
 ---
 
 ## Seniority Eligibility

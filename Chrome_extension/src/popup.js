@@ -1,15 +1,17 @@
-import { saveImport, previewImport, reachSearch } from "./api.js"
+import { saveImport, previewImport, reachSearch, pageEntry } from "./api.js"
+import { entryView } from "./entry-view.js"
 import { extractFromDocument } from "./extractors.js"
 import { enrichMopidPortalDraft } from "./mopid-portal.js"
 import { documentFromSnapshot, getActiveSnapshot, previewSkillSuggestions } from "./popup-capture.js"
 import { renderSkills } from "./skill-chips.js"
 import { buildSkillExtractionText, mergeSkillSuggestions } from "./skill-review.js"
-import { getConfig, saveConfig, getTrackedJob, recordTrackedJob } from "./storage.js"
+import { getConfig, saveConfig } from "./storage.js"
 
 const browserPreview = typeof chrome === "undefined" || !chrome.tabs || !chrome.scripting
 
 const elements = {
   status: document.querySelector("#status"),
+  popupTitle: document.querySelector("#popup-title"),
   authView: document.querySelector("#auth-view"),
   readyView: document.querySelector("#ready-view"),
   reviewView: document.querySelector("#review-view"),
@@ -38,8 +40,8 @@ const elements = {
   secondaryChips: document.querySelector("#secondary-chips"),
   emergingChips: document.querySelector("#emerging-chips"),
   errorText: document.querySelector("#error-text"),
-  savedTitle: document.querySelector("#saved-title"),
-  trackerLink: document.querySelector("#tracker-link"),
+  savedCompany: document.querySelector("#saved-company"),
+  primaryLink: document.querySelector("#primary-link"),
   captureMeta: document.querySelector("#capture-meta"),
   fitHook: document.querySelector("#fit-hook"),
   fitNum: document.querySelector("#fit-num"),
@@ -62,6 +64,9 @@ const state = {
   secondarySkills: [],
   emergingSkills: [],
   savedJobId: "",
+  // The Page Entry this popup is showing (job id, stage, title, company) — the
+  // server's answer, never a local copy. Null until the page is known.
+  entry: null,
 }
 
 function setView(view) {
@@ -232,9 +237,8 @@ async function extractSkillsFromReview() {
   }
 }
 
-// Save the reviewed job to Myro and remember it locally so a return visit to
-// this page skips the Track menu. Shared by the Save button and the "Raise your
-// fit" CTA. Returns { saved, hasId, jobId, web }.
+// Save the reviewed job to Myro. Shared by the Save button and the "Raise your
+// fit" CTA. Returns { saved, jobId, web }.
 async function persistJob() {
   // Preview may have silently refreshed + rotated the access token into
   // storage. Re-sync so save uses the current token, not a stale one.
@@ -246,13 +250,9 @@ async function persistJob() {
     ? { title: state.roleName, job_id: "preview" }
     : await saveImport(state.config.apiUrl, state.config.token, state)
   const web = frontendBaseUrl(state.config.apiUrl)
-  const hasId = Boolean(saved.job_id && saved.job_id !== "preview")
-  const jobId = hasId ? saved.job_id : ""
+  const jobId = saved.job_id === "preview" ? "" : saved.job_id
   state.savedJobId = jobId
-  if (!browserPreview) {
-    await recordTrackedJob(state.sourceUrl, { jobId, title: saved.title || state.roleName })
-  }
-  return { saved, hasId, jobId, web }
+  return { saved, jobId, web }
 }
 
 // Point a link at this job's Tailor-CV workspace once saved, else the tracker.
@@ -263,16 +263,17 @@ function tailorLinkFor(web, jobId) {
 async function saveCurrentJob() {
   try {
     elements.saveButton.disabled = true
-    const { saved, hasId, jobId, web } = await persistJob()
-    elements.savedTitle.textContent = saved.title || state.roleName
-    // Deep-link straight to this job's Tailor-CV view — the strongest next step
-    // ("saved → tailor now"). Falls back to the tracker list if the save somehow
-    // returned no job_id.
-    elements.trackerLink.href = tailorLinkFor(web, jobId)
-    elements.trackerLink.textContent = hasId ? "Tailor your CV" : "Open tracker"
-    elements.reachButton.hidden = !hasId
-    setStatus("Saved")
-    setView("saved")
+    const { saved, jobId } = await persistJob()
+    // Re-read the entry rather than assume "saved": re-saving a job already
+    // tailored (Fix job details) must not demote it on screen. A page outside
+    // web identity (no http URL) has no entry, and the save itself is the answer.
+    const known = browserPreview ? null : await lookupEntry(state.sourceUrl)
+    renderEntry(known || {
+      job_id: jobId,
+      stage: "saved",
+      title: saved.title || state.roleName,
+      company: saved.company || state.companyName,
+    })
   } catch (error) {
     showError(error)
   } finally {
@@ -282,8 +283,8 @@ async function saveCurrentJob() {
 
 // Saved-view → reopen the editable review card so the user can SEE and fix what
 // was captured (the parser occasionally reads a page tagline as the role). On a
-// fresh save the captured fields are still in state; on a return visit (tracked-
-// if-known, state is empty) re-read the page. Re-saving keeps the same job_id
+// fresh save the captured fields are still in state; on a return visit (a known
+// Page Entry, state is empty) re-read the page. Re-saving keeps the same job_id
 // (it's hashed from the source URL), so the correction updates the same row.
 async function reviewCapturedDetails() {
   if (state.jobDescription && state.roleName) {
@@ -444,8 +445,7 @@ async function connectMyro() {
       refreshToken: frag.get("refresh_token") || "",
     })
     state.config = await getConfig()
-    setStatus("Ready")
-    setView("ready")
+    await openOnPage()
   } catch (error) {
     showError(error)
   } finally {
@@ -453,38 +453,53 @@ async function connectMyro() {
   }
 }
 
-// If the active page was already tracked, render the saved view straight away so
-// the user isn't asked to track the same job twice. Returns true when handled.
-async function showTrackedIfKnown() {
-  if (browserPreview || !chrome.tabs?.query) return false
+// Which of the user's jobs is this page? The server's answer (Page Entry), or
+// null for a page Myro does not hold.
+async function lookupEntry(url) {
+  if (!url) return null
+  const { entry } = await pageEntry(state.config.apiUrl, state.config.token, url)
+  return entry
+}
+
+// One render for a job Myro holds — on open and after every save. The stage
+// picks the one next step (entry-view.js); reach and the details fix sit under it.
+function renderEntry(entry) {
+  const view = entryView(entry, frontendBaseUrl(state.config.apiUrl))
+  state.entry = entry
+  state.savedJobId = entry.job_id
+  elements.popupTitle.textContent = view.title
+  elements.savedCompany.textContent = view.company
+  elements.savedCompany.hidden = !view.company
+  elements.primaryLink.href = view.primary.href
+  elements.primaryLink.textContent = view.primary.label
+  elements.reviewButton.hidden = !view.canFixDetails
+  setStatus(view.pill)
+  setView("saved")
+}
+
+async function openOnPage() {
+  if (browserPreview) {
+    setStatus("Preview mode")
+    setView("ready")
+    return
+  }
   try {
+    setStatus("Reading page", true)
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-    const record = tab?.url ? await getTrackedJob(tab.url) : null
-    if (!record) return false
-    const web = frontendBaseUrl(state.config.apiUrl)
-    state.savedJobId = record.job_id || ""
-    elements.savedTitle.textContent = record.title || "This job"
-    elements.trackerLink.href = tailorLinkFor(web, record.job_id)
-    elements.trackerLink.textContent = record.job_id ? "Tailor your CV" : "Open tracker"
-    elements.reachButton.hidden = !record.job_id
-    setStatus("Tracked")
-    setView("saved")
-    return true
-  } catch {
-    return false
+    const entry = await lookupEntry(tab?.url || "")
+    if (entry) {
+      renderEntry(entry)
+      return
+    }
+    setStatus("Ready")
+    setView("ready")
+  } catch (error) {
+    showError(error)
   }
 }
 
 async function init() {
   state.config = await getConfig()
-  if (!state.config.token && !browserPreview) {
-    setStatus("Connect")
-    setView("auth")
-  } else if (!(await showTrackedIfKnown())) {
-    setStatus(browserPreview ? "Preview mode" : "Ready")
-    setView("ready")
-  }
-
   elements.trackButton.addEventListener("click", trackCurrentJob)
   elements.fitLink?.addEventListener("click", raiseFitInMyro)
   elements.connectButton?.addEventListener("click", connectMyro)
@@ -492,9 +507,16 @@ async function init() {
   elements.saveButton.addEventListener("click", saveCurrentJob)
   elements.reachButton?.addEventListener("click", findPeopleToReach)
   elements.reviewButton?.addEventListener("click", reviewCapturedDetails)
-  elements.reachBackButton?.addEventListener("click", () => setView("saved"))
+  elements.reachBackButton?.addEventListener("click", () => renderEntry(state.entry))
   elements.extractSkillsButton.addEventListener("click", extractSkillsFromReview)
   elements.settingsLinks.forEach((link) => link.addEventListener("click", openSettings))
+
+  if (!state.config.token && !browserPreview) {
+    setStatus("Connect")
+    setView("auth")
+    return
+  }
+  await openOnPage()
 }
 
 init()

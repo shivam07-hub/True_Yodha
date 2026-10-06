@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 # Single source of type truth for the matcher's seniority verdict. Declared once
 # here and reused by the matcher's Credibility output, the MatchEval read model,
@@ -1020,6 +1020,30 @@ class CollectionEntry(BaseModel):
     applied_at: datetime | None = None
     #: Does this entry still ask something of the user — the landing rule's input.
     needs_user: bool = False
+
+
+class PageEntry(BaseModel):
+    """The Collection entry for the page the user is on (the extension's read).
+
+    Narrow on purpose: the popup renders a stage and names the job. Stage and
+    liveness come from the same resolver as `CollectionEntry`; origin and the
+    verdict are not read here, so they are not shipped.
+    """
+    job_id: str
+    stage: CollectionStage
+    title: str
+    company: str | None = None
+    liveness: CollectionLiveness
+    pending_apply: bool = False
+
+
+class PageLookupRequest(BaseModel):
+    url: str = Field(max_length=4096)
+
+
+class PageEntryResponse(BaseModel):
+    #: None = this page is not in the user's Collection; the popup offers Save.
+    entry: PageEntry | None = None
 
 
 class CollectionResponse(BaseModel):

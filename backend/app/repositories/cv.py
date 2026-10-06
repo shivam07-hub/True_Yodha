@@ -236,7 +236,9 @@ class CVVersionsRepository:
             latest_per_company[company] = row
         return latest_per_company
 
-    def latest_for_jobs(self, user_id: str) -> dict[str, dict[str, Any]]:
+    def latest_for_jobs(
+        self, user_id: str, job_ids: list[str] | None = None
+    ) -> dict[str, dict[str, Any]]:
         """{job_id: latest tailored cv_versions row} — JOB-level, not company.
 
         The Collection Record's `tailored` stage asks "is there a CV for THIS
@@ -246,16 +248,20 @@ class CVVersionsRepository:
         a user+company with another row, and 23 of them across 4 users rendered
         "Tailored ✓" for a CV written for a different job, hiding the Tailor
         button on work the user had never done.
+
+        `job_ids` scopes the read to those jobs (the extension's page lookup asks
+        about one posting, not the whole history).
         """
-        rows = (
+        if job_ids is not None and not job_ids:
+            return {}
+        query = (
             self._db.table("cv_versions")
             .select("*")
             .eq("user_id", user_id)
             .neq("kind", "baseline_upload")
-            .not_.is_("job_id", "null")
-            .order("user_version_number", desc=True)
-            .execute()
-        ).data or []
+        )
+        query = query.in_("job_id", job_ids) if job_ids is not None else query.not_.is_("job_id", "null")
+        rows = (query.order("user_version_number", desc=True).execute()).data or []
         latest: dict[str, dict[str, Any]] = {}
         for row in rows:
             job_id = str(row.get("job_id") or "")
