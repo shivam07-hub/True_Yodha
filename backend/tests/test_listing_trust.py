@@ -18,6 +18,18 @@ def _row(**kw):
     return base
 
 
+def _found_live(at, **kw):
+    """The verifier's live verdict: one instant on all three columns."""
+    return _row(
+        **{
+            "last_verified_live_at": at,
+            "last_conclusive_verification_at": at,
+            "reactivated_at": at,
+            **kw,
+        }
+    )
+
+
 def test_a_listing_the_crawler_saw_but_nobody_opened_is_unchecked():
     """18,080 live rows looked like this on 2026-09-22. The crawler stamping
     `last_verified_live_at` is list membership, not a fetch."""
@@ -33,7 +45,7 @@ def test_a_listing_the_crawler_saw_but_nobody_opened_is_unchecked():
 
 
 def test_a_recently_opened_listing_is_checked():
-    row = _row(last_conclusive_verification_at=(NOW - timedelta(days=2)).isoformat())
+    row = _found_live((NOW - timedelta(days=2)).isoformat())
 
     claim = listing_trust.verification_claim(row, now=NOW)
 
@@ -45,7 +57,7 @@ def test_a_recently_opened_listing_is_checked():
 def test_an_old_check_goes_stale_rather_than_staying_verified():
     """Namitha's audit: ~3 in 10 listings die within a fortnight. A check with
     no age is not a claim."""
-    row = _row(last_conclusive_verification_at=(NOW - timedelta(days=20)).isoformat())
+    row = _found_live((NOW - timedelta(days=20)).isoformat())
 
     claim = listing_trust.verification_claim(row, now=NOW)
 
@@ -70,8 +82,8 @@ def test_unchecked_is_never_reported_as_dead():
 
 def test_a_datetime_and_its_iso_string_are_read_the_same_way():
     """PostgREST hands back strings; a repository test hands back datetimes."""
-    as_dt = _row(last_conclusive_verification_at=NOW - timedelta(days=1))
-    as_str = _row(last_conclusive_verification_at=(NOW - timedelta(days=1)).isoformat())
+    as_dt = _found_live(NOW - timedelta(days=1))
+    as_str = _found_live((NOW - timedelta(days=1)).isoformat())
 
     assert (listing_trust.verification_claim(as_dt, now=NOW)["state"]
             == listing_trust.verification_claim(as_str, now=NOW)["state"] == "checked")
@@ -152,11 +164,49 @@ def test_partner_timestamp_carries_a_real_check_when_there_is_one():
         "is_active": True,
         "last_verified_live_at": "2026-09-09T00:00:00+00:00",
         "last_conclusive_verification_at": checked_at,
+        "reactivated_at": checked_at,
         "main_skills": [],
     })
 
     assert shaped["verification"]["last_verified_live_at"] == checked_at
     assert shaped["verification"]["checked"]["state"] == "checked"
+
+
+def test_a_closed_check_the_crawler_reactivated_is_not_a_live_time():
+    """The verifier found it closed; the next feed sighting rewrote
+    `is_active` and `active`. The lifecycle says live, the check said gone."""
+    from app.services import roles_feed
+
+    checked_at = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
+    seen_at = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    shaped = roles_feed._row_to_role({
+        "job_id": "j3",
+        "job_title": "Backend Engineer",
+        "company_name": "Acme",
+        "listing_confidence": "active",
+        "is_active": True,
+        "last_verified_live_at": seen_at,
+        "last_conclusive_verification_at": checked_at,
+        "reactivated_at": seen_at,
+        "main_skills": [],
+    })
+
+    assert shaped["verification"]["last_verified_live_at"] is None
+    assert shaped["verification"]["checked"]["state"] == "closed"
+    assert shaped["verification"]["checked"]["checked_at"] == checked_at
+
+
+def test_a_sighting_after_a_live_check_keeps_the_check():
+    """The crawler re-stamps `last_verified_live_at` on a row already active
+    and leaves `reactivated_at` alone. The check still stands, at its time."""
+    checked = NOW - timedelta(days=2)
+    row = _found_live(checked.isoformat(), last_verified_live_at=(NOW - timedelta(days=1)).isoformat())
+
+    claim = listing_trust.verification_claim(row, now=NOW)
+
+    assert claim["state"] == "checked"
+    assert claim["checked_at"] == checked.isoformat()
+    assert listing_trust.was_checked_within(row, now=NOW) is True
 
 
 def test_a_listing_checked_and_found_dead_is_never_called_verified():
