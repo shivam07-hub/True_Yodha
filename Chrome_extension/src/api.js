@@ -100,6 +100,13 @@ export async function pageEntry(apiUrl, token, url) {
   return request(apiUrl, token, "/jobs/collections/page", { url })
 }
 
+// "I applied" — the user's own answer, the same write as web's "Did you apply?"
+// Yes: status applied, any open Apply-click question answered, and the CV of
+// record frozen server-side.
+export async function markApplied(apiUrl, token, jobId) {
+  return request(apiUrl, token, `/jobs/applications/${encodeURIComponent(jobId)}`, { status: "applied" }, false, "PUT")
+}
+
 export async function saveImport(apiUrl, token, state) {
   return request(apiUrl, token, "/jobs/import", {
     source_url: state.sourceUrl,

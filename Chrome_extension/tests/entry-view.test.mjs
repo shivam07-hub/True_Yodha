@@ -8,20 +8,28 @@ const entry = (over = {}) => ({ job_id: "ext_abc", stage: "saved", title: "Partn
 test("saved → tailor this job's CV", () => {
   const v = entryView(entry(), WEB)
   assert.equal(v.pill, "Saved")
-  assert.deepEqual(v.primary, { label: "Tailor your CV", href: `${WEB}/cv?jobId=ext_abc` })
+  assert.equal(v.applyFirst, false)
+  assert.deepEqual(v.next, { label: "Tailor your CV", href: `${WEB}/cv?jobId=ext_abc` })
 })
 
-test("tailored → the tailored CV, not a second tailor", () => {
+test("tailored → I applied leads; the tailored CV sits under it", () => {
   const v = entryView(entry({ stage: "tailored" }), WEB)
   assert.equal(v.pill, "Tailored")
-  assert.equal(v.primary.href, `${WEB}/cv?jobId=ext_abc`)
-  assert.equal(v.primary.label, "Open your tailored CV")
+  assert.equal(v.applyFirst, true)
+  assert.deepEqual(v.next, { label: "Open your tailored CV", href: `${WEB}/cv?jobId=ext_abc` })
 })
 
-test("applied → prepare in the job's room", () => {
-  const v = entryView(entry({ stage: "applied" }), WEB)
+test("an unanswered Apply click asks before a tailor", () => {
+  const v = entryView(entry({ stage: "saved", pending_apply: true }), WEB)
+  assert.equal(v.applyFirst, true)
+  assert.equal(v.next.label, "Tailor your CV")
+})
+
+test("applied → prepare in the job's room, never asked again", () => {
+  const v = entryView(entry({ stage: "applied", pending_apply: true }), WEB)
   assert.equal(v.pill, "Applied")
-  assert.deepEqual(v.primary, { label: "Prepare for this job", href: `${WEB}/preparations/ext_abc` })
+  assert.equal(v.applyFirst, false)
+  assert.deepEqual(v.next, { label: "Prepare for this job", href: `${WEB}/preparations/ext_abc` })
 })
 
 test("the page's job is named from the server's entry, never a local copy", () => {
@@ -36,5 +44,5 @@ test("only an extension import offers a details fix", () => {
 })
 
 test("ids are encoded into links", () => {
-  assert.equal(entryView(entry({ job_id: "x/y" }), WEB).primary.href, `${WEB}/cv?jobId=x%2Fy`)
+  assert.equal(entryView(entry({ job_id: "x/y" }), WEB).next.href, `${WEB}/cv?jobId=x%2Fy`)
 })

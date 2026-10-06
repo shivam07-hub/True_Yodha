@@ -1,4 +1,4 @@
-import { saveImport, previewImport, reachSearch, pageEntry } from "./api.js"
+import { saveImport, previewImport, reachSearch, pageEntry, markApplied } from "./api.js"
 import { entryView } from "./entry-view.js"
 import { extractFromDocument } from "./extractors.js"
 import { enrichMopidPortalDraft } from "./mopid-portal.js"
@@ -41,7 +41,8 @@ const elements = {
   emergingChips: document.querySelector("#emerging-chips"),
   errorText: document.querySelector("#error-text"),
   savedCompany: document.querySelector("#saved-company"),
-  primaryLink: document.querySelector("#primary-link"),
+  appliedButton: document.querySelector("#applied-button"),
+  nextLink: document.querySelector("#next-link"),
   captureMeta: document.querySelector("#capture-meta"),
   fitHook: document.querySelector("#fit-hook"),
   fitNum: document.querySelector("#fit-num"),
@@ -470,11 +471,29 @@ function renderEntry(entry) {
   elements.popupTitle.textContent = view.title
   elements.savedCompany.textContent = view.company
   elements.savedCompany.hidden = !view.company
-  elements.primaryLink.href = view.primary.href
-  elements.primaryLink.textContent = view.primary.label
+  elements.appliedButton.hidden = !view.applyFirst
+  elements.nextLink.href = view.next.href
+  elements.nextLink.textContent = view.next.label
+  elements.nextLink.classList.toggle("primary", !view.applyFirst)
+  elements.nextLink.classList.toggle("secondary", view.applyFirst)
   elements.reviewButton.hidden = !view.canFixDetails
   setStatus(view.pill)
   setView("saved")
+}
+
+// "I applied" on the company's page. The answer is the user's; the popup only
+// records it, then moves the entry on to its next step (prepare).
+async function markJobApplied() {
+  try {
+    setStatus("Saving", true)
+    elements.appliedButton.disabled = true
+    if (!browserPreview) await markApplied(state.config.apiUrl, state.config.token, state.entry.job_id)
+    renderEntry({ ...state.entry, stage: "applied", pending_apply: false })
+  } catch (error) {
+    showError(error)
+  } finally {
+    elements.appliedButton.disabled = false
+  }
 }
 
 async function openOnPage() {
@@ -506,6 +525,7 @@ async function init() {
   elements.retryButton.addEventListener("click", () => setView("ready"))
   elements.saveButton.addEventListener("click", saveCurrentJob)
   elements.reachButton?.addEventListener("click", findPeopleToReach)
+  elements.appliedButton.addEventListener("click", markJobApplied)
   elements.reviewButton?.addEventListener("click", reviewCapturedDetails)
   elements.reachBackButton?.addEventListener("click", () => renderEntry(state.entry))
   elements.extractSkillsButton.addEventListener("click", extractSkillsFromReview)

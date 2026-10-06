@@ -1258,6 +1258,12 @@ prepare.
 - **Only the user's own applications are searched.** An Apply click is at least
   a save, so every job they went to apply to from Myro is there; the corpus is
   never scanned on a popup open.
+- **On a tailored page the popup leads with "I applied".** The user is on the
+  company's own page with a CV aimed at the job — where the goal line says
+  *apply*. It writes the same answer as the web's "Did you apply?" Yes
+  (`PUT /jobs/applications/{id}` → `applied`, intents answered, CV of record
+  frozen). An unanswered Apply click asks the same even before a tailor. It is
+  never inferred from the page.
 
 ---
 

@@ -28,3 +28,16 @@ test("page entry asks the server about the page URL", async () => {
   assert.equal(calls[0].init.method, "POST")
   assert.deepEqual(JSON.parse(calls[0].init.body), { url: "https://jobs.lever.co/acme/1?src=LinkedIn" })
 })
+
+test("I applied writes the same status answer as web", async () => {
+  const calls = []
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url, init })
+    return { ok: true, status: 200, json: async () => ({ job_id: "ext_1", status: "applied" }) }
+  }
+  const { markApplied } = await import("../src/api.js")
+  await markApplied("https://api.himyro.com", "tok", "ext_1")
+  assert.equal(calls[0].url, "https://api.himyro.com/jobs/applications/ext_1")
+  assert.equal(calls[0].init.method, "PUT")
+  assert.deepEqual(JSON.parse(calls[0].init.body), { status: "applied" })
+})
