@@ -188,6 +188,16 @@ function deriveMove(verdict: JobFeedItem["verdict"], gapCount: number, checkDeta
   return verdictMove(verdict, gapCount)?.label ?? "Worth a look"
 }
 
+/** "verified 3d ago" from the day a verifier last found the listing open.
+ *  `last_seen_at` carries that day only when it was a check; a missing
+ *  `is_stale` is not a confirmation. */
+function verifiedLabel(j: JobFeedItem): string {
+  if (j.is_stale !== false || !j.last_seen_at) return ""
+  const age = compactAge(j.last_seen_at)
+  if (!age) return ""
+  return age === "today" ? "verified today" : `verified ${age} ago`
+}
+
 export function feedItemToRow(j: JobFeedItem): MobileJobRow {
   const fit = matchFitScore(j)
   const matched = j.matched_skills ?? []
@@ -207,10 +217,7 @@ export function feedItemToRow(j: JobFeedItem): MobileJobRow {
     matched,
     gaps,
     sourceUrl: j.source_url ?? null,
-    verified:
-      j.is_stale || !j.last_verified_live_at
-        ? ""
-        : `verified ${compactAge(j.last_verified_live_at)} ago`,
+    verified: verifiedLabel(j),
     move: "",
   })
 }

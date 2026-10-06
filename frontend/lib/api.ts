@@ -3402,8 +3402,8 @@ export interface JobMatch {
   ctc_low_lpa?: number | null
   ctc_high_lpa?: number | null
   ctc_basis?: "stated" | "estimated" | null
-  // Scraper lifecycle (Job Intelligence) — now carried on /jobs/matches.
-  // `last_seen_at` = scraper observation time, powers "Last verified".
+  // Listing time (`ListingTime.card()`) — carried on /jobs/matches.
+  // `last_seen_at` = day a verifier last found it open, or null; powers "Last verified".
   // `first_seen` = discovery age / sort only. Never the publication clock.
   first_seen?: string | null
   last_seen_at?: string | null
@@ -3874,8 +3874,7 @@ export interface JobFeedItem {
   industry?: string | null
   source_url?: string | null
   first_seen?: string | null
-  last_seen_at?: string | null  // discovery marker; not a check
-  last_verified_live_at?: string | null
+  last_seen_at?: string | null  // day a verifier last found it open; null when unconfirmed
   is_stale?: boolean            // not confirmed open — warn before the Apply link 404s
   is_active: boolean
   skills: string[]
