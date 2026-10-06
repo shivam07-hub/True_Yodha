@@ -178,7 +178,9 @@ behaviour was wrong:
   coalescing `last_seen`.
 - `repositories/jobs.py:1791` `_is_marker_stale` → the module.
 - `job_intelligence_policy.listing_confidence` → the module.
-- `company_pulse.py:35` `FRESHNESS_WINDOW_DAYS` → the module.
+- `company_pulse.py:35` `FRESHNESS_WINDOW_DAYS` → the module. Done: it decays
+  over `CONFIRM_WITHIN`, and since `20261006090000` its input is the verifier's
+  last check on a live row, not the marker.
 - `listing_trust.verification_claim` → takes the verdict.
 - Frontend: `card-view.ts:159,202`, `mobile/redesign/job-model.ts:201,210`
   (desktop says discovery age, mobile says `verified {age} ago` off the same

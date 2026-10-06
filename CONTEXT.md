@@ -409,12 +409,18 @@ the compare strip as a live jobs query.
   'active'`, the predicate `company_directory.active_count` counts. A company's
   open roles is one number on every surface; never a crawl window over
   `last_seen` (retired).
+- Freshness (20% of `pulse`) ages `last_checked_at`: the newest
+  `last_conclusive_verification_at` over the company's live rows — a verifier
+  opened one of its open roles and a live posting answered (`listing_trust`'s
+  "checked"). It decays to 0 over `CONFIRM_WITHIN`. Never checked is freshness
+  0, not a guess. Not the crawler's marker, not `last_verified_live_at` (the
+  crawler writes it too), not `ingested_at` (the scraper's run date).
 - `pulse` is `None` when a company has no live roles — never a fabricated 0.
 - Refresh runs inside the database on the snapshot lease (pg_cron →
   `run_snapshot_sql_refresh`, ~12s), after a scraper finalize or 20h without a
   success. Stale is stamped by `refreshed_at`, not by a per-request scan.
 - Formula (`compute_pulse`, sparkline) lives in one Python module. SQL only
-  aggregates the three raw markers.
+  aggregates the raw inputs: live count, weekly inflow, last check, series.
 
 ## Scoped Skill Demand
 

@@ -508,6 +508,9 @@ Tracker (3) · no problem or not actionable (~25).
 - Golden list: confirm batch 1 — Rishabh Guha, Adarsh Mohan, Raj Kishore,
   Deveshwar Kashyap — then an agent stamps `golden_list_since`.
 - Yes / no: drop the empty `job_switch_plans` + `job_switch_plan_reviews` (#56 M4).
+- Yes / no, after `main` carries `last_checked_at`: drop
+  `company_pulse_snapshot.last_seen_at` — the refresh stopped writing it in
+  `20261006090000`; prod's pulse reads it until that merge.
 - GitHub secrets `MYRO_SMOKE_EMAIL` / `_PASSWORD` / `_API_URL` — the phone render
   gate and `qa:mobile` in CI.
 - Send (agent drafts): the 4 users hit by the CV-upload silent failures;

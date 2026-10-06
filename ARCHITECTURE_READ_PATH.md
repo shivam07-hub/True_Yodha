@@ -2327,8 +2327,32 @@ rows (checked against the prior snapshot in the same transaction). Seeded
 through the rail, marking only `company_pulse` pending — `force` queues every
 task, role_families' 58s too.
 
-⚠️ `last_seen_at` — the freshness input, 20% of the pulse — is still
-`max(coalesce(last_seen, first_seen))` over every row, live or not: Wipro's
-2,768 live roles score freshness 0 off a 09-09 marker. `compute_pulse` already
-decays it over `CONFIRM_WITHIN`, a confirmation window; what feeds it is the
-next decision, not this migration's.
+**Freshness is the last check on a live row (`20261006090000`, Shivam
+2026-10-06).** Freshness, 20% of the pulse, aged `last_seen_at` =
+`max(coalesce(last_seen, first_seen))` over every row, live or not: the
+scraper's run date, near-identical for every company. Wipro's 2,768 live roles
+scored freshness 0 off a 09-09 marker; on 10-07 the 239 companies on 09-30
+would reach day 7 together. `compute_pulse` already decays over
+`CONFIRM_WITHIN`, a confirmation window. Three inputs measured, 267 scored
+companies, 10-06 08:53:
+
+| input | inside 7d | pulses changed | what it is |
+|---|---|---|---|
+| the marker (before) | 259 | — | scraper run date |
+| `max(ingested_at)` | 225 | 256, ≤6 pts | 0.998 correlated with the marker: the same run date |
+| `max(last_verified_live_at)` | 157 | 265 | two writers: the crawler's feed sighting and the verifier; 43k of 51k live stamps are the crawl's, and `listing_time`'s same-day guard let 1,457 through on 10-01 |
+| **`max(last_conclusive_verification_at)`, live rows** | **179** | **257, −6…+20, mean +8.9** | a verifier opened the page and a live posting answered: `listing_trust`'s "checked" |
+
+The last one feeds freshness now, in a new column `last_checked_at`; the API field
+renamed with it (`CompanyPulseItem.last_checked_at`) — one name, one meaning.
+Wipro 50 → 70, Accenture 83 → 100, Amazon 80 → 97. The cost: 28 companies no
+verifier has ever opened (20,030 live roles — Axis Bank 14,259, Infosys,
+LTIMindtree, Cognizant, Deloitte India, KPMG India, Google) read freshness 0
+until it reaches them: 83 → 80, where the marker would have put them on 10-07.
+
+Applied and seeded through the rail: 280 rows, one `refreshed_at`, 228 with a
+check, 179 inside 7 days, `open_roles` sum = live count (56,135), ACL postgres
+only. The refresh no longer writes `last_seen_at`; prod (`main`) reads it,
+frozen at its 10-06 value, until the merge. The column drop waits on that
+(BACKLOG · SHIVAM). The same-day guard's leak in `listing_time.verdict` is its
+own item, not this one's.
