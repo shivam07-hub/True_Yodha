@@ -167,6 +167,42 @@ def test_live_verification_reactivates_and_resets_misses() -> None:
     assert update["deletion_eligible_at"] is None
 
 
+def test_only_the_live_verdict_writes_what_listing_time_reads_as_a_confirmation() -> None:
+    """`listing_time._found_live` tells the verifier's live verdict from a
+    crawl sighting by one fact about this write: the conclusive clock and
+    `reactivated_at` share its instant, and no other verdict touches
+    `reactivated_at`. A later crawl re-stamps `last_verified_live_at` only.
+    Change this write and every job card's confirmation changes with it."""
+    from datetime import timedelta
+
+    from app.services.listing_time import verdict
+
+    now = datetime(2026, 7, 11, 9, 30, tzinfo=timezone.utc)
+    crawl = {"last_verified_live_at": (now + timedelta(hours=5)).isoformat()}
+    for result, confirmed in (
+        ("seen_live", True),
+        ("closed", False),
+        ("redirected", False),
+        ("wrong_role", False),
+    ):
+        db = DB()
+        ListingVerificationRepository(db, now=lambda: now).record(
+            VerificationResult("job-1", result, "strong", "greenhouse", 200)
+        )
+        update = next(payload for table, payload in db.calls if table == "jobs")
+        later = {**update, **crawl}
+
+        assert update["last_conclusive_verification_at"] == now.isoformat(), result
+        if confirmed:
+            assert update["reactivated_at"] == update["last_conclusive_verification_at"]
+            assert update["last_verified_live_at"] == update["last_conclusive_verification_at"]
+        else:
+            assert "reactivated_at" not in update, result
+            assert "last_verified_live_at" not in update, result
+        reading = verdict(later, now=now + timedelta(hours=6)).confirmed_at
+        assert (reading == now) is confirmed, result
+
+
 def test_unreachable_verification_never_counts_as_a_conclusive_check() -> None:
     """The bug this file used to assert as correct.
 
