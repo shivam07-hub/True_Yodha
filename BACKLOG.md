@@ -20,6 +20,7 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 | 1 | Find the job | **#55** a returning user's list never vanishes | [ARCHITECTURE_RETURN_LOOP.md](ARCHITECTURE_RETURN_LOOP.md) · decisions taken below | S0 measure → S1 Verdict Currency |
 | 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read the funnel on prod after the next merge |
 | 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) · Cursor | S1 migration + `golden_list.py` |
+| 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor | S0 audit, today's rule |
 | 4 | Front door | **#57** "Which job do you want?" after upload · partner SSO lands on the upload (22% of partner people upload vs 67% direct) | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor | S0 partner landing |
 | 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor | S1 blank certs |
 | 6 | Pay | **#56** the ₹199 Apply Pack | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Cursor | S1 settlement |
@@ -28,7 +29,7 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 
 Specs Cursor builds from, each slice its own commit with six gates green:
 RETURN_LOOP (#55) · PAYMENTS (#56) · FRONT_DOOR (#57) · CV_TIER_A (#58) ·
-GOLDEN_DIGEST (#59) ·
+GOLDEN_DIGEST (#59) · SKILL_EVIDENCE (#60) ·
 [ARCHITECTURE_LISTING_TIME.md](ARCHITECTURE_LISTING_TIME.md) (steps 1–2 done:
 de-seed `f7dd4735`, `listing_time.py`; verify 3–6 in code) ·
 [ARCHITECTURE_CONTRACTS_BY_TYPE.md](ARCHITECTURE_CONTRACTS_BY_TYPE.md) (make
@@ -125,24 +126,18 @@ mount on 2026-09-02 (`e3c38423`, the priority-heart removal); four days later
 (`mobile/redesign/job-detail-sheet.tsx:112`) ever shows `EmployerRecordNote`. The
 whole subtree is dead — `detail-body`, `lenses`, `more-roles`, `lens-company`,
 `deepeners` — while `dashboard-drawer-content.test.ts` and
-`employer-record.test.ts` still read its text and pass. Mount the employer record
+`employer-record.test.ts` still read its text and pass. **Approved (Shivam, 2026-10-07) — Cursor:** mount the employer record
 (and `ListingLiveness`) in the live desktop job panel, retarget those tests at
 it, then delete the subtree on the way past.
 
-**Stage A tags business jobs with a genetics skill — and it is growing
-(re-measured 2026-10-03).** "Transformation (Genetics)" sits on **2,637** jobs
-(2,057 live; 881 from ingests since 2026-09-30) across 101 role families, against
-624 live for "Business Transformation". 2,636 of the rows are `stage_a` — **our**
-writer, `services/skill_floor.py` → `skill_extraction.extract_skills`, not the
-scraper. Cause: `_bare_form_present` (`skill_extraction.py:134`) strips the
-qualifier and trusts capitalisation to separate the senses; business postings
-capitalise "Transformation" too. It feeds the demand profile, so it weights scores,
-prep plans and matching. **Safe now:** a bare-form match inside the span of a
-longer matched skill is dropped (766 jobs carry such a skill; no true match can
-be lost). **Needs a measurement first:** requiring qualifier evidence for bare
-forms changes every job's tags — run `match_quality.py` before and after.
-**Needs Shivam:** removing the 2,636 existing rows (destructive) — or let Stage A
-re-run on the affected jobs once the fix ships.
+**#60 Skill evidence — [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md)
+(Shivam, 2026-10-07).** Stage A tags business jobs with "Transformation
+(Genetics)" — 2,637 jobs and growing — and the class is 3,254 qualified skills
+wide. Decided: a bare-form tag needs same-domain support (rule A, proved on prod:
+Python 97.9% kept, the genetics tag 97% removed); one name-forms rule for CV and
+job; Stage A replaces only its own rows, never on an empty result, versioned by
+`jobs.skill_floor_version`; receipts recomputed by `explain_tags`, never stored;
+an automatic before/after with invariants; a skill-spread Notice belt. Cursor.
 
 **CS-14** · **Step 2 of the loop reads zero Career Stories.** *Goal-level gap, found
     2026-09-13. Needs a grill: this is the matcher, not a corner.*
@@ -198,7 +193,7 @@ on; build it after the door's first measurement.
 
 ## 3 · REPEAT
 
-**#59 Golden-list digest (Shivam, 2026-09-30) — [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md).** The golden list IS
+**#59 Golden-list digest (Shivam, 2026-09-30) — [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md).** `golden_list_since` is live (`20261007120000`) and batch 1 is stamped — Rishabh Guha, Adarsh Mohan, Raj Kishore, Deveshwar Kashyap (Shivam confirmed 2026-10-07). The golden list IS
 the instant-seeker list: one column, `user_profiles.golden_list_since timestamptz`
 (empty = not on it). Shivam sends names; an agent matches, Shivam confirms, the
 agent stamps. The digest goes only to active members: first "you tailored a CV
@@ -524,9 +519,9 @@ Tracker (3) · no problem or not actionable (~25).
 ## SHIVAM
 
 - Supabase Pro + Small (above) · the prod deploy guard (above).
-- Golden list: confirm batch 1 — Rishabh Guha, Adarsh Mohan, Raj Kishore,
-  Deveshwar Kashyap — then an agent stamps `golden_list_since`.
-- Yes / no: drop the empty `job_switch_plans` + `job_switch_plan_reviews` (#56 M4).
+- `job_switch_plans` + `job_switch_plan_reviews` (0 rows, the retired monthly
+  plan): untouched until #56 S5 has removed their code — then ask again (Shivam,
+  2026-10-07: payments are core loop; drop nothing early).
 - GitHub secrets `MYRO_SMOKE_EMAIL` / `_PASSWORD` / `_API_URL` — the phone render
   gate and `qa:mobile` in CI.
 - Send (agent drafts): the 4 users hit by the CV-upload silent failures;
@@ -546,10 +541,6 @@ Tracker (3) · no problem or not actionable (~25).
   `20261006090000`; rebuildable from `jobs`.
 - Delete `backend/scripts/recompute_banded_scores.py` — rescoring every user while
   they are away is a backfill (Shivam: kill).
-- Delete comments (0 ever; public company pages only) and the private-notes code
-  left behind when its screen went in `0b1b9b16` — keep the table and its one
-  real note. **Keep** `/recruiters`, `/referrals` and their workspaces: public B2B
-  doors with no backend (Shivam, 2026-10-02).
 - After Pro: re-measure the anyio threadpool and pool levers.
 - After the next prod deploy: five warm `x-process-time` samples of `/jobs/feed-state`, `/jobs/at/{c}`, `/companies/{c}/jobs`, confirm-skills; a week of `route.latency` for `/partner/v1/sso/session`.
 - Then run the authed QA checklist.

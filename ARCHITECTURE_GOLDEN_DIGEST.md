@@ -40,6 +40,10 @@ narrowed to the people Shivam picks.
 
 ## 3 · Data (migration M1, additive)
 
+> **Applied 2026-10-07:** `golden_list_since` + its partial index
+> (`20261007120000`), and batch 1 stamped after Shivam confirmed the matches.
+> `digest_unsubscribed_at` is still owed — it ships in S3 with its writer.
+
 - `user_profiles.golden_list_since timestamptz null` + a partial index
   `where golden_list_since is not null`.
 - `user_profiles.digest_unsubscribed_at timestamptz null`.
