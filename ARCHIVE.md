@@ -85,6 +85,12 @@ How fast and how easily they can do it is the entire game."* The decisions:
 ### Parked — outside the CV machine (D11), one line each, full text below
 
 - 7c — `cv_points` holds two pointer shapes; inert, tidiness, not urgent.
+- Verifier coverage (Shivam, 2026-10-07) — 28 companies, 36% of live roles,
+  answer the verifier with errors (Ripplehire: Axis Bank, LTIMindtree, Mphasis,
+  15,355; Infosys, Cognizant, KPMG India, Google); 17% of real users' matches,
+  44 users, 2 of 89 saved/applied. Not the leaking step while Apply clicks are
+  ~0. **Reopen** on a user's dead-listing report, or when Apply clicks land on
+  these hosts.
 - Authed search-intent signal — left as is (Shivam, 2026-09-25).
 - Tier 4 — #39 per-skill percentile · #32 publish portability · #18 PR2 teal
   field · semantic retrieval slices 2–3 (scraper repo) · paid partner plans.

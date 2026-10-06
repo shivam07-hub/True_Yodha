@@ -2343,8 +2343,8 @@ companies, 10-06 08:53:
 | `max(last_verified_live_at)` | 157 | 265 | two writers: the crawler's feed sighting and the verifier; 43k of 51k live stamps are the crawl's, and `listing_time`'s same-day guard let 1,457 through on 10-01 |
 | **`max(last_conclusive_verification_at)`, live rows** | **179** | **257, −6…+20, mean +8.9** | a verifier opened the page and a live posting answered: `listing_trust`'s "checked" |
 
-The last one feeds freshness now, in a new column `last_checked_at`; the API field
-renamed with it (`CompanyPulseItem.last_checked_at`) — one name, one meaning.
+The last one fed freshness for a day, in a new column `last_checked_at`; the API
+field renamed with it (`CompanyPulseItem.last_checked_at`) — one name, one meaning.
 Wipro 50 → 70, Accenture 83 → 100, Amazon 80 → 97. The cost: 28 companies no
 verifier has ever opened (20,030 live roles — Axis Bank 14,259, Infosys,
 LTIMindtree, Cognizant, Deloitte India, KPMG India, Google) read freshness 0
@@ -2354,5 +2354,18 @@ Applied and seeded through the rail: 280 rows, one `refreshed_at`, 228 with a
 check, 179 inside 7 days, `open_roles` sum = live count (56,135), ACL postgres
 only. The refresh no longer writes `last_seen_at`; prod (`main`) reads it,
 frozen at its 10-06 value, until the merge. The column drop waits on that
-(BACKLOG · SHIVAM). The same-day guard's leak in `listing_time.verdict` is its
+(BACKLOG · agent chores). The same-day guard's leak in `listing_time.verdict` is its
 own item, not this one's.
+
+**Then freshness left the pulse (`20261007090000`, Shivam 2026-10-07,
+DECISIONS PULSE1).** The 28 never-checked companies were not waiting their
+turn: the verifier had tried them and failed. Axis Bank 7,127 errors, Infosys 1,231,
+Cognizant 923 blocked, KPMG India 477, Google 155; last attempt 09-15
+(Ripplehire, Oracle Cloud and custom career sites). A check-based freshness
+docked them 20 points for Myro's coverage, not their hiring. The pulse is
+volume and momentum at 5:3, scaled to 100 (0.625 / 0.375): 36 companies at 100,
+median 75; Axis Bank 80 → 100, Wipro 70 → 62 (no new roles this week), Bain
+46 → 32. The refresh reads no time column; `last_checked_at` is dropped (no
+reader once Develop served `17b5533d`); `last_seen_at` waits for main (BACKLOG
+· agent chores). Verifier coverage itself is parked with a reopen trigger
+(ARCHIVE).

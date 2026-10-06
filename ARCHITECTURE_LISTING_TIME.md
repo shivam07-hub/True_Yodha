@@ -180,9 +180,9 @@ behaviour was wrong:
   coalescing `last_seen`.
 - `repositories/jobs.py:1791` `_is_marker_stale` → the module.
 - `job_intelligence_policy.listing_confidence` → the module.
-- `company_pulse.py:35` `FRESHNESS_WINDOW_DAYS` → the module. Done: it decays
-  over `CONFIRM_WITHIN`, and since `20261006090000` its input is the verifier's
-  last check on a live row, not the marker.
+- `company_pulse.py:35` `FRESHNESS_WINDOW_DAYS` → the module. Done, then
+  removed: the pulse has no freshness term since `20261007090000` (DECISIONS
+  PULSE1) and reads no listing time.
 - `listing_trust.verification_claim` → takes the verdict. Done 2026-10-06:
   it reads WHAT the check found from `confirmed_at` (step 7).
 - Frontend: `card-view.ts:159,202`, `mobile/redesign/job-model.ts:201,210`
