@@ -37,6 +37,7 @@ from app.services.job_file_parser import (
     extract_job_from_url,
 )
 from app.services.llm_provider import get_llm_provider, get_vision_provider
+from app.services.matching import on_demand
 from app.services.xp_policy import ADD_JOB_REWARD_XP
 
 from app.services.job_projection import cv_badge_from_row, to_application
@@ -284,12 +285,19 @@ async def extract_job_url(
 @router.post("/import", response_model=ApplicationResponse)
 async def import_job(
     body: JobImportRequest,
+    background_tasks: BackgroundTasks,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> ApplicationResponse:
     if not body.role_name.strip() or not body.job_description.strip():
         raise HTTPException(status_code=422, detail="Role name and job description are required.")
     saved = jobs_workflow.save_imported_job(repo, principal.id, body)
+    # A job saved anywhere gets the Matching Brain's verdict (CONTEXT → rank_one:
+    # "opened/saved anywhere"). Only the /market drawer used to ask, so a job
+    # saved with the extension or pasted was never judged — and an application
+    # to an unjudged job can never count as qualified. Claim + enqueue only,
+    # after the response: the save never waits on a model.
+    background_tasks.add_task(on_demand.open_job_eval, repo, principal.id, str(saved["job_id"]))
 
     # +XP for tracking a job. Idempotent per application id (reward_xp scans the
     # ledger), so a retried save never double-credits. A reward failure must not
@@ -344,6 +352,7 @@ def update_imported_job_details(
 def update_application(
     job_id: str,
     body: ApplicationStatusUpdate,
+    background_tasks: BackgroundTasks,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> ApplicationResponse:
@@ -393,6 +402,10 @@ def update_application(
     # did it, which is the same bar the builder's Apply button uses.
     if body.status == "applied" and prior_status != "applied":
         cv_of_record.record_on_apply(user_id, job_id)
+        # Forward pass for jobs saved before a save queued the judge: the first
+        # "applied" is the latest door to make this application judgeable.
+        # A stored verdict makes it a no-op; never waits on a model.
+        background_tasks.add_task(on_demand.open_job_eval, repo, user_id, job_id)
 
     data = repo.get_application_with_job(user_id, job_id)
     if not data:

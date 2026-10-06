@@ -162,8 +162,27 @@ The north star is measured here and is near zero: 3 people, 5 applications, ever
 no Apply click from a real account since 2026-09-22. The capture is built
 (`3ff55125` "Did you submit?" answered once; `a624c2e1` Apply after download).
 Read clicks → answers → applications on prod after the next merge before building
-anything new. Open from the 2026-09-28 audit: the Chrome extension has no submit
-detection. QA check **A1** below: Apply opens the company's own posting.
+anything new. QA check **A1** below: Apply opens the company's own posting.
+
+**Extension apply door (Develop 2026-10-06, needs a Web Store release — Shivam).**
+The popup now asks Myro which of the user's jobs the page is (Page Entry,
+CONTEXT.md) and, on a tailored page, leads with "I applied" — the same answer
+write as the web. A save and the first "applied" both queue the judge, so an
+extension application can count as qualified. Not detection: the user's click is
+the only writer. Measure after release: `applied` rows on `ext_` jobs. A job from
+Myro's list marked applied in the popup is indistinguishable from the web today;
+add a surface column only if the count needs it.
+
+**AF · ATS form auto-fill — engine built, browser layer not (owner: unassigned).**
+`Chrome_extension/src/autofill.js` (`planFill`, 7 tests) maps the Career Profile
+(notice period, current/expected CTC, interview availability…) onto Workday /
+Greenhouse / Lever / Oracle HCM / Naukri form labels, and `fetchCareerProfile` +
+the `chrome.storage` cache feed it. Nothing runs it: no content script detects a
+form, writes values, or shows the review chip, so it is unreachable today.
+Next: a content script on known ATS hosts → "Myro can fill this" badge → fill in
+place, highlighted, one undo, NEVER submit (grill locks L6–L10, memory
+`project_career_profile_capture`). It speeds the exact page the apply door sits
+on; build it after the door's first measurement.
 
 **CS-15** · **Step 5 leaves no trail back to the stories.** *Small, but it is what makes
     `repeat` mean something.*
