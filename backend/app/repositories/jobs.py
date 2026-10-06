@@ -22,7 +22,7 @@ from app.services.background import debounce
 from app.services.industry_grouping import normalize_industry_group
 from app.services.job_history import attach_jobs
 from app.services.job_intelligence_policy import is_recommendable_listing
-from app.services.listing_time import SEED_COLUMN, day, marker, verdict as listing_time
+from app.services.listing_time import CARD_COLUMNS, SEED_COLUMN, day, marker, verdict as listing_time
 from app.services.xp_policy import UPSKILLING_SET_SIZE
 from app.services.job_eligibility import (
     career_band_for_job,
@@ -1705,10 +1705,9 @@ class JobsRepository:
         # decoding, then saturated every other read during a browsing burst.
         "job_id, job_title, company_name, "
         "location, location_raw, location_city, location_country, location_mode, location_quality, locations, "
-        "role_domain, career_band, industry, industry_group, apply_url, first_seen, "
-        f"{SEED_COLUMN}, "
+        "role_domain, career_band, industry, industry_group, apply_url, "
         "seniority_level, min_years_experience, max_years_experience, "
-        "is_active, listing_confidence, last_verified_live_at, main_skills, role_family"
+        f"main_skills, role_family, {CARD_COLUMNS}"
     )
 
     @staticmethod
@@ -1924,9 +1923,8 @@ class JobsRepository:
     _AGENT_PICK_JOB_COLUMNS = (
         "job_id, job_title, company_name, job_description, industry, industry_group, "
         "role_domain, apply_url, location, location_raw, location_city, location_country, "
-        "location_mode, location_quality, locations, main_skills, first_seen, "
-        f"{SEED_COLUMN}, "
-        "is_active, listing_confidence, last_verified_live_at"
+        "location_mode, location_quality, locations, main_skills, "
+        f"{CARD_COLUMNS}"
     )
 
     def get_agent_picks(self, user_id: str) -> list[dict[str, Any]]:
@@ -2953,8 +2951,7 @@ class JobsRepository:
                 "date_posted, seniority_level, work_mode, min_years_experience, max_years_experience, "
                 # `main_skills` is what `direction_fit` grades the pick gate on. One array
                 # on a select this read already makes, so the grade costs no round trip.
-                "main_skills, "
-                "first_seen, " f"{SEED_COLUMN}, is_active, listing_confidence, last_verified_live_at)"
+                f"main_skills, {CARD_COLUMNS})"
             )
             .eq("user_id", user_id)
             .execute()
@@ -3164,7 +3161,7 @@ class JobsRepository:
                 "location_country, location_mode, location_quality, locations, apply_url, "
                 "job_summary, job_description, "
                 "date_posted, seniority_level, work_mode, min_years_experience, max_years_experience, "
-                "first_seen, " f"{SEED_COLUMN}, is_active, listing_confidence, last_verified_live_at)"
+                f"{CARD_COLUMNS})"
             )
             .eq("user_id", user_id)
             .eq("baseline_version_id", baseline_version_id)
@@ -3565,8 +3562,7 @@ class JobsRepository:
             # Liveness is server-joined for the Collection Record: the
             # client batch that used to answer it caps at 100 ids sorted
             # lexically, so a client-side `closed` is capped by alphabet.
-            "is_active, listing_confidence, last_verified_live_at, first_seen, "
-            f"{SEED_COLUMN}",
+            f"{CARD_COLUMNS}",
         )
         for row in rows:
             if row.get("jobs"):

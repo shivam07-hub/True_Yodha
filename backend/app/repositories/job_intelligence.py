@@ -6,7 +6,7 @@ from fastapi import Depends
 from postgrest.exceptions import APIError
 from supabase import Client
 
-from app.services.listing_time import SEED_COLUMN
+from app.services.listing_time import CARD_COLUMNS
 
 from app.database import get_supabase_admin
 from app.db_safe import safe_read
@@ -103,10 +103,7 @@ class JobIntelligenceRepository:
             return []
         jobs = (
             self.admin_db.table("jobs")
-            .select(
-                f"job_id, first_seen, {SEED_COLUMN}, is_active, listing_confidence, "
-                "last_verified_live_at"
-            )
+            .select(f"job_id, {CARD_COLUMNS}")
             .in_("job_id", job_ids)
             .execute()
         ).data or []

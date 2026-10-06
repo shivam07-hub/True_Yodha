@@ -85,7 +85,8 @@ def test_job_pulse_applies_listing_confidence_policy(
 def test_a_confirmation_is_what_makes_an_unstamped_listing_active() -> None:
     now = datetime(2026, 6, 13, tzinfo=timezone.utc)
     confirmed = _pulse_row("confirmed", last_seen=20260601)
-    confirmed["last_verified_live_at"] = "2026-06-12T15:04:00+00:00"
+    for column in ("last_verified_live_at", "last_conclusive_verification_at", "reactivated_at"):
+        confirmed[column] = "2026-06-12T15:04:00+00:00"
     stored = _pulse_row("stored")
     stored["listing_confidence"] = "active"
     intelligence = JobIntelligence(
@@ -142,23 +143,27 @@ def test_job_pulse_preserves_requested_order_and_ignores_missing_jobs() -> None:
 
 
 def test_job_pulse_verification_date_is_a_real_check() -> None:
-    """`last_seen` has never ticked. It must not fill in a verification date."""
+    """`last_seen` has never ticked, and a feed sighting is not a check.
+    Neither may fill in a verification date."""
     now = datetime(2026, 6, 13, tzinfo=timezone.utc)
     discovery = _pulse_row("discovery")
-    seeded = _pulse_row("seeded")
-    seeded["last_verified_live_at"] = "2026-06-12T18:00:00+00:00"
+    sighted = _pulse_row("sighted")
+    sighted["last_verified_live_at"] = "2026-06-12T18:00:00+00:00"
     genuine = _pulse_row("genuine", last_seen=20260601)
-    genuine["last_verified_live_at"] = "2026-06-12T15:04:00+00:00"
+    genuine["last_conclusive_verification_at"] = "2026-06-12T15:04:00+00:00"
+    genuine["reactivated_at"] = "2026-06-12T15:04:00+00:00"
+    genuine["last_verified_live_at"] = "2026-06-12T18:00:00+00:00"
     intelligence = JobIntelligence(
-        _PulseRepository([discovery, seeded, genuine]),  # type: ignore[arg-type]
+        _PulseRepository([discovery, sighted, genuine]),  # type: ignore[arg-type]
         feed_cache=FeedStateCache(),
         now=lambda: now,
     )
 
-    by_id = {pulse.job_id: pulse for pulse in intelligence.pulses(["discovery", "seeded", "genuine"])}
+    by_id = {pulse.job_id: pulse for pulse in intelligence.pulses(["discovery", "sighted", "genuine"])}
 
     assert by_id["discovery"].last_verified_at is None
-    assert by_id["seeded"].last_verified_at is None
+    assert by_id["sighted"].last_verified_at is None
+    assert by_id["sighted"].is_stale is True
     assert by_id["genuine"].last_verified_at == "2026-06-12"
     assert by_id["genuine"].first_seen_at == "2026-06-01"
 
