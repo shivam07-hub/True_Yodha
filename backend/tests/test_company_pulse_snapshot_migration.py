@@ -81,29 +81,26 @@ def test_live_roles_refresh_stays_on_the_database_rail() -> None:
     assert "notify pgrst, 'reload schema'" in sql
 
 
-CHECKED = MIGRATION.parent / "20261006090000_company_pulse_freshness_is_a_check.sql"
+PULSE = MIGRATION.parent / "20261007090000_company_pulse_is_volume_and_momentum.sql"
 
 
-def test_freshness_is_the_last_check_on_a_live_row_not_a_crawl_marker() -> None:
-    """Wipro, 2026-10-06: 2,768 live roles, 1,105 checked that week, freshness 0
-    off a 09-09 crawl marker. Freshness ages listing_trust's "checked": the
-    verifier opened a live role and a live posting answered."""
-    body = _refresh_body(CHECKED.read_text())
-    assert (
-        "max(last_conclusive_verification_at) filter (where is_live) as last_checked_at"
-        in body
-    )
-    # Not the crawler's marker, nor the stamp the crawler also writes, nor receipt.
-    assert "last_seen" not in body
-    assert "last_verified_live_at" not in body
-    assert "ingested_at" not in body
-    # One name, one meaning: the upsert writes the new column only.
-    assert "last_checked_at = excluded.last_checked_at" in body
-    assert "last_seen_at" not in body
+def test_pulse_refresh_reads_no_time_column() -> None:
+    """Shivam, 2026-10-07: the pulse is volume and momentum. Freshness read
+    the crawler's date (the same day for every company), then the verifier's
+    last check (never, for 28 companies whose sites answer it with errors)."""
+    body = _refresh_body(PULSE.read_text())
+    for column in (
+        "last_seen",
+        "last_checked_at",
+        "last_conclusive_verification_at",
+        "last_verified_live_at",
+        "ingested_at",
+    ):
+        assert column not in body, column
 
 
-def test_checked_refresh_keeps_open_roles_weekly_and_series() -> None:
-    body = _refresh_body(CHECKED.read_text())
+def test_pulse_refresh_keeps_open_roles_weekly_and_series() -> None:
+    body = _refresh_body(PULSE.read_text())
     assert "(j.is_active is true and j.listing_confidence = 'active') as is_live" in body
     assert "count(*) filter (where is_live)::integer as open_roles" in body
     assert "first_seen >= v_week" in body
@@ -114,14 +111,14 @@ def test_checked_refresh_keeps_open_roles_weekly_and_series() -> None:
     assert "set search_path = ''" in body
 
 
-def test_checked_column_is_additive_and_refresh_stays_on_the_database_rail() -> None:
-    sql = CHECKED.read_text()
+def test_pulse_drops_only_the_column_no_deployed_code_reads() -> None:
+    sql = PULSE.read_text()
     assert (
         "alter table public.company_pulse_snapshot\n"
-        "  add column if not exists last_checked_at timestamptz"
+        "  drop column if exists last_checked_at;"
     ) in sql
-    # The retired column waits for main to carry the new reader; never dropped here.
-    assert "drop column" not in sql
+    # main's pulse still selects last_seen_at; its drop waits for the merge.
+    assert "drop column if exists last_seen_at" not in sql
     assert "grant execute" not in sql
     assert (
         "revoke all on function public.refresh_company_pulse()\n"

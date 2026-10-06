@@ -21,9 +21,6 @@ class CompanyPulseItem(BaseModel):
     pulse: int | None
     # 30-point sparkline of trailing fresh-role inflow (oldest → today).
     series: list[int]
-    # When a verifier last opened one of the company's live roles and a live
-    # posting answered (ISO instant), or null when none has been checked.
-    last_checked_at: str | None = None
 
 
 class CompanyPulseResponse(BaseModel):

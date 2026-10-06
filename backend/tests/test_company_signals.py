@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from typing import Any
 
 from postgrest.exceptions import APIError
@@ -60,21 +59,18 @@ def test_pulse_for_empty_input_short_circuits() -> None:
 
 
 def test_pulse_for_is_one_snapshot_lookup() -> None:
-    now = datetime.now(timezone.utc)
     db = _FakeSnapshot(
         [
             {
                 "sort_key": sort_key_for("Acme"),
                 "open_roles": 3,
                 "weekly_delta": 2,
-                "last_checked_at": now.isoformat(),
                 "inflow_by_day": _inflow(SERIES_DAYS - 1, SERIES_DAYS - 4),
             },
             {
                 "sort_key": sort_key_for("Stale Co"),
                 "open_roles": 0,
                 "weekly_delta": 0,
-                "last_checked_at": None,
                 "inflow_by_day": [0] * SERIES_DAYS,
             },
         ]
@@ -82,9 +78,8 @@ def test_pulse_for_is_one_snapshot_lookup() -> None:
     repo = CompanySignalsRepository(db)  # type: ignore[arg-type]
     out = repo.pulse_for(["Acme", "Stale Co", "Ghost"])
     assert db.tables == ["company_pulse_snapshot"]
-    # Freshness reads the verifier's check; the crawler marker is retired.
-    assert "last_checked_at" in db.columns
-    assert "last_seen_at" not in db.columns
+    # Size and inflow only: no date column feeds the pulse.
+    assert db.columns == ["sort_key", "open_roles", "weekly_delta", "inflow_by_day"]
     assert db.in_keys == [
         sort_key_for("Acme"),
         sort_key_for("Stale Co"),
@@ -95,8 +90,7 @@ def test_pulse_for_is_one_snapshot_lookup() -> None:
     acme = by_name["Acme"]
     assert acme["open_roles"] == 3
     assert acme["weekly_delta"] == 2
-    assert acme["pulse"] == compute_pulse(3, 2, 0)
-    assert acme["last_checked_at"] is not None
+    assert acme["pulse"] == compute_pulse(3, 2)
     assert any(value > 0 for value in acme["series"])
 
     assert by_name["Stale Co"]["pulse"] is None
@@ -114,7 +108,6 @@ def test_pulse_for_preserves_caller_order_and_requested_casing() -> None:
                 "sort_key": sort_key_for("acme"),
                 "open_roles": 1,
                 "weekly_delta": 0,
-                "last_checked_at": None,
                 "inflow_by_day": [0] * SERIES_DAYS,
             }
         ]
