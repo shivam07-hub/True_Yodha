@@ -52,6 +52,42 @@ def _reset_partner_credential_cache() -> Any:
     partner_auth.reset_credential_cache()
 
 
+def _vocab_rows() -> list[dict[str, Any]]:
+    """A slice of public.location_vocab (seeded from the scraper's india_cities.json)."""
+    rows: list[dict[str, Any]] = [
+        {"kind": "country", "key": key, "canonical": key, "state": None}
+        for key in ("india", "united states", "united kingdom", "singapore", "us", "uk")
+    ]
+    for state in ("Maharashtra", "Karnataka", "Haryana", "Uttar Pradesh", "Tamil Nadu",
+                  "Gujarat", "Goa", "Telangana", "West Bengal"):
+        rows.append({"kind": "state", "key": state.casefold(), "canonical": state, "state": state})
+    for city, state in (
+        ("Pune", "Maharashtra"), ("Mumbai", "Maharashtra"), ("Thane", "Maharashtra"),
+        ("Bengaluru", "Karnataka"), ("Chennai", "Tamil Nadu"), ("Hyderabad", "Telangana"),
+        ("Gurugram", "Haryana"), ("Noida", "Uttar Pradesh"), ("Lucknow", "Uttar Pradesh"),
+        ("Delhi NCR", "Delhi"), ("Ahmedabad", "Gujarat"), ("Kolkata", "West Bengal"),
+    ):
+        rows.append({"kind": "city", "key": city.casefold(), "canonical": city, "state": state})
+    for alias, city, state in (
+        ("bangalore", "Bengaluru", "Karnataka"), ("gurgaon", "Gurugram", "Haryana"),
+        ("new delhi", "Delhi NCR", "Delhi"), ("delhi", "Delhi NCR", "Delhi"),
+    ):
+        rows.append({"kind": "alias", "key": alias, "canonical": city, "state": state})
+    for member, state in (("Delhi NCR", "Delhi"), ("Gurugram", "Haryana"), ("Noida", "Uttar Pradesh")):
+        rows.append({"kind": "metro", "key": "delhi ncr", "canonical": member, "state": state})
+    return rows
+
+
+@pytest.fixture(autouse=True)
+def _pinned_location_vocab() -> Any:
+    """Location rules read public.location_vocab; a suite must never reach the network for it."""
+    from app.services import location_vocab
+
+    location_vocab.set_vocab(location_vocab.build_vocab(_vocab_rows()))
+    yield
+    location_vocab.set_vocab(None)
+
+
 class RecordedSnapshotWrites:
     """The service-role client `career_target.record_from_profile` holds."""
 

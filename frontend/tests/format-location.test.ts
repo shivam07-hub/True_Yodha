@@ -7,12 +7,16 @@ test("joins distinct city and country", () => {
   assert.equal(formatJobLocation({ city: "Bengaluru", country: "India" }), "Bengaluru, India")
 })
 
-test("de-dupes city equal to country (the 'India, India' bug)", () => {
-  assert.equal(formatJobLocation({ city: "India", country: "India" }), "India")
+test("a city equal to its country is no city (the 'India, India' bug)", () => {
+  assert.equal(formatJobLocation({ city: "India", country: "India" }), "India — city not specified")
+  assert.equal(formatJobLocation({ city: "india", country: "India" }), "India — city not specified")
 })
 
-test("de-dupes case-insensitively", () => {
-  assert.equal(formatJobLocation({ city: "india", country: "India" }), "india")
+test("keeps the scraper's no-city label", () => {
+  assert.equal(
+    formatJobLocation({ location: "Maharashtra — city not specified", city: null, country: "India" }),
+    "Maharashtra — city not specified",
+  )
 })
 
 test("explicit location wins over city/country", () => {
@@ -27,7 +31,7 @@ test("normalises a duplicated explicit location string", () => {
 })
 
 test("falls back through to whichever single part exists", () => {
-  assert.equal(formatJobLocation({ city: "", country: "India" }), "India")
+  assert.equal(formatJobLocation({ city: "", country: "India" }), "India — city not specified")
   assert.equal(formatJobLocation({ city: "Pune", country: null }), "Pune")
 })
 
