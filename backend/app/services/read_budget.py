@@ -107,8 +107,12 @@ def current_count() -> int:
 
 
 # A single round trip this slow is the request's cause, not a queue it stood in.
-# Half the 1s slow-request line: past it, one query owns most of the wait.
-SLOW_ROUND_TRIP_MS = 500.0
+# 2,000ms, not the 500ms it shipped with (Shivam, 2026-10-10): every Supabase
+# call on this project costs ~300ms however small, so 500ms opened 79 Notices
+# in a week, nearly all of them that floor under load. Every real cause found
+# so far was one multi-second query — feed-state 12.3s, /jobs/at 10.6s, the
+# company count 10.5s, the floor count 3.4s — and all of them clear this line.
+SLOW_ROUND_TRIP_MS = 2000.0
 
 # Frames that are the transport, not the caller. The site is the first app frame
 # outside them — the repository or service that asked the question.

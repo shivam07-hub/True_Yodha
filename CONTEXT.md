@@ -1542,7 +1542,7 @@ The saturation mailbox is retired (ADR-0021). A Notice is the memory; a daily Gi
 4. Upload Guarantee break — object in storage, no job / no output.
 5. Work Lane exhaustion — retries spent, user still has no result.
 6. Dead-man — skill-floor, listing verifier, job ingestion, and the Notice closer. Ingestion opens only when `stalled` (168h). `degraded` (behind the 72h aim) neither opens nor closes. A repeat probe refreshes `last_seen_at` and does not increment the count.
-7. Slow 200 — `slow_200:reads_over_budget` (code; the digest mails again when the count changes), `slow_200:slow_read:<file>:<function>` (code; one round trip ≥500ms, named for its caller), or `slow_200:capacity_queue` (`blocked`; no slow trip of its own; mails when the count doubles, and on Monday).
+7. Slow 200 — `slow_200:reads_over_budget` (code; the digest mails again when the count changes), `slow_200:slow_read:<file>:<function>` (code; one round trip ≥2,000ms — 500ms until 2026-10-10, which filed the ~300ms per-call floor as 79 causes — named for its caller), or `slow_200:capacity_queue` (`blocked`; no slow trip of its own; mails when the count doubles, and on Monday).
 
 Class 2 closes in Cursor: root-cause fix, five gates, branch from `main`, that Notice’s files only. The Action never writes the patch. A `NOTICE_CAUSE_KEY` test already on `origin/main` is how the next digest marks it `closed`. A harvest proof may close an `open` belt from one healthy sample. It does not clear `failed-close` — a recovery that did not hold stays visible until a proof on `main`. Class 3 and slow-200 queue victims and Railway OOM/failed-deploy open `blocked`. 4–6 record live; the closer harvests Railway deaths and belt recovery.
 
