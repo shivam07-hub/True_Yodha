@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.deps import Principal, get_principal
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
-from app.services import text_stream, xp_service
+from app.services import job_matcher, text_stream, xp_service
 from app.services.llm_provider import (
     LLMProvider,
     get_blocking_judgment_provider,
@@ -42,27 +42,6 @@ Matched skills: {matched_skills}
 Description snippet: {description[:600]}"""
 
 
-def _compute_overlap(skill_rows: list[dict], user_lower: dict[str, int]) -> tuple[float, list[str]]:
-    main_keys = [
-        ((r.get("skills") or {}).get("taxonomy_key") or "").lower()
-        for r in skill_rows if r.get("is_primary")
-    ]
-    side_keys = [
-        ((r.get("skills") or {}).get("taxonomy_key") or "").lower()
-        for r in skill_rows if not r.get("is_primary")
-    ]
-    main_keys = [k for k in main_keys if k]
-    side_keys = [k for k in side_keys if k]
-
-    main_hits = [k for k in main_keys if k in user_lower]
-    side_hits = [k for k in side_keys if k in user_lower]
-
-    max_possible = 2.0 * len(main_keys) + 1.0 * len(side_keys)
-    score = round((2.0 * len(main_hits) + 1.0 * len(side_hits)) / max_possible * 100, 1) if max_possible else 0.0
-    matched = list({k for k in main_hits + side_hits})
-    return score, matched
-
-
 class FitBatchRequest(BaseModel):
     job_ids: list[str] = Field(default_factory=list)
 
@@ -87,8 +66,8 @@ async def fit_batch(
 ) -> FitBatchResponse:
     """Deterministic fit % for a set of jobs against the caller's CV skills.
 
-    Powers the logged-in /intel drill — the SAME `_compute_overlap` the analyse
-    path uses, so the number here matches the dashboard. No LLM, no charge, no
+    Powers the logged-in /intel drill — `job_matcher.overlap`, the same number
+    the job's card shows before the brain lands. No LLM, no charge, no
     persist: pure read + arithmetic. Jobs absent from job_skills (no taxonomy
     rows) are omitted from the response rather than reported as 0% — a missing
     skill map is "unknown fit", not "no fit".
@@ -117,14 +96,13 @@ async def fit_batch(
         rows = rows_by_job.get(jid)
         if not rows:
             continue
-        score, matched = _compute_overlap(rows, user_lower)
-        total_skills = sum(1 for r in rows if (r.get("skills") or {}).get("taxonomy_key"))
+        score, matched, missing = job_matcher.overlap(rows, user_lower)
         fits.append(FitItem(
             job_id=jid,
             overlap_score=score,
             matched_skills=matched,
             matched_count=len(matched),
-            total_skills=total_skills,
+            total_skills=len(matched) + len(missing),
         ))
     return FitBatchResponse(fits=fits)
 
@@ -174,7 +152,7 @@ async def analyse_job_stream(
 
     user_skill_map = repo.get_user_skill_map(user_id)
     user_lower = {k.lower(): v for k, v in user_skill_map.items()}
-    overlap_score, matched_skills = _compute_overlap(skill_rows, user_lower)
+    overlap_score, matched_skills, _missing = job_matcher.overlap(skill_rows, user_lower)
     prompt = _build_prompt(
         user_skill_map,
         title=meta.get("job_title", ""),

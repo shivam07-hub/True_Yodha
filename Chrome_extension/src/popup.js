@@ -132,13 +132,14 @@ function applyPreview(draft, preview) {
 }
 
 // Scored hook (#34 S5): the review view shows where the user stands against the
-// captured JD, computed deterministically at preview time. A real number → ring
-// + top gaps; unknown fit (no CV / no taxonomy skills) → a neutral nudge into
-// Myro, which handles the upload-your-CV case itself (keeps the extension thin).
+// captured JD — the job's provisional match_score, the same number its card shows
+// in Myro once saved (server: job_matcher.overlap). A real number → ring + top
+// gaps; unknown fit (no CV / no taxonomy skills) → a neutral nudge into Myro,
+// which handles the upload-your-CV case itself (keeps the extension thin).
 function renderFitHook(preview) {
   if (!elements.fitHook) return
   const web = frontendBaseUrl(state.config.apiUrl)
-  const pct = preview.readiness_pct
+  const pct = preview.match_score
   const gaps = preview.top_gaps || []
   elements.fitLink.href = `${web}/cv`
   if (typeof pct === "number") {
@@ -185,7 +186,7 @@ async function trackCurrentJob() {
         primary_skills: [{ label: "Python (Programming Language)", taxonomy_key: "Python (Programming Language)" }, { label: "SQL", taxonomy_key: "SQL" }],
         secondary_skills: [{ label: "Product Analytics", taxonomy_key: "Product Analytics" }],
         emerging_skills: [{ label: "LangGraph", normalized_label: "langgraph", skill_type: "secondary" }],
-        readiness_pct: 60,
+        match_score: 60,
         matched_skills: ["Python (Programming Language)", "Product Analytics"],
         top_gaps: ["SQL"],
       }

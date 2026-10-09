@@ -5,9 +5,8 @@ from fastapi.responses import StreamingResponse
 
 from app.deps import Principal, get_principal
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
-from app.services import text_stream, xp_service
+from app.services import job_matcher, text_stream, xp_service
 from app.services.llm_provider import LLMProvider, get_llm_provider
-from app.routers.jobs.analyse import _compute_overlap
 from app.services.deepening_keys import assert_deepener_namespace_is_disjoint
 
 router = APIRouter()
@@ -113,7 +112,7 @@ async def deepen_job_stream(
 
     user_skill_map = repo.get_user_skill_map(user_id)
     user_lower = {k.lower(): v for k, v in user_skill_map.items()}
-    overlap_score, matched_skills = _compute_overlap(skill_rows, user_lower)
+    overlap_score, matched_skills, _missing = job_matcher.overlap(skill_rows, user_lower)
     context = _build_context(
         user_skill_map,
         title=meta.get("job_title", ""),

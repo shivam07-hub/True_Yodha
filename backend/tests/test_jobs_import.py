@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 from fastapi.testclient import TestClient
 
 from app.deps import CurrentUser, get_current_user
@@ -6,14 +8,33 @@ from app.repositories.jobs import get_token_jobs_repository
 from app.routers import jobs
 
 
+class _FakeSkillsDb:
+    """The `skills` read the preview makes to score the rows a save would write."""
+
+    def table(self, _name: str) -> "_FakeSkillsDb":
+        return self
+
+    def select(self, _cols: str) -> "_FakeSkillsDb":
+        return self
+
+    def in_(self, _col: str, keys: list[str]) -> "_FakeSkillsDb":
+        self._keys = keys
+        return self
+
+    def execute(self) -> SimpleNamespace:
+        return SimpleNamespace(data=[
+            {"id": 1, "taxonomy_key": k, "practice_mode": None, "skill_kind": "hard"} for k in self._keys
+        ])
+
+
 class _FakeJobsRepository:
     @property
-    def client(self) -> object:
-        return object()
+    def client(self) -> _FakeSkillsDb:
+        return _FakeSkillsDb()
 
     def get_user_skill_map(self, user_id: str) -> dict[str, int]:
-        # #34 S5 — the preview handler reads this to compute the scored-hook fit.
-        return {}
+        # The preview reads this to place the caller against the job (match_score).
+        return {"Python (Programming Language)": 3}
 
 
 def test_import_preview_requires_description() -> None:
@@ -85,6 +106,9 @@ def test_import_preview_returns_suggestions(monkeypatch) -> None:
     assert body["role_name"] == "Data Engineer"
     assert body["primary_skills"][0]["taxonomy_key"] == "Python (Programming Language)"
     assert body["emerging_skills"][0]["normalized_label"] == "langgraph"
+    # One must-have the user holds at 3 of the 4 asked → the job's provisional match_score.
+    assert body["match_score"] == 75
+    assert body["matched_skills"] == ["Python (Programming Language)"]
 
 
 def test_import_job_calls_service_and_returns_application(monkeypatch) -> None:
