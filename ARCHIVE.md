@@ -6,6 +6,15 @@
 
 ---
 
+## 2026-10-10 — Extension dead code removed
+
+ATS auto-fill engine (`autofill.js`, `fetchCareerProfile`, the `chrome.storage`
+Career Profile cache) deleted: built 2026-07-18 (`aa0d9bd1`), never wired — no
+content script ever ran it. Recover from that commit if the browser layer is
+built. Also gone: `types.js` (no importer), the 0.2.2 store zip.
+
+---
+
 ## 2026-10-04 — Company Demand Pulse counts live roles
 
 Pulse `open_roles` was `last_seen` within 21 days (retired column); now the

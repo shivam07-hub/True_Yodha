@@ -168,17 +168,6 @@ the only writer. Measure after release: `applied` rows on `ext_` jobs. A job fro
 Myro's list marked applied in the popup is indistinguishable from the web today;
 add a surface column only if the count needs it.
 
-**AF · ATS form auto-fill — engine built, browser layer not (owner: unassigned).**
-`Chrome_extension/src/autofill.js` (`planFill`, 7 tests) maps the Career Profile
-(notice period, current/expected CTC, interview availability…) onto Workday /
-Greenhouse / Lever / Oracle HCM / Naukri form labels, and `fetchCareerProfile` +
-the `chrome.storage` cache feed it. Nothing runs it: no content script detects a
-form, writes values, or shows the review chip, so it is unreachable today.
-Next: a content script on known ATS hosts → "Myro can fill this" badge → fill in
-place, highlighted, one undo, NEVER submit (grill locks L6–L10, memory
-`project_career_profile_capture`). It speeds the exact page the apply door sits
-on; build it after the door's first measurement.
-
 **CS-15** · **Step 5 leaves no trail back to the stories.** *Small, but it is what makes
     `repeat` mean something.*
 

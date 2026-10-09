@@ -78,14 +78,6 @@ export async function previewImport(apiUrl, token, draft) {
   return request(apiUrl, token, "/jobs/import/preview", toPreviewPayload(draft))
 }
 
-// Career Profile (P2 auto-fill): the recruiter fact-layer the user captured once
-// in Myro. Fetched + cached in the background (lock L9) so filling an ATS form
-// is instant. Returns { profile, updated_at } — profile is the CareerProfileData
-// shape the autofill dictionary maps into form fields.
-export async function fetchCareerProfile(apiUrl, token) {
-  return request(apiUrl, token, "/career-profile", null, false, "GET")
-}
-
 // Reach Intelligence (ADR-0018 Path 2): the backend reads the saved job by id,
 // derives which leader roles to search for, and returns search URLs the user
 // opens in their OWN browser. Myro never fetches the results — free, no coins.
