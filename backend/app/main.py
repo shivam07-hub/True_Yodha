@@ -143,7 +143,8 @@ async def _validate_runtime_configuration() -> None:
     )
     from app.notice.wiring import bind_from_settings
 
-    bind_from_settings()
+    # Off the request path: recording a Notice is two Supabase round trips.
+    bind_from_settings(background=True)
 
 
 @app.on_event("startup")
