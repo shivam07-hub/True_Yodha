@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-import subprocess
 from pathlib import Path
 
 from app.notice.types import CloseProof
@@ -27,8 +26,7 @@ def proofs_from_tests(
             text = path.read_text(encoding="utf-8")
         except OSError:
             continue
-        # One file may close several causes that share one root cause — the
-        # same reading `proofs_from_git_ref` already gives, line by line.
+        # One file may close several causes that share one root cause.
         for match in _MARKER.finditer(text):
             proofs.append(
                 CloseProof(
@@ -38,35 +36,4 @@ def proofs_from_tests(
                     on_main=on_main,
                 )
             )
-    return proofs
-
-
-def proofs_from_git_ref(repo: Path, ref: str, *, sha: str) -> list[CloseProof]:
-    result = subprocess.run(
-        ["git", "grep", "-h", "NOTICE_CAUSE_KEY", ref, "--", "backend/tests"],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        return []
-    proofs: list[CloseProof] = []
-    seen: set[str] = set()
-    for line in result.stdout.splitlines():
-        match = _MARKER.search(line)
-        if match is None:
-            continue
-        key = match.group(1)
-        if key in seen:
-            continue
-        seen.add(key)
-        proofs.append(
-            CloseProof(
-                cause_key=key,
-                test_nodeid=f"{ref}::NOTICE_CAUSE_KEY",
-                sha=sha,
-                on_main=True,
-            )
-        )
     return proofs

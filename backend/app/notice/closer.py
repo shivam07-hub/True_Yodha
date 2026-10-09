@@ -1,4 +1,13 @@
-"""Daily closer entry. GitHub Action harvests, settles proofs already on main, digests.
+"""The daily closer: harvest the belts, settle proofs already on main, digest.
+
+pg_cron calls `POST /internal/notice/close` on the production API once a day
+(migration 20261010120000). It ran as a GitHub Action until 2026-10-06, when the
+Action stopped being scheduled — and the closer's own dead-man could only reach
+the operator through the digest the closer no longer sent. The in-database
+scheduler is the one thing that kept running that week.
+
+Proofs come from the deployed tree, not a git checkout: production runs `main`,
+so every `NOTICE_CAUSE_KEY` in the tests it shipped with IS on main.
 
 Cursor authors the close (CONTEXT.md). This process never opens a PR.
 """
@@ -6,18 +15,17 @@ Cursor authors the close (CONTEXT.md). This process never opens a PR.
 from __future__ import annotations
 
 import logging
-import subprocess
-import sys
+import os
 from pathlib import Path
 
 from app.config import settings
 from app.database import get_supabase_admin
 from app.notice.board import NoticeBook
 from app.notice.clock import SystemClock
-from app.notice.harvest import harvest_belts, harvest_railway, harvest_upload_stalls
+from app.notice.harvest import harvest_belts, harvest_upload_stalls
 from app.notice.postgres import PostgresNoticeStore
-from app.notice.proofs import proofs_from_git_ref
-from app.notice.types import CloseProof
+from app.notice.proofs import proofs_from_tests
+from app.notice.types import CloseProof, Digest
 from app.services.email_service import send_email
 from app.services.probe import BeltState
 
@@ -33,24 +41,14 @@ class _ResendMailer:
         return send_email(to=recipient, subject=subject, text=text)
 
 
-def repo_root() -> Path:
-    return Path(__file__).resolve().parents[3]
+TESTS_ROOT = Path(__file__).resolve().parents[2] / "tests"
 
 
-def _git(repo: Path, *args: str) -> str:
-    result = subprocess.run(
-        ["git", *args],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return result.stdout.strip() if result.returncode == 0 else ""
+def deployed_sha() -> str:
+    return os.environ.get("RAILWAY_GIT_COMMIT_SHA", "").strip() or "unknown"
 
 
-def harvest_into(book: NoticeBook, repo: Path) -> list[CloseProof]:
-    for sighting in harvest_railway():
-        book.observe(sighting)
+def harvest_into(book: NoticeBook, sha: str) -> list[CloseProof]:
     awaiting: int | None = None
     verifier_state: str | None = None
     stalled = False
@@ -98,7 +96,6 @@ def harvest_into(book: NoticeBook, repo: Path) -> list[CloseProof]:
         _logger.exception("metric notice.harvest_upload_failed")
     for sighting in harvest_upload_stalls(stalled):
         book.observe(sighting)
-    sha = _git(repo, "rev-parse", "HEAD") or "unknown"
     # Belt recovery is operational, not a git proof — close it from the digest.
     sightings, proofs = harvest_belts(
         skill_awaiting=awaiting,
@@ -114,10 +111,9 @@ def harvest_into(book: NoticeBook, repo: Path) -> list[CloseProof]:
     return proofs
 
 
-def main() -> int:
-    if not settings.supabase_url or not settings.supabase_service_key:
-        _logger.error("notice closer needs SUPABASE_URL and SUPABASE_SERVICE_KEY")
-        return 1
+def run(*, tests_root: Path = TESTS_ROOT, sha: str | None = None) -> Digest:
+    """One closer pass. Production only — its tests are the proofs on main."""
+    sha = sha or deployed_sha()
     mailer = _ResendMailer() if settings.ops_alert_email.strip() else None
     book = NoticeBook(
         store=PostgresNoticeStore(get_supabase_admin()),
@@ -125,28 +121,39 @@ def main() -> int:
         persist=True,
         mailer=mailer,
     )
-    repo = repo_root()
     proofs: list[CloseProof] = []
     try:
-        proofs.extend(harvest_into(book, repo))
+        proofs.extend(harvest_into(book, sha))
     except Exception:
         _logger.exception("metric notice.harvest_failed")
-    _git(repo, "fetch", "origin", "main")
-    main_sha = _git(repo, "rev-parse", "origin/main") or "unknown"
-    try:
-        proofs.extend(proofs_from_git_ref(repo, "origin/main", sha=main_sha))
-    except Exception:
-        _logger.exception("metric notice.proof_scan_failed")
+    proofs.extend(proofs_from_tests(tests_root, sha=sha, on_main=True))
     digest = book.settle(proofs)
-    _logger.info(
-        "notice digest as_of=%s open=%d closed=%d informed=%s",
+    _logger.warning(
+        "metric notice.closer_ran as_of=%s open=%d closed=%d informed=%s sha=%s",
         digest.as_of.isoformat(),
         len(digest.rows),
         len(digest.closed_this_run),
         digest.informed,
+        sha,
     )
-    return 0
+    return digest
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+def run_or_alert() -> None:
+    """The scheduled entry. A pass that dies says so by mail, outside the digest.
+
+    The digest is the closer's own output, so it cannot report the closer
+    failing. One plain mail per failed pass is the channel that survives it.
+    """
+    try:
+        run()
+    except Exception as exc:
+        _logger.exception("metric notice.closer_failed")
+        recipient = settings.ops_alert_email.strip()
+        if recipient:
+            send_email(
+                to=recipient,
+                subject="Myro Notice closer FAILED",
+                text=f"The daily closer raised {type(exc).__name__}: {exc}\n"
+                f"sha={deployed_sha()}\nNo digest was sent. Railway logs: metric notice.closer_failed",
+            )

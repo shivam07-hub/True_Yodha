@@ -168,14 +168,6 @@ def test_settle_does_not_close_blocked_capacity() -> None:
     assert book.snapshot()[0].status == "blocked"
 
 
-def test_process_death_oom_opens_blocked() -> None:
-    book = NoticeBook.testing()
-    book.observe(Sighting.process_death(process="mirror-backend-prod", death_kind="oom"))
-    row = book.snapshot()[0]
-    assert row.status == "blocked"
-    assert row.cause_key == "process_death:mirror-backend-prod:oom"
-
-
 def test_slow_200_is_kind_not_route() -> None:
     book = NoticeBook.testing()
     book.observe(

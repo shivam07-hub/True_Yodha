@@ -1532,11 +1532,11 @@ Uploads are never rejected for load (your "never fail an upload" rule). At peak 
 
 The operator-facing record that a Railway-visible **failure of a named cause** happened (or would have happened) to a user. Dual of Overload Policy: Overload Policy is what the product refuses to do to an upload; a Notice is what we refuse to let happen twice.
 
-The saturation mailbox is retired (ADR-0021). A Notice is the memory; a daily GitHub Action harvests and sends one digest; Cursor closes. Slow 200s (`metric route.slow` on a 2xx) are Notices by **cause**, never by route: over-budget reads, a slow query named for the code that asked it, or a capacity queue victim.
+The saturation mailbox is retired (ADR-0021). A Notice is the memory; a daily closer (pg_cron → the production API) harvests and sends one digest; Cursor closes. Slow 200s (`metric route.slow` on a 2xx) are Notices by **cause**, never by route: over-budget reads, a slow query named for the code that asked it, or a capacity queue victim.
 
 **Catalog**
 
-1. Process death — Railway crash, OOM, failed deploy, Job Runner exit.
+1. *(retired 2026-10-10)* Process death — the Railway harvest never recorded one: it read only a deployment's CURRENT status, and Railway restarts a crashed process. A dying process shows up as 500s, 503s and dead-men instead.
 2. Unhandled 500.
 3. 503 / upstream timeout (`read_capacity.rejected`, `upstream.read_timeout`).
 4. Upload Guarantee break — object in storage, no job / no output.
@@ -1544,11 +1544,11 @@ The saturation mailbox is retired (ADR-0021). A Notice is the memory; a daily Gi
 6. Dead-man — skill-floor, listing verifier, job ingestion, and the Notice closer. Ingestion opens only when `stalled` (168h). `degraded` (behind the 72h aim) neither opens nor closes. A repeat probe refreshes `last_seen_at` and does not increment the count.
 7. Slow 200 — `slow_200:reads_over_budget` (code; the digest mails again when the count changes), `slow_200:slow_read:<file>:<function>` (code; one round trip ≥2,000ms — 500ms until 2026-10-10, which filed the ~300ms per-call floor as 79 causes — named for its caller), or `slow_200:capacity_queue` (`blocked`; no slow trip of its own; mails when the count doubles, and on Monday).
 
-Class 2 closes in Cursor: root-cause fix, five gates, branch from `main`, that Notice’s files only. The Action never writes the patch. A `NOTICE_CAUSE_KEY` test already on `origin/main` is how the next digest marks it `closed`. A harvest proof may close an `open` belt from one healthy sample. It does not clear `failed-close` — a recovery that did not hold stays visible until a proof on `main`. Class 3 and slow-200 queue victims and Railway OOM/failed-deploy open `blocked`. 4–6 record live; the closer harvests Railway deaths and belt recovery.
+Class 2 closes in Cursor: root-cause fix, five gates, branch from `main`, that Notice’s files only. The closer never writes the patch. A `NOTICE_CAUSE_KEY` test already on `origin/main` is how the next digest marks it `closed`. A harvest proof may close an `open` belt from one healthy sample. It does not clear `failed-close` — a recovery that did not hold stays visible until a proof on `main`. Class 3 and slow-200 queue victims open `blocked`. 4–6 record live; the closer harvests belt stalls and recovery.
 
 **Identity**
 
-`cause_key` = class + fingerprint. Unhandled 500 → exception type + file + function. 503 → which limiter / which timeout, not the route. Upload Guarantee → `object_no_job` vs `job_never_claimed`. Work Lane → job type + terminal error class. Dead-man → one key per belt. Slow 200 → over-budget, or the slowest round trip's app frame (file + function), or capacity queue. The trip is timed inside the read-capacity claim, so waiting for a slot never names a query. Process death → process + death kind. The route is evidence, never the identity. Reopen of the same `cause_key` after a closing commit is a **failed close**.
+`cause_key` = class + fingerprint. Unhandled 500 → exception type + file + function. 503 → which limiter / which timeout, not the route. Upload Guarantee → `object_no_job` vs `job_never_claimed`. Work Lane → job type + terminal error class. Dead-man → one key per belt. Slow 200 → over-budget, or the slowest round trip's app frame (file + function), or capacity queue. The trip is timed inside the read-capacity claim, so waiting for a slot never names a query. The route is evidence, never the identity. Reopen of the same `cause_key` after a closing commit is a **failed close**.
 
 **Status**
 
@@ -1564,9 +1564,9 @@ Postgres is the record. Tests use an in-memory adapter. Redis may page (skill-fl
 
 **Surfaces**
 
-- Live: 500/503 handlers, Work Lane `on_failure`, upload stall/orphan, skill-floor and listing-verifier dead-men, and slow 2xx timing write a Notice (no email).
-- Daily: GitHub Action harvests Railway process death, settles proofs already on `origin/main`, sends one digest to `ops_alert_email`. An open cause whose count rose is movement. A blocked cause is movement when its count doubles. The closer writes `notice_closer_heartbeat` on every run, including a run that sends nothing; `/health` opens `dead_man:notice_closer` when that row is older than 36h. Cursor authors the close when the laptop is open — tonight or the next session. OpenRouter is the user path and is not in this loop.
-- The closer does not run inside `mirror-backend-prod`. The Job Runner binds Notice so class 5 can record.
+- Live: 500/503 handlers, Work Lane `on_failure`, upload stall/orphan, skill-floor and listing-verifier dead-men, and slow 2xx timing write a Notice (no email). In the web process the write is queued for one writer thread — never on the request path (2026-10-10).
+- Daily: pg_cron (02:30 UTC; a 06:30 retry only when no heartbeat) calls `POST /internal/notice/close` on production, which harvests belts, settles proofs in the tests production shipped with (production runs `main`), and sends one digest to `ops_alert_email`. A pass that raises mails its own failure outside the digest. An open cause whose count rose is movement. A blocked cause is movement when its count doubles. The closer writes `notice_closer_heartbeat` on every run, including a run that sends nothing; `/health` opens `dead_man:notice_closer` when that row is older than 36h. Cursor authors the close when the laptop is open — tonight or the next session. OpenRouter is the user path and is not in this loop.
+- The closer runs inside `mirror-backend-prod`, after acknowledging the call; dev refuses it (its tests are not proofs on main). It moved off a GitHub Action that stopped being scheduled after 2026-10-06 without a word. The Job Runner binds Notice inline so class 5 can record.
 
 ## Listing Verification
 

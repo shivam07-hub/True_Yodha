@@ -16,7 +16,6 @@ from app.notice.types import CloseProof, Digest, NoticeRecord, Sighting, Status
 _logger = logging.getLogger("app.notice")
 
 _CAPACITY_BLOCKED = "Overload Policy / paid compute gate"
-_RAILWAY_INFRA_BLOCKED = "Railway infra (OOM / failed deploy) — not a code close"
 
 def _blocked_band(count: int) -> int:
     """Highest power of two at or below count. A blocked row mails when this changes."""
@@ -50,7 +49,6 @@ _SETTLEABLE = frozenset(
         "work_lane",
         "upload_guarantee",
         "dead_man",
-        "process_death",
         "slow_200",
     }
 )
@@ -277,11 +275,6 @@ def _opening(sighting: Sighting) -> tuple[Status, str | None]:
         return "blocked", _CAPACITY_BLOCKED
     if sighting.cause_class == "slow_200" and sighting.slow_kind == "capacity_queue":
         return "blocked", _CAPACITY_BLOCKED
-    if sighting.cause_class == "process_death" and sighting.death_kind in (
-        "oom",
-        "failed_deploy",
-    ):
-        return "blocked", _RAILWAY_INFRA_BLOCKED
     return "open", None
 
 

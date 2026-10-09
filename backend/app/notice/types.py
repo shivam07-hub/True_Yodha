@@ -7,7 +7,6 @@ from datetime import datetime
 from typing import Literal
 
 CauseClass = Literal[
-    "process_death",
     "unhandled_500",
     "capacity_503",
     "upload_guarantee",
@@ -29,8 +28,6 @@ class Sighting:
     method: str = ""
     path: str = ""
     limiter: str | None = None
-    process: str | None = None
-    death_kind: str | None = None
     break_kind: str | None = None
     job_type: str | None = None
     terminal_class: str | None = None
@@ -99,14 +96,6 @@ class Sighting:
             method=method,
             path=path,
             limiter="db.statement_timeout",
-        )
-
-    @staticmethod
-    def process_death(*, process: str, death_kind: str) -> Sighting:
-        return Sighting(
-            cause_class="process_death",
-            process=process,
-            death_kind=death_kind,
         )
 
     @staticmethod
