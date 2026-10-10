@@ -11,10 +11,15 @@
  *
  * The blurb no longer hides behind a disclosure. The design puts it on the
  * card, and a row the reader must open to learn anything is a row they skip.
+ *
+ * A card opens its programme in the main column, Finlatics' own card included
+ * (2026-10-10). "All 11" used to leave for finlatics.com; it now expands the
+ * no-rooms picker's list here, so every programme opens the same way.
  */
 
+import { useState } from "react"
 import Image from "next/image"
-import { ArrowRight, ExternalLink } from "lucide-react"
+import { ChevronDown, ExternalLink } from "lucide-react"
 import type { TrainingMatch } from "@/lib/api"
 import {
   FINLATICS_APPLY_LABEL,
@@ -22,9 +27,9 @@ import {
   FINLATICS_LOGO_SRC,
   FINLATICS_PROGRAMS,
   type FinlaticsProgram,
-  finlaticsHomeHref,
   finlaticsHref,
 } from "@/lib/finlatics-programs"
+import { TrainingList, shelfRows } from "./training-shelf"
 import "./training-card.css"
 
 const BY_ID = new Map(FINLATICS_PROGRAMS.map((p) => [p.id, p]))
@@ -39,10 +44,16 @@ const FALLBACK: TrainingMatch[] = FINLATICS_PROGRAMS.slice(0, 3).map((p) => ({
 export function TrainingCard({
   matches,
   note,
+  selectedId,
+  onSelect,
 }: {
   matches?: TrainingMatch[]
   note: string | null
+  /** The programme open in the main column, if any. */
+  selectedId: string | null
+  onSelect: (programId: string) => void
 }) {
+  const [all, setAll] = useState(false)
   const rows = (matches?.length ? matches : FALLBACK)
     .map((match) => ({ match, program: BY_ID.get(match.program_id) }))
     .filter((row): row is { match: TrainingMatch; program: FinlaticsProgram } => !!row.program)
@@ -52,21 +63,38 @@ export function TrainingCard({
       <header className="prp-train-lockup">
         <Image src={FINLATICS_LOGO_SRC} alt="" width={24} height={24} />
         <h3 id="prp-train-title">{FINLATICS_BRAND_LABEL}</h3>
-        <a
+        <button
+          type="button"
           className="prp-train-all tm-link tm-control-focus"
-          href={finlaticsHomeHref()}
-          target="_blank"
-          rel="noopener noreferrer"
+          aria-expanded={all}
+          aria-controls="prp-train-list"
+          onClick={() => setAll((open) => !open)}
         >
-          All {FINLATICS_PROGRAMS.length} <ArrowRight size={12} aria-hidden />
-        </a>
+          All {FINLATICS_PROGRAMS.length} <ChevronDown size={12} strokeWidth={1.5} aria-hidden />
+        </button>
       </header>
       {note ? <p className="prp-train-note">{note}</p> : null}
-      <div className="prp-courses">
-        {rows.map(({ match, program }) => (
-          <TrainingCourse key={program.id} program={program} why={match.why} matched={match.matched} />
-        ))}
-      </div>
+      {all ? (
+        <TrainingList
+          id="prp-train-list"
+          rows={shelfRows(matches)}
+          selectedId={selectedId}
+          onSelect={onSelect}
+        />
+      ) : (
+        <div className="prp-courses" id="prp-train-list">
+          {rows.map(({ match, program }) => (
+            <TrainingCourse
+              key={program.id}
+              program={program}
+              why={match.why}
+              matched={match.matched}
+              open={program.id === selectedId}
+              onOpen={() => onSelect(program.id)}
+            />
+          ))}
+        </div>
+      )}
     </section>
   )
 }
@@ -75,24 +103,38 @@ function TrainingCourse({
   program,
   why,
   matched,
+  open,
+  onOpen,
 }: {
   program: FinlaticsProgram
   why: string | null
   matched: boolean
+  open: boolean
+  onOpen: () => void
 }) {
   return (
-    <article className={matched ? "prp-course is-matched" : "prp-course"}>
-      <div className="prp-course-head">
-        <span className="prp-course-mark" aria-hidden>{program.mark}</span>
-        <span className="prp-course-name">{program.title}</span>
-      </div>
-      {why ? (
-        <p className="prp-course-why">
-          <span className="prp-course-dot" aria-hidden />
-          {why}
-        </p>
-      ) : null}
-      <p className="prp-course-blurb">{program.blurb}</p>
+    <article
+      className={matched ? "prp-course is-matched" : "prp-course"}
+      data-open={open ? "true" : undefined}
+    >
+      <button
+        type="button"
+        className="prp-course-open tm-control-focus"
+        aria-current={open ? "true" : undefined}
+        onClick={onOpen}
+      >
+        <span className="prp-course-head">
+          <span className="prp-course-mark" aria-hidden>{program.mark}</span>
+          <span className="prp-course-name">{program.title}</span>
+        </span>
+        {why ? (
+          <span className="prp-course-why">
+            <span className="prp-course-dot" aria-hidden />
+            {why}
+          </span>
+        ) : null}
+        <span className="prp-course-blurb">{program.blurb}</span>
+      </button>
       <a
         className="prp-course-apply tm-link tm-control-focus"
         href={finlaticsHref(program)}
