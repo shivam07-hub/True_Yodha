@@ -734,14 +734,25 @@ def _reviewable_step(
     return None
 
 
-def get_result(db: Client, user_id: str, *, step: int | None = None) -> dict[str, Any]:
+def get_result(
+    db: Client,
+    user_id: str,
+    *,
+    step: int | None = None,
+    profile: dict[str, Any] | None = None,
+    baseline: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """The step the user should see.
 
     `step` is a VIEW cursor, not progress: it may only look at ground already
     covered. `furthest_step` rides on every payload so the client knows which
     way it can move without asking.
+
+    `profile` and `baseline` are the rows a caller already loaded. Confirm-skills
+    holds both; reading them again was two of the twelve reads on the
+    has-target branch (2026-10-03).
     """
-    result = _current_result(db, user_id)
+    result = _current_result(db, user_id, profile=profile, baseline=baseline)
     furthest = int(result.get("journey_step") or 0) or (
         2 if result.get("kind") in (
             "onboarding_complete", "first_role_saved", "full_result_ready",
@@ -752,9 +763,10 @@ def get_result(db: Client, user_id: str, *, step: int | None = None) -> dict[str
     if step is None or step > furthest or furthest == 0:
         return result
 
-    users_repo = UsersRepository(db)
-    profile = users_repo.get_profile(user_id) or {}
-    baseline = CVVersionsRepository(db).latest_baseline(user_id)
+    if profile is None:
+        profile = UsersRepository(db).get_profile(user_id) or {}
+    if baseline is None:
+        baseline = CVVersionsRepository(db).latest_baseline(user_id)
     if not baseline:
         return result
     review = _reviewable_step(db, user_id, profile, baseline, step)
@@ -974,16 +986,27 @@ def _awaiting_target_payload(
     }
 
 
-def _current_result(db: Client, user_id: str) -> dict[str, Any]:
-    users_repo = UsersRepository(db)
-    facts = _parallel(db, {
+def _current_result(
+    db: Client,
+    user_id: str,
+    *,
+    profile: dict[str, Any] | None = None,
+    baseline: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    reads: dict[str, Any] = {
         "state": lambda: OnboardingRepository(db).get_state(user_id),
-        "profile": lambda: users_repo.get_profile(user_id),
-        "baseline": lambda: CVVersionsRepository(db).latest_baseline(user_id),
-    })
+    }
+    if profile is None:
+        users_repo = UsersRepository(db)
+        reads["profile"] = lambda: users_repo.get_profile(user_id)
+    if baseline is None:
+        reads["baseline"] = lambda: CVVersionsRepository(db).latest_baseline(user_id)
+    facts = _parallel(db, reads)
     state = facts["state"] or {}
-    profile = facts["profile"] or {}
-    baseline = facts["baseline"]
+    if profile is None:
+        profile = facts["profile"] or {}
+    if baseline is None:
+        baseline = facts["baseline"]
 
     from app.services.career_target import is_canonical_direction as _is_canonical
 

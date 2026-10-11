@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -15,6 +16,10 @@ from app.services.experience_years import seniority_from_cv
 
 
 _REMOVED_BY_USER = "User removed this extracted CV skill."
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 def _normalized_overrides(
@@ -182,9 +187,18 @@ def confirm_baseline_skills(
     # snapshot and the RPC measures ~6ms. The slice stays because it still
     # removes a hop from the confirm response, not because the RPC is slow.
     if has_target:
+        # The confirm RPC stamps skills_confirmed_at. The row in hand was read
+        # before that write; without the stamp, get_result would still think
+        # the skills are unconfirmed and send the user back to this step.
+        confirmed = {
+            **baseline,
+            "skills_confirmed_at": baseline.get("skills_confirmed_at") or _now_iso(),
+        }
         return {
             "next": "shortlist_processing",
-            "result": onboarding_service.get_result(db, user_id),
+            "result": onboarding_service.get_result(
+                db, user_id, profile=profile, baseline=confirmed,
+            ),
         }
     return {
         "next": "target",
