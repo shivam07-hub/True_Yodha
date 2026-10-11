@@ -52,7 +52,13 @@ WARM_SHORTLIST_SIZE = 10
 # One worker tick. Not a membership cap: the pile is every aspiration-matched
 # job that has not been judged for this CV, and a tick that leaves some
 # enqueues the next tick itself.
-DRAIN_BATCH = 8
+#
+# One wave of the judgment lane. 10 jobs at concurrency 3 measured ~100s
+# (2026-10-06), so a tick of 8 was ~80s. The worker drains for 60s on deploy
+# and then SIGKILLs the job — three feed_warm AbandonedJobErrors landed
+# between 09:42 and 10:08 UTC that morning, while Develop was pushed seven
+# times. A tick of one wave finishes inside the drain.
+DRAIN_BATCH = 3
 
 
 def direction_first(
@@ -343,3 +349,22 @@ async def _feed_warm_handler(payload: dict[str, Any], allow_retry: bool) -> None
         repo, get_judgment_provider(), user_id, baseline_version_id=baseline,
         announce=bool(payload.get("announce")),
     )
+
+
+@background.failure_handler("feed_warm")
+async def _feed_warm_failed(payload: dict[str, Any]) -> None:
+    """A deploy that still kills a tick must not drop the rest of the drain.
+
+    The continuation is enqueued only after a tick succeeds. SIGKILL skips
+    that line. The batch is idempotent — a cached eval is not judged again —
+    so the replacement tick redoes the one that was in flight and then the
+    remainder.
+    """
+    if not payload.get("_abandoned"):
+        return
+    user_id = str(payload.get("user_id") or "")
+    if not user_id:
+        return
+    raw_baseline = payload.get("baseline_version_id")
+    baseline = int(raw_baseline) if raw_baseline is not None else None
+    _continue_drain(user_id, baseline, bool(payload.get("announce")))
