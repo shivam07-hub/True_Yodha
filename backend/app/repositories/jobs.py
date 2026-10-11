@@ -572,6 +572,8 @@ class MarketAnalyticsCompiler:
         company_counts: Counter[str] = Counter()
         industry_counts: Counter[str] = Counter()
         role_counts: Counter[str] = Counter()
+        family_counts: Counter[str] = Counter()
+        family_companies: dict[str, set[str]] = {}
         location_city_counts: Counter[str] = Counter()
         location_country_counts: Counter[str] = Counter()
         location_mode_counts: Counter[str] = Counter()
@@ -601,6 +603,7 @@ class MarketAnalyticsCompiler:
             company = (row.get("company_name") or "").strip()
             industry = normalize_industry_group(row.get("industry_group"), row.get("industry"))
             role = (row.get("role_domain") or "").strip()
+            family = (row.get("role_family") or "").strip()
             location_city = (row.get("location_city") or "").strip()
             location_country = (row.get("location_country") or "").strip()
             location_mode = (row.get("location_mode") or "").strip()
@@ -638,6 +641,10 @@ class MarketAnalyticsCompiler:
                     industry_role_counters.setdefault(industry, Counter())[role] += 1
             if role:
                 role_counts[role] += 1
+            if family:
+                family_counts[family] += 1
+                if company:
+                    family_companies.setdefault(family, set()).add(company)
             if location_city:
                 location_city_counts[location_city] += 1
             if location_country:
@@ -706,6 +713,17 @@ class MarketAnalyticsCompiler:
             # current job rows as by_industry, so the UI never guesses which
             # kinds of roles an industry is hiring for.
             "industry_roles": industry_roles,
+            # Corpus families (`jobs.role_family`), the key /market sends as
+            # `cluster`. Kept on the snapshot so that request does not page the
+            # family's role_domain: Sales & Marketing alone is 13,890 jobs.
+            "by_family": [
+                {
+                    "name": name,
+                    "jobs": count,
+                    "companies": len(family_companies.get(name, ())),
+                }
+                for name, count in family_counts.most_common()
+            ],
         }
 
 
@@ -849,7 +867,7 @@ class JobsRepository:
             self._db,
             table="jobs",
             columns=(
-                "job_id, company_name, industry, industry_group, role_domain, batch_date, "
+                "job_id, company_name, industry, industry_group, role_domain, role_family, batch_date, "
                 "location, location_raw, location_city, location_country, location_mode, location_quality, locations, "
                 "main_skills, first_seen, ingested_at"
             ),

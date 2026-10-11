@@ -1,5 +1,5 @@
 import logging
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from postgrest.exceptions import APIError
@@ -83,6 +83,18 @@ def search_companies(
         ) from exc
 
 
+def _family_totals(analytics: dict[str, Any], family: str) -> tuple[int, int]:
+    """Jobs and companies in one corpus family, off the snapshot's `by_family`.
+
+    Absent (a snapshot written before the key existed) is zero, not the whole
+    market — a chip must not claim 60k jobs for one family.
+    """
+    for row in analytics.get("by_family") or []:
+        if str(row.get("name") or "") == family:
+            return int(row.get("jobs") or 0), int(row.get("companies") or 0)
+    return 0, 0
+
+
 @router.get("/analytics/me", response_model=MarketAnalyticsSummaryResponse)
 def get_my_analytics(
     cluster: str | None = None,
@@ -92,17 +104,32 @@ def get_my_analytics(
     repo: JobsRepository = Depends(get_token_jobs_repository),
     principal: Principal = Depends(get_principal),
 ) -> MarketAnalyticsSummaryResponse:
-    if cluster:
-        role_domain = repo.resolve_role_domain_for_clusters([cluster])
+    # `cluster` is a corpus family (`direction.families`), the same string as
+    # `jobs.role_family`. It used to be treated as a skill l2_cluster, resolved
+    # to a role_domain, and then every job in that domain was paged into
+    # Python. Sales & Marketing is 13,890 jobs — 14 reads — and a count of the
+    # domain timed out at 8s (2026-10-11). The snapshot already holds the
+    # compile; the family totals ride on it. A place filter still compiles
+    # live, because the snapshot is not sliced by city.
+    if location_city or location_country or location_mode:
+        if cluster:
+            role_domain = repo.resolve_role_domain_for_clusters([cluster])
+        else:
+            target_roles = repo.get_user_target_roles(principal.id)
+            role_domain = (
+                repo.resolve_role_domain_for_clusters(target_roles) if target_roles else None
+            )
+        analytics = repo.compile_market_analytics(
+            role_domain=role_domain,
+            location_city=location_city,
+            location_country=location_country,
+            location_mode=location_mode,
+        )
     else:
-        target_roles = repo.get_user_target_roles(principal.id)
-        role_domain = repo.resolve_role_domain_for_clusters(target_roles) if target_roles else None
-    analytics = repo.compile_market_analytics(
-        role_domain=role_domain,
-        location_city=location_city,
-        location_country=location_country,
-        location_mode=location_mode,
-    )
+        analytics = repo.compile_market_analytics()
+        if cluster:
+            jobs, companies = _family_totals(analytics, cluster)
+            analytics = {**analytics, "total_jobs": jobs, "total_companies": companies}
     return MarketAnalyticsSummaryResponse(
         total_jobs=analytics["total_jobs"],
         total_companies=analytics["total_companies"],

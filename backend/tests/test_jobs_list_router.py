@@ -11,6 +11,7 @@ from app.services import shared_cache
 from app.services.background import debounce
 from app.routers.jobs.list import (
     get_market_analytics,
+    get_my_analytics,
     list_top_companies_at,
     search_companies,
     search_jobs,
@@ -339,6 +340,91 @@ def test_get_market_analytics_passes_role_filter_to_repository() -> None:
     assert result.total_jobs == 1
     assert result.by_role[0].name == "Software Engineering"
 
+
+# GET /jobs/analytics/me paged every job in a resolved role_domain (Sales &
+# Marketing: 13,890 rows, 14 reads, and a count that died at 8s). The family
+# totals are on the snapshot.
+NOTICE_CAUSE_KEY = "slow_200:reads_over_budget"
+NOTICE_CAUSE_KEY = "slow_200:slow_read:app/repositories/job_skills_read_model.py:fetch_all_rows"
+
+
+class _Principal:
+    id = "user-1"
+
+
+def test_analytics_me_reads_one_family_off_the_snapshot() -> None:
+    class _Repo:
+        def __init__(self) -> None:
+            self.resolved = False
+
+        def resolve_role_domain_for_clusters(self, _clusters: list[str]) -> str:
+            self.resolved = True
+            return "Software Engineering"
+
+        def get_user_target_roles(self, _user_id: str) -> list[str]:
+            self.resolved = True
+            return ["Software Development"]
+
+        def compile_market_analytics(self, role_domain: str | None = None, **_kwargs: Any) -> dict[str, Any]:
+            assert role_domain is None
+            return {
+                "total_jobs": 61673,
+                "total_companies": 4000,
+                "total_industries": 3,
+                "latest_batch": None,
+                "by_company": [],
+                "by_industry": [],
+                "by_role": [],
+                "by_location_city": [],
+                "by_location_country": [],
+                "by_location_mode": [],
+                "top_skills": [],
+                "by_family": [
+                    {"name": "Software Development", "jobs": 1986, "companies": 240},
+                ],
+            }
+
+    repo = _Repo()
+    result = get_my_analytics(cluster="Software Development", repo=repo, principal=_Principal())  # type: ignore[arg-type]
+
+    assert repo.resolved is False
+    assert result.total_jobs == 1986
+    assert result.total_companies == 240
+
+
+def test_a_missing_family_is_zero_not_the_whole_market() -> None:
+    class _Repo:
+        def compile_market_analytics(self, role_domain: str | None = None, **_kwargs: Any) -> dict[str, Any]:
+            return {
+                "total_jobs": 61673,
+                "total_companies": 4000,
+                "total_industries": 1,
+                "latest_batch": None,
+                "by_company": [],
+                "by_industry": [],
+                "by_role": [],
+                "by_location_city": [],
+                "by_location_country": [],
+                "by_location_mode": [],
+                "top_skills": [],
+            }
+
+    result = get_my_analytics(cluster="Software Development", repo=_Repo(), principal=_Principal())  # type: ignore[arg-type]
+
+    assert result.total_jobs == 0
+    assert result.total_companies == 0
+
+
+def test_the_compiler_counts_a_family_across_companies() -> None:
+    compiled = MarketAnalyticsCompiler().compile([
+        {"company_name": "Acme", "role_family": "Software Development", "role_domain": "Software Engineering"},
+        {"company_name": "Acme", "role_family": "Software Development", "role_domain": "Software Engineering"},
+        {"company_name": "Beta", "role_family": "Software Development", "role_domain": "Software Engineering"},
+    ])
+
+    assert compiled["by_family"] == [
+        {"name": "Software Development", "jobs": 3, "companies": 2},
+    ]
 
 
 def test_search_jobs_passes_role_and_skill_filters() -> None:
