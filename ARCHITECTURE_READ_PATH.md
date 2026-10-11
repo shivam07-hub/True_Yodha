@@ -2369,3 +2369,36 @@ median 75; Axis Bank 80 → 100, Wipro 70 → 62 (no new roles this week), Bain
 reader once Develop served `17b5533d`); `last_seen_at` waits for main (BACKLOG
 · agent chores). Verifier coverage itself is parked with a reopen trigger
 (ARCHIVE).
+
+## 27. Reliability close-out, measured 2026-10-11
+
+`83c79967` is on `Develop`, not on `main`. Prod still opens a slow read at
+500ms, so R1–R4 and the live `route.latency` samples wait on that merge.
+What follows was measured against the shared database from a laptop, writes
+stubbed, QA account `04a07845-d812-4f7b-8717-8155ea2ca2a6`.
+
+**`GET /jobs/analytics/me`.** With no family the snapshot is already one
+read (1,089ms, 61,673 jobs). With a family the route treated the name as an
+l2 cluster, resolved a role_domain, and paged every job in it.
+`slow_200:slow_read:…fetch_all_rows` is failed-close on this path, 36
+sightings, last 2026-10-10. Sales & Marketing is 13,890 jobs (14 pages). A
+`count=exact` on that domain, as the signed-in role, timed out at 8s. The
+family totals now ride on the snapshot (`by_family`, 322 families). The same
+call for Software Development: **1 read, 512ms, 2,322 jobs, 129 companies.**
+
+**Company page and partner SSO.** `fetch_company_jobs_page("Practus")`:
+350 / 306 / 315ms. `get_link` is one indexed row. Both clear 2s and sit on
+the ~300ms floor (§24). The 636 openings of `fetch_company_jobs_page` and
+the partner `get_link` / `resolve_credential` rows are prod's 500ms line.
+Code does not move them. Compute → Small does.
+
+**`/cv/versions`.** Eight 500s, 12:32:25–12:32:48 UTC on 2026-10-05, all
+`GET /cv/versions?job_id=INFSYS-EXTERNAL-247996`. The body was
+`APIError: JSON could not be generated / Bad Request` from the company-wide
+`in_`. The restriction started 2026-10-06 22:53 UTC. None of the eight, and
+none of the three `feed_warm` abandons (09:42–10:08 UTC the same day, seven
+Develop pushes, tick ~80s against a 60s drain), fall inside it.
+
+**No scrape to time.** Newest `jobs.ingested_at` is 2026-10-05 15:29 UTC.
+Newest `skill_floor_attempted_at` is 2026-10-03 08:19 UTC. R9 waits on the
+scraper.

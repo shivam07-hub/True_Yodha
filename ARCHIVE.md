@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-10-11 — Reliability R5–R8
+
+R5: `/jobs/analytics/me` stopped paging a role_domain (14 reads, an 8s count) and reads the snapshot — 1 read, 512ms; Software Development is 2,322 jobs. R6: confirm-skills passes the profile and baseline it already holds into `get_result`. R7: `/cv/versions` for `INFSYS-EXTERNAL-247996` 500'd because the company-wide job-id filter was a non-JSON Bad Request (not the 10-06 restriction); the thread is the person's own versions. `feed_warm` AbandonedJobError ×3 on 10-06 09:42–10:08 UTC was a deploy killing an ~80s tick during seven Develop pushes, also before the restriction; a tick is now one judgment wave. R8: company page and partner `get_link` sit on the ~300ms floor (Practus 306–350ms); the 500ms prod line still opens them until `main` carries the 2s rule.
+
 ## 2026-10-10 — Extension dead code removed
 
 ATS auto-fill engine (`autofill.js`, `fetchCareerProfile`, the `chrome.storage`

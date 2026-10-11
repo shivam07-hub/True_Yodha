@@ -494,15 +494,6 @@ Agent-owned; R1–R4 wait for the `main` merge (SHIVAM).
   p50 ≤50 · ≤50 · ≤100 · ~3000 · ~1000 ms.
 - **R4 · SSO 500s gone.** No `AuthRetryableError: Server disconnected` /
   `CreateRaced` for 7 days after the merge (proofs ride `test_auth_client_http1.py`).
-- **R5 · `reads_over_budget` reopened** by `GET /jobs/analytics/me` (>16 reads).
-  Trace with the transport-patch method (memory: notice RCA) and collapse.
-- **R6 · confirm-skills still ~3s.** `get_result` re-reads profile + baseline the
-  confirm already holds; pass them in.
-- **R7 · `unhandled_500:APIError:app/repositories/cv.py:list_thread`** (8, first
-  10-05, `/cv/versions`) and **`work_lane:feed_warm:AbandonedJobError`** (3,
-  10-06) — RCA each; rule out the 10-06→10-09 restriction first.
-- **R8 · Slow reads ≥2s.** Triage what opens under the new line (expected: partner
-  SSO `get_link`, company-page tail). Code causes only; compute noise waits for Small.
 - **R9 · Drain wall time** on the first scrape after the scraper is fixed: Stage A
   claim timestamps (`skill_floor_claimed_at` → `skill_floor_attempted_at`) for
   that run — expect minutes, not hours.
