@@ -55,6 +55,22 @@ class CVVersionWriteSpec:
     section_order:      list[str] | None = None
 
 
+def _in_company_thread(
+    row: dict[str, Any],
+    company_name: str | None,
+    fallback_job_id: str | None,
+) -> bool:
+    """A baseline always belongs. A derivative belongs when it is the opened
+    job, or when its live company is the thread's company."""
+    if row.get("kind") == "baseline_upload" or not row.get("job_id"):
+        return True
+    if fallback_job_id and row.get("job_id") == fallback_job_id:
+        return True
+    if not company_name:
+        return False
+    return str((row.get("jobs") or {}).get("company_name") or "") == company_name
+
+
 class CVVersionsRepository:
     """Token-scoped repository for cv_versions + adjacent CV-side reads.
 
@@ -116,8 +132,15 @@ class CVVersionsRepository:
         jobs whose company_name has been stripped or whose `jobs` row isn't visible.
 
         Ordered by user_version_number DESC (newest first).
+
+        The thread used to be "every job id at this company, then the versions
+        whose job_id is in that list". Infosys external ids
+        (`INFSYS-EXTERNAL-247996`, 2026-10-05) made that `in_` a URL PostgREST
+        answered with a non-JSON "Bad Request", and GET /cv/versions 500'd
+        eight times in twenty seconds. A person has a handful of versions;
+        the company has thousands of jobs. Read the person's rows and keep
+        the company.
         """
-        scoped_job_ids = self._thread_job_ids(company_name, fallback_job_id)
         baselines = (
             self._db.table("cv_versions")
             .select("*")
@@ -129,15 +152,16 @@ class CVVersionsRepository:
             self._db.table("cv_versions")
             .select("*")
             .eq("user_id", user_id)
-            .in_("job_id", scoped_job_ids)
+            .neq("kind", "baseline_upload")
             .execute()
         ).data or []
         rows = attach_jobs(
             [self._normalized(r) for r in (*baselines, *variants)],
             self._db, "job_title, company_name",
         )
+        kept = [row for row in rows if _in_company_thread(row, company_name, fallback_job_id)]
         return sorted(
-            rows,
+            kept,
             key=lambda row: int(row.get("user_version_number") or 0),
             reverse=True,
         )
@@ -153,16 +177,20 @@ class CVVersionsRepository:
 
         Excludes baselines. Returns None if the thread is empty.
         See CONTEXT.md ("Company CV Thread") for the rule.
+
+        Same rule as list_thread: the person's versions, not every job id at
+        the company. One `in_` of a thousand Infosys ids 500'd the read.
         """
-        scoped_job_ids = self._thread_job_ids(company_name, fallback_job_id)
-        if not scoped_job_ids:
+        if company_name:
+            return self.latest_for_thread_batch(user_id, [company_name]).get(company_name)
+        if not fallback_job_id:
             return None
         result = (
             self._db.table("cv_versions")
             .select("*")
             .eq("user_id", user_id)
+            .eq("job_id", fallback_job_id)
             .neq("kind", "baseline_upload")
-            .in_("job_id", scoped_job_ids)
             .order("user_version_number", desc=True)
             .limit(1)
             .execute()
@@ -279,33 +307,6 @@ class CVVersionsRepository:
             .execute()
         )
         return (target.data or [{}])[0].get("company_name")
-
-    def _thread_job_ids(
-        self,
-        company_name: str | None,
-        fallback_job_id: str | None,
-    ) -> list[str]:
-        """Resolve the list of job_ids that constitute a Company CV Thread.
-
-        Returns all job_ids at `company_name`. Falls back to `[fallback_job_id]`
-        when the company is unknown or has no readable jobs — preserves prior
-        behaviour for orphan or import-only jobs.
-        """
-        if company_name:
-            company_jobs = (
-                self._db.table("jobs")
-                .select("job_id")
-                .eq("company_name", company_name)
-                .execute()
-            )
-            ids = [
-                row["job_id"]
-                for row in (company_jobs.data or [])
-                if row.get("job_id")
-            ]
-            if ids:
-                return ids
-        return [fallback_job_id] if fallback_job_id else []
 
     def latest_baseline(self, user_id: str) -> dict[str, Any] | None:
         result = (
