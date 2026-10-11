@@ -35,6 +35,18 @@ every other day); anon EXECUTE revoked on six refreshes. Dead-man
 
 ---
 
+## 2026-10-10 — Notice close-out grill (Shivam)
+
+The closer (GitHub Action) stopped after 10-06; its dead-man could only mail
+through itself. Supabase RESTRICTED the project 10-06 22:53 → 10-09 13:35 UTC
+(Free size quota) — ~63h, zero SSO/signups 10-07/08 — and nothing alerted.
+Locked + built on Develop (`2c3e31d5`…`83c79967`): Notice writes off the request
+path; slow-read line 2,000ms; closer on pg_cron + failure mail, Action and
+Railway harvest deleted; GoTrue on HTTP/1.1 (8 SSO 500s); company_directory
+in-DB rail. Open work: BACKLOG RELIABILITY R1–R9 + SHIVAM (merge, scraper, Small).
+
+---
+
 ## 2026-10-03 — Notice digest RCA pass (hello@himyro.com, 09-28 → 10-01)
 
 Eight open Notices traced to code; every fix on `Develop`, proofs close on `main`.

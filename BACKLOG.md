@@ -419,8 +419,11 @@ ask lives (Market, Collections, the CV page) has real cost either way.
 ## GATES — not a step
 
 - **#16 DB capacity — Shivam: Supabase Pro + Small compute** (decided
-  2026-09-30 for 2026-10-01; still Nano on 2026-10-02, DB 1,706 MB against the
-  Free plan's 500 MB read-only line). Then rerun `market_arrival`: backend p95
+  2026-09-30 for 2026-10-01). **Pro: done** — the Free plan's size quota
+  (1,789 MB vs 500 MB) RESTRICTED the project 2026-10-06 22:53 → 10-09 13:35
+  UTC: ~63h, zero SSO sessions and zero signups on 10-07/10-08. **Small: NOT
+  done** — `shared_buffers` still 224 MB / `max_connections` 60 on 2026-10-11
+  (Small ≈ 512 MB / 90): Settings → Compute and Disk → Small. Then rerun `market_arrival`: backend p95
   < 500 ms, zero failures. Next latency target: `/users/me`, p95 2.75–4.2 s. An
   unidentified ceiling sits at exactly 30,000 ms. `route.latency` and
   `route_perf_events` are not yet verified against live traffic. History: ARCHIVE
@@ -468,6 +471,42 @@ ask lives (Market, Collections, the CV page) has real cost either way.
 
 ---
 
+## RELIABILITY — Notice close-out (grill 2026-10-10, Shivam)
+
+Locks: the closer runs from pg_cron (02:30 UTC, 06:30 retry) via
+`POST /internal/notice/close`; Notice writes are off the request path; a slow
+query opens only at ≥2,000ms; the Railway death harvest is gone. ADR-0021
+amended. History: ARCHIVE 2026-10-10, `ARCHITECTURE_READ_PATH.md` §23–25.
+Agent-owned; R1–R4 wait for the `main` merge (SHIVAM).
+
+- **R1 · Closer alive.** After the merge deploys: `notice_closer_heartbeat.ran_at`
+  moves after 02:30 UTC and a digest lands in hello@himyro.com (titan-email).
+  If not, read `net._http_response` (status/body) for the pg_cron call. Done =
+  two consecutive daily digests.
+- **R2 · Retire the 500ms-rule rows.** Close every `slow_200:slow_read:*` row
+  with `first_seen_at < 2026-10-11` (79+), `proof_test = 'retired:slow_read
+  500ms rule (ADR-0021 2026-10-10)'`; and `work_lane:story_ingest:AbandonedJobError`
+  (`retired:deploy kill — worker drains 60s`). Only AFTER prod runs the 2s rule,
+  or they reopen. Done = no pre-10-11 slow_read row open.
+- **R3 · Live latency.** Five warm samples / a week of `route.latency` on prod for
+  `/jobs/feed-state`, `/jobs/at/{c}`, `/companies/{c}/jobs`, confirm-skills,
+  `/partner/v1/sso/session`; record in §23–25. Pre-merge baseline (10-05→10-09):
+  p50 ≤50 · ≤50 · ≤100 · ~3000 · ~1000 ms.
+- **R4 · SSO 500s gone.** No `AuthRetryableError: Server disconnected` /
+  `CreateRaced` for 7 days after the merge (proofs ride `test_auth_client_http1.py`).
+- **R5 · `reads_over_budget` reopened** by `GET /jobs/analytics/me` (>16 reads).
+  Trace with the transport-patch method (memory: notice RCA) and collapse.
+- **R6 · confirm-skills still ~3s.** `get_result` re-reads profile + baseline the
+  confirm already holds; pass them in.
+- **R7 · `unhandled_500:APIError:app/repositories/cv.py:list_thread`** (8, first
+  10-05, `/cv/versions`) and **`work_lane:feed_warm:AbandonedJobError`** (3,
+  10-06) — RCA each; rule out the 10-06→10-09 restriction first.
+- **R8 · Slow reads ≥2s.** Triage what opens under the new line (expected: partner
+  SSO `get_link`, company-page tail). Code causes only; compute noise waits for Small.
+- **R9 · Drain wall time** on the first scrape after the scraper is fixed: Stage A
+  claim timestamps (`skill_floor_claimed_at` → `skill_floor_attempted_at`) for
+  that run — expect minutes, not hours.
+
 ## AUTHED QA CHECKLIST — the CV machine (from the beta ledger, 2026-09-30)
 
 The 113 cohort reports (June–July) were tagged by loop step and the cohort rows
@@ -507,7 +546,18 @@ Tracker (3) · no problem or not actionable (~25).
 
 ## SHIVAM
 
-- Supabase Pro + Small (above) · the prod deploy guard (above).
+- **Merge `Develop` → `main` (25 commits on 2026-10-11).** Until then prod has
+  no `/internal/notice/close` (pg_cron's closer call 404s — no digest since
+  10-06) and still records Notices ON the request path (~0.6s held + worker
+  frozen per slow request). Unblocks RELIABILITY R1–R4.
+- **Scraper (your repo): no feed since 2026-10-01.** Live jobs 70k+ → 49,637
+  (10-11) as the verifier closes rows and nothing arrives — step 1 of the loop.
+  `dead_man:job_ingestion` is open. Then: Axis Bank = 14,259 live rows (~18%,
+  747 titles) — dedupe at the source.
+- Compute → Small (above) · the prod deploy guard (above).
+- Finlatics, optional: one user's SSO failed 2026-10-06 17:56 (`Server
+  disconnected`, fixed `c9a0a047`); their auth account `b4203375…` exists with no
+  seat, so their next SSO goes through the consent screen (safe, one extra step).
 - `job_switch_plans` + `job_switch_plan_reviews` (0 rows, the retired monthly
   plan): untouched until #56 S5 has removed their code — then ask again (Shivam,
   2026-10-07: payments are core loop; drop nothing early).
@@ -531,7 +581,6 @@ Tracker (3) · no problem or not actionable (~25).
 - Delete `backend/scripts/recompute_banded_scores.py` — rescoring every user while
   they are away is a backfill (Shivam: kill).
 - After Pro: re-measure the anyio threadpool and pool levers.
-- After the next prod deploy: five warm `x-process-time` samples of `/jobs/feed-state`, `/jobs/at/{c}`, `/companies/{c}/jobs`, confirm-skills; a week of `route.latency` for `/partner/v1/sso/session`.
 - Then run the authed QA checklist.
 
 ## COMPANY OBLIGATIONS — off the working backlog
