@@ -7,6 +7,8 @@ between 2026-10-05 and 10-09: `create_user` and the magic-link mint.
 
 from __future__ import annotations
 
+import pytest
+
 from app import database
 
 NOTICE_CAUSE_KEY = "unhandled_500:AuthRetryableError:app/services/auth_links.py:mint_login_link_for_existing_user"
@@ -17,7 +19,15 @@ NOTICE_CAUSE_KEY = "unhandled_500:AuthRetryableError:app/services/auth_links.py:
 NOTICE_CAUSE_KEY = "unhandled_500:CreateRaced:app/services/auth_links.py:create_user_if_absent"
 
 
-def test_auth_admin_calls_ride_the_shared_http1_pool() -> None:
+def test_auth_admin_calls_ride_the_shared_http1_pool(monkeypatch: pytest.MonkeyPatch) -> None:
+    # CI has no .env. The factory only builds the client — no request is sent —
+    # so a placeholder URL and an unsigned service-role JWT are enough.
+    monkeypatch.setattr(database.settings, "supabase_url", "https://test.supabase.co")
+    monkeypatch.setattr(
+        database.settings,
+        "supabase_service_key",
+        "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.signature",
+    )
     database.get_supabase_admin.cache_clear()
     try:
         client = database.get_supabase_admin()
