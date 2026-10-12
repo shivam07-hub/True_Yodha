@@ -430,3 +430,38 @@ def test_confirmation_forces_recompute_when_user_excludes_a_skill(monkeypatch) -
     )
 
     assert "enqueue:skills_confirmed:force" in calls
+
+
+def test_a_direction_reuses_the_profile_and_baseline_confirm_already_holds(monkeypatch) -> None:
+    """get_result used to read both again. The baseline it receives has to
+    already say the skills are confirmed, or it sends the user back here."""
+    calls: list[str] = []
+    seen: dict[str, Any] = {}
+    baseline = {"id": 17, "kind": "baseline_upload", "body_text": "Built a Python service"}
+    profile = {"target_role_title": "Data Analyst", "target_role_titles": ["Data Analyst"]}
+
+    def _get_result(*_args: Any, **kwargs: Any) -> dict[str, Any]:
+        seen.update(kwargs)
+        calls.append("get_result")
+        return {"kind": "onboarding_complete"}
+
+    monkeypatch.setattr(skill_confirmation, "CVVersionsRepository", lambda _db: _CVRepo(baseline, calls))
+    monkeypatch.setattr(skill_confirmation, "ScoresRepository", lambda _db: _ScoresRepoForConfirm())
+    monkeypatch.setattr(
+        skill_confirmation.scoring,
+        "build_cv_skill_rows",
+        lambda *_a, **_k: [{
+            "skill_id": 9, "taxonomy_key": "Python (Programming Language)",
+            "matched_level": 2, "proficiency_title": "T", "evidence_text": "Built a Python service",
+        }],
+    )
+    monkeypatch.setattr(skill_confirmation, "UsersRepository", lambda _db: _UsersRepo(calls, profile=profile))
+    monkeypatch.setattr(skill_confirmation.onboarding_service, "enqueue_score_refresh", lambda *_a, **_k: True)
+    monkeypatch.setattr(skill_confirmation.onboarding_service, "get_result", _get_result)
+
+    result = skill_confirmation.confirm_baseline_skills(object(), "u1", 17, [])
+
+    assert result["next"] == "shortlist_processing"
+    assert seen["profile"]["target_role_title"] == "Data Analyst"
+    assert seen["baseline"]["id"] == 17
+    assert seen["baseline"]["skills_confirmed_at"]

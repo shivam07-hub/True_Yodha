@@ -37,6 +37,7 @@ from app.services.job_file_parser import (
     extract_job_from_url,
 )
 from app.services.llm_provider import get_llm_provider, get_vision_provider
+from app.services.matching import on_demand
 from app.services.xp_policy import ADD_JOB_REWARD_XP
 
 from app.services.job_projection import cv_badge_from_row, to_application
@@ -189,40 +190,8 @@ async def preview_job_import(
     )
     preview = jobs_workflow.preview_imported_job(repo, body)
     preview.update({k: v for k, v in filled.items() if v})
-    # Extension scored hook (#34 S5): deterministic fit of the previewed skills
-    # vs the caller's CV — same primary=2/secondary=1 weighting as fit-batch, no
-    # persist. Lets the popup show "Ready N/100 + top gaps" the moment the JD is
-    # captured, then deep-link into the report.
-    user_lower = {k.lower(): v for k, v in repo.get_user_skill_map(principal.id).items()}
-    preview.update(_preview_fit(
-        preview.get("primary_skills") or [],
-        preview.get("secondary_skills") or [],
-        user_lower,
-    ))
+    preview.update(jobs_workflow.preview_fit(repo, principal.id, preview))
     return JobImportPreviewResponse(**preview)
-
-
-def _preview_fit(primary: list, secondary: list, user_lower: dict[str, int]) -> dict:
-    """Deterministic overlap of previewed job skills against the caller's CV.
-    Mirrors analyse._compute_overlap (primary weight 2, secondary 1). Returns a
-    null readiness when no taxonomy skills resolved — "unknown fit", not "no fit"."""
-    def key(s) -> str:
-        return ((s.get("taxonomy_key") if isinstance(s, dict) else getattr(s, "taxonomy_key", None)) or "").lower()
-
-    def label(s) -> str:
-        return (s.get("label") if isinstance(s, dict) else getattr(s, "label", "")) or ""
-
-    p = [s for s in primary if key(s)]
-    sec = [s for s in secondary if key(s)]
-    max_possible = 2 * len(p) + len(sec)
-    if not max_possible:
-        return {"readiness_pct": None, "matched_skills": [], "top_gaps": []}
-    p_hit = [s for s in p if key(s) in user_lower]
-    s_hit = [s for s in sec if key(s) in user_lower]
-    score = round((2 * len(p_hit) + len(s_hit)) / max_possible * 100, 1)
-    matched = list({label(s) for s in p_hit + s_hit})
-    gaps = [label(s) for s in p if key(s) not in user_lower][:2]
-    return {"readiness_pct": score, "matched_skills": matched, "top_gaps": gaps}
 
 
 @router.post("/import/extract-file", response_model=JobFileExtractResponse)
@@ -284,12 +253,19 @@ async def extract_job_url(
 @router.post("/import", response_model=ApplicationResponse)
 async def import_job(
     body: JobImportRequest,
+    background_tasks: BackgroundTasks,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> ApplicationResponse:
     if not body.role_name.strip() or not body.job_description.strip():
         raise HTTPException(status_code=422, detail="Role name and job description are required.")
     saved = jobs_workflow.save_imported_job(repo, principal.id, body)
+    # A job saved anywhere gets the Matching Brain's verdict (CONTEXT → rank_one:
+    # "opened/saved anywhere"). Only the /market drawer used to ask, so a job
+    # saved with the extension or pasted was never judged — and an application
+    # to an unjudged job can never count as qualified. Claim + enqueue only,
+    # after the response: the save never waits on a model.
+    background_tasks.add_task(on_demand.open_job_eval, repo, principal.id, str(saved["job_id"]))
 
     # +XP for tracking a job. Idempotent per application id (reward_xp scans the
     # ledger), so a retried save never double-credits. A reward failure must not
@@ -344,6 +320,7 @@ def update_imported_job_details(
 def update_application(
     job_id: str,
     body: ApplicationStatusUpdate,
+    background_tasks: BackgroundTasks,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> ApplicationResponse:
@@ -393,6 +370,10 @@ def update_application(
     # did it, which is the same bar the builder's Apply button uses.
     if body.status == "applied" and prior_status != "applied":
         cv_of_record.record_on_apply(user_id, job_id)
+        # Forward pass for jobs saved before a save queued the judge: the first
+        # "applied" is the latest door to make this application judgeable.
+        # A stored verdict makes it a no-op; never waits on a model.
+        background_tasks.add_task(on_demand.open_job_eval, repo, user_id, job_id)
 
     data = repo.get_application_with_job(user_id, job_id)
     if not data:

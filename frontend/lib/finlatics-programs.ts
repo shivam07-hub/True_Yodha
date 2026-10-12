@@ -127,14 +127,17 @@ export function finlaticsPhotoSrc(program: FinlaticsProgram): string {
   return `/finlatics/${program.id}.jpg`
 }
 
+/** Finlatics' own programme card: one page of their info-card PDF (modules,
+ *  format, Apply), rendered 1600 wide so the module list stays sharp in the
+ *  820px main column on a 2x screen. PDF page order is catalogue order. */
+export const FINLATICS_CARD_SIZE = { width: 1600, height: 1126 } as const
+
+export function finlaticsCardSrc(program: FinlaticsProgram): string {
+  return `/finlatics/cards/${program.id}.jpg`
+}
+
 export function finlaticsHref(program: FinlaticsProgram, src = FINLATICS_SRC): string {
   const url = new URL(program.path, FINLATICS_ORIGIN)
   url.searchParams.set(program.attr, src)
-  return url.toString()
-}
-
-export function finlaticsHomeHref(src = FINLATICS_SRC): string {
-  const url = new URL(FINLATICS_ORIGIN)
-  url.searchParams.set("utm_src", src)
   return url.toString()
 }

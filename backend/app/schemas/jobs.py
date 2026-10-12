@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 # Single source of type truth for the matcher's seniority verdict. Declared once
 # here and reused by the matcher's Credibility output, the MatchEval read model,
@@ -576,10 +576,9 @@ class JobImportPreviewResponse(BaseModel):
     secondary_skills: list[SkillSuggestion]
     emerging_skills: list[SkillSuggestion]
     warnings: list[str] = []
-    # Extension scored hook (#34 S5). Deterministic fit of the previewed job's
-    # skills against the caller's CV, so the popup can show "Ready N/100 + your
-    # top gaps" without persisting the job. null when no taxonomy skills resolved.
-    readiness_pct: float | None = None
+    #: Provisional `match_score` (0-100): the overlap this job carries the moment
+    #: it is saved, before the brain's verdict. None = no resolvable skills.
+    match_score: int | None = None
     matched_skills: list[str] = []
     top_gaps: list[str] = []
 
@@ -1020,6 +1019,30 @@ class CollectionEntry(BaseModel):
     applied_at: datetime | None = None
     #: Does this entry still ask something of the user — the landing rule's input.
     needs_user: bool = False
+
+
+class PageEntry(BaseModel):
+    """The Collection entry for the page the user is on (the extension's read).
+
+    Narrow on purpose: the popup renders a stage and names the job. Stage and
+    liveness come from the same resolver as `CollectionEntry`; origin and the
+    verdict are not read here, so they are not shipped.
+    """
+    job_id: str
+    stage: CollectionStage
+    title: str
+    company: str | None = None
+    liveness: CollectionLiveness
+    pending_apply: bool = False
+
+
+class PageLookupRequest(BaseModel):
+    url: str = Field(max_length=4096)
+
+
+class PageEntryResponse(BaseModel):
+    #: None = this page is not in the user's Collection; the popup offers Save.
+    entry: PageEntry | None = None
 
 
 class CollectionResponse(BaseModel):

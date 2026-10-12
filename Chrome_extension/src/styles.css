@@ -251,8 +251,11 @@ body.is-busy .status-pill::before {
   gap: 12px;
 }
 
-.view[hidden] {
-  display: none;
+/* The hidden attribute always wins. Author rules like `.button { display:
+   inline-flex }` outrank the UA's `[hidden] { display: none }`, so a hidden
+   button used to stay on screen. */
+[hidden] {
+  display: none !important;
 }
 
 .view.review-layout:not([hidden]) {

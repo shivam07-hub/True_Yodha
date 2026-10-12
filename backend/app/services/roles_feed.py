@@ -43,7 +43,7 @@ _COLUMNS = (
     "seniority_level, location_city, location_country, work_mode, "
     "min_years_experience, max_years_experience, main_skills, apply_url, "
     "date_posted, ingested_at, listing_confidence, last_verified_live_at, "
-    "last_conclusive_verification_at"
+    "last_conclusive_verification_at, reactivated_at"
 )
 
 
@@ -101,9 +101,13 @@ def _row_to_role(row: dict[str, Any]) -> dict[str, Any]:
         #
         # `state` stays as the lifecycle column — that one is honestly named.
         # `checked` carries the age so a partner can apply its own window.
+        # A check that found it closed is not a time it was verified live, even
+        # once the crawler has re-activated the row.
         "verification": {
             "state": row.get("listing_confidence"),
-            "last_verified_live_at": claim["checked_at"],
+            "last_verified_live_at": (
+                claim["checked_at"] if claim["state"] in {"checked", "stale"} else None
+            ),
             "checked": claim,
         },
     }

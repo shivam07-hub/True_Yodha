@@ -12,7 +12,9 @@ import hmac
 import logging
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from typing import Annotated
+
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.config import settings
@@ -21,12 +23,36 @@ from app.repositories.jobs import JobsRepository
 from app.repositories.partner_usage import PartnerUsageRepository
 from app.repositories.partners import PartnersRepository
 from app.schemas.partner import BroadcastRequest, BroadcastResponse
+from app.security.refresh_secret import require_refresh_secret
 from app.services import partner_broadcast, partner_webhooks, skill_floor_pipeline
 from app.services.matching import scrape_sweep
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/internal", tags=["internal"])
+
+
+@router.post("/notice/close", status_code=status.HTTP_202_ACCEPTED)
+def notice_close(
+    background_tasks: BackgroundTasks,
+    x_myro_refresh_secret: Annotated[str, Header(min_length=10)],
+) -> dict[str, bool]:
+    """pg_cron's daily call: run the Notice closer after acknowledging.
+
+    Production only. Dev shares the database but runs `Develop`, whose tests
+    are not proofs on main — a pass there would close Notices on unreleased
+    code (migration 20261010120000 holds the schedule).
+    """
+    require_refresh_secret(x_myro_refresh_secret)
+    if not settings.is_production:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The Notice closer runs on production only.",
+        )
+    from app.notice import closer
+
+    background_tasks.add_task(closer.run_or_alert)
+    return {"accepted": True}
 
 
 def require_scrape_webhook(x_scrape_token: str | None = Header(default=None)) -> None:

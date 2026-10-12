@@ -10,21 +10,27 @@ It does no I/O and reads no clock.
 | Question | Column | On the verdict |
 |---|---|---|
 | When did Myro receive this row? | `ingested_at` | `received_at` |
-| When did Myro last confirm it is open? | `last_verified_live_at` | `confirmed_at` |
+| When did a verifier last open the page? | `last_conclusive_verification_at` | `checked_at` |
+| When did Myro last confirm it is open? | that check, when it found the listing live | `confirmed_at` |
 | What day did the crawler discover it? | `first_seen` | `discovered_on` |
 | When did the crawler last see it? | `last_seen` | not answered — retired |
 
-`last_seen` is read only to recognise the 2026-07-11 copy: a
-`last_verified_live_at` whose UTC date equals that marker was never a
-check. The column is not a time this module returns.
+`last_verified_live_at` is not the answer to "confirmed". Two writers stamp
+it: the verifier when it opened the page and found it live, and the crawler
+when the job_id was in the employer's feed (myro-job-scraper
+`lifecycle_writer.apply_seen`). A feed sighting is not a check
+(`listing_trust`). The column is read only as a witness to which verdict the
+last check reached; see `_found_live`.
 
 **Invariants**
 
 - The caller passes `now`. A verdict for the same row and the same instant
   is the same verdict.
 - Three states, never a boolean: `confirmed_open`, `unconfirmed`, `closed`.
-  Unparseable, absent, seeded, and never-checked are `unconfirmed`. Absence
-  is not a confirmation.
+  Unparseable, absent, seeded, crawl-only and never-checked are
+  `unconfirmed`. Absence is not a confirmation.
+- `confirmed_at` is `checked_at` or None. A confirmation is a check that
+  found the listing live; there is no confirmation without a check.
 - Bad input does not raise and does not pass through as a date.
 - One clock: UTC. A naive instant is UTC. An aware instant is converted.
 """
@@ -42,12 +48,20 @@ State = Literal["confirmed_open", "unconfirmed", "closed"]
 #: figures were ages of `last_seen` and are not part of this set.
 CONFIRM_WITHIN = timedelta(days=7)
 
-#: The retired crawler column. `verdict` reads it to recognise the
-#: 2026-07-11 copy. A caller selects this onto the row it passes in
-#: and does not interpret the value.
+#: The retired crawler column. Nothing here reads it as a time; callers
+#: that still sort or archive by discovery name it through this constant.
 SEED_COLUMN = "last_seen"
 
+#: The columns a row must carry for `ListingTime.card()` to be true. A
+#: column left off a select is absent, and absence reads as `unconfirmed`,
+#: silently, on every card that path builds.
+CARD_COLUMNS = (
+    "first_seen,is_active,listing_confidence,last_verified_live_at,"
+    "last_conclusive_verification_at,reactivated_at"
+)
+
 __all__ = [
+    "CARD_COLUMNS",
     "CONFIRM_WITHIN",
     "ListingTime",
     "SEED_COLUMN",
@@ -60,16 +74,16 @@ __all__ = [
 
 @dataclass(frozen=True)
 class ListingTime:
-    """One row's answers. `confirmed_at` is None when the stamp is missing,
-    unparseable, or the 2026-07-11 copy of `last_seen`."""
+    """One row's answers. `confirmed_at` is None unless the verifier's last
+    conclusive check found the listing live."""
 
     state: State
     received_at: datetime | None
     confirmed_at: datetime | None
     discovered_on: date | None
     #: When a verifier opened the page (`last_conclusive_verification_at`).
-    #: Distinct from `confirmed_at`: a close stamps this and does not stamp
-    #: `last_verified_live_at`. None when absent or unparseable.
+    #: Distinct from `confirmed_at`: a closed, redirected or wrong-role
+    #: verdict stamps this too. None when absent or unparseable.
     checked_at: datetime | None = None
 
     def card(self) -> dict[str, Any]:
@@ -97,10 +111,7 @@ def verdict(row: Mapping[str, Any], *, now: datetime) -> ListingTime:
     received_at = _instant(row.get("ingested_at"))
     discovered_on = _calendar_day(row.get("first_seen"))
     checked_at = _instant(row.get("last_conclusive_verification_at"))
-    stamp = _instant(row.get("last_verified_live_at"))
-    confirmed_at = None
-    if stamp is not None and not _is_seeded(stamp, row.get("last_seen")):
-        confirmed_at = stamp
+    confirmed_at = checked_at if _found_live(row, checked_at) else None
 
     moment = _as_utc(now)
     if _is_closed(row):
@@ -123,18 +134,37 @@ def _is_closed(row: Mapping[str, Any]) -> bool:
     return row.get("listing_confidence") == "closed"
 
 
-def _is_seeded(stamp: datetime, last_seen: Any) -> bool:
-    """True when the stamp's UTC date is the crawler's discovery marker.
+def _found_live(row: Mapping[str, Any], checked_at: datetime | None) -> bool:
+    """True when the verifier's last conclusive check found the listing live.
 
-    That is the shape `20260711_trusted_job_lifecycle.sql` wrote, and the
-    shape `20260927100000_deseed_false_verification_stamps.sql` nulled.
-    A check that lands on the same UTC date as discovery is indistinguishable
-    from that copy and is not treated as a confirmation.
+    The writers, by column (`repositories/job_listing_verification.record`,
+    myro-job-scraper `lifecycle_writer.apply_seen`):
+
+    | Write | `last_verified_live_at` | `last_conclusive_verification_at` | `reactivated_at` |
+    |---|---|---|---|
+    | verifier, live | T | T | T |
+    | verifier, closed / redirected / wrong role | – | T | – |
+    | crawler, feed sighting | T | – | T if it was not active |
+
+    Only the verifier's live verdict stamps the conclusive clock in the same
+    instant as either other column. `reactivated_at` is the witness that
+    survives a later sighting: the crawler re-stamps `last_verified_live_at`
+    on every live row it sees, and leaves `reactivated_at` alone on a row
+    that is already active. A check followed by a sighting is still a check;
+    a sighting that re-activated a closed listing is not one.
+
+    The 2026-07-11 copy of `last_seen` cannot pass: that stamp was nulled
+    (`20260927100000`), and the copy never wrote `reactivated_at`. The one
+    pair that is not a check is `20260805b`'s one-shot copy of the live stamp
+    into the conclusive clock; a row untouched since carries it, dated on or
+    before 2026-08-05, so it is never inside `CONFIRM_WITHIN` again.
     """
-    seen = _calendar_day(last_seen)
-    if seen is None:
+    if checked_at is None:
         return False
-    return stamp.date() == seen
+    return checked_at in (
+        _instant(row.get("last_verified_live_at")),
+        _instant(row.get("reactivated_at")),
+    )
 
 
 def _as_utc(value: Any) -> datetime | None:

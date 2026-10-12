@@ -20,6 +20,7 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 | 1 | Find the job | **#55** a returning user's list never vanishes | [ARCHITECTURE_RETURN_LOOP.md](ARCHITECTURE_RETURN_LOOP.md) · decisions taken below | S0 measure → S1 Verdict Currency |
 | 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read the funnel on prod after the next merge |
 | 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) · Cursor | S1 migration + `golden_list.py` |
+| 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor | S0 audit, today's rule |
 | 4 | Front door | **#57** "Which job do you want?" after upload · partner SSO lands on the upload (22% of partner people upload vs 67% direct) | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor | S0 partner landing |
 | 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor | S1 blank certs |
 | 6 | Pay | **#56** the ₹199 Apply Pack | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Cursor | S1 settlement |
@@ -28,7 +29,7 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 
 Specs Cursor builds from, each slice its own commit with six gates green:
 RETURN_LOOP (#55) · PAYMENTS (#56) · FRONT_DOOR (#57) · CV_TIER_A (#58) ·
-GOLDEN_DIGEST (#59) ·
+GOLDEN_DIGEST (#59) · SKILL_EVIDENCE (#60) ·
 [ARCHITECTURE_LISTING_TIME.md](ARCHITECTURE_LISTING_TIME.md) (steps 1–2 done:
 de-seed `f7dd4735`, `listing_time.py`; verify 3–6 in code) ·
 [ARCHITECTURE_CONTRACTS_BY_TYPE.md](ARCHITECTURE_CONTRACTS_BY_TYPE.md) (make
@@ -125,24 +126,18 @@ mount on 2026-09-02 (`e3c38423`, the priority-heart removal); four days later
 (`mobile/redesign/job-detail-sheet.tsx:112`) ever shows `EmployerRecordNote`. The
 whole subtree is dead — `detail-body`, `lenses`, `more-roles`, `lens-company`,
 `deepeners` — while `dashboard-drawer-content.test.ts` and
-`employer-record.test.ts` still read its text and pass. Mount the employer record
+`employer-record.test.ts` still read its text and pass. **Approved (Shivam, 2026-10-07) — Cursor:** mount the employer record
 (and `ListingLiveness`) in the live desktop job panel, retarget those tests at
 it, then delete the subtree on the way past.
 
-**Stage A tags business jobs with a genetics skill — and it is growing
-(re-measured 2026-10-03).** "Transformation (Genetics)" sits on **2,637** jobs
-(2,057 live; 881 from ingests since 2026-09-30) across 101 role families, against
-624 live for "Business Transformation". 2,636 of the rows are `stage_a` — **our**
-writer, `services/skill_floor.py` → `skill_extraction.extract_skills`, not the
-scraper. Cause: `_bare_form_present` (`skill_extraction.py:134`) strips the
-qualifier and trusts capitalisation to separate the senses; business postings
-capitalise "Transformation" too. It feeds the demand profile, so it weights scores,
-prep plans and matching. **Safe now:** a bare-form match inside the span of a
-longer matched skill is dropped (766 jobs carry such a skill; no true match can
-be lost). **Needs a measurement first:** requiring qualifier evidence for bare
-forms changes every job's tags — run `match_quality.py` before and after.
-**Needs Shivam:** removing the 2,636 existing rows (destructive) — or let Stage A
-re-run on the affected jobs once the fix ships.
+**#60 Skill evidence — [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md)
+(Shivam, 2026-10-07).** Stage A tags business jobs with "Transformation
+(Genetics)" — 2,637 jobs and growing — and the class is 3,254 qualified skills
+wide. Decided: a bare-form tag needs same-domain support (rule A, proved on prod:
+Python 97.9% kept, the genetics tag 97% removed); one name-forms rule for CV and
+job; Stage A replaces only its own rows, never on an empty result, versioned by
+`jobs.skill_floor_version`; receipts recomputed by `explain_tags`, never stored;
+an automatic before/after with invariants; a skill-spread Notice belt. Cursor.
 
 **CS-14** · **Step 2 of the loop reads zero Career Stories.** *Goal-level gap, found
     2026-09-13. Needs a grill: this is the matcher, not a corner.*
@@ -162,8 +157,16 @@ The north star is measured here and is near zero: 3 people, 5 applications, ever
 no Apply click from a real account since 2026-09-22. The capture is built
 (`3ff55125` "Did you submit?" answered once; `a624c2e1` Apply after download).
 Read clicks → answers → applications on prod after the next merge before building
-anything new. Open from the 2026-09-28 audit: the Chrome extension has no submit
-detection. QA check **A1** below: Apply opens the company's own posting.
+anything new. QA check **A1** below: Apply opens the company's own posting.
+
+**Extension apply door (Develop 2026-10-06, needs a Web Store release — Shivam).**
+The popup now asks Myro which of the user's jobs the page is (Page Entry,
+CONTEXT.md) and, on a tailored page, leads with "I applied" — the same answer
+write as the web. A save and the first "applied" both queue the judge, so an
+extension application can count as qualified. Not detection: the user's click is
+the only writer. Measure after release: `applied` rows on `ext_` jobs. A job from
+Myro's list marked applied in the popup is indistinguishable from the web today;
+add a surface column only if the count needs it.
 
 **CS-15** · **Step 5 leaves no trail back to the stories.** *Small, but it is what makes
     `repeat` mean something.*
@@ -179,7 +182,7 @@ detection. QA check **A1** below: Apply opens the company's own posting.
 
 ## 3 · REPEAT
 
-**#59 Golden-list digest (Shivam, 2026-09-30) — [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md).** The golden list IS
+**#59 Golden-list digest (Shivam, 2026-09-30) — [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md).** `golden_list_since` is live (`20261007120000`) and batch 1 is stamped — Rishabh Guha, Adarsh Mohan, Raj Kishore, Deveshwar Kashyap (Shivam confirmed 2026-10-07). The golden list IS
 the instant-seeker list: one column, `user_profiles.golden_list_since timestamptz`
 (empty = not on it). Shivam sends names; an agent matches, Shivam confirms, the
 agent stamps. The digest goes only to active members: first "you tailored a CV
@@ -416,8 +419,11 @@ ask lives (Market, Collections, the CV page) has real cost either way.
 ## GATES — not a step
 
 - **#16 DB capacity — Shivam: Supabase Pro + Small compute** (decided
-  2026-09-30 for 2026-10-01; still Nano on 2026-10-02, DB 1,706 MB against the
-  Free plan's 500 MB read-only line). Then rerun `market_arrival`: backend p95
+  2026-09-30 for 2026-10-01). **Pro: done** — the Free plan's size quota
+  (1,789 MB vs 500 MB) RESTRICTED the project 2026-10-06 22:53 → 10-09 13:35
+  UTC: ~63h, zero SSO sessions and zero signups on 10-07/10-08. **Small: NOT
+  done** — `shared_buffers` still 224 MB / `max_connections` 60 on 2026-10-11
+  (Small ≈ 512 MB / 90): Settings → Compute and Disk → Small. Then rerun `market_arrival`: backend p95
   < 500 ms, zero failures. Next latency target: `/users/me`, p95 2.75–4.2 s. An
   unidentified ceiling sits at exactly 30,000 ms. `route.latency` and
   `route_perf_events` are not yet verified against live traffic. History: ARCHIVE
@@ -465,6 +471,33 @@ ask lives (Market, Collections, the CV page) has real cost either way.
 
 ---
 
+## RELIABILITY — Notice close-out (grill 2026-10-10, Shivam)
+
+Locks: the closer runs from pg_cron (02:30 UTC, 06:30 retry) via
+`POST /internal/notice/close`; Notice writes are off the request path; a slow
+query opens only at ≥2,000ms; the Railway death harvest is gone. ADR-0021
+amended. History: ARCHIVE 2026-10-10, `ARCHITECTURE_READ_PATH.md` §23–25.
+Agent-owned; R1–R4 wait for the `main` merge (SHIVAM).
+
+- **R1 · Closer alive.** After the merge deploys: `notice_closer_heartbeat.ran_at`
+  moves after 02:30 UTC and a digest lands in hello@himyro.com (titan-email).
+  If not, read `net._http_response` (status/body) for the pg_cron call. Done =
+  two consecutive daily digests.
+- **R2 · Retire the 500ms-rule rows.** Close every `slow_200:slow_read:*` row
+  with `first_seen_at < 2026-10-11` (79+), `proof_test = 'retired:slow_read
+  500ms rule (ADR-0021 2026-10-10)'`; and `work_lane:story_ingest:AbandonedJobError`
+  (`retired:deploy kill — worker drains 60s`). Only AFTER prod runs the 2s rule,
+  or they reopen. Done = no pre-10-11 slow_read row open.
+- **R3 · Live latency.** Five warm samples / a week of `route.latency` on prod for
+  `/jobs/feed-state`, `/jobs/at/{c}`, `/companies/{c}/jobs`, confirm-skills,
+  `/partner/v1/sso/session`; record in §23–25. Pre-merge baseline (10-05→10-09):
+  p50 ≤50 · ≤50 · ≤100 · ~3000 · ~1000 ms.
+- **R4 · SSO 500s gone.** No `AuthRetryableError: Server disconnected` /
+  `CreateRaced` for 7 days after the merge (proofs ride `test_auth_client_http1.py`).
+- **R9 · Drain wall time** on the first scrape after the scraper is fixed: Stage A
+  claim timestamps (`skill_floor_claimed_at` → `skill_floor_attempted_at`) for
+  that run — expect minutes, not hours.
+
 ## AUTHED QA CHECKLIST — the CV machine (from the beta ledger, 2026-09-30)
 
 The 113 cohort reports (June–July) were tagged by loop step and the cohort rows
@@ -504,10 +537,21 @@ Tracker (3) · no problem or not actionable (~25).
 
 ## SHIVAM
 
-- Supabase Pro + Small (above) · the prod deploy guard (above).
-- Golden list: confirm batch 1 — Rishabh Guha, Adarsh Mohan, Raj Kishore,
-  Deveshwar Kashyap — then an agent stamps `golden_list_since`.
-- Yes / no: drop the empty `job_switch_plans` + `job_switch_plan_reviews` (#56 M4).
+- **Merge `Develop` → `main` (25 commits on 2026-10-11).** Until then prod has
+  no `/internal/notice/close` (pg_cron's closer call 404s — no digest since
+  10-06) and still records Notices ON the request path (~0.6s held + worker
+  frozen per slow request). Unblocks RELIABILITY R1–R4.
+- **Scraper (your repo): no feed since 2026-10-01.** Live jobs 70k+ → 49,637
+  (10-11) as the verifier closes rows and nothing arrives — step 1 of the loop.
+  `dead_man:job_ingestion` is open. Then: Axis Bank = 14,259 live rows (~18%,
+  747 titles) — dedupe at the source.
+- Compute → Small (above) · the prod deploy guard (above).
+- Finlatics, optional: one user's SSO failed 2026-10-06 17:56 (`Server
+  disconnected`, fixed `c9a0a047`); their auth account `b4203375…` exists with no
+  seat, so their next SSO goes through the consent screen (safe, one extra step).
+- `job_switch_plans` + `job_switch_plan_reviews` (0 rows, the retired monthly
+  plan): untouched until #56 S5 has removed their code — then ask again (Shivam,
+  2026-10-07: payments are core loop; drop nothing early).
 - GitHub secrets `MYRO_SMOKE_EMAIL` / `_PASSWORD` / `_API_URL` — the phone render
   gate and `qa:mobile` in CI.
 - Send (agent drafts): the 4 users hit by the CV-upload silent failures;
@@ -520,14 +564,14 @@ Tracker (3) · no problem or not actionable (~25).
 
 ## AGENT CHORES — approved, small
 
+- After `main` carries `17b5533d`: drop `company_pulse_snapshot.last_seen_at`
+  (Shivam: standing yes, 2026-10-07). First confirm `main`'s
+  `repositories/company_signals.py` select no longer names it — prod's pulse
+  read fails, every card "—", if it still does. No refresh writes it since
+  `20261006090000`; rebuildable from `jobs`.
 - Delete `backend/scripts/recompute_banded_scores.py` — rescoring every user while
   they are away is a backfill (Shivam: kill).
-- Delete comments (0 ever; public company pages only) and the private-notes code
-  left behind when its screen went in `0b1b9b16` — keep the table and its one
-  real note. **Keep** `/recruiters`, `/referrals` and their workspaces: public B2B
-  doors with no backend (Shivam, 2026-10-02).
 - After Pro: re-measure the anyio threadpool and pool levers.
-- After the next prod deploy: five warm `x-process-time` samples of `/jobs/feed-state`, `/jobs/at/{c}`, `/companies/{c}/jobs`, confirm-skills; a week of `route.latency` for `/partner/v1/sso/session`.
 - Then run the authed QA checklist.
 
 ## COMPANY OBLIGATIONS — off the working backlog

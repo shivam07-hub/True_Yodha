@@ -19,6 +19,10 @@
  * down and put it back seconds later. The room is chosen here and the URL is
  * corrected with `history.pushState`, which App Router treats as shallow. Deep
  * links, refresh and Back all still work; only the wait is gone.
+ *
+ * A Finlatics programme opens in the main column the same way, from either
+ * state of the rail. It is a pick, not a place: no URL of its own, and any room
+ * the user opens (click, Back, a link in) closes it.
  */
 
 import * as React from "react"
@@ -30,7 +34,7 @@ import { useCareerSkillPath } from "@/lib/hooks/use-career-skill-path"
 import { PrepSkeleton } from "./prep-skeleton"
 import { PrepRail } from "./prep-rail"
 import { PrepRoom } from "./prep-room"
-import { TrainingDetail, shelfRows } from "./training-shelf"
+import { NoRoomsDoor, TrainingDetail, shelfRows } from "./training-shelf"
 import { furthestBehind, ladderOrder, liveRoomCount, roomStage } from "./prep-model"
 import "@/app/(authed)/home/mission-control.css"
 
@@ -63,14 +67,22 @@ export function PrepShell({
   const [chosen, setChosen] = React.useState<{ jobId: string | null; step: number | null }>(
     { jobId, step },
   )
+  // The Finlatics programme in the main column. With no rooms, null follows the
+  // best match; with rooms, null means the room shows. A pick holds even when
+  // the match lands later.
+  const [programId, setProgramId] = React.useState<string | null>(null)
   // A real navigation INTO this screen (Collections, a notification, the loop
   // bar) still arrives as a prop change, and must win over what was chosen here.
-  React.useEffect(() => { setChosen({ jobId, step }) }, [jobId, step])
+  React.useEffect(() => {
+    setChosen({ jobId, step })
+    setProgramId(null)
+  }, [jobId, step])
   // Back/Forward across rooms we pushed ourselves: the router never re-renders
   // for a shallow entry, so the URL is the only source left.
   React.useEffect(() => {
     function onPop() {
       setChosen({ jobId: jobIdFromPath(window.location.pathname), step: null })
+      setProgramId(null)
     }
     window.addEventListener("popstate", onPop)
     return () => window.removeEventListener("popstate", onPop)
@@ -78,9 +90,16 @@ export function PrepShell({
 
   function openRoom(nextJobId: string, href: string, nextStep: number | null = null) {
     setChosen({ jobId: nextJobId, step: nextStep })
+    setProgramId(null)
     // Shallow (Next 14.2 supports history.pushState for this) — the URL stays
     // deep-linkable and Back still works, with no RSC fetch and no remount.
     window.history.pushState(null, "", href)
+    window.scrollTo({ top: 0 })
+  }
+
+  function openProgram(nextProgramId: string) {
+    setProgramId(nextProgramId)
+    // At ≤980px the main column stacks above the rail, so the top is the detail.
     window.scrollTo({ top: 0 })
   }
 
@@ -103,8 +122,6 @@ export function PrepShell({
   // No rooms: the Finlatics shelf takes their place, matched on the target
   // band. Same query key as the Skill path block, so no second request.
   const skillPathQ = useCareerSkillPath()
-  // Null follows the best match; a pick holds even when the match lands later.
-  const [programId, setProgramId] = React.useState<string | null>(null)
 
   if (appsQ.isLoading) return <PrepSkeleton />
 
@@ -114,10 +131,12 @@ export function PrepShell({
   const app = ordered.find((a) => a.job_id === selectedId) ?? null
   const room = ladderQ.data?.rooms.find((r) => r.job_id === selectedId)
   const totals = ladderQ.data?.totals
-  const shelf = ordered.length === 0 && !chosen.jobId
-    ? shelfRows(skillPathQ.data?.training)
-    : null
-  const picked = shelf ? shelf.find((row) => row.program.id === programId) ?? shelf[0] : null
+  const shelfMode = ordered.length === 0 && !chosen.jobId
+  // With rooms the ladder matched the programmes to the rooms' gaps; with none,
+  // the skill path matched them to the target band.
+  const training = shelfRows(shelfMode ? skillPathQ.data?.training : ladderQ.data?.training)
+  const picked = training.find((row) => row.program.id === programId)
+    ?? (shelfMode ? training[0] : null)
   const behind = totals
     ? furthestBehind(
         (ladderQ.data?.rooms ?? []).filter((r) => r.job_id !== selectedId),
@@ -132,20 +151,21 @@ export function PrepShell({
           token={token}
           apps={ordered}
           ladder={ladderQ.data}
-          selectedJobId={selectedId}
+          // An open programme owns the main column, so no room reads as open.
+          selectedJobId={picked ? null : selectedId}
           live={liveRoomCount(apps)}
           onOpenRoom={openRoom}
-          shelf={shelf && picked ? {
-            rows: shelf,
-            selectedId: picked.program.id,
-            onSelect: (id) => {
-              setProgramId(id)
-              window.scrollTo({ top: 0 })
-            },
-          } : null}
+          shelf={shelfMode ? training : null}
+          programId={picked?.program.id ?? null}
+          onOpenProgram={openProgram}
         />
         <div className="mc-ws-main">
-          {app ? (
+          {picked ? (
+            <>
+              {shelfMode ? <NoRoomsDoor /> : null}
+              <TrainingDetail row={picked} />
+            </>
+          ) : app ? (
             <PrepRoom
               token={token}
               app={app}
@@ -160,8 +180,6 @@ export function PrepShell({
               This room doesn&rsquo;t exist — the job isn&rsquo;t in your pipeline.{" "}
               <Link href="/preparations">Back to Preparations</Link>
             </div>
-          ) : picked ? (
-            <TrainingDetail row={picked} />
           ) : null}
         </div>
       </div>

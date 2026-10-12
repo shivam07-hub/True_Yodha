@@ -20,9 +20,13 @@ called 8 of those 13 active. Roughly three in ten unchecked listings die within
 a fortnight, so a claim without an age is not a claim.
 
 This module is the only place allowed to answer "may we say this was checked".
-It reads `last_conclusive_verification_at` for WHEN we looked, and the lifecycle
-columns for WHAT we found — both halves, because a conclusive check answers live
-or closed and stamps the same timestamp either way.
+It takes WHEN we looked and WHAT the look found from `listing_time` — one
+definition, shared with every job card: `checked_at` is the last conclusive
+check, `confirmed_at` is that check when it found the listing live. The
+lifecycle columns cannot answer WHAT on their own: the crawler rewrites
+`is_active` and `listing_confidence` to live on every feed sighting, including
+right after a verifier found the listing closed (813 rows inside one week,
+measured 2026-10-06).
 
 NOT fixed here, deliberately: the crawler still writes
 `last_verified_live_at`. Splitting the write side means a new
@@ -49,16 +53,18 @@ def checked_cutoff(*, days: int = CHECKED_FRESH_DAYS, now: datetime | None = Non
     return (now or datetime.now(timezone.utc)) - timedelta(days=days)
 
 
-def _verdict_was_live(row: dict[str, Any]) -> bool:
-    """A conclusive check answers live OR closed, and both stamp the same column.
+def _found_live(row: dict[str, Any], confirmed_at: datetime | None) -> bool:
+    """The last check found it live, and nothing has withdrawn `active` since.
 
     `last_conclusive_verification_at` alone is "we opened it", not "it is open".
     Measured 2026-09-23: of 27,681 listings checked inside a week, 8,295 had
     been checked and found DEAD — counting the column by itself would have
     called every one of them verified live, which is a worse claim than the one
-    this module exists to fix.
+    this module exists to fix. The lifecycle half still counts: a listing
+    retired by the crawl's misses, or degraded by failed fetches, is not one
+    we may call checked and live.
     """
-    return bool(row.get("is_active", True)) and (
+    return confirmed_at is not None and bool(row.get("is_active", True)) and (
         row.get("listing_confidence", "active") == "active"
     )
 
@@ -69,10 +75,11 @@ def was_checked_within(
     """True only if a verifier fetched this listing inside the window AND found
     it live. Both halves, or the claim is not one."""
     moment = now or datetime.now(timezone.utc)
-    checked = listing_time(row, now=moment).checked_at
+    when = listing_time(row, now=moment)
+    checked = when.checked_at
     if not (checked and checked >= checked_cutoff(days=days, now=moment)):
         return False
-    return _verdict_was_live(row)
+    return _found_live(row, when.confirmed_at)
 
 
 def verification_claim(
@@ -83,7 +90,8 @@ def verification_claim(
     `state` is one of:
       `checked`   — a verifier opened the employer's page inside the window
                     and a live posting answered
-      `closed`    — a verifier opened it and it was gone
+      `closed`    — a verifier opened it and it was gone, redirected or
+                    another role — even if the crawler has since re-activated it
       `stale`     — it was checked and live, but longer ago than the window
       `unchecked` — nobody has ever opened it; the crawler seeing it in a feed
                     is not the same thing, and is reported separately
@@ -92,10 +100,11 @@ def verification_claim(
     absence of evidence, which the surface discloses so the reader can decide.
     """
     moment = now or datetime.now(timezone.utc)
-    checked = listing_time(row, now=moment).checked_at
+    when = listing_time(row, now=moment)
+    checked = when.checked_at
     if checked is None:
         state = "unchecked"
-    elif not _verdict_was_live(row):
+    elif not _found_live(row, when.confirmed_at):
         # Checked, and the answer was no. Never dressed as a softer word.
         state = "closed"
     elif checked >= checked_cutoff(days=days, now=moment):

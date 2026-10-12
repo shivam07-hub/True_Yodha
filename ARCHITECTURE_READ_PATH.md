@@ -2327,8 +2327,78 @@ rows (checked against the prior snapshot in the same transaction). Seeded
 through the rail, marking only `company_pulse` pending — `force` queues every
 task, role_families' 58s too.
 
-⚠️ `last_seen_at` — the freshness input, 20% of the pulse — is still
-`max(coalesce(last_seen, first_seen))` over every row, live or not: Wipro's
-2,768 live roles score freshness 0 off a 09-09 marker. `compute_pulse` already
-decays it over `CONFIRM_WITHIN`, a confirmation window; what feeds it is the
-next decision, not this migration's.
+**Freshness is the last check on a live row (`20261006090000`, Shivam
+2026-10-06).** Freshness, 20% of the pulse, aged `last_seen_at` =
+`max(coalesce(last_seen, first_seen))` over every row, live or not: the
+scraper's run date, near-identical for every company. Wipro's 2,768 live roles
+scored freshness 0 off a 09-09 marker; on 10-07 the 239 companies on 09-30
+would reach day 7 together. `compute_pulse` already decays over
+`CONFIRM_WITHIN`, a confirmation window. Three inputs measured, 267 scored
+companies, 10-06 08:53:
+
+| input | inside 7d | pulses changed | what it is |
+|---|---|---|---|
+| the marker (before) | 259 | — | scraper run date |
+| `max(ingested_at)` | 225 | 256, ≤6 pts | 0.998 correlated with the marker: the same run date |
+| `max(last_verified_live_at)` | 157 | 265 | two writers: the crawler's feed sighting and the verifier; 43k of 51k live stamps are the crawl's, and `listing_time`'s same-day guard let 1,457 through on 10-01 |
+| **`max(last_conclusive_verification_at)`, live rows** | **179** | **257, −6…+20, mean +8.9** | a verifier opened the page and a live posting answered: `listing_trust`'s "checked" |
+
+The last one fed freshness for a day, in a new column `last_checked_at`; the API
+field renamed with it (`CompanyPulseItem.last_checked_at`) — one name, one meaning.
+Wipro 50 → 70, Accenture 83 → 100, Amazon 80 → 97. The cost: 28 companies no
+verifier has ever opened (20,030 live roles — Axis Bank 14,259, Infosys,
+LTIMindtree, Cognizant, Deloitte India, KPMG India, Google) read freshness 0
+until it reaches them: 83 → 80, where the marker would have put them on 10-07.
+
+Applied and seeded through the rail: 280 rows, one `refreshed_at`, 228 with a
+check, 179 inside 7 days, `open_roles` sum = live count (56,135), ACL postgres
+only. The refresh no longer writes `last_seen_at`; prod (`main`) reads it,
+frozen at its 10-06 value, until the merge. The column drop waits on that
+(BACKLOG · agent chores). The same-day guard's leak in `listing_time.verdict` is its
+own item, not this one's.
+
+**Then freshness left the pulse (`20261007090000`, Shivam 2026-10-07,
+DECISIONS PULSE1).** The 28 never-checked companies were not waiting their
+turn: the verifier had tried them and failed. Axis Bank 7,127 errors, Infosys 1,231,
+Cognizant 923 blocked, KPMG India 477, Google 155; last attempt 09-15
+(Ripplehire, Oracle Cloud and custom career sites). A check-based freshness
+docked them 20 points for Myro's coverage, not their hiring. The pulse is
+volume and momentum at 5:3, scaled to 100 (0.625 / 0.375): 36 companies at 100,
+median 75; Axis Bank 80 → 100, Wipro 70 → 62 (no new roles this week), Bain
+46 → 32. The refresh reads no time column; `last_checked_at` is dropped (no
+reader once Develop served `17b5533d`); `last_seen_at` waits for main (BACKLOG
+· agent chores). Verifier coverage itself is parked with a reopen trigger
+(ARCHIVE).
+
+## 27. Reliability close-out, measured 2026-10-11
+
+`83c79967` is on `Develop`, not on `main`. Prod still opens a slow read at
+500ms, so R1–R4 and the live `route.latency` samples wait on that merge.
+What follows was measured against the shared database from a laptop, writes
+stubbed, QA account `04a07845-d812-4f7b-8717-8155ea2ca2a6`.
+
+**`GET /jobs/analytics/me`.** With no family the snapshot is already one
+read (1,089ms, 61,673 jobs). With a family the route treated the name as an
+l2 cluster, resolved a role_domain, and paged every job in it.
+`slow_200:slow_read:…fetch_all_rows` is failed-close on this path, 36
+sightings, last 2026-10-10. Sales & Marketing is 13,890 jobs (14 pages). A
+`count=exact` on that domain, as the signed-in role, timed out at 8s. The
+family totals now ride on the snapshot (`by_family`, 322 families). The same
+call for Software Development: **1 read, 512ms, 2,322 jobs, 129 companies.**
+
+**Company page and partner SSO.** `fetch_company_jobs_page("Practus")`:
+350 / 306 / 315ms. `get_link` is one indexed row. Both clear 2s and sit on
+the ~300ms floor (§24). The 636 openings of `fetch_company_jobs_page` and
+the partner `get_link` / `resolve_credential` rows are prod's 500ms line.
+Code does not move them. Compute → Small does.
+
+**`/cv/versions`.** Eight 500s, 12:32:25–12:32:48 UTC on 2026-10-05, all
+`GET /cv/versions?job_id=INFSYS-EXTERNAL-247996`. The body was
+`APIError: JSON could not be generated / Bad Request` from the company-wide
+`in_`. The restriction started 2026-10-06 22:53 UTC. None of the eight, and
+none of the three `feed_warm` abandons (09:42–10:08 UTC the same day, seven
+Develop pushes, tick ~80s against a 60s drain), fall inside it.
+
+**No scrape to time.** Newest `jobs.ingested_at` is 2026-10-05 15:29 UTC.
+Newest `skill_floor_attempted_at` is 2026-10-03 08:19 UTC. R9 waits on the
+scraper.

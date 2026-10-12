@@ -5,6 +5,7 @@ from postgrest.exceptions import APIError
 
 from app.repositories.jobs import JobsRepository
 from app.routers.jobs.list import get_indexable_companies
+from app.schemas.company_pulse import CompanyPulseItem
 from app.services import shared_cache
 from app.services.background import debounce
 from app.services.company_pulse import (
@@ -12,6 +13,7 @@ from app.services.company_pulse import (
     build_series,
     build_series_from_histogram,
     compute_pulse,
+    project_item,
     sort_key_for,
 )
 
@@ -27,45 +29,49 @@ def setup_function() -> None:
 
 def test_no_open_roles_is_none_not_zero() -> None:
     # A company with nothing live has no signal to score — None, never 0.
-    assert compute_pulse(0, 0, 0) is None
-    assert compute_pulse(0, 5, 1) is None
+    assert compute_pulse(0, 0) is None
+    assert compute_pulse(0, 5) is None
 
 
 def test_pulse_is_bounded_0_100() -> None:
     for open_roles in (1, 20, 150, 500):
         for delta in (0, 5, 40):
-            for stale in (0, 10, 40, None):
-                p = compute_pulse(open_roles, delta, stale)
-                assert p is not None
-                assert 0 <= p <= 100
+            p = compute_pulse(open_roles, delta)
+            assert p is not None
+            assert 0 <= p <= 100
 
 
 def test_more_open_roles_raises_pulse() -> None:
-    low = compute_pulse(5, 0, 0)
-    high = compute_pulse(120, 0, 0)
+    low = compute_pulse(5, 0)
+    high = compute_pulse(120, 0)
     assert low is not None and high is not None
     assert high > low
 
 
 def test_fresh_inflow_raises_pulse() -> None:
-    quiet = compute_pulse(50, 0, 0)
-    hiring = compute_pulse(50, 20, 0)
+    quiet = compute_pulse(50, 0)
+    hiring = compute_pulse(50, 20)
     assert quiet is not None and hiring is not None
     assert hiring > quiet
 
 
-def test_staleness_lowers_pulse() -> None:
-    fresh = compute_pulse(50, 5, 0)
-    stale = compute_pulse(50, 5, 40)  # past the confirmation window → freshness 0
-    assert fresh is not None and stale is not None
-    assert fresh > stale
-    # 21 days used to sit inside a private window. It is the same zero as 40.
-    assert compute_pulse(50, 5, 21) == stale
+def test_full_volume_and_momentum_reach_100() -> None:
+    """Volume to momentum 5:3, scaled to 100: the scale has a top a company
+    can reach. With freshness gone, 0.5 + 0.3 would have capped it at 80."""
+    assert compute_pulse(14259, 5014) == 100
+    # Saturated volume, no new roles this week: the volume share alone.
+    assert compute_pulse(2768, 0) == round(62.5)
 
 
-def test_missing_last_seen_treated_as_stale_not_crash() -> None:
-    p = compute_pulse(50, 5, None)
-    assert p is not None and 0 <= p <= 100
+def test_pulse_does_not_depend_on_whether_myro_can_check_the_company() -> None:
+    """Shivam, 2026-10-07. Axis Bank (14,259 live) answers the verifier with
+    errors; Accenture is checked daily. Same size and inflow, same pulse."""
+    axis = project_item(company_name="Axis Bank", open_roles=14259, weekly_delta=5014)
+    accenture = project_item(company_name="Accenture", open_roles=14259, weekly_delta=5014)
+    assert axis["pulse"] == accenture["pulse"] == 100
+    assert set(axis) == set(CompanyPulseItem.model_fields)
+    assert "last_checked_at" not in axis
+    assert "last_seen_at" not in axis
 
 
 def test_series_length_and_empty() -> None:

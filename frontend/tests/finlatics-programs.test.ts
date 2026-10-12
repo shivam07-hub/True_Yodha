@@ -10,7 +10,7 @@ import {
   FINLATICS_LOGO_SRC,
   FINLATICS_PROGRAMS,
   FINLATICS_SRC,
-  finlaticsHomeHref,
+  finlaticsCardSrc,
   finlaticsHref,
   finlaticsPhotoSrc,
 } from "../lib/finlatics-programs"
@@ -55,12 +55,6 @@ test("Prep and landing render the same Training by Finlatics lockup", () => {
   assert.doesNotMatch(landing, /Training with/)
 })
 
-test("the Finlatics home footer carries the same Myro attribution", () => {
-  const url = new URL(finlaticsHomeHref())
-  assert.equal(url.origin, "https://www.finlatics.com")
-  assert.equal(url.searchParams.get("utm_src"), "myroref")
-})
-
 test("every program opens Finlatics with the Myro attribution param", () => {
   for (const program of FINLATICS_PROGRAMS) {
     const href = finlaticsHref(program)
@@ -96,5 +90,13 @@ test("every program has its info-card photo committed under /public/finlatics", 
     const src = finlaticsPhotoSrc(program)
     assert.equal(src, `/finlatics/${program.id}.jpg`)
     assert.ok(existsSync(join(process.cwd(), "public", src)), `${program.id} photo missing`)
+  }
+})
+
+test("every program has its Finlatics programme card (one PDF page) committed", () => {
+  for (const program of FINLATICS_PROGRAMS) {
+    const src = finlaticsCardSrc(program)
+    assert.equal(src, `/finlatics/cards/${program.id}.jpg`)
+    assert.ok(existsSync(join(process.cwd(), "public", src)), `${program.id} card missing`)
   }
 })

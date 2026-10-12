@@ -49,10 +49,17 @@
   /* WCAG 2.2 AA 2.5.8: an 11.5px line is a 16px-tall target. The text keeps
      its size; the box grows to something a thumb can hit. */
   min-height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
   font-size: var(--tm-fs-caption);
   font-weight: 600;
   white-space: nowrap;
+  cursor: pointer;
 }
+/* Expanded: the chevron turns. The list under it is the state; no label swap. */
+.prp-train-all[aria-expanded="true"] svg { transform: rotate(180deg); }
 
 .prp-train-note {
   margin: 0;
@@ -86,6 +93,28 @@
 .prp-course.is-matched {
   border-color: var(--tm-int-border);
   background: var(--tm-surface);
+}
+/* The card whose programme the main column shows: the room list's "open"
+   treatment, so one wash means "on screen" across the whole rail. */
+.prp-course[data-open="true"] {
+  border-color: var(--tm-int-border);
+  background: var(--tm-int-bg-wash);
+}
+
+/* The card body opens the programme; the Apply link under it leaves. */
+.prp-course-open {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: var(--tm-radius);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .prp-course-head {

@@ -1,6 +1,6 @@
 # Myro Referral Intelligence Uses Own-Connections + Strategy, Never Stranger PII
 
-**Status:** Accepted (amended 2026-09-15)
+**Status:** Accepted (amended 2026-09-15, 2026-10-06)
 **Date:** 2026-06-05
 **Related:** ADR-0004 (LLM actions cost XP), ADR-0006 (LinkedIn write-scope), MYRO_TUTOR_DESIGN.md
 
@@ -72,3 +72,22 @@ These were rejected in 2026-06-05 and stay rejected. Path 3 is not a licence to 
 - Surfaces: `/reach` (desk), Collections strip, job Reach log, card rail
   “Log who you reached”. Path 2 pack copy fills the notes when purchased;
   logging works with empty notes if it is not.
+
+## Amendment (2026-10-06) — Path 2 reads the job, the caller names it
+
+Path 2's free searches were a stateless `POST /jobs/reach/search` that trusted
+the caller to send the title, company and JD. Every caller already held the job
+id, and the paid pack already read the job by id, so the same intel had two
+input shapes. The extension on a return visit held only the id, sent blanks, and
+told the user to "add a company or role" on a page that had both.
+
+- **The free search is `GET /jobs/{job_id}/reach/search`.** Myro reads the job
+  from its own record, exactly as the pack does. The body-driven POST is
+  deleted; an unknown id is a 404, never an empty search.
+- **Reach starts from a saved job in the extension.** The popup's first screen
+  is Save only; "Find people to reach" appears once the job has an id. A search
+  run against an unsaved page left no Collection entry, so the person it found
+  had no job to be nominated against (Path 3) and the job fell out of the loop.
+- Nothing about what Myro fetches changes: it still builds the URLs and never
+  opens them.
+

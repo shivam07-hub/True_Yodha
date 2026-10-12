@@ -9,7 +9,7 @@ from typing import Any, Literal
 from app.repositories.job_tracks import JobTracksRepository
 from app.repositories.jobs import JobsRepository
 from app.repositories.scores import ScoresRepository
-from app.services import direction, job_importer, job_tracks, llm_ranker, onboarding_service
+from app.services import direction, job_importer, job_matcher, job_tracks, llm_ranker, onboarding_service
 from app.services.llm_provider import LLMProvider, get_judgment_provider
 from app.services.matching import candidate_pool, match_freshness, ranking, targeting
 from app.services.scoring.aspirations import fetch_aspiration_skills
@@ -603,6 +603,31 @@ async def compute_job_matches(
 
 def preview_imported_job(repo: JobsRepository, body: Any) -> dict[str, Any]:
     return job_importer.preview_imported_job(repo.client, body)
+
+
+def preview_fit(repo: JobsRepository, user_id: str, preview: dict[str, Any]) -> dict[str, Any]:
+    """Where the caller stands on a previewed job, before it is saved.
+
+    The rows scored are the rows saving it would write (`job_importer.preview_rows`)
+    and the formula is `job_matcher.overlap` — so this is the provisional
+    `match_score` the job carries the moment it is saved, until the brain's
+    verdict lands. No resolvable skills → None: unknown fit, not no fit.
+    """
+    def keys(field: str) -> list[str]:
+        return [s["taxonomy_key"] for s in preview.get(field) or [] if s.get("taxonomy_key")]
+
+    rows = job_importer.preview_rows(
+        repo.client,
+        keys("primary_skills"),
+        keys("secondary_skills"),
+        role_name=preview.get("role_name") or "",
+        job_description=preview.get("job_description") or "",
+    )
+    if not rows:
+        return {"match_score": None, "matched_skills": [], "top_gaps": []}
+    user_lower = {k.lower(): v for k, v in repo.get_user_skill_map(user_id).items()}
+    score, matched, missing = job_matcher.overlap(rows, user_lower)
+    return {"match_score": round(score), "matched_skills": matched, "top_gaps": missing[:2]}
 
 
 def save_imported_job(repo: JobsRepository, user_id: str, body: Any) -> dict[str, Any]:

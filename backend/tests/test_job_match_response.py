@@ -81,6 +81,8 @@ def test_a_confirmed_listing_is_not_stale_however_old_discovery_is():
         "is_active": True,
         "listing_confidence": "active",
         "last_verified_live_at": stamp.isoformat(),
+        "last_conclusive_verification_at": stamp.isoformat(),
+        "reactivated_at": stamp.isoformat(),
     }
 
     assert _match(job).is_stale is False

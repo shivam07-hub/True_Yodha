@@ -45,7 +45,6 @@ def test_request_is_one_fast_persisted_rpc() -> None:
         analytics_refresh=lambda *_: {},
         skill_refresh=lambda: {},
         search_refresh=lambda: {},
-        company_directory_refresh=lambda: {},
     )
 
     assert service.request(trigger="batch-finalize", force=True) == db.requested
@@ -68,22 +67,18 @@ def test_one_refresh_failure_is_persisted_and_does_not_gate_the_others() -> None
         analytics_refresh=analytics,
         skill_refresh=lambda: ran.append("skill_demand") or {"rows": 374},
         search_refresh=lambda: ran.append("job_search") or {"rows": 74379},
-        company_directory_refresh=lambda: ran.append("company_directory") or {"companies": 232},
     )
 
     service.process(
-        ["analytics", "skill_demand", "job_search", "company_directory"],
+        ["analytics", "skill_demand", "job_search"],
         trigger="batch-finalize",
         force=True,
     )
 
-    assert ran == ["analytics", "skill_demand", "job_search", "company_directory"]
-    assert [row["p_success"] for row in db.finished] == [False, True, True, True]
+    assert ran == ["analytics", "skill_demand", "job_search"]
+    assert [row["p_success"] for row in db.finished] == [False, True, True]
     assert "batch deadline" in db.finished[0]["p_error"]
     assert db.finished[1]["p_result"] == {"rows": 374}
-    # The company directory is a sibling, not a special case: it runs even
-    # though analytics failed first, and its result is persisted.
-    assert db.finished[3]["p_result"] == {"companies": 232}
 
 
 def test_the_in_database_tasks_are_never_claimed_over_postgrest() -> None:
@@ -92,13 +87,12 @@ def test_the_in_database_tasks_are_never_claimed_over_postgrest() -> None:
     as `authenticator` (safeupdate, 8s) — they failed that way for 26 days.
     Their pending rows are left for pg_cron's `run_snapshot_sql_refresh`."""
     db = _DB()
-    db.requested = ["role_families", "skill_closeness", "company_pulse", "ghost_index"]
+    db.requested = ["role_families", "skill_closeness", "company_pulse", "company_directory", "ghost_index"]
     service = SnapshotRefreshService(
         db,
         analytics_refresh=lambda *_: {},
         skill_refresh=lambda: {},
         search_refresh=lambda: {},
-        company_directory_refresh=lambda: {},
     )
 
     tasks = service.request(trigger="batch-finalize", force=True)

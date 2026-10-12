@@ -13,7 +13,6 @@ _TOKEN = re.compile(r"^[A-Za-z0-9_./-]+$")
 
 _BREAK_KINDS = frozenset({"object_no_job", "job_never_claimed"})
 _SLOW_KINDS = frozenset({"reads_over_budget", "capacity_queue", "slow_read"})
-_DEATH_KINDS = frozenset({"oom", "crash", "failed_deploy", "runner_exit"})
 _BELTS = frozenset({
     "skill_floor",
     "listing_verifier",
@@ -31,11 +30,6 @@ def cause_key_for(sighting: Sighting) -> str:
         return f"unhandled_500:{type(sighting.exc).__name__}:{file}:{function}"
     if sighting.cause_class == "capacity_503":
         return f"capacity_503:{_token(sighting.limiter)}"
-    if sighting.cause_class == "process_death":
-        death = _token(sighting.death_kind)
-        if death not in _DEATH_KINDS:
-            death = "crash"
-        return f"process_death:{_token(sighting.process)}:{death}"
     if sighting.cause_class == "upload_guarantee":
         kind = _token(sighting.break_kind)
         if kind not in _BREAK_KINDS:

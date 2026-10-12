@@ -4,6 +4,7 @@ from datetime import date
 from typing import Any
 
 from app.repositories.jobs import JobsRepository
+from app.services.listing_time import CARD_COLUMNS
 
 
 class _FakeQuery:
@@ -67,6 +68,9 @@ class _SelectHistoryQuery(_FakeQuery):
     def select(self, value: str) -> "_SelectHistoryQuery":
         self._selects.append(value)
         super().select(value)
+        return self
+
+    def order(self, *_args: Any, **_kwargs: Any) -> "_SelectHistoryQuery":
         return self
 
 
@@ -194,11 +198,25 @@ def test_get_user_match_stack_selects_job_lifecycle_fields() -> None:
     repo.get_user_match_stack("user-1")
 
     match_select = next(value for value in user_db.selects if "jobs(" in value)
-    assert "first_seen" in match_select
-    assert "last_seen" in match_select
-    assert "is_active" in match_select
-    assert "listing_confidence" in match_select
-    assert "last_verified_live_at" in match_select
+    for column in CARD_COLUMNS.split(","):
+        assert column in match_select
+
+
+def test_every_card_select_carries_the_card_columns() -> None:
+    """A card path that drops one of these reads every card it builds as
+    unconfirmed — the verdict cannot see a check the select left behind."""
+    user_db = _SelectHistoryDB({"user_job_matches": [], "user_dismissed_job_cards": []})
+    repo = JobsRepository(user_db, _FakeDB())  # type: ignore[arg-type]
+    repo.get_matches_for_context("user-1", 1, "ctx")
+    selects = [
+        JobsRepository._FEED_COLUMNS,
+        JobsRepository._AGENT_PICK_JOB_COLUMNS,
+        next(value for value in user_db.selects if "jobs(" in value),
+    ]
+
+    for select in selects:
+        for column in CARD_COLUMNS.split(","):
+            assert column in select, (column, select)
 
 
 def test_get_user_match_stack_hides_untrusted_listings() -> None:

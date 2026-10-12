@@ -58,7 +58,7 @@ def at_furthest(monkeypatch):
     monkeypatch.setattr(
         onboarding_service,
         "_current_result",
-        lambda _db, _uid: {"kind": "onboarding_complete", "redirect_to": "/market", "journey_step": 2},
+        lambda _db, _uid, **_k: {"kind": "onboarding_complete", "redirect_to": "/market", "journey_step": 2},
     )
     monkeypatch.setattr(
         onboarding_service, "UsersRepository", lambda _db: _Repo(get_profile=_PROFILE)
@@ -122,7 +122,7 @@ def test_a_step_at_or_beyond_the_furthest_cannot_skip_work(at_furthest, monkeypa
     monkeypatch.setattr(
         onboarding_service,
         "_current_result",
-        lambda _db, _uid: {"kind": "awaiting_target", "journey_step": 2},
+        lambda _db, _uid, **_k: {"kind": "awaiting_target", "journey_step": 2},
     )
     assert onboarding_service.get_result(object(), "u1", step=3)["kind"] == "awaiting_target"
     assert onboarding_service.get_result(object(), "u1", step=2)["kind"] == "awaiting_target"

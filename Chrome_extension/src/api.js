@@ -78,23 +78,25 @@ export async function previewImport(apiUrl, token, draft) {
   return request(apiUrl, token, "/jobs/import/preview", toPreviewPayload(draft))
 }
 
-// Career Profile (P2 auto-fill): the recruiter fact-layer the user captured once
-// in Myro. Fetched + cached in the background (lock L9) so filling an ATS form
-// is instant. Returns { profile, updated_at } — profile is the CareerProfileData
-// shape the autofill dictionary maps into form fields.
-export async function fetchCareerProfile(apiUrl, token) {
-  return request(apiUrl, token, "/career-profile", null, false, "GET")
+// Reach Intelligence (ADR-0018 Path 2): the backend reads the saved job by id,
+// derives which leader roles to search for, and returns search URLs the user
+// opens in their OWN browser. Myro never fetches the results — free, no coins.
+export async function reachSearch(apiUrl, token, jobId) {
+  return request(apiUrl, token, `/jobs/${encodeURIComponent(jobId)}/reach/search`, null, false, "GET")
 }
 
-// Reach Intelligence (ADR-0018): the backend derives which leader roles to
-// search for and returns search URLs the user opens in their OWN browser.
-// Myro never fetches the results — free, no coin charge.
-export async function reachSearch(apiUrl, token, { jobTitle, company, jobDescription }) {
-  return request(apiUrl, token, "/jobs/reach/search", {
-    job_title: jobTitle || "",
-    company: company || null,
-    job_description: jobDescription || "",
-  })
+// Page Entry: "which of my jobs is this page?" — the popup's first read. The
+// server matches the URL against the user's own Collection and stages it with
+// the same resolver as the Collections surface. `entry` is null for a new page.
+export async function pageEntry(apiUrl, token, url) {
+  return request(apiUrl, token, "/jobs/collections/page", { url })
+}
+
+// "I applied" — the user's own answer, the same write as web's "Did you apply?"
+// Yes: status applied, any open Apply-click question answered, and the CV of
+// record frozen server-side.
+export async function markApplied(apiUrl, token, jobId) {
+  return request(apiUrl, token, `/jobs/applications/${encodeURIComponent(jobId)}`, { status: "applied" }, false, "PUT")
 }
 
 export async function saveImport(apiUrl, token, state) {

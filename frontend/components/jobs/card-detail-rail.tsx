@@ -135,12 +135,7 @@ function MatchPanel({ matched, missing }: { matched: string[]; missing: string[]
 function ReachPanel({ token, jobId, job }: { token: string; jobId: string; job: JobMatch }) {
   const q = useQuery({
     queryKey: ["reachSearch", jobId],
-    queryFn: () =>
-      jobsApi.reachSearch(token, {
-        job_title: job.title,
-        company: job.company,
-        job_description: job.job_description ?? job.job_summary ?? undefined,
-      }),
+    queryFn: () => jobsApi.reachSearch(token, jobId),
     staleTime: 30 * 60 * 1000,
   })
   if (q.isLoading) return <p className="fc-rail-loading">Finding the people to reach…</p>

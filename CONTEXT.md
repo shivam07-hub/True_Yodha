@@ -409,12 +409,17 @@ the compare strip as a live jobs query.
   'active'`, the predicate `company_directory.active_count` counts. A company's
   open roles is one number on every surface; never a crawl window over
   `last_seen` (retired).
+- `pulse` is volume and momentum, 5:3 scaled to 100 (DECISIONS PULSE1). No
+  time input: not the crawler's date (the same day for every company), not the
+  verifier's last check (a company Myro cannot check would score lower for
+  Myro's blind spot). Whether a listing was checked belongs on the job card
+  (`listing_trust`), never in the company's score.
 - `pulse` is `None` when a company has no live roles — never a fabricated 0.
 - Refresh runs inside the database on the snapshot lease (pg_cron →
   `run_snapshot_sql_refresh`, ~12s), after a scraper finalize or 20h without a
   success. Stale is stamped by `refreshed_at`, not by a per-request scan.
 - Formula (`compute_pulse`, sparkline) lives in one Python module. SQL only
-  aggregates the three raw markers.
+  aggregates the raw inputs: live count, weekly inflow, the inflow series.
 
 ## Scoped Skill Demand
 
@@ -765,6 +770,7 @@ The single answer to "how good is this match for this user, and what should they
 
 **Invariants**
 - Derived in `to_job_match` (the one match-row reader), never re-computed in the frontend. `frontend/lib/jobs/credible-recommendation.ts` is deleted — a surface asking "is this strong?" reads `is_strong`; "how good?" reads `match_score`; "what verdict?" reads `verdict`.
+- **One overlap, every surface** (2026-10-10). `overlap_score` has one formula: `job_matcher.overlap(job_skill_rows, user)` — level-weighted over the job's levelled skills. It is the provisional `match_score`, the /intel fit (`/jobs/fit-batch`), the overlap the analyse and deepen prompts are given, and the extension's pre-save ring (`/jobs/import/preview` → `match_score`), which scores the rows the save will write (`job_importer.preview_rows` → `skill_floor.floor_rows`). Deleted: `analyse._compute_overlap` and the preview's copy of it — a primary×2/secondary×1 split the matcher had dropped (`is_primary` was TRUE on 94% of rows), which let one job read three different percentages.
 - **One ordering, every surface** (2026-08-13, Shivam). `match_score` is the ONE fit order. Deleted rather than reconciled: `_fit_scores`’ client twin, `feed-model.scoreItem`/`winnabilityOf`/`triageFeed` (the `prize × winnability` "Best next" rank), and `classifyMatch`’s grade cut. That cut is why this matters — it bucketed a brain-rated row by GRADE and only fell back to `verdict` when a row had no grade, so a row could arrive `verdict: "strong", is_strong: true` and still be counted below the bar on a C+ grade. That is `credible-recommendation.ts`, deleted when Match Verdict shipped, grown back one file over. `SORTS` is now `fit | recent | company`: "Best fit" is the verdict, and the other two answer different questions (when, who) rather than making a second claim about the same one. **Followed company and target role are targeting facts** — they belong in the Targeting Brief, read by the brain into the verdict, never as a client multiplier applied after ranking. Deleting the ranker also orphaned `useFollowCompany` on Collections: one network read removed. `tests/dashboard-feed-model.test.ts` fails if any of it regrows.
 - **Frontend seam `frontend/lib/jobs/match-verdict.ts` owns every read of the verdict** (Backlog #36 Slice 3): `verdictLabel` (word), `matchFitScore` (the 0–100 number — `match_score ?? overlap_score`, **never** `overall_score`, a 0–5 scale), `verdictMove` (verdict→"what to do"), `strongMatches`/`pickBestMatch` (selection). Both the desktop card adapter (`card-view.ts`) and the mobile row adapter (`mobile/redesign/job-model.ts`) READ these — neither re-derives fit/verdict/move from score bands. The pre-#36 mobile `job-model.ts` was the divergence: it invented verdicts from the fit band (collapsing `strong` into "Worth it", inventing "Long shot") and mixed `overall_score` into the percent.
 - **On-open warming is one hook, every surface** (`frontend/lib/hooks/use-match-brain.ts` → `POST /jobs/{id}/brain` → `on_demand.open_job_eval`). The POST is a Durable Answer: stored verdict or `available=False`, and it enqueues `job_brain_eval` (named write, FAST lane, `ensure_job_eval`). First paint is overlap / `checking`. `MyroTake` is absent until a scored eval exists — never a loading sentence, never waiting on a model.
@@ -1231,6 +1237,34 @@ CV history. An unanswered apply intent is deleted with the listing.
   ladder, the liveness rule, the landing rule and the origin label are tested
   once there, not through each skin.
 
+### Page Entry
+
+**"Which of my jobs is this page?"** — the Chrome extension's first read on
+open (`POST /jobs/collections/page`, `app/services/collections/page.py`). It
+matches the page URL against the user's OWN applications and stages the match
+through the resolver above, so the popup shows the same stage as Collections and
+offers that stage's one next step: saved → tailor, tailored → apply, applied →
+prepare.
+
+- **The server holds the answer; the extension holds none.** The popup used to
+  keep `{job_id, title}` per URL in `chrome.storage`: it never knew a stage,
+  never saw a job saved from Myro's list, and on a return visit held too little
+  to act on (reach went out with a blank job).
+- **Page identity is one rule, in `page.py`.** Host case-folded, fragment and
+  tracking parameters (`utm_*`, `src`, `gh_src`, …) dropped, the stored URL's
+  remaining parameters must all be on the page, and the ATS apply step
+  (`…/R123/apply`) is the posting at `…/R123`. A careers index never claims the
+  jobs under it.
+- **Only the user's own applications are searched.** An Apply click is at least
+  a save, so every job they went to apply to from Myro is there; the corpus is
+  never scanned on a popup open.
+- **On a tailored page the popup leads with "I applied".** The user is on the
+  company's own page with a CV aimed at the job — where the goal line says
+  *apply*. It writes the same answer as the web's "Did you apply?" Yes
+  (`PUT /jobs/applications/{id}` → `applied`, intents answered, CV of record
+  frozen). An unanswered Apply click asks the same even before a tailor. It is
+  never inferred from the page.
+
 ---
 
 ## Seniority Eligibility
@@ -1499,23 +1533,23 @@ Uploads are never rejected for load (your "never fail an upload" rule). At peak 
 
 The operator-facing record that a Railway-visible **failure of a named cause** happened (or would have happened) to a user. Dual of Overload Policy: Overload Policy is what the product refuses to do to an upload; a Notice is what we refuse to let happen twice.
 
-The saturation mailbox is retired (ADR-0021). A Notice is the memory; a daily GitHub Action harvests and sends one digest; Cursor closes. Slow 200s (`metric route.slow` on a 2xx) are Notices by **cause**, never by route: over-budget reads, a slow query named for the code that asked it, or a capacity queue victim.
+The saturation mailbox is retired (ADR-0021). A Notice is the memory; a daily closer (pg_cron → the production API) harvests and sends one digest; Cursor closes. Slow 200s (`metric route.slow` on a 2xx) are Notices by **cause**, never by route: over-budget reads, a slow query named for the code that asked it, or a capacity queue victim.
 
 **Catalog**
 
-1. Process death — Railway crash, OOM, failed deploy, Job Runner exit.
+1. *(retired 2026-10-10)* Process death — the Railway harvest never recorded one: it read only a deployment's CURRENT status, and Railway restarts a crashed process. A dying process shows up as 500s, 503s and dead-men instead.
 2. Unhandled 500.
 3. 503 / upstream timeout (`read_capacity.rejected`, `upstream.read_timeout`).
 4. Upload Guarantee break — object in storage, no job / no output.
 5. Work Lane exhaustion — retries spent, user still has no result.
 6. Dead-man — skill-floor, listing verifier, job ingestion, and the Notice closer. Ingestion opens only when `stalled` (168h). `degraded` (behind the 72h aim) neither opens nor closes. A repeat probe refreshes `last_seen_at` and does not increment the count.
-7. Slow 200 — `slow_200:reads_over_budget` (code; the digest mails again when the count changes), `slow_200:slow_read:<file>:<function>` (code; one round trip ≥500ms, named for its caller), or `slow_200:capacity_queue` (`blocked`; no slow trip of its own; mails when the count doubles, and on Monday).
+7. Slow 200 — `slow_200:reads_over_budget` (code; the digest mails again when the count changes), `slow_200:slow_read:<file>:<function>` (code; one round trip ≥2,000ms — 500ms until 2026-10-10, which filed the ~300ms per-call floor as 79 causes — named for its caller), or `slow_200:capacity_queue` (`blocked`; no slow trip of its own; mails when the count doubles, and on Monday).
 
-Class 2 closes in Cursor: root-cause fix, five gates, branch from `main`, that Notice’s files only. The Action never writes the patch. A `NOTICE_CAUSE_KEY` test already on `origin/main` is how the next digest marks it `closed`. A harvest proof may close an `open` belt from one healthy sample. It does not clear `failed-close` — a recovery that did not hold stays visible until a proof on `main`. Class 3 and slow-200 queue victims and Railway OOM/failed-deploy open `blocked`. 4–6 record live; the closer harvests Railway deaths and belt recovery.
+Class 2 closes in Cursor: root-cause fix, five gates, branch from `main`, that Notice’s files only. The closer never writes the patch. A `NOTICE_CAUSE_KEY` test already on `origin/main` is how the next digest marks it `closed`. A harvest proof may close an `open` belt from one healthy sample. It does not clear `failed-close` — a recovery that did not hold stays visible until a proof on `main`. Class 3 and slow-200 queue victims open `blocked`. 4–6 record live; the closer harvests belt stalls and recovery.
 
 **Identity**
 
-`cause_key` = class + fingerprint. Unhandled 500 → exception type + file + function. 503 → which limiter / which timeout, not the route. Upload Guarantee → `object_no_job` vs `job_never_claimed`. Work Lane → job type + terminal error class. Dead-man → one key per belt. Slow 200 → over-budget, or the slowest round trip's app frame (file + function), or capacity queue. The trip is timed inside the read-capacity claim, so waiting for a slot never names a query. Process death → process + death kind. The route is evidence, never the identity. Reopen of the same `cause_key` after a closing commit is a **failed close**.
+`cause_key` = class + fingerprint. Unhandled 500 → exception type + file + function. 503 → which limiter / which timeout, not the route. Upload Guarantee → `object_no_job` vs `job_never_claimed`. Work Lane → job type + terminal error class. Dead-man → one key per belt. Slow 200 → over-budget, or the slowest round trip's app frame (file + function), or capacity queue. The trip is timed inside the read-capacity claim, so waiting for a slot never names a query. The route is evidence, never the identity. Reopen of the same `cause_key` after a closing commit is a **failed close**.
 
 **Status**
 
@@ -1531,9 +1565,9 @@ Postgres is the record. Tests use an in-memory adapter. Redis may page (skill-fl
 
 **Surfaces**
 
-- Live: 500/503 handlers, Work Lane `on_failure`, upload stall/orphan, skill-floor and listing-verifier dead-men, and slow 2xx timing write a Notice (no email).
-- Daily: GitHub Action harvests Railway process death, settles proofs already on `origin/main`, sends one digest to `ops_alert_email`. An open cause whose count rose is movement. A blocked cause is movement when its count doubles. The closer writes `notice_closer_heartbeat` on every run, including a run that sends nothing; `/health` opens `dead_man:notice_closer` when that row is older than 36h. Cursor authors the close when the laptop is open — tonight or the next session. OpenRouter is the user path and is not in this loop.
-- The closer does not run inside `mirror-backend-prod`. The Job Runner binds Notice so class 5 can record.
+- Live: 500/503 handlers, Work Lane `on_failure`, upload stall/orphan, skill-floor and listing-verifier dead-men, and slow 2xx timing write a Notice (no email). In the web process the write is queued for one writer thread — never on the request path (2026-10-10).
+- Daily: pg_cron (02:30 UTC; a 06:30 retry only when no heartbeat) calls `POST /internal/notice/close` on production, which harvests belts, settles proofs in the tests production shipped with (production runs `main`), and sends one digest to `ops_alert_email`. A pass that raises mails its own failure outside the digest. An open cause whose count rose is movement. A blocked cause is movement when its count doubles. The closer writes `notice_closer_heartbeat` on every run, including a run that sends nothing; `/health` opens `dead_man:notice_closer` when that row is older than 36h. Cursor authors the close when the laptop is open — tonight or the next session. OpenRouter is the user path and is not in this loop.
+- The closer runs inside `mirror-backend-prod`, after acknowledging the call; dev refuses it (its tests are not proofs on main). It moved off a GitHub Action that stopped being scheduled after 2026-10-06 without a word. The Job Runner binds Notice inline so class 5 can record.
 
 ## Listing Verification
 
@@ -1549,6 +1583,8 @@ Whether a job we surface still exists. Two triggers, one truth — every verdict
 **`unknown` is a first-class verdict.** A 401/403/429/timeout from an ATS is not evidence a role is gone; it resolves to `unknown` and the surface discloses "couldn't check". Only real closure evidence (404/410, an absent record on the ATS's own API, explicit closed-marker copy) may read as `closed`. Closed-marker copy is matched on the clause every phrasing shares — Godrej says "the job you are trying to apply for has been filled", which neither "position has been filled" nor "job has been filled" is a substring of.
 
 **Liveness is not freshness.** `last_seen` records when the scraper last *ingested* a row, not when anyone confirmed it exists — while the scraper does not re-crawl, `last_seen` carries no liveness information at all and must not be rendered as if it does.
+
+**A feed sighting is not a check.** The crawler stamps `last_verified_live_at` (and re-activates the row) whenever a job_id is in the employer's feed. A listing is *confirmed* only by the verifier's last conclusive check finding it live — `listing_time.confirmed_at`, the one definition job cards and `listing_trust` share ([ARCHITECTURE_LISTING_TIME.md](ARCHITECTURE_LISTING_TIME.md) step 7).
 
 **Unload.** Any gone-signal writes `listing_confidence=closed` and starts a one-hour clock (`quarantine_until` / `deletion_eligible_at`): one complete scrape miss, verifier close (strong or weak), or a user report that the apply link is dead. `likely_closed` is leftover enum, not a holding pen. The card leaves Collection immediately. After the hour, the verifier writes a `job_archive_v1` bundle to a local `job_unloads/` tree, then `retire_closed_jobs` deletes those ids. Child DELETE triggers that maintain `job_verification_interest` do not run after the job row is gone (that derived row CASCADEs). Nothing is written to Supabase Storage. Railway skips unload unless `JOB_UNLOAD_ARCHIVE_DIR` points at a real disk. User history is snapshotted into `job_applications` / `cv_versions` first. A scrape that sees the posting again writes it back as live. Restore from `backend/`: `python -m scripts.restore_job_archive path/to/archive_dir`. The scraper does not delete rows on publish.
 

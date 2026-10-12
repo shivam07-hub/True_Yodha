@@ -4,7 +4,8 @@
  * PrepRail — the standing column of Unified Prep v2 (artboard 2b).
  *
  *   Prep · N live       every room, with its four pips
- *   Training by Finlatics — the three matched to this board
+ *   Training by Finlatics — the three matched to this board; each opens in
+ *                           the main column, "All 11" lists the rest
  *   Skill path · Audit  — kept below the training block (Shivam, 2026-09-06)
  *
  * The pips are the whole idea: the same four steps the room shows, at a glance,
@@ -100,6 +101,8 @@ export function PrepRail({
   live,
   onOpenRoom,
   shelf,
+  programId,
+  onOpenProgram,
 }: {
   token: string
   apps: ApplicationResponse[]
@@ -108,7 +111,10 @@ export function PrepRail({
   live: number
   onOpenRoom: (jobId: string, href: string) => void
   /** No rooms: the Finlatics picker stands where the room list would. */
-  shelf: { rows: ShelfRow[]; selectedId: string; onSelect: (programId: string) => void } | null
+  shelf: ShelfRow[] | null
+  /** The Finlatics programme open in the main column, if any. */
+  programId: string | null
+  onOpenProgram: (programId: string) => void
 }) {
   const byJob = new Map((ladder?.rooms ?? []).map((room) => [room.job_id, room]))
 
@@ -152,9 +158,14 @@ export function PrepRail({
         ) : null}
 
         {shelf ? (
-          <TrainingPicker rows={shelf.rows} selectedId={shelf.selectedId} onSelect={shelf.onSelect} />
+          <TrainingPicker rows={shelf} selectedId={programId} onSelect={onOpenProgram} />
         ) : (
-          <TrainingCard matches={ladder?.training} note={ladder?.training_note ?? null} />
+          <TrainingCard
+            matches={ladder?.training}
+            note={ladder?.training_note ?? null}
+            selectedId={programId}
+            onSelect={onOpenProgram}
+          />
         )}
         <SkillPathRail token={token} />
         <AuditCard token={token} />

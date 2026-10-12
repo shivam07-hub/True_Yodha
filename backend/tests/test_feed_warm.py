@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+from app.services import llm_ranker
 from app.services.matching import feed_warm
 from app.services.onboarding_service import eval_context_key
 
@@ -432,3 +433,34 @@ def test_a_warm_already_in_flight_is_pending_and_not_queued_again(monkeypatch: A
         lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("double enqueue")),
     )
     assert feed_warm.enqueue_feed_warm("u1") is True
+
+
+# Three AbandonedJobErrors, 09:42–10:08 UTC on 2026-10-06, while Develop was
+# pushed seven times. A tick of 8 jobs outlived the 60s deploy drain.
+NOTICE_CAUSE_KEY = "work_lane:feed_warm:AbandonedJobError"
+
+
+def test_one_tick_is_one_judgment_wave() -> None:
+    assert feed_warm.DRAIN_BATCH <= llm_ranker._CONCURRENCY
+
+
+def test_an_abandoned_tick_reenqueues_the_drain(monkeypatch: Any) -> None:
+    enqueued: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        feed_warm.background, "enqueue",
+        lambda _lane, _job, **kwargs: enqueued.append(kwargs["payload"]),
+    )
+
+    asyncio.run(feed_warm._feed_warm_failed({
+        "user_id": "u1",
+        "baseline_version_id": 4,
+        "announce": True,
+        "_abandoned": True,
+    }))
+    asyncio.run(feed_warm._feed_warm_failed({"user_id": "u1", "_abandoned": False}))
+
+    assert enqueued == [{
+        "user_id": "u1",
+        "baseline_version_id": 4,
+        "announce": True,
+    }]

@@ -121,12 +121,12 @@ def test_a_fast_round_trip_names_nothing() -> None:
 def test_the_slowest_trip_wins() -> None:
     token = read_budget.begin()
     try:
-        _app_helper("a", "/app/app/services/a.py", "read_budget.record_round_trip(600.0)")()  # type: ignore[operator]
-        _app_helper("b", "/app/app/services/b.py", "read_budget.record_round_trip(900.0)")()  # type: ignore[operator]
-        _app_helper("c", "/app/app/services/c.py", "read_budget.record_round_trip(700.0)")()  # type: ignore[operator]
+        _app_helper("a", "/app/app/services/a.py", "read_budget.record_round_trip(2600.0)")()  # type: ignore[operator]
+        _app_helper("b", "/app/app/services/b.py", "read_budget.record_round_trip(2900.0)")()  # type: ignore[operator]
+        _app_helper("c", "/app/app/services/c.py", "read_budget.record_round_trip(2700.0)")()  # type: ignore[operator]
         trip = read_budget.slowest_round_trip()
         assert trip is not None
-        assert (trip.ms, trip.file, trip.function) == (900.0, "app/services/b.py", "b")
+        assert (trip.ms, trip.file, trip.function) == (2900.0, "app/services/b.py", "b")
     finally:
         read_budget.end(token)
 

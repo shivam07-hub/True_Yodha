@@ -94,6 +94,20 @@ def score_wanted(
     return score, matched, [key for _level, key in ranked_missing]
 
 
+def overlap(
+    job_skill_rows: list[dict], user_lower: dict[str, int]
+) -> tuple[float, list[str], list[str]]:
+    """One job's `job_skills` rows against one user's CV skills (keys lowercased):
+    (score 0-100, matched, missing-deepest-first).
+
+    The one overlap every surface shows or prompts with — the provisional
+    `match_score` before the brain lands, the /intel fit, the analyse and deepen
+    prompts, and the extension's preview ring. A preview builds the rows its save
+    will write (`job_importer.floor_rows`), so the number cannot move on save.
+    """
+    return score_wanted(wanted_skills(job_skill_rows), user_lower)
+
+
 def get_top_matches(
     job_skill_rows: list[dict],
     user_skill_map: dict[str, int],

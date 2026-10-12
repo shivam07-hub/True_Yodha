@@ -3402,8 +3402,8 @@ export interface JobMatch {
   ctc_low_lpa?: number | null
   ctc_high_lpa?: number | null
   ctc_basis?: "stated" | "estimated" | null
-  // Scraper lifecycle (Job Intelligence) — now carried on /jobs/matches.
-  // `last_seen_at` = scraper observation time, powers "Last verified".
+  // Listing time (`ListingTime.card()`) — carried on /jobs/matches.
+  // `last_seen_at` = day a verifier last found it open, or null; powers "Last verified".
   // `first_seen` = discovery age / sort only. Never the publication clock.
   first_seen?: string | null
   last_seen_at?: string | null
@@ -3874,8 +3874,7 @@ export interface JobFeedItem {
   industry?: string | null
   source_url?: string | null
   first_seen?: string | null
-  last_seen_at?: string | null  // discovery marker; not a check
-  last_verified_live_at?: string | null
+  last_seen_at?: string | null  // day a verifier last found it open; null when unconfirmed
   is_stale?: boolean            // not confirmed open — warn before the Apply link 404s
   is_active: boolean
   skills: string[]
@@ -4073,7 +4072,6 @@ export interface CompanyPulseItem {
   weekly_delta: number
   pulse: number | null
   series: number[]
-  last_seen_at?: string | null
 }
 
 export interface CompanyPulseResponse {
@@ -4717,13 +4715,12 @@ export const jobs = {
     request<{ job_id: string; job_description: string }>(`/jobs/${jobId}/description`, {
       headers: { Authorization: `Bearer ${token}` },
     }),
-  /** Free reach search (ADR-0018): roles to search for + URLs the user opens
-   *  in their own browser. Myro never fetches the results. */
-  reachSearch: (token: string, body: { job_title: string; company?: string | null; job_description?: string }) =>
-    request<ReachSearchResponse>(`/jobs/reach/search`, {
-      method: "POST",
+  /** Free reach search (ADR-0018 Path 2): roles to search for + URLs the user
+   *  opens in their own browser. Myro reads the job by id from its own record
+   *  and never fetches the results. */
+  reachSearch: (token: string, jobId: string) =>
+    request<ReachSearchResponse>(`/jobs/${encodeURIComponent(jobId)}/reach/search`, {
       headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify(body),
     }),
   /** Purchased-state for a job's outreach pack — no charge (UI gate). */
   getReachPack: (token: string, jobId: string) =>

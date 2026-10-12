@@ -59,8 +59,7 @@ def _shape_single_job(
     drift from the batch path; a shared function is what makes that true.
     """
     user_lower = {k.lower(): v for k, v in user_skill_map.items()}
-    wanted = job_matcher.wanted_skills(job_skill_rows)
-    overlap, matched, missing = job_matcher.score_wanted(wanted, user_lower)
+    overlap, matched, missing = job_matcher.overlap(job_skill_rows, user_lower)
     missing = missing[: job_matcher.MAX_MISSING_SKILLS]
     return {
         "job_id": str(meta["job_id"]),

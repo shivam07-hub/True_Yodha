@@ -90,6 +90,32 @@ test("No rooms: the rail picks a Finlatics programme, the main column shows it",
   assert.match(shelfCss, /\.prp-program-why \{[^}]*color: var\(--tm-text\);/)
 })
 
+test("A Finlatics programme opens in the main column from either rail, with their card", () => {
+  const shell = code("components/preparations/prep-shell.tsx")
+  const rail = code("components/preparations/prep-rail.tsx")
+  const train = code("components/preparations/training-card.tsx")
+  const shelf = code("components/preparations/training-shelf.tsx")
+
+  // With rooms, a picked programme takes the main column; opening a room closes it.
+  assert.match(shell, /\{picked \? \(/)
+  assert.ok(shell.indexOf("{picked ? (") < shell.indexOf("<PrepRoom"))
+  assert.match(shell, /function openRoom[\s\S]*?setProgramId\(null\)/)
+  assert.match(rail, /<TrainingCard[\s\S]*?onSelect=\{onOpenProgram\}/)
+
+  // The card body is a button that opens; Apply stays the link that leaves.
+  assert.match(train, /className="prp-course-open[^"]*"[\s\S]*?onClick=\{onOpen\}/)
+  assert.match(train, /href=\{finlaticsHref\(program\)\}/)
+
+  // "All 11" expands the same list the no-rooms picker uses, in place.
+  assert.match(train, /aria-expanded=\{all\}/)
+  assert.match(train, /<TrainingList\b/)
+  assert.doesNotMatch(train, /finlaticsHomeHref/)
+
+  // The detail carries Finlatics' own card, linked to the Apply it prints.
+  assert.match(shelf, /finlaticsCardSrc\(program\)/)
+  assert.match(shelf, /className="prp-program-card[^"]*"[\s\S]*?href=\{href\}/)
+})
+
 test("Prep speaks the platform's primitives: canonical Button, token radii, no inline layout", () => {
   const files = ["closing-panel", "coverage-panel", "brief-card", "drill-panel", "prep-room"]
   for (const name of files) {

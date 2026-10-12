@@ -1,51 +1,12 @@
-"""Notice harvest — Railway deaths and belt recovery are facts, not routes."""
+"""Notice harvest — belt stalls and recoveries are facts, not routes."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from app.notice.harvest import (
-    flatten_deployments,
-    harvest_belts,
-    harvest_upload_stalls,
-    sightings_from_deployments,
-)
+from app.notice.harvest import harvest_belts, harvest_upload_stalls
 from app.notice.proofs import proofs_from_tests
 from app.notice.fingerprint import cause_key_for
-
-
-def test_crashed_api_is_crash_not_the_route() -> None:
-    sightings = sightings_from_deployments(
-        [{"status": "CRASHED"}, {"status": "SUCCESS"}],
-        "mirror-backend-prod",
-    )
-    assert len(sightings) == 1
-    assert cause_key_for(sightings[0]) == "process_death:mirror-backend-prod:crash"
-
-
-def test_failed_deploy_and_worker_exit() -> None:
-    failed = sightings_from_deployments(
-        [{"status": "FAILED"}],
-        "mirror-backend-prod",
-    )
-    runner = sightings_from_deployments(
-        [{"status": "CRASHED"}],
-        "True_Yodha",
-    )
-    oom = sightings_from_deployments(
-        [{"status": "CRASHED", "reason": "OOM killed"}],
-        "mirror-backend-prod",
-    )
-    assert cause_key_for(failed[0]) == "process_death:mirror-backend-prod:failed_deploy"
-    assert cause_key_for(runner[0]) == "process_death:True_Yodha:runner_exit"
-    assert cause_key_for(oom[0]) == "process_death:mirror-backend-prod:oom"
-
-
-def test_flatten_graphql_edges() -> None:
-    rows = flatten_deployments(
-        {"deployments": {"edges": [{"node": {"status": "FAILED"}}]}}
-    )
-    assert rows == [{"status": "FAILED"}]
 
 
 def test_belt_recovery_is_a_proof_not_a_sighting() -> None:

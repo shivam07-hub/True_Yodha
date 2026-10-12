@@ -155,6 +155,18 @@ def preview_imported_job(db: Client, body: Any) -> dict[str, Any]:
     }
 
 
+def preview_rows(
+    db: Client, primary: list[str], secondary: list[str], *, role_name: str, job_description: str
+) -> list[dict[str, Any]]:
+    """The ``job_skills`` rows saving this preview would write, in the matcher's
+    read shape — the same confirmed-or-extracted skills and levels as the save
+    (`_canonical_skill_rows`), resolved the same way (`skill_floor.floor_rows`)."""
+    skills, _source = _canonical_skill_rows(
+        primary, secondary, role_name=role_name, job_description=job_description
+    )
+    return skill_floor.floor_rows(db, skills)
+
+
 def _emerging_payloads(
     job_id: str,
     user_id: str,

@@ -78,6 +78,7 @@
   display: flex;
   align-items: center;
   gap: 16px;
+  margin-bottom: 16px;
   padding: 12px 16px;
   border: 1px solid var(--tm-border-soft);
   border-radius: var(--tm-radius-lg);
@@ -94,7 +95,6 @@
 .prp-door strong { font-weight: 600; color: var(--tm-text); }
 
 .prp-program {
-  margin-top: 16px;
   border: 1px solid var(--tm-border-soft);
   border-radius: var(--tm-radius-card);
   background: var(--tm-surface);
@@ -157,12 +157,31 @@
 }
 .prp-program-apply { align-self: flex-start; margin-top: 4px; }
 
+/* Finlatics' own card, as they drew it. Their page is cream on any surface;
+   the rule above it keeps it from reading as part of our body copy. */
+.prp-program-card {
+  display: block;
+  margin: 0 24px 24px;
+  border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-lg);
+  overflow: hidden;
+  transition: border-color var(--tm-dur) var(--tm-ease);
+}
+.prp-program-card:hover { border-color: var(--tm-int-border); }
+.prp-program-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 @media (max-width: 640px) {
   .prp-door { flex-direction: column; align-items: stretch; }
   .prp-program-body { padding: 16px; }
+  .prp-program-card { margin: 0 16px 16px; }
   .prp-program-apply { align-self: stretch; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .prp-shelf-row { transition: none; }
+  .prp-shelf-row,
+  .prp-program-card { transition: none; }
 }

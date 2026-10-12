@@ -160,14 +160,37 @@ def _force_postgrest_http1(client: Client) -> Client:
     return client
 
 
+def _force_auth_http1(client: Client) -> Client:
+    """The Auth (GoTrue) client gets the fix `_force_postgrest_http1` gave PostgREST.
+
+    gotrue builds its own httpx client with ``http2=True``. When Supabase drops
+    an idle HTTP/2 connection, the next call on it dies with
+    ``AuthRetryableError: Server disconnected`` — eight times in prod between
+    2026-10-05 and 10-09, every one a partner SSO call (`create_user`, the
+    magic-link mint) answered with a 500 at the front door. HTTP/1.1 through the
+    shared transport discards a connection the peer closed before reusing it.
+    The service key travels in each request's headers, never in the transport.
+    """
+    shared = httpx.Client(
+        transport=_SHARED_TRANSPORT,
+        timeout=client.auth._http_client.timeout,
+        follow_redirects=True,
+    )
+    client.auth._http_client = shared
+    client.auth.admin._http_client = shared
+    return client
+
+
 @lru_cache(maxsize=1)
 def get_supabase_admin() -> Client:
     """Service role client — bypasses RLS. Admin/import scripts only."""
-    return _force_postgrest_http1(
-        create_client(
-            settings.supabase_url,
-            settings.supabase_service_key,
-            options=_client_options(),
+    return _force_auth_http1(
+        _force_postgrest_http1(
+            create_client(
+                settings.supabase_url,
+                settings.supabase_service_key,
+                options=_client_options(),
+            )
         )
     )
 

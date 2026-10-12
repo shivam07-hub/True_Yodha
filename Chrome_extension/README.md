@@ -1,83 +1,63 @@
-# Myro Job Tracker Extension
+# Myro Chrome Extension
 
-Chrome Manifest V3 extension for capturing the current job page and saving it to Myro.
+Chrome Manifest V3 extension. On any job page it answers one question — *which
+of my jobs is this?* — and offers that job's next step on the goal line:
 
-## Build
+| Page is… | Popup leads with |
+|---|---|
+| not in Myro | **Save this job** (capture → review → save) |
+| saved | **Tailor your CV** |
+| tailored | **I applied** (the user's own answer), then the tailored CV |
+| applied | **Prepare for this job** |
+
+"Find people to reach" sits under the lead once the job is saved (ADR-0018).
+The answer comes from the server (`POST /jobs/collections/page`, CONTEXT.md →
+Page Entry); the extension stores only the session tokens and the API URL.
+
+## Build and test
 
 ```bash
 cd Chrome_extension
 npm test
-npm run build
+npm run build      # → Chrome_extension/dist
+npm run package    # → Chrome_extension/myro-extension.zip (the store upload)
 ```
 
-The build output is written to `Chrome_extension/dist`.
+## Load unpacked (local)
 
-To regenerate the uploadable archive:
+1. `chrome://extensions` → enable **Developer mode**.
+2. **Load unpacked** → select `Chrome_extension/dist`.
+3. Open a job page, click the Myro icon, **Connect with Myro**.
 
-```bash
-cd Chrome_extension
-npm run package
-```
+Connect opens `/extension/connect` on the web app, which hands the extension
+its own session — no token copying. The API URL defaults to
+`https://api.himyro.com` (prod). To point at the dev backend, set it under
+**Settings** (`https://truemirror.up.railway.app`, or `http://localhost:8000`
+with the web app on `:3000`). Never use the Vercel frontend URL as the API URL.
 
-This writes `Chrome_extension/myro-extension.zip`.
+## Release to the Chrome Web Store
 
-## Load In Chrome
+The popup calls backend routes, so **the backend that serves them must be live
+first**: merge `Develop` → `main`, wait for the prod deploy, then upload.
 
-1. Open `chrome://extensions`.
-2. Enable Developer mode.
-3. Click **Load unpacked**.
-4. Select `/Users/incognito/True_Yodha/Chrome_extension/dist`.
-5. Open a job page and click the Myro extension.
+1. Bump `version` in `public/manifest.json` and `package.json` (store rejects a
+   version it already has).
+2. `npm test && npm run package`.
+3. [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole)
+   → **Myro Job Tracker** → **Package** → **Upload new package** →
+   `myro-extension.zip`.
+4. **Store listing** / **Privacy** tabs: only if the permissions or data use
+   changed (they list `activeTab`, `scripting`, `storage`, `identity`).
+5. **Submit for review**. Installed copies update on their own once it is
+   approved.
 
-## Configure
-
-Open the extension settings and set:
-
-- API URL: `http://localhost:8000` for local backend development.
-- Access token: a Myro backend JWT for the current user.
-
-For production testing, use the Railway backend URL, for example:
-
-```text
-https://YOUR-RAILWAY-URL.railway.app
-```
-
-Do not use the Vercel frontend URL as the API URL; the extension posts directly to the FastAPI backend.
-
-The first MVP stores the token in Chrome extension local storage. The production version should replace manual token paste with a web auth handoff.
-
-## Local Test Flow
-
-Start the backend:
-
-```bash
-cd /Users/incognito/True_Yodha
-source .venv/bin/activate
-PYTHONPATH=backend uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
-
-Start the frontend in another terminal:
-
-```bash
-cd /Users/incognito/True_Yodha/frontend
-npm run dev
-```
-
-Then:
-
-1. Log in to Myro at `http://localhost:3000`.
-2. Copy the current access token from browser local storage key `mirror_token`.
-3. Paste it into the extension options page with API URL `http://localhost:8000`.
-4. Open a job page, select the job description if extraction is weak, click **Track this job**, review, optionally paste extra skill text and click **Extract skills**, then save.
-5. Check `http://localhost:3000/tracker` for the saved job.
-
-## Capture Behavior
-
-Myro captures in this order:
+## Capture order
 
 1. Selected text
 2. JSON-LD `JobPosting`
 3. Known portal selectors
 4. Visible page fallback
 
-The user reviews role, company, location, description, primary skills, secondary skills, and emerging skills before saving. If the posting lists skills separately, the user can paste that text into **Skills seen in this job** and run extraction again; Myro merges those suggestions with the existing chips.
+The user reviews role, company, location, description and skills before
+saving. If the posting lists skills separately, paste them into **Skills seen
+in this job** and run extraction again; Myro merges them with the chips.

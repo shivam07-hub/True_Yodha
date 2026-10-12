@@ -6,6 +6,19 @@
 
 ---
 
+## 2026-10-11 — Reliability R5–R8
+
+R5: `/jobs/analytics/me` stopped paging a role_domain (14 reads, an 8s count) and reads the snapshot — 1 read, 512ms; Software Development is 2,322 jobs. R6: confirm-skills passes the profile and baseline it already holds into `get_result`. R7: `/cv/versions` for `INFSYS-EXTERNAL-247996` 500'd because the company-wide job-id filter was a non-JSON Bad Request (not the 10-06 restriction); the thread is the person's own versions. `feed_warm` AbandonedJobError ×3 on 10-06 09:42–10:08 UTC was a deploy killing an ~80s tick during seven Develop pushes, also before the restriction; a tick is now one judgment wave. R8: company page and partner `get_link` sit on the ~300ms floor (Practus 306–350ms); the 500ms prod line still opens them until `main` carries the 2s rule.
+
+## 2026-10-10 — Extension dead code removed
+
+ATS auto-fill engine (`autofill.js`, `fetchCareerProfile`, the `chrome.storage`
+Career Profile cache) deleted: built 2026-07-18 (`aa0d9bd1`), never wired — no
+content script ever ran it. Recover from that commit if the browser layer is
+built. Also gone: `types.js` (no importer), the 0.2.2 store zip.
+
+---
+
 ## 2026-10-04 — Company Demand Pulse counts live roles
 
 Pulse `open_roles` was `last_seen` within 21 days (retired column); now the
@@ -23,6 +36,18 @@ ran over PostgREST as `authenticator` — `safeupdate` + 8s — and took 58.0s /
 `role_families` (had no caller since 09-16); daily "due" 24h → 20h (analytics was
 every other day); anon EXECUTE revoked on six refreshes. Dead-man
 `dead_man:snapshot.<task>` at 48h. Migration `20261004100000`, ARCHITECTURE_READ_PATH §26.
+
+---
+
+## 2026-10-10 — Notice close-out grill (Shivam)
+
+The closer (GitHub Action) stopped after 10-06; its dead-man could only mail
+through itself. Supabase RESTRICTED the project 10-06 22:53 → 10-09 13:35 UTC
+(Free size quota) — ~63h, zero SSO/signups 10-07/08 — and nothing alerted.
+Locked + built on Develop (`2c3e31d5`…`83c79967`): Notice writes off the request
+path; slow-read line 2,000ms; closer on pg_cron + failure mail, Action and
+Railway harvest deleted; GoTrue on HTTP/1.1 (8 SSO 500s); company_directory
+in-DB rail. Open work: BACKLOG RELIABILITY R1–R9 + SHIVAM (merge, scraper, Small).
 
 ---
 
@@ -85,6 +110,12 @@ How fast and how easily they can do it is the entire game."* The decisions:
 ### Parked — outside the CV machine (D11), one line each, full text below
 
 - 7c — `cv_points` holds two pointer shapes; inert, tidiness, not urgent.
+- Verifier coverage (Shivam, 2026-10-07) — 28 companies, 36% of live roles,
+  answer the verifier with errors (Ripplehire: Axis Bank, LTIMindtree, Mphasis,
+  15,355; Infosys, Cognizant, KPMG India, Google); 17% of real users' matches,
+  44 users, 2 of 89 saved/applied. Not the leaking step while Apply clicks are
+  ~0. **Reopen** on a user's dead-listing report, or when Apply clicks land on
+  these hosts.
 - Authed search-intent signal — left as is (Shivam, 2026-09-25).
 - Tier 4 — #39 per-skill percentile · #32 publish portability · #18 PR2 teal
   field · semantic retrieval slices 2–3 (scraper repo) · paid partner plans.

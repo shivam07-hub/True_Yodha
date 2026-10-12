@@ -38,25 +38,54 @@ _FLOOR_PAGE_SIZE = 100  # job_ids are short; 100 keeps the by-id `.in_()` URL sm
 _UPSERT_CHUNK = 1000
 
 
-def resolve_skill_ids(db: Client, taxonomy_keys: list[str]) -> dict[str, int]:
-    """``taxonomy_key`` → ``skills.id`` for the keys the taxonomy table knows.
+def _resolve_skills(db: Client, taxonomy_keys: list[str]) -> dict[str, dict[str, Any]]:
+    """``taxonomy_key`` → its ``skills`` row (id + what the matcher reads) for the
+    keys the taxonomy table knows.
 
     Unresolved keys are dropped rather than inserted: ``job_skills.skill_id`` is
     a foreign key, so a key with no row is not a partial write, it is a failed
-    one that takes the whole batch with it.
+    one that takes the whole batch with it. A preview drops the same keys, so it
+    scores exactly the rows a save would write.
     """
-    resolved: dict[str, int] = {}
+    resolved: dict[str, dict[str, Any]] = {}
     unique = list(dict.fromkeys(key for key in taxonomy_keys if key))
     for i in range(0, len(unique), _SKILL_KEY_CHUNK):
         chunk = unique[i:i + _SKILL_KEY_CHUNK]
         rows = (
-            db.table("skills").select("id, taxonomy_key").in_("taxonomy_key", chunk).execute()
+            db.table("skills")
+            .select("id, taxonomy_key, practice_mode, skill_kind")
+            .in_("taxonomy_key", chunk)
+            .execute()
         ).data or []
         for row in rows:
-            key, skill_id = row.get("taxonomy_key"), row.get("id")
-            if key and skill_id is not None:
-                resolved[str(key)] = int(skill_id)
+            key = row.get("taxonomy_key")
+            if key and row.get("id") is not None:
+                resolved[str(key)] = row
     return resolved
+
+
+def floor_rows(db: Client, skills: list[ExtractedSkill]) -> list[dict[str, Any]]:
+    """The ``job_skills`` rows these skills would become, in the matcher's read
+    shape (``job_skills`` JOIN ``skills``) — without writing them.
+
+    The extension's preview scores these with ``job_matcher.overlap``, so the
+    number it shows before a save is the number the job carries after it.
+    """
+    merged = merge_zones(skills)
+    resolved = _resolve_skills(db, [skill.taxonomy_key for skill in merged])
+    return [
+        {
+            "is_primary": skill.is_must_have,
+            "required_level": skill.required_level,
+            "skills": {
+                "taxonomy_key": skill.taxonomy_key,
+                "practice_mode": resolved[skill.taxonomy_key].get("practice_mode"),
+                "skill_kind": resolved[skill.taxonomy_key].get("skill_kind"),
+            },
+        }
+        for skill in merged
+        if skill.taxonomy_key in resolved
+    ]
 
 
 STAGE_A = "stage_a"
@@ -99,9 +128,10 @@ def write_skill_floors(
     it.
     """
     merged = {job_id: merge_zones(skills) for job_id, skills in floors.items()}
-    skill_ids = resolve_skill_ids(
+    resolved = _resolve_skills(
         db, [skill.taxonomy_key for skills in merged.values() for skill in skills]
     )
+    skill_ids = {key: int(row["id"]) for key, row in resolved.items()}
     written: dict[str, int] = {job_id: 0 for job_id in floors}
     payload: list[dict[str, Any]] = []
     for job_id, skills in merged.items():
