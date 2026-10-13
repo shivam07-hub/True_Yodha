@@ -1258,6 +1258,13 @@ prepare.
 - **Only the user's own applications are searched.** An Apply click is at least
   a save, so every job they went to apply to from Myro is there; the corpus is
   never scanned on a popup open.
+- **Every Yes names its door.** `PUT /jobs/applications/{id}` takes `surface`;
+  the first move to `applied` writes the `applied` core-loop step with it,
+  server-side only (a client cannot send that step). The return-to-tab prompt
+  beacons `apply_asked` once per click when it actually renders. Together with
+  `job_apply_intents` (click, `answered_at`) that is the Apply funnel —
+  clicked → asked → answered → applied, per door — in `loop_reach.py`.
+  DECISIONS APPLY1 / APPLY2.
 - **On a tailored page the popup leads with "I applied".** The user is on the
   company's own page with a CV aimed at the job — where the goal line says
   *apply*. It writes the same answer as the web's "Did you apply?" Yes

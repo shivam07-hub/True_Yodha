@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from app.deps import CurrentUser, get_current_user
 from app.main import app
 from app.routers import telemetry as telemetry_module
+from app.services import core_loop
 
 
 class _Chain:
@@ -34,6 +35,7 @@ class _Chain:
 def _client(monkeypatch) -> tuple[TestClient, _Chain]:
     chain = _Chain()
     monkeypatch.setattr(telemetry_module, "get_supabase_admin", lambda: chain)
+    monkeypatch.setattr(core_loop, "get_supabase_admin", lambda: chain)
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u-1", email=None, token="t")
     return TestClient(app), chain
 
@@ -53,7 +55,19 @@ def test_a_step_lands_one_row_for_the_person_and_job(monkeypatch) -> None:
         "u-1", "J1", "card_tailor", "market")
 
 
+def test_the_prompt_rendering_is_a_beacon_step(monkeypatch) -> None:
+    client, chain = _client(monkeypatch)
+    try:
+        res = client.post("/v1/telemetry/loop-step",
+                          json={"step": "apply_asked", "job_id": "J1", "surface": "cv_playground"})
+    finally:
+        app.dependency_overrides.clear()
+    assert res.status_code == 202
+    assert chain.inserted[0][1]["step"] == "apply_asked"
+
+
 def test_a_step_outside_the_vocabulary_is_refused(monkeypatch) -> None:
+    """`applied` included: the table stores it, but only the server states it."""
     client, chain = _client(monkeypatch)
     try:
         res = client.post("/v1/telemetry/loop-step", json={"step": "applied", "job_id": "J1"})

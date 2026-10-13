@@ -102,7 +102,7 @@ export function useCollectionActions(token: string): CollectionActions {
 
   const saveNote = useCallback((jobId: string, note: string) => {
     qc.setQueryData<CollectionResponse>(key, (c) => patchEntry(c, jobId, { notes: note }))
-    void jobsApi.updateApplication(token, jobId, { status: "saved", notes: note }).then(refresh)
+    void jobsApi.updateApplication(token, jobId, { status: "saved", notes: note, surface: "collections" }).then(refresh)
   }, [key, qc, refresh, token])
 
   /**
@@ -117,7 +117,7 @@ export function useCollectionActions(token: string): CollectionActions {
       patchEntry(c, jobId, submitted ? { stage: "applied", status: "applied", pending_apply: false } : { pending_apply: false }),
     )
     void (submitted
-      ? jobsApi.updateApplication(token, jobId, { status: "applied" })
+      ? jobsApi.updateApplication(token, jobId, { status: "applied", surface: "collections" })
       : jobsApi.answerApplyIntent(token, jobId)
     ).then(refresh)
   }, [key, qc, refresh, token])

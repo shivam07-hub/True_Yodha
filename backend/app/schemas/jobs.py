@@ -317,6 +317,10 @@ class ApplicationStatusUpdate(BaseModel):
     notes: str | None = None
     company_response: str | None = None
     followed_up: bool | None = None
+    #: The door this answer came through (extension, apply prompt surface,
+    #: tracker, prep, cv_export). Recorded once, on the first move to applied,
+    #: as the `applied` core-loop step. None = a caller that never named one.
+    surface: str | None = Field(default=None, max_length=40)
 
 
 class ApplicationReviewRequest(BaseModel):

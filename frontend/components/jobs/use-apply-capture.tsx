@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import {
+  emitLoopStep,
   jobs,
   type ApplicationResponse,
   type ApplyIntentSurface,
@@ -76,6 +77,9 @@ export function useApplyCapture({
   const target = resolveApplyTarget(job)
   const { liveness, loading: livenessLoading } = useJobLiveness(job.job_id)
   const appliedAt = React.useRef<number | null>(null)
+  // The click whose "Did you apply?" already rendered — one `apply_asked` per
+  // click, however many times the tab regains focus before an answer.
+  const askedFor = React.useRef<number | null>(null)
   const answered = React.useRef(false)
   const submittedArtifactWritten = React.useRef(false)
   const returnTimer = React.useRef<number | null>(null)
@@ -117,6 +121,7 @@ export function useApplyCapture({
   React.useEffect(() => {
     answered.current = false
     appliedAt.current = null
+    askedFor.current = null
     submittedArtifactWritten.current = false
     if (returnTimer.current != null) window.clearTimeout(returnTimer.current)
     returnTimer.current = null
@@ -130,7 +135,13 @@ export function useApplyCapture({
       if (appliedAt.current == null || answered.current) return
       if (Date.now() - appliedAt.current < 1_200) return
       setState(beginApplyReturn().step)
-  }, [])
+      // Did the ask reach anyone? 0 answers from 21 clicks could not tell
+      // "never came back to this tab" from "saw it, ignored it".
+      if (askedFor.current !== appliedAt.current) {
+        askedFor.current = appliedAt.current
+        emitLoopStep(token, "apply_asked", job.job_id, intentSurface)
+      }
+  }, [intentSurface, job.job_id, token])
 
   React.useEffect(() => {
     document.addEventListener("visibilitychange", showReturnPrompt)
@@ -207,7 +218,7 @@ export function useApplyCapture({
     const current = queryClient.getQueryData<ApplicationResponse[]>(key) ?? []
     const existing = current.find(application => application.job_id === job.job_id)
     if (existing && existing.status !== "saved") return
-    const updated = await jobs.updateApplication(token, job.job_id, { status })
+    const updated = await jobs.updateApplication(token, job.job_id, { status, surface: intentSurface })
     queryClient.setQueryData<ApplicationResponse[]>(key, rows => {
       const applications = rows ?? []
       return applications.some(application => application.job_id === job.job_id)
@@ -215,7 +226,7 @@ export function useApplyCapture({
         : [...applications, updated]
     })
     void queryClient.invalidateQueries({ queryKey: key })
-  }, [job.job_id, queryClient, token])
+  }, [intentSurface, job.job_id, queryClient, token])
 
   const run = React.useCallback((action: () => Promise<void>, success: ApplyReturnStep) => {
     retryAction.current = { action, success }

@@ -159,14 +159,15 @@ no Apply click from a real account since 2026-09-22. The capture is built
 Read clicks → answers → applications on prod after the next merge before building
 anything new. QA check **A1** below: Apply opens the company's own posting.
 
-**Extension apply door (Develop 2026-10-06, needs a Web Store release — Shivam).**
-The popup now asks Myro which of the user's jobs the page is (Page Entry,
-CONTEXT.md) and, on a tailored page, leads with "I applied" — the same answer
-write as the web. A save and the first "applied" both queue the judge, so an
-extension application can count as qualified. Not detection: the user's click is
-the only writer. Measure after release: `applied` rows on `ext_` jobs. A job from
-Myro's list marked applied in the popup is indistinguishable from the web today;
-add a surface column only if the count needs it.
+**Apply funnel, measured by door (2026-10-13, DECISIONS APPLY1/APPLY2).**
+Extension 0.2.3 is live (Page Entry + "I applied"); 0.2.4 names its door.
+`loop_reach.py` now reads clicked → asked → answered → applied per door, plus
+the leading number (tailored apply-outs on ≥3.5 jobs: 2 people, 2 clicks).
+On 10-13: 14 clicked, 0 asked-recorded (the beacon starts now), 0 answered.
+**Next:** read `apply_asked` after two weeks. Asked ≈ 0 → people never return to
+the tab; asked > 0 and answered ≈ 0 → the prompt is ignored. Redesign from that,
+in Myro (no email — APPLY2). Parked: extension saves duplicating a list job —
+2 of 6 `ext_` rows, 0 matched to anyone else; revisit only if that grows.
 
 **CS-15** · **Step 5 leaves no trail back to the stories.** *Small, but it is what makes
     `repeat` mean something.*

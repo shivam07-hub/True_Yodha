@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from app.config import settings
 from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
-from app.services import test_accounts
+from app.services import core_loop, test_accounts
 
 router = APIRouter(prefix="/v1/telemetry", tags=["telemetry"])
 _log = logging.getLogger(__name__)
@@ -78,19 +78,24 @@ class CoreLoopStepPayload(BaseModel):
     #: Mentor run is `coin_ledger`, an apply click is `job_apply_intents`; these
     #: are the gaps between them. On 2026-09-28 the funnel read 44 shown -> 11
     #: saved -> 6 tailored and nobody could say where in between people stopped.
+    #: `apply_asked`: the "Did you apply?" prompt actually rendered. `applied`
+    #: is NOT here — only the server states it (core_loop.SERVER_STEPS).
     step: Literal[
         "card_tailor", "panel_opened", "panel_tailor",
         "editor_opened", "mentor_opened", "downloaded",
+        "apply_asked",
     ]
     job_id: str = Field(min_length=1, max_length=200)
     surface: str | None = Field(default=None, max_length=40)
 
 
-#: Tied to the `core_loop_events.step` CHECK and to `CoreLoopStep` in
-#: lib/api.ts by `test_telemetry_vocabulary`.
-CORE_LOOP_STEPS: tuple[str, ...] = get_args(
+#: What a client may send — tied to `CoreLoopStep` in lib/api.ts.
+CORE_LOOP_BEACON_STEPS: tuple[str, ...] = get_args(
     CoreLoopStepPayload.model_fields["step"].annotation
 )
+#: What the table stores — tied to the `core_loop_events.step` CHECK. Both by
+#: `test_telemetry_vocabulary`.
+CORE_LOOP_STEPS: tuple[str, ...] = CORE_LOOP_BEACON_STEPS + core_loop.SERVER_STEPS
 
 
 def _persist_route_perf(payload: RoutePerfPayload, user_id: str) -> None:
@@ -129,13 +134,7 @@ def _write(table: str, row: dict) -> bool:
 
 
 def _persist_loop_step(payload: CoreLoopStepPayload, user_id: str) -> None:
-    _write("core_loop_events", {
-        "user_id": user_id,
-        "job_id": payload.job_id,
-        "step": payload.step,
-        "surface": payload.surface,
-        "occurred_at": datetime.now(timezone.utc).isoformat(),
-    })
+    core_loop.record_step(user_id, payload.job_id, payload.step, payload.surface)
 
 
 @router.post("/loop-step", status_code=202)
