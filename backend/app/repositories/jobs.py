@@ -3521,19 +3521,57 @@ class JobsRepository:
         return profile
 
     def get_direction_columns(self, user_id: str) -> dict[str, Any]:
-        """The three profile columns a verdict's keys hash (Verdict Currency) —
-        one PK read. Not `get_user_profile_targeting`: that one also reads the
-        whole CV markdown, a second round trip and the heaviest payload on the
-        row, for a check that needs a title, a level and a place."""
+        """The profile columns a verdict's keys hash (Verdict Currency), plus the
+        two `direction.of` reads to say whether there is a direction at all — one
+        PK read. Not `get_user_profile_targeting`: that one also reads the whole
+        CV markdown, a second round trip and the heaviest payload on the row, for
+        a check that needs a title, a level and a place."""
         rows = safe_read(
             self._db.table("user_profiles")
-            .select("target_role_title,target_seniority,target_location")
+            .select("target_role_title,target_role_titles,target_roles,target_seniority,target_location")
             .eq("id", user_id)
             .limit(1),
             default=[],
             context="direction_columns",
         )
         return rows[0] if rows else {}
+
+    def get_latest_baseline_stamp(self, user_id: str) -> dict[str, Any] | None:
+        """The latest Main CV's id and when it was written — one narrow read,
+        for the Return door's grace (a CV younger than a run is still being read)."""
+        rows = (
+            self._db.table("cv_versions")
+            .select("id, created_at")
+            .eq("user_id", user_id)
+            .eq("kind", "baseline_upload")
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        ).data or []
+        return rows[0] if rows else None
+
+    def has_verdict(self, user_id: str, *, baseline_version_id: int | None = None) -> bool:
+        """Does any match row exist — on this CV, when one is named? An existence read."""
+        query = self._db.table("user_job_matches").select("job_id").eq("user_id", user_id)
+        if baseline_version_id is not None:
+            query = query.eq("baseline_version_id", baseline_version_id)
+        return bool(query.limit(1).execute().data)
+
+    def get_shown_verdict_keys(self, user_id: str, *, floor: float) -> list[dict[str, Any]]:
+        """Every verdict that cleared `floor` on a live listing, with the two keys
+        Verdict Currency reads — no card columns. What the Return door and the
+        drain need to find the cards a person sees that are due a re-read."""
+        rows = fetch_all_rows(
+            self._db,
+            table="user_job_matches",
+            columns=(
+                "job_id, overall_score, recommendation, baseline_version_id, "
+                "eval_context_hash, target_context_hash, jobs(is_active)"
+            ),
+            query_builder=lambda q: q.eq("user_id", user_id).gte("overall_score", floor).order("id"),
+        )
+        # Only an explicit False is a closed listing (`admission.admit`).
+        return [row for row in rows if (row.get("jobs") or {}).get("is_active") is not False]
 
     def get_latest_baseline_id(self, user_id: str) -> int | None:
         result = (

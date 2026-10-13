@@ -182,11 +182,30 @@ waves. On prod, the same 54 people: **19 of 76 picks leave the band** (22 people
 hold picks), 20 re-read in place; **46 Collections entries leave across 4 people**;
 the lean read and the full Targeting Brief disagree on **0 of every row**.
 
-⚠️ **For S3:** one of those 4 (`4f304f53…`) holds only verdicts from a replaced
-CV — two baseline uploads six seconds apart (cv 652, 653, 2026-10-06 05:17) and
-no match run since 04:54. /market shows them the replaced CV's list with its
-notice; every other surface now shows nothing. The return door must cover a CV
-with no run on it, not only a moved prompt or memory.
+**S3 shipped 2026-10-13.** `forward_pass.reread_list` on `/users/me` (every
+authed page): a profile-only direction test, one Redis claim per person per 15
+minutes, one enqueue — nothing else on the read. `matching/list_reread.check`
+decides on the Work Lane, with no model call: a **CV no run has read** (the
+latest Main CV holds no verdict while an earlier one does) gets `initial_match`
+once per CV after the 15-minute grace; **stale cards on the list** get the drain
+once per change of rules or facts per day. The drain (`feed_warm.run_feed_warm`)
+now reads the person's visible stale cards before the pool on every tick —
+including cards the pool window no longer holds — and the bell announces only
+jobs that newly join the list. Dry run over the 226 real people active in 30
+days, prod data, no writes: 21 re-reads (51 visible stale cards first), 1 CV run,
+29 current, 17 with no direction, 158 with no CV.
+
+**Why a CV can have no run:** a Main CV edit — certificate (`certificate_to_cv`),
+skill edit, rewrite, merge — writes a new `baseline_upload` and enqueues only
+`skill_retag`. The new id moves the direction key, so every verdict reads
+`foreign`. On 2026-10-13 18 people's latest CV held no verdict while an earlier
+one did (6 of them real PDF uploads whose own run never landed). One is active:
+`4f304f53…`, two certificate promotions six seconds apart (cv 652, 653,
+2026-10-06 05:17), no run since 04:54.
+
+**Also found on the way:** `get_user_match_stack` read one PostgREST page, so the
+seven people holding more than 1,000 verdicts — all active that month — had
+1,397 of them never shown anywhere; it now pages.
 
 **Done means:** re-running the batch-1 assessment (memory
 `project_instant_seeker_batches`) shows every returning person with ≥1 card when

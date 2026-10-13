@@ -440,13 +440,58 @@ def on_career_path_read(user_id: str, snapshot: dict[str, Any] | None) -> bool:
         return False
 
 
+#: How often the list door looks again at a person who is here. Short, because a
+#: Main CV edit strands their list on the next page they open; the look itself
+#: runs on the Work Lane and decides, without a model call, whether one is owed.
+LIST_LOOK_SECONDS = 15 * 60
+
+
+def reread_list(user_id: str, profile: dict[str, Any]) -> bool:
+    """A returning person's job list is read again under today's rules (#55 S3).
+
+    The list they were judged for shows stale cards marked re-reading (Verdict
+    Currency, S1), but before this nothing re-read them unless they opened /market
+    — and a Main CV edit, which writes a new CV and never asked for a match, left
+    the list on the replaced CV for good. `list_reread` decides which, if either,
+    is owed; it finishes the search behind the list they already have and runs
+    only because they came back. Reach: every person with a direction who opens
+    any authed page (14 returning last week).
+
+    Claim + enqueue only. The direction test is a pure read of the profile already
+    in hand, so someone with no direction pays nothing at all.
+    """
+    from app.services import direction
+
+    if not direction.of(profile).families:
+        return False
+    if not debounce.claim(f"forward_pass:list_look:{user_id}", LIST_LOOK_SECONDS):
+        return False
+    try:
+        from app.services import background
+
+        background.enqueue(
+            background.LANE_FAST,
+            "list_reread",
+            payload={"user_id": user_id},
+            correlation_id=f"list-look:{user_id}",
+        )
+        return True
+    except Exception as exc:  # noqa: BLE001 — a read must never fail on a forward pass
+        logger.warning(
+            "metric forward_pass.failed pass=reread_list user=%s reason=%s",
+            user_id, exc.__class__.__name__,
+        )
+        return False
+
+
 def on_profile_read(user_id: str, profile: dict[str, Any]) -> None:
     """What `/users/me` — the shell on every authed page — can put right.
 
-    Two passes, in order. A catch-all cannot stay the main role; and a direction
-    whose Match Run never landed gets that run. The promote path goes through
-    `save_target`, which enqueues a run of its own, so it returns before the
-    second pass rather than queueing the same work twice.
+    Three passes, in order. A catch-all cannot stay the main role; a direction
+    whose Match Run never landed gets that run; and a list judged under rules,
+    facts or a CV that have since moved is read again. Each earlier pass enqueues
+    a run that rebuilds the list, so it returns before the later ones rather than
+    queueing the same work twice.
     """
     if _promote_catch_all_primary(user_id, profile):
         return
@@ -455,7 +500,15 @@ def on_profile_read(user_id: str, profile: dict[str, Any]) -> None:
     # run it against the empty scope we are about to fill.
     if restore_scope_from_snapshot(user_id, profile):
         return
-    finish_outstanding_match(user_id, profile)
+    if finish_outstanding_match(user_id, profile):
+        return
+    from app.services.matching import match_freshness
+
+    # A direction saved inside the grace has its own run in flight; the list
+    # being re-read would be the one they just left.
+    if match_freshness.state(profile) == "running":
+        return
+    reread_list(user_id, profile)
 
 
 def _promote_catch_all_primary(user_id: str, profile: dict[str, Any]) -> bool:

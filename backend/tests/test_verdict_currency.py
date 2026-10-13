@@ -27,7 +27,10 @@ class _Repo:
         return dict(_FULL)
 
     def get_direction_columns(self, _uid):
-        return {k: _FULL[k] for k in ("target_role_title", "target_seniority", "target_location")}
+        # Exactly what `JobsRepository.get_direction_columns` selects.
+        return {k: _FULL[k] for k in (
+            "target_role_title", "target_role_titles", "target_roles", "target_seniority", "target_location",
+        )}
 
     def get_latest_baseline_id(self, _uid):
         return 7
@@ -43,6 +46,18 @@ def test_the_lean_read_hashes_what_the_ranking_brief_hashes() -> None:
         "target_context_hash": onboarding_service.context_key(full),
     }
     assert verdict_currency.for_user(_Repo(), "u1").of(row) == "current"
+
+
+def test_the_lean_read_names_the_same_direction() -> None:
+    """The Return door asks `direction.of` of the lean brief. Without the two
+    direction columns it read every person as having none (caught 2026-10-13 in
+    a dry run over prod, before it shipped)."""
+    from app.services import direction
+    from app.services.matching import targeting
+
+    lean = targeting.for_currency(_Repo(), "u1").ranking_profile()
+    full = targeting.for_ranking(_Repo(), "u1").ranking_profile()
+    assert direction.of(lean).families == direction.of(full).families != ()
 
 
 def test_no_baseline_proves_no_direction() -> None:

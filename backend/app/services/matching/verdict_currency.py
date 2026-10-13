@@ -27,6 +27,7 @@ give one answer, so it does not export its inputs.
 """
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -46,6 +47,11 @@ class VerdictCurrency:
         if self._direction_key is not None and row.get("target_context_hash") == self._direction_key:
             return "stale"
         return "foreign"
+
+    def marker(self) -> str:
+        """Names what the brain would be told today, for a one-per-change claim.
+        A digest, not the key: nothing may compare it to a row."""
+        return hashlib.sha256(self._eval_key.encode()).hexdigest()[:16]
 
 
 def for_profile(profile: dict[str, Any]) -> VerdictCurrency:
