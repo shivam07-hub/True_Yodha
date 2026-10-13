@@ -6,6 +6,18 @@
 
 ---
 
+## 2026-10-14 — The backend tests run on what ships; R2 retired
+
+`b9d4785e` passed locally on FastAPI 0.135 and could not boot on the pinned 0.110.3
+(Backend CI red, two dev deploys FAILED; fixed `7e25754d`). The root `.venv` had
+drifted on 18 of 26 pins. Now `backend/.venv` = Python 3.11 + `requirements.lock`
+(uv, universal, hashed) only; the Dockerfile and CI install the lock; conftest
+refuses any other runtime, and a lock that no longer satisfies `requirements.txt`;
+Backend CI runs on push. Dropped four pins nothing imported (python-jose, passlib,
+sendgrid, streamlit). R2: 72 Notices retired (71 pre-10-11 slow_reads quiet since
+the 2s rule reached prod 10-12, plus the 09-29 AbandonedJobError); 8 kept open —
+they recurred on 10-13 above 2s (feed, matches, picks, public stats).
+
 ## 2026-10-14 — Grill: what stays open after #55
 
 Cursor keeps #56–#60; order #57 → #58 → #60 → #56 → employer record. Merge batched

@@ -418,23 +418,19 @@ Locks: the closer runs from pg_cron (02:30 UTC, 06:30 retry) via
 `POST /internal/notice/close`; Notice writes are off the request path; a slow
 query opens only at ≥2,000ms; the Railway death harvest is gone. ADR-0021
 amended. History: ARCHIVE 2026-10-10, `ARCHITECTURE_READ_PATH.md` §23–25.
-Agent-owned; R1–R4 wait for the `main` merge (SHIVAM).
+Agent-owned. The merge they waited for landed 2026-10-12 (PR #338, the 2s rule on
+prod); #339 followed 10-13. A scheduled check reads R1 on 10-14 and R3/R4 on 10-19.
 
 - **R1 · Closer alive.** After the merge deploys: `notice_closer_heartbeat.ran_at`
   moves after 02:30 UTC and a digest lands in hello@himyro.com (titan-email).
   If not, read `net._http_response` (status/body) for the pg_cron call. Done =
-  two consecutive daily digests.
-- **R2 · Retire the 500ms-rule rows.** Close every `slow_200:slow_read:*` row
-  with `first_seen_at < 2026-10-11` (79+), `proof_test = 'retired:slow_read
-  500ms rule (ADR-0021 2026-10-10)'`; and `work_lane:story_ingest:AbandonedJobError`
-  (`retired:deploy kill — worker drains 60s`). Only AFTER prod runs the 2s rule,
-  or they reopen. Done = no pre-10-11 slow_read row open.
+  two consecutive daily digests. 10-13: ran 02:30:05, 202, digest landed (1 of 2).
 - **R3 · Live latency.** Five warm samples / a week of `route.latency` on prod for
   `/jobs/feed-state`, `/jobs/at/{c}`, `/companies/{c}/jobs`, confirm-skills,
-  `/partner/v1/sso/session`; record in §23–25. Pre-merge baseline (10-05→10-09):
+  `/partner/v1/sso/session`; record in §23–25. Window 10-12→10-19. Pre-merge baseline (10-05→10-09):
   p50 ≤50 · ≤50 · ≤100 · ~3000 · ~1000 ms.
 - **R4 · SSO 500s gone.** No `AuthRetryableError: Server disconnected` /
-  `CreateRaced` for 7 days after the merge (proofs ride `test_auth_client_http1.py`).
+  `CreateRaced` 10-12→10-19 (proofs ride `test_auth_client_http1.py`).
 - **R9 · Drain wall time** on the first scrape after the scraper is fixed: Stage A
   claim timestamps (`skill_floor_claimed_at` → `skill_floor_attempted_at`) for
   that run — expect minutes, not hours.
@@ -478,15 +474,13 @@ Tracker (3) · no problem or not actionable (~25).
 
 ## SHIVAM
 
-- **Compute → Small this week, BEFORE the merge** (Shivam, 2026-10-14). The
-  Return door adds runs and drains on return; `initial_match` already meets
-  `db.statement_timeout`, and `capacity_queue` blocked 10,499 times (digest
-  2026-10-13). An agent re-runs `market_arrival` after.
-- **Merge `Develop` → `main`, batched with Cursor's #57 S0** (Shivam,
-  2026-10-14). Carries #55 S1–S5, the 1,000-row stack fix, the certificate fix,
-  #59 and the Apply telemetry. Until then the `/users/me` door, Verdict Currency on
-  the read paths and the digest are dev-only (the shared worker already runs the
-  drain order and the certificate fix).
+- **Compute → Small, now.** The plan is Pro (2026-10-14); the compute is still
+  Micro — `max_connections` 60, `shared_buffers` 224MB, Postgres up since 07-12
+  (Small reads 90 / 512MB and restarts it). It was meant to come before the merge
+  that put the Return door on prod; that merge landed 2026-10-13 (#339, with #55
+  S1–S5, the 1,000-row fix, the certificate fix, #59, Apply telemetry).
+  `capacity_queue` 10,803 on 10-14 (10,499 on 10-13). An agent re-runs
+  `market_arrival` after. Next merge: with Cursor's #57 S0 (Shivam, 2026-10-14).
 - **Scraper (your repo, Shivam fixing it 2026-10-14): no feed since 2026-10-01.** Live jobs 70k+ → 49,637
   (10-11) as the verifier closes rows and nothing arrives — step 1 of the loop.
   `dead_man:job_ingestion` is open. Then: Axis Bank = 14,259 live rows (~18%,
