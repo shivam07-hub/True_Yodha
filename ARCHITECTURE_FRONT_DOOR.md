@@ -7,7 +7,7 @@ CEO grill (D6, Shivam, 2026-09-30).** UI slices go through `/frontend-design`.
 > slice is its own commit on `Develop`, six gates green. Migrations are applied
 > by the agent before the code that reads them, then `NOTIFY pgrst`.
 
-> **Status 2026-10-14 — S0 built.** Partner consent (the signed-in Connect
+> **Status 2026-10-14 — S0 and S1 built.** Partner consent (the signed-in Connect
 > click, Google on that screen, and the emailed link) lands on `/onboarding`.
 > That page already sends `position === "completed"` to `/market` and
 > `result` to `/onboarding/result`; no CV stays on the upload. Measured in
@@ -15,6 +15,8 @@ CEO grill (D6, Shivam, 2026-09-30).** UI slices go through `/frontend-design`.
 > Direct partner sign-in (no `link_partner`) is unchanged: a new account
 > still enters onboarding, a returning one still opens `/market`. The 22%
 > partner upload rate is the later read, after this is on `main`.
+> S1: one import model (`createJobImport`). A link is reviewed before save;
+> a failed extract offers paste-instead. Measured in `job-import.test.ts`.
 
 ---
 
@@ -179,7 +181,7 @@ Clicks = `core_loop_events` rows between them.
 | # | Slice | Done when |
 |---|---|---|
 | S0 | B2 · partner SSO goes through onboarding | **Shipped 2026-10-14.** Connect approval, the Google return, and the emailed link all enter `/onboarding`. A finished journey still reaches `/market` from that page. |
-| S1 | `use-job-import` + both skins; delete the duplicate logic | Hook tests: link → review → imported; extract fails → paste-instead |
+| S1 | `use-job-import` + both skins; delete the duplicate logic | **Shipped 2026-10-14.** `createJobImport`: link → review → imported, and a failed extract offers paste-instead. `JobImportDialog` replaces `ManualAddModal`; `AddJobSheet` renders the same model. Neither skin fetches. |
 | S2 | Backend: `awaiting_job_choice`, `POST /onboarding/first-job`, generalised `saved_first_role` | Tests: door kind appears after skills; first-job completes with a tailor receipt; idempotent retry |
 | S3 | Door screen + `JourneyProgress` labels + telemetry migration | Upload → paste → playground on dev with the QA account, desktop and 375px |
 | S4 | "Paste a job" on /market, desktop and phone | Reach gate green; QA U4 passes |
