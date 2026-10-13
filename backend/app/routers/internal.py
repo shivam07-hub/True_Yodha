@@ -55,6 +55,48 @@ def notice_close(
     return {"accepted": True}
 
 
+class GoldenDigestRequest(BaseModel):
+    #: The API's public origin, for the `List-Unsubscribe` header. pg_cron passes
+    #: the vault's `myro_api_base_url` — the same value it calls this route on.
+    api_base_url: str | None = Field(default=None, max_length=200)
+    #: Send every member's digest to this inbox instead, ignoring cadence and
+    #: writing nothing (#59 S4: the preview Shivam approves before anything goes live).
+    preview_to: str | None = Field(default=None, max_length=200)
+    #: False composes and reports only.
+    apply: bool = True
+
+
+@router.post("/golden-digest/send", status_code=status.HTTP_202_ACCEPTED)
+def golden_digest_send(
+    body: GoldenDigestRequest,
+    background_tasks: BackgroundTasks,
+    x_myro_refresh_secret: Annotated[str, Header(min_length=10)],
+) -> dict[str, bool]:
+    """The golden-list digest's daily run (#59). Acknowledges, then runs — pg_cron
+    waits 30s and a member's compose reads their whole match stack. Production
+    only, like the closer: dev shares the members and their inboxes. The run's
+    report is the `metric golden_digest.run` line and the `golden_digest` rows."""
+    require_refresh_secret(x_myro_refresh_secret)
+    if not settings.is_production:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The golden digest sends from production only.",
+        )
+    from app.services import golden_digest
+
+    background_tasks.add_task(
+        golden_digest.send_due,
+        datetime.now(timezone.utc),
+        store=golden_digest.SupabaseStore(get_supabase_admin()),
+        mailer=golden_digest.ResendMailer(),
+        apply=body.apply,
+        app_url=settings.public_app_url,
+        api_url=(body.api_base_url or "").rstrip("/") or None,
+        preview_to=body.preview_to,
+    )
+    return {"accepted": True}
+
+
 def require_scrape_webhook(x_scrape_token: str | None = Header(default=None)) -> None:
     expected = settings.scrape_webhook_token.strip()
     if not expected:

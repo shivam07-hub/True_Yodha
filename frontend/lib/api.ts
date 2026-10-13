@@ -5993,6 +5993,14 @@ export interface GhostIndexResponse {
   coverage: GhostIndexCoverage
 }
 
+// ── Golden-list digest: one-click unsubscribe (#59) ──────────────────────────
+
+export const emailPrefs = {
+  /** The token in the email is the proof; no login. A second press changes nothing. */
+  unsubscribe: (token: string) =>
+    request<void>(`/email/unsubscribe?t=${encodeURIComponent(token)}`, { method: "POST" }),
+}
+
 export const ghostIndex = {
   /** 503 while the snapshot has never been computed — absent, never zeroes. */
   get: () => request<GhostIndexResponse>("/public/ghost-index"),

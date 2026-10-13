@@ -15,6 +15,7 @@ from app.routers import (
     companies,
     cv,
     diary,
+    email_prefs,
     feedback,
     ghost_index,
     growth,
@@ -124,6 +125,7 @@ app.include_router(status.router)
 app.include_router(telemetry.router)
 app.include_router(upskilling.router)
 app.include_router(internal.router)
+app.include_router(email_prefs.router)
 
 
 @app.on_event("startup")

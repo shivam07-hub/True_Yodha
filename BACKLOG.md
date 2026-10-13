@@ -17,9 +17,9 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 
 | # | Step | Item | Spec · owner | Next |
 |---|---|---|---|---|
-| 1 | Find the job | **#55** a returning user's list never vanishes | [ARCHITECTURE_RETURN_LOOP.md](ARCHITECTURE_RETURN_LOOP.md) · decisions taken below | S0–S3 + S5 done 2026-10-13 · S4 = #59 golden digest (decision 2) |
+| 1 | Find the job | **#55** a returning user's list never vanishes | [ARCHITECTURE_RETURN_LOOP.md](ARCHITECTURE_RETURN_LOOP.md) · decisions taken below | S0–S5 built 2026-10-13 · S4 (#59) live only after Shivam approves the preview |
 | 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read the funnel on prod after the next merge |
-| 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) · Cursor | S1 migration + `golden_list.py` |
+| 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) | S1–S3 built 2026-10-13 · **BLOCKED on Shivam**: preview → approve → schedule (go-live SQL in the spec) |
 | 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor | S0 audit, today's rule |
 | 4 | Front door | **#57** "Which job do you want?" after upload · partner SSO lands on the upload (22% of partner people upload vs 67% direct) | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor | S0 partner landing |
 | 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor | S1 blank certs |
@@ -547,6 +547,11 @@ Tracker (3) · no problem or not actionable (~25).
   `dead_man:job_ingestion` is open. Then: Axis Bank = 14,259 live rows (~18%,
   747 titles) — dedupe at the source.
 - Compute → Small (above) · the prod deploy guard (above).
+- **#59 golden digest go-live** (built 2026-10-13): after the `main` merge, run
+  the preview SQL in `ARCHITECTURE_GOLDEN_DIGEST.md` (status block), read the
+  emails, approve; an agent then adds the schedule. One call first: should a
+  member's first digest offer their current top three (Raj 23 cards today)
+  rather than only jobs new since they joined (0 for all four today)?
 - Finlatics, optional: one user's SSO failed 2026-10-06 17:56 (`Server
   disconnected`, fixed `c9a0a047`); their auth account `b4203375…` exists with no
   seat, so their next SSO goes through the consent screen (safe, one extra step).

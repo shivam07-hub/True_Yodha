@@ -203,6 +203,10 @@ one did (6 of them real PDF uploads whose own run never landed). One is active:
 `4f304f53…`, two certificate promotions six seconds apart (cv 652, 653,
 2026-10-06 05:17), no run since 04:54.
 
+**S4 is #59** (decision 2: the email goes only to the golden list). Built on
+`Develop` 2026-10-13 up to its own gate — Shivam approves a preview before the
+schedule exists. Status and the go-live steps: `ARCHITECTURE_GOLDEN_DIGEST.md`.
+
 **S5 shipped 2026-10-13.** The same look files each unanswered Apply click with
 no save as `saved` — the rule every click has followed since `3ff55125` — so
 "Did you apply?" has a row to ask on; a job dismissed after the click stays

@@ -1,0 +1,25 @@
+.unsub-page {
+  max-width: 28rem;
+  margin: 0 auto;
+  min-height: 60dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1rem;
+  padding: var(--tm-page-py) var(--tm-page-px);
+  color: var(--tm-text);
+}
+
+.unsub-title {
+  margin: 0;
+  font-family: var(--tm-font-display);
+  font-size: var(--tm-fs-title);
+  font-weight: 600;
+}
+
+.unsub-line {
+  margin: 0;
+  font-size: var(--tm-fs-body);
+  color: var(--tm-text-muted);
+}
