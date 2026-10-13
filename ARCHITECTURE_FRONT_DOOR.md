@@ -17,6 +17,10 @@ CEO grill (D6, Shivam, 2026-09-30).** UI slices go through `/frontend-design`.
 > partner upload rate is the later read, after this is on `main`.
 > S1: one import model (`createJobImport`). A link is reviewed before save;
 > a failed extract offers paste-instead. Measured in `job-import.test.ts`.
+> S2: after skills, no direction and no saved job returns `awaiting_job_choice`.
+> `POST /onboarding/first-job` completes with a tailor receipt and retries
+> cleanly. Measured in `test_onboarding_first_role.py`. Not pushed until the
+> result page can render the kind (S3) — an unknown kind paints a blank step.
 
 ---
 
@@ -182,7 +186,7 @@ Clicks = `core_loop_events` rows between them.
 |---|---|---|
 | S0 | B2 · partner SSO goes through onboarding | **Shipped 2026-10-14.** Connect approval, the Google return, and the emailed link all enter `/onboarding`. A finished journey still reaches `/market` from that page. |
 | S1 | `use-job-import` + both skins; delete the duplicate logic | **Shipped 2026-10-14.** `createJobImport`: link → review → imported, and a failed extract offers paste-instead. `JobImportDialog` replaces `ManualAddModal`; `AddJobSheet` renders the same model. Neither skin fetches. |
-| S2 | Backend: `awaiting_job_choice`, `POST /onboarding/first-job`, generalised `saved_first_role` | Tests: door kind appears after skills; first-job completes with a tailor receipt; idempotent retry |
+| S2 | Backend: `awaiting_job_choice`, `POST /onboarding/first-job`, generalised `saved_first_role` | **Built 2026-10-14, not pushed.** Door kind after skills; first-job receipt; idempotent retry. Push waits on S3 so the result page is not blank. |
 | S3 | Door screen + `JourneyProgress` labels + telemetry migration | Upload → paste → playground on dev with the QA account, desktop and 375px |
 | S4 | "Paste a job" on /market, desktop and phone | Reach gate green; QA U4 passes |
 | S5 | Direction-after-download nudge for doors 1–2 | No empty /market for a person without a direction |

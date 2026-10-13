@@ -89,7 +89,7 @@ def _patch_handoff(monkeypatch, calls: list[str], next_step: dict[str, Any] | No
 
     def _get_result(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
         calls.append("get_result")
-        return next_step if next_step is not None else {"kind": "awaiting_target"}
+        return next_step if next_step is not None else {"kind": "awaiting_job_choice"}
 
     monkeypatch.setattr(skill_confirmation.onboarding_service, "enqueue_score_refresh", _enqueue)
     monkeypatch.setattr(skill_confirmation.onboarding_service, "_awaiting_target_payload", _awaiting)
@@ -139,21 +139,20 @@ def test_confirmation_publishes_skills_then_hands_the_score_off(monkeypatch) -> 
         ],
     )
     monkeypatch.setattr(skill_confirmation, "UsersRepository", lambda _db: _UsersRepo(calls))
-    _patch_handoff(monkeypatch, calls, next_step={"kind": "awaiting_target", "families": []})
+    _patch_handoff(monkeypatch, calls, next_step={"kind": "awaiting_job_choice"})
 
     result = skill_confirmation.confirm_baseline_skills(object(), "u1", 17, [])
 
     # The next step's payload rides back on this response. The client used to throw
     # it away and immediately GET the same thing — 8.2s of re-asking on top of the
-    # 8.4s above, for one button press.
-    assert result["next"] == "target"
-    assert result["result"]["kind"] == "awaiting_target"
-    assert result["result"]["families"] == []
+    # 8.4s above, for one button press. After skills, that step is the job door.
+    assert result["next"] == "job_choice"
+    assert result["result"]["kind"] == "awaiting_job_choice"
     # No `cv_structured` on this baseline → the CV says nothing about seniority, so
-    # nothing is written. Unknown stays unknown; the direction step asks.
+    # nothing is written. Unknown stays unknown.
     # No "state" patch: the journey position is derived from these very facts now,
     # so confirming skills IS the state change — there is nothing to also record.
-    assert calls == ["confirm", "enqueue:skills_confirmed", "awaiting_target"]
+    assert calls == ["confirm", "enqueue:skills_confirmed", "get_result"]
     # Publication still strictly precedes the score being asked for.
     assert calls.index("confirm") < calls.index("enqueue:skills_confirmed")
 
@@ -372,7 +371,7 @@ def test_confirmation_skips_enqueue_when_provisional_score_already_landed(
 
     skill_confirmation.confirm_baseline_skills(object(), "u1", 17, [])
 
-    assert calls == ["confirm", "awaiting_target"]
+    assert calls == ["confirm", "get_result"]
 
 
 def test_confirmation_forces_recompute_when_user_excludes_a_skill(monkeypatch) -> None:

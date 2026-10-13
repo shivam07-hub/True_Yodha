@@ -200,10 +200,17 @@ def confirm_baseline_skills(
                 db, user_id, profile=profile, baseline=confirmed,
             ),
         }
+    # The confirm RPC stamps skills_confirmed_at. The row in hand was read
+    # before that write; without the stamp, get_result would send them back
+    # to the skill check. No direction yet: the next step is the job door.
+    confirmed = {
+        **baseline,
+        "skills_confirmed_at": baseline.get("skills_confirmed_at") or _now_iso(),
+    }
     return {
-        "next": "target",
-        "result": onboarding_service._awaiting_target_payload(
-            db, user_id, profile, baseline, include_families=False,
+        "next": "job_choice",
+        "result": onboarding_service.get_result(
+            db, user_id, profile=profile, baseline=confirmed,
         ),
     }
 

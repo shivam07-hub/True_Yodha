@@ -294,6 +294,18 @@ def confirm_skills(
     return {"status": "confirmed", **outcome}
 
 
+@router.post("/first-job")
+def accept_first_job(
+    body: FirstRoleRequest,
+    principal: Principal = Depends(get_principal),
+    jobs_repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> dict[str, str]:
+    """A pasted or extension-saved job completes onboarding with a tailor receipt."""
+    return onboarding_first_role.accept_first_job(
+        get_supabase_admin(), jobs_repo, principal.id, body.job_id
+    )
+
+
 @router.post("/first-role")
 def commit_first_role(
     body: FirstRoleRequest,
