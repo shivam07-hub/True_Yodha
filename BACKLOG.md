@@ -31,7 +31,7 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 **Cursor's order (Shivam, 2026-10-14):** #57 → #58 → #60 → #56 → employer record —
 the biggest absolute leak first (553 of 1,002 never upload; 511 arrived by partner
 SSO, 22% of them upload), then collected → tailored (26%); #60 once jobs flow
-again; pay after the value. The prompt Cursor works from is in ARCHIVE 2026-10-14.
+again; pay after the value.
 
 Specs Cursor builds from, each slice its own commit with six gates green:
 RETURN_LOOP (#55) · PAYMENTS (#56) · FRONT_DOOR (#57) · CV_TIER_A (#58) ·

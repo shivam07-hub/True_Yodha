@@ -6,6 +6,21 @@
 
 ---
 
+## 2026-10-14 — Grill: what stays open after #55
+
+Cursor keeps #56–#60; order #57 → #58 → #60 → #56 → employer record. Merge batched
+with #57 S0, compute Small first. #59 first email = the member's whole /market list.
+Closed or parked, one line each:
+- **7f** /market "served unranked" — stale since 2026-09-26: `/jobs/feed` is the
+  judged list (`published_list`), `feed.unranked` no longer exists.
+- **#45** evidence bank (Prep's horizontal loop, artboard 2a in UNIFIED_PREP_V2.md) —
+  parked until 20 people have applied.
+- **CS-12** where the gap-answering ask lives (Market, Collections, CV) — parked, same trigger.
+- **CS-14** matching reads no Career Stories, only CV skills — parked, same trigger;
+  noted beside #60.
+- **CS-15** `cv_of_record` keeps no story references, so pass two cannot learn which
+  stories won — parked, same trigger.
+
 ## 2026-10-13 — #55 Return Loop S0–S5, and what the loop was losing
 
 S0: 39 of 54 people active in 30 days opened /market to nothing. S1 Verdict
