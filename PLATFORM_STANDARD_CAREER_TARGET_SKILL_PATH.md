@@ -246,9 +246,8 @@ depends on the retired path.
 Run the repository gates before each slice is called complete:
 
 ```bash
-source .venv/bin/activate
-PYTHONPATH=backend pytest backend/tests
-ruff check <owned backend files>
+backend/.venv/bin/pytest backend/tests
+backend/.venv/bin/ruff check <owned backend files>
 cd frontend && npx tsc --noEmit && npm run lint && npm test
 npm run check:ui-drift && npm run build
 ```

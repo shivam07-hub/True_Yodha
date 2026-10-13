@@ -329,7 +329,7 @@ its own commit, with a test that asserts a run does not empty the column.
 All five, every slice, before saying done:
 
 ```bash
-pytest backend/tests && ruff check <your files>
+backend/.venv/bin/pytest backend/tests && backend/.venv/bin/ruff check <your files>
 ```
 
 ```bash
