@@ -2955,11 +2955,18 @@ class JobsRepository:
         ]
 
     def get_existing_match_job_ids(self, user_id: str, batch_week: date | None = None) -> list[str]:
-        query = self._db.table("user_job_matches").select("job_id").eq("user_id", user_id)
-        if batch_week is not None:
-            query = query.eq("batch_week", str(batch_week))
-        result = query.execute()
-        ids = [str(r["job_id"]) for r in (result.data or []) if r.get("job_id")]
+        def scoped(query: Any) -> Any:
+            query = query.eq("user_id", user_id)
+            if batch_week is not None:
+                query = query.eq("batch_week", str(batch_week))
+            return query.order("id")
+
+        # Paged for the same reason as the stack: past 1,000 rows a single read
+        # drops the rest, and a run would judge again what it had already judged.
+        rows = fetch_all_rows(
+            self._db, table="user_job_matches", columns="job_id", query_builder=scoped,
+        )
+        ids = [str(r["job_id"]) for r in rows if r.get("job_id")]
         if batch_week is None:
             ids.extend(self.get_dismissed_job_card_ids(user_id))
         return list(dict.fromkeys(ids))
@@ -2983,9 +2990,15 @@ class JobsRepository:
         its own response field, and was reading it twice
         (ARCHITECTURE_READ_PATH.md S4-followup).
         """
-        result = (
-            self._db.table("user_job_matches")
-            .select(
+        # Paged. PostgREST answers at most 1,000 rows, and on 2026-10-13 seven
+        # people held more — every one of them active that month — so 1,397 of
+        # their verdicts were never read and those jobs never reached /market,
+        # Collections or the Picks gate. `id` orders the pages: it is unique, so
+        # no row lands on two pages or on none.
+        rows = fetch_all_rows(
+            self._db,
+            table="user_job_matches",
+            columns=(
                 "id, job_id, overlap_score, llm_rank, llm_explanation, "
                 "batch_week, computed_at, matched_skills, "
                 "is_recommended, baseline_version_id, target_context_hash, eval_context_hash, "
@@ -3003,13 +3016,11 @@ class JobsRepository:
                 # `main_skills` is what `direction_fit` grades the pick gate on. One array
                 # on a select this read already makes, so the grade costs no round trip.
                 f"main_skills, {CARD_COLUMNS})"
-            )
-            .eq("user_id", user_id)
-            .execute()
+            ),
+            query_builder=lambda q: q.eq("user_id", user_id).order("id"),
         )
         if dismissed is None:
             dismissed = set(self.get_dismissed_job_card_ids(user_id))
-        rows = list(result.data or [])
         rows.sort(key=_match_stack_sort_key, reverse=True)
 
         stack: list[dict[str, Any]] = []

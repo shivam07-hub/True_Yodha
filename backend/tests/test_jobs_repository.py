@@ -35,9 +35,17 @@ class _FakeQuery:
         self._rows = [row for row in self._rows if row.get(key) == value]
         return self
 
+    def order(self, *_args: Any, **_kwargs: Any) -> "_FakeQuery":
+        return self
+
+    def range(self, start: int, end: int) -> "_FakeQuery":
+        self._rows = self._rows[start : end + 1]
+        return self
+
     def execute(self) -> "_FakeQuery":
         self._tape["executed"] = True
-        self.data = self._rows
+        # PostgREST never answers more than 1,000 rows, asked or not.
+        self.data = self._rows[:1_000]
         return self
 
 
@@ -184,6 +192,24 @@ def test_get_user_match_stack_keeps_old_matches_under_new_refreshes() -> None:
 
     assert [row["job_id"] for row in stack] == ["fresh-job", "repeat-job", "old-job"]
     assert [row["batch_week"] for row in stack] == ["2026-06-01", "2026-06-01", "2026-05-25"]
+
+
+def test_get_user_match_stack_reads_past_the_thousand_row_cap() -> None:
+    """Seven people held more than 1,000 verdicts on 2026-10-13; a single read
+    returned the first 1,000 and the rest never reached any surface."""
+    rows = [
+        {
+            "id": n,
+            "user_id": "user-1",
+            "job_id": f"job-{n}",
+            "computed_at": "2026-10-01T09:00:00+00:00",
+            "jobs": {"is_active": True, "listing_confidence": "active"},
+        }
+        for n in range(1, 1_383)
+    ]
+    repo = JobsRepository(_FakeDB(rows), _FakeDB())  # type: ignore[arg-type]
+
+    assert len(repo.get_user_match_stack("user-1", dismissed=set())) == 1_382
 
 
 def test_get_user_match_stack_selects_job_lifecycle_fields() -> None:
