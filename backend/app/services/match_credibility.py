@@ -6,6 +6,7 @@ from typing import Any
 
 from app.schemas.jobs import SeniorityCompat
 from app.services.job_eligibility import seniority_fit, seniority_for_job
+from app.services.location_vocab import is_country, is_state, metro_cities, state_of
 from app.services.onboarding_service import context_key
 
 
@@ -53,6 +54,25 @@ def _profile_countries(profile: dict[str, Any]) -> list[str]:
     return [token for token in (_location_token(str(v or "")) for v in values) if token]
 
 
+def _job_place(job: dict[str, Any]) -> tuple[str, list[str]]:
+    """(city token, states) for a job — a country or a state is never a city.
+
+    Rows written before the 2026-10 location release still carry "India" or
+    "Maharashtra" in location_city; they read here exactly as a re-scraped row
+    will (NULL city, state kept), so the rule holds before every row is rewritten.
+    """
+    city = _location_token(str(job.get("location_city") or ""))
+    states = [str(s) for s in (job.get("location_states") or []) if str(s or "").strip()]
+    if city and (is_country(city) or city == _location_token(str(job.get("location_country") or ""))):
+        city = ""
+    elif city and is_state(city):
+        state = state_of(city)
+        if state and state not in states:
+            states.append(state)
+        city = ""
+    return city, states
+
+
 def _target_matches(target: str, countries: list[str], job: dict[str, Any]) -> bool:
     """Does this ONE stated location cover this job?"""
     if "remote" in target:
@@ -66,9 +86,27 @@ def _target_matches(target: str, countries: list[str], job: dict[str, Any]) -> b
         if country and country in city:
             city = _location_token(city.split(country, 1)[0])
             break
-    job_city = _location_token(str(job.get("location_city") or ""))
+    city = city.removesuffix(" india").strip() if city != "india" else city
+    if not city:
+        return False
+    job_city, job_states = _job_place(job)
     job_location = _location_token(str(job.get("location") or ""))
-    return bool(city and (city == job_city or city in job_location))
+    # CEO Q6: "Delhi NCR" is the cities Delhi, Gurugram and Noida.
+    cities = [_location_token(member) for member in metro_cities(city)] or [city]
+    if job_city:
+        return any(c == job_city or c in job_location for c in cities)
+    if str(job.get("location_mode") or "").casefold() != "remote":
+        if job_states:
+            # CEO Q2: a state-only job reaches users whose city is in that state.
+            # A metro reads as its own state (Delhi NCR → Delhi), not its members'.
+            target_state = state_of(city)
+            return target_state is not None and target_state in job_states
+        if job_country:
+            # CEO Q1: a job with no city is open to everyone in its country.
+            if countries:
+                return job_country in countries
+            return job_country == "india" and state_of(city) is not None
+    return any(c in job_location for c in cities)
 
 
 def location_compatible(profile: dict[str, Any], job: dict[str, Any]) -> bool:
