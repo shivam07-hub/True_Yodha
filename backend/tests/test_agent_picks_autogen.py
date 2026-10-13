@@ -99,18 +99,37 @@ def test_caps_at_max_picks() -> None:
     assert len(picks) == agent_picks.MAX_PICKS
 
 
+_PROFILE = {"target_role_title": "Data Analyst", "target_seniority": "mid", "target_location": "Pune"}
+
+
+def _judged_for(row: dict[str, Any], profile: dict[str, Any] = _PROFILE) -> dict[str, Any]:
+    """Stamp a match row as judged for `profile` against CV 7, under today's rules."""
+    from app.services import onboarding_service
+
+    keyed = {**profile, "baseline_version_id": 7}
+    return {
+        **row,
+        "eval_context_hash": onboarding_service.eval_context_key(keyed),
+        "target_context_hash": onboarding_service.context_key(keyed),
+    }
+
+
 class _FakeRepo:
-    """A repo with no targeting: the direction vocabulary comes back empty, so
-    every pick grades `unknown` and the band orders on the brain score alone."""
+    """A repo with no target families: the direction vocabulary comes back empty,
+    so every pick grades `unknown` and the band orders on the brain score alone.
+    Every row it holds is judged for `_PROFILE` unless a test says otherwise."""
 
     _db = None
 
-    def __init__(self, stack: list[dict[str, Any]]) -> None:
-        self._stack = stack
+    def __init__(self, stack: list[dict[str, Any]], *, judged: bool = True) -> None:
+        self._stack = [_judged_for(row) for row in stack] if judged else stack
         self.replaced: dict[str, Any] = {}
 
     def get_user_profile_targeting(self, _user_id: str) -> dict[str, Any]:
-        return {}
+        return dict(_PROFILE)
+
+    def get_latest_baseline_id(self, _user_id: str) -> int:
+        return 7
 
     def get_user_match_stack(self, _user_id: str) -> list[dict[str, Any]]:
         return self._stack
@@ -135,6 +154,19 @@ def test_regenerate_empty_stack_clears_band() -> None:
     repo = _FakeRepo([])
     assert agent_picks.regenerate_for_user(repo, "u1") == 0
     assert repo.replaced["picks"] == []
+
+
+def test_regenerate_never_picks_a_verdict_judged_for_another_direction() -> None:
+    """#55 S2: `foreign` leaves Picks. A stale verdict (same direction, older
+    rules) still can be one; the read marks it re-reading."""
+    left = {**_PROFILE, "target_role_title": "Sales Manager"}
+    stale = {**_judged_for(_row("stale", score=4.4)), "eval_context_hash": "an-older-prompt"}
+    repo = _FakeRepo([], judged=False)
+    repo._stack = [_judged_for(_row("left", score=4.8), left), stale, _judged_for(_row("now", score=4.2))]
+
+    agent_picks.regenerate_for_user(repo, "u1")
+
+    assert [p["job_id"] for p in repo.replaced["picks"]] == ["stale", "now"]
 
 
 # ── the direction gate (ADR-0022 / direction_fit) ────────────────────────────

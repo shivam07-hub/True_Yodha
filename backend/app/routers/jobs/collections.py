@@ -20,7 +20,7 @@ from app.services.collections import (
     resolve_collection,
 )
 from app.services import jobs_workflow
-from app.services.matching import match_freshness
+from app.services.matching import match_freshness, verdict_currency
 from app.services.concurrent_reads import run_concurrently
 
 from app.services.job_projection import last_monday
@@ -60,12 +60,28 @@ def get_collection(
     )
     dismissed: set[str] = reads["dismissed"] or set()
     # Dependent on `dismissed` — the stack read takes it rather than paying a
-    # second round trip for the same set (same rule as /jobs/matches).
-    match_rows = repo.get_user_match_stack(uid, dismissed=dismissed)
+    # second round trip for the same set (same rule as /jobs/matches). Verdict
+    # Currency rides beside it: three small reads under the stack's one heavy one.
+    stack = run_concurrently(
+        {
+            "match_rows": lambda: repo.get_user_match_stack(uid, dismissed=dismissed),
+            "currency": lambda: verdict_currency.for_user(repo, uid),
+        },
+        label="jobs.collections.stack",
+    )
+    match_rows = stack["match_rows"]
+    currency = stack["currency"]
+    applications = reads["applications"] or []
+    saved = {str(row.get("job_id")) for row in applications}
     pending, freshness = reads["pending"] or (set(), "not_asked")
     return resolve_collection(
-        applications=reads["applications"] or [],
-        match_rows=match_rows,
+        applications=applications,
+        # An untouched match judged for another CV or direction is not this
+        # person's to work on. A saved job stays theirs, whatever it was judged for.
+        match_rows=[
+            row for row in match_rows
+            if str(row.get("job_id")) in saved or currency.of(row) != "foreign"
+        ],
         dismissed_job_ids=dismissed,
         tailored_by_job=reads["tailored"] or {},
         pending_intent_job_ids=pending or set(),

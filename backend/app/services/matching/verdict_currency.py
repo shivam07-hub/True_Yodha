@@ -12,8 +12,15 @@ One answer for a person and a stored match row (`ARCHITECTURE_RETURN_LOOP.md`
 
 Before this, `eval_context_hash` decided membership on /market, so a prompt edit
 hid every list at once and each memory distill hid one person's list (S0,
-2026-10-13: 39 of 51 people active in 30 days opened /market to nothing; 18 of
+2026-10-13: 39 of 54 people active in 30 days opened /market to nothing; 18 of
 them had stale verdicts worth showing).
+
+Every reader asks it: /market (`published_list`), Agent Picks (at regeneration
+and again at read, because a set cut before a direction change outlives it),
+Collections (an untouched match only; a saved job is the person's own act), and
+the Next chip through the /market list it names jobs from. The replaced-CV list
+is /market's alone: it is honest there because the list says so, and no other
+surface carries that sentence.
 
 Callers never compare the two hash columns themselves: this module exists to
 give one answer, so it does not export its inputs.
@@ -50,3 +57,14 @@ def for_profile(profile: dict[str, Any]) -> VerdictCurrency:
         _eval_key=onboarding_service.eval_context_key(profile),
         _direction_key=onboarding_service.context_key(profile),
     )
+
+
+def for_user(repo: Any, user_id: str) -> VerdictCurrency:
+    """For a read path that holds no profile: three small reads (the direction
+    columns, memory, the latest CV), sequential. Callers run it beside the read
+    it gates, so it costs a wave slot, not wall time."""
+    from app.services.matching import targeting
+
+    profile = targeting.for_currency(repo, user_id).ranking_profile()
+    profile["baseline_version_id"] = repo.get_latest_baseline_id(user_id)
+    return for_profile(profile)

@@ -3039,7 +3039,10 @@ class JobsRepository:
         # The skip gates compare this to decide whether a cached verdict is still
         # the answer. Carried on the badge subset (not just `full`) because the
         # feed warmer reads the light one.
-        "eval_context_hash, eval_outcome"
+        "eval_context_hash, eval_outcome, "
+        # With `eval_context_hash`, what Verdict Currency reads to tell a stale
+        # verdict from one judged for another direction (the Agent Picks read).
+        "target_context_hash"
     )
     _MATCH_EVAL_FULL_COLS = (
         _MATCH_EVAL_BADGE_COLS
@@ -3505,6 +3508,21 @@ class JobsRepository:
         profile = data or {}
         profile["cv_markdown"] = self.get_user_cv_markdown(user_id)
         return profile
+
+    def get_direction_columns(self, user_id: str) -> dict[str, Any]:
+        """The three profile columns a verdict's keys hash (Verdict Currency) —
+        one PK read. Not `get_user_profile_targeting`: that one also reads the
+        whole CV markdown, a second round trip and the heaviest payload on the
+        row, for a check that needs a title, a level and a place."""
+        rows = safe_read(
+            self._db.table("user_profiles")
+            .select("target_role_title,target_seniority,target_location")
+            .eq("id", user_id)
+            .limit(1),
+            default=[],
+            context="direction_columns",
+        )
+        return rows[0] if rows else {}
 
     def get_latest_baseline_id(self, user_id: str) -> int | None:
         result = (

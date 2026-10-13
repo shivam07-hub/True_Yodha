@@ -151,3 +151,15 @@ test("a job the published feed does not contain is not named", async () => {
     jobId: "accenture", title: "Account Director", company: "Accenture", fit: 76,
   }])[0]?.company, "Accenture")
 })
+
+test("a pick the feed is re-reading yields to its search's first current card", async () => {
+  const { jobsOnPublishedFeed } = await import("../lib/onboarding/next-best-steps")
+  const picks = [{ jobId: "stale", title: "Analyst", company: "Old Co", fit: 92 }]
+  const current = { jobId: "now", title: "Analyst", company: "New Co", fit: 78 }
+  const stale = { jobId: "stale", title: "Analyst", company: "Old Co", fit: 92, rereading: true }
+  assert.equal(jobsOnPublishedFeed(picks, [current, stale])[0]?.company, "New Co")
+  // Another search's current card does not displace it.
+  assert.equal(jobsOnPublishedFeed(picks, [{ ...current, trackId: 2 }, stale])[0]?.company, "Old Co")
+  // Nothing current yet: the stale card is still the best there is.
+  assert.equal(jobsOnPublishedFeed(picks, [stale])[0]?.company, "Old Co")
+})

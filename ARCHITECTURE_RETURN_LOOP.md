@@ -159,16 +159,34 @@ Each is its own commit, six gates green.
 | S5 | Apply clicks from before `3ff55125` with no application row: file them `saved` on return so "Did you apply?" can ask | 0 | Two batch-1 people; tiny; finishing work they started |
 
 **S0 baseline, 2026-10-13** (`published_list.assemble` as shipped, every real
-person with a verdict and `last_active_at` in 30 days): **39 of 51 opened /market
+person with a verdict and `last_active_at` in 30 days): **39 of 54 opened /market
 to zero cards.** 18 of the 39 held stale verdicts worth showing; the other 21
 hold nothing worth showing under any rule. `job_recommendation_exposures` could
-not answer this — an empty list writes no exposure row.
+not answer this — an empty list writes no exposure row. (The S1 commit said "of
+51": its cohort read asked PostgREST for many people's rows at once and the
+1,000-row cap dropped three heavy ones. Count people one read each, or in SQL.)
 
 **S1 shipped 2026-10-13** — `matching/verdict_currency.py`; /market lists stale
 cards after current ones with `rereading: true`, a motion state on the ring.
-Same 51 people re-run on the new code: **21 empty, 20 with re-reading cards,
-no current card ordered after a stale one.** A `PROMPT_VERSION` bump now leaves
-the card count unchanged (`test_published_list.py`).
+Same people re-run on the new code: **21 of 54 empty**, no current card ordered
+after a stale one. A `PROMPT_VERSION` bump now leaves the card count unchanged
+(`test_published_list.py`).
+
+**S2 shipped 2026-10-13.** Agent Picks drop `foreign` at regeneration and again
+at read (a set outlives the direction change that made it foreign), and mark
+stale picks `rereading`; Collections gives an untouched `foreign` match no entry
+(a saved job stays); the Next chip names a stale pick only when its search has
+no current card. Read paths load currency from the three columns its keys hash
+(`targeting.for_currency`, no CV markdown), beside the read it gates — 2-section
+waves. On prod, the same 54 people: **19 of 76 picks leave the band** (22 people
+hold picks), 20 re-read in place; **46 Collections entries leave across 4 people**;
+the lean read and the full Targeting Brief disagree on **0 of every row**.
+
+⚠️ **For S3:** one of those 4 (`4f304f53…`) holds only verdicts from a replaced
+CV — two baseline uploads six seconds apart (cv 652, 653, 2026-10-06 05:17) and
+no match run since 04:54. /market shows them the replaced CV's list with its
+notice; every other surface now shows nothing. The return door must cover a CV
+with no run on it, not only a moved prompt or memory.
 
 **Done means:** re-running the batch-1 assessment (memory
 `project_instant_seeker_batches`) shows every returning person with ≥1 card when

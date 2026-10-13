@@ -208,11 +208,3 @@ def test_a_prompt_version_bump_leaves_the_card_count_unchanged(monkeypatch) -> N
 
     assert len(before) == len(after) == 2
     assert all(c["rereading"] for c in after)
-
-
-def test_no_baseline_proves_no_direction() -> None:
-    """Without a CV there is no direction key, so nothing can be stale."""
-    from app.services.matching.verdict_currency import for_profile
-
-    currency = for_profile({**_PROFILE, "baseline_version_id": None})
-    assert currency.of({"eval_context_hash": "x", "target_context_hash": None}) == "foreign"

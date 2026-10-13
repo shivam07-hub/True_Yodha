@@ -5,6 +5,24 @@ from app.main import app
 from app.repositories.jobs import get_token_jobs_repository
 
 
+# The direction every fake person is aiming at, and the CV it was read against.
+_DIRECTION = {"target_role_title": "Data Engineer", "target_seniority": "mid", "target_location": "Bengaluru"}
+_BASELINE = 7
+
+
+def _judged(**fields) -> dict:
+    """An eval row judged for `_DIRECTION` under today's rules (Verdict Currency
+    `current`). A row with neither key cannot say whose it is, and leaves the band."""
+    from app.services import onboarding_service
+
+    profile = {**_DIRECTION, "baseline_version_id": _BASELINE}
+    return {
+        "eval_context_hash": onboarding_service.eval_context_key(profile),
+        "target_context_hash": onboarding_service.context_key(profile),
+        **fields,
+    }
+
+
 class _FakeJobsRepo:
     def __init__(
         self,
@@ -36,6 +54,12 @@ class _FakeJobsRepo:
 
     def get_agent_picks(self, user_id: str) -> list[dict]:
         return self._agent_picks
+
+    def get_direction_columns(self, user_id: str) -> dict:
+        return dict(_DIRECTION)
+
+    def get_latest_baseline_id(self, user_id: str) -> int:
+        return _BASELINE
 
     def passed_on_directions(self, user_id: str) -> list[str]:
         return list(self._passed_on)
@@ -221,7 +245,7 @@ def test_agent_picks_returns_curated_shortlist_with_comment() -> None:
             "agent_comment": "A direct mirror of your growth work.",
         }
     ]
-    repo = _FakeJobsRepo(agent_picks=picks)
+    repo = _FakeJobsRepo(agent_picks=picks, evals={"j1": _judged()})
     app.dependency_overrides[get_principal] = lambda: Principal(id="u1")
     app.dependency_overrides[get_token_jobs_repository] = lambda: repo
     try:
@@ -238,8 +262,9 @@ def test_agent_picks_returns_curated_shortlist_with_comment() -> None:
     assert pick["agent_rank"] == 1
     assert pick["agent_tier"] == "bullseye"
     assert pick["agent_comment"] == "A direct mirror of your growth work."
-    assert pick["verdict"] is None
-    assert pick["match_score"] is None
+    # Its row is judged for this direction but carries no score: Provisional.
+    assert pick["verdict"] == "checking"
+    assert pick["rereading"] is False
     assert repo.exposures == [("u1", "agent_pick", ["j1"])]
 
 
@@ -269,6 +294,7 @@ def test_agent_picks_carry_the_match_verdict() -> None:
     ]
     evals = {
         "j1": {
+            **_judged(),
             "overall_score": 4.2,
             "overlap_score": 70.0,
             "recommendation": "Apply",
@@ -468,3 +494,43 @@ def test_retry_accepted_when_the_direction_was_never_searched(monkeypatch) -> No
         app.dependency_overrides.clear()
     assert retry.json() == {"accepted": True, "match_health": "stale_direction"}
     assert len(enqueued) == 1
+
+
+def test_a_pick_from_a_left_direction_leaves_the_band_and_a_stale_one_is_reread() -> None:
+    """#55 S2. A set is cut at regeneration and outlives a direction change; the
+    read asks Verdict Currency again (batch 1: 11 picks from a direction left)."""
+    from app.services import onboarding_service
+
+    def pick(job_id: str, rank: int) -> dict:
+        return {
+            "job_id": job_id, "job_title": job_id, "company_name": None, "job_description": None,
+            "first_seen": None, "last_seen_at": None, "is_stale": True, "is_active": True,
+            "agent_rank": rank, "agent_tier": "strong", "agent_comment": "Fits.",
+        }
+
+    left = {**_DIRECTION, "target_role_title": "Sales Manager", "baseline_version_id": _BASELINE}
+    current = _judged(overall_score=4.4, recommendation="Apply")
+    evals = {
+        "now": current,
+        "older-prompt": {**current, "eval_context_hash": "an-older-prompt"},
+        "left": {
+            **current,
+            "eval_context_hash": onboarding_service.eval_context_key(left),
+            "target_context_hash": onboarding_service.context_key(left),
+        },
+    }
+    repo = _FakeJobsRepo(
+        agent_picks=[pick("now", 1), pick("left", 2), pick("older-prompt", 3)], evals=evals,
+    )
+    app.dependency_overrides[get_principal] = lambda: Principal(id="u1")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    try:
+        with TestClient(app) as client:
+            body = client.get("/jobs/agent-picks").json()
+    finally:
+        app.dependency_overrides.clear()
+
+    assert [(p["job_id"], p["rereading"]) for p in body["picks"]] == [
+        ("now", False), ("older-prompt", True),
+    ]
+    assert repo.exposures == [("u1", "agent_pick", ["now", "older-prompt"])]
