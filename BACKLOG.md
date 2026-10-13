@@ -56,11 +56,16 @@ list** — see §3. Do not bump `PROMPT_VERSION` casually until S1 ships.
 28,120 active jobs younger than 7 days on 2026-10-02. This repo only reads jobs;
 never measure ingestion with `jobs.ingested_at` (an extension save masks a stall).
 
-7e. **Next (Shivam, 2026-10-14): measure first, no judge calls — agent.** For the
-    21 people whose /market stays empty after S1, count the live jobs semantic recall
-    adds that title retrieval misses, with their deterministic overlap, and the judge
-    cost to read them; the RPC mismatch below is fixed in the script only. Wiring is
-    a later decision.
+7e. **Measured 2026-10-14 — don't wire it yet.** The 20 people whose /market stays
+    empty after S1: semantic recall (k=200) adds 1,420 live jobs that title retrieval
+    misses and Admission allows — but only **11** of them share two or more skills
+    with the person's CV (3 people). Judging all 1,420 would spend ~1,420 judge
+    calls for a handful of likely Applies. The larger lever is elsewhere: 14 of the
+    20 have a title pool of up to 1,000 jobs of which the judge has read 1–22 —
+    their drains stopped (the 2026-10-13 outage, and before it the drain claim
+    window), so they are a drain-completion question, not a recall one. 3 have no
+    direction; 2 have only another direction's verdicts. The RPC mismatch below
+    was fixed 2026-09-25 (`_rpc_params`, pinned by `test_semantic_candidates`).
 
     **Semantic retrieval is PAID FOR and UNWIRED — and its one caller-ready
     module would fail silently if wired today.** Measured 2026-09-25, against the
@@ -475,15 +480,14 @@ Tracker (3) · no problem or not actionable (~25).
 
 ## SHIVAM
 
-- **🔴 OpenRouter is out of credits — the judge and the CV writer have no paid
-  model (since 2026-10-13 17:54 UTC).** `total_credits` 15, `total_usage` 15.20;
-  every paid strong model returns 402. The last verdict landed 17:54; drains stop
-  at `feed_warm.batch_empty`. Top up OpenRouter. Groq's model was retired the same
-  day — `b22c0f4b` moves every strong lane's fallback to Groq `gpt-oss-120b`; the
-  worker (Develop) has it, the prod API (Tailor writing, CV upload, interactive)
-  needs it merged to `main`. What spent it: drains reading whole pools — 2,654
-  verdicts in the 24h before, ~1,000 per new signup. Whether to cap a drain is
-  yours to decide.
+- **OpenRouter topped up 2026-10-14** (credits 25, used 15.20, $9.80 left) after
+  it ran out 2026-10-13 17:54 UTC and stopped the judge and the CV writer. Groq's
+  model was retired the same day — `b22c0f4b` moves every strong lane's fallback to
+  Groq `gpt-oss-120b`; the worker runs it, the prod API (Tailor writing, CV upload,
+  interactive) needs it merged to `main`. What spent the $15: drains reading whole
+  pools, ~12,500 verdicts 10-04→10-13, up to ~1,000 per new signup (≈ $1.2 per
+  1,000 verdicts at that rate — an upper bound, every lane shares the balance).
+  At that rate $9.80 is ~8,000 verdicts. Whether to cap a drain is yours.
 - **Compute → Small, now.** The plan is Pro (2026-10-14); the compute is still
   Micro — `max_connections` 60, `shared_buffers` 224MB, Postgres up since 07-12
   (Small reads 90 / 512MB and restarts it). It was meant to come before the merge
@@ -519,9 +523,6 @@ Tracker (3) · no problem or not actionable (~25).
 
 ## AGENT CHORES — approved, small
 
-- 7e measurement (above) — **blocked on OpenRouter credits**: the query
-  embedding goes through OpenRouter (402 on 2026-10-14), and `retrieve` fails
-  soft to 0 candidates, which first read as "semantic recall adds nothing".
 
 - After `main` carries `17b5533d`: drop `company_pulse_snapshot.last_seen_at`
   (Shivam: standing yes, 2026-10-07). First confirm `main`'s
