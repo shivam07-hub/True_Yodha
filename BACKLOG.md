@@ -50,10 +50,6 @@ list** — see §3. Do not bump `PROMPT_VERSION` casually until S1 ships.
 28,120 active jobs younger than 7 days on 2026-10-02. This repo only reads jobs;
 never measure ingestion with `jobs.ingested_at` (an extension save masks a stall).
 
-⚠️ `jobs_added_1h` on the public landing page is structurally **0 for 23 hours
-of every day** (`repositories/jobs.py:644,629,676` — a day marker compared to
-`now − 1h`). Fix from `ingested_at` or delete the field. In the first spec.
-
 7e. **Semantic retrieval is PAID FOR and UNWIRED — and its one caller-ready
     module would fail silently if wired today.** Measured 2026-09-25, against the
     live database, after this module was proposed for deletion as dead code.
