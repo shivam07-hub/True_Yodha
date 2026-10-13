@@ -24,18 +24,16 @@ This is a monorepo:
 
 ### Backend API
 ```bash
-source .venv/bin/activate
-pip install -r backend/requirements.txt
+# backend/.venv = backend/Dockerfile's Python + requirements.txt only (CONTRIBUTING.md)
 # create backend/.env (do not commit) with Supabase keys + LLM config + REDIS_URL
-cd backend && uvicorn app.main:app --reload
+cd backend && .venv/bin/uvicorn app.main:app --reload
 ```
 
 ### Jobs Compute Worker
 ```bash
-source .venv/bin/activate
 cd backend
 # requires REDIS_URL in backend/.env
-python -m app.workers.jobs_compute_worker
+.venv/bin/python -m app.workers.jobs_compute_worker
 ```
 
 ### Frontend

@@ -15,10 +15,16 @@ Thanks for taking the time to contribute. This repository is the codebase behind
 ### Backend (FastAPI)
 ```bash
 cd backend
-source ../.venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+python3.11 -m venv .venv   # the Python in backend/Dockerfile (or: conda create -p .venv python=3.11)
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python -m spacy download en_core_web_sm
+.venv/bin/uvicorn app.main:app --reload
 ```
+
+`backend/.venv` holds `requirements.txt` and nothing else — it is what Railway
+and CI run. The tests refuse any other Python or library version
+(`backend/tests/shipped_runtime.py`). Tools (Playwright QA and the like) live in
+the root `.venv`.
 
 Backend config lives in `backend/.env` (do not commit it).
 
@@ -36,7 +42,7 @@ Frontend config lives in `frontend/.env.local` (do not commit it).
 Run these from the repo root unless noted:
 
 ```bash
-.venv/bin/pytest backend/tests
+backend/.venv/bin/pytest backend/tests
 ```
 
 ```bash

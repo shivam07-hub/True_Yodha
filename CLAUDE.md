@@ -170,7 +170,7 @@ TanStack Query, Zustand. **Commits:** `feat:` `fix:` `chore:` `docs:` `test:`
 **Before saying done — all six pass:**
 
 ```bash
-pytest backend/tests && ruff check <your files>
+backend/.venv/bin/pytest backend/tests && backend/.venv/bin/ruff check <your files>
 cd frontend && npx tsc --noEmit && npm run lint && npm test
 npm run check:ui-drift && npm run build && npm run check:reach
 ```
@@ -178,7 +178,7 @@ npm run check:ui-drift && npm run build && npm run check:reach
 Gates 1–5 prove the code is **correct**; `check:reach` that anyone can **get to
 it**; `match_quality.py` that they were the RIGHT jobs. Reach: `loop_reach.py`.
 
-**Dev:** `PYTHONPATH=backend uvicorn app.main:app --reload` · `npm run dev`.
+**Dev:** `PYTHONPATH=backend backend/.venv/bin/uvicorn app.main:app --reload` · `npm run dev`.
 
 **Skills:** `/grill-me` · `/read-path-perf` before any read path · `/tdd` ·
 `/frontend-design` · `/review` · `/security-review` · `/improve-codebase-architecture`
