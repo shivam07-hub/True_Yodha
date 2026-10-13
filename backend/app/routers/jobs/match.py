@@ -20,7 +20,7 @@ from app.schemas.jobs import MatchBrainResult, MatchRetryResponse
 from app.services import background, jobs_workflow, new_inventory, progress_stream
 from app.services.job_refresh import JobRefresh
 from app.services.concurrent_reads import run_concurrently
-from app.services.matching import match_freshness, on_demand, verdict_currency
+from app.services.matching import admission, match_freshness, on_demand, verdict_currency
 
 from app.routers.jobs.list import _rank_feed_rows
 from app.services.job_projection import last_monday, to_job_match
@@ -229,20 +229,23 @@ def get_agent_picks(
     reads = run_concurrently(
         {
             "picks": lambda: repo.get_agent_picks(principal.id),
-            "currency": lambda: verdict_currency.for_user(repo, principal.id),
+            "profile": lambda: verdict_currency.list_profile(repo, principal.id),
         },
         label="jobs.agent_picks",
     )
-    rows, currency = reads["picks"], reads["currency"]
+    rows, profile = reads["picks"], reads["profile"]
+    currency = verdict_currency.for_profile(profile)
     job_ids = [str(r.get("job_id")) for r in rows if r.get("job_id")]
     brain_evals = repo.get_cached_match_evals(principal.id, job_ids) if job_ids else {}
-    # A set is cut at regeneration and outlives a direction change until the next
-    # run, so the read asks again: a pick judged for another CV or direction
-    # leaves the band, a stale one is re-read in place like its /market card.
+    # A set is cut at regeneration and outlives the profile it was cut for, so the
+    # read asks the list's two questions again: a pick judged for another CV or
+    # direction leaves the band, and so does one the list would not admit now
+    # (a city they stopped looking in); a stale one is re-read in place like its
+    # /market card.
     kept = []
     for row in rows:
         standing = currency.of(brain_evals.get(str(row.get("job_id"))) or {})
-        if standing == "foreign":
+        if standing == "foreign" or not admission.admit(profile, row).admitted:
             continue
         row["rereading"] = standing == "stale"
         kept.append(row)

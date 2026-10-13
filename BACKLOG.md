@@ -507,8 +507,6 @@ Tracker (3) · no problem or not actionable (~25).
 
 ## AGENT CHORES — approved, small
 
-- Agent Picks read re-asks Admission: a stored pick can show a job the list hides
-  (Rishabh, 2026-10-14) — S2's read path asked only Verdict Currency.
 - R2: retire the pre-10-11 `slow_200:slow_read:*` Notice rows — prod runs the 2s
   rule since the 10-12 merge.
 - 7e measurement (above).

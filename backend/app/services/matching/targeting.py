@@ -196,11 +196,12 @@ def for_ranking(jobs_repo: Any, user_id: str) -> TargetingBrief:
 
 
 def for_currency(jobs_repo: Any, user_id: str) -> TargetingBrief:
-    """Brief for Verdict Currency on a read path: the columns its keys hash and
-    the direction they name, plus memory. `ranking_profile()` of this brief and of
-    `for_ranking`'s give the same keys and the same direction; what this one
+    """Brief for the list's questions on a read path — Verdict Currency (the
+    columns its keys hash and the direction they name) and Admission (where they
+    look, their years) — plus memory. `ranking_profile()` of this brief and of
+    `for_ranking`'s give the same keys, direction and admission; what this one
     leaves out is the CV markdown."""
-    profile = jobs_repo.get_direction_columns(user_id)
+    profile = jobs_repo.get_list_columns(user_id)
     return TargetingBrief(profile=profile or {}, facts=_facts(getattr(jobs_repo, "_db", None), user_id))
 
 

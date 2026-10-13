@@ -20,7 +20,7 @@ from app.services.collections import (
     resolve_collection,
 )
 from app.services import jobs_workflow
-from app.services.matching import match_freshness, verdict_currency
+from app.services.matching import admission, match_freshness, verdict_currency
 from app.services.concurrent_reads import run_concurrently
 
 from app.services.job_projection import last_monday
@@ -65,22 +65,26 @@ def get_collection(
     stack = run_concurrently(
         {
             "match_rows": lambda: repo.get_user_match_stack(uid, dismissed=dismissed),
-            "currency": lambda: verdict_currency.for_user(repo, uid),
+            "profile": lambda: verdict_currency.list_profile(repo, uid),
         },
         label="jobs.collections.stack",
     )
     match_rows = stack["match_rows"]
-    currency = stack["currency"]
+    profile = stack["profile"]
+    currency = verdict_currency.for_profile(profile)
     applications = reads["applications"] or []
     saved = {str(row.get("job_id")) for row in applications}
     pending, freshness = reads["pending"] or (set(), "not_asked")
     return resolve_collection(
         applications=applications,
-        # An untouched match judged for another CV or direction is not this
-        # person's to work on. A saved job stays theirs, whatever it was judged for.
+        # An untouched match is on their worklist only when the /market list would
+        # show it: judged for this CV and direction, and admitted where and at
+        # what level they look now. A saved job stays theirs, whatever it was
+        # judged for.
         match_rows=[
             row for row in match_rows
-            if str(row.get("job_id")) in saved or currency.of(row) != "foreign"
+            if str(row.get("job_id")) in saved
+            or (currency.of(row) != "foreign" and admission.admit(profile, row.get("jobs") or {}).admitted)
         ],
         dismissed_job_ids=dismissed,
         tailored_by_job=reads["tailored"] or {},

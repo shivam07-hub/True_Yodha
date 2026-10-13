@@ -1975,6 +1975,8 @@ class JobsRepository:
         "job_id, job_title, company_name, job_description, industry, industry_group, "
         "role_domain, apply_url, location, location_raw, location_city, location_country, "
         "location_mode, location_quality, locations, location_states, main_skills, "
+        # What Admission's level rule reads. Without them every pick passed it.
+        "min_years_experience, max_years_experience, seniority_level, "
         f"{CARD_COLUMNS}"
     )
 
@@ -3520,15 +3522,20 @@ class JobsRepository:
         profile["cv_markdown"] = self.get_user_cv_markdown(user_id)
         return profile
 
-    def get_direction_columns(self, user_id: str) -> dict[str, Any]:
-        """The profile columns a verdict's keys hash (Verdict Currency), plus the
-        two `direction.of` reads to say whether there is a direction at all — one
-        PK read. Not `get_user_profile_targeting`: that one also reads the whole
-        CV markdown, a second round trip and the heaviest payload on the row, for
-        a check that needs a title, a level and a place."""
+    def get_list_columns(self, user_id: str) -> dict[str, Any]:
+        """The profile columns the list's two questions read, one PK read: whose
+        verdict is this (Verdict Currency — the columns its keys hash, and the
+        two `direction.of` reads), and may they see it (Admission — where they
+        look and their years). Not `get_user_profile_targeting`: that one also
+        reads the whole CV markdown, a second round trip and the heaviest payload
+        on the row."""
         rows = safe_read(
             self._db.table("user_profiles")
-            .select("target_role_title,target_role_titles,target_roles,target_seniority,target_location")
+            .select(
+                "target_role_title,target_role_titles,target_roles,target_seniority,"
+                "target_location,target_locations,target_location_country,"
+                "target_location_countries,years_experience"
+            )
             .eq("id", user_id)
             .limit(1),
             default=[],
