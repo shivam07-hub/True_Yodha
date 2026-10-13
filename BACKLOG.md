@@ -487,7 +487,11 @@ Tracker (3) · no problem or not actionable (~25).
   interactive) needs it merged to `main`. What spent the $15: drains reading whole
   pools, ~12,500 verdicts 10-04→10-13, up to ~1,000 per new signup (≈ $1.2 per
   1,000 verdicts at that rate — an upper bound, every lane shares the balance).
-  At that rate $9.80 is ~8,000 verdicts. Whether to cap a drain is yours.
+  At that rate $9.80 is ~8,000 verdicts. **Decided (Shivam, 2026-10-14): a drain
+  spends only while its person is on Myro** — `services/presence.py`, marked by
+  `/users/me`, read before every continuation; it pauses when they leave and the
+  next visit picks the pile up. 500 of 501 drain ticks on 10-13 had queued
+  themselves.
 - **Compute → Small, now.** The plan is Pro (2026-10-14); the compute is still
   Micro — `max_connections` 60, `shared_buffers` 224MB, Postgres up since 07-12
   (Small reads 90 / 512MB and restarts it). It was meant to come before the merge

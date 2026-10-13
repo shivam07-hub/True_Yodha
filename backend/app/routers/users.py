@@ -25,7 +25,7 @@ from app.schemas import (
     UserSkillsByDomainResponse,
 )
 from app.services import followed_companies
-from app.services import forward_pass
+from app.services import forward_pass, presence
 from app.services.matching import match_freshness
 from app.services import direction, skill_correction, targeting_write
 from app.services.job_eligibility import (
@@ -70,6 +70,9 @@ def get_me(
     profile["target_seniority"] = reported_target_seniority(profile)
     # Door the 23 people with a catch-all sitting first actually walk. String
     # check only for everyone else — this endpoint is on every authed page.
+    # The shell reads this on every authed page: the person is here. Background
+    # judging spends only while they are (services/presence.py).
+    presence.mark(principal.id)
     forward_pass.on_profile_read(principal.id, profile)
     # Read AFTER the pass: it may have just enqueued the run, and the honest
     # answer is still "outstanding" until that run lands and stamps.
