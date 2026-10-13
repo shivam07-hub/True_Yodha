@@ -19,7 +19,7 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 |---|---|---|---|---|
 | 1 | Find the job | **#55** a returning user's list never vanishes | [ARCHITECTURE_RETURN_LOOP.md](ARCHITECTURE_RETURN_LOOP.md) · decisions taken below | S0–S5 built 2026-10-13 · S4 (#59) live only after Shivam approves the preview |
 | 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read the funnel on prod after the next merge |
-| 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) | Built. First email = their whole /market list, later = new only (Shivam 2026-10-14). **BLOCKED on Shivam**: merge → preview → approve |
+| 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) | Built; first email = their whole /market list, later = new only (Shivam 2026-10-14, `0aafb324`). **BLOCKED on Shivam**: merge carrying `0aafb324` → preview → approve |
 | 4 | Front door | **#57** "Which job do you want?" after upload · partner SSO lands on the upload (22% of partner people upload vs 67% direct) | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor, 1st | S0 shipped 2026-10-14 · next S1 job import |
 | 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1 blank certs |
 | 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor, 3rd | S0 audit, today's rule |
@@ -486,7 +486,9 @@ Tracker (3) · no problem or not actionable (~25).
   `dead_man:job_ingestion` is open. Then: Axis Bank = 14,259 live rows (~18%,
   747 titles) — dedupe at the source.
 - The prod deploy guard (above).
-- **#59 golden digest go-live** (built 2026-10-13): after the `main` merge, run
+- **#59 golden digest go-live**: prod has the digest (#339) but not its first-email
+  rule (`0aafb324`, Develop 2026-10-14) — a preview on prod today composes
+  "new since joining", which is nothing for all four. After the next merge, run
   the preview SQL in `ARCHITECTURE_GOLDEN_DIGEST.md` (status block), read the
   emails, approve; an agent then adds the schedule.
 - Finlatics, optional: one user's SSO failed 2026-10-06 17:56 (`Server
@@ -507,8 +509,6 @@ Tracker (3) · no problem or not actionable (~25).
 
 ## AGENT CHORES — approved, small
 
-- R2: retire the pre-10-11 `slow_200:slow_read:*` Notice rows — prod runs the 2s
-  rule since the 10-12 merge.
 - 7e measurement (above).
 
 - After `main` carries `17b5533d`: drop `company_pulse_snapshot.last_seen_at`
