@@ -16,15 +16,21 @@ Thanks for taking the time to contribute. This repository is the codebase behind
 ```bash
 cd backend
 python3.11 -m venv .venv   # the Python in backend/Dockerfile (or: conda create -p .venv python=3.11)
-.venv/bin/pip install -r requirements.txt
+.venv/bin/pip install --require-hashes -r requirements.lock
 .venv/bin/python -m spacy download en_core_web_sm
 .venv/bin/uvicorn app.main:app --reload
 ```
 
-`backend/.venv` holds `requirements.txt` and nothing else — it is what Railway
-and CI run. The tests refuse any other Python or library version
-(`backend/tests/shipped_runtime.py`). Tools (Playwright QA and the like) live in
-the root `.venv`.
+`backend/.venv` holds `requirements.lock` and nothing else — the same pinned,
+hashed set Railway and CI install. The tests refuse any other Python or package
+version (`backend/tests/shipped_runtime.py`). Tools (Playwright QA, uv and the
+like) live in the root `.venv`.
+
+**Changing a dependency:** edit `requirements.txt` (what we ask for), then rebuild
+the lock (what ships) with the command in its header, from `backend/`:
+`uv pip compile requirements.txt --universal --python-version 3.11 --generate-hashes -o requirements.lock`,
+and reinstall `backend/.venv` from it. Commit both files together; the tests
+refuse a lock that no longer satisfies `requirements.txt`.
 
 Backend config lives in `backend/.env` (do not commit it).
 
