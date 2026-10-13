@@ -19,13 +19,19 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 |---|---|---|---|---|
 | 1 | Find the job | **#55** a returning user's list never vanishes | [ARCHITECTURE_RETURN_LOOP.md](ARCHITECTURE_RETURN_LOOP.md) · decisions taken below | S0–S5 built 2026-10-13 · S4 (#59) live only after Shivam approves the preview |
 | 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read the funnel on prod after the next merge |
-| 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) | S1–S3 built 2026-10-13 · **BLOCKED on Shivam**: preview → approve → schedule (go-live SQL in the spec) |
-| 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor | S0 audit, today's rule |
-| 4 | Front door | **#57** "Which job do you want?" after upload · partner SSO lands on the upload (22% of partner people upload vs 67% direct) | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor | S0 partner landing |
-| 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor | S1 blank certs |
-| 6 | Pay | **#56** the ₹199 Apply Pack | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Cursor | S1 settlement |
+| 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) | Built. First email = their whole /market list, later = new only (Shivam 2026-10-14). **BLOCKED on Shivam**: merge → preview → approve |
+| 4 | Front door | **#57** "Which job do you want?" after upload · partner SSO lands on the upload (22% of partner people upload vs 67% direct) | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor, 1st | S0 partner landing |
+| 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1 blank certs |
+| 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor, 3rd | S0 audit, today's rule |
+| 6 | Pay | **#56** the ₹199 Apply Pack | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Cursor, 4th | S1 settlement |
+| 1 | Find the job | Employer record on the live job panel (renders nowhere today) | below · Cursor, 5th | mount desktop + phone, delete dead subtree |
+| 1 | Find the job | **7e** semantic retrieval for the 21 still-empty lists | below · agent | measure, no judge calls |
 | — | Upload + direction | U1–U3 (QA list) · #46 S6 · #41 speed | below | — |
-| — | Prepare | #45 evidence bank · CS-12 | below | grill first |
+
+**Cursor's order (Shivam, 2026-10-14):** #57 → #58 → #60 → #56 → employer record —
+the biggest absolute leak first (553 of 1,002 never upload; 511 arrived by partner
+SSO, 22% of them upload), then collected → tailored (26%); #60 once jobs flow
+again; pay after the value. The prompt Cursor works from is in ARCHIVE 2026-10-14.
 
 Specs Cursor builds from, each slice its own commit with six gates green:
 RETURN_LOOP (#55) · PAYMENTS (#56) · FRONT_DOOR (#57) · CV_TIER_A (#58) ·
@@ -50,7 +56,13 @@ list** — see §3. Do not bump `PROMPT_VERSION` casually until S1 ships.
 28,120 active jobs younger than 7 days on 2026-10-02. This repo only reads jobs;
 never measure ingestion with `jobs.ingested_at` (an extension save masks a stall).
 
-7e. **Semantic retrieval is PAID FOR and UNWIRED — and its one caller-ready
+7e. **Next (Shivam, 2026-10-14): measure first, no judge calls — agent.** For the
+    21 people whose /market stays empty after S1, count the live jobs semantic recall
+    adds that title retrieval misses, with their deterministic overlap, and the judge
+    cost to read them; the RPC mismatch below is fixed in the script only. Wiring is
+    a later decision.
+
+    **Semantic retrieval is PAID FOR and UNWIRED — and its one caller-ready
     module would fail silently if wired today.** Measured 2026-09-25, against the
     live database, after this module was proposed for deletion as dead code.
 
@@ -83,25 +95,6 @@ never measure ingestion with `jobs.ingested_at` (an extension save masks a stall
     it is switched on — which is exactly what ADR-0022's "recall may use any
     index, a verdict is always graded from skills" already permits.
 
-7f. **The /market list is served unranked and presented as ranked.** Measured
-    2026-09-25; `metric feed.unranked` still fires in prod (most recent that day
-    05:37 UTC, 40 rows). `routers/jobs/list.py:498` logs it and returns all 40
-    rows in retrieval order with no verdicts and no divider. Ranking is
-    `POST /jobs/feed/warm` (`list.py:514-557`), SYNCHRONOUS in the request at
-    98–103s: 10 jobs (`feed_warm.WARM_SHORTLIST_SIZE`) ÷ 3 concurrent
-    (`llm_ranker.py:46`) × up to 45s (`config.py:183`). The client abandons at
-    7,000ms (`frontend/lib/api.ts:4379`), so `use-feed-warm.ts:79` never
-    invalidates and the ranked rows land after the user has gone, behind a
-    30-minute `staleTime`. Two numbers that must agree, in two modules, 14x apart.
-    Fix shape: warm onto the durable rail (ADR-0008 Background Job + Work Lane —
-    `background/registry.py` has no feed-warm handler), and give the list the
-    read/unread state the ROW already has (`Provisional Match` / `verdict:
-    "checking"`, divider in `lib/jobs/track-sections.ts`).
-    ⚠️ Two tests currently pin the defect and must be replaced, not worked
-    around: `test_feed_ranking.py:62` and
-    `frontend/tests/market-browse-contract.test.ts:74`.
-    Rule to keep: rank down, never hide (`test_feed_ranking.py:52`).
-
 **#36 status, 2026-10-02:** slices 1–2 are shipped — de-weekly, the inbox and
 `<NotificationBell>`, and the drain that starts at the save with "N fresh matches"
 (`0d78726c`). Slices 3–5 are open; confirm which before building. The lock below
@@ -115,16 +108,15 @@ is the original grill.
 
     **⚠️ ROLLOUT GATE (Shivam): do NOT ship until BOTH extension-imported AND scraped (firecrawl_Supabase) jobs carry `job_skills` ordinal rank — a two-tier corpus (some jobs ranked, most not) was explicitly rejected.** This makes the item **blocked on sister-repo work**, not agent-actionable alone. Next agent: (1) open the coordination conversation with the scraper side (what does firecrawl_Supabase need to emit ordinal rank per skill it already extracts); (2) only once that path is real, build in this repo: extraction emits ordinal rank from JD language (judgment lane) → `job_skills.rank` column + import-path equivalent (shared-Supabase migration, manual-apply + PostgREST reload) → wire the 4 consumers above.
 
-**Desktop never shows the employer's track record — it was built into a dead
-panel (found 2026-10-03).** `components/dashboard/detail-body.tsx` lost its only
-mount on 2026-09-02 (`e3c38423`, the priority-heart removal); four days later
-`66871eb8` built the employer record into it, so only the phone sheet
-(`mobile/redesign/job-detail-sheet.tsx:112`) ever shows `EmployerRecordNote`. The
-whole subtree is dead — `detail-body`, `lenses`, `more-roles`, `lens-company`,
-`deepeners` — while `dashboard-drawer-content.test.ts` and
-`employer-record.test.ts` still read its text and pass. **Approved (Shivam, 2026-10-07) — Cursor:** mount the employer record
-(and `ListingLiveness`) in the live desktop job panel, retarget those tests at
-it, then delete the subtree on the way past.
+**The employer's track record shows on no surface (found 2026-10-03, worse
+2026-10-14).** `EmployerRecordNote` is imported only by
+`components/dashboard/detail-body.tsx`, which nothing mounts since 2026-09-02
+(`e3c38423`); the phone sheet that used to show it is gone. The whole subtree is
+dead — `detail-body`, `lenses`, `more-roles`, `lens-company`, `deepeners` — while
+`dashboard-drawer-content.test.ts` and `employer-record.test.ts` still read its
+text and pass. **Cursor, 5th in its order (Shivam, 2026-10-14):** mount the
+employer record and `ListingLiveness` in the live job panel, desktop and phone,
+retarget those tests, delete the subtree on the way past.
 
 **#60 Skill evidence — [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md)
 (Shivam, 2026-10-07).** Stage A tags business jobs with "Transformation
@@ -135,15 +127,8 @@ job; Stage A replaces only its own rows, never on an empty result, versioned by
 `jobs.skill_floor_version`; receipts recomputed by `explain_tags`, never stored;
 an automatic before/after with invariants; a skill-spread Notice belt. Cursor.
 
-**CS-14** · **Step 2 of the loop reads zero Career Stories.** *Goal-level gap, found
-    2026-09-13. Needs a grill: this is the matcher, not a corner.*
-
-    "Find the job closest to your aspiration" runs on the skill layer. Every
-    module under `services/matching/` has zero reservoir reads. So the match is
-    made against *what skills a CV lists*, never against *what the person
-    actually did* — while the stories sit there embedded, with pgvector on them
-    and a working cosine already used by the projection. The single biggest
-    unexploited asset on the platform.
+Parked idea for #60's neighbourhood: matching that reads what people did
+(Career Stories), not only the skills a CV lists — CS-14, ARCHIVE 2026-10-14.
 
 ---
 
@@ -164,16 +149,6 @@ On 10-13: 14 clicked, 0 asked-recorded (the beacon starts now), 0 answered.
 the tab; asked > 0 and answered ≈ 0 → the prompt is ignored. Redesign from that,
 in Myro (no email — APPLY2). Parked: extension saves duplicating a list job —
 2 of 6 `ext_` rows, 0 matched to anyone else; revisit only if that grows.
-
-**CS-15** · **Step 5 leaves no trail back to the stories.** *Small, but it is what makes
-    `repeat` mean something.*
-
-    `cv_of_record` freezes the CV that went out into `cv_application_attempts`
-    with zero reservoir references. So Myro knows what you sent and knows what
-    you are made of, and cannot join the two: which stories won an interview,
-    which never get picked, which phrasing was on the CV that got a reply. Pass
-    two of the loop is supposed to be better than pass one; this is the join that
-    would make it so.
 
 ---
 
@@ -376,40 +351,9 @@ Upload reliability lives in QA checks **U1–U3** below. Read #46 S6 in the ligh
 
 ## PREPARE
 
-**#45 The evidence bank — give the horizontal loop a surface.** *Design:
-    artboard **2a** in `UNIFIED_PREP_V2.md` (Claude Design project
-    `6652e11d-0f4f-4868-95ca-9cf004f30f88`). Needs a grill on shape before code.*
-
-    Prep has two loops. **Vertical** (one room, four steps) works. **Horizontal**
-    (one step, every room) is the rail's own headline — *"Clear a step once and
-    it counts wherever it applies"* — and it is the claim that makes Myro one
-    platform rather than a folder of jobs. **The mechanism now holds it up; the
-    interface does not show it.**
-
-    Shipped 2026-09-07, so the carry is real:
-    - step 1 — banking a story stales every other room's coverage, which
-      re-matches on open (`10043107`)
-    - step 2 — always carried; recomputed live from `user_skills` every read
-    - step 3 — rehearsal marks the STORY, not the job (`85ac9ead`)
-    - step 4 — stays per job, correctly: one conversation, one date
-
-    **What is missing is the surface.** Today the only horizontal thing a user
-    can see is one sentence in the cross-room footer, and its link opens a
-    single room — the vertical loop wearing a horizontal label. A user who
-    answers a gap at Sanofi has just moved four other rooms and is told nothing.
-
-    2a draws the answer: one bank across the top, every room a deposit into it,
-    and every gap saying which OTHER rooms it also unblocks. Decide before
-    building: is the bank its own route, the top of `/preparations`, or a lens
-    on `/cv`? What does a deposit show at the moment it lands?
-
-    ⚠️ Do not start by widening the ladder read. The carries were made free on
-    the read path deliberately ([[feedback_record_against_the_person_not_the_occasion]]);
-    a bank view that costs a fan-out per room would undo that.
-
-**CS-12 · promoting the gap loop out of prep rooms** — a product call, not a
-coding task. Answering a gap is a working front door to the reservoir; where the
-ask lives (Market, Collections, the CV page) has real cost either way.
+Parked 2026-10-14 (Shivam) until **20 people have applied** — Prepare serves people
+who sent an application, and 3 have: #45 evidence bank, CS-12, CS-14, CS-15. Each
+has one line in ARCHIVE 2026-10-14 with what it said.
 
 ---
 
@@ -534,20 +478,23 @@ Tracker (3) · no problem or not actionable (~25).
 
 ## SHIVAM
 
-- **Merge `Develop` → `main` (25 commits on 2026-10-11).** Until then prod has
-  no `/internal/notice/close` (pg_cron's closer call 404s — no digest since
-  10-06) and still records Notices ON the request path (~0.6s held + worker
-  frozen per slow request). Unblocks RELIABILITY R1–R4.
-- **Scraper (your repo): no feed since 2026-10-01.** Live jobs 70k+ → 49,637
+- **Compute → Small this week, BEFORE the merge** (Shivam, 2026-10-14). The
+  Return door adds runs and drains on return; `initial_match` already meets
+  `db.statement_timeout`, and `capacity_queue` blocked 10,499 times (digest
+  2026-10-13). An agent re-runs `market_arrival` after.
+- **Merge `Develop` → `main`, batched with Cursor's #57 S0** (Shivam,
+  2026-10-14). Carries #55 S1–S5, the 1,000-row stack fix, the certificate fix,
+  #59 and the Apply telemetry. Until then the `/users/me` door, Verdict Currency on
+  the read paths and the digest are dev-only (the shared worker already runs the
+  drain order and the certificate fix).
+- **Scraper (your repo, Shivam fixing it 2026-10-14): no feed since 2026-10-01.** Live jobs 70k+ → 49,637
   (10-11) as the verifier closes rows and nothing arrives — step 1 of the loop.
   `dead_man:job_ingestion` is open. Then: Axis Bank = 14,259 live rows (~18%,
   747 titles) — dedupe at the source.
-- Compute → Small (above) · the prod deploy guard (above).
+- The prod deploy guard (above).
 - **#59 golden digest go-live** (built 2026-10-13): after the `main` merge, run
   the preview SQL in `ARCHITECTURE_GOLDEN_DIGEST.md` (status block), read the
-  emails, approve; an agent then adds the schedule. One call first: should a
-  member's first digest offer their current top three (Raj 23 cards today)
-  rather than only jobs new since they joined (0 for all four today)?
+  emails, approve; an agent then adds the schedule.
 - Finlatics, optional: one user's SSO failed 2026-10-06 17:56 (`Server
   disconnected`, fixed `c9a0a047`); their auth account `b4203375…` exists with no
   seat, so their next SSO goes through the consent screen (safe, one extra step).
@@ -565,6 +512,14 @@ Tracker (3) · no problem or not actionable (~25).
 - #56 §7: Razorpay webhook events, the live key on Vercel, reviewer name + email.
 
 ## AGENT CHORES — approved, small
+
+- #59 first email = every job on the member's /market list, best first; later
+  emails = new only (Shivam, 2026-10-14). Dry run after.
+- Agent Picks read re-asks Admission: a stored pick can show a job the list hides
+  (Rishabh, 2026-10-14) — S2's read path asked only Verdict Currency.
+- R2: retire the pre-10-11 `slow_200:slow_read:*` Notice rows — prod runs the 2s
+  rule since the 10-12 merge.
+- 7e measurement (above).
 
 - After `main` carries `17b5533d`: drop `company_pulse_snapshot.last_seen_at`
   (Shivam: standing yes, 2026-10-07). First confirm `main`'s
