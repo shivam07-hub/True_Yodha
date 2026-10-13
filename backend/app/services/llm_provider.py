@@ -102,7 +102,17 @@ for _tier in OR_TIERS:
             f"OR_TIERS chunk violates OR_MAX_MODELS_PER_CALL={OR_MAX_MODELS_PER_CALL}: {_tier}"
         )
 
-GROQ_FALLBACK_MODEL = "llama-3.3-70b-versatile"
+# Groq retired `llama-3.3-70b-versatile` (absent from its model list on
+# 2026-10-14; every call 404'd). With OpenRouter out of credits the same day,
+# every strong lane — judgment, writing, CV upload, interactive — had no model
+# that answered, and drains stopped at `feed_warm.batch_empty`. gpt-oss-120b is
+# Groq's strong model, and the one this file's judgment lane once led with on
+# OpenRouter's free tier.
+GROQ_FALLBACK_MODEL = "openai/gpt-oss-120b"
+# It is a reasoning model, and its reasoning counts against `max_tokens`: at the
+# default effort the 1,000-token eval budget ended mid-JSON ("unparseable eval").
+# Low effort fits the answer inside the budgets the callers already set.
+GROQ_FALLBACK_EXTRA: dict = {"reasoning_effort": "low"}
 
 # OR_TIERS[0:FREE_OR_TIER_COUNT] are free tiers.
 # get_cv_upload_provider() skips these to avoid free-tier exhaustion on the
@@ -323,16 +333,16 @@ def _append_openrouter_tiers(
             providers.append((or_client, tier[0], {"models": tier}))
 
 
+def _groq_entry() -> _ProviderEntry:
+    return (_make_client(settings.groq_api_key, _GROQ_BASE), GROQ_FALLBACK_MODEL, GROQ_FALLBACK_EXTRA)
+
+
 def _append_fast_direct(providers: list[_ProviderEntry]) -> None:
-    """Prepend the low-latency direct lane: Groq llama-3.3-70b (~1.5s) → Gemini
+    """Prepend the low-latency direct lane: Groq gpt-oss-120b → Gemini
     flash-lite. Both are single-hop calls — no OpenRouter routing, no free-tier
     rate-limit retries. The shared spine of every user-blocking provider."""
     if settings.groq_api_key:
-        providers.append((
-            _make_client(settings.groq_api_key, _GROQ_BASE),
-            GROQ_FALLBACK_MODEL,
-            None,
-        ))
+        providers.append(_groq_entry())
     if settings.google_api_key:
         providers.append((
             _make_client(settings.google_api_key, _GEMINI_BASE),
@@ -345,11 +355,7 @@ def _build_provider(or_tiers: list[list[str]]) -> LLMProvider:
     providers: list[_ProviderEntry] = []
     _append_openrouter_tiers(providers, or_tiers)
     if settings.groq_api_key:
-        providers.append((
-            _make_client(settings.groq_api_key, _GROQ_BASE),
-            GROQ_FALLBACK_MODEL,
-            None,
-        ))
+        providers.append(_groq_entry())
     if settings.google_api_key:
         providers.append((
             _make_client(settings.google_api_key, _GEMINI_BASE),
@@ -403,7 +409,7 @@ def get_judgment_provider() -> LLMProvider:
 
     Leads with the strong FREE tiers (llama-3.3-70b, qwen3-coder — no cost, no
     quality loss), backstops with strong PAID (gpt-4o-mini, llama-70b) and the last
-    resort (kimi-k2), plus Groq llama-3.3-70b direct. It NEVER falls to a small
+    resort (kimi-k2), plus Groq gpt-oss-120b direct. It NEVER falls to a small
     model: the cheap paid tiers (gemma / granite / nano / glm-flash) are excluded by
     ``JUDGMENT_OR_TIERS`` and Gemini flash-lite is deliberately omitted — so a total
     strong-model outage fails the run (→ refund + honest retry) rather than emitting a
@@ -412,13 +418,9 @@ def get_judgment_provider() -> LLMProvider:
     """
     providers: list[_ProviderEntry] = []
     _append_openrouter_tiers(providers, JUDGMENT_OR_TIERS)
-    # Groq llama-3.3-70b only (strong). NOT Gemini flash-lite — too small to judge.
+    # Groq gpt-oss-120b only (strong). NOT Gemini flash-lite — too small to judge.
     if settings.groq_api_key:
-        providers.append((
-            _make_client(settings.groq_api_key, _GROQ_BASE),
-            GROQ_FALLBACK_MODEL,
-            None,
-        ))
+        providers.append(_groq_entry())
     return LLMProvider(providers)
 
 
@@ -431,7 +433,7 @@ def get_writer_provider() -> LLMProvider:
     instead of synthesizing (gemma-3-4b turned a rich bullet into a 4-word fragment —
     the exact failure that breaks trust on the core loop). So the writer lane leads
     with strong PAID tiers (gpt-4o-mini / llama-70b) to keep the user-blocking spinner
-    fast, backstops with strong FREE tiers, adds Groq llama-3.3-70b direct, and — like
+    fast, backstops with strong FREE tiers, adds Groq gpt-oss-120b direct, and — like
     judgment — NEVER falls to a small model or Gemini flash-lite. A total strong-model
     outage fails the call (→ honest "unavailable") rather than emitting a rewrite worse
     than the user's original. See `feedback_no_cheap_models_judgment`. Callers no longer
@@ -463,15 +465,11 @@ def get_blocking_judgment_provider() -> LLMProvider:
 
 def _strong_paid_first_provider() -> LLMProvider:
     """The shared strong paid-first chain: WRITER_OR_TIERS (paid strong → free
-    strong, small models structurally excluded) + Groq llama-3.3-70b direct."""
+    strong, small models structurally excluded) + Groq gpt-oss-120b direct."""
     providers: list[_ProviderEntry] = []
     _append_openrouter_tiers(providers, WRITER_OR_TIERS)
     if settings.groq_api_key:
-        providers.append((
-            _make_client(settings.groq_api_key, _GROQ_BASE),
-            GROQ_FALLBACK_MODEL,
-            None,
-        ))
+        providers.append(_groq_entry())
     return LLMProvider(providers)
 
 

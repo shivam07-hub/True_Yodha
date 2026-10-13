@@ -191,3 +191,17 @@ def test_blocking_judgment_provider_is_strong_paid_first():
         return True
 
     assert _with_all_keys(check)
+
+
+def test_every_lane_reaches_groq_with_reasoning_low():
+    """Groq's strong model reasons, and its reasoning counts against max_tokens:
+    at the default effort the 1,000-token eval ended mid-JSON on 2026-10-14. Every
+    lane that falls to Groq asks for low effort."""
+    def check():
+        for build in (get_interactive_provider, get_judgment_provider, get_writer_provider,
+                      get_paid_jobs_provider, get_blocking_judgment_provider):
+            groq = [e for e in build()._providers if e[1] == GROQ_FALLBACK_MODEL]
+            assert groq, build.__name__
+            assert all(e[2] == {"reasoning_effort": "low"} for e in groq), build.__name__
+
+    _with_all_keys(check)
