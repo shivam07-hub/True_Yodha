@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import type { JobFeedItem, JobPulse } from "@/lib/api"
 import { PulseRow } from "@/components/dashboard/card-atoms"
-import { FeedCard, feedCardConfidenceClass } from "@/components/jobs/feed-card"
+import { FeedCard, feedCardConfidenceClass, feedCardRereadClass } from "@/components/jobs/feed-card"
 import { CapturePill } from "@/components/jobs/capture-pill"
 import { VirtualFeed } from "@/components/jobs/virtual-feed"
 import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
@@ -78,7 +78,7 @@ function MobileJobCard({
       <FeedCard
         data={feedDataFromFeedItem(job, { hasCv })}
         variant="row"
-        extraClass={`${hint ? "tm-mfeed-hint" : ""}${feedCardConfidenceClass(pulse)}`}
+        extraClass={`${hint ? "tm-mfeed-hint" : ""}${feedCardConfidenceClass(pulse)}${feedCardRereadClass(job)}`}
         onOpen={() => { if (Math.abs(dx) < 6) onOpen() }}
         articleProps={{
           style: { transform: `translateX(${translate}px) rotate(${translate * 0.015}deg)`, touchAction: "pan-y", userSelect: "none" },

@@ -27,7 +27,8 @@
     "/signup": "Entered from the public nav and from campaigns.",
     "/onboarding": "Entered by redirect after signup — the one door into the spine.",
     "/onboarding/result": "Terminal step of /onboarding, entered by its own flow.",
-    "/cv-preview": "Anonymous CV preview — entered from the public scorer."
+    "/cv-preview": "Anonymous CV preview — entered from the public scorer.",
+    "/unsubscribe": "Golden-list digest footer link (#59) — entered from the email itself."
   },
 
   "debt": {}

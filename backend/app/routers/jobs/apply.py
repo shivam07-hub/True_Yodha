@@ -23,7 +23,7 @@ from app.schemas import (
     MatchEval,
     JobUrlExtractRequest,
 )
-from app.services import cv_of_record, job_liveness, jobs_workflow, xp_service
+from app.services import core_loop, cv_of_record, job_liveness, jobs_workflow, xp_service
 from app.services.collections import PENDING_INTENT_AFTER, PENDING_INTENT_FOR
 from app.services.job_extract_backstop import backfill_fields, is_valid_company, is_valid_role
 from app.services.cv_parser import extract_raw_text
@@ -374,6 +374,8 @@ def update_application(
         # "applied" is the latest door to make this application judgeable.
         # A stored verdict makes it a no-op; never waits on a model.
         background_tasks.add_task(on_demand.open_job_eval, repo, user_id, job_id)
+        # The north star's door count: which surface the Yes came through.
+        background_tasks.add_task(core_loop.record_step, user_id, job_id, "applied", body.surface)
 
     data = repo.get_application_with_job(user_id, job_id)
     if not data:

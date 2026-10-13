@@ -310,6 +310,9 @@ def test_the_drain_finishes_on_the_cv_it_started_with(monkeypatch: Any) -> None:
             assert roles == ["Data Engineer"]
             return [f"j{i}" for i in range(20)]
 
+        def get_shown_verdict_keys(self, _user_id: str, *, floor: float) -> list[dict[str, Any]]:
+            return []
+
         def get_cached_match_evals(self, _user_id: str, _ids: list[str]) -> dict[str, Any]:
             return {}
 
@@ -354,6 +357,9 @@ def test_an_unwatched_drain_tells_the_bell_only_what_the_list_will_show(monkeypa
 
         def get_candidate_job_ids_for_roles(self, _roles: list[str], **_kw: Any) -> list[str]:
             return ["keep", "skip", "chennai"]
+
+        def get_shown_verdict_keys(self, _user_id: str, *, floor: float) -> list[dict[str, Any]]:
+            return []
 
         def get_cached_match_evals(self, _user_id: str, _ids: list[str]) -> dict[str, Any]:
             return {}
@@ -410,6 +416,9 @@ def test_a_drain_someone_is_watching_does_not_ring_the_bell(monkeypatch: Any) ->
         def get_candidate_job_ids_for_roles(self, _roles: list[str], **_kw: Any) -> list[str]:
             return ["a"]
 
+        def get_shown_verdict_keys(self, _user_id: str, *, floor: float) -> list[dict[str, Any]]:
+            return []
+
         def get_cached_match_evals(self, _user_id: str, _ids: list[str]) -> dict[str, Any]:
             return {}
 
@@ -464,3 +473,70 @@ def test_an_abandoned_tick_reenqueues_the_drain(monkeypatch: Any) -> None:
         "baseline_version_id": 4,
         "announce": True,
     }]
+
+
+def test_a_returning_drain_rereads_the_cards_on_the_list_first(monkeypatch: Any) -> None:
+    """#55 S3, decision 3: the stale cards a person can already see are read
+    before the unread pile — including one the pool window no longer holds — and
+    re-reading a card already on the list is not news for the bell."""
+    rated: list[list[str]] = []
+    announced: list[list[str]] = []
+    enqueued: list[dict[str, Any]] = []
+    profile = {
+        "target_role_title": "Account Executive",
+        "target_roles": ["Sales"],
+        "target_location_countries": ["India"],
+        "cv_markdown": "cv",
+    }
+    keyed = {**profile, "baseline_version_id": 1}
+    direction_key = feed_warm.onboarding_service.context_key(keyed)
+
+    def stale(job_id: str, score: float) -> dict[str, Any]:
+        return {"job_id": job_id, "overall_score": score, "recommendation": "Apply",
+                "eval_context_hash": "an-older-prompt", "target_context_hash": direction_key}
+
+    class _Repo:
+        def get_user_profile_targeting(self, _user_id: str) -> dict[str, Any]:
+            return dict(profile)
+
+        def get_latest_baseline_id(self, _user_id: str) -> int:
+            return 1
+
+        def get_candidate_job_ids_for_roles(self, _roles: list[str], **_kw: Any) -> list[str]:
+            return ["pool-a", "pool-b", "on-list-low"]
+
+        def get_shown_verdict_keys(self, _user_id: str, *, floor: float) -> list[dict[str, Any]]:
+            # "outside-pool" is on their list and no longer in the pool window.
+            return [stale("on-list-low", 3.7), stale("outside-pool", 4.6)]
+
+        def get_cached_match_evals(self, _user_id: str, ids: list[str]) -> dict[str, Any]:
+            return {"on-list-low": stale("on-list-low", 3.7)} if "on-list-low" in ids else {}
+
+        def get_user_match_stack(self, _user_id: str) -> list[dict[str, Any]]:
+            ctx = feed_warm.onboarding_service.eval_context_key(keyed)
+            here = {"is_active": True}
+            return [{"job_id": j, "eval_context_hash": ctx, "overall_score": 4.2,
+                     "recommendation": "Apply", "jobs": here}
+                    for j in ("outside-pool", "on-list-low", "pool-a")]
+
+    async def _warm(_repo: Any, _provider: Any, _user_id: str, ids: list[str], **_kw: Any) -> int:
+        rated.append(list(ids))
+        return len(ids)
+
+    monkeypatch.setattr(feed_warm, "warm_feed_shortlist", _warm)
+    monkeypatch.setattr(
+        feed_warm.background, "enqueue",
+        lambda _lane, _job, **kwargs: enqueued.append(kwargs["payload"]),
+    )
+    from app.services.matching import match_run
+
+    monkeypatch.setattr(
+        match_run, "announce_fresh",
+        lambda _repo, _uid, rows: announced.append([r["job_id"] for r in rows]),
+    )
+
+    asyncio.run(feed_warm.run_feed_warm(_Repo(), object(), "u1", announce=True))  # type: ignore[arg-type]
+
+    assert rated == [["outside-pool", "on-list-low", "pool-a"]]
+    assert announced == [["pool-a"]]
+    assert len(enqueued) == 1  # pool-b is next round

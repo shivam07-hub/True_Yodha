@@ -47,9 +47,20 @@ def test_a_city_the_person_did_not_name_is_barred() -> None:
     assert admission.admit(_PROFILE, chennai).barred_by == "location"
 
 
-def test_a_listing_whose_city_is_its_country_is_not_in_a_named_city() -> None:
-    brussels_as_india = _job(location="India, India", location_city="India")
-    assert admission.admit(_PROFILE, brussels_as_india).barred_by == "location"
+def test_a_listing_naming_only_its_country_is_shown() -> None:
+    # CEO decision 2026-10-04 (Q1): a job with no city is open to everyone in its
+    # country, labeled "India — city not specified". A row written before the
+    # release still says city "India"; it reads the same way.
+    labeled = _job(location="India — city not specified", location_city=None)
+    legacy = _job(location="India, India", location_city="India")
+    assert admission.admit(_PROFILE, labeled).admitted
+    assert admission.admit(_PROFILE, legacy).admitted
+
+
+def test_a_listing_in_a_city_abroad_is_barred() -> None:
+    # The Brussels requisition once tagged "India" now carries its real city.
+    brussels = _job(location="Brussels", location_city="Brussels", location_country=None)
+    assert admission.admit(_PROFILE, brussels).barred_by == "location"
 
 
 def test_the_employers_minimum_must_be_within_nine_years() -> None:

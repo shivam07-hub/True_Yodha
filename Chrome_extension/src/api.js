@@ -93,10 +93,10 @@ export async function pageEntry(apiUrl, token, url) {
 }
 
 // "I applied" — the user's own answer, the same write as web's "Did you apply?"
-// Yes: status applied, any open Apply-click question answered, and the CV of
-// record frozen server-side.
+// Yes: status applied, any open Apply-click question answered, the CV of record
+// frozen, and the door recorded (`applied` core-loop step) server-side.
 export async function markApplied(apiUrl, token, jobId) {
-  return request(apiUrl, token, `/jobs/applications/${encodeURIComponent(jobId)}`, { status: "applied" }, false, "PUT")
+  return request(apiUrl, token, `/jobs/applications/${encodeURIComponent(jobId)}`, { status: "applied", surface: "extension" }, false, "PUT")
 }
 
 export async function saveImport(apiUrl, token, state) {

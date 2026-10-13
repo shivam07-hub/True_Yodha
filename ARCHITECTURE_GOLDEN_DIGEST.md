@@ -8,6 +8,51 @@ narrowed to the people Shivam picks.
 > slice is its own commit on `Develop`, six gates green. Migrations are applied
 > by the agent before the code that reads them, then `NOTIFY pgrst`.
 
+> **Status 2026-10-13 — S1–S3 built on `Develop`; S4 waits on Shivam.**
+> `services/golden_digest.py` (`compose`, `render`, `send_due`, the Supabase
+> store, the Resend mailer), `POST /email/unsubscribe` + `/unsubscribe`,
+> `send_email(headers=)`, `POST /internal/golden-digest/send`,
+> `scripts/golden_digest.py` (dry run · `--preview-to` · `--apply`) and
+> `scripts/golden_list.py`. `digest_unsubscribed_at` applied
+> (`20261013150000`). Three changes from this spec, each forced by the code as
+> it stands now:
+> - **Schedule = pg_cron → the internal route**, not a GitHub Action: the
+>   closer left Actions on 2026-10-10 because an Action stopped being scheduled
+>   and nothing said so. The route acknowledges and runs in the background
+>   (pg_cron waits 30s); production only.
+> - **Row states are the table's own** (`processing · ready · failed`, held by
+>   `user_notifications_state_check`), and the day key is `source_id =
+>   'golden_digest:YYYY-MM-DD'` on the existing unique `(user_id, kind,
+>   source_id)` index — no new index. A `failed` row does not hold the cadence;
+>   the next day retries.
+> - **New jobs are read through Verdict Currency** (#55 S1): a verdict judged
+>   for another CV or direction is never offered.
+>
+> The unsubscribe token is an HMAC of the person's id under
+> `MYRO_ANALYTICS_REFRESH_SECRET` with its own purpose label, so no new secret
+> needs provisioning; rotating that secret retires old unsubscribe links.
+>
+> **Dry run on prod, 2026-10-13: 4 members, 0 emails** — none has tailored a CV,
+> and no Apply-grade verdict was written after they joined (2026-10-06; the
+> scraper has sent nothing since 10-01). Raj Kishore's list holds 23 cards and
+> Deveshwar Kashyap's 3, all judged before he joined. Whether a member's FIRST
+> digest offers their current top three instead of "new since joining" is a
+> product call for Shivam (§1 says new).
+>
+> **Go-live, in order (Shivam):** (1) `main` carries this; (2) the preview —
+> run once in the SQL editor, then read the four emails:
+> ```sql
+> select net.http_post(
+>   url := (select decrypted_secret from vault.decrypted_secrets where name = 'myro_api_base_url') || '/internal/golden-digest/send',
+>   headers := jsonb_build_object('Content-Type', 'application/json', 'X-Myro-Refresh-Secret',
+>     (select decrypted_secret from vault.decrypted_secrets where name = 'myro_analytics_refresh_secret')),
+>   body := jsonb_build_object('preview_to', 'hello@himyro.com',
+>     'api_base_url', (select decrypted_secret from vault.decrypted_secrets where name = 'myro_api_base_url')));
+> ```
+> (3) approve; (4) the schedule — the same call as `cron.schedule('golden-digest-daily',
+> '30 3 * * *', …)` with `body := jsonb_build_object('api_base_url', …)`, as a
+> migration beside `20261010120000_notice_closer_pg_cron.sql`.
+
 ---
 
 ## 1 · The decisions

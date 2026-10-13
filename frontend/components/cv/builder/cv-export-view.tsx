@@ -262,7 +262,7 @@ export function CVExportView({
     setTrackError(null)
     try {
       await recordSubmittedCv()
-      const res = await jobsApi.updateApplication(token, jobId, { status: "applied" })
+      const res = await jobsApi.updateApplication(token, jobId, { status: "applied", surface: "cv_export" })
       setAppliedDate(res.applied_at ?? new Date().toISOString())
       // Refresh the tracker so /cv and the applications view reflect it.
       queryClient.invalidateQueries({ queryKey: dataKeys.applications() })

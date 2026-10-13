@@ -107,7 +107,7 @@ export function PrepRoom({
   /** `?step=N` — the step a cross-room link asked to open. */
   initialStep?: number | null
 }) {
-  const { updateStatus, updateNotes } = useTrackerBoard()
+  const { updateStatus, updateNotes } = useTrackerBoard("prep")
   const [pickerOpen, setPickerOpen] = React.useState(false)
   // 2b draws two cards open at once — step 1 showing what is banked, step 2
   // showing the levels. One-at-a-time made reading the evidence cost the level

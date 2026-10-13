@@ -162,6 +162,8 @@ export function MissionHeroRail({ token, onSettled }: { token: string | null; on
           title: job.job_title,
           company: job.company_name,
           fit: job.match_score ?? null,
+          rereading: job.rereading ?? false,
+          trackId: job.track_id ?? null,
         }))
       : null
     const railJobs = jobsOnPublishedFeed(picks, published)

@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { jobs, APPLICATION_OUTCOMES } from "@/lib/api"
-import type { ApplicationResponse, ApplicationStatus } from "@/lib/api"
+import type { ApplicationResponse, AppliedSurface, ApplicationStatus } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 
@@ -36,13 +36,13 @@ export interface UpdateNotesInput {
   status: ApplicationStatus
 }
 
-export function useTrackerBoard() {
+export function useTrackerBoard(surface: AppliedSurface) {
   const { token } = useAuth()
   const queryClient = useQueryClient()
 
   const updateStatus = useMutation({
     mutationFn: ({ jobId, status }: UpdateStatusInput) =>
-      jobs.updateApplication(token!, jobId, { status }),
+      jobs.updateApplication(token!, jobId, { status, surface }),
     // Optimistic: the card lands in its new column on drop, not after the
     // round-trip (mirror of useApplicationStatus — the board keeps the
     // mutation-object interface its drag handler passes per-call callbacks to;
@@ -65,7 +65,7 @@ export function useTrackerBoard() {
 
   const updateNotes = useMutation({
     mutationFn: ({ jobId, notes, status }: UpdateNotesInput) =>
-      jobs.updateApplication(token!, jobId, { status, notes }),
+      jobs.updateApplication(token!, jobId, { status, notes, surface }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
     },

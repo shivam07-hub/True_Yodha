@@ -6,6 +6,17 @@
 
 ---
 
+## 2026-10-13 — #55 Return Loop S0–S5, and what the loop was losing
+
+S0: 39 of 54 people active in 30 days opened /market to nothing. S1 Verdict
+Currency (stale cards shown, re-read in place) → 21 of 54. S2 Picks, Collections
+and the Next chip ask it. S3 the Return door on `/users/me` re-reads stale cards
+first and reads a CV no run had read. S5 old Apply clicks filed as saves. S4 is
+#59, built to its approval gate. Found on the way: the match stack read stopped at
+1,000 rows (7 people, 1,397 verdicts unseen); a same-level certificate re-clear
+wrote a new Main CV; a pending-click read relied on RLS alone. The BACKLOG's
+`jobs_added_1h` warning was stale — fixed 2026-09-27 (`180d4d29`).
+
 ## 2026-10-11 — Reliability R5–R8
 
 R5: `/jobs/analytics/me` stopped paging a role_domain (14 reads, an 8s count) and reads the snapshot — 1 read, 512ms; Software Development is 2,322 jobs. R6: confirm-skills passes the profile and baseline it already holds into `get_result`. R7: `/cv/versions` for `INFSYS-EXTERNAL-247996` 500'd because the company-wide job-id filter was a non-JSON Bad Request (not the 10-06 restriction); the thread is the person's own versions. `feed_warm` AbandonedJobError ×3 on 10-06 09:42–10:08 UTC was a deploy killing an ~80s tick during seven Develop pushes, also before the restriction; a tick is now one judgment wave. R8: company page and partner `get_link` sit on the ~300ms floor (Practus 306–350ms); the 500ms prod line still opens them until `main` carries the 2s rule.

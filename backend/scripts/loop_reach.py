@@ -48,6 +48,14 @@ STEPS: list[tuple[str, str, str | None, dict[str, Any]]] = [
     ("collected a role", "job_applications", "user_id", {}),
     ("tailored a CV for a job", "cv_versions", "user_id", {"job_id": "__not_null__"}),
     ("applied", "job_applications", "user_id", {"status": "applied"}),
+    # The Apply step, by fact (2026-10-13 grill). Click → asked → answered →
+    # applied-with-a-door. `apply_asked` and `applied` are core_loop_events
+    # steps (migration 20261013120000); before that the 0 answers from 21
+    # clicks could not say whether anyone ever saw the question.
+    ("clicked Apply", "job_apply_intents", "user_id", {}),
+    ("was asked 'did you apply?'", "core_loop_events", "user_id", {"step": "apply_asked"}),
+    ("answered 'did you apply?'", "job_apply_intents", "user_id", {"answered_at": "__not_null__"}),
+    ("applied, door recorded", "core_loop_events", "user_id", {"step": "applied"}),
     # Retention. `last_active_at` is copied from Supabase's session refreshes
     # once a day (migration 20261003100000) — before that it only ever held the
     # signup time. Rows, like "signed up", so the test-account filter applies.
@@ -119,6 +127,40 @@ def _count(
     return len(seen - excluded)
 
 
+#: The judge's bar for a QUALIFIED application (CLAUDE.md north star).
+QUALIFIED_SCORE = 3.5
+
+
+def _tailored_qualified_applyouts(db: Any, excluded: frozenset[str]) -> tuple[int, int]:
+    """The leading number beside the north star: (people, clicks) where an
+    Apply click went out with a tailored CV for THAT job, on a job the judge
+    rated >= 3.5. Needs nothing from the user — the north star itself stays
+    their own Yes (2026-10-13). Small tables; joined here, not in SQL, so the
+    instrument reads the same rows the product writes.
+    """
+    intents = [
+        r for r in (db.table("job_apply_intents").select("user_id, job_id").execute().data or [])
+        if str(r.get("user_id")) not in excluded
+    ]
+    job_ids = sorted({str(r["job_id"]) for r in intents})
+    if not job_ids:
+        return 0, 0
+    tailored = {
+        (str(r["user_id"]), str(r["job_id"]))
+        for r in (db.table("cv_versions").select("user_id, job_id").in_("job_id", job_ids).execute().data or [])
+    }
+    qualified = {
+        (str(r["user_id"]), str(r["job_id"]))
+        for r in (
+            db.table("user_job_matches").select("user_id, job_id")
+            .in_("job_id", job_ids).gte("overall_score", QUALIFIED_SCORE).execute().data or []
+        )
+    }
+    hits = [(str(r["user_id"]), str(r["job_id"])) for r in intents]
+    hits = [h for h in hits if h in tailored and h in qualified]
+    return len({u for u, _ in hits}), len(hits)
+
+
 def main() -> int:
     from app.database import get_supabase_admin
     from app.services import test_accounts
@@ -155,6 +197,13 @@ def main() -> int:
         pct = "" if prev in (None, 0) else f"   {round(100 * n / prev)}%"
         print(f"  {label:<22} {n:>6}{pct}")
         prev = n
+
+    people, clicks = _tailored_qualified_applyouts(db, excluded)
+    print(
+        f"\nLEADING NUMBER — Apply clicks with a tailored CV on a job rated >= {QUALIFIED_SCORE}:"
+        f"\n  {people} people, {clicks} clicks"
+        f"\n  (north star = their own Yes: 'applied' above)"
+    )
 
     print(
         "\nReach is not usage-as-a-target: a new feature has zero on day one, and "

@@ -97,8 +97,12 @@ def apply_certificate(
     replaced = False
     for existing in certs:
         if not replaced and _is_line_for(existing, skill_name=skill_name, known_ids=known):
-            # Never lower a claim that is already on the document.
-            if _level_in(existing) > new_level:
+            # Never lower a claim that is already on the document — and a second
+            # pass at the level it already states adds nothing: its link still
+            # verifies. Rewriting it only to swap the id wrote a new Main CV,
+            # which reads as a different CV to every verdict (#55): on
+            # 2026-10-06 two clears of one skill at Level 1 wrote two.
+            if _level_in(existing) >= new_level > 0:
                 return list(certs), False
             if _norm(existing) == _norm(line):
                 return list(certs), False

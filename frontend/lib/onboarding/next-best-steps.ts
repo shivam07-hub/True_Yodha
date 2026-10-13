@@ -56,6 +56,15 @@ export interface PublishedJob {
   title: string
   company: string | null
   fit: number | null
+  /** A stale verdict being re-read (Verdict Currency). The feed lists these
+   *  after every current card. */
+  rereading?: boolean
+  /** The search that found it. null = track 1, the profile. */
+  trackId?: number | null
+}
+
+function asBestJob(job: PublishedJob): BestJobInput {
+  return { jobId: job.jobId, title: job.title, company: job.company, fit: job.fit }
 }
 
 /**
@@ -63,6 +72,8 @@ export interface PublishedJob {
  *
  * `null` means the feed has not loaded: name nothing, so a matches-stack job
  * cannot flash ahead of the list. A pick that is not on the feed is dropped.
+ * A pick the feed is still re-reading yields to that search's first current
+ * card — a stale verdict never outranks a current one, here as on the list.
  * When the feed has cards and none of the picks are among them, the step is
  * the first card in judge order.
  */
@@ -71,17 +82,20 @@ export function jobsOnPublishedFeed(
   published: PublishedJob[] | null,
 ): BestJobInput[] {
   if (published === null) return []
-  const ids = new Set(published.map((job) => job.jobId))
-  const kept = picks.filter((job) => ids.has(job.jobId))
+  const byId = new Map(published.map((job) => [job.jobId, job]))
+  const kept = picks.flatMap((pick) => {
+    const row = byId.get(pick.jobId)
+    if (!row) return []
+    if (!row.rereading) return [pick]
+    const current = published.find(
+      (job) => !job.rereading && (job.trackId ?? null) === (row.trackId ?? null),
+    )
+    if (!current) return [pick]
+    return [pick.searchLabel ? { ...asBestJob(current), searchLabel: pick.searchLabel } : asBestJob(current)]
+  })
   if (kept.length > 0) return kept
   const first = published[0]
-  if (!first) return []
-  return [{
-    jobId: first.jobId,
-    title: first.title,
-    company: first.company,
-    fit: first.fit,
-  }]
+  return first ? [asBestJob(first)] : []
 }
 
 export interface NextStepsInput {

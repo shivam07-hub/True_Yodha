@@ -70,6 +70,16 @@ def test_a_promote_never_lowers_a_claim_already_on_the_cv():
     assert certs == existing
 
 
+def test_a_second_clear_at_the_same_level_changes_nothing():
+    """Two clears of one skill at Level 1 used to rewrite the line for the newer
+    id — a new Main CV, which every verdict reads as a different CV."""
+    first, _ = apply_certificate([], _cert(level=1, vid="msk_first"))
+    again, changed = apply_certificate(first, _cert(level=1, vid="msk_second"), prior_verification_ids={"msk_first"})
+
+    assert changed is False
+    assert again == first
+
+
 def test_re_promoting_the_same_certificate_changes_nothing():
     certs, _ = apply_certificate([], _cert())
     again, changed = apply_certificate(certs, _cert())

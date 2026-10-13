@@ -119,7 +119,7 @@ def test_scope_city_chip_matches_scalar_or_array():
     assert "locations.cs.{Bengaluru}" in clause  # firecrawl #6 multi-loc rows
     # remote/hybrid null-country catch-all is always appended once a scope exists
     assert "and(location_country.is.null,location_mode.in.(remote,hybrid))" in clause
-    assert sig == ("city:bengaluru",)
+    assert sig == ("city:bengaluru", "state:karnataka", "no_city:india")
 
 
 def test_scope_country_only_chip():
@@ -138,7 +138,7 @@ def test_scope_mixed_city_and_country_ored():
 
 def test_scope_dedupes_repeats():
     _, sig = build_location_scope(["Bangalore", "Bangalore"])
-    assert sig == ("city:bengaluru",)
+    assert sig == ("city:bengaluru", "state:karnataka", "no_city:india")
 
 
 # ── _matches_location_filters (locations[] coverage) ────────────────────────

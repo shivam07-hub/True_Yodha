@@ -20,7 +20,7 @@ from app.schemas.jobs import MatchBrainResult, MatchRetryResponse
 from app.services import background, jobs_workflow, new_inventory, progress_stream
 from app.services.job_refresh import JobRefresh
 from app.services.concurrent_reads import run_concurrently
-from app.services.matching import match_freshness, on_demand
+from app.services.matching import match_freshness, on_demand, verdict_currency
 
 from app.routers.jobs.list import _rank_feed_rows
 from app.services.job_projection import last_monday, to_job_match
@@ -226,9 +226,27 @@ def get_agent_picks(
     instead of falling back to an overlap pill. Editorial order (agent_rank)
     stays; the judge is information, not a second ranking.
     """
-    rows = repo.get_agent_picks(principal.id)
+    reads = run_concurrently(
+        {
+            "picks": lambda: repo.get_agent_picks(principal.id),
+            "currency": lambda: verdict_currency.for_user(repo, principal.id),
+        },
+        label="jobs.agent_picks",
+    )
+    rows, currency = reads["picks"], reads["currency"]
     job_ids = [str(r.get("job_id")) for r in rows if r.get("job_id")]
     brain_evals = repo.get_cached_match_evals(principal.id, job_ids) if job_ids else {}
+    # A set is cut at regeneration and outlives a direction change until the next
+    # run, so the read asks again: a pick judged for another CV or direction
+    # leaves the band, a stale one is re-read in place like its /market card.
+    kept = []
+    for row in rows:
+        standing = currency.of(brain_evals.get(str(row.get("job_id"))) or {})
+        if standing == "foreign":
+            continue
+        row["rereading"] = standing == "stale"
+        kept.append(row)
+    rows = kept
     _rank_feed_rows(rows, brain_evals, reorder=False)
     repo.record_recommendation_exposures(
         principal.id, rows, surface="agent_pick"

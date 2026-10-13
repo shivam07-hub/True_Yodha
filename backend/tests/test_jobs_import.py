@@ -246,19 +246,23 @@ class _StatusRepo:
         self.answered.append(job_id)
 
 
-def _put_status(monkeypatch, prior: str, status: str):
+def _put_status(monkeypatch, prior: str, status: str, surface: str | None = "extension"):
     repo = _StatusRepo(prior)
     judged: list = []
     frozen: list = []
+    steps: list = []
     monkeypatch.setattr(jobs.apply.on_demand, "open_job_eval", lambda r, uid, jid: judged.append(jid))
     monkeypatch.setattr(jobs.apply.cv_of_record, "record_on_apply", lambda uid, jid: frozen.append(jid))
+    monkeypatch.setattr(jobs.apply.core_loop, "record_step", lambda *a: steps.append(a))
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    body = {"status": status} if surface is None else {"status": status, "surface": surface}
     try:
         with TestClient(app) as client:
-            response = client.put("/jobs/applications/ext_abc", json={"status": status})
+            response = client.put("/jobs/applications/ext_abc", json=body)
     finally:
         app.dependency_overrides.clear()
+    _put_status.steps = steps
     return response, repo, judged, frozen
 
 
@@ -272,9 +276,17 @@ def test_first_applied_freezes_the_cv_and_queues_the_judge(monkeypatch) -> None:
     assert repo.answered == ["ext_abc"]
     assert frozen == ["ext_abc"]
     assert judged == ["ext_abc"]
+    # The door the Yes came through is recorded once, server-side.
+    assert _put_status.steps == [("u1", "ext_abc", "applied", "extension")]
+
+
+def test_an_unnamed_door_is_recorded_as_none(monkeypatch) -> None:
+    _put_status(monkeypatch, "saved", "applied", surface=None)
+    assert _put_status.steps == [("u1", "ext_abc", "applied", None)]
 
 
 def test_a_repeat_applied_queues_nothing(monkeypatch) -> None:
     response, _repo, judged, frozen = _put_status(monkeypatch, "applied", "applied")
     assert response.status_code == 200
     assert judged == [] and frozen == []
+    assert _put_status.steps == []

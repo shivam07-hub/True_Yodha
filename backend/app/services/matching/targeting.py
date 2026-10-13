@@ -195,6 +195,15 @@ def for_ranking(jobs_repo: Any, user_id: str) -> TargetingBrief:
     return TargetingBrief(profile=profile or {}, facts=_facts(getattr(jobs_repo, "_db", None), user_id))
 
 
+def for_currency(jobs_repo: Any, user_id: str) -> TargetingBrief:
+    """Brief for Verdict Currency on a read path: the columns its keys hash and
+    the direction they name, plus memory. `ranking_profile()` of this brief and of
+    `for_ranking`'s give the same keys and the same direction; what this one
+    leaves out is the CV markdown."""
+    profile = jobs_repo.get_direction_columns(user_id)
+    return TargetingBrief(profile=profile or {}, facts=_facts(getattr(jobs_repo, "_db", None), user_id))
+
+
 def for_preflight(db: Any, user_id: str) -> TargetingBrief:
     """Brief for the pre-flight modal (RLS-scoped client)."""
     from app.repositories.users import UsersRepository

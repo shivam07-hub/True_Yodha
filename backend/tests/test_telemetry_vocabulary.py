@@ -20,7 +20,12 @@ from pathlib import Path
 
 import pytest
 
-from app.routers.telemetry import CORE_LOOP_STEPS, CV_UPLOAD_PHASES, CV_UPLOAD_OUTCOMES
+from app.routers.telemetry import (
+    CORE_LOOP_BEACON_STEPS,
+    CORE_LOOP_STEPS,
+    CV_UPLOAD_OUTCOMES,
+    CV_UPLOAD_PHASES,
+)
 
 # The Notice was this drift: the CHECK rejected `confirm` and `direction` until
 # migration 20260908b, and every rejected write surfaced as a 500.
@@ -117,5 +122,12 @@ def test_the_frontend_sends_no_outcome_the_api_rejects() -> None:
 
 
 def test_the_core_loop_steps_agree_in_python_sql_and_typescript() -> None:
+    """The table stores every step; a client may send only the beacon ones."""
     assert _sql_check_values("core_loop_events", "step") == set(CORE_LOOP_STEPS)
-    assert _ts_union("CoreLoopStep") == set(CORE_LOOP_STEPS)
+    assert _ts_union("CoreLoopStep") == set(CORE_LOOP_BEACON_STEPS)
+
+
+def test_a_client_cannot_send_the_applied_step() -> None:
+    """`applied` is the north star's door count; one forged beacon would move it."""
+    assert "applied" in CORE_LOOP_STEPS
+    assert "applied" not in CORE_LOOP_BEACON_STEPS

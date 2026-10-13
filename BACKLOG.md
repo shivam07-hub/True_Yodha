@@ -17,9 +17,9 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 
 | # | Step | Item | Spec · owner | Next |
 |---|---|---|---|---|
-| 1 | Find the job | **#55** a returning user's list never vanishes | [ARCHITECTURE_RETURN_LOOP.md](ARCHITECTURE_RETURN_LOOP.md) · decisions taken below | S0 measure → S1 Verdict Currency |
+| 1 | Find the job | **#55** a returning user's list never vanishes | [ARCHITECTURE_RETURN_LOOP.md](ARCHITECTURE_RETURN_LOOP.md) · decisions taken below | S0–S5 built 2026-10-13 · S4 (#59) live only after Shivam approves the preview |
 | 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read the funnel on prod after the next merge |
-| 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) · Cursor | S1 migration + `golden_list.py` |
+| 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) | S1–S3 built 2026-10-13 · **BLOCKED on Shivam**: preview → approve → schedule (go-live SQL in the spec) |
 | 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor | S0 audit, today's rule |
 | 4 | Front door | **#57** "Which job do you want?" after upload · partner SSO lands on the upload (22% of partner people upload vs 67% direct) | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor | S0 partner landing |
 | 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor | S1 blank certs |
@@ -49,10 +49,6 @@ list** — see §3. Do not bump `PROMPT_VERSION` casually until S1 ships.
 **The corpus is the scraper repo's (Shivam).** Running again since 2026-10-01 —
 28,120 active jobs younger than 7 days on 2026-10-02. This repo only reads jobs;
 never measure ingestion with `jobs.ingested_at` (an extension save masks a stall).
-
-⚠️ `jobs_added_1h` on the public landing page is structurally **0 for 23 hours
-of every day** (`repositories/jobs.py:644,629,676` — a day marker compared to
-`now − 1h`). Fix from `ingested_at` or delete the field. In the first spec.
 
 7e. **Semantic retrieval is PAID FOR and UNWIRED — and its one caller-ready
     module would fail silently if wired today.** Measured 2026-09-25, against the
@@ -159,14 +155,15 @@ no Apply click from a real account since 2026-09-22. The capture is built
 Read clicks → answers → applications on prod after the next merge before building
 anything new. QA check **A1** below: Apply opens the company's own posting.
 
-**Extension apply door (Develop 2026-10-06, needs a Web Store release — Shivam).**
-The popup now asks Myro which of the user's jobs the page is (Page Entry,
-CONTEXT.md) and, on a tailored page, leads with "I applied" — the same answer
-write as the web. A save and the first "applied" both queue the judge, so an
-extension application can count as qualified. Not detection: the user's click is
-the only writer. Measure after release: `applied` rows on `ext_` jobs. A job from
-Myro's list marked applied in the popup is indistinguishable from the web today;
-add a surface column only if the count needs it.
+**Apply funnel, measured by door (2026-10-13, DECISIONS APPLY1/APPLY2).**
+Extension 0.2.3 is live (Page Entry + "I applied"); 0.2.4 names its door.
+`loop_reach.py` now reads clicked → asked → answered → applied per door, plus
+the leading number (tailored apply-outs on ≥3.5 jobs: 2 people, 2 clicks).
+On 10-13: 14 clicked, 0 asked-recorded (the beacon starts now), 0 answered.
+**Next:** read `apply_asked` after two weeks. Asked ≈ 0 → people never return to
+the tab; asked > 0 and answered ≈ 0 → the prompt is ignored. Redesign from that,
+in Myro (no email — APPLY2). Parked: extension saves duplicating a list job —
+2 of 6 `ext_` rows, 0 matched to anyone else; revisit only if that grows.
 
 **CS-15** · **Step 5 leaves no trail back to the stories.** *Small, but it is what makes
     `repeat` mean something.*
@@ -546,6 +543,11 @@ Tracker (3) · no problem or not actionable (~25).
   `dead_man:job_ingestion` is open. Then: Axis Bank = 14,259 live rows (~18%,
   747 titles) — dedupe at the source.
 - Compute → Small (above) · the prod deploy guard (above).
+- **#59 golden digest go-live** (built 2026-10-13): after the `main` merge, run
+  the preview SQL in `ARCHITECTURE_GOLDEN_DIGEST.md` (status block), read the
+  emails, approve; an agent then adds the schedule. One call first: should a
+  member's first digest offer their current top three (Raj 23 cards today)
+  rather than only jobs new since they joined (0 for all four today)?
 - Finlatics, optional: one user's SSO failed 2026-10-06 17:56 (`Server
   disconnected`, fixed `c9a0a047`); their auth account `b4203375…` exists with no
   seat, so their next SSO goes through the consent screen (safe, one extra step).

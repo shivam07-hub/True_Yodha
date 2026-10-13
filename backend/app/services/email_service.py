@@ -25,8 +25,11 @@ _RESEND_ENDPOINT = "https://api.resend.com/emails"
 _TIMEOUT_SECONDS = 8
 
 
-def send_email(*, to: str, subject: str, text: str) -> bool:
-    """Send a plain-text email. Returns True on a 2xx, False on any failure."""
+def send_email(*, to: str, subject: str, text: str, headers: dict[str, str] | None = None) -> bool:
+    """Send a plain-text email. Returns True on a 2xx, False on any failure.
+
+    `headers` are the message's own (Resend passes them through) — the golden
+    digest's `List-Unsubscribe` pair rides here (RFC 8058 one-click)."""
     api_key = settings.resend_api_key.strip()
     if not api_key:
         logger.warning("metric email.skipped reason=no_api_key")
@@ -39,7 +42,13 @@ def send_email(*, to: str, subject: str, text: str) -> bool:
         response = requests.post(
             _RESEND_ENDPOINT,
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"from": settings.resend_from_email, "to": [to], "subject": subject, "text": text},
+            json={
+                "from": settings.resend_from_email,
+                "to": [to],
+                "subject": subject,
+                "text": text,
+                **({"headers": headers} if headers else {}),
+            },
             timeout=_TIMEOUT_SECONDS,
         )
     except requests.exceptions.RequestException as exc:

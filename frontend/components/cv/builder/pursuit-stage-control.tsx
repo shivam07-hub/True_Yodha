@@ -24,7 +24,7 @@ export function PursuitStageControl({ token, application }: {
 }) {
   const [open, setOpen] = useState(false)
   // Shared optimistic stage write — the picker reflects the new stage instantly.
-  const { setStatus } = useApplicationStatus(token)
+  const { setStatus } = useApplicationStatus(token, "cv_pursuit")
 
   const isOutcome = (APPLICATION_OUTCOMES as readonly string[]).includes(application.status)
   const label = isOutcome

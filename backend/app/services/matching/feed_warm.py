@@ -241,6 +241,20 @@ def _continue_drain(user_id: str, baseline_version_id: int | None, announce: boo
     )
 
 
+def _shown_stale(repo: Any, user_id: str, profile: dict[str, Any]) -> list[str]:
+    """Job ids on this person's list right now as stale cards (Verdict Currency),
+    best first — the order the list shows them in."""
+    from app.services.matching import verdict_currency
+
+    currency = verdict_currency.for_profile(profile)
+    rows = [
+        row for row in repo.get_shown_verdict_keys(user_id, floor=published_list.SHOW_FLOOR)
+        if currency.of(row) == "stale"
+        and published_list.worth_showing(row.get("overall_score"), row.get("recommendation"))
+    ]
+    return [str(row["job_id"]) for row in published_list.order_by_score(rows) if row.get("job_id")]
+
+
 def _announce_round(
     repo: Any, user_id: str, profile: dict[str, Any], batch: list[str], eval_ctx: str,
 ) -> None:
@@ -303,9 +317,15 @@ async def run_feed_warm(
     ]
     eval_ctx = onboarding_service.eval_context_key(profile)
     cached = _cached_evals(repo, user_id, ids)
-    pending = [
+    # The cards they can already see first: a stale verdict is on their list now,
+    # marked re-reading, and it is what they look at when they come back. Then
+    # the rest of the pile, in the pool's order (#55 decision 3).
+    shown_stale = _shown_stale(repo, user_id, profile)
+    first = set(shown_stale)
+    pending = shown_stale + [
         job_id for job_id in ids
-        if not onboarding_service.eval_matches_context(cached.get(job_id), eval_ctx)
+        if job_id not in first
+        and not onboarding_service.eval_matches_context(cached.get(job_id), eval_ctx)
     ]
     batch = pending[:DRAIN_BATCH]
     written = 0
@@ -320,7 +340,8 @@ async def run_feed_warm(
             )
             return 0
         if announce:
-            _announce_round(repo, user_id, profile, batch, eval_ctx)
+            # A card that was already on the list is not news when it is re-read.
+            _announce_round(repo, user_id, profile, [j for j in batch if j not in first], eval_ctx)
     if len(pending) > len(batch):
         _continue_drain(user_id, locked, announce)
     elif latest is not None and locked != latest:

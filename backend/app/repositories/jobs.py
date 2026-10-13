@@ -32,6 +32,7 @@ from app.services.job_eligibility import (
     target_seniority_for_profile,
 )
 from app.services.location_normalizer import normalize_location
+from app.services.location_vocab import canonical_city, metro_cities, state_of
 from app.services.scoring import _PROFICIENCY_TITLES
 
 _log = logging.getLogger("app.repositories.jobs")
@@ -528,10 +529,18 @@ def build_location_scope(prefs: list[str] | None) -> tuple[str | None, tuple[str
 
     Each freeform pref label is parsed by normalize_location into a chip. A job
     matches if it matches ANY chip:
-      - city chip (city resolved): location_city == city OR city ∈ locations[]
+      - city chip (city resolved): location_city == city OR city ∈ locations[];
+        a metro chip covers its member cities (CEO Q6: Delhi NCR = Delhi,
+        Gurugram, Noida)
+      - a job with no city whose states include the chip city's state (CEO Q2)
+      - a job with no city and no state in the chip's country (CEO Q1)
       - country-only chip ("India (All)"): location_country == country
     Plus: whenever a scope is active, null-country remote/hybrid jobs are
-    included (mirrors the match-pipeline include rule).
+    included (mirrors the match-pipeline include rule). Remote jobs with no
+    city stay out of city chips, as before.
+
+    The same rules as `match_credibility.location_compatible`, so the feed and
+    admission cannot answer "can I see this job" differently.
 
     Returns (postgrest_or_clause, signature). The clause is None when prefs are
     empty or yield no usable chip → no scope (show all). The signature is a
@@ -542,7 +551,9 @@ def build_location_scope(prefs: list[str] | None) -> tuple[str | None, tuple[str
     terms: list[str] = []
     sig: list[str] = []
     seen_city: set[str] = set()
+    seen_state: set[str] = set()
     seen_country: set[str] = set()
+    no_city_countries: set[str] = set()
     for label in prefs:
         chip = normalize_location(label)
         city = _safe_location_token(chip.location_city or "")
@@ -550,15 +561,37 @@ def build_location_scope(prefs: list[str] | None) -> tuple[str | None, tuple[str
         if city:
             # City chip → precise match (scalar or locations[]). A repeat is a
             # no-op; it must NOT fall through to a broad country-wide term.
-            if city.lower() not in seen_city:
-                seen_city.add(city.lower())
-                terms.append(f"location_city.eq.{city}")
-                terms.append(f"locations.cs.{{{city}}}")
-                sig.append(f"city:{city.lower()}")
+            members = [
+                _safe_location_token(canonical_city(member) or member)
+                for member in metro_cities(city)
+            ] or [city]
+            for member in members:
+                if member and member.lower() not in seen_city:
+                    seen_city.add(member.lower())
+                    terms.append(f"location_city.eq.{member}")
+                    terms.append(f"locations.cs.{{{member}}}")
+                    sig.append(f"city:{member.lower()}")
+            state = _safe_location_token(state_of(city) or "")
+            if state and state.lower() not in seen_state:
+                seen_state.add(state.lower())
+                terms.append(
+                    f"and(location_city.is.null,location_mode.neq.remote,location_states.cs.{{{state}}})"
+                )
+                sig.append(f"state:{state.lower()}")
+            no_city_country = country or ("India" if state else None)
+            if no_city_country:
+                no_city_countries.add(no_city_country)
         elif country and country.lower() not in seen_country:
             seen_country.add(country.lower())
             terms.append(f"location_country.eq.{country}")
             sig.append(f"country:{country.lower()}")
+    for country in sorted(no_city_countries):
+        if country.lower() in seen_country:
+            continue  # the country chip already admits every job there
+        terms.append(
+            f"and(location_city.is.null,location_mode.neq.remote,location_states.eq.{{}},location_country.eq.{country})"
+        )
+        sig.append(f"no_city:{country.lower()}")
     if not terms:
         return None, ()
     terms.append("and(location_country.is.null,location_mode.in.(remote,hybrid))")
@@ -868,7 +901,7 @@ class JobsRepository:
             table="jobs",
             columns=(
                 "job_id, company_name, industry, industry_group, role_domain, role_family, batch_date, "
-                "location, location_raw, location_city, location_country, location_mode, location_quality, locations, "
+                "location, location_raw, location_city, location_country, location_mode, location_quality, locations, location_states, "
                 "main_skills, first_seen, ingested_at"
             ),
             query_builder=query_builder,
@@ -1648,7 +1681,7 @@ class JobsRepository:
             table="jobs",
             columns=(
                 "job_id, job_title, company_name, job_description, "
-                "location, location_raw, location_city, location_country, location_mode, location_quality, locations"
+                "location, location_raw, location_city, location_country, location_mode, location_quality, locations, location_states"
             ),
             query_builder=_query_builder,
         )
@@ -1722,7 +1755,7 @@ class JobsRepository:
         # 500-row personal candidate pool dominated feed transfer and JSON
         # decoding, then saturated every other read during a browsing burst.
         "job_id, job_title, company_name, "
-        "location, location_raw, location_city, location_country, location_mode, location_quality, locations, "
+        "location, location_raw, location_city, location_country, location_mode, location_quality, locations, location_states, "
         "role_domain, career_band, industry, industry_group, apply_url, "
         "seniority_level, min_years_experience, max_years_experience, "
         f"main_skills, role_family, {CARD_COLUMNS}"
@@ -1941,7 +1974,7 @@ class JobsRepository:
     _AGENT_PICK_JOB_COLUMNS = (
         "job_id, job_title, company_name, job_description, industry, industry_group, "
         "role_domain, apply_url, location, location_raw, location_city, location_country, "
-        "location_mode, location_quality, locations, main_skills, "
+        "location_mode, location_quality, locations, location_states, main_skills, "
         f"{CARD_COLUMNS}"
     )
 
@@ -2922,11 +2955,18 @@ class JobsRepository:
         ]
 
     def get_existing_match_job_ids(self, user_id: str, batch_week: date | None = None) -> list[str]:
-        query = self._db.table("user_job_matches").select("job_id").eq("user_id", user_id)
-        if batch_week is not None:
-            query = query.eq("batch_week", str(batch_week))
-        result = query.execute()
-        ids = [str(r["job_id"]) for r in (result.data or []) if r.get("job_id")]
+        def scoped(query: Any) -> Any:
+            query = query.eq("user_id", user_id)
+            if batch_week is not None:
+                query = query.eq("batch_week", str(batch_week))
+            return query.order("id")
+
+        # Paged for the same reason as the stack: past 1,000 rows a single read
+        # drops the rest, and a run would judge again what it had already judged.
+        rows = fetch_all_rows(
+            self._db, table="user_job_matches", columns="job_id", query_builder=scoped,
+        )
+        ids = [str(r["job_id"]) for r in rows if r.get("job_id")]
         if batch_week is None:
             ids.extend(self.get_dismissed_job_card_ids(user_id))
         return list(dict.fromkeys(ids))
@@ -2950,9 +2990,15 @@ class JobsRepository:
         its own response field, and was reading it twice
         (ARCHITECTURE_READ_PATH.md S4-followup).
         """
-        result = (
-            self._db.table("user_job_matches")
-            .select(
+        # Paged. PostgREST answers at most 1,000 rows, and on 2026-10-13 seven
+        # people held more — every one of them active that month — so 1,397 of
+        # their verdicts were never read and those jobs never reached /market,
+        # Collections or the Picks gate. `id` orders the pages: it is unique, so
+        # no row lands on two pages or on none.
+        rows = fetch_all_rows(
+            self._db,
+            table="user_job_matches",
+            columns=(
                 "id, job_id, overlap_score, llm_rank, llm_explanation, "
                 "batch_week, computed_at, matched_skills, "
                 "is_recommended, baseline_version_id, target_context_hash, eval_context_hash, "
@@ -2964,19 +3010,17 @@ class JobsRepository:
                 "level_strategy, personalization, star_pointers, pick_reason, "
                 "ctc_low_lpa, ctc_high_lpa, ctc_basis, "
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
-                "location_country, location_mode, location_quality, locations, apply_url, "
+                "location_country, location_mode, location_quality, locations, location_states, apply_url, "
                 "job_summary, job_description, "
                 "date_posted, seniority_level, work_mode, min_years_experience, max_years_experience, "
                 # `main_skills` is what `direction_fit` grades the pick gate on. One array
                 # on a select this read already makes, so the grade costs no round trip.
                 f"main_skills, {CARD_COLUMNS})"
-            )
-            .eq("user_id", user_id)
-            .execute()
+            ),
+            query_builder=lambda q: q.eq("user_id", user_id).order("id"),
         )
         if dismissed is None:
             dismissed = set(self.get_dismissed_job_card_ids(user_id))
-        rows = list(result.data or [])
         rows.sort(key=_match_stack_sort_key, reverse=True)
 
         stack: list[dict[str, Any]] = []
@@ -3006,7 +3050,10 @@ class JobsRepository:
         # The skip gates compare this to decide whether a cached verdict is still
         # the answer. Carried on the badge subset (not just `full`) because the
         # feed warmer reads the light one.
-        "eval_context_hash, eval_outcome"
+        "eval_context_hash, eval_outcome, "
+        # With `eval_context_hash`, what Verdict Currency reads to tell a stale
+        # verdict from one judged for another direction (the Agent Picks read).
+        "target_context_hash"
     )
     _MATCH_EVAL_FULL_COLS = (
         _MATCH_EVAL_BADGE_COLS
@@ -3129,7 +3176,7 @@ class JobsRepository:
                 "level_strategy, personalization, star_pointers, pick_reason, "
                 "ctc_low_lpa, ctc_high_lpa, ctc_basis, "
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
-                "location_country, location_mode, location_quality, locations, apply_url, job_description)"
+                "location_country, location_mode, location_quality, locations, location_states, apply_url, job_description)"
             )
             .eq("user_id", user_id)
             .eq("batch_week", str(batch_week))
@@ -3176,7 +3223,7 @@ class JobsRepository:
                 "level_strategy, personalization, star_pointers, pick_reason, "
                 "ctc_low_lpa, ctc_high_lpa, ctc_basis, "
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
-                "location_country, location_mode, location_quality, locations, apply_url, "
+                "location_country, location_mode, location_quality, locations, location_states, apply_url, "
                 "job_summary, job_description, "
                 "date_posted, seniority_level, work_mode, min_years_experience, max_years_experience, "
                 f"{CARD_COLUMNS})"
@@ -3219,7 +3266,7 @@ class JobsRepository:
                 "id, job_id, overall_score, grade, recommendation, summary, "
                 "overlap_score, llm_rank, matched_skills, "
                 "jobs(job_title, company_name, location, location_city, "
-                "location_country, location_mode, apply_url)"
+                "location_country, location_mode, location_states, apply_url)"
             )
             .eq("user_id", user_id)
             .eq("baseline_version_id", baseline_version_id)
@@ -3473,6 +3520,59 @@ class JobsRepository:
         profile["cv_markdown"] = self.get_user_cv_markdown(user_id)
         return profile
 
+    def get_direction_columns(self, user_id: str) -> dict[str, Any]:
+        """The profile columns a verdict's keys hash (Verdict Currency), plus the
+        two `direction.of` reads to say whether there is a direction at all — one
+        PK read. Not `get_user_profile_targeting`: that one also reads the whole
+        CV markdown, a second round trip and the heaviest payload on the row, for
+        a check that needs a title, a level and a place."""
+        rows = safe_read(
+            self._db.table("user_profiles")
+            .select("target_role_title,target_role_titles,target_roles,target_seniority,target_location")
+            .eq("id", user_id)
+            .limit(1),
+            default=[],
+            context="direction_columns",
+        )
+        return rows[0] if rows else {}
+
+    def get_latest_baseline_stamp(self, user_id: str) -> dict[str, Any] | None:
+        """The latest Main CV's id and when it was written — one narrow read,
+        for the Return door's grace (a CV younger than a run is still being read)."""
+        rows = (
+            self._db.table("cv_versions")
+            .select("id, created_at")
+            .eq("user_id", user_id)
+            .eq("kind", "baseline_upload")
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        ).data or []
+        return rows[0] if rows else None
+
+    def has_verdict(self, user_id: str, *, baseline_version_id: int | None = None) -> bool:
+        """Does any match row exist — on this CV, when one is named? An existence read."""
+        query = self._db.table("user_job_matches").select("job_id").eq("user_id", user_id)
+        if baseline_version_id is not None:
+            query = query.eq("baseline_version_id", baseline_version_id)
+        return bool(query.limit(1).execute().data)
+
+    def get_shown_verdict_keys(self, user_id: str, *, floor: float) -> list[dict[str, Any]]:
+        """Every verdict that cleared `floor` on a live listing, with the two keys
+        Verdict Currency reads — no card columns. What the Return door and the
+        drain need to find the cards a person sees that are due a re-read."""
+        rows = fetch_all_rows(
+            self._db,
+            table="user_job_matches",
+            columns=(
+                "job_id, overall_score, recommendation, baseline_version_id, "
+                "eval_context_hash, target_context_hash, jobs(is_active)"
+            ),
+            query_builder=lambda q: q.eq("user_id", user_id).gte("overall_score", floor).order("id"),
+        )
+        # Only an explicit False is a closed listing (`admission.admit`).
+        return [row for row in rows if (row.get("jobs") or {}).get("is_active") is not False]
+
     def get_latest_baseline_id(self, user_id: str) -> int | None:
         result = (
             self._db.table("cv_versions")
@@ -3574,7 +3674,7 @@ class JobsRepository:
             self._db,
             "job_title, company_name, job_description, main_skills, "
             "job_summary, apply_url, location, location_raw, location_city, "
-            "location_country, location_mode, location_quality, locations, "
+            "location_country, location_mode, location_quality, locations, location_states, "
             "date_posted, seniority_level, work_mode, role_domain, "
             "min_years_experience, max_years_experience, "
             # Liveness is server-joined for the Collection Record: the
@@ -3696,11 +3796,14 @@ class JobsRepository:
         than `newer_than` has expired: `Not yet` used to clear only the local
         cache, so the same question returned on every load and was learned as
         noise — 29 clicks, 1 answer (2026-09-28).
+
+        Scoped by `user_id` in the query, not by RLS alone: through the service
+        client a worker holds, an RLS-only read returned every person's clicks.
         """
-        _ = user_id
         rows = safe_read(
             self._db.table("job_apply_intents")
             .select("job_id")
+            .eq("user_id", user_id)
             .is_("answered_at", "null")
             .gte("clicked_at", newer_than.isoformat())
             .lte("clicked_at", older_than.isoformat()),

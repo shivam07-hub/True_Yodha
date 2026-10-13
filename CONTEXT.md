@@ -817,6 +817,10 @@ Exists because `compute_job_matches` persisted once, at the end, and the run is 
   bookkeeping never costs someone their CV.
 - **The boundaries are drawn from the order, never re-derived.** `lib/jobs/track-sections.ts` reads a search boundary and the read/unread tier out of the order the server gave it, and marks each with the divider the feed already had — the one that separates the ranked picks from the browse tail, and exists so "the verdicts stopping reads as intentional, not a glitch". A client that regrouped would be a second ordering, and the last time this surface had two of those they disagreed. A single-track user gets no divider at all.
 
+## Verdict Currency
+
+Whether a person may see a stored verdict, and how: `current` (this CV, this direction, today's rules and facts), `stale` (same CV and direction, but the prompt or the person's facts moved since, or the row predates `eval_context_hash`), `foreign` (another CV or direction). One module, `matching/verdict_currency.py`; callers ask `for_profile(profile).of(row)` and never compare the two hash columns themselves. /market lists stale cards after every current one, `rereading: true`, a motion state on the ring and never a word (Shivam, 2026-09-30). Exists because `eval_context_hash` — a STALENESS key — was also deciding MEMBERSHIP, so a `PROMPT_VERSION` bump hid every list and each memory distill hid one (39 of 54 active people opened /market to nothing, 2026-10-13). Every surface asks it: Agent Picks at regeneration and again at read (a set outlives the direction change that made it foreign); Collections for an untouched match (a saved job is the person's own act, and stays); the Next chip through the /market list it names jobs from. **The replaced-CV list is /market's alone** — honest there because the list says so, and no other surface carries that sentence. A read path loads currency with `for_user` (`targeting.for_currency`: the columns the keys hash and the direction they name, no CV markdown) beside the read it gates. **The Return door** (`forward_pass.reread_list` → `matching/list_reread`) brings a present person's list forward: a CV no run has read gets one run; stale cards get the drain, which always re-reads the cards on the list before the pool. **A Main CV edit is a new CV** to every key — certificate, skill edit, rewrite and merge each write a `baseline_upload` — and asks for no match; the door is what reads it. `ARCHITECTURE_RETURN_LOOP.md`.
+
 ## Journey Position
 
 Where a user is in onboarding — **derived, never stored**. `experience` (nothing started) · `result` (work in flight or done) · `completed` (finished; they belong in the product, not the funnel). One read: `onboarding_service.journey_position`, surfaced by `GET /onboarding/state`.
@@ -1258,6 +1262,13 @@ prepare.
 - **Only the user's own applications are searched.** An Apply click is at least
   a save, so every job they went to apply to from Myro is there; the corpus is
   never scanned on a popup open.
+- **Every Yes names its door.** `PUT /jobs/applications/{id}` takes `surface`;
+  the first move to `applied` writes the `applied` core-loop step with it,
+  server-side only (a client cannot send that step). The return-to-tab prompt
+  beacons `apply_asked` once per click when it actually renders. Together with
+  `job_apply_intents` (click, `answered_at`) that is the Apply funnel —
+  clicked → asked → answered → applied, per door — in `loop_reach.py`.
+  DECISIONS APPLY1 / APPLY2.
 - **On a tailored page the popup leads with "I applied".** The user is on the
   company's own page with a CV aimed at the job — where the goal line says
   *apply*. It writes the same answer as the web's "Did you apply?" Yes
@@ -1613,12 +1624,35 @@ The full path, scrape → card:
 | Match pool | `candidate_jobs_for_user` RPC | **country only, by design** |
 | Recommend gate | `match_credibility.location_compatible` | ORs across every named city |
 | Rank | `llm_ranker.preferred_locations` | every named city, in the prompt |
-| Feed | `build_location_scope` | OR-across-chips: `location_city ==` OR city ∈ `locations[]` |
+| Feed | `build_location_scope` | OR-across-chips: `location_city ==` OR city ∈ `locations[]`, plus the no-city rules below |
 
 **The pool is wide and the judgment is narrow, on purpose.** The RPC scopes by
 country so a remote or mis-tagged listing is never structurally excluded; the
 city decision belongs to `location_compatible`, which gates `is_recommended`.
 Moving the city into the SQL would trade a recoverable miss for an invisible one.
+
+**A country or a state is never a city** (CEO decision record 2026-10-04).
+The scraper writes `location_city = NULL` when a posting names only a country
+or a state, keeps the state(s) in `jobs.location_states[]`, and labels the
+display `location` "India — city not specified" / "Maharashtra — city not
+specified". `location_compatible` and `build_location_scope` apply the same
+three rules, so the feed and admission cannot disagree:
+
+- **No city, no state** → shown to every city-targeting user in that country.
+  Remote jobs are unchanged: they match only a "Remote" target.
+- **No city, state(s) known** → shown only to users with a city in one of
+  those states (Kotak "Maharashtra" reaches Pune and Mumbai, not Delhi).
+- **Delhi NCR = the cities Delhi, Gurugram and Noida.** An NCR target matches
+  jobs in any of the three; a state-only job reaches it only through the Delhi
+  state, never Haryana or Uttar Pradesh.
+
+City → state comes from `public.location_vocab`, seeded from the scraper's
+`india_cities.json` (`app/services/location_vocab.py`). A row written before
+the release that still says city "India" or "Maharashtra" reads exactly as a
+re-scraped one. If the vocabulary is unreachable, state-only jobs fail closed
+and country-only jobs still show. The database rule
+(`private.enforce_location_city_rule`) cleans every writer, the extension
+included; `location_rule_violations()` is the daily check that should read 0.
 
 **The slot key IS the profile column.** `payload.project` returns the resolved
 spec as the PATCH body, so a slot named `target_location` writing a list would

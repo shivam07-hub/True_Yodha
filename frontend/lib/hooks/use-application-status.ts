@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { jobs } from "@/lib/api"
-import type { ApplicationResponse, ApplicationStatus, JobMatchesResponse } from "@/lib/api"
+import type { ApplicationResponse, ApplicationStatus, AppliedSurface, JobMatchesResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 
 /** Minimal job facts needed to synthesise an application row on first save —
@@ -46,7 +46,7 @@ export interface UseApplicationStatus {
  * the jobs cache) so derived views (buildFeed liked-set, tracker columns) flip
  * immediately.
  */
-export function useApplicationStatus(token: string | null): UseApplicationStatus {
+export function useApplicationStatus(token: string | null, surface: AppliedSurface): UseApplicationStatus {
   const queryClient = useQueryClient()
   const [pending, setPending] = useState<Set<string>>(new Set())
   const [error, setError] = useState<{ jobId: string; message: string } | null>(null)
@@ -64,7 +64,7 @@ export function useApplicationStatus(token: string | null): UseApplicationStatus
 
   const mutation = useMutation({
     mutationFn: ({ jobId, status }: { jobId: string; status: ApplicationStatus; meta?: OptimisticJobMeta }) =>
-      jobs.updateApplication(token!, jobId, { status }),
+      jobs.updateApplication(token!, jobId, { status, surface }),
     onMutate: async ({ jobId, status, meta }) => {
       markPending(jobId, true)
       setError(null)

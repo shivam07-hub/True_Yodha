@@ -39,5 +39,5 @@ test("I applied writes the same status answer as web", async () => {
   await markApplied("https://api.himyro.com", "tok", "ext_1")
   assert.equal(calls[0].url, "https://api.himyro.com/jobs/applications/ext_1")
   assert.equal(calls[0].init.method, "PUT")
-  assert.deepEqual(JSON.parse(calls[0].init.body), { status: "applied" })
+  assert.deepEqual(JSON.parse(calls[0].init.body), { status: "applied", surface: "extension" })
 })

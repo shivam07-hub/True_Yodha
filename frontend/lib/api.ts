@@ -2503,7 +2503,7 @@ export function emitJourneyPhase(
  *  tailoring, a Mentor run and an apply click each have their own record; these
  *  are the gaps between them. Tied to `CORE_LOOP_STEPS` and the SQL CHECK by
  *  `test_telemetry_vocabulary` — keep this union on one line. */
-export type CoreLoopStep = "card_tailor" | "panel_opened" | "panel_tailor" | "editor_opened" | "mentor_opened" | "downloaded"
+export type CoreLoopStep = "card_tailor" | "panel_opened" | "panel_tailor" | "editor_opened" | "mentor_opened" | "downloaded" | "apply_asked"
 
 const CORE_LOOP_TELEMETRY_PATH = "/v1/telemetry/loop-step"
 
@@ -3479,6 +3479,10 @@ export type QualityReasonCode =
 
 export type FeedbackSurface = "dashboard" | "market" | "job_detail" | "other"
 
+/** The door a Yes came through — recorded server-side as the `applied`
+ *  core-loop step on the first move to applied. Every status writer names one. */
+export type AppliedSurface = ApplyIntentSurface | "prep" | "cv_pursuit" | "extension"
+
 export type ApplyIntentSurface =
   | "dashboard"
   | "market"
@@ -3899,6 +3903,10 @@ export interface JobFeedItem {
    *  the browse tail, which no search found at all. */
   track_id?: number | null
   is_strong?: boolean
+  /** A real verdict from before the brain's rules or this person's facts last
+   *  moved, listed after every current card and re-read in place. Shown as a
+   *  motion state on the ring, never a word. */
+  rereading?: boolean
   /** The family retrieval matched against the user's target roles — the same
    *  vocabulary the role chips are written in, so they can narrow the list. */
   role_family?: string | null
@@ -4628,7 +4636,7 @@ export const jobs = {
   updateApplication: (
     token: string,
     jobId: string,
-    data: { status: ApplicationStatus; notes?: string | null; company_response?: string | null; followed_up?: boolean | null },
+    data: { status: ApplicationStatus; surface: AppliedSurface; notes?: string | null; company_response?: string | null; followed_up?: boolean | null },
   ) =>
     request<ApplicationResponse>(`/jobs/applications/${jobId}`, {
       method: "PUT",
@@ -5983,6 +5991,14 @@ export interface GhostIndexResponse {
   companies: GhostIndexRow[]
   sectors: GhostIndexRow[]
   coverage: GhostIndexCoverage
+}
+
+// ── Golden-list digest: one-click unsubscribe (#59) ──────────────────────────
+
+export const emailPrefs = {
+  /** The token in the email is the proof; no login. A second press changes nothing. */
+  unsubscribe: (token: string) =>
+    request<void>(`/email/unsubscribe?t=${encodeURIComponent(token)}`, { method: "POST" }),
 }
 
 export const ghostIndex = {

@@ -4,12 +4,17 @@ import re
 from dataclasses import dataclass
 from typing import Any, Literal
 
+from app.services.location_vocab import is_state
+
 LOCATION_PARSER_VERSION = "v1"
 
 LocationMode = Literal["onsite", "hybrid", "remote", "unknown"]
 LocationQuality = Literal["ok", "unknown"]
 
 _SPACE_RE = re.compile(r"\s+")
+# The scraper labels a job with no city "India — city not specified" (CEO
+# decision 2026-10-04); the label is display copy, not a place to parse.
+_CITY_NOT_SPECIFIED_RE = re.compile(r"\s*[—-]\s*city not specified\s*$", re.IGNORECASE)
 _MULTI_LOCATION_RE = re.compile(r"\b\d+\s*locations?\b|multiple locations|various locations")
 _REMOTE_RE = re.compile(r"\bremote\b|\bwork from home\b|\bwfh\b|\bworldwide\b|\banywhere\b")
 _HYBRID_RE = re.compile(r"\bhybrid\b")
@@ -98,6 +103,9 @@ def _infer_city(lower: str, raw: str) -> str | None:
     token_lower = token.lower()
     if _infer_country(token_lower) is not None:
         return None
+    # "Maharashtra" / "Karnataka or Maharashtra" are states, never a city.
+    if any(is_state(part) for part in re.split(r"\s+or\s+", token)):
+        return None
     if any(
         bad in token_lower
         for bad in ("location", "remote", "hybrid", "worldwide", "anywhere", "onsite")
@@ -154,12 +162,15 @@ def normalize_location(value: Any) -> NormalizedLocation:
             location_quality="unknown",
         )
 
-    lower = raw.lower()
+    unlabeled = _CITY_NOT_SPECIFIED_RE.sub("", raw)
+    lower = unlabeled.lower()
     mode = _infer_mode(lower)
     country = _infer_country(lower)
-    city = _infer_city(lower, raw)
+    city = _infer_city(lower, unlabeled)
 
     if city in _INDIA_CITIES and not country:
+        country = "India"
+    if not country and any(is_state(part) for part in re.split(r"\s+or\s+|[;,|]", unlabeled)):
         country = "India"
 
     is_multi_location = _MULTI_LOCATION_RE.search(lower) is not None

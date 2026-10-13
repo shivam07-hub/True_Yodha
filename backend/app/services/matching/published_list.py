@@ -111,9 +111,15 @@ ASPIRATION_READ = 1000
 
 
 def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """Cards worth showing, plus the honest account of the pile still open."""
-    from app.services import deal_breakers, direction, onboarding_service
-    from app.services.matching import admission, targeting
+    """Cards worth showing, plus the honest account of the pile still open.
+
+    Current verdicts first, then stale ones (same CV, same direction, judged
+    under rules or facts that have since moved) marked `rereading` until the
+    drain re-reads them. A returning person sees the list they were judged
+    for, not nothing (Verdict Currency, #55 S1).
+    """
+    from app.services import deal_breakers, direction
+    from app.services.matching import admission, targeting, verdict_currency
 
     profile = targeting.for_ranking(repo, user_id).ranking_profile()
     latest = (
@@ -121,7 +127,7 @@ def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, A
         if hasattr(repo, "get_latest_baseline_id") else None
     )
     profile["baseline_version_id"] = latest
-    ctx = onboarding_service.eval_context_key(profile)
+    currency = verdict_currency.for_profile(profile)
     roles = list(direction.of(profile).families)
     countries = profile.get("target_location_countries") or None
     pool: list[str] = []
@@ -136,18 +142,18 @@ def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, A
             ) if job_id
         ]
 
-    stack = list(repo.get_user_match_stack(user_id) or [])
-    current = [
-        row for row in stack
-        if row.get("eval_context_hash") == ctx and row.get("overall_score") is not None
+    stack = [
+        row for row in (repo.get_user_match_stack(user_id) or [])
+        if row.get("overall_score") is not None
     ]
+    current = [row for row in stack if currency.of(row) == "current"]
+    stale = [row for row in stack if currency.of(row) == "stale"]
     cv_replaced = False
     source = current
-    if not current:
+    if not current and not stale:
         previous = [
             row for row in stack
-            if row.get("overall_score") is not None
-            and row.get("baseline_version_id") not in (None, latest)
+            if row.get("baseline_version_id") not in (None, latest)
         ]
         if previous:
             source = previous
@@ -155,19 +161,20 @@ def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, A
 
     # Worth showing by the verdict, then shown only if the listing is still open
     # and still fits where and at what level this person looks NOW.
-    visible = order_by_score(admission.admitted(profile, [
-        row for row in source
-        if worth_showing(row.get("overall_score"), row.get("recommendation"))
-    ]))
+    def kept(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return order_by_score(admission.admitted(profile, [
+            row for row in rows
+            if worth_showing(row.get("overall_score"), row.get("recommendation"))
+        ]))
+
+    # A stale verdict never outranks a current one, whatever it scored.
+    shown, rereading = kept(source), kept(stale)
+    visible = shown + rereading
     skipped = [
-        row for row in source
+        row for row in source + stale
         if not worth_showing(row.get("overall_score"), row.get("recommendation"))
     ]
-    judged = {
-        str(row.get("job_id"))
-        for row in stack
-        if row.get("eval_context_hash") == ctx and row.get("overall_score") is not None
-    }
+    judged = {str(row.get("job_id")) for row in current}
     read = sum(1 for job_id in pool if job_id in judged)
     pending = max(0, len(pool) - read)
     reading = pending > 0
@@ -180,7 +187,10 @@ def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, A
         cv_replaced=cv_replaced,
     )
     floor = deal_breakers.read(profile).pay_floor_lpa
-    return [_card(row, floor) for row in visible], {
+    cards = [_card(row, floor) for row in shown] + [
+        _card(row, floor, rereading=True) for row in rereading
+    ]
+    return cards, {
         "reading": reading,
         "read": read,
         "pending": pending,
@@ -192,7 +202,9 @@ def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, A
     }
 
 
-def _card(row: dict[str, Any], floor: float | None = None) -> dict[str, Any]:
+def _card(
+    row: dict[str, Any], floor: float | None = None, *, rereading: bool = False,
+) -> dict[str, Any]:
     from app.schemas.jobs import MatchEval
     from app.services.deal_breakers import below_floor
 
@@ -237,4 +249,5 @@ def _card(row: dict[str, Any], floor: float | None = None) -> dict[str, Any]:
         "ctc_high_lpa": me.ctc_high_lpa,
         "ctc_basis": me.ctc_basis,
         "pay_below_floor": below_floor(floor, me.ctc_high_lpa),
+        "rereading": rereading,
     }
