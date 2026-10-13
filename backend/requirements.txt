@@ -13,9 +13,7 @@ pydantic-settings==2.2.1
 
 # ── Auth ────────────────────────────────────────────────────────
 supabase==2.4.3                  # Supabase Python client
-python-jose[cryptography]==3.3.0 # JWT handling
 PyJWT[crypto]>=2.10.0            # local JWT verify in deps.py (JWKS ES256 + HS256)
-passlib[bcrypt]==1.7.4           # password hashing
 
 # ── CV parsing ──────────────────────────────────────────────────
 openpyxl==3.1.2                  # read xlsx files for csv_importer
@@ -38,9 +36,6 @@ httpx==0.27.0                    # async HTTP (used internally)
 redis==5.0.7                     # Redis client for queue + status storage
 rq==1.16.2                       # durable background worker queue
 
-# ── Email ───────────────────────────────────────────────────────
-sendgrid==6.11.0
-
 # ── Payments ────────────────────────────────────────────────────
 razorpay==2.0.1
 
@@ -55,6 +50,3 @@ ruff==0.4.4
 playwright==1.44.0               # WYSIWYG CV PDF — headless Chromium renders the
                                  # previewed .cvb-pdf-page (/cv/export-pdf).
                                  # Chromium browser installed in Dockerfile.
-
-# ── Internal tools ──────────────────────────────────────────────
-streamlit==1.35.0                # tagger_ui.py — browser-based HITL tagger
