@@ -19,6 +19,11 @@ Two cases, each finishing work the person started:
   re-reads the cards they can already see before anything else
   (`feed_warm.run_feed_warm`).
 
+A third, smaller one (S5): **an Apply click with no save.** Since 2026-09-28
+(`3ff55125`) a click files the job as saved, so "Did you apply?" has a row to ask
+on; clicks before that have none and are never asked. They are filed now, by the
+same rule, unless the person has since dismissed the job.
+
 Nothing here runs for someone who is not present: the door is a page they opened.
 """
 from __future__ import annotations
@@ -41,6 +46,9 @@ _CV_CLAIM_SECONDS = 30 * 24 * 60 * 60
 #: One re-read per change of rules or facts per day. A drain that died gets
 #: another go tomorrow; one that is draining is not started twice.
 _REREAD_CLAIM_SECONDS = 24 * 60 * 60
+#: Clicks can no longer be orphaned (the click saves), so the look for old
+#: ones is weekly per person — cheap, and still a retry if a write failed.
+_CLICKS_CLAIM_SECONDS = 7 * 24 * 60 * 60
 
 
 def _age_seconds(stamp: Any, now: datetime) -> float:
@@ -101,6 +109,29 @@ def check(repo: Any, user_id: str, *, now: datetime | None = None) -> str:
     return "reread"
 
 
+def file_apply_clicks(repo: Any, user_id: str, *, now: datetime | None = None) -> int:
+    """File each unanswered Apply click that has no save, as the click path does
+    today. Returns how many were filed."""
+    if not background.claim(f"list_reread:apply_clicks:{user_id}", _CLICKS_CLAIM_SECONDS):
+        return 0
+    moment = now or datetime.now(timezone.utc)
+    clicked = repo.get_pending_apply_intent_job_ids(
+        user_id, older_than=moment, newer_than=datetime(2000, 1, 1, tzinfo=timezone.utc),
+    )
+    if not clicked:
+        return 0
+    # A job they dismissed after clicking stays dismissed: the dismissal removed
+    # the save on purpose.
+    dismissed = set(repo.get_dismissed_job_card_ids(user_id))
+    filed = 0
+    for job_id in sorted(clicked - dismissed):
+        if repo.get_application_with_job(user_id, job_id):
+            continue
+        repo.upsert_application(user_id, job_id, {"status": "saved", "source": "user_discovery"})
+        filed += 1
+    return filed
+
+
 @background.handler("list_reread")
 async def _list_reread_handler(payload: dict[str, Any], allow_retry: bool) -> None:  # noqa: ARG001
     from app.database import get_supabase_admin
@@ -108,5 +139,10 @@ async def _list_reread_handler(payload: dict[str, Any], allow_retry: bool) -> No
 
     user_id = str(payload["user_id"])
     db = get_supabase_admin()
-    outcome = check(JobsRepository(db, db), user_id)
-    logger.warning("metric list_reread.checked user=%s outcome=%s", user_id, outcome)
+    repo = JobsRepository(db, db)
+    filed = file_apply_clicks(repo, user_id)
+    outcome = check(repo, user_id)
+    logger.warning(
+        "metric list_reread.checked user=%s outcome=%s apply_clicks_filed=%d",
+        user_id, outcome, filed,
+    )

@@ -129,9 +129,8 @@ def test_the_door_claims_and_enqueues_only(monkeypatch: pytest.MonkeyPatch) -> N
     enqueued: list[tuple[str, dict[str, Any]]] = []
     monkeypatch.setattr(background, "enqueue", lambda _lane, job, **kw: enqueued.append((job, kw["payload"])))
     uid = _uid()
-    assert forward_pass.reread_list(uid, {}) is False  # no direction: nothing at all
-    assert forward_pass.reread_list(uid, dict(_DIRECTION)) is True
-    assert forward_pass.reread_list(uid, dict(_DIRECTION)) is False  # inside the window
+    assert forward_pass.reread_list(uid) is True
+    assert forward_pass.reread_list(uid) is False  # inside the window
     assert enqueued == [("list_reread", {"user_id": uid})]
 
 
@@ -139,10 +138,39 @@ def test_a_direction_inside_its_grace_is_not_reread(monkeypatch: pytest.MonkeyPa
     from app.services import forward_pass
 
     calls: list[str] = []
-    monkeypatch.setattr(forward_pass, "reread_list", lambda uid, _p: calls.append(uid) or True)
+    monkeypatch.setattr(forward_pass, "reread_list", lambda uid: calls.append(uid) or True)
     just_now = datetime.now(timezone.utc).isoformat()
     forward_pass.on_profile_read(_uid(), {**_DIRECTION, "target_updated_at": just_now})
     assert calls == []
     forward_pass.on_profile_read("u-covered", {**_DIRECTION, "target_updated_at": "2026-10-01T00:00:00+00:00",
                                                "last_match_run_at": "2026-10-01T00:05:00+00:00"})
     assert calls == ["u-covered"]
+
+
+class _Clicks:
+    def __init__(self, clicked: set[str], saved: set[str], dismissed: set[str]) -> None:
+        self._clicked, self._saved, self._dismissed = clicked, saved, dismissed
+        self.filed: list[tuple[str, dict[str, Any]]] = []
+
+    def get_pending_apply_intent_job_ids(self, _uid: str, *, older_than: datetime, newer_than: datetime) -> set[str]:
+        return set(self._clicked)
+
+    def get_dismissed_job_card_ids(self, _uid: str) -> list[str]:
+        return list(self._dismissed)
+
+    def get_application_with_job(self, _uid: str, job_id: str) -> dict[str, Any] | None:
+        return {"job_id": job_id} if job_id in self._saved else None
+
+    def upsert_application(self, _uid: str, job_id: str, updates: dict[str, Any]) -> None:
+        self.filed.append((job_id, updates))
+
+
+def test_an_apply_click_from_before_a_click_saved_is_filed_saved() -> None:
+    """S5: "Did you apply?" asks on a save. Clicks before 3ff55125 have none."""
+    repo = _Clicks(clicked={"orphan", "already-saved", "dismissed-since"},
+                   saved={"already-saved"}, dismissed={"dismissed-since"})
+    uid = _uid()
+    assert list_reread.file_apply_clicks(repo, uid, now=NOW) == 1
+    assert repo.filed == [("orphan", {"status": "saved", "source": "user_discovery"})]
+    # Weekly per person, not on every look.
+    assert list_reread.file_apply_clicks(repo, uid, now=NOW) == 0

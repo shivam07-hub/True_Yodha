@@ -446,7 +446,7 @@ def on_career_path_read(user_id: str, snapshot: dict[str, Any] | None) -> bool:
 LIST_LOOK_SECONDS = 15 * 60
 
 
-def reread_list(user_id: str, profile: dict[str, Any]) -> bool:
+def reread_list(user_id: str) -> bool:
     """A returning person's job list is read again under today's rules (#55 S3).
 
     The list they were judged for shows stale cards marked re-reading (Verdict
@@ -454,16 +454,13 @@ def reread_list(user_id: str, profile: dict[str, Any]) -> bool:
     — and a Main CV edit, which writes a new CV and never asked for a match, left
     the list on the replaced CV for good. `list_reread` decides which, if either,
     is owed; it finishes the search behind the list they already have and runs
-    only because they came back. Reach: every person with a direction who opens
-    any authed page (14 returning last week).
+    only because they came back. Reach: every person who opens any authed page
+    (14 returning last week).
 
-    Claim + enqueue only. The direction test is a pure read of the profile already
-    in hand, so someone with no direction pays nothing at all.
+    Claim + enqueue only. No direction test here: the same look files Apply clicks
+    that never became a save (S5), and two of the five people holding one have no
+    direction. The worker answers `no_direction` for the list without a model call.
     """
-    from app.services import direction
-
-    if not direction.of(profile).families:
-        return False
     if not debounce.claim(f"forward_pass:list_look:{user_id}", LIST_LOOK_SECONDS):
         return False
     try:
@@ -508,7 +505,7 @@ def on_profile_read(user_id: str, profile: dict[str, Any]) -> None:
     # being re-read would be the one they just left.
     if match_freshness.state(profile) == "running":
         return
-    reread_list(user_id, profile)
+    reread_list(user_id)
 
 
 def _promote_catch_all_primary(user_id: str, profile: dict[str, Any]) -> bool:

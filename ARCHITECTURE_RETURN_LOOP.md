@@ -203,9 +203,18 @@ one did (6 of them real PDF uploads whose own run never landed). One is active:
 `4f304f53…`, two certificate promotions six seconds apart (cv 652, 653,
 2026-10-06 05:17), no run since 04:54.
 
+**S5 shipped 2026-10-13.** The same look files each unanswered Apply click with
+no save as `saved` — the rule every click has followed since `3ff55125` — so
+"Did you apply?" has a row to ask on; a job dismissed after the click stays
+dismissed. Weekly per person. Five clicks from five people (2026-08-20 → 09-20)
+were waiting; two of those people have no direction, which is why the door
+enqueues for everyone and the worker answers `no_direction` for the list.
+
 **Also found on the way:** `get_user_match_stack` read one PostgREST page, so the
 seven people holding more than 1,000 verdicts — all active that month — had
-1,397 of them never shown anywhere; it now pages.
+1,397 of them never shown anywhere; it now pages. And `get_pending_apply_intent_job_ids` dropped its
+`user_id` and relied on RLS; through a worker's service client it would have
+returned every person's clicks. It names the person now.
 
 **Done means:** re-running the batch-1 assessment (memory
 `project_instant_seeker_batches`) shows every returning person with ≥1 card when
