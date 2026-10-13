@@ -197,6 +197,14 @@ a.fc-co:hover { color: var(--tm-interactive); }
 .fc-ring.verdict-worth_it .fc-ring-arc { stroke: var(--tm-warning-text, var(--tm-warning)); }
 .fc-ring.verdict-stretch .fc-ring-arc { stroke: var(--tm-text-muted); }
 .fc-ring.verdict-checking .fc-ring-arc { stroke: var(--tm-text-faint); }
+/* Rereading: a real verdict from before the rules or facts last moved, being
+   re-read in place (Verdict Currency, stale). Motion only, never a word; under
+   reduced motion the arc holds dim instead. */
+.fc-rereading .fc-ring-arc { animation: fc-reread 1.6s var(--tm-ease) infinite alternate; }
+@keyframes fc-reread { from { opacity: 1; } to { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) {
+  .fc-rereading .fc-ring-arc { opacity: 0.5; }
+}
 /* Number-tier fallback (un-ranked card, no verdict). */
 .fc-ring.fit-strong .fc-ring-arc { stroke: var(--tm-success, var(--tm-interactive)); }
 .fc-ring.fit-mid .fc-ring-arc { stroke: var(--tm-text-muted); }

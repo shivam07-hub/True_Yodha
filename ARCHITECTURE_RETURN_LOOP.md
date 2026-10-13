@@ -158,6 +158,18 @@ Each is its own commit, six gates green.
 | S4 | Email transport behind `announce_fresh` (after decision 2) | 0 | The only slice that reaches people who are away |
 | S5 | Apply clicks from before `3ff55125` with no application row: file them `saved` on return so "Did you apply?" can ask | 0 | Two batch-1 people; tiny; finishing work they started |
 
+**S0 baseline, 2026-10-13** (`published_list.assemble` as shipped, every real
+person with a verdict and `last_active_at` in 30 days): **39 of 51 opened /market
+to zero cards.** 18 of the 39 held stale verdicts worth showing; the other 21
+hold nothing worth showing under any rule. `job_recommendation_exposures` could
+not answer this — an empty list writes no exposure row.
+
+**S1 shipped 2026-10-13** — `matching/verdict_currency.py`; /market lists stale
+cards after current ones with `rereading: true`, a motion state on the ring.
+Same 51 people re-run on the new code: **21 empty, 20 with re-reading cards,
+no current card ordered after a stale one.** A `PROMPT_VERSION` bump now leaves
+the card count unchanged (`test_published_list.py`).
+
 **Done means:** re-running the batch-1 assessment (memory
 `project_instant_seeker_batches`) shows every returning person with ≥1 card when
 their pool holds a job worth applying to, and a PROMPT_VERSION bump leaves card

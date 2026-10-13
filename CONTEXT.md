@@ -817,6 +817,10 @@ Exists because `compute_job_matches` persisted once, at the end, and the run is 
   bookkeeping never costs someone their CV.
 - **The boundaries are drawn from the order, never re-derived.** `lib/jobs/track-sections.ts` reads a search boundary and the read/unread tier out of the order the server gave it, and marks each with the divider the feed already had — the one that separates the ranked picks from the browse tail, and exists so "the verdicts stopping reads as intentional, not a glitch". A client that regrouped would be a second ordering, and the last time this surface had two of those they disagreed. A single-track user gets no divider at all.
 
+## Verdict Currency
+
+Whether a person may see a stored verdict, and how: `current` (this CV, this direction, today's rules and facts), `stale` (same CV and direction, but the prompt or the person's facts moved since, or the row predates `eval_context_hash`), `foreign` (another CV or direction). One module, `matching/verdict_currency.py`; callers ask `for_profile(profile).of(row)` and never compare the two hash columns themselves. /market lists stale cards after every current one, `rereading: true`, a motion state on the ring and never a word (Shivam, 2026-09-30). Exists because `eval_context_hash` — a STALENESS key — was also deciding MEMBERSHIP, so a `PROMPT_VERSION` bump hid every list and each memory distill hid one (39 of 51 active people opened /market to nothing, 2026-10-13). Agent Picks, Collections and the Next chip do not ask it yet (#55 S2). `ARCHITECTURE_RETURN_LOOP.md`.
+
 ## Journey Position
 
 Where a user is in onboarding — **derived, never stored**. `experience` (nothing started) · `result` (work in flight or done) · `completed` (finished; they belong in the product, not the funnel). One read: `onboarding_service.journey_position`, surfaced by `GET /onboarding/state`.

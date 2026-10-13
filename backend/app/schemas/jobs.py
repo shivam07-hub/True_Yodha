@@ -709,6 +709,10 @@ class JobFeedItem(BaseModel):
     match_score: int | None = None      # 0–100 — brain-spined fit number
     verdict: MatchVerdict | None = None  # strong | worth_it | stretch (None = un-warmed)
     is_strong: bool = False
+    #: A real verdict judged for this CV and direction, before the brain's
+    #: rules or this person's facts last moved; re-read in place by the drain
+    #: (`matching/verdict_currency`, stale). Listed after every current card.
+    rereading: bool = False
     #: Which of the user's searches found this card. NULL is track 1 — the
     #: profile — which is every card for the 83% who have one search, and every
     #: card in the browse tail, which no search found at all.

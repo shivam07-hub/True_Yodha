@@ -105,6 +105,11 @@ export function feedCardConfidenceClass(pulse?: JobPulse): string {
   }
 }
 
+/* ── Rereading (Verdict Currency, stale) — a motion state on the ring, never a word ── */
+export function feedCardRereadClass(job: { rereading?: boolean }): string {
+  return job.rereading ? " fc-rereading" : ""
+}
+
 /* ── The one card ─────────────────────────────────────────────────────────── */
 
 export interface FeedCardProps {

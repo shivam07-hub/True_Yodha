@@ -104,3 +104,115 @@ def test_a_card_says_when_its_pay_band_sits_under_the_floor() -> None:
     assert card.pay_below_floor is True
     # No floor stated: nothing to be under.
     assert JobFeedItem(**_card(row, None)).pay_below_floor is None
+
+
+# ── Verdict Currency (#55 S1): a returning person's list does not vanish ─────
+
+_PROFILE = {
+    "target_role_title": "Data Analyst",
+    "target_seniority": "mid",
+    "target_location": "Bengaluru",
+}
+
+
+def _keys(baseline: int, profile: dict | None = None) -> tuple[str, str]:
+    from app.services import onboarding_service
+
+    prof = {**(profile or _PROFILE), "baseline_version_id": baseline}
+    return onboarding_service.eval_context_key(prof), onboarding_service.context_key(prof)
+
+
+def _row(job_id: str, score: float, *, eval_hash: str | None, direction: str | None, baseline: int = 7) -> dict:
+    return {
+        "job_id": job_id,
+        "overall_score": score,
+        "recommendation": "Apply",
+        "eval_context_hash": eval_hash,
+        "target_context_hash": direction,
+        "baseline_version_id": baseline,
+        "jobs": {"job_title": job_id, "is_active": True},
+    }
+
+
+class _Repo:
+    def __init__(self, stack: list[dict], *, baseline: int = 7, profile: dict | None = None) -> None:
+        self._stack = stack
+        self._baseline = baseline
+        self._profile = profile or _PROFILE
+
+    def get_user_profile_targeting(self, user_id: str) -> dict:
+        return dict(self._profile)
+
+    def get_latest_baseline_id(self, user_id: str) -> int:
+        return self._baseline
+
+    def get_user_match_stack(self, user_id: str) -> list[dict]:
+        return self._stack
+
+
+def test_a_stale_verdict_is_shown_after_every_current_one() -> None:
+    """A prompt bump or a distilled fact used to hide the whole list. A stale
+    verdict now shows, marked, and never outranks a current one."""
+    from app.services.matching.published_list import assemble
+
+    now, direction = _keys(7)
+    cards, judgment = assemble(_Repo([
+        _row("stale-high", 4.8, eval_hash="an-older-prompt", direction=direction),
+        _row("current-low", 3.6, eval_hash=now, direction=direction),
+        _row("predates-the-key", 4.0, eval_hash=None, direction=direction),
+    ]), "u1")
+
+    assert [c["job_id"] for c in cards] == ["current-low", "stale-high", "predates-the-key"]
+    assert [c["rereading"] for c in cards] == [False, True, True]
+    assert judgment["cv_replaced"] is False
+
+
+def test_another_direction_s_verdict_is_not_shown() -> None:
+    from app.services.matching.published_list import assemble
+
+    _, left_direction = _keys(7, {**_PROFILE, "target_role_title": "Product Manager"})
+    cards, judgment = assemble(_Repo([
+        _row("old-direction", 4.6, eval_hash="whatever", direction=left_direction),
+    ]), "u1")
+
+    assert cards == []
+    assert judgment["cv_replaced"] is False
+
+
+def test_a_replaced_cv_still_shows_the_old_list_while_the_new_one_is_read() -> None:
+    from app.services.matching.published_list import assemble
+
+    old_eval, old_direction = _keys(6)
+    cards, judgment = assemble(_Repo([
+        _row("from-the-old-cv", 4.2, eval_hash=old_eval, direction=old_direction, baseline=6),
+    ], baseline=7), "u1")
+
+    assert [c["job_id"] for c in cards] == ["from-the-old-cv"]
+    assert cards[0]["rereading"] is False
+    assert judgment["cv_replaced"] is True
+
+
+def test_a_prompt_version_bump_leaves_the_card_count_unchanged(monkeypatch) -> None:
+    """ARCHITECTURE_RETURN_LOOP.md 'Done means': a bump re-reads, it does not empty."""
+    from app.services import llm_ranker
+    from app.services.matching.published_list import assemble
+
+    now, direction = _keys(7)
+    repo = _Repo([
+        _row("a", 4.4, eval_hash=now, direction=direction),
+        _row("b", 3.9, eval_hash=now, direction=direction),
+    ])
+    before, _ = assemble(repo, "u1")
+    monkeypatch.setattr(llm_ranker, "PROMPT_VERSION", llm_ranker.PROMPT_VERSION + "-next")
+    after, _ = assemble(repo, "u1")
+
+    assert len(before) == len(after) == 2
+    assert all(c["rereading"] for c in after)
+
+
+def test_no_baseline_proves_no_direction() -> None:
+    """Without a CV there is no direction key, so nothing can be stale."""
+    from app.services.matching.verdict_currency import for_profile
+
+    currency = for_profile({**_PROFILE, "baseline_version_id": None})
+    assert currency.of({"eval_context_hash": "x", "target_context_hash": None}) == "foreign"

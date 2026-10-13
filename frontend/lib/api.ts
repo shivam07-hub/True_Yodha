@@ -3903,6 +3903,10 @@ export interface JobFeedItem {
    *  the browse tail, which no search found at all. */
   track_id?: number | null
   is_strong?: boolean
+  /** A real verdict from before the brain's rules or this person's facts last
+   *  moved, listed after every current card and re-read in place. Shown as a
+   *  motion state on the ring, never a word. */
+  rereading?: boolean
   /** The family retrieval matched against the user's target roles — the same
    *  vocabulary the role chips are written in, so they can narrow the list. */
   role_family?: string | null

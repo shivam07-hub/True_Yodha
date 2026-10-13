@@ -2,7 +2,7 @@
 
 import type { JobFeedItem, JobPulse } from "@/lib/api"
 import { PulseRow } from "@/components/dashboard/card-atoms"
-import { FeedCard, feedCardConfidenceClass } from "@/components/jobs/feed-card"
+import { FeedCard, feedCardConfidenceClass, feedCardRereadClass } from "@/components/jobs/feed-card"
 import { LegitimacyBadge } from "@/components/jobs/match-brain"
 import { CapturePill } from "@/components/jobs/capture-pill"
 import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
@@ -125,7 +125,7 @@ export function JobCard({
     <FeedCard
       data={feedDataFromFeedItem(job, { hasCv })}
       variant="row"
-      extraClass={feedCardConfidenceClass(pulse)}
+      extraClass={`${feedCardConfidenceClass(pulse)}${feedCardRereadClass(job)}`}
       onOpen={onOpen}
       badges={<CardBrainBadges job={job} />}
       pulse={<PulseRow pulse={pulse} bare />}
