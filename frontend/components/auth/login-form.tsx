@@ -154,6 +154,7 @@ export function LoginForm({ surface, showSignupLink = true, initialEmail }: Prop
         hasPendingJobSave: hasPendingJobSaveClaim(),
         pendingExtensionConnect: readPendingExtensionConnect(),
         hasPendingPrepIntent: hasPendingPrepIntent(),
+        completingPartnerLink: false,
       }))
     } catch (err) {
       const code = errorCode(err)

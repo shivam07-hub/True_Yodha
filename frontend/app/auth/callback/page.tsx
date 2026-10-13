@@ -33,10 +33,10 @@ import {
  *   - run the welcome XP grant via the BEFORE INSERT trigger
  *
  * Then postAuthDestination picks the landing from carried intent (there is no
- * deep-link return): /market, except for brand-new users who land on
- * /onboarding (Day 1 first-run stepper:
- * cv → role → lens → companies → ninja → score). /welcome was merged into
- * the public landing (/), so first-run users go straight to the stepper.
+ * deep-link return): /market, except for brand-new users and a partner consent
+ * completion (`link_partner`), who land on /onboarding. That page sends a
+ * finished journey on to /market. /welcome was merged into the public landing
+ * (/), so first-run users go straight to the stepper.
  */
 
 function CallbackInner() {
@@ -176,6 +176,9 @@ function CallbackInner() {
         hasPendingJobSave: hasPendingJobSaveClaim(),
         pendingExtensionConnect: readPendingExtensionConnect(),
         hasPendingPrepIntent: hasPendingPrepIntent(),
+        // Present on the connect screen's Google return and on the emailed
+        // fallback. Both are a consent completion, not a daily return.
+        completingPartnerLink: Boolean(searchParams.get("link_partner")),
       }))
 
       backgroundPostSignin(session, provider, firstSignup)

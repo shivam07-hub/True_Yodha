@@ -14,6 +14,14 @@ interface PostAuthDestinationInput {
    * (Exception 3). A marker, never a URL — the destination below is hardcoded.
    */
   hasPendingPrepIntent: boolean
+  /**
+   * This sign-in is finishing a partner consent (the connect screen's Google
+   * button, or the link the person asked to be emailed). The account usually
+   * already exists. Landing is still /onboarding: that page sends a finished
+   * journey on to /market and leaves a person with no CV on the upload.
+   * A direct partner sign-in does not set this — it has no `link_partner`.
+   */
+  completingPartnerLink: boolean
 }
 
 /**
@@ -34,6 +42,7 @@ export function postAuthDestination({
   hasPendingJobSave,
   pendingExtensionConnect,
   hasPendingPrepIntent,
+  completingPartnerLink,
 }: PostAuthDestinationInput): string {
   // Exception 0: the extension is mid-handshake and blocked on a session. It
   // outranks the others because it is the only intent the user cannot resume by
@@ -54,6 +63,11 @@ export function postAuthDestination({
   // above it this outranks onboarding: the carried intent is the reason they
   // signed up, and onboarding is still reachable afterwards.
   if (hasPendingPrepIntent) return "/preparations"
+  // Partner consent just closed. The account often already exists and has
+  // never uploaded; /onboarding is the one rule that keeps them on the upload
+  // and sends a finished journey on to /market. Checked before firstSignup
+  // only so the two reasons to enter the funnel stay named.
+  if (completingPartnerLink) return "/onboarding"
   // Brand-new signup runs the first-run onboarding stepper.
   if (firstSignup) return "/onboarding"
   // Everyone else: the daily surface, always.

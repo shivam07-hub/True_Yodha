@@ -7,6 +7,15 @@ CEO grill (D6, Shivam, 2026-09-30).** UI slices go through `/frontend-design`.
 > slice is its own commit on `Develop`, six gates green. Migrations are applied
 > by the agent before the code that reads them, then `NOTIFY pgrst`.
 
+> **Status 2026-10-14 — S0 built.** Partner consent (the signed-in Connect
+> click, Google on that screen, and the emailed link) lands on `/onboarding`.
+> That page already sends `position === "completed"` to `/market` and
+> `result` to `/onboarding/result`; no CV stays on the upload. Measured in
+> `post-auth-destination.test.ts` and `partner-sso-onboarding.test.ts`.
+> Direct partner sign-in (no `link_partner`) is unchanged: a new account
+> still enters onboarding, a returning one still opens `/market`. The 22%
+> partner upload rate is the later read, after this is on `main`.
+
 ---
 
 ## 1 · The decision
@@ -64,8 +73,9 @@ So the first thing after the upload is the job, not a list of settings.
   (`routers/jobs/apply.py:172-292`) → `jobs_workflow.save_imported_job` →
   an `ext_…` job + a `job_applications` row + 20 coins.
 - **Entries into this flow:** the landing dropzone → `/cv-preview` (anonymous) →
-  `/signup` → onboarding; partner SSO `/connect/[partner]` → approve → `/market`
-  (`page.tsx:74`); `SetupNudge` and five other links to `/onboarding`
+  `/signup` → onboarding; partner SSO `/connect/[partner]` → approve, Google,
+  or the emailed link → `/onboarding` (S0; a finished journey still continues
+  to `/market` from that page); `SetupNudge` and five other links to `/onboarding`
   (`setup-nudge.tsx:76`, `feed-card.tsx:88`, `persona-canvas.tsx:198`,
   `cv-score-progress.tsx:128`, `skill-path-rail.tsx:109,113`).
 
@@ -168,7 +178,7 @@ Clicks = `core_loop_events` rows between them.
 
 | # | Slice | Done when |
 |---|---|---|
-| S0 | B2 · partner SSO goes through onboarding | A partner login with no CV lands on the upload; one with a finished journey still reaches `/market` |
+| S0 | B2 · partner SSO goes through onboarding | **Shipped 2026-10-14.** Connect approval, the Google return, and the emailed link all enter `/onboarding`. A finished journey still reaches `/market` from that page. |
 | S1 | `use-job-import` + both skins; delete the duplicate logic | Hook tests: link → review → imported; extract fails → paste-instead |
 | S2 | Backend: `awaiting_job_choice`, `POST /onboarding/first-job`, generalised `saved_first_role` | Tests: door kind appears after skills; first-job completes with a tailor receipt; idempotent retry |
 | S3 | Door screen + `JourneyProgress` labels + telemetry migration | Upload → paste → playground on dev with the QA account, desktop and 375px |

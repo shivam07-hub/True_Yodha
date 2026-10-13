@@ -78,6 +78,7 @@ export function SignupPasswordForm({
         hasPendingJobSave: hasPendingJobSaveClaim(),
         pendingExtensionConnect: readPendingExtensionConnect(),
         hasPendingPrepIntent: hasPendingPrepIntent(),
+        completingPartnerLink: false,
       }))
     } catch (err) {
       const code = errorCode(err)

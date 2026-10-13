@@ -71,7 +71,10 @@ function ConnectInner() {
     try {
       await partnerConnect.approve(accessToken, token)
       setPhase("done")
-      router.replace("/market")
+      // /onboarding is the one routing rule: a finished journey continues to
+      // /market, a half-finished one to /onboarding/result, and no CV stays on
+      // the upload. Deciding that here would be a second copy of it.
+      router.replace("/onboarding")
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't connect right now.")
       setPhase("ready")

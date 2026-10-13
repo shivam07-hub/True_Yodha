@@ -9,6 +9,7 @@ const base = {
   hasPendingJobSave: false,
   pendingExtensionConnect: null,
   hasPendingPrepIntent: false,
+  completingPartnerLink: false,
 }
 
 test("newsletter prep intent (Exception 3) lands on Preparation, overriding onboarding", () => {
@@ -75,12 +76,42 @@ test("the handshake target is encoded, never concatenated raw", () => {
   assert.equal(new URLSearchParams(dest.split("?")[1]).get("redirect_uri"), EXT)
 })
 
-test("returning user always lands on /market (no deep-link return)", () => {
+test("a returning user with no carried intent lands on /market (no deep-link return)", () => {
   assert.equal(postAuthDestination({ ...base }), "/market")
 })
 
 test("brand-new signup runs onboarding", () => {
   assert.equal(postAuthDestination({ ...base, firstSignup: true }), "/onboarding")
+})
+
+test("a partner consent completion lands on onboarding even when the account already exists", () => {
+  // The connect screen's Google return and the emailed fallback both set this.
+  // The account already exists — that is why consent was required — and it
+  // often has no CV. /onboarding sends a finished journey on to /market.
+  assert.equal(postAuthDestination({ ...base, completingPartnerLink: true }), "/onboarding")
+  assert.equal(
+    postAuthDestination({ ...base, completingPartnerLink: true, firstSignup: true }),
+    "/onboarding",
+  )
+})
+
+test("carried intent still outranks a partner consent completion", () => {
+  assert.equal(
+    postAuthDestination({ ...base, completingPartnerLink: true, hasPendingAnonCv: true }),
+    "/cv?upload=1",
+  )
+  assert.equal(
+    postAuthDestination({ ...base, completingPartnerLink: true, hasPendingJobSave: true }),
+    "/collections",
+  )
+  assert.equal(
+    postAuthDestination({ ...base, completingPartnerLink: true, hasPendingPrepIntent: true }),
+    "/preparations",
+  )
+  assert.equal(
+    postAuthDestination({ ...base, completingPartnerLink: true, pendingExtensionConnect: EXT }),
+    `/extension/connect?redirect_uri=${encodeURIComponent(EXT)}`,
+  )
 })
 
 test("the destination is decided by carried intent alone", () => {
@@ -90,6 +121,7 @@ test("the destination is decided by carried intent alone", () => {
   // Any new input here must be READ below, not merely accepted.
   const accepted = Object.keys(base).sort()
   assert.deepEqual(accepted, [
+    "completingPartnerLink",
     "firstSignup",
     "hasPendingAnonCv",
     "hasPendingJobSave",
