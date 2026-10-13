@@ -427,8 +427,9 @@ prod); #339 followed 10-13. A scheduled check reads R1 on 10-14 and R3/R4 on 10-
   two consecutive daily digests. 10-13: ran 02:30:05, 202, digest landed (1 of 2).
 - **R3 · Live latency.** Five warm samples / a week of `route.latency` on prod for
   `/jobs/feed-state`, `/jobs/at/{c}`, `/companies/{c}/jobs`, confirm-skills,
-  `/partner/v1/sso/session`; record in §23–25. Window 10-12→10-19. Pre-merge baseline (10-05→10-09):
-  p50 ≤50 · ≤50 · ≤100 · ~3000 · ~1000 ms.
+  `/partner/v1/sso/session`; record in §23–25. First 34 hours (10-12 08:57Z →
+  10-13 19:33Z) are in §23–25. The week runs to 10-19. Pre-merge baseline
+  (10-05→10-09): p50 ≤50 · ≤50 · ≤100 · ~3000 · ~1000 ms.
 - **R4 · SSO 500s gone.** No `AuthRetryableError: Server disconnected` /
   `CreateRaced` 10-12→10-19 (proofs ride `test_auth_client_http1.py`).
 - **R9 · Drain wall time** on the first scrape after the scraper is fixed: Stage A

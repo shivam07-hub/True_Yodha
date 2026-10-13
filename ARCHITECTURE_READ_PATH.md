@@ -2188,9 +2188,12 @@ read-capacity claim, so a wait for a slot never counts) and a 2xx whose own
 trip took ≥500ms opens `slow_200:slow_read:<file>:<function>`. ADR-0021
 amended.
 
-**Not measured.** The live endpoints after deploy. Take five warm
-`x-process-time` samples of each route above on the next prod deploy; and the
-next scrape's `metric skill_floor.pipeline_done` for the drain's wall time.
+**Prod `route.latency`, 2026-10-12 08:57Z → 2026-10-13 19:33Z** (server time,
+bucket upper edge; deployments `81171d0a` then `bf56cb84`). `GET /jobs/feed-state`:
+28 requests, p50 in 300–500ms, p95 in 750–1,000ms. `GET /jobs/at/{company}`: no
+requests. `POST …/confirm-skills`: 5 requests, p50 in 2–3s, p95 in 3–5s. The
+pre-merge baseline was p50 ≤50 · ≤50 · ~3,000ms. The next scrape's drain wall
+time is still unmeasured — newest `jobs.ingested_at` is 2026-10-05.
 
 ## 24. Partner SSO: the front door pays a ~300ms floor per hop (2026-10-03)
 
@@ -2220,8 +2223,10 @@ the shared pool's keepalive to 120s, with GoTrue moved onto it. An A/B of the
 returning-user hops, four calls 20s apart: 1,138ms old vs 1,140ms new. TLS ends
 at the nearby edge, so a cold handshake is cheap. Reverted.
 
-**Not measured.** The live route after this reaches `main` — prod serves
-partners. Read `route.latency` for `/partner/v1/sso/session` a week after.
+**Prod `route.latency`, 2026-10-12 08:57Z → 2026-10-13 19:33Z.**
+`POST /partner/v1/sso/session`: 25 requests, p50 in 1.5–2s, p95 in 2–3s.
+Pre-merge baseline was p50 ~1,000ms. No `AuthRetryableError` or `CreateRaced`
+in these logs. The seven-day watch runs to 2026-10-19.
 
 ## 25. Company pages: the count was the cost (2026-10-03)
 
@@ -2242,6 +2247,12 @@ counts the rows it shows. Axis Bank: **228ms, one hop**. Migration
 
 `company_pulse_snapshot` was the obvious source and was wrong: it had never
 refreshed (§26). Read `snapshot_refresh_state` before trusting a Tier-0 table.
+
+**Prod `route.latency`, 2026-10-12 08:57Z → 2026-10-13 19:33Z.**
+`GET /companies/{company_name}/jobs`: 766 requests, p50 in 300–500ms, p95 in
+1–1.5s. Three requests were ≥2s. Pre-merge baseline was p50 ≤100ms.
+`fetch_company_jobs_page` is failed-close (n=689), last
+`GET /companies/Citibank/jobs` at 2026-10-13 13:40Z.
 
 ## 26. Three Tier-0 refreshes could not finish where they ran (2026-10-04)
 
@@ -2372,8 +2383,8 @@ reader once Develop served `17b5533d`); `last_seen_at` waits for main (BACKLOG
 
 ## 27. Reliability close-out, measured 2026-10-11
 
-`83c79967` is on `Develop`, not on `main`. Prod still opens a slow read at
-500ms, so R1–R4 and the live `route.latency` samples wait on that merge.
+`main` has carried this since `81171d0a` (2026-10-12 08:57Z). Prod opens a
+slow read at ≥2s. The live `route.latency` for the five routes is in §23–25.
 What follows was measured against the shared database from a laptop, writes
 stubbed, QA account `04a07845-d812-4f7b-8717-8155ea2ca2a6`.
 
@@ -2388,9 +2399,9 @@ call for Software Development: **1 read, 512ms, 2,322 jobs, 129 companies.**
 
 **Company page and partner SSO.** `fetch_company_jobs_page("Practus")`:
 350 / 306 / 315ms. `get_link` is one indexed row. Both clear 2s and sit on
-the ~300ms floor (§24). The 636 openings of `fetch_company_jobs_page` and
-the partner `get_link` / `resolve_credential` rows are prod's 500ms line.
-Code does not move them. Compute → Small does.
+the ~300ms floor (§24). Those openings were prod's 500ms line. Since the 2s
+deploy, `get_link` is retired and `fetch_company_jobs_page` is failed-close
+(§25). Code does not move the floor. Compute → Small does.
 
 **`/cv/versions`.** Eight 500s, 12:32:25–12:32:48 UTC on 2026-10-05, all
 `GET /cv/versions?job_id=INFSYS-EXTERNAL-247996`. The body was

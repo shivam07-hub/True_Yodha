@@ -44,6 +44,10 @@ first and reads a CV no run had read. S5 old Apply clicks filed as saves. S4 is
 wrote a new Main CV; a pending-click read relied on RLS alone. The BACKLOG's
 `jobs_added_1h` warning was stale — fixed 2026-09-27 (`180d4d29`).
 
+## 2026-10-14 — Reliability R3, the first 34 hours
+
+Prod `route.latency` from the 2s deploy (`81171d0a`, 2026-10-12 08:57Z) through 2026-10-13 19:33Z, recorded in `ARCHITECTURE_READ_PATH.md` §23–25. The week runs to 10-19. Feed-state p50 300–500ms (n=28; baseline ≤50). `/jobs/at/{company}` had no requests. Company jobs p50 300–500ms, p95 1–1.5s (n=766; baseline ≤100). Confirm-skills p50 2–3s (n=5; baseline ~3s). Partner SSO p50 1.5–2s (n=25; baseline ~1s).
+
 ## 2026-10-11 — Reliability R5–R8
 
 R5: `/jobs/analytics/me` stopped paging a role_domain (14 reads, an 8s count) and reads the snapshot — 1 read, 512ms; Software Development is 2,322 jobs. R6: confirm-skills passes the profile and baseline it already holds into `get_result`. R7: `/cv/versions` for `INFSYS-EXTERNAL-247996` 500'd because the company-wide job-id filter was a non-JSON Bad Request (not the 10-06 restriction); the thread is the person's own versions. `feed_warm` AbandonedJobError ×3 on 10-06 09:42–10:08 UTC was a deploy killing an ~80s tick during seven Develop pushes, also before the restriction; a tick is now one judgment wave. R8: company page and partner `get_link` sit on the ~300ms floor (Practus 306–350ms); the 500ms prod line still opens them until `main` carries the 2s rule.
