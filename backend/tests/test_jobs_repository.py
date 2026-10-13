@@ -38,6 +38,19 @@ class _FakeQuery:
     def order(self, *_args: Any, **_kwargs: Any) -> "_FakeQuery":
         return self
 
+    def is_(self, key: str, value: str) -> "_FakeQuery":
+        if value == "null":
+            self._rows = [row for row in self._rows if row.get(key) is None]
+        return self
+
+    def gte(self, key: str, value: Any) -> "_FakeQuery":
+        self._rows = [row for row in self._rows if str(row.get(key)) >= str(value)]
+        return self
+
+    def lte(self, key: str, value: Any) -> "_FakeQuery":
+        self._rows = [row for row in self._rows if str(row.get(key)) <= str(value)]
+        return self
+
     def range(self, start: int, end: int) -> "_FakeQuery":
         self._rows = self._rows[start : end + 1]
         return self
@@ -712,3 +725,22 @@ def test_get_agent_picks_drops_skipped_and_saved_jobs() -> None:
     picks = repo.get_agent_picks("u1")
 
     assert [p["job_id"] for p in picks] == ["keep"]
+
+
+def test_pending_apply_clicks_are_scoped_to_the_person_without_rls() -> None:
+    """Through the service client a worker holds there is no RLS: the read must
+    name the person itself, or it answers with everyone's clicks."""
+    from datetime import datetime, timezone
+
+    clicked = "2026-10-01T09:00:00+00:00"
+    db = _FakeDB(tables={"job_apply_intents": [
+        {"user_id": "user-1", "job_id": "mine", "clicked_at": clicked, "answered_at": None},
+        {"user_id": "user-2", "job_id": "theirs", "clicked_at": clicked, "answered_at": None},
+    ]})
+    repo = JobsRepository(db, db)  # type: ignore[arg-type]
+
+    assert repo.get_pending_apply_intent_job_ids(
+        "user-1",
+        older_than=datetime(2026, 10, 13, tzinfo=timezone.utc),
+        newer_than=datetime(2026, 9, 1, tzinfo=timezone.utc),
+    ) == {"mine"}

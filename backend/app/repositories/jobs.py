@@ -3796,11 +3796,14 @@ class JobsRepository:
         than `newer_than` has expired: `Not yet` used to clear only the local
         cache, so the same question returned on every load and was learned as
         noise — 29 clicks, 1 answer (2026-09-28).
+
+        Scoped by `user_id` in the query, not by RLS alone: through the service
+        client a worker holds, an RLS-only read returned every person's clicks.
         """
-        _ = user_id
         rows = safe_read(
             self._db.table("job_apply_intents")
             .select("job_id")
+            .eq("user_id", user_id)
             .is_("answered_at", "null")
             .gte("clicked_at", newer_than.isoformat())
             .lte("clicked_at", older_than.isoformat()),
