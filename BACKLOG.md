@@ -474,6 +474,15 @@ Tracker (3) · no problem or not actionable (~25).
 
 ## SHIVAM
 
+- **🔴 OpenRouter is out of credits — the judge and the CV writer have no paid
+  model (since 2026-10-13 17:54 UTC).** `total_credits` 15, `total_usage` 15.20;
+  every paid strong model returns 402. The last verdict landed 17:54; drains stop
+  at `feed_warm.batch_empty`. Top up OpenRouter. Groq's model was retired the same
+  day — `b22c0f4b` moves every strong lane's fallback to Groq `gpt-oss-120b`; the
+  worker (Develop) has it, the prod API (Tailor writing, CV upload, interactive)
+  needs it merged to `main`. What spent it: drains reading whole pools — 2,654
+  verdicts in the 24h before, ~1,000 per new signup. Whether to cap a drain is
+  yours to decide.
 - **Compute → Small, now.** The plan is Pro (2026-10-14); the compute is still
   Micro — `max_connections` 60, `shared_buffers` 224MB, Postgres up since 07-12
   (Small reads 90 / 512MB and restarts it). It was meant to come before the merge
@@ -509,7 +518,9 @@ Tracker (3) · no problem or not actionable (~25).
 
 ## AGENT CHORES — approved, small
 
-- 7e measurement (above).
+- 7e measurement (above) — **blocked on OpenRouter credits**: the query
+  embedding goes through OpenRouter (402 on 2026-10-14), and `retrieve` fails
+  soft to 0 candidates, which first read as "semantic recall adds nothing".
 
 - After `main` carries `17b5533d`: drop `company_pulse_snapshot.last_seen_at`
   (Shivam: standing yes, 2026-10-07). First confirm `main`'s
