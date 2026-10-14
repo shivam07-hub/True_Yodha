@@ -65,7 +65,7 @@ export function SetupNudge({ token, className, style }: SetupNudgeProps) {
     ? { head: "Upload your CV", sub: "Myro scores it and ranks jobs by your fit.", cta: "Upload CV" }
     : !skillsConfirmed
       ? { head: "Confirm your skills", sub: "Myro reads them off your CV. You check them once.", cta: "Confirm skills" }
-      : { head: "Pick a target role", sub: "Myro puts your best-fit jobs first.", cta: "Pick a role" }
+      : { head: "Want Myro to find more like this?", sub: "Name the kind of role and Myro ranks jobs that fit.", cta: "Pick a role" }
 
   return (
     <div className={className ? `tm-setup-nudge ${className}` : "tm-setup-nudge"} style={style}>
