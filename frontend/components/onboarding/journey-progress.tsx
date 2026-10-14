@@ -4,11 +4,11 @@ import { cn } from "@/lib/utils"
 /**
  * One rail for the whole onboarding, including the upload screen it starts on.
  *
- * Two steps: Your CV (upload + skill check) → Direction (roles, level, cities,
- * lean/avoid, claimed ninja name). Market is home after Direction — there is no
- * third "First role" waiting room.
+ * Two steps: Your CV (upload + skill check) → Your job (paste, the extension,
+ * or a direction). Direction is the third door of that step, not a step of
+ * its own.
  */
-const STEPS = ["Your CV", "Direction"] as const
+const STEPS = ["Your CV", "Your job"] as const
 
 interface Props {
   /** The step being displayed. */

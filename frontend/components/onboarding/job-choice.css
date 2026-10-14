@@ -1,0 +1,87 @@
+.tm-job-choice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tm-space-md);
+  max-width: 36rem;
+}
+
+.tm-job-choice h1 {
+  font-size: var(--tm-fs-title);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.tm-job-choice-doors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tm-space-xs);
+}
+
+.tm-job-choice-extension {
+  display: inline-flex;
+}
+
+@media (max-width: 767px) {
+  .tm-job-choice-extension {
+    display: none;
+  }
+}
+
+.tm-job-choice-paste,
+.tm-job-choice-review,
+.tm-job-choice-fetch {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tm-space-sm);
+}
+
+.tm-job-choice-fetch {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.tm-job-choice input,
+.tm-job-choice textarea {
+  width: 100%;
+  font-size: var(--tm-fs-body);
+  color: var(--tm-text);
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius);
+  padding: 0.5rem 0.75rem;
+}
+
+.tm-job-choice textarea {
+  min-height: 8rem;
+}
+
+.tm-job-choice-file input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.tm-job-choice-file {
+  font-size: var(--tm-fs-body);
+  color: var(--tm-interactive);
+  cursor: pointer;
+}
+
+.tm-job-choice-wait,
+.tm-job-choice p {
+  font-size: var(--tm-fs-body);
+  color: var(--tm-text-muted);
+}
+
+.tm-job-choice-instead {
+  font-size: var(--tm-fs-body);
+  color: var(--tm-interactive);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}

@@ -69,7 +69,7 @@ test("direction completes onboarding onto Market — no First role waiting room"
   assert.match(result, /onboarding_complete/)
   assert.match(journey, /Your CV/)
   assert.match(journey, /Direction/)
-  assert.match(journey, /const STEPS = \["Your CV", "Direction"\]/)
+  assert.match(journey, /const STEPS = \["Your CV", "Your job"\]/)
   assert.doesNotMatch(journey, /const STEPS = \[[^\]]*First role/)
 })
 

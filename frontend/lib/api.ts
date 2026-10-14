@@ -1034,6 +1034,7 @@ export type OnboardingResult = OnboardingReach & (
   | { kind: "full_result_processing"; target: OnboardingTarget; phase: string; journey_step?: 1 | 2 }
   | { kind: "first_role_saved"; job_id: string; title: string; company: string; tailor_href: string }
   | { kind: "onboarding_complete"; redirect_to: "/market"; journey_step?: 1 | 2 }
+  | { kind: "awaiting_job_choice"; baseline_version_id: number; journey_step?: 1 | 2 }
   | { kind: "terminal_failure"; target: OnboardingTarget; error_code?: string; message?: string; xp_refunded: boolean }
   | {
       kind: "awaiting_skill_confirmation"
@@ -1178,9 +1179,18 @@ export const onboarding = {
     // next. Seed the cache with it instead of re-asking: measured on prod
     // 2026-08-04, confirming took 8.4s and the refetch that discarded this
     // answer took another 8.2s, for one button press.
-    { status: "confirmed"; next: "target" | "shortlist_processing"; result: OnboardingResult }
+    { status: "confirmed"; next: "job_choice" | "target" | "shortlist_processing"; result: OnboardingResult }
   >(`/onboarding/baseline/${baselineId}/confirm-skills`, {
     method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ overrides }),
+  }),
+  acceptFirstJob: (token: string, jobId: string) => request<{
+    kind: "first_role_saved"
+    job_id: string
+    title: string
+    company: string
+    tailor_href: string
+  }>("/onboarding/first-job", {
+    method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ job_id: jobId }),
   }),
   commitFirstRole: (token: string, jobId: string) => request<FirstRoleReceipt>("/onboarding/first-role", {
     method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ job_id: jobId }),
@@ -2503,7 +2513,7 @@ export function emitJourneyPhase(
  *  tailoring, a Mentor run and an apply click each have their own record; these
  *  are the gaps between them. Tied to `CORE_LOOP_STEPS` and the SQL CHECK by
  *  `test_telemetry_vocabulary` — keep this union on one line. */
-export type CoreLoopStep = "card_tailor" | "panel_opened" | "panel_tailor" | "editor_opened" | "mentor_opened" | "downloaded" | "apply_asked"
+export type CoreLoopStep = "card_tailor" | "panel_opened" | "panel_tailor" | "editor_opened" | "mentor_opened" | "downloaded" | "apply_asked" | "door_shown" | "door_paste" | "door_extension" | "door_fit" | "job_imported"
 
 const CORE_LOOP_TELEMETRY_PATH = "/v1/telemetry/loop-step"
 

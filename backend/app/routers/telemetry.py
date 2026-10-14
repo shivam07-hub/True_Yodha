@@ -84,6 +84,7 @@ class CoreLoopStepPayload(BaseModel):
         "card_tailor", "panel_opened", "panel_tailor",
         "editor_opened", "mentor_opened", "downloaded",
         "apply_asked",
+        "door_shown", "door_paste", "door_extension", "door_fit", "job_imported",
     ]
     job_id: str = Field(min_length=1, max_length=200)
     surface: str | None = Field(default=None, max_length=40)
