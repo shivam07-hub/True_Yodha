@@ -7,9 +7,13 @@ exists and spends no judge call:
 1. **Unfinished** — a CV they tailored for a job they have not applied to, on a
    listing still open. "Apply with it" leads, because it is one click from the
    north star.
-2. **New worth applying to** — verdicts written since the last digest that clear
-   the list's bar (`published_list.worth_showing`), that Verdict Currency says
-   are theirs, that Admission still shows, and that they have not collected.
+2. **Jobs worth applying to.** The first email carries every job on their /market
+   list, best first (Shivam, 2026-10-14) — the judge's whole answer, not a teaser.
+   Every later email carries only what is new: verdicts written since the last
+   digest that clear the list's bar (`published_list.worth_showing`), that Verdict
+   Currency says are theirs, that Admission still shows, that they have not
+   collected, and that no earlier digest already offered (a re-read card gets a
+   fresh timestamp, and is not news).
 
 Nothing in either → no email. At most one every three days. Each send is a
 `user_notifications` row (kind `golden_digest`, `source_id` the UTC day): the
@@ -27,6 +31,7 @@ import hashlib
 import hmac
 import logging
 import os
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Protocol
@@ -36,8 +41,8 @@ logger = logging.getLogger(__name__)
 KIND = "golden_digest"
 EVERY = timedelta(days=3)
 MAX_UNFINISHED = 2
-MAX_NEW = 3
 UTM = "utm_source=golden_digest"
+_JOB_LINK = re.compile(r"jobId=([^&\s]+)")
 #: A job application past these has been sent; its tailored CV is not unfinished.
 _SENT = frozenset({"applied", "interviewing", "rejected", "ghosted", "offer"})
 
@@ -58,14 +63,17 @@ class Digest:
     user_id: str
     unfinished: list[Line]
     new: list[Line]
+    #: The member's first digest: `new` is their whole list, not what changed.
+    first: bool = False
 
     @property
     def subject(self) -> str:
         if self.unfinished:
-            first = self.unfinished[0]
-            return f"Apply with the CV you tailored for {first.company or first.title}"
+            lead = self.unfinished[0]
+            return f"Apply with the CV you tailored for {lead.company or lead.title}"
         n = len(self.new)
-        return f"{n} new job{'s' if n != 1 else ''} worth applying to"
+        fresh = "" if self.first else "new "
+        return f"{n} {fresh}job{'s' if n != 1 else ''} worth applying to"
 
     @property
     def lead(self) -> Line:
@@ -99,9 +107,16 @@ class DigestStore(Protocol):
         """Tailored job CVs, newest first: `{job_id, job_title, company_name}`,
         already narrowed to open listings and jobs not yet applied to."""
 
+    def listed(self, user_id: str) -> list[dict[str, Any]]:
+        """Every job on their /market list, best first:
+        `{job_id, job_title, company_name, match_score}`."""
+
     def new_worth(self, user_id: str, since: datetime) -> list[dict[str, Any]]:
         """Match rows written after `since` that the list would show and the person
         has not collected, best first."""
+
+    def offered(self, user_id: str) -> set[str]:
+        """Job ids an earlier digest (one that did not fail) already offered."""
 
     def claim(self, user_id: str, day: str, digest: Digest, text: str) -> int | None:
         """Write today's row in state `processing`. None when today's row exists."""
@@ -147,7 +162,7 @@ def user_for_token(token: str) -> str | None:
 # ── compose and send ────────────────────────────────────────────────────────
 
 
-def compose(user_id: str, *, since: datetime, store: DigestStore) -> Digest | None:
+def compose(user_id: str, *, since: datetime, store: DigestStore, first: bool = False) -> Digest | None:
     """What this person's digest would say, or None when there is nothing to say."""
     unfinished = [
         Line(
@@ -159,6 +174,11 @@ def compose(user_id: str, *, since: datetime, store: DigestStore) -> Digest | No
         for row in store.unfinished(user_id)[:MAX_UNFINISHED]
     ]
     held = {line.job_id for line in unfinished}
+    if first:
+        rows = store.listed(user_id)
+    else:
+        already = store.offered(user_id)
+        rows = [row for row in store.new_worth(user_id, since) if str(row["job_id"]) not in already]
     new = [
         Line(
             job_id=str(row["job_id"]),
@@ -167,12 +187,12 @@ def compose(user_id: str, *, since: datetime, store: DigestStore) -> Digest | No
             path=f"/cv?jobId={row['job_id']}",
             fit=row.get("match_score"),
         )
-        for row in store.new_worth(user_id, since)
+        for row in rows
         if str(row["job_id"]) not in held
-    ][:MAX_NEW]
+    ]
     if not unfinished and not new:
         return None
-    return Digest(user_id=user_id, unfinished=unfinished, new=new)
+    return Digest(user_id=user_id, unfinished=unfinished, new=new, first=first)
 
 
 def _url(app_url: str, path: str) -> str:
@@ -182,12 +202,20 @@ def _url(app_url: str, path: str) -> str:
 def render(digest: Digest, *, app_url: str, name: str | None, unsubscribe_url: str | None) -> str:
     """Plain text, short lines, full URLs — read on a phone first (§7)."""
     first = (name or "").strip().split(" ")[0]
+    if first.isupper():  # "RAJ KISHORE" as typed at signup reads as shouting
+        first = first.title()
     lines = [f"Hi {first}," if first else "Hi,", ""]
     for job in digest.unfinished:
         at = f" at {job.company}" if job.company else ""
         lines += [f"You tailored a CV for {job.title}{at}. Apply with it:", _url(app_url, job.path), ""]
     if digest.new:
-        lines += ["New jobs worth applying to:" if digest.unfinished else "Jobs worth applying to, new since your last email:", ""]
+        if digest.first:
+            heading = "Every job on your list worth applying to, best first:"
+        elif digest.unfinished:
+            heading = "New jobs worth applying to:"
+        else:
+            heading = "Jobs worth applying to, new since your last email:"
+        lines += [heading, ""]
         for job in digest.new:
             at = f", {job.company}" if job.company else ""
             fit = f" · {job.fit}% fit" if job.fit is not None else ""
@@ -224,7 +252,7 @@ def send_due(
             report.skip("cadence")
             continue
         since = last or _parse(member.get("golden_list_since")) or now - EVERY
-        digest = compose(user_id, since=since, store=store)
+        digest = compose(user_id, since=since, store=store, first=last is None)
         if digest is None:
             report.skip("nothing_to_say")
             continue
@@ -347,6 +375,32 @@ class SupabaseStore:
             for jid in job_ids
             if jid in jobs and is_recommendable_listing(jobs[jid])
         ]
+
+    def listed(self, user_id: str) -> list[dict[str, Any]]:
+        from app.services.matching import published_list
+
+        cards, _judgment = published_list.assemble(self._jobs, user_id)
+        return [
+            {
+                "job_id": card["job_id"],
+                "job_title": card.get("job_title"),
+                "company_name": card.get("company_name"),
+                "match_score": card.get("match_score"),
+            }
+            for card in cards
+        ]
+
+    def offered(self, user_id: str) -> set[str]:
+        rows = (
+            self._db.table("user_notifications")
+            .select("body")
+            .eq("user_id", user_id)
+            .eq("kind", KIND)
+            .neq("state", "failed")
+            .execute()
+        ).data or []
+        # The row's body is the email as sent; every job in it is a `jobId=` link.
+        return {match for row in rows for match in _JOB_LINK.findall(row.get("body") or "")}
 
     def new_worth(self, user_id: str, since: datetime) -> list[dict[str, Any]]:
         from app.schemas.jobs import MatchEval

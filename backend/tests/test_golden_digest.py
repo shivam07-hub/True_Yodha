@@ -21,6 +21,7 @@ class _Store:
                        "golden_list_since": "2026-10-07T00:00:00+00:00"}
         self.last: datetime | None = None
         self.open_cvs: list[dict[str, Any]] = []
+        self.on_list: list[dict[str, Any]] = []
         self.worth: list[dict[str, Any]] = []
         self.rows: dict[int, dict[str, Any]] = {}
         self.days: set[str] = set()
@@ -35,9 +36,17 @@ class _Store:
     def unfinished(self, _uid: str) -> list[dict[str, Any]]:
         return self.open_cvs
 
+    def listed(self, _uid: str) -> list[dict[str, Any]]:
+        return self.on_list
+
     def new_worth(self, _uid: str, since: datetime) -> list[dict[str, Any]]:
         self.asked_since.append(since)
         return self.worth
+
+    def offered(self, _uid: str) -> set[str]:
+        # The same reading as the Supabase store: the job links in the sent bodies.
+        return {m for row in self.rows.values() if row["state"] != "failed"
+                for m in golden_digest._JOB_LINK.findall(row["body"])}
 
     def claim(self, user_id: str, day: str, digest: Digest, text: str) -> int | None:
         if (user_id, day) in self.days:
@@ -73,7 +82,7 @@ def _job(job_id: str, **over: Any) -> dict[str, Any]:
 def test_a_tailored_cv_not_yet_sent_leads_the_email() -> None:
     store, mailer = _Store(), _Mailer()
     store.open_cvs = [_job("tailored", company_name="PhonePe", job_title="Product Designer")]
-    store.worth = [_job("new-1", match_score=84), _job("tailored", match_score=90)]
+    store.on_list = [_job("tailored", match_score=90), _job("new-1", match_score=84)]
 
     report = send_due(NOW, store=store, mailer=mailer, apply=True, app_url=APP, api_url="https://api.himyro.com")
 
@@ -82,7 +91,7 @@ def test_a_tailored_cv_not_yet_sent_leads_the_email() -> None:
     assert email["subject"] == "Apply with the CV you tailored for PhonePe"
     text = email["text"]
     assert text.startswith("Hi Asha,")
-    assert text.index("You tailored a CV for Product Designer at PhonePe") < text.index("New jobs worth applying to")
+    assert text.index("You tailored a CV for Product Designer at PhonePe") < text.index("Every job on your list")
     assert f"{APP}/collections?jobId=tailored&utm_source=golden_digest" in text
     assert f"{APP}/cv?jobId=new-1&utm_source=golden_digest" in text
     assert text.count("jobId=tailored") == 1  # not offered twice
@@ -114,21 +123,38 @@ def test_never_twice_in_three_days_and_never_twice_a_day() -> None:
     assert send_due(NOW, store=store, mailer=mailer, apply=True, app_url=APP).sent == 1
     # The new-jobs window opens at the last digest, not at joining the list.
     assert store.asked_since[-1] == NOW - timedelta(days=3)
-    # A second run the same day finds today's row claimed.
+    # A second run the same day, with something new to say, finds today's row claimed.
+    store.worth = [_job("new-2")]
     assert send_due(NOW, store=store, mailer=mailer, apply=True, app_url=APP).skipped == {"claimed": 1}
     assert len(mailer.sent) == 1
 
 
-def test_a_first_digest_reads_new_jobs_since_joining_the_list() -> None:
-    store = _Store()
-    store.worth = [_job("new-1")]
-    send_due(NOW, store=store, mailer=_Mailer(), apply=True, app_url=APP)
-    assert store.asked_since == [datetime(2026, 10, 7, tzinfo=timezone.utc)]
+def test_the_first_email_is_the_whole_list_and_later_ones_only_what_is_new() -> None:
+    """Shivam, 2026-10-14: the first digest carries every job on their /market
+    list, best first. After that, only what is new — and a card the drain re-read
+    has a fresh timestamp but is not news if an earlier digest offered it."""
+    store, mailer = _Store(), _Mailer()
+    store.on_list = [_job(f"job-{n}", match_score=90 - n) for n in range(23)]
+    send_due(NOW, store=store, mailer=mailer, apply=True, app_url=APP)
+    first = mailer.sent[0]
+    assert first["subject"] == "23 jobs worth applying to"
+    assert "Every job on your list worth applying to, best first:" in first["text"]
+    assert all(f"jobId=job-{n}&" in first["text"] for n in range(23))
+    assert store.asked_since == []  # the first email does not ask what is new
+
+    store.last = NOW
+    store.worth = [_job("job-3", match_score=91), _job("fresh", match_score=80)]
+    later = NOW + timedelta(days=3)
+    send_due(later, store=store, mailer=mailer, apply=True, app_url=APP)
+    second = mailer.sent[1]
+    assert second["subject"] == "1 new job worth applying to"
+    assert "jobId=fresh&" in second["text"] and "jobId=job-3&" not in second["text"]
+    assert store.asked_since == [NOW]
 
 
 def test_a_failed_send_is_recorded_and_not_counted_as_sent() -> None:
     store, mailer = _Store(), _Mailer(ok=False)
-    store.worth = [_job("new-1")]
+    store.on_list = [_job("new-1")]
     report = send_due(NOW, store=store, mailer=mailer, apply=True, app_url=APP)
     assert (report.sent, report.failed) == (0, 1)
     assert store.rows[1]["state"] == "failed"
@@ -136,10 +162,10 @@ def test_a_failed_send_is_recorded_and_not_counted_as_sent() -> None:
 
 def test_a_dry_run_writes_and_sends_nothing() -> None:
     store, mailer = _Store(), _Mailer()
-    store.worth = [_job("new-1")]
+    store.on_list = [_job("new-1")]
     report = send_due(NOW, store=store, mailer=mailer, apply=False, app_url=APP)
     assert mailer.sent == [] and store.rows == {}
-    assert [subject for _, subject, _ in report.previews] == ["1 new job worth applying to"]
+    assert [subject for _, subject, _ in report.previews] == ["1 job worth applying to"]
 
 
 def test_a_preview_goes_only_to_the_operator_and_ignores_cadence() -> None:
@@ -209,3 +235,9 @@ def test_the_send_route_needs_the_secret_and_production() -> None:
     response = client.post("/internal/golden-digest/send", json={},
                            headers={"X-Myro-Refresh-Secret": "test-refresh-secret-value"})
     assert response.status_code == 409
+
+
+def test_a_name_typed_in_capitals_is_not_shouted_back() -> None:
+    digest = Digest(user_id="u1", unfinished=[], new=[golden_digest.Line("j", "Analyst", "Acme", "/cv?jobId=j")], first=True)
+    assert golden_digest.render(digest, app_url=APP, name="RAJ KISHORE", unsubscribe_url=None).startswith("Hi Raj,")
+    assert golden_digest.render(digest, app_url=APP, name="Asha Rao", unsubscribe_url=None).startswith("Hi Asha,")

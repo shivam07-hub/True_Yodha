@@ -55,7 +55,7 @@ class _FakeJobsRepo:
     def get_agent_picks(self, user_id: str) -> list[dict]:
         return self._agent_picks
 
-    def get_direction_columns(self, user_id: str) -> dict:
+    def get_list_columns(self, user_id: str) -> dict:
         return dict(_DIRECTION)
 
     def get_latest_baseline_id(self, user_id: str) -> int:
@@ -534,3 +534,27 @@ def test_a_pick_from_a_left_direction_leaves_the_band_and_a_stale_one_is_reread(
         ("now", False), ("older-prompt", True),
     ]
     assert repo.exposures == [("u1", "agent_pick", ["now", "older-prompt"])]
+
+
+def test_a_pick_the_list_would_not_admit_leaves_the_band() -> None:
+    """A set is cut for the profile at regeneration. A pick in a city the person
+    has since stopped looking in is not on their list, so it is not in the band
+    (Rishabh, 2026-10-14)."""
+    pick = {
+        "job_id": "chennai", "job_title": "Analyst", "company_name": None, "job_description": None,
+        "first_seen": None, "last_seen_at": None, "is_stale": True, "is_active": True,
+        "location_city": "Chennai", "location_country": "India",
+        "agent_rank": 1, "agent_tier": "strong", "agent_comment": "Fits.",
+    }
+    repo = _FakeJobsRepo(agent_picks=[pick], evals={"chennai": _judged(overall_score=4.4, recommendation="Apply")})
+    repo.get_list_columns = lambda _uid: {**_DIRECTION, "target_locations": ["Bengaluru"],  # type: ignore[method-assign]
+                                          "target_location_countries": ["India"]}
+    app.dependency_overrides[get_principal] = lambda: Principal(id="u1")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    try:
+        with TestClient(app) as client:
+            body = client.get("/jobs/agent-picks").json()
+    finally:
+        app.dependency_overrides.clear()
+
+    assert body["picks"] == []

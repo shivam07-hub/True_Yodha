@@ -65,12 +65,13 @@ def for_profile(profile: dict[str, Any]) -> VerdictCurrency:
     )
 
 
-def for_user(repo: Any, user_id: str) -> VerdictCurrency:
-    """For a read path that holds no profile: three small reads (the direction
-    columns, memory, the latest CV), sequential. Callers run it beside the read
-    it gates, so it costs a wave slot, not wall time."""
+def list_profile(repo: Any, user_id: str) -> dict[str, Any]:
+    """For a read path that holds no profile: what the list's two questions read —
+    this module's, and Admission's. Three small reads (the list columns, memory,
+    the latest CV), sequential; callers run it beside the read it gates, so it
+    costs a wave slot, not wall time."""
     from app.services.matching import targeting
 
     profile = targeting.for_currency(repo, user_id).ranking_profile()
     profile["baseline_version_id"] = repo.get_latest_baseline_id(user_id)
-    return for_profile(profile)
+    return profile

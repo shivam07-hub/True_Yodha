@@ -1,32 +1,28 @@
 "use client"
 
 import { useState } from "react"
-import type { ApplicationResponse } from "@/lib/api"
-import { ManualAddModal, ADD_JOB_LABEL } from "./ManualAddModal"
+import { ADD_JOB_LABEL, JobImportDialog } from "@/components/job-import/job-import-dialog"
 
-// Re-export the canonical name so trigger sites import it from the seam they
-// already use. Single source of truth lives in ManualAddModal (the leaf).
 export { ADD_JOB_LABEL }
 
 interface UseManualAddOptions {
   token: string
-  onSaved: (app: ApplicationResponse) => void
+  onSaved: () => void
 }
 
 /**
- * The single seam for adding a job. Owns the open state and the modal mount;
- * the caller supplies the token and a post-save callback, and renders its own
- * surface-styled trigger button wired to `open()` plus the returned `modal`.
+ * The single seam for adding a job on desktop. Owns the open state and the
+ * dialog mount; the caller renders its own trigger wired to `open()`.
  */
 export function useManualAdd({ token, onSaved }: UseManualAddOptions) {
   const [open, setOpen] = useState(false)
   const modal = open ? (
-    <ManualAddModal
+    <JobImportDialog
       token={token}
       onClose={() => setOpen(false)}
-      onSaved={(app) => {
+      onImported={() => {
         setOpen(false)
-        onSaved(app)
+        onSaved()
       }}
     />
   ) : null

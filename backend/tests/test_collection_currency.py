@@ -51,7 +51,7 @@ class _Repo:
     def get_user_match_stack(self, _uid, *, dismissed=None):
         return self._stack
 
-    def get_direction_columns(self, _uid):
+    def get_list_columns(self, _uid):
         return dict(_DIRECTION)
 
     def get_latest_baseline_id(self, _uid):
@@ -90,3 +90,17 @@ def test_a_saved_job_stays_whatever_its_verdict_was_judged_for() -> None:
              "created_at": "2026-10-01T08:00:00+00:00", "jobs": _match("left", _LEFT)["jobs"]}
     body = _collection([_match("left", _LEFT)], [saved])
     assert [(e["job_id"], e["stage"], e["origin"]) for e in body["entries"]] == [("left", "saved", "myro")]
+
+
+def test_an_untouched_match_the_list_would_not_admit_earns_no_entry(monkeypatch) -> None:
+    """Collections shows the /market list's untouched matches only — not one in a
+    city the person stopped looking in. A saved one stays theirs."""
+    chennai = {**_match("chennai", _DIRECTION), "jobs": {**_match("chennai", _DIRECTION)["jobs"],
+                                                         "location_city": "Chennai", "location_country": "India"}}
+    saved_chennai = {**chennai, "job_id": "saved-chennai"}
+    saved = {"id": 2, "job_id": "saved-chennai", "status": "saved", "source": "user_discovery",
+             "created_at": "2026-10-01T08:00:00+00:00", "jobs": chennai["jobs"]}
+    monkeypatch.setattr(_Repo, "get_list_columns", lambda _self, _uid: {
+        **_DIRECTION, "target_locations": ["Pune"], "target_location_countries": ["India"]})
+    body = _collection([chennai, saved_chennai], [saved])
+    assert [e["job_id"] for e in body["entries"]] == ["saved-chennai"]

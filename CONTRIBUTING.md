@@ -15,10 +15,22 @@ Thanks for taking the time to contribute. This repository is the codebase behind
 ### Backend (FastAPI)
 ```bash
 cd backend
-source ../.venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+python3.11 -m venv .venv   # the Python in backend/Dockerfile (or: conda create -p .venv python=3.11)
+.venv/bin/pip install --require-hashes -r requirements.lock
+.venv/bin/python -m spacy download en_core_web_sm
+.venv/bin/uvicorn app.main:app --reload
 ```
+
+`backend/.venv` holds `requirements.lock` and nothing else — the same pinned,
+hashed set Railway and CI install. The tests refuse any other Python or package
+version (`backend/tests/shipped_runtime.py`). Tools (Playwright QA, uv and the
+like) live in the root `.venv`.
+
+**Changing a dependency:** edit `requirements.txt` (what we ask for), then rebuild
+the lock (what ships) with the command in its header, from `backend/`:
+`uv pip compile requirements.txt --universal --python-version 3.11 --generate-hashes -o requirements.lock`,
+and reinstall `backend/.venv` from it. Commit both files together; the tests
+refuse a lock that no longer satisfies `requirements.txt`.
 
 Backend config lives in `backend/.env` (do not commit it).
 
@@ -36,7 +48,7 @@ Frontend config lives in `frontend/.env.local` (do not commit it).
 Run these from the repo root unless noted:
 
 ```bash
-.venv/bin/pytest backend/tests
+backend/.venv/bin/pytest backend/tests
 ```
 
 ```bash

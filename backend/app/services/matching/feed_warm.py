@@ -4,8 +4,9 @@ services/matching/feed_warm.py — the /market aspiration drain.
 The list a person sees is the career-ops judgment already stored on
 `user_job_matches`. This worker opens the live jobs that match their
 aspirations and have not been judged for the CV the run started with, a
-batch at a time, and enqueues the next batch itself. It does not stop at a
-silent cap. `direction_first` remains for callers that still ask which of a
+batch at a time, and enqueues the next batch itself — while the person is on
+Myro (`services/presence.py`). When they leave it pauses; what is left is the
+next visit's pile. It does not stop at a silent cap. `direction_first` remains for callers that still ask which of a
 given set to read first; the drain does not use it to decide membership.
 
 This runs ONE batched brain pass (`llm_ranker.evaluate_all`) over the un-warmed
@@ -199,10 +200,11 @@ def enqueue_feed_warm(user_id: str, *, announce: bool = False) -> bool:
     the list as it is. True when this call queued the job, or an earlier
     call already holds the claim. Either way the request does not rank.
 
-    `announce` is for a drain nobody is watching: the person saved a direction
-    or uploaded a CV and left. Each round then tells the bell what it found,
-    so they come back to "N fresh matches" instead of an empty list. A drain
-    started from /market leaves it off — they are looking at the rows land.
+    `announce` is for a drain started somewhere other than the list: the person
+    saved a direction, uploaded a CV, or came back to another page. Each round
+    tells the bell what it found. A drain started from /market leaves it off —
+    they are looking at the rows land. Either way a drain continues only while
+    they are on Myro (`_continue_drain`).
     """
     from app.services.job_refresh._dispatch import user_has_live_refresh
 
@@ -229,7 +231,14 @@ def _cached_evals(repo: Any, user_id: str, job_ids: list[str]) -> dict[str, Any]
 
 
 def _continue_drain(user_id: str, baseline_version_id: int | None, announce: bool) -> None:
-    """Queue the next batch without taking the claim the first POST already holds."""
+    """Queue the next batch without taking the claim the first POST already holds —
+    only while the person is on Myro. Every continuation passes here: a tick that
+    finished, a tick that moved to a newer CV, and a tick a deploy killed."""
+    from app.services import presence
+
+    if not presence.is_present(user_id):
+        logger.warning("metric feed_warm.paused_absent user=%s", user_id)
+        return
     background.enqueue(
         background.LANE_FAST,
         "feed_warm",

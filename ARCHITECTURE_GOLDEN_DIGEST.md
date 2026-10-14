@@ -35,9 +35,13 @@ narrowed to the people Shivam picks.
 > **Dry run on prod, 2026-10-13: 4 members, 0 emails** — none has tailored a CV,
 > and no Apply-grade verdict was written after they joined (2026-10-06; the
 > scraper has sent nothing since 10-01). Raj Kishore's list holds 23 cards and
-> Deveshwar Kashyap's 3, all judged before he joined. Whether a member's FIRST
-> digest offers their current top three instead of "new since joining" is a
-> product call for Shivam (§1 says new).
+> Deveshwar Kashyap's 3, all judged before he joined. **Decided (Shivam,
+> 2026-10-14): a member's first digest lists every job on their /market list,
+> best first; every later digest carries only what is new** (§1's "new" now
+> applies from the second email). Built 2026-10-14: later emails also skip any
+> job an earlier digest already offered (read back from the sent bodies), since a
+> card the drain re-reads gets a fresh timestamp but is not news; no cap on how
+> many. Dry run, prod data: Raj 23 jobs, Deveshwar 2, Rishabh and Adarsh nothing.
 >
 > **Go-live, in order (Shivam):** (1) `main` carries this; (2) the preview —
 > run once in the SQL editor, then read the four emails:

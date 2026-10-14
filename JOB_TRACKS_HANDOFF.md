@@ -245,7 +245,7 @@ Real defects visible in that one frame. Two are yours, one was mine.
 ## Before you say done
 
 ```bash
-pytest backend/tests && ruff check <your files>
+backend/.venv/bin/pytest backend/tests && backend/.venv/bin/ruff check <your files>
 cd frontend && npx tsc --noEmit && npm run lint && npm test
 npm run check:ui-drift && npm run build
 ```

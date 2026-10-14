@@ -8,8 +8,12 @@ from __future__ import annotations
 import pytest
 from typing import Any
 
-from app.deps import CurrentUser, Principal
-from app.services import test_accounts
+from tests.shipped_runtime import refuse_off_the_shipped_runtime
+
+refuse_off_the_shipped_runtime()
+
+from app.deps import CurrentUser, Principal  # noqa: E402
+from app.services import test_accounts  # noqa: E402
 
 
 def fake_principal(user_id: str = "u1", email: str | None = "test@example.com") -> Principal:

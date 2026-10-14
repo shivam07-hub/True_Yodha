@@ -34,7 +34,7 @@ class _Repo:
     def get_latest_baseline_stamp(self, _uid: str) -> dict[str, Any]:
         return self._latest
 
-    def get_direction_columns(self, _uid: str) -> dict[str, Any]:
+    def get_list_columns(self, _uid: str) -> dict[str, Any]:
         return dict(self._profile)
 
     def has_verdict(self, _uid: str, *, baseline_version_id: int | None = None) -> bool:

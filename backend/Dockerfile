@@ -13,8 +13,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Every package pinned and hashed (requirements.lock, built from requirements.txt).
+COPY requirements.lock .
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 
 # Headless Chromium for the WYSIWYG CV PDF renderer (cv_pdf_html). --with-deps
 # pulls the Chromium runtime libraries; fonts-liberation supplies an Arial-metric

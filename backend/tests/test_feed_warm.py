@@ -11,9 +11,20 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from app.services import llm_ranker
+import pytest
+
+from app.services import llm_ranker, presence
 from app.services.matching import feed_warm
 from app.services.onboarding_service import eval_context_key
+
+
+@pytest.fixture(autouse=True)
+def _u1_is_on_myro(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests are about the drain's mechanics, so the person is here. Pausing
+    when they leave is `test_presence_drain.py`'s."""
+    monkeypatch.setattr(presence.settings, "redis_url", "")
+    presence._LOCAL.clear()
+    presence.mark("u1")
 
 # The key the code derives for _FakeRepo's profile (baseline 7, no memory — the
 # fake has no `_db`, so the Targeting Brief carries no facts).

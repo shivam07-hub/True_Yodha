@@ -6,6 +6,33 @@
 
 ---
 
+## 2026-10-14 — The backend tests run on what ships; R2 retired
+
+`b9d4785e` passed locally on FastAPI 0.135 and could not boot on the pinned 0.110.3
+(Backend CI red, two dev deploys FAILED; fixed `7e25754d`). The root `.venv` had
+drifted on 18 of 26 pins. Now `backend/.venv` = Python 3.11 + `requirements.lock`
+(uv, universal, hashed) only; the Dockerfile and CI install the lock; conftest
+refuses any other runtime, and a lock that no longer satisfies `requirements.txt`;
+Backend CI runs on push. Dropped four pins nothing imported (python-jose, passlib,
+sendgrid, streamlit). R2: 72 Notices retired (71 pre-10-11 slow_reads quiet since
+the 2s rule reached prod 10-12, plus the 09-29 AbandonedJobError); 8 kept open —
+they recurred on 10-13 above 2s (feed, matches, picks, public stats).
+
+## 2026-10-14 — Grill: what stays open after #55
+
+Cursor keeps #56–#60; order #57 → #58 → #60 → #56 → employer record. Merge batched
+with #57 S0, compute Small first. #59 first email = the member's whole /market list.
+Closed or parked, one line each:
+- **7f** /market "served unranked" — stale since 2026-09-26: `/jobs/feed` is the
+  judged list (`published_list`), `feed.unranked` no longer exists.
+- **#45** evidence bank (Prep's horizontal loop, artboard 2a in UNIFIED_PREP_V2.md) —
+  parked until 20 people have applied.
+- **CS-12** where the gap-answering ask lives (Market, Collections, CV) — parked, same trigger.
+- **CS-14** matching reads no Career Stories, only CV skills — parked, same trigger;
+  noted beside #60.
+- **CS-15** `cv_of_record` keeps no story references, so pass two cannot learn which
+  stories won — parked, same trigger.
+
 ## 2026-10-13 — #55 Return Loop S0–S5, and what the loop was losing
 
 S0: 39 of 54 people active in 30 days opened /market to nothing. S1 Verdict
@@ -16,6 +43,10 @@ first and reads a CV no run had read. S5 old Apply clicks filed as saves. S4 is
 1,000 rows (7 people, 1,397 verdicts unseen); a same-level certificate re-clear
 wrote a new Main CV; a pending-click read relied on RLS alone. The BACKLOG's
 `jobs_added_1h` warning was stale — fixed 2026-09-27 (`180d4d29`).
+
+## 2026-10-14 — Reliability R3, the first 34 hours
+
+Prod `route.latency` from the 2s deploy (`81171d0a`, 2026-10-12 08:57Z) through 2026-10-13 19:33Z, recorded in `ARCHITECTURE_READ_PATH.md` §23–25. The week runs to 10-19. Feed-state p50 300–500ms (n=28; baseline ≤50). `/jobs/at/{company}` had no requests. Company jobs p50 300–500ms, p95 1–1.5s (n=766; baseline ≤100). Confirm-skills p50 2–3s (n=5; baseline ~3s). Partner SSO p50 1.5–2s (n=25; baseline ~1s).
 
 ## 2026-10-11 — Reliability R5–R8
 

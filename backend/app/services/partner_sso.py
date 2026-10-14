@@ -49,8 +49,10 @@ logger = logging.getLogger(__name__)
 # hash. A partner cannot choose the destination beyond that, and deliberately
 # so: `postAuthDestination` decides where a user goes from carried intent, and
 # deep-link return was deleted on purpose (2026-07-11, "a dead parameter is
-# worse than a missing one"). New users land on /onboarding, returning users on
-# /market — which is what a partner wants anyway.
+# worse than a missing one"). A direct sign-in (no link_partner) still sends a
+# new user to /onboarding and a returning one to /market. A consent completion
+# carries link_partner and lands on /onboarding either way; that page sends a
+# finished journey on to /market (#57 S0).
 _CALLBACK_PATH = "/auth/callback"
 _CONNECT_PATH = "/connect"
 
