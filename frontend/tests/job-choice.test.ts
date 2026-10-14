@@ -23,4 +23,10 @@ describe("the job door", () => {
     assert.match(css, /display: none/)
   })
 
+  it("puts Paste a job on the desktop feed and the phone jobs surface", () => {
+    const desktop = readFileSync(new URL("../components/market/market-jobs-column.tsx", import.meta.url), "utf8")
+    const phone = readFileSync(new URL("../mobile/redesign/jobs-surface.tsx", import.meta.url), "utf8")
+    assert.match(desktop, /<PasteJobEntry/)
+    assert.match(phone, /<PasteJobEntry/)
+  })
 })
