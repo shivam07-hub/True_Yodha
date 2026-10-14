@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-10-14 — Reliability R1
+
+The closer ran two days running. `notice_closer_heartbeat.ran_at` and `notice_digest_state.sent_at` are 2026-10-13 02:30:05Z, then 2026-10-14 02:30:05Z. The digest timestamp moves only after the mail sends.
+
 ## 2026-10-14 — Supabase compute stays Micro
 
 Small was the unpaid half of #16 (Pro + Small, decided 2026-09-30). Declined (Shivam, 2026-10-14): cost. Compute stays Micro — `shared_buffers` 224MB, `max_connections` 60. The ~300ms floor and the reads that clear 2s only because of that size stay until a query gets cheaper. S4's graded fit stays deferred for the same reason.

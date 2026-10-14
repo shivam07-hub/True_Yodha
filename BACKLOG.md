@@ -421,12 +421,8 @@ Locks: the closer runs from pg_cron (02:30 UTC, 06:30 retry) via
 query opens only at ≥2,000ms; the Railway death harvest is gone. ADR-0021
 amended. History: ARCHIVE 2026-10-10, `ARCHITECTURE_READ_PATH.md` §23–25.
 Agent-owned. The merge they waited for landed 2026-10-12 (PR #338, the 2s rule on
-prod); #339 followed 10-13. A scheduled check reads R1 on 10-14 and R3/R4 on 10-19.
+prod); #339 followed 10-13. A scheduled check reads R3/R4 on 10-19.
 
-- **R1 · Closer alive.** After the merge deploys: `notice_closer_heartbeat.ran_at`
-  moves after 02:30 UTC and a digest lands in hello@himyro.com (titan-email).
-  If not, read `net._http_response` (status/body) for the pg_cron call. Done =
-  two consecutive daily digests. 10-13: ran 02:30:05, 202, digest landed (1 of 2).
 - **R3 · Live latency.** Five warm samples / a week of `route.latency` on prod for
   `/jobs/feed-state`, `/jobs/at/{c}`, `/companies/{c}/jobs`, confirm-skills,
   `/partner/v1/sso/session`; record in §23–25. First 34 hours (10-12 08:57Z →
