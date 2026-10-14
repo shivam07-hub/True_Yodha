@@ -414,6 +414,22 @@ prod); #339 followed 10-13. A scheduled check reads R3/R4 on 10-19.
 - **R9 · Drain wall time** on the first scrape after the scraper is fixed: Stage A
   claim timestamps (`skill_floor_claimed_at` → `skill_floor_attempted_at`) for
   that run — expect minutes, not hours.
+- **R10 · Load off Micro, not a bigger Micro** (2026-10-14). Measured that night:
+  partner SSO's `resolve_credential`/`get_link` run 5–18 ms inside Postgres
+  (`pg_stat_statements`) yet open 2s+ Notices, and the app side is already wide
+  (100 threads, 40 in-flight reads, 100-conn pool) — the wait is the database.
+  The verifier claim's priority half took 1.16 s at 03:20 IST, ~57 µs per
+  shared-buffer HIT. So the lever is load. Shipped: `9d4ad00d` (Develop) — an
+  inert verifier result (`error`/`unroutable`/`source_failure`, `error` ≈54% of
+  active listings' last check) no longer rewrites the `jobs` row; the schedule
+  table is the queue clock. **Next, agent, after it reaches `main`:** diff two
+  `pg_stat_statements` snapshots an hour apart (totals run since 07-12 and
+  mislead — the 2s `company_name ilike` rows are code that no longer exists);
+  read `jobs` HOT share (`n_tup_hot_upd / n_tup_upd`) and per-index `idx_scan`.
+  `idx_jobs_verification_queue`, `idx_jobs_verify_due`, `idx_jobs_verify_pending`
+  index `last_verification_attempt_at`, which no claim has read since the
+  schedule table (08-13) — zero scans → **drop needs Shivam's yes**, with the
+  counts in hand (3c's "unused" indexes were live).
 
 ## AUTHED QA CHECKLIST — the CV machine (from the beta ledger, 2026-09-30)
 
@@ -479,6 +495,12 @@ Tracker (3) · no problem or not actionable (~25).
   "new since joining", which is nothing for all four. After the next merge, run
   the preview SQL in `ARCHITECTURE_GOLDEN_DIGEST.md` (status block), read the
   emails, approve; an agent then adds the schedule.
+- **Rotate the Finlatics API key.** The live key travelled in plain email
+  (hello@himyro.com thread "Re: shivam.mit20@gmail.com", 2026-08-10/11) and
+  Finlatics quoted it back. Order matters — revoking first cuts the SSO door
+  half of signups use: `scripts/partner_admin.py key --slug finlatics --scopes
+  sso,…` → hand it over through a secret channel → Finlatics swaps → `revoke
+  --prefix <old>`. Needs you + Finlatics.
 - Finlatics, optional: one user's SSO failed 2026-10-06 17:56 (`Server
   disconnected`, fixed `c9a0a047`); their auth account `b4203375…` exists with no
   seat, so their next SSO goes through the consent screen (safe, one extra step).
