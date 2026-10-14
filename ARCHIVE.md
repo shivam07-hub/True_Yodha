@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-10-14 — #55 Return Loop closed
+
+In-app path verified against consumers: `/users/me` enqueues `list_reread`; /market and the phone feed mark stale cards `fc-rereading`; Picks, Collections, and the Next chip ask Verdict Currency; old Apply clicks are filed `saved`. S4 stays #59, blocked. The named `progress_line` ("N new · N moved up · N closed") was never a module — the bell says "N fresh matches" and /market says how many are worth your time.
+
 ## 2026-10-14 — Reliability R1
 
 The closer ran two days running. `notice_closer_heartbeat.ran_at` and `notice_digest_state.sent_at` are 2026-10-13 02:30:05Z, then 2026-10-14 02:30:05Z. The digest timestamp moves only after the mail sends.

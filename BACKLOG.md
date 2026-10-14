@@ -17,21 +17,19 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 
 | # | Step | Item | Spec · owner | Next |
 |---|---|---|---|---|
-| 1 | Find the job | **#55** a returning user's list never vanishes | [ARCHITECTURE_RETURN_LOOP.md](ARCHITECTURE_RETURN_LOOP.md) · decisions taken below | S0–S5 built 2026-10-13 · S4 (#59) live only after Shivam approves the preview |
 | 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read the funnel on prod after the next merge |
 | 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) | Built; first email = their whole /market list, later = new only (Shivam 2026-10-14, `0aafb324`). **BLOCKED on Shivam**: merge carrying `0aafb324` → preview → approve |
 | 4 | Front door | **#57** "Which job do you want?" after upload · partner SSO lands on the upload (22% of partner people upload vs 67% direct) | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor, 1st | S0–S5 built 2026-10-14 · QA click-through still owed |
 | 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1 blank certs built · next S2 fabricated-role guard |
 | 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor, 3rd | S0 audit, today's rule |
 | 6 | Pay | **#56** the ₹199 Apply Pack | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Cursor, 4th | S1 settlement |
-| 1 | Find the job | Employer record on the live job panel (renders nowhere today) | below · Cursor, 5th | mount desktop + phone, delete dead subtree |
 | 1 | Find the job | **7e** semantic retrieval for the 21 still-empty lists | below · agent | measure, no judge calls |
 | — | Upload + direction | U1–U3 (QA list) · #46 S6 · #41 speed | below | — |
 
-**Cursor's order (Shivam, 2026-10-14):** #57 → #58 → #60 → #56 → employer record —
-the biggest absolute leak first (553 of 1,002 never upload; 511 arrived by partner
-SSO, 22% of them upload), then collected → tailored (26%); #60 once jobs flow
-again; pay after the value.
+**Cursor's order (Shivam, 2026-10-14):** #57 → #58 → #60 → #56. Employer record
+closed 2026-10-14 (live job panel). The biggest absolute leak first (553 of 1,002
+never upload; 511 arrived by partner SSO, 22% of them upload), then collected →
+tailored (26%); #60 once jobs flow again; pay after the value.
 
 Specs Cursor builds from, each slice its own commit with six gates green:
 RETURN_LOOP (#55) · PAYMENTS (#56) · FRONT_DOOR (#57) · CV_TIER_A (#58) ·
@@ -44,13 +42,6 @@ de-seed `f7dd4735`, `listing_time.py`; verify 3–6 in code) ·
 ---
 
 ## 1 · FIND THE JOB
-
-**#55 Return Loop — Shivam's decisions, 2026-09-30.** Show stale verdicts after
-current ones with **no word label** (a motion state only) · on return, re-rate the
-rows the person can already see first, then the normal 8-per-tick drain · when the
-re-read lands, one line: **"N new · N moved up · N closed since {day}"** (the
-existing `progress_line`) · the email transport (S4) goes **only to the golden
-list** — see §3. Do not bump `PROMPT_VERSION` casually until S1 ships.
 
 **The corpus is the scraper repo's (Shivam).** Running again since 2026-10-01 —
 28,120 active jobs younger than 7 days on 2026-10-02. This repo only reads jobs;
