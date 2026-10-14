@@ -10,6 +10,7 @@ import { formatCount } from "@/lib/format"
 import { AgentPicksBand } from "@/components/jobs/agent-picks-band"
 import { openRefreshGate } from "@/store/refreshGateStore"
 import { SetupNudge } from "@/components/common/setup-nudge"
+import { PasteJobEntry } from "@/components/job-import/paste-job-entry"
 import { VirtualFeed } from "@/components/jobs/virtual-feed"
 import { JobCard } from "./job-card"
 import { MobileFeed } from "./mobile-feed"
@@ -142,7 +143,10 @@ export function MarketJobsColumn({
         )}
       </div>
 
-      <SetupNudge token={token} style={{ marginTop: 14 }} />
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 14, flexWrap: "wrap" }}>
+        <PasteJobEntry token={token} />
+        <SetupNudge token={token} style={{ marginTop: 0, flex: 1 }} />
+      </div>
 
       {!readingEmpty && !q && !skillFacet && !filters.roleFamily ? (
         <AgentPicksBand token={token} hasCv={hasCv} context="feed" onSave={onSave} onSkip={onSkip} openTailor={j => openTailor(j, "agent_pick")} />
