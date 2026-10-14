@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.services.cv_section_order import normalize_section_order
+from app.services.cv_structured_shape import is_blank
 
 
 def _djb2(s: str) -> str:
@@ -137,8 +138,9 @@ def render_deterministic(
         kept_certs: list[str] = []
         for i, cert in enumerate(certs):
             iid = item_id("cert", i, cert)
-            if keep(iid):
-                kept_certs.append(text_of(iid, cert))
+            text = text_of(iid, cert)
+            if keep(iid) and not is_blank(text):
+                kept_certs.append(text)
         if not kept_certs:
             return []
         return ["CERTIFICATIONS", *(f"• {c}" for c in kept_certs), ""]

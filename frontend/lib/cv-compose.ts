@@ -87,6 +87,11 @@ export function collectItems(cv: CVStructured): PlaygroundItem[] {
   return items
 }
 
+/** A blank string is no content. The backend's `is_blank` is the same rule. */
+export function isBlank(value: unknown): boolean {
+  return !String(value ?? "").trim()
+}
+
 export function renderDeterministic(
   cv: CVStructured,
   hiddenItems: Set<string>,
@@ -176,7 +181,7 @@ export function renderDeterministic(
   const keptCerts: string[] = []
   cv.certs.forEach((cert, i) => {
     const iid = itemId("cert", i, cert)
-    if (keep(iid)) keptCerts.push(cert)
+    if (keep(iid) && !isBlank(cert)) keptCerts.push(cert)
   })
   if (keptCerts.length) {
     lines.push("CERTIFICATIONS")

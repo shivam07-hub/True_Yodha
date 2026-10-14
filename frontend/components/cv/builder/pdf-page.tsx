@@ -9,7 +9,7 @@
 "use client"
 
 import type { CVStructured } from "@/lib/api"
-import { itemId } from "@/lib/cv-compose"
+import { isBlank, itemId } from "@/lib/cv-compose"
 import { normalizeSectionOrder } from "@/lib/cv/section-order"
 import type { CVTemplate } from "@/lib/cv/templates"
 import { useSectionTitle } from "@/components/cv/section-titles-provider"
@@ -104,7 +104,7 @@ export function PdfPage({
 
   const summaryHidden = cv.summary ? hidden.has(itemId("summary", 0, cv.summary)) : true
   const skillsHidden = cv.skills_line ? hidden.has(itemId("skills_line", 0, cv.skills_line)) : true
-  const visibleCerts = cv.certs.filter((c, i) => !hidden.has(itemId("cert", i, c)))
+  const visibleCerts = cv.certs.filter((c, i) => !isBlank(c) && !hidden.has(itemId("cert", i, c)))
 
   return (
     <div className="cvb-pdf-page" data-cv-template={template}>

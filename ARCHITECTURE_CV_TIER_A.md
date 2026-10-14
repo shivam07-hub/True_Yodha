@@ -7,6 +7,11 @@ CEO grill (D7, Shivam, 2026-09-30).** UI slices go through `/frontend-design`.
 > fix is its own commit on `Develop`, six gates green. Tier B (#48 full schema,
 > #51, #53, #54) waits for front-door numbers — see BACKLOG §5.
 
+> **Status 2026-10-14 — S1 built.** A blank cert string is no content.
+> `is_blank` / `isBlank` drop it in the text render, the DOCX, and the sheet
+> the PDF is cut from. Measured in `test_cv_artifact_golden.py` and
+> `cv-artifact-fidelity.test.tsx`. S2–S5 still open.
+
 ---
 
 ## 1 · The rule
@@ -104,7 +109,7 @@ the character model once nothing reads it.
 
 | # | Fix | Done when |
 |---|---|---|
-| S1 | A · blank certs | Golden test: no bare heading in any export |
+| S1 | A · blank certs | **Built 2026-10-14.** `certs: [""]` prints no heading in text, DOCX, or the sheet. |
 | S2 | B · fabricated-role guard | Seam tests: invented pair refused; weave drops it and logs; master-added role passes |
 | S3 | C · keep unknown sections | The five measured headings survive a master rewrite |
 | S4 | E · measured page fill | A CV at 97% downloads; a real 2-page CV shows "2 pages" and still downloads |

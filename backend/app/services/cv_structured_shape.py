@@ -79,6 +79,11 @@ def normalize_structured(raw: Any) -> dict | None:
     return out
 
 
+def is_blank(value: object) -> bool:
+    """A blank string is no content. Renderers and ingest share this."""
+    return not str(value or "").strip()
+
+
 def coerce_sections(raw: dict, *, ingest: bool = False) -> dict:
     """The six content sections, coerced to their contract types.
 
