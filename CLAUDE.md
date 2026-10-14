@@ -150,8 +150,8 @@ Order is the loop map — broken steps first, nearest the north star first (Shiv
 | 1 | Find the job | Corpus live again (ingestion 2026-10-01). #55 Return Loop: a returning user's list must never vanish. |
 | 2 | Apply | No Apply click since 2026-09-22. Ship what is built, then measure click → "Did you submit?" → application. |
 | 3 | Repeat | #55 rest + the golden-list digest: `user_profiles.golden_list_since`, email only to them. |
-| 4 | Front door | After upload: "Which job do you want?" — paste a job · the extension · jobs that fit. Target: tailored CV downloaded in <10 min, ≤5 clicks. |
-| 5 | Tailor + download | CV Tier A: #49 page-fill gate, #52 empty certs, #50 add role on desktop, #47 keep unknown sections, no invented roles. |
+| 4 | Front door | #57 S0–S5 built 2026-10-14: after skills, paste · extension · jobs that fit. QA click-through still owed. Door telemetry migration is in the repo and not yet applied (no SQL credentials on this machine). |
+| 5 | Tailor + download | #58 S1 blank certs built. Still open: fabricated-role guard, unknown sections, measured page fill, add role. |
 | 6 | Pay | #56 Apply Pack — [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md), Cursor. |
 
 Gates on everything: #16 Pro is done, compute stays Micro (Shivam, 2026-10-14, cost) · prod

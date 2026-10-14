@@ -4143,12 +4143,6 @@ export interface SkillGapResponse {
   missing_count: number
 }
 
-/** A purchased deepener answer (Q8 XP-gated follow-up). */
-export interface DeepeningItem {
-  prompt_key: string
-  answer: string
-}
-
 /** One reach search — opened in the user's own browser (ADR-0018). */
 export interface ReachSearchItem {
   label: string
@@ -4820,15 +4814,6 @@ export const jobs = {
   },
   /** SSE stream path for the streamed why-fit. Fed to useStreamingText.start(). */
   analyseStreamPath: (jobId: string) => `/jobs/analyse/${jobId}/stream`,
-  /** SSE stream path for an XP-gated deepener (Q8). prompt_key ∈ DEEPEN_KEYS. */
-  deepenStreamPath: (jobId: string, promptKey: string) =>
-    `/jobs/${encodeURIComponent(jobId)}/deepen/${encodeURIComponent(promptKey)}/stream`,
-  /** Already-purchased deepener answers for a job — lets the UI replay free + drop the 5 XP label. */
-  deepenings: (token: string, jobId: string) =>
-    request<{ items: DeepeningItem[]; sampled: boolean }>(
-      `/jobs/${encodeURIComponent(jobId)}/deepenings`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    ),
   path: (token: string, jobId: string) =>
     request<JobPathResponse>(`/jobs/applications/${encodeURIComponent(jobId)}/path`, {
       headers: { Authorization: `Bearer ${token}` },

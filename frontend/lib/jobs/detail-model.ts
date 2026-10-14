@@ -4,7 +4,7 @@
  * A job detail is a CV-creation funnel, not a job board page: understand the
  * fit → see the proof (skills you match) → see the gap (skills to build,
  * upvotable) → act (Tailor CV, the footer hero) → then outreach and context.
- * Desktop (`components/dashboard/detail-body.tsx`) and mobile
+ * Desktop (`components/market/job-detail-drawer.tsx`) and mobile
  * (`mobile/redesign/job-detail-sheet.tsx`) both derive their section order and
  * visibility from here, so the two skins cannot drift apart again — same cure
  * as `lib/collections/model.ts` (one view-model, two skins).

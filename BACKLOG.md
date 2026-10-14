@@ -113,16 +113,6 @@ is the original grill.
 
     **⚠️ ROLLOUT GATE (Shivam): do NOT ship until BOTH extension-imported AND scraped (firecrawl_Supabase) jobs carry `job_skills` ordinal rank — a two-tier corpus (some jobs ranked, most not) was explicitly rejected.** This makes the item **blocked on sister-repo work**, not agent-actionable alone. Next agent: (1) open the coordination conversation with the scraper side (what does firecrawl_Supabase need to emit ordinal rank per skill it already extracts); (2) only once that path is real, build in this repo: extraction emits ordinal rank from JD language (judgment lane) → `job_skills.rank` column + import-path equivalent (shared-Supabase migration, manual-apply + PostgREST reload) → wire the 4 consumers above.
 
-**The employer's track record shows on no surface (found 2026-10-03, worse
-2026-10-14).** `EmployerRecordNote` is imported only by
-`components/dashboard/detail-body.tsx`, which nothing mounts since 2026-09-02
-(`e3c38423`); the phone sheet that used to show it is gone. The whole subtree is
-dead — `detail-body`, `lenses`, `more-roles`, `lens-company`, `deepeners` — while
-`dashboard-drawer-content.test.ts` and `employer-record.test.ts` still read its
-text and pass. **Cursor, 5th in its order (Shivam, 2026-10-14):** mount the
-employer record and `ListingLiveness` in the live job panel, desktop and phone,
-retarget those tests, delete the subtree on the way past.
-
 **#60 Skill evidence — [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md)
 (Shivam, 2026-10-07).** Stage A tags business jobs with "Transformation
 (Genetics)" — 2,637 jobs and growing — and the class is 3,254 qualified skills
