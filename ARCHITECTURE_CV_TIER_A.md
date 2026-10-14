@@ -7,10 +7,14 @@ CEO grill (D7, Shivam, 2026-09-30).** UI slices go through `/frontend-design`.
 > fix is its own commit on `Develop`, six gates green. Tier B (#48 full schema,
 > #51, #53, #54) waits for front-door numbers — see BACKLOG §5.
 
-> **Status 2026-10-14 — S1 built.** A blank cert string is no content.
+> **Status 2026-10-14 — S1 and S2 built.** A blank cert string is no content.
 > `is_blank` / `isBlank` drop it in the text render, the DOCX, and the sheet
 > the PDF is cut from. Measured in `test_cv_artifact_golden.py` and
-> `cv-artifact-fidelity.test.tsx`. S2–S5 still open.
+> `cv-artifact-fidelity.test.tsx`. A job document's experience must match a
+> master `(company, role)` and may not widen its dates (`cv_role_guard`).
+> Weave and polish drop an invented row and log `cv.fabricated_role_dropped`;
+> any other tailored write raises `FabricatedRoleError` (422). Measured in
+> `test_cv_role_guard.py`. S3–S5 still open.
 
 ---
 
@@ -110,7 +114,7 @@ the character model once nothing reads it.
 | # | Fix | Done when |
 |---|---|---|
 | S1 | A · blank certs | **Built 2026-10-14.** `certs: [""]` prints no heading in text, DOCX, or the sheet. |
-| S2 | B · fabricated-role guard | Seam tests: invented pair refused; weave drops it and logs; master-added role passes |
+| S2 | B · fabricated-role guard | **Built 2026-10-14.** Invented pair refused at the seam; weave and polish drop it and log; a role on the master passes. |
 | S3 | C · keep unknown sections | The five measured headings survive a master rewrite |
 | S4 | E · measured page fill | A CV at 97% downloads; a real 2-page CV shows "2 pages" and still downloads |
 | S5 | D · add role/project; phone routing | Add a role on desktop → it appears on the job doc; a phone edit on a job doc leaves the master untouched |

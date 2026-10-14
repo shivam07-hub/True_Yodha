@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-10-14 — #58 S2 fabricated-role guard
+
+A job CV's experience must match a company and title on the master, and its dates may not widen. The write seam refuses anything else. Weave and polish drop the invented row and log it.
+
 ## 2026-10-14 — #55 Return Loop closed
 
 In-app path verified against consumers: `/users/me` enqueues `list_reread`; /market and the phone feed mark stale cards `fc-rereading`; Picks, Collections, and the Next chip ask Verdict Currency; old Apply clicks are filed `saved`. S4 stays #59, blocked. The named `progress_line` ("N new · N moved up · N closed") was never a module — the bell says "N fresh matches" and /market says how many are worth your time.

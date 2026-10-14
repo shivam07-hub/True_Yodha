@@ -17,6 +17,7 @@ from supabase import Client
 
 from app.deps import get_user_db
 from app.security.personal_data import contains_redaction_token
+from app.services.cv_role_guard import assert_matches_master
 from app.services.cv_structured_shape import CONTRACT_KEYS, normalize_structured
 from app.services.job_history import attach_jobs
 
@@ -658,6 +659,7 @@ class CVVersionsRepository:
         """
         self._reject_redaction_tokens(cv_structured, body_text)
         self._reject_partial_structured(cv_structured, seam="cv_versions.update_job_draft")
+        self._reject_fabricated_roles(user_id, cv_structured, version_id=version_id)
         payload: dict[str, Any] = {"cv_structured": cv_structured, "body_text": body_text}
         if title is not None:
             payload["title"] = title
@@ -864,6 +866,12 @@ class CVVersionsRepository:
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Cannot create a derivative against an orphan parent (no baseline anchor).",
                 )
+            if spec.job_id:
+                self._reject_fabricated_roles(
+                    user_id, spec.cv_structured or {},
+                    baseline_version_id=int(baseline_version_id),
+                    parent_row=parent_row,
+                )
 
         next_n = self.next_user_version_number(user_id)
         payload: dict[str, Any] = {
@@ -976,6 +984,34 @@ class CVVersionsRepository:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Could not save your CV.",
             )
+
+    def _reject_fabricated_roles(
+        self,
+        user_id: str,
+        cv_structured: dict[str, Any],
+        *,
+        version_id: int | None = None,
+        baseline_version_id: int | None = None,
+        parent_row: dict[str, Any] | None = None,
+    ) -> None:
+        """A job document's employers and titles come from the master, dates included."""
+        if baseline_version_id is None and version_id is not None:
+            existing = self.find(version_id, user_id)
+            if not existing or not existing.get("job_id"):
+                return
+            anchor = existing.get("baseline_version_id")
+            baseline_version_id = int(anchor) if anchor else None
+            parent_row = None
+        master = parent_row if (
+            parent_row is not None
+            and baseline_version_id is not None
+            and int(parent_row.get("id") or 0) == int(baseline_version_id)
+        ) else None
+        if master is None and baseline_version_id is not None:
+            master = self.find(baseline_version_id, user_id)
+        if master is None:
+            master = self.latest_baseline(user_id)
+        assert_matches_master((master or {}).get("cv_structured") or {}, cv_structured)
 
     @staticmethod
     def _validate_kind_job_id(spec: CVVersionWriteSpec) -> None:

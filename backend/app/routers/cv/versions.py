@@ -36,8 +36,21 @@ from app.services import (
 )
 from app.services.job_path._db import _fetch_milestones, _fetch_targets, _get_job
 from app.services.job_path.llm_polish import _call_ai_polish
+from app.services.cv_role_guard import drop_invented
 from app.services.llm_provider import get_writer_provider
 from app.routers.cv.structured import CVStructuredResponse
+
+
+def _master_structured(
+    cv_repo: CVVersionsRepository, user_id: str, parent: dict[str, Any],
+) -> dict[str, Any]:
+    """The living CV the job document is allowed to draw roles from."""
+    anchor = parent.get("baseline_version_id")
+    master = (
+        cv_repo.find(int(anchor), user_id)
+        if anchor else cv_repo.latest_baseline(user_id)
+    )
+    return (master or {}).get("cv_structured") or {}
 
 logger = logging.getLogger(__name__)
 
@@ -521,12 +534,16 @@ async def polish_cv_version(
         )
 
     next_n = cv_repo.next_user_version_number(user_id)
+    structured = drop_invented(
+        _master_structured(cv_repo, user_id, parent),
+        parent.get("cv_structured") or {},
+    )
     spec = CVVersionWriteSpec(
         kind="polished",
         job_id=job_id,
         parent_version_id=parent["id"],
         body_text=parent.get("body_text") or "",
-        cv_structured=parent.get("cv_structured") or {},
+        cv_structured=structured,
         polished_text=polished_text,
         hidden_items=parent.get("hidden_items") or [],
         edited_items=parent.get("edited_items") or {},
@@ -689,12 +706,16 @@ async def restructure_apply(
         ) from exc
 
     next_n = cv_repo.next_user_version_number(user_id)
+    structured = drop_invented(
+        _master_structured(cv_repo, user_id, parent),
+        parent.get("cv_structured") or {},
+    )
     spec = CVVersionWriteSpec(
         kind="polished",
         job_id=parent["job_id"],
         parent_version_id=parent["id"],
         body_text=parent.get("body_text") or "",
-        cv_structured=parent.get("cv_structured") or {},
+        cv_structured=structured,
         polished_text=body.proposed_text,
         hidden_items=parent.get("hidden_items") or [],
         edited_items=parent.get("edited_items") or {},
