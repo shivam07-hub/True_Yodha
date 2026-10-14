@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-10-14 — Supabase compute stays Micro
+
+Small was the unpaid half of #16 (Pro + Small, decided 2026-09-30). Declined (Shivam, 2026-10-14): cost. Compute stays Micro — `shared_buffers` 224MB, `max_connections` 60. The ~300ms floor and the reads that clear 2s only because of that size stay until a query gets cheaper. S4's graded fit stays deferred for the same reason.
+
 ## 2026-10-14 — The backend tests run on what ships; R2 retired
 
 `b9d4785e` passed locally on FastAPI 0.135 and could not boot on the pinned 0.110.3

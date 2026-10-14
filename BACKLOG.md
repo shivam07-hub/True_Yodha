@@ -314,7 +314,7 @@ Upload reliability lives in QA checks **U1–U3** below. Read #46 S6 in the ligh
 
     Shape, decided: keep the five screens and make each a **one-tap confirmation** (Reddit/Pinterest pattern — every tap is Myro showing it knows them), not one summary screen behind a single tap. (a) **Work proposes the first DEFENSIBLE family in the top 5**, not only rank 1 — same `mayPropose` rule (non-catch-all AND the user holds one of its top skills), which takes it **14/27 → 27/27**; re-arm the proposal when the band-scoped list arrives, which also closes the `proposedRef` burn (the ref is spent on the band-LESS first response, and 13 of 27 get a catch-all there). (b) **Where opens on "Anywhere in India" as a stated answer**, with the CV city as the first chip labelled from the CV — never pre-selected, because location is a HARD filter on the match pool and a reflex tap must not shrink it (Shraddha studied in Kolkata and will relocate anywhere). (c) no false "could not save" after a save that succeeded — four things run after `saveTarget` inside the same `try`. ⚠️ **`target-confirm.tsx` is being actively worked by another agent** (`5d31bf83` added `withRealPrimary` and removed the `no_families` reasonCode); coordinate before starting.
 
-    **OPEN — S4 Graded job ↔ direction fit. ⚠️ MEASURED 2026-09-13 AND DEFERRED — it needs the paid DB compute gate, not more design.**
+    **OPEN — S4 Graded job ↔ direction fit. ⚠️ MEASURED 2026-09-13 AND DEFERRED.** It needed a larger database. That upgrade was declined (Shivam, 2026-10-14, cost). It stays deferred.
     The rule is right and Pareto-better (**76% precision / 40% reach** against the bucket's 71%/29%). The cost is the problem. On the shared Nano instance, against 46,801 live jobs:
 
     | how | cost |
@@ -328,7 +328,7 @@ Upload reliability lives in QA checks **U1–U3** below. Read #46 S6 in the ligh
 
     **Do not ship half of it.** Shipping the cheap half (the feed's role signal, which needs no new read — `main_skills` is already selected and `top_skills` is already on `role_family_labels`) while the candidate-pool selector keeps the bucket lookup would give the platform **two definitions of "does this job fit the direction"** — exactly the drift S1/S2 removed. One definition or none.
 
-    When compute allows, the shape is: a `role_family_pool(family, job_id, matched)` snapshot built in the same refresh, read by BOTH the selector and the feed so the definition stays single. Only then can `role_family_for_job`, `trg_refresh_job_role_family` and the column retire. Original notes:  Replace the remaining `jobs.role_family` reads (feed `_role_match_score`, `job_matcher` ROLE_BOOST, `get_candidate_job_ids_for_roles`, `roles_feed`, `partner/roles`, `refresh_sector_panel`) with "the job asks for ≥2 of the direction's characteristic skills": measured **76% precision / 40% reach** against the current bucket's 71%/29% — better on both. The feed can compute it with no extra read (`main_skills` is already selected and `top_skills` are display names; the two agree — 100% of scraper names are Stage A names). The candidate-pool selector needs an RPC over `job_skills` by `skill_id`. Only once these are gone can `role_family_for_job`, `trg_refresh_job_role_family` (per-row, ~2.9ms × 2 per skill row, ~57 min per two weeks of ingest) and the column itself retire.
+    The recorded shape, if it is ever built on this database: a `role_family_pool(family, job_id, matched)` snapshot built in the same refresh, read by BOTH the selector and the feed so the definition stays single. Only then can `role_family_for_job`, `trg_refresh_job_role_family` and the column retire. Original notes:  Replace the remaining `jobs.role_family` reads (feed `_role_match_score`, `job_matcher` ROLE_BOOST, `get_candidate_job_ids_for_roles`, `roles_feed`, `partner/roles`, `refresh_sector_panel`) with "the job asks for ≥2 of the direction's characteristic skills": measured **76% precision / 40% reach** against the current bucket's 71%/29% — better on both. The feed can compute it with no extra read (`main_skills` is already selected and `top_skills` are display names; the two agree — 100% of scraper names are Stage A names). The candidate-pool selector needs an RPC over `job_skills` by `skill_id`. Only once these are gone can `role_family_for_job`, `trg_refresh_job_role_family` (per-row, ~2.9ms × 2 per skill row, ~57 min per two weeks of ingest) and the column itself retire.
 
     **✅ S5 Prep ranks by closeness — SHIPPED 2026-09-14 (`bfc87170`, migration `20260914100000`). ⚠️ No authed run.** `compute_gap_skills` folds `skill_closeness` into `_priority`, normalised within the candidate set. This is the FIRST reader `skill_closeness` has ever had — S2 built 7,287 bonds and shipped with none, so "learn what is next to what you know" was a product claim with no code behind it. One RPC, **6.0ms as `authenticated`**, run inside the recompute's wave beside the family-market read rather than after it (a sequential hop on this path is ~165ms). Keyed on `taxonomy_key`, so it takes no user id and stays SECURITY INVOKER instead of becoming an oracle.
 
@@ -364,16 +364,13 @@ has one line in ARCHIVE 2026-10-14 with what it said.
 
 ## GATES — not a step
 
-- **#16 DB capacity — Shivam: Supabase Pro + Small compute** (decided
-  2026-09-30 for 2026-10-01). **Pro: done** — the Free plan's size quota
-  (1,789 MB vs 500 MB) RESTRICTED the project 2026-10-06 22:53 → 10-09 13:35
-  UTC: ~63h, zero SSO sessions and zero signups on 10-07/10-08. **Small: NOT
-  done** — `shared_buffers` still 224 MB / `max_connections` 60 on 2026-10-11
-  (Small ≈ 512 MB / 90): Settings → Compute and Disk → Small. Then rerun `market_arrival`: backend p95
-  < 500 ms, zero failures. Next latency target: `/users/me`, p95 2.75–4.2 s. An
-  unidentified ceiling sits at exactly 30,000 ms. `route.latency` and
-  `route_perf_events` are not yet verified against live traffic. History: ARCHIVE
-  2026-10-02 · `ARCHITECTURE_READ_PATH.md` §19.
+- **#16 DB capacity — Pro done, compute stays Micro** (Shivam, 2026-10-14).
+  Pro lifted the Free size quota that RESTRICTED the project 2026-10-06 22:53 →
+  10-09 13:35 UTC. Small was the other half of the 2026-09-30 decision.
+  **Declined, cost.** Compute stays Micro: `shared_buffers` 224 MB,
+  `max_connections` 60. Do not resize. The ~300ms floor, and any read that
+  clears 2s only because the database is this size, stay until a query gets
+  cheaper. History: ARCHIVE 2026-10-02 · `ARCHITECTURE_READ_PATH.md` §19.
 - **Prod deploy guard — Shivam.** `main` already holds `ea165951`. Confirm
   `curl https://api.himyro.com/health/ready` answers `ready`; then
   `railway variables -s mirror-backend-prod --set PORT=8000`; wait for green;
@@ -492,13 +489,9 @@ Tracker (3) · no problem or not actionable (~25).
   `/users/me`, read before every continuation; it pauses when they leave and the
   next visit picks the pile up. 500 of 501 drain ticks on 10-13 had queued
   themselves.
-- **Compute → Small, now.** The plan is Pro (2026-10-14); the compute is still
-  Micro — `max_connections` 60, `shared_buffers` 224MB, Postgres up since 07-12
-  (Small reads 90 / 512MB and restarts it). It was meant to come before the merge
-  that put the Return door on prod; that merge landed 2026-10-13 (#339, with #55
-  S1–S5, the 1,000-row fix, the certificate fix, #59, Apply telemetry).
-  `capacity_queue` 10,803 on 10-14 (10,499 on 10-13). An agent re-runs
-  `market_arrival` after. Next merge: with Cursor's #57 S0 (Shivam, 2026-10-14).
+- **Next merge: with Cursor's #57 S0** (Shivam, 2026-10-14). #339 already
+  carried #55 S1–S5, the 1,000-row fix, the certificate fix, #59, and Apply
+  telemetry.
 - **Scraper (your repo, Shivam fixing it 2026-10-14): no feed since 2026-10-01.** Live jobs 70k+ → 49,637
   (10-11) as the verifier closes rows and nothing arrives — step 1 of the loop.
   `dead_man:job_ingestion` is open. Then: Axis Bank = 14,259 live rows (~18%,

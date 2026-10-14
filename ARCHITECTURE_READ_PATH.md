@@ -2401,7 +2401,7 @@ call for Software Development: **1 read, 512ms, 2,322 jobs, 129 companies.**
 350 / 306 / 315ms. `get_link` is one indexed row. Both clear 2s and sit on
 the ~300ms floor (§24). Those openings were prod's 500ms line. Since the 2s
 deploy, `get_link` is retired and `fetch_company_jobs_page` is failed-close
-(§25). Code does not move the floor. Compute → Small does.
+(§25). Code does not move the floor. Compute stays Micro (Shivam, 2026-10-14, cost).
 
 **`/cv/versions`.** Eight 500s, 12:32:25–12:32:48 UTC on 2026-10-05, all
 `GET /cv/versions?job_id=INFSYS-EXTERNAL-247996`. The body was

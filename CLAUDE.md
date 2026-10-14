@@ -154,7 +154,7 @@ Order is the loop map — broken steps first, nearest the north star first (Shiv
 | 5 | Tailor + download | CV Tier A: #49 page-fill gate, #52 empty certs, #50 add role on desktop, #47 keep unknown sections, no invented roles. |
 | 6 | Pay | #56 Apply Pack — [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md), Cursor. |
 
-Gates on everything: #16 paid DB compute (Supabase Pro + Small, Shivam) · prod
+Gates on everything: #16 Pro is done, compute stays Micro (Shivam, 2026-10-14, cost) · prod
 deploy guard (`PORT=8000`, then `healthcheckPath`, Shivam). How far `Develop` is
 ahead: `git rev-list --count origin/main..origin/Develop`.
 
