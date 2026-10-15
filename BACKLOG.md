@@ -435,6 +435,7 @@ prod); #339 followed 10-13. A scheduled check reads R3/R4 on 10-19.
   those five indexes dropped (`20261015140000`); `unload` lists through
   `list_unload_candidates` instead of the offset page. `claim_verify_targets`
   was still 2.3s a call in that window (16s total, fifth). Compute stays Micro.
+  Session closed 2026-10-15. Memory: `docs/agent-memory/project_micro_load_unload.md`.
 
 ## AUTHED QA CHECKLIST — the CV machine (from the beta ledger, 2026-09-30)
 
