@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react"
 import { newsletter, type NewsletterSource } from "@/lib/api"
+import { substackSubscribeHref } from "@/lib/newsletter/substack-subscribe"
 
 export function EmailSubscribe({
   compact = false,
@@ -42,6 +43,36 @@ export function EmailSubscribe({
 
   const isDone = state === "success"
   const isBusy = state === "loading"
+  const substackHref = substackSubscribeHref(process.env.NEXT_PUBLIC_SUBSTACK_PUBLICATION_URL)
+  if (substackHref) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, margin: compact ? 0 : "32px 0" }}>
+        <a
+          href={substackHref}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxSizing: "border-box",
+            width: "100%",
+            maxWidth: "100%",
+            height: 40,
+            padding: "0 20px",
+            background: "var(--tm-interactive)",
+            color: "var(--tm-interactive-fg)",
+            borderRadius: "var(--tm-radius)",
+            fontFamily: "var(--tm-font-sans)",
+            fontSize: "var(--tm-fs-body)",
+            fontWeight: 600,
+            textDecoration: "none",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Subscribe free
+        </a>
+      </div>
+    )
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6, margin: compact ? 0 : "32px 0" }}>
