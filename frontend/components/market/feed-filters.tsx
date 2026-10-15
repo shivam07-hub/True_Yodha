@@ -1,6 +1,6 @@
 "use client"
 
-import { type FeedFilters, WORK_MODES, activeFilterCount } from "./feed-types"
+import { type FeedFilters, FEED_LANES, WORK_MODES, activeFilterCount } from "./feed-types"
 
 // The sheet itself lives in ./filters-sheet — one component shared by the
 // desktop drawer and the mobile bottom sheet.
@@ -35,6 +35,28 @@ export function FeedControls({
 }
 
 // ── removable filter chips (live in the summary line) ─────────────────────────
+
+export function LaneChips({ filters, onChange }: { filters: FeedFilters; onChange: (f: FeedFilters) => void }) {
+  return (
+    <div className="tm-feed-lanes" role="tablist" aria-label="Jobs or internships">
+      {FEED_LANES.map(([lane, label]) => {
+        const active = filters.lane === lane
+        return (
+          <button
+            key={lane}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            className={active ? "tm-feed-lane is-on" : "tm-feed-lane"}
+            onClick={() => { if (!active) onChange({ ...filters, lane }) }}
+          >
+            {label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 export function FilterChips({ filters, onChange }: { filters: FeedFilters; onChange: (f: FeedFilters) => void }) {
   // Role lives in <RoleSwitcher> (the always-visible target-role row); this only

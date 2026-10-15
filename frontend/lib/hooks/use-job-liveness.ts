@@ -13,7 +13,7 @@ import { jobs, type JobLiveness } from "@/lib/api"
  * Fail-soft by construction: any error resolves to no notice at all. A failed
  * liveness check must never block or scare a user off a real job.
  */
-export function useJobLiveness(jobId: string | null | undefined) {
+export function useJobLiveness(jobId: string | null | undefined, enabled = true) {
   const query = useQuery<JobLiveness | null>({
     queryKey: ["jobLiveness", jobId],
     queryFn: async () => {
@@ -25,7 +25,7 @@ export function useJobLiveness(jobId: string | null | undefined) {
         return null
       }
     },
-    enabled: !!jobId,
+    enabled: !!jobId && enabled,
     // Matches the server-side verdict cache — re-opening the same card in a
     // session costs nothing.
     staleTime: 6 * 60 * 60 * 1000,

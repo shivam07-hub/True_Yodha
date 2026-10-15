@@ -3,7 +3,7 @@
 import type { Dispatch, SetStateAction } from "react"
 import { useRouter } from "next/navigation"
 import { Search, X } from "lucide-react"
-import type { JobFeedItem, JobPulse, MarketJudgment } from "@/lib/api"
+import type { GlobalJobHit, JobFeedItem, JobPulse, MarketJudgment } from "@/lib/api"
 import { MarketJudgmentNote, AspirationRead } from "./market-judgment"
 import type { UseFollowCompany } from "@/lib/hooks/use-follow-company"
 import { formatCount } from "@/lib/format"
@@ -14,12 +14,14 @@ import { PasteJobEntry } from "@/components/job-import/paste-job-entry"
 import { VirtualFeed } from "@/components/jobs/virtual-feed"
 import { JobCard } from "./job-card"
 import { MobileFeed } from "./mobile-feed"
-import { FeedControls, FilterChips } from "./feed-filters"
+import { FeedControls, FilterChips, LaneChips } from "./feed-filters"
+import { useGlobalJobSearch } from "@/lib/hooks/use-global-job-search"
+import Link from "next/link"
 import { EmptyHandoff, FeedSkeleton, ListEnd, LocationScopePill } from "./jobs-tab-helpers"
 import { HiddenJobsDialog } from "./hidden-jobs-dialog"
 import { StoryCard, type FeedStory } from "./story-card"
 import type { FeedRow } from "./feed-rows"
-import type { FeedFilters } from "./feed-types"
+import type { FeedFilters, FeedLane } from "./feed-types"
 import type { FeedScope } from "@/lib/feed-scope"
 
 export function MarketJobsColumn({
@@ -98,10 +100,14 @@ export function MarketJobsColumn({
   onStorySecondary: (s: FeedStory) => void
 }) {
   const router = useRouter()
-  const readingEmpty = !loading && Boolean(judgment?.reading) && visibleJobs.length === 0
+  const internLane = filters.lane !== "jobs"
+  const readingEmpty = !internLane && !loading && Boolean(judgment?.reading) && visibleJobs.length === 0
+  const corpus = useGlobalJobSearch(searchOpen ? searchInput : "", { minLength: 2, limit: 8 })
+  const showCorpus = searchOpen && q.trim().length >= 2 && visibleJobs.length === 0 && corpus.hits.length > 0
 
   return (
     <>
+      <LaneChips filters={filters} onChange={onChangeFilters} />
       <div className="tm-feed-bar">
         {searchOpen ? (
           <>
@@ -148,7 +154,7 @@ export function MarketJobsColumn({
         <SetupNudge token={token} style={{ marginTop: 0, flex: 1 }} />
       </div>
 
-      {!readingEmpty && !q && !skillFacet && !filters.roleFamily ? (
+      {!readingEmpty && !q && !skillFacet && !filters.roleFamily && filters.lane === "jobs" ? (
         <AgentPicksBand token={token} hasCv={hasCv} context="feed" onSave={onSave} onSkip={onSkip} openTailor={j => openTailor(j, "agent_pick")} />
       ) : null}
 
@@ -162,11 +168,15 @@ export function MarketJobsColumn({
               <MarketJudgmentNote judgment={judgment} />
             </>
           ) : null
+        ) : visibleJobs.length === 0 && showCorpus ? (
+          <CorpusHits hits={corpus.hits} loading={corpus.isLoading} />
+        ) : visibleJobs.length === 0 && internLane ? (
+          <InternLaneEmpty lane={filters.lane} />
         ) : visibleJobs.length === 0 && !judgment?.notice ? (
           <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/collections")} onClear={clearBrowse} onTellMyro={() => openRefreshGate("say")} />
         ) : (
           <>
-            <MarketJudgmentNote judgment={judgment} />
+            {internLane ? null : <MarketJudgmentNote judgment={judgment} />}
             <div className="tm-feed-summary">
               {/* The number IS the product: out of tens of thousands of live
                   listings, these were chosen for this person. It used to read
@@ -174,7 +184,11 @@ export function MarketJobsColumn({
                   size of an arbitrary slice, not of an answer. */}
               {total > 0 ? (
                 <span className="tm-feed-summary-count">
-                  {formatCount(total)} role{total === 1 ? "" : "s"}, chosen for you
+                  {formatCount(total)} {filters.lane === "jobs"
+                    ? `role${total === 1 ? "" : "s"}, chosen for you`
+                    : filters.lane === "hosted"
+                      ? `Apply here listing${total === 1 ? "" : "s"}`
+                      : `internship${total === 1 ? "" : "s"}`}
                 </span>
               ) : null}
               <LocationScopePill scope={scope} onOpen={onOpenFilters} />
@@ -210,7 +224,7 @@ export function MarketJobsColumn({
                 Myro Search
               </button>
             </div>
-            {weakShortlist && !judgment?.notice ? (
+            {weakShortlist && !internLane && !judgment?.notice ? (
               <div className="tm-feed-weak-note">
                 <strong>No strong matches yet.</strong> Here are the closest — each card shows what would move it.
               </div>
@@ -270,5 +284,37 @@ export function MarketJobsColumn({
         )}
       </div>
     </>
+  )
+}
+
+function InternLaneEmpty({ lane }: { lane: FeedLane }) {
+  return (
+    <p className="tm-feed-summary" style={{ marginTop: 18 }}>
+      {lane === "hosted" ? (
+        <>No Apply here listings yet. <Link href="/internships/post">Post a paid internship</Link>.</>
+      ) : (
+        <>No live internships. <Link href="/internships">Open internships</Link>.</>
+      )}
+    </p>
+  )
+}
+
+function CorpusHits({ hits, loading }: { hits: GlobalJobHit[]; loading: boolean }) {
+  return (
+    <div className="tm-corpus-hits">
+      <p className="tm-feed-summary-count">
+        {loading ? "Searching all openings" : "From the full corpus"}
+      </p>
+      <ul>
+        {hits.map((hit) => (
+          <li key={hit.job_id}>
+            <Link href={`/intel?q=${encodeURIComponent(hit.job_title)}`}>
+              {hit.job_title}
+              {hit.company_name ? ` · ${hit.company_name}` : ""}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }

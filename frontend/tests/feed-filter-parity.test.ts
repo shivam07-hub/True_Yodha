@@ -74,10 +74,11 @@ test("activeFilterCount counts work mode and listing quality", () => {
 
 test("reset clears every filter, role chip included", () => {
   const cleared = resetFilters({
-    roleFamily: "Data", locationMode: "remote", hideLowConfidence: true,
+    ...DEFAULT_FILTERS, roleFamily: "Data", locationMode: "remote", hideLowConfidence: true,
   })
   assert.equal(activeFilterCount(cleared), 0)
   assert.equal(cleared.roleFamily, null)
+  assert.equal(cleared.lane, "jobs")
 })
 
 type Card = Parameters<typeof applyViewFilters>[0][number] & { job_id: string }
@@ -124,4 +125,18 @@ test("search looks at the list, not the corpus", () => {
 test("a skill chip keeps only cards that need that skill", () => {
   const items = [card("a"), card("b", { skills: ["Kafka"] })]
   assert.deepEqual(applyViewFilters(items, DEFAULT_FILTERS, { skill: "python" }).map(i => i.job_id), ["a"])
+})
+
+test("Jobs lane drops intern and hosted cards; internships keep them", () => {
+  const items = [
+    card("mnc"),
+    card("intern", { job_title: "SDE Intern" }),
+    card("hosted", { listing_venue: "myro", job_title: "Growth intern", employment_kind: "internship" }),
+  ]
+  assert.deepEqual(applyViewFilters(items, { ...DEFAULT_FILTERS, lane: "jobs" }).map(i => i.job_id), ["mnc"])
+  assert.deepEqual(
+    applyViewFilters(items, { ...DEFAULT_FILTERS, lane: "internships" }).map(i => i.job_id),
+    ["mnc", "intern", "hosted"],
+  )
+  assert.deepEqual(applyViewFilters(items, { ...DEFAULT_FILTERS, lane: "hosted" }).map(i => i.job_id), ["hosted"])
 })

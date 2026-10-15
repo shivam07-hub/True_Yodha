@@ -254,6 +254,12 @@ class JobMatchResponse(BaseModel):
     baseline_version_id: int | None = None
     target_context_hash: str | None = None
     seniority_compatibility: SeniorityCompat | None = None  # reuses the shared alias — cannot drift from MatchEval
+    listing_venue: Literal["career_page", "myro"] | None = "career_page"
+    employment_kind: Literal["full_time", "internship"] | None = "full_time"
+    stipend_low_inr: int | None = None
+    stipend_high_inr: int | None = None
+    duration_months: int | None = None
+    ppo: bool | None = None
 
 
 class JobMatchesResponse(BaseModel):
@@ -293,9 +299,10 @@ class ApplyIntentRequest(BaseModel):
         "mobile_jobs",
         "mobile_collections",
         "agent_pick",
+        "internships",
         "other",
     ]
-    destination_type: Literal["direct_role", "career_search"]
+    destination_type: Literal["direct_role", "career_search", "hosted_role"]
 
 
 class JobLivenessResponse(BaseModel):
@@ -469,6 +476,12 @@ class ApplicationResponse(BaseModel):
     max_years_experience: int | None = None
     coins_earned: int | None = None                    # +XP granted on this add (transient — only set by POST /import)
     xp_balance: int | None = None                   # wallet balance after the reward (transient)
+    listing_venue: Literal["career_page", "myro"] | None = "career_page"
+    employment_kind: Literal["full_time", "internship"] | None = "full_time"
+    stipend_low_inr: int | None = None
+    stipend_high_inr: int | None = None
+    duration_months: int | None = None
+    ppo: bool | None = None
 
 
 class JobPathTargetInput(BaseModel):
@@ -715,6 +728,12 @@ class JobFeedItem(BaseModel):
     ctc_high_lpa: float | None = None
     ctc_basis: CtcBasis | None = None
     pay_below_floor: bool | None = None
+    listing_venue: Literal["career_page", "myro"] | None = "career_page"
+    employment_kind: Literal["full_time", "internship"] | None = "full_time"
+    stipend_low_inr: int | None = None
+    stipend_high_inr: int | None = None
+    duration_months: int | None = None
+    ppo: bool | None = None
     #: Why this job is on the list. The three facts retrieval decided it on, so a
     #: card can say what it was chosen for — a list of forty that cannot say why
     #: is indistinguishable from forty that were not chosen.
@@ -724,6 +743,23 @@ class JobFeedItem(BaseModel):
     on_direction: bool = False
     level_stated: bool = False      # the employer published a years range
     checked_recently: bool = False  # we opened the link inside the freshness window
+
+
+class HostedInternshipRequest(BaseModel):
+    company_name: str
+    job_title: str
+    stipend_low_inr: int
+    stipend_high_inr: int | None = None
+    duration_months: int
+    ppo: bool = False
+    location: str | None = None
+    location_mode: Literal["onsite", "hybrid", "remote"] = "onsite"
+    job_description: str
+    skills: list[str] = []
+
+
+class InternshipsResponse(BaseModel):
+    jobs: list[JobFeedItem]
 
 
 class MarketJudgment(BaseModel):

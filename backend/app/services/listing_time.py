@@ -60,8 +60,15 @@ CARD_COLUMNS = (
     "last_conclusive_verification_at,reactivated_at"
 )
 
+#: Intern / hosted-listing facts on a job card. Optional on corpus rows.
+HOSTED_COLUMNS = (
+    "listing_venue,employment_kind,stipend_low_inr,stipend_high_inr,"
+    "duration_months,ppo"
+)
+
 __all__ = [
     "CARD_COLUMNS",
+    "HOSTED_COLUMNS",
     "CONFIRM_WITHIN",
     "ListingTime",
     "SEED_COLUMN",

@@ -22,7 +22,8 @@ from app.services.background import debounce
 from app.services.industry_grouping import normalize_industry_group
 from app.services.job_history import attach_jobs
 from app.services.job_intelligence_policy import is_recommendable_listing
-from app.services.listing_time import CARD_COLUMNS, SEED_COLUMN, day, marker, verdict as listing_time
+from app.services.internships import hosted_fields
+from app.services.listing_time import CARD_COLUMNS, HOSTED_COLUMNS, SEED_COLUMN, day, marker, verdict as listing_time
 from app.services.xp_policy import UPSKILLING_SET_SIZE
 from app.services.job_eligibility import (
     career_band_for_job,
@@ -1758,7 +1759,7 @@ class JobsRepository:
         "location, location_raw, location_city, location_country, location_mode, location_quality, locations, location_states, "
         "role_domain, career_band, industry, industry_group, apply_url, "
         "seniority_level, min_years_experience, max_years_experience, "
-        f"main_skills, role_family, {CARD_COLUMNS}"
+        f"main_skills, role_family, {HOSTED_COLUMNS}, {CARD_COLUMNS}"
     )
 
     @staticmethod
@@ -1809,6 +1810,7 @@ class JobsRepository:
             "matched_skills": matched_skills,
             "matched_skill_count": matched,
             "target_role_match": role_match,
+            **hosted_fields(row),
         }
 
     #: How many jobs `shortlist_jobs` returns by default. Partner alerts read it.
@@ -1977,7 +1979,7 @@ class JobsRepository:
         "location_mode, location_quality, locations, location_states, main_skills, "
         # What Admission's level rule reads. Without them every pick passed it.
         "min_years_experience, max_years_experience, seniority_level, "
-        f"{CARD_COLUMNS}"
+        f"{HOSTED_COLUMNS}, {CARD_COLUMNS}"
     )
 
     def get_agent_picks(self, user_id: str) -> list[dict[str, Any]]:
@@ -3017,7 +3019,7 @@ class JobsRepository:
                 "date_posted, seniority_level, work_mode, min_years_experience, max_years_experience, "
                 # `main_skills` is what `direction_fit` grades the pick gate on. One array
                 # on a select this read already makes, so the grade costs no round trip.
-                f"main_skills, {CARD_COLUMNS})"
+                f"main_skills, {HOSTED_COLUMNS}, {CARD_COLUMNS})"
             ),
             query_builder=lambda q: q.eq("user_id", user_id).order("id"),
         )
@@ -3228,7 +3230,7 @@ class JobsRepository:
                 "location_country, location_mode, location_quality, locations, location_states, apply_url, "
                 "job_summary, job_description, "
                 "date_posted, seniority_level, work_mode, min_years_experience, max_years_experience, "
-                f"{CARD_COLUMNS})"
+                f"{HOSTED_COLUMNS}, {CARD_COLUMNS})"
             )
             .eq("user_id", user_id)
             .eq("baseline_version_id", baseline_version_id)
@@ -3687,7 +3689,7 @@ class JobsRepository:
             # Liveness is server-joined for the Collection Record: the
             # client batch that used to answer it caps at 100 ids sorted
             # lexically, so a client-side `closed` is capped by alphabet.
-            f"{CARD_COLUMNS}",
+            f"{HOSTED_COLUMNS}, {CARD_COLUMNS}",
         )
         for row in rows:
             if row.get("jobs"):

@@ -74,11 +74,11 @@ const RECRUITER_PAGE: B2BDoorContent = {
     label: "Request recruiter pilot",
     external: true,
   },
-  secondaryCta: { href: "/recruiters/workspace", label: "Preview workspace" },
+  secondaryCta: { href: "/internships/post", label: "Post a paid internship" },
   steps: [
     {
       title: "Post the JD once",
-      body: "Use the same mirrored fields as the seeker CV side: job description, company, industry, role, and skill requirements.",
+      body: "Paid internships go up on Myro at /internships/post. Full-time JDs still use the recruiter workspace preview.",
     },
     {
       title: "Review ranked talent",

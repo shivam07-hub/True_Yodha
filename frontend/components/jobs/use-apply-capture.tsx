@@ -52,6 +52,7 @@ interface UseApplyCaptureInput {
     job_id: string
     source_url?: string | null
     company?: string | null
+    listing_venue?: "career_page" | "myro" | string | null
     listing_confidence?: "active" | "uncertain" | "likely_closed" | "closed" | null
   }
   surface: FeedbackSurface
@@ -75,7 +76,10 @@ export function useApplyCapture({
 }: UseApplyCaptureInput): ApplyCapture {
   const queryClient = useQueryClient()
   const target = resolveApplyTarget(job)
-  const { liveness, loading: livenessLoading } = useJobLiveness(job.job_id)
+  const { liveness, loading: livenessLoading } = useJobLiveness(
+    job.job_id,
+    target.kind !== "hosted",
+  )
   const appliedAt = React.useRef<number | null>(null)
   // The click whose "Did you apply?" already rendered — one `apply_asked` per
   // click, however many times the tab regains focus before an answer.
@@ -176,13 +180,14 @@ export function useApplyCapture({
   }, [livenessLoading, livenessState, state])
 
   const onApply = React.useCallback((event?: React.MouseEvent<HTMLElement>) => {
-    if (livenessLoading) {
+    const hosted = target.kind === "hosted"
+    if (!hosted && livenessLoading) {
       event?.preventDefault()
       event?.stopPropagation()
       setState("checking")
       return false
     }
-    if (livenessNotice(livenessState)?.guardsApply) {
+    if (!hosted && livenessNotice(livenessState)?.guardsApply) {
       event?.preventDefault()
       event?.stopPropagation()
       setState("closed")
@@ -201,17 +206,22 @@ export function useApplyCapture({
     }
     enqueueApplyIntent(window.sessionStorage, intentKey, intentEvent)
     void flushIntents()
+    // Hosted apply stays on Myro. The intern apply page is the submit; there is
+    // no leave-site "Did you apply?" because they never left.
     if (returnTimer.current != null) window.clearTimeout(returnTimer.current)
-    returnTimer.current = window.setTimeout(showReturnPrompt, 1_200)
+    if (!hosted) returnTimer.current = window.setTimeout(showReturnPrompt, 1_200)
     return true
-  }, [flushIntents, intentKey, intentSurface, job.job_id, livenessLoading, livenessState, showReturnPrompt, target.destinationType])
+  }, [flushIntents, intentKey, intentSurface, job.job_id, livenessLoading, livenessState, showReturnPrompt, target.destinationType, target.kind])
 
   const open = React.useCallback(() => {
     if (!onApply()) return
-    if (target.url && typeof window !== "undefined") {
-      window.open(target.url, "_blank", "noopener,noreferrer")
+    if (!target.url || typeof window === "undefined") return
+    if (target.kind === "hosted") {
+      window.location.assign(target.url)
+      return
     }
-  }, [onApply, target.url])
+    window.open(target.url, "_blank", "noopener,noreferrer")
+  }, [onApply, target.kind, target.url])
 
   const persistStatus = React.useCallback(async (status: "saved" | "applied") => {
     const key = dataKeys.applications()
@@ -301,7 +311,7 @@ export function useApplyCapture({
 
   return {
     target,
-    href: livenessLoading ? null : target.url,
+    href: target.kind === "hosted" || !livenessLoading ? target.url : null,
     onApply,
     open,
     state,

@@ -8,6 +8,7 @@ import { dataKeys } from "@/lib/domain-data"
 import type { CareerBand } from "@/lib/api"
 import { activeFilterCount, applyViewFilters, type FeedFilters } from "@/components/market/feed-types"
 import { FiltersSheet } from "@/components/market/filters-sheet"
+import { LaneChips } from "@/components/market/feed-filters"
 import { useJobFeed } from "@/components/market/use-job-feed"
 import { useTracks } from "@/lib/hooks/use-tracks"
 import { trackDividers, unreadBoundary } from "@/lib/jobs/track-sections"
@@ -82,17 +83,17 @@ export function JobsSurface({
   }, [])
 
   const scope = useFeedScope(targetLocations)
-  const { allJobs, visibleJobs, total, rankedCount, judgment, loading, settled, triage, undo } =
+  const { internLane, sourceJobs, visibleJobs, total, rankedCount, judgment, loading, settled, triage, undo } =
     useJobFeed({ token, filters, q: searchQ, skill: null, scope })
   // The WORDS for each search. One search — 83% of users — draws nothing.
   const { tracks } = useTracks(token)
   // Over the VISIBLE ranked head: a filter that hides three cards must move the
   // boundaries with them, not point at whatever now sits at that index.
   const visibleRanked = useMemo(
-    () => (rankedCount > 0
-      ? applyViewFilters(allJobs.slice(0, rankedCount), filters, { q: searchQ }).length
-      : 0),
-    [rankedCount, allJobs, filters, searchQ],
+    () => (internLane || rankedCount <= 0
+      ? 0
+      : applyViewFilters(sourceJobs.slice(0, rankedCount), filters, { q: searchQ }).length),
+    [internLane, rankedCount, sourceJobs, filters, searchQ],
   )
   // Same J1 warm as desktop, through the same hook — a surface that warmed its own
   // way is how desktop and mobile drifted apart before.
@@ -127,7 +128,7 @@ export function JobsSurface({
   }, [visibleJobs, visibleRanked, tracks])
   /** Card count, for the "N of M live" line — dividers are not results. */
   const rows = useMemo(() => entries.filter((e) => e.t === "job"), [entries])
-  const detailItem = detailId ? allJobs.find(j => j.job_id === detailId) ?? null : null
+  const detailItem = detailId ? sourceJobs.find(j => j.job_id === detailId) ?? null : null
   // Apply Transport — arms the liveness capture whenever the user leaves to
   // apply from the detail sheet; careers-search fallback when no portal link.
   const applyCapture = useApplyCapture({
@@ -136,6 +137,7 @@ export function JobsSurface({
       job_id: detailItem?.job_id ?? "",
       source_url: detailItem?.source_url ?? null,
       company: detailItem?.company_name ?? null,
+      listing_venue: detailItem?.listing_venue ?? null,
       listing_confidence: detailItem?.is_stale || detailItem?.is_active === false ? "uncertain" : undefined,
     },
     surface: "job_detail",
@@ -249,6 +251,9 @@ export function JobsSurface({
             <button onClick={() => setSearchOpen(true)} aria-label="Search this list" style={roundIcon}><svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.8-3.8" /></svg></button>
           </div>
         )}
+        <div style={{ marginTop: 10 }}>
+          <LaneChips filters={filters} onChange={onFiltersChange} />
+        </div>
       </div>
 
       {/* body */}
@@ -257,17 +262,30 @@ export function JobsSurface({
             so the two skins can never disagree about whether the user was told
             that Myro is holding roles they've never searched. Renders nothing at
             zero. */}
-        {!loading && !(judgment?.reading && visibleJobs.length === 0) ? <MarketJudgmentNote judgment={judgment} /> : null}
-        {!loading && !isRefreshing ? <NewInventoryStrip token={token} quiet={visibleJobs.length === 0} /> : null}
+        {!internLane && !loading && !(judgment?.reading && visibleJobs.length === 0) ? <MarketJudgmentNote judgment={judgment} /> : null}
+        {!internLane && !loading && !isRefreshing ? <NewInventoryStrip token={token} quiet={visibleJobs.length === 0} /> : null}
         {/* Curated Agent Picks — default view only (hidden while searching, filtering
             or viewing hidden jobs). Renders nothing when the user has no picks. */}
-        {!loading && !eyeOn && !searchQ && filterCount === 0 && !(judgment?.reading && visibleJobs.length === 0) ? (
+        {!internLane && !loading && !eyeOn && !searchQ && filterCount === 0 && !(judgment?.reading && visibleJobs.length === 0) ? (
           <MobileAgentPicks token={token} context="feed" onSave={job => doSave(job)} onSkip={job => doSkip(job)} />
         ) : null}
         {eyeOn ? (
           <HiddenView token={token} snack={snack} />
         ) : loading ? (
           <JobsMobileFeedRows />
+        ) : internLane && rows.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "44px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+            <div style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600 }}>
+              {filters.lane === "hosted" ? "No Apply here listings" : "No live internships"}
+            </div>
+            <button
+              onClick={() => router.push(filters.lane === "hosted" ? "/internships/post" : "/internships")}
+              className="mm-press"
+              style={ctaBtn}
+            >
+              {filters.lane === "hosted" ? "Post a paid internship" : "Open internships"}
+            </button>
+          </div>
         ) : judgment?.reading && rows.length === 0 ? (
           warmAccepted ? (
             <>

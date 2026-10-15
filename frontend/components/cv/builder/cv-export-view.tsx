@@ -38,6 +38,7 @@ import { useSectionTitles } from "@/components/cv/section-titles-provider"
 import { ApplyRow } from "@/components/jobs/apply-row"
 import { useApplyCapture } from "@/components/jobs/use-apply-capture"
 import { ApplyCapturePrompt } from "@/components/jobs/apply-capture-prompt"
+import { applyLinkAttrs } from "@/lib/jobs/apply-transport"
 import { similarRolesHref } from "@/lib/jobs/similar-roles"
 import { CV_TEMPLATES, DEFAULT_TEMPLATE, isCVTemplate, type CVTemplate } from "@/lib/cv/templates"
 import { MobileCVExportLayout } from "@/components/cv/mobile/mobile-cv-export-layout"
@@ -113,13 +114,20 @@ export function CVExportView({
   const skin: "fullpage" | "inline" = skinOverride ?? (isTailored ? "fullpage" : "inline")
   const router = useRouter()
   const queryClient = useQueryClient()
+  const application = queryClient
+    .getQueryData<ApplicationResponse[]>(dataKeys.applications())
+    ?.find((row) => row.job_id === jobId)
 
-  // Apply Transport — the official-opening affordance is a leave-to-apply, so it
-  // arms the liveness capture too (only when tied to a real job_id; a master
-  // export has none). company careers is the destination.
+  // Apply Transport — hosted internships stay on Myro; career-page jobs leave
+  // for the portal. Master export has no job_id and never arms capture.
   const capture = useApplyCapture({
     token,
-    job: { job_id: jobId ?? "", source_url: null, company: company ?? null },
+    job: {
+      job_id: jobId ?? "",
+      source_url: application?.source_url ?? null,
+      company: company ?? application?.company ?? null,
+      listing_venue: application?.listing_venue ?? null,
+    },
     surface: "other",
     intentSurface: "cv_export",
     onSubmitted: recordSubmittedCv,
@@ -229,7 +237,7 @@ export function CVExportView({
         structured: visible, hidden: Array.from(hidden),
       },
       cv_version_id: versionId,
-      applied_url: capture.href,
+      applied_url: capture.target.url,
     }).catch(() => {})
     submittedSnapshotWritten.current = true
   }
@@ -427,22 +435,20 @@ export function CVExportView({
             </span>
           )}
           {docxButton}
-          {company && capture.href && (
+          {capture.target.url && capture.target.actionLabel ? (
             <Button
               variant="neutral"
-              title={`Find ${company} opening on its official careers site`}
+              title={capture.target.actionLabel}
               render={
                 <a
-                  href={capture.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  {...applyLinkAttrs(capture.target)}
                   onClick={jobId ? capture.onApply : undefined}
                 />
               }
             >
-              ↗ {capture.target.actionLabel}
+              {capture.target.kind === "direct" ? "↗ " : ""}{capture.target.actionLabel}
             </Button>
-          )}
+          ) : null}
           <Button onClick={handleDownloadPdf} disabled={pdfBusy}>
             <Icon name="download" size={14} />
             {pdfBusy ? "Building PDF…" : "Download PDF"}

@@ -78,6 +78,18 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     setLocal(localFilters(initialFilters))
   }, [initialFilters])
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "k") return
+      const t = e.target
+      if (t instanceof HTMLElement && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return
+      e.preventDefault()
+      setSearchOpen(true)
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [])
+
   const filters: FeedFilters = useMemo(
     () => ({ ...local, roleFamily: selectedCluster }),
     [local, selectedCluster],
@@ -89,7 +101,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     onFiltersChange?.(f)
   }, [selectedCluster, onSelectCluster, onFiltersChange])
 
-  const { allJobs, visibleJobs, total, shortlistSize, rankedCount, judgment, loading, settled, triage, undo, pending, savedCount } =
+  const { allJobs, internLane, visibleJobs, total, shortlistSize, rankedCount, judgment, loading, settled, triage, undo, pending, savedCount } =
     useJobFeed({ token, filters, q, skill: skillFacet, scope })
   useEffect(() => {
     if (settled) onFeedSettled?.()
@@ -110,10 +122,10 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const { tracks } = useTracks(token)
 
   const visibleRanked = useMemo(
-    () => (rankedCount > 0
-      ? applyViewFilters(allJobs.slice(0, rankedCount), filters, { q, skill: skillFacet }).length
-      : 0),
-    [rankedCount, allJobs, filters, q, skillFacet],
+    () => (internLane || rankedCount <= 0
+      ? 0
+      : applyViewFilters(allJobs.slice(0, rankedCount), filters, { q, skill: skillFacet }).length),
+    [internLane, rankedCount, allJobs, filters, q, skillFacet],
   )
   const picksDivider = useMemo(() => {
     if (visibleRanked <= 0) return []

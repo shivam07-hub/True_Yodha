@@ -1,5 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query"
-import type { AgentPicksResponse, JobFeedResponse } from "@/lib/api"
+import type { AgentPicksResponse, InternshipsResponse, JobFeedResponse } from "@/lib/api"
 
 /** Shared with every Agent Picks surface so skip/save from Jobs or Collections
  *  hit the same cache entry. */
@@ -14,6 +14,14 @@ export function removeJobFromList(
   data: JobFeedResponse | undefined,
   jobId: string,
 ): JobFeedResponse | undefined {
+  if (!data) return data
+  return { ...data, jobs: data.jobs.filter(j => j.job_id !== jobId) }
+}
+
+export function removeJobFromInternships(
+  data: InternshipsResponse | undefined,
+  jobId: string,
+): InternshipsResponse | undefined {
   if (!data) return data
   return { ...data, jobs: data.jobs.filter(j => j.job_id !== jobId) }
 }

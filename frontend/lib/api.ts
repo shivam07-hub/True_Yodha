@@ -3423,6 +3423,12 @@ export interface JobMatch {
   baseline_version_id?: number | null
   target_context_hash?: string | null
   seniority_compatibility?: string | null // "compatible" | "incompatible" | "unknown"
+  listing_venue?: "career_page" | "myro" | null
+  employment_kind?: "full_time" | "internship" | null
+  stipend_low_inr?: number | null
+  stipend_high_inr?: number | null
+  duration_months?: number | null
+  ppo?: boolean | null
 }
 
 export interface JobMatchesResponse {
@@ -3502,12 +3508,25 @@ export type ApplyIntentSurface =
   | "mobile_jobs"
   | "mobile_collections"
   | "agent_pick"
+  | "internships"
   | "other"
 
 export interface ApplyIntentInput {
   client_event_id: string
   surface: ApplyIntentSurface
-  destination_type: "direct_role" | "career_search"
+  destination_type: "direct_role" | "career_search" | "hosted_role"
+}
+
+/** A filing Yes, or the reasons one cannot be stored yet. Not an application. */
+export interface JobFiling {
+  job_id: string
+  ready: boolean
+  blocks: string[]
+  authorized: boolean
+  judge_score: number | null
+  cv_version_id: number | null
+  hold_reason: string | null
+  received: boolean
 }
 
 /** Whether a listing still exists. `unknown` is a real answer — an ATS that
@@ -3773,6 +3792,12 @@ export interface ApplicationResponse {
   role_domain?: string | null
   min_years_experience?: number | null
   max_years_experience?: number | null
+  listing_venue?: "career_page" | "myro" | null
+  employment_kind?: "full_time" | "internship" | null
+  stipend_low_inr?: number | null
+  stipend_high_inr?: number | null
+  duration_months?: number | null
+  ppo?: boolean | null
 }
 
 export interface JobFileExtract {
@@ -3933,6 +3958,12 @@ export interface JobFeedItem {
   ctc_high_lpa?: number | null
   ctc_basis?: "stated" | "estimated" | null
   pay_below_floor?: boolean | null
+  listing_venue?: "career_page" | "myro" | null
+  employment_kind?: "full_time" | "internship" | null
+  stipend_low_inr?: number | null
+  stipend_high_inr?: number | null
+  duration_months?: number | null
+  ppo?: boolean | null
 }
 
 /** One card in the "Myro Agent Picks" band — a feed card plus the Career-Ops
@@ -4282,6 +4313,23 @@ export interface GlobalJobSearchResponse {
   hits: GlobalJobHit[]
 }
 
+export interface InternshipsResponse {
+  jobs: JobFeedItem[]
+}
+
+export interface HostedInternshipInput {
+  company_name: string
+  job_title: string
+  stipend_low_inr: number
+  stipend_high_inr?: number | null
+  duration_months: number
+  ppo?: boolean
+  location?: string | null
+  location_mode?: "onsite" | "hybrid" | "remote"
+  job_description: string
+  skills?: string[]
+}
+
 // Deterministic fit % for a batch of jobs against the caller's CV skills —
 // powers the logged-in /intel drill. Same `_compute_overlap` the analyse path
 // uses, so the number matches the dashboard. No charge, no LLM, no persist.
@@ -4354,6 +4402,28 @@ export const jobs = {
     request<GlobalJobSearchResponse>(
       `/jobs/search/global?q=${encodeURIComponent(q)}&limit=${limit}`,
     ),
+  internships: (opts?: { venue?: "myro"; token?: string }) => {
+    const params = new URLSearchParams()
+    if (opts?.venue) params.set("venue", opts.venue)
+    const q = params.toString()
+    return request<InternshipsResponse>(`/jobs/internships${q ? `?${q}` : ""}`, {
+      headers: opts?.token ? { Authorization: `Bearer ${opts.token}` } : undefined,
+    })
+  },
+  internship: (jobId: string) =>
+    request<JobFeedItem>(`/jobs/internships/${encodeURIComponent(jobId)}`),
+  postInternship: (token: string, body: HostedInternshipInput) =>
+    request<JobFeedItem>("/jobs/internships", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    }),
+  applyInternship: (token: string, jobId: string, body?: { notes?: string | null }) =>
+    request<ApplicationResponse>(`/jobs/internships/${encodeURIComponent(jobId)}/apply`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body ?? {}),
+    }),
 
   analytics: (
     roleDomain?: string | null,
@@ -4585,6 +4655,18 @@ export const jobs = {
   contributions: (token: string) =>
     request<JobProvenance>("/jobs/contributions", {
       headers: { Authorization: `Bearer ${token}` },
+    }),
+  getFiling: (token: string, jobId: string) =>
+    request<JobFiling>(`/jobs/${encodeURIComponent(jobId)}/filing`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** Store the Yes to file this CV. The server refuses unless the gate is open,
+   *  and a stored Yes does not mark the job applied. */
+  approveFiling: (token: string, jobId: string) =>
+    request<JobFiling>(`/jobs/${encodeURIComponent(jobId)}/filing`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ yes: true }),
     }),
   recordApplyIntent: (token: string, jobId: string, input: ApplyIntentInput) =>
     request<void>(`/jobs/${encodeURIComponent(jobId)}/apply-intents`, {
@@ -4939,13 +5021,14 @@ export const skills = {
 
 // ── Billing ──────────────────────────────────────────────────────────────────
 
-export type BillingProduct = "xp_pack" | "myrology" | "job_switch_plan" | "ai_workflow_audit"
+export type BillingProduct = "xp_pack" | "myrology" | "job_switch_plan" | "ai_workflow_audit" | "filing_intake"
 
 export const BILLING_PRODUCT_AMOUNT_PAISE: Record<BillingProduct, number> = {
   xp_pack: 9900,
   myrology: 29900,
   job_switch_plan: 19900,
   ai_workflow_audit: 99900,
+  filing_intake: 59900,
 }
 
 export interface RazorpayOrderResponse {
@@ -4977,6 +5060,7 @@ const BILLING_RECEIPT_PREFIX: Record<BillingProduct, string> = {
   myrology: "myro",
   job_switch_plan: "jsp",
   ai_workflow_audit: "awa",
+  filing_intake: "fi",
 }
 
 export const billing = {
@@ -4997,6 +5081,31 @@ export const billing = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+    }),
+}
+
+export interface FilingIntake {
+  saved: boolean
+  target_role: string
+  cities: string
+  portals: string
+  consented: boolean
+  paid: boolean
+}
+
+export const filingIntake = {
+  get: (token: string) =>
+    request<FilingIntake>("/filing-intake", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  save: (
+    token: string,
+    body: { target_role: string; cities: string; portals: string; consent: boolean },
+  ) =>
+    request<FilingIntake>("/filing-intake", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
     }),
 }
 
