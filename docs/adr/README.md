@@ -37,6 +37,8 @@ sequence skips it. A gap reads like a lost decision, so it is recorded here.
 | 0022 | Closeness between skills, never the one bucket a job is in | Accepted — amended 2026-09-17 (recall is not a verdict) |
 | 0023 | The Career Story Reservoir is the Master CV; one module decides story identity | Accepted |
 | 0024 | One Career Ops evaluation per job; the direction decides who sees it | Accepted |
+| 0025 | One document per job — the newest row for that job is that job's CV | Accepted |
+| 0026 | Every application follows one procedure: reflect the job, click and apply, two notes | Accepted |
 
 `sweep-tracking-issue-for-adr-0004.md` is a companion to 0004, deliberately
 outside the numeric sequence — a number names a decision, not a work item.

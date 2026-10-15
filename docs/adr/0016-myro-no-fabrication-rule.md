@@ -34,3 +34,7 @@ skill/practice) and declines off-domain asks; it **admits uncertainty** rather t
 - **Ask-don't-invent (blocking):** accepted — keeps the CV truthful, *is* the Socratic
   ask-before-tell pedagogy doing real work, and extracts the user's real, specific wins they
   forgot to mention (better bullets *and* honest ones).
+
+## Amendment (2026-10-15)
+
+How a true set of facts is arranged for one job, and what happens after the person sends it, is ADR-0026. This rule still decides what may be written. That one decides the order.

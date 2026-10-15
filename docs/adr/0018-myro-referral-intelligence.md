@@ -1,6 +1,6 @@
 # Myro Referral Intelligence Uses Own-Connections + Strategy, Never Stranger PII
 
-**Status:** Accepted (amended 2026-09-15, 2026-10-06)
+**Status:** Accepted (amended 2026-09-15, 2026-10-06, 2026-10-15)
 **Date:** 2026-06-05
 **Related:** ADR-0004 (LLM actions cost XP), ADR-0006 (LinkedIn write-scope), MYRO_TUTOR_DESIGN.md
 
@@ -90,4 +90,8 @@ told the user to "add a company or role" on a page that had both.
   had no job to be nominated against (Path 3) and the job fell out of the loop.
 - Nothing about what Myro fetches changes: it still builds the URLs and never
   opens them.
+
+## Amendment (2026-10-15) — two notes, in order
+
+When the person's own connections export is in hand, the pass after they apply is two notes and then it stops (ADR-0026). First, someone they have actually written to. Second, the person whose seat is the motion, even if that thread is cold. The same CV goes with both. The person sends. A longer list is a spray, and this amendment does not authorise one.
 
