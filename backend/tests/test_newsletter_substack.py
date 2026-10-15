@@ -162,9 +162,16 @@ def test_chart_png_is_an_image_node_and_a_missing_png_is_recorded() -> None:
     assert "Example chart" in joined
 
 
-def test_synced_issues_are_one_through_twenty_two() -> None:
+def test_synced_issues_are_contiguous_from_one() -> None:
+    """A new issue joins the sync set by being the next number. A gap or a
+    duplicate is the failure. The ceiling used to be a frozen 22, so issues
+    23 and 24 — already in the catalog — failed CI until someone edited the
+    snapshot.
+    """
     specs = load_issues(REPO)
-    assert [spec.issue_number for spec in specs] == list(range(1, 23))
+    numbers = [spec.issue_number for spec in specs]
+    assert numbers == list(range(1, numbers[-1] + 1))
+    assert numbers[-1] >= 24
     assert all("023" not in spec.slug for spec in specs)
     missing = {spec.slug for spec in specs if spec.chart_path is None}
     assert missing == CHARTLESS
