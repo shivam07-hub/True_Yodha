@@ -247,6 +247,34 @@ def test_the_filled_phrasing_every_portal_shares_closes_the_listing() -> None:
     assert result.strength == "strong"
 
 
+def test_a_dormant_phenom_widget_does_not_close_a_live_posting() -> None:
+    """PwC's jobs-ta page is a live JobPosting with Apply now.
+
+    The same HTML carries Phenom's hidden job-completion-info widget, whose
+    copy is the filled sentence. That widget is not the posting's state.
+    """
+    result = classify_listing_response(
+        VerificationTarget(
+            "job-1",
+            "https://jobs-ta.pwc.com/global/en/job/738091WD/Manager-Deal-Advisory",
+            "Manager Deal Advisory",
+        ),
+        status_code=200,
+        final_url="https://jobs-ta.pwc.com/global/en/job/738091WD/Manager-Deal-Advisory",
+        body=(
+            '<html><script type="application/ld+json">'
+            '{"@type":"JobPosting","title":"Manager Deal Advisory"}</script>'
+            "<body>Manager Deal Advisory. Apply now."
+            '<div data-ph-at-id="job-completion-info">'
+            "We're sorry… the job you are trying to apply for has been filled."
+            "</div></body></html>"
+        ),
+    )
+
+    assert result.result == "seen_live"
+    assert result.strength == "strong"
+
+
 def test_a_pulled_workday_requisition_is_closed_despite_matching_its_own_title() -> None:
     """The shell answers 200, carries no closed marker, and echoes the apply URL.
 

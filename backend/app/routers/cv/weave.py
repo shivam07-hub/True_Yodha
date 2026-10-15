@@ -11,8 +11,8 @@ charged after a deliverable proposal exists, unique ledger ref per run so an
 explicit re-weave charges again while a cached replay never does.
 
 The proposal caches in job_deepenings (reach-pack/prep-brief contract). Apply
-verifies the proposal's source fingerprint against the CURRENT master — a draft
-never lands on a CV it wasn't written for.
+verifies the proposal's source fingerprint against the paper it was written
+against — the Job Document when one exists, otherwise the master.
 """
 from __future__ import annotations
 
@@ -47,6 +47,7 @@ from app.services import (
     xp_service,
 )
 from app.services.llm_provider import get_blocking_judgment_provider
+from app.services.matching.paper_facts import requirement_strings
 from app.services.cv_role_guard import drop_invented
 from app.services.cv_structured_shape import has_content
 
@@ -63,6 +64,7 @@ class WeaveOption(BaseModel):
     #: What this story's bullet is still missing (#13 L3) — the same ask the
     #: Stories completion queue carries, so the two places are one question.
     asks: list[str] = Field(default_factory=list)
+    proven: bool = False
 
 
 class WeaveQuestion(BaseModel):
@@ -192,6 +194,28 @@ def _baseline_or_409(cv_repo: CVVersionsRepository, user_id: str) -> dict:
     if not baseline or not has_content(baseline.get("cv_structured")):
         raise HTTPException(status.HTTP_409_CONFLICT, "Upload a CV first.")
     return baseline
+
+
+def _paper_structured(
+    cv_repo: CVVersionsRepository, user_id: str, job_id: str, baseline: dict | None,
+) -> dict:
+    document = cv_repo.job_document(user_id, job_id)
+    structured = (document or {}).get("cv_structured")
+    if isinstance(structured, dict) and has_content(structured):
+        return structured
+    return (baseline or {}).get("cv_structured") or {}
+
+
+def _paper_changed(
+    current_fp: str, proposal_fp: str, cache: cv_weave_cache.WeaveCache,
+) -> bool:
+    """The paper moved, and this proposal has not already started landing.
+
+    Takes rewrite the paper they land on. That is the landing, not a stale draft.
+    """
+    if cache.applied_version_id is not None or cache.decided_roles:
+        return False
+    return current_fp != proposal_fp
 
 
 async def _coverage_rows(
@@ -353,11 +377,11 @@ def get_weave(
         return WeaveGetResponse(purchased=False)
     proposal, cache = hit
     baseline = cv_repo.latest_baseline(user.id)
-    current = cv_weave.source_fingerprint((baseline or {}).get("cv_structured") or {})
+    current = cv_weave.source_fingerprint(_paper_structured(cv_repo, user.id, job_id, baseline))
     return WeaveGetResponse(
         purchased=True,
         proposal=proposal,
-        stale=current != proposal.fingerprint,
+        stale=_paper_changed(current, proposal.fingerprint, cache),
         applied=cache.applied_version_id is not None or bool(cache.decided_roles),
         accepted_roles=list(cache.accepted_roles),
         decided_roles=list(cache.decided_roles),
@@ -377,15 +401,19 @@ async def run_weave(
     exists; a cached proposal replays free unless `refresh` explicitly re-runs."""
     job = _job_or_404(jobs_repo, user.id, body.job_id)
     baseline = _baseline_or_409(cv_repo, user.id)
-    cv_structured = baseline.get("cv_structured") or {}
+    # The Job Document is the paper (ADR-0025). The master seeds it only when
+    # this job has none yet.
+    cv_structured = _paper_structured(cv_repo, user.id, body.job_id, baseline)
     current_fp = cv_weave.source_fingerprint(cv_structured)
 
     if not body.refresh:
-        cached = _cached_proposal(jobs_repo, user.id, body.job_id)
-        if cached is not None:
+        hit = _load_cache(jobs_repo, user.id, body.job_id)
+        if hit is not None:
+            cached, cache = hit
             balance = await xp_service.get_xp_balance(user.id)
             return WeaveRunResponse(
-                proposal=cached, cached=True, stale=current_fp != cached.fingerprint,
+                proposal=cached, cached=True,
+                stale=_paper_changed(current_fp, cached.fingerprint, cache),
                 new_coin_balance=balance,
             )
 
@@ -464,6 +492,9 @@ def apply_weave(
             "cache": lambda: _load_cache(jobs_repo, user.id, body.job_id),
             "baseline": lambda: _baseline_or_409(cv_repo, user.id),
             "draft": lambda: cv_repo.job_document(user.id, body.job_id),
+            "coverage": lambda: jobs_repo.get_deepening(
+                user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY,
+            ),
         },
         label="cv.weave_apply",
     )
@@ -474,16 +505,17 @@ def apply_weave(
     baseline = reads["baseline"]
     draft = reads["draft"]
     master = baseline.get("cv_structured") or {}
-    if cv_weave.source_fingerprint(master) != proposal.fingerprint:
+    source = (draft.get("cv_structured") if draft else None) or master
+    if _paper_changed(cv_weave.source_fingerprint(source), proposal.fingerprint, _cache):
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             "Your CV changed since this draft was written — run Tailor with Mentor again.",
         )
+    motions = requirement_strings(reads["coverage"])
     accepted = list(dict.fromkeys(body.accepted_roles))
     decided = list(dict.fromkeys(
         body.decided_roles if body.decided_roles is not None else body.accepted_roles
     ))
-    source = (draft.get("cv_structured") if draft else None) or master
     extras_decided = _cache.extras_decided
     extras_accepted = _cache.extras_accepted
     if body.action == "extras":
@@ -507,12 +539,14 @@ def apply_weave(
             source, proposal.model_dump(), body.role_index,
             action=body.action, master=master,
             original_indexes=body.original_pointers,
+            requirements=motions,
         )
     else:
         composed = cv_weave.compose_weave(
             source, proposal.model_dump(), set(accepted),
             accept_summary=body.accept_summary,
             accept_skills_line=body.accept_skills_line,
+            requirements=motions,
         )
     composed = drop_invented(master, composed)
     body_text = cv_compose.render_deterministic(composed)

@@ -167,7 +167,11 @@ def test_build_proposal_guard_fail_falls_back_to_original():
         }],
     }
     proposal = cv_weave.build_proposal(CV, parsed, [], [], _coverage())
-    assert proposal is None  # only role failed + no summary/skills → nothing to sell
+    assert proposal is not None
+    assert proposal["roles"][0]["guarded"] is True
+    assert proposal["roles"][0]["changed"] is False
+    # The role fell back, and the opening still leads with the current seat.
+    assert proposal["summary"].startswith("BD Manager, Capgemini.")
 
 
 def test_build_proposal_provenance_and_counts():
@@ -409,7 +413,9 @@ def test_coverage_cv_bullet_pass_upgrades_gap(monkeypatch):
     import app.services.embeddings as embeddings_mod
     monkeypatch.setattr(embeddings_mod, "embed_texts", _embed)
 
-    provider = _FakeProvider('{"requirements": ["Sell multi-cloud platforms"]}')
+    provider = _FakeProvider(
+        '{"requirements": ["Experience with cloud platforms such as AWS, Azure, and GCP"]}'
+    )
 
     async def _no_stories(user_id, query, k=1):
         return []
@@ -680,7 +686,9 @@ def test_patch_requirement_answered_flips_gap_to_covered():
         ],
         covered=1, weak=0, gap=1,
     ))
-    patched = jd_coverage.patch_requirement_answered(raw, "own india territory", "I ran the north region for 2 years")
+    patched = jd_coverage.patch_requirement_answered(
+        raw, "own india territory", "I own the India territory for 2 years",
+    )
     assert patched is not None
     hit = jd_coverage.payload_to_result(patched)
     assert hit is not None
@@ -688,7 +696,7 @@ def test_patch_requirement_answered_flips_gap_to_covered():
     row = next(r for r in result.requirements if r.requirement == "Own India territory")
     assert row.status == "covered"
     assert row.story_title == "Your answer"
-    assert row.story_pointer.startswith("I ran the north region")
+    assert row.story_pointer.startswith("I own the India territory")
     assert (result.covered, result.gap) == (2, 0)
 
 
@@ -728,7 +736,7 @@ def test_router_answer_patches_coverage_cache(monkeypatch):
     try:
         r = client.post("/cv/weave/answer", json={
             "requirement": "Own India territory",
-            "answer": "I ran the north region for 2 years across 12 cities.",
+            "answer": "I own the India territory for 2 years across 12 cities.",
             "job_id": "j1",
         })
         assert r.status_code == 200 and r.json()["entry_id"] == "e1"
@@ -969,3 +977,47 @@ def test_the_interview_is_a_door_not_a_toll():
     assert all(q.status != "covered" for q in questions)
     # The unasked requirements are not lost — they still reach the weave.
     assert len(items) == 14
+
+
+def test_the_only_proving_line_is_kept_and_a_gap_why_is_dropped():
+    cv = json.loads(json.dumps(CV))
+    cv["experience"][0]["bullets"] = [
+        "Owned the India territory for two years.",
+        "Built data pipelines and warehouses for finance teams.",
+    ]
+    parsed = {
+        "summary": None,
+        "skills_line": None,
+        "roles": [{
+            "role_index": 0,
+            "why": "You now show data pipelines and warehouses.",
+            "bullets": [{
+                "text": "Owned the India territory for two years.",
+                "from": [0], "story_ids": [], "used_answer": False,
+            }],
+            "dropped": [1],
+        }],
+    }
+    items = [CoverageItem(
+        requirement="Oversee creation of data pipelines and warehouses", status="gap",
+    )]
+    out = cv_weave.build_proposal(cv, parsed, [], [], items)
+    assert out is not None
+    texts = [bullet["text"] for bullet in out["roles"][0]["bullets"]]
+    assert "Built data pipelines and warehouses for finance teams." in texts
+    assert out["roles"][0]["dropped_lines"] == []
+    assert out["roles"][0]["why"] == ""
+
+
+def test_a_tool_that_proves_a_motion_leads_the_skills_line():
+    cv = json.loads(json.dumps(CV))
+    cv["summary"] = "BD Manager, Capgemini."
+    cv["skills_line"] = "Excel, Tableau, PowerPoint"
+    parsed = {"summary": None, "skills_line": None, "roles": []}
+    items = [CoverageItem(
+        requirement="tools such as Alteryx, Power BI, and Tableau", status="gap",
+    )]
+    out = cv_weave.build_proposal(cv, parsed, [], [], items)
+    assert out is not None
+    assert out["skills_line"] == "Tableau, Excel, PowerPoint"
+    assert out["summary"] is None

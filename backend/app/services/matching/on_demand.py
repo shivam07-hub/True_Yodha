@@ -172,6 +172,8 @@ async def ensure_job_eval(
     }
     job_skill_rows = repo.get_all_job_skill_rows(job_ids=[jid])
     shaped = _shape_single_job(meta_rows[0], job_skill_rows, user_skill_map)
+    from app.services.matching.paper_facts import stamp_shortlist
+    stamp_shortlist(repo, user_id, [shaped], job_skill_rows, user_skill_map)
 
     outcome = await ranking.rank_one(
         profile, profile.get("cv_markdown") or "", shaped, provider

@@ -34,6 +34,7 @@ from app.services.cv_weave_interview import StoryMaterial
 from app.services.deepening_keys import DeepeningKey
 from app.services.jd_brief import JobBrief, digest as brief_digest
 from app.services.jd_coverage import CoverageItem
+from app.services.jd_reflection import Evidence, entails, proving_ids
 from app.services import myro_voice
 from app.services.llm_provider import LLMProvider, LLMProviderError, get_writer_provider
 
@@ -99,10 +100,12 @@ _TASK = (
     '"why": str, "bullets": [{"text": str, "from": [int], "story_ids": [str], '
     '"used_answer": bool}], "dropped": [int]}]}\n'
     "summary/skills_line: rewrite only when the job clearly calls for it, else "
-    "null. \"why\" = one plain sentence addressed TO the candidate as \"you\", "
-    "saying what this rework does for their chances. It is the ONLY field not "
-    "written in their voice — never \"I\" or \"my\" there, and never a restatement "
-    "of the bullets. No prose outside the JSON."
+    "null. The summary leads with the current seat, then motions tagged PROVEN. "
+    "Do not leave an unrelated opening in place of that. \"why\" = one plain "
+    "sentence addressed TO the candidate as \"you\", saying what this rework does "
+    "for their chances. It may name only motions their lines already prove. "
+    "It is the ONLY field not written in their voice — never \"I\" or \"my\" there, "
+    "and never a restatement of the bullets. No prose outside the JSON."
 )
 
 _SYSTEM = myro_voice.drafting_for_reader(_TASK)
@@ -113,7 +116,9 @@ def _requirements_digest(items: list[CoverageItem]) -> str:
     for i in items:
         tag = {"covered": "PROVEN", "weak": "PARTIAL", "gap": "UNPROVEN"}.get(i.status, i.status)
         line = f"- [{tag}] {i.requirement}"
-        if i.story_title and i.status != "gap":
+        if i.story_pointer and i.status != "gap":
+            line += f" (proven by: {i.story_pointer})"
+        elif i.story_title and i.status != "gap":
             line += f" (their evidence: {i.story_title})"
         lines.append(line)
     return "\n".join(lines)
@@ -289,6 +294,93 @@ def edit_kind(old_bullets: list[str], new_texts: list[str], dropped: list[int]) 
     return "trim" if all(t in originals for t in new_texts) else "rewrite"
 
 
+def _why_overclaims(why: str, items: list[CoverageItem]) -> bool:
+    """A why that names a gap motion is dropped. The bullets can still land."""
+    return any(
+        item.status == "gap" and entails(item.requirement, why)
+        for item in items
+    )
+
+
+def sole_proof_texts(blocks: list[dict[str, Any]], requirements: list[str]) -> set[str]:
+    """Bullet texts that are the only line carrying some motion."""
+    evidence = [
+        Evidence(id=f"{block['index']}:{i}", text=text)
+        for block in blocks
+        for i, text in enumerate(block["bullets"])
+    ]
+    by_id = {line.id: line.text for line in evidence}
+    sole: set[str] = set()
+    for requirement in requirements:
+        ids = proving_ids(requirement, evidence)
+        if len(ids) == 1:
+            sole.add(by_id[ids[0]])
+    return sole
+
+
+def _current_company(cv_structured: dict | None) -> str:
+    experience = (cv_structured or {}).get("experience") or []
+    if not experience:
+        return ""
+    return str(experience[0].get("company") or "").strip()
+
+
+def seat_lead(cv_structured: dict | None) -> str | None:
+    """Current seat, then its first line. Nothing here is new."""
+    experience = (cv_structured or {}).get("experience") or []
+    if not experience:
+        return None
+    role = str(experience[0].get("role") or "").strip()
+    company = _current_company(cv_structured)
+    bullet = next(
+        (str(item).strip() for item in (experience[0].get("bullets") or []) if str(item).strip()),
+        "",
+    )
+    lead = ", ".join(part for part in (role, company) if part)
+    if not lead:
+        return None
+    return f"{lead}. {bullet}".strip()
+
+
+def restore_sole_proof(
+    source: dict, dest: dict, requirements: list[str] | None,
+) -> None:
+    """A line that is the only proof of a motion stays. The bullet cap yields."""
+    if not requirements:
+        return
+    blocks = [
+        {"index": i, "bullets": [str(text) for text in (block.get("bullets") or [])]}
+        for i, block in enumerate(source.get("experience") or [])
+    ]
+    sole = sole_proof_texts(blocks, requirements)
+    if not sole:
+        return
+    dest_blocks = dest.get("experience") or []
+    present = {str(text) for block in dest_blocks for text in (block.get("bullets") or [])}
+    for i, block in enumerate(source.get("experience") or []):
+        if i >= len(dest_blocks):
+            continue
+        bullets = dest_blocks[i].setdefault("bullets", [])
+        for text in block.get("bullets") or []:
+            line = str(text)
+            if line in sole and line not in present:
+                bullets.append(line)
+                present.add(line)
+
+
+def lead_proven_tools(skills_line: str, requirements: list[str]) -> str:
+    """Tools that prove a motion lead the line. Nothing is added."""
+    parts = [part.strip() for part in (skills_line or "").split(",") if part.strip()]
+    if len(parts) < 2 or not requirements:
+        return skills_line
+    lead = [part for part in parts if any(entails(req, part) for req in requirements)]
+    rest = [part for part in parts if part not in lead]
+    ordered = lead + rest
+    if ordered == parts:
+        return skills_line
+    return ", ".join(ordered)
+
+
 def extras_guard_ok(text: str | None, allowed_text: str) -> bool:
     """The honesty floor for the CV-WIDE lines (summary, skills line).
 
@@ -345,6 +437,7 @@ def build_proposal(
     by_index = {e["role_index"]: e for e in parsed.get("roles") or []}
     roles_out: list[dict[str, Any]] = []
     changed_count = 0
+    sole = sole_proof_texts(blocks, [item.requirement for item in coverage_items])
     for b in blocks:
         entry = by_index.get(b["index"])
         base = {
@@ -373,7 +466,8 @@ def build_proposal(
                 # A trim reworded NOTHING, so the model's rework rationale would
                 # be describing work it did not do. The card states the fact
                 # instead, from the data.
-                base["why"] = entry["why"] if kind == "rewrite" else ""
+                why = entry["why"] if kind == "rewrite" else ""
+                base["why"] = "" if _why_overclaims(why, coverage_items) else why
                 base["bullets"] = [
                     {
                         "text": nb["text"],
@@ -384,17 +478,45 @@ def build_proposal(
                     for nb in entry["bullets"]
                 ]
                 base["dropped_lines"] = [b["bullets"][i] for i in entry["dropped"]]
+                kept = [item["text"] for item in base["bullets"]]
+                for text in list(base["dropped_lines"]):
+                    if text in sole and text not in kept:
+                        base["bullets"].append({
+                            "text": text,
+                            "from_lines": [text],
+                            "story_titles": [],
+                            "used_answer": False,
+                        })
+                        base["dropped_lines"].remove(text)
+                        kept.append(text)
                 changed_count += 1
             else:
                 base["guarded"] = True
                 logger.info("metric cv_weave.role_guard_failed role_index=%d", b["index"])
         roles_out.append(base)
-    summary = parsed.get("summary")
+    raw_summary = parsed.get("summary")
+    summary = raw_summary.strip() if isinstance(raw_summary, str) and raw_summary.strip() else None
     if not extras_guard_ok(summary, own_material):
         summary = None
         logger.info("metric cv_weave.extras_guard_failed field=summary")
+    company = _current_company(cv_structured)
+    existing = str((cv_structured or {}).get("summary") or "")
+    opening_names_seat = bool(company) and company.casefold() in (summary or existing).casefold()
+    if coverage_items and company and not opening_names_seat:
+        seated = seat_lead(cv_structured)
+        if extras_guard_ok(seated, own_material):
+            summary = seated
+    reqs = [item.requirement for item in coverage_items]
     skills_line = parsed.get("skills_line")
-    if not extras_guard_ok(skills_line, own_material):
+    if not isinstance(skills_line, str) or not skills_line.strip():
+        current_skills = (cv_structured or {}).get("skills_line")
+        skills_line = current_skills if isinstance(current_skills, str) else None
+        if isinstance(skills_line, str):
+            ordered = lead_proven_tools(skills_line, reqs)
+            skills_line = None if ordered == skills_line else ordered
+    elif reqs:
+        skills_line = lead_proven_tools(skills_line, reqs)
+    if not extras_guard_ok(skills_line if isinstance(skills_line, str) else None, own_material):
         skills_line = None
         logger.info("metric cv_weave.extras_guard_failed field=skills_line")
     if changed_count == 0 and not summary and not skills_line:
@@ -455,6 +577,7 @@ def compose_weave(
     *,
     accept_summary: bool = True,
     accept_skills_line: bool = True,
+    requirements: list[str] | None = None,
 ) -> dict:
     """cv_structured for the tailored version: accepted+changed roles take their
     proposed bullets, everything else carries over verbatim. Pure."""
@@ -468,6 +591,7 @@ def compose_weave(
         next_cv["summary"] = proposal["summary"]
     if accept_skills_line and proposal.get("skills_line"):
         next_cv["skills_line"] = proposal["skills_line"]
+    restore_sole_proof(cv_structured, next_cv, requirements)
     return next_cv
 
 
@@ -524,6 +648,7 @@ def land_role(
     action: str,
     master: dict,
     original_indexes: list[int] | None = None,
+    requirements: list[str] | None = None,
 ) -> dict:
     """Patch one role onto the working draft. Take writes Mentor's bullets
     (per-pointer original puts the old line back); undo restores the master's;
@@ -543,4 +668,6 @@ def land_role(
             blocks[role_index]["bullets"] = [
                 str(b) for b in (master_blocks[role_index].get("bullets") or [])
             ]
+    if action == "take":
+        restore_sole_proof(cv_structured, next_cv, requirements)
     return next_cv

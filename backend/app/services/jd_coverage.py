@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-from app.services import memory_recall
+from app.services import jd_reflection, memory_recall
 from app.services.deepening_keys import DeepeningKey
 from app.services.llm_provider import LLMProvider, LLMProviderError
 
@@ -40,11 +40,11 @@ MAX_JD_CHARS = 16_000
 MAX_REQUIREMENTS = 14
 _PARSE_MAX_TOKENS = 1400
 
-# Best-story cosine bands. Covered = a story clearly evidences the requirement;
-# weak = adjacent but not proof; below → gap. Tuned conservatively so a wrong
-# "covered" (a trust breach) is rare — the user always sees the matched story.
+# Cosine only orders which lines are tried. JD Reflection decides whether a
+# line entails the motion. These bands are no longer a status.
 COVERED_MIN = 0.74
 WEAK_MIN = 0.58
+_RECALL_K = 8
 
 _PARSE_SYSTEM = (
     "You are a senior recruiter reading a job description. Extract the CONCRETE "
@@ -141,36 +141,38 @@ async def parse_requirements(jd_text: str, provider: LLMProvider) -> list[str]:
 
 
 def _classify(similarity: float) -> str:
+    """Order band only. Callers must not treat this as proof."""
     if similarity >= COVERED_MIN:
-        return "covered"
+        return "near"
     if similarity >= WEAK_MIN:
-        return "weak"
-    return "gap"
+        return "adjacent"
+    return "far"
+
+
+def _hit_text(hit: Any) -> str:
+    return " ".join(part for part in (hit.pointer, hit.result, hit.title) if part)
 
 
 async def _cover_one(user_id: str, requirement: str) -> CoverageItem:
-    hits = await memory_recall.recall_stories(user_id, requirement, k=1)
-    if not hits:
-        return CoverageItem(requirement=requirement, status="gap")
-    best = hits[0]
-    status = _classify(best.similarity)
-    # A CV line is a start, not an answer (Shivam, 2026-09-13). `covered` is what
-    # removes a requirement from the weave interview — permanently, on this job
-    # and every later one — so a story the user never actually told may evidence
-    # a requirement but may not close it. It shows as `weak`, and the interview
-    # still asks; the answer then upgrades that same story from thin to told.
-    if status == "covered" and not best.told:
-        status = "weak"
-    if status == "gap":
-        return CoverageItem(requirement=requirement, status="gap")
-    return CoverageItem(
-        requirement=requirement,
-        status=status,
-        story_id=best.id,
-        story_title=best.title,
-        story_pointer=best.pointer,
-        similarity=round(best.similarity, 3),
-    )
+    hits = await memory_recall.recall_stories(user_id, requirement, k=_RECALL_K)
+    weak: CoverageItem | None = None
+    for best in hits:
+        if not jd_reflection.entails(requirement, _hit_text(best)):
+            continue
+        # A story lifted off a CV may show the line. It may not close the
+        # question — the person has not told it (Shivam, 2026-09-13).
+        item = CoverageItem(
+            requirement=requirement,
+            status="covered" if best.told else "weak",
+            story_id=best.id,
+            story_title=best.title,
+            story_pointer=best.pointer or best.result,
+            similarity=round(best.similarity, 3),
+        )
+        if best.told:
+            return item
+        weak = weak or item
+    return weak or CoverageItem(requirement=requirement, status="gap")
 
 
 def bullets_from_cv(cv_structured: dict | None) -> list[str]:
@@ -208,21 +210,30 @@ async def _apply_cv_bullet_pass(items: list[CoverageItem], cv_bullets: list[str]
         logger.info("jd_coverage: cv-bullet embed failed (%s)", exc.__class__.__name__)
         return
     for i, item in enumerate(items):
-        best_sim, best_bullet = 0.0, ""
-        for bullet, bvec in zip(bullets, bvecs):
-            sim = cosine(qvecs[i], bvec)
-            if sim > best_sim:
-                best_sim, best_bullet = sim, bullet
-        if best_sim >= WEAK_MIN and best_sim > item.similarity:
+        if item.status == "covered":
+            continue
+        ranked = sorted(
+            (
+                (cosine(qvecs[i], bvec), bullet)
+                for bullet, bvec in zip(bullets, bvecs)
+            ),
+            key=lambda pair: pair[0],
+            reverse=True,
+        )
+        for sim, bullet in ranked:
+            if not jd_reflection.entails(item.requirement, bullet):
+                continue
+            # The line is on the paper the recruiter reads, so it is proof.
             items[i] = CoverageItem(
                 requirement=item.requirement,
-                status=_classify(best_sim),
+                status="covered",
                 story_id=None,
                 story_title="On your CV",
-                story_pointer=best_bullet,
-                similarity=round(best_sim, 3),
+                story_pointer=bullet,
+                similarity=round(sim, 3),
                 source="cv",
             )
+            break
 
 
 async def assess(
@@ -367,6 +378,10 @@ def patch_requirement_answered(raw: str | None, requirement: str, answer: str) -
         if item.requirement.strip().lower() != want or item.status == "covered":
             continue
         snippet = " ".join(answer.split())
+        # The answer's own words have to carry the motion. A nearby sentence
+        # does not flip the row to covered.
+        if not jd_reflection.entails(item.requirement, snippet):
+            return None
         result.requirements[i] = CoverageItem(
             requirement=item.requirement,
             status="covered",

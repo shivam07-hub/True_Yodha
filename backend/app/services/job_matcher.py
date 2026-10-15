@@ -94,8 +94,30 @@ def score_wanted(
     return score, matched, [key for _level, key in ranked_missing]
 
 
+def _with_paper_skills(
+    user_lower: dict[str, int], paper_skills: str | None,
+) -> dict[str, int]:
+    """Union the Job Document's skills line into this job's overlap.
+
+    A mention on the paper is a held skill for this job. It does not rewrite
+    the profile, and a level the person already has wins over the mention.
+    """
+    if not paper_skills or not paper_skills.strip():
+        return user_lower
+    from app.services.cv_explicit_skills import extract_explicit_skills
+
+    merged = dict(user_lower)
+    for row in extract_explicit_skills(paper_skills):
+        key = str(row.get("taxonomy_key") or "").strip().lower()
+        if key:
+            merged.setdefault(key, 1)
+    return merged
+
+
 def overlap(
-    job_skill_rows: list[dict], user_lower: dict[str, int]
+    job_skill_rows: list[dict],
+    user_lower: dict[str, int],
+    paper_skills: str | None = None,
 ) -> tuple[float, list[str], list[str]]:
     """One job's `job_skills` rows against one user's CV skills (keys lowercased):
     (score 0-100, matched, missing-deepest-first).
@@ -105,7 +127,9 @@ def overlap(
     prompts, and the extension's preview ring. A preview builds the rows its save
     will write (`job_importer.floor_rows`), so the number cannot move on save.
     """
-    return score_wanted(wanted_skills(job_skill_rows), user_lower)
+    return score_wanted(
+        wanted_skills(job_skill_rows), _with_paper_skills(user_lower, paper_skills),
+    )
 
 
 def get_top_matches(
