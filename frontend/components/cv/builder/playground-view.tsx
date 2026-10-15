@@ -17,7 +17,7 @@
  */
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
@@ -35,6 +35,8 @@ import { runAtsChecks } from "./ats-checks"
 import { useCvDiagnosis } from "./use-cv-diagnosis"
 import { identityLines } from "./cv-identity-lines"
 import { rewriteFetcher } from "./rewrite-fetchers"
+import { hasHideableBullets } from "@/lib/cv/page-fill"
+import { useMeasuredPageFill } from "@/lib/cv/use-measured-page-fill"
 import { exportSheetPdf } from "@/lib/cv/sheet-pdf"
 import { printCvPage } from "@/lib/cv/print-cv"
 import { masterFilename } from "@/lib/cv/download-master"
@@ -92,6 +94,8 @@ export function PlaygroundView({
   const [applyOpen, setApplyOpen] = useState(false)
   const [exportConfirm, setExportConfirm] = useState(false)
   const [pdfBusy, setPdfBusy] = useState(false)
+  const [template, setTemplate] = useState<CVTemplate>(DEFAULT_TEMPLATE)
+  useEffect(() => { setTemplate(readTemplatePref()) }, [])
   // Arriving here for a job is a core-loop step no other table records: before
   // 2026-09-28 nobody could say whether people reached the editor and stopped,
   // or never came.
@@ -99,6 +103,13 @@ export function PlaygroundView({
   const [railRequest, setRailRequest] = useState<{ tab: "fixes" | "skills"; n: number } | null>(null)
   const sheetWrapRef = useRef<HTMLDivElement>(null)
   const pendingTemplateRef = useRef<CVTemplate>(DEFAULT_TEMPLATE)
+  const measureWatch = JSON.stringify({
+    template,
+    sectionOrder,
+    hidden: [...hiddenItems].sort(),
+    cv,
+  })
+  const pageFill = useMeasuredPageFill(sheetWrapRef, measureWatch)
 
   const { dismissed, dismiss } = useDismissedFixes(`job:${jobId}`)
 
@@ -274,10 +285,12 @@ export function PlaygroundView({
     }
   }
 
-  function requestDownload(template?: CVTemplate) {
-    pendingTemplateRef.current = template ?? readTemplatePref()
-    if (m.pageFill.fits) void downloadInPlace(pendingTemplateRef.current)
-    else setExportConfirm(true)
+  function requestDownload(next?: CVTemplate) {
+    if (pdfBusy) return
+    const chosen = next ?? readTemplatePref()
+    pendingTemplateRef.current = chosen
+    setTemplate(chosen)
+    void downloadInPlace(chosen)
   }
 
   const editableJobMeta = jobId.startsWith("ext_")
@@ -315,7 +328,7 @@ export function PlaygroundView({
         leadCost={tailor.leadCost}
         onLead={tailor.showLead ? tailor.onHeader : undefined}
         primaryLabel={pdfBusy ? "Preparing…" : "Download CV"}
-        applyHint={m.pageFill.fits ? "Download this CV" : `Spills onto ${m.pageFill.pages} pages`}
+        applyHint="Download this CV"
         secondaryLabel="Apply"
         onSecondary={() => setApplyOpen(true)}
         secondaryDisabled={!applyHref}
@@ -345,7 +358,7 @@ export function PlaygroundView({
         hidden={hiddenItems}
         targeted
         atsChecks={atsChecks}
-        pageFill={m.pageFill}
+        pageFill={pageFill}
         lineCount={m.visibleCount}
         wordCount={m.wordCount}
         diagnosis={diagnosis}
@@ -356,6 +369,11 @@ export function PlaygroundView({
         onApplyRewrite={applyRewrite}
         onEditLine={editJobLine}
         onToggleHidden={toggleItem}
+        onFitToOnePage={
+          pageFill.measured && !pageFill.fits && hasHideableBullets(cv, hiddenItems)
+            ? () => setExportConfirm(true)
+            : undefined
+        }
         userSkills={userSkillsQuery.data}
         onPatch={patchBoth}
         onReorderRoles={(from, to) => {
@@ -391,6 +409,7 @@ export function PlaygroundView({
               sectionOrder={sectionOrder}
               contact={pdfContact}
               company={m.company || undefined}
+              template={template}
               footerMarkHidden={selectedVersion?.footer_mark_hidden ?? false}
             />
           </div>
@@ -399,11 +418,8 @@ export function PlaygroundView({
 
       {exportConfirm && (
         <TrimConfirm
-          cv={cv}
-          hiddenItems={hiddenItems}
-          pageFill={m.pageFill}
+          sheet={sheetWrapRef.current?.querySelector<HTMLElement>(".cvb-pdf-page") ?? null}
           toggleItem={toggleItem}
-          onDownload={() => void downloadInPlace()}
           onClose={() => setExportConfirm(false)}
         />
       )}
@@ -491,6 +507,7 @@ export function PlaygroundView({
           sectionOrder={sectionOrder}
           contact={pdfContact}
           company={m.company || undefined}
+          template={template}
           footerMarkHidden={selectedVersion?.footer_mark_hidden ?? false}
         />
       </div>

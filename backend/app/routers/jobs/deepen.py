@@ -14,7 +14,8 @@ router = APIRouter()
 DEEPEN_XP_COST = 5
 
 # Fixed prompt set (Q8 — freeform is v2). Keys are the contract with the
-# frontend (DEEPEN_PROMPTS in components/dashboard/deepeners.tsx).
+# The dashboard deepener panel was removed with the unmounted detail subtree.
+# These keys stay: prep and the deepen route still read job_deepenings.
 _PROMPTS: dict[str, str] = {
     "lift_fit": (
         "Name the 2-3 specific skills or gaps that would most raise this candidate's fit for the role, "

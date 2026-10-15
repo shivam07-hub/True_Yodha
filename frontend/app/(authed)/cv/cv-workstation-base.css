@@ -61,10 +61,31 @@
 /* The editor column is ~600px at a 1024 window, and the stats would not wrap
    or shrink: the bar ran 64px past the column into the rail's Fixes tab. The
    counts yield first, the page fact ("one page · 100%") never does, and the bar
-   shrinks to what is left — on every width, so no phone override is needed. */
+   shrinks to what is left — on every width, so no phone override is needed.
+   The fit offer shortens the same way: the long label is the base, the short
+   one is hidden until the column is narrow, and that override loads after. */
+.cvw-fit-short { display: none; }
 @container (max-width: 679px) {
   .cvw-fill-counts { display: none; }
+  .cvw-fit-long { display: none; }
+  .cvw-fit-short { display: inline; }
 }
+.cvw-fit {
+  appearance: none;
+  flex: none;
+  border: 0;
+  background: none;
+  margin: 0;
+  padding: 0;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-caption);
+  letter-spacing: 0.06em;
+  color: var(--tm-interactive-text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cvw-fit:hover { color: var(--tm-text); }
+.cvw-fit:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: 2px; }
 .cvw-fill-bar {
   flex: 0 1 auto; width: 90px; min-width: 24px; height: 4px; border-radius: 2px;
   background: var(--tm-surface-2); overflow: hidden;

@@ -114,6 +114,84 @@ def test_commit_first_role_rejects_a_current_match_outside_the_presented_top_thr
     assert jobs.writes == []
 
 
+def test_door_kind_appears_after_skills_when_there_is_no_direction(monkeypatch) -> None:
+    state = {}
+    profile: dict[str, Any] = {}
+    baseline = {"id": 17, "skills_confirmed_at": "now"}
+    monkeypatch.setattr(
+        onboarding_service, "OnboardingRepository",
+        lambda _db: type("State", (), {"get_state": lambda _self, _uid: state})(),
+    )
+    monkeypatch.setattr(
+        onboarding_service, "UsersRepository",
+        lambda _db: type("Users", (), {"get_profile": lambda _self, _uid: profile})(),
+    )
+    monkeypatch.setattr(
+        onboarding_service, "CVVersionsRepository",
+        lambda _db: type("CV", (), {"latest_baseline": lambda _self, _uid: baseline})(),
+    )
+
+    result = onboarding_service.get_result(object(), "u1")
+
+    assert result["kind"] == "awaiting_job_choice"
+    assert result["baseline_version_id"] == 17
+    assert result["journey_step"] == 2
+    assert result["furthest_step"] == 2
+
+
+def test_saved_first_role_accepts_an_imported_or_extension_job() -> None:
+    for source in ("onboarding_import", "extension"):
+        jobs = _JobsRepo([])
+        jobs.get_user_applications = lambda _user_id, source=source: [{
+            "job_id": "ext_1",
+            "source": source,
+            "jobs": {"job_title": "Product Manager", "company_name": "Acme"},
+        }]
+        assert onboarding_first_role.saved_first_role(jobs, "u1")["job_id"] == "ext_1"
+
+
+def test_accept_first_job_completes_with_a_tailor_receipt_and_retries(monkeypatch) -> None:
+    class _Jobs(_JobsRepo):
+        def __init__(self) -> None:
+            super().__init__([])
+            self.owned = {
+                "job_id": "ext_1",
+                "source": "user_discovery",
+                "jobs": {"job_title": "Product Manager", "company_name": "Acme"},
+            }
+
+        def get_application_with_job(self, _user_id: str, job_id: str) -> dict[str, Any] | None:
+            return self.owned if self.owned and self.owned["job_id"] == job_id else None
+
+        def upsert_application(self, user_id: str, job_id: str, payload: dict[str, Any]) -> None:
+            super().upsert_application(user_id, job_id, payload)
+            self.owned = {**self.owned, **payload, "job_id": job_id}
+
+        def get_user_applications(self, _user_id: str) -> list[dict[str, Any]]:
+            return [self.owned] if self.owned.get("source") in onboarding_first_role.FIRST_ROLE_SOURCES else []
+
+    jobs = _Jobs()
+    state = _OnboardingRepo()
+    completed: list[str] = []
+    monkeypatch.setattr(onboarding_first_role, "OnboardingRepository", lambda _db: state)
+    monkeypatch.setattr(onboarding_first_role.onboarding_service, "mark_completed", lambda _db, user_id: completed.append(user_id))
+
+    first = onboarding_first_role.accept_first_job(object(), jobs, "u1", "ext_1")
+    second = onboarding_first_role.accept_first_job(object(), jobs, "u1", "ext_1")
+
+    assert first == {
+        "kind": "first_role_saved",
+        "job_id": "ext_1",
+        "title": "Product Manager",
+        "company": "Acme",
+        "tailor_href": "/cv?jobId=ext_1",
+    }
+    assert second == first
+    assert jobs.writes == [("u1", "ext_1", {"status": "saved", "source": "onboarding_import"})]
+    assert state.milestones == [("u1", "credible_job_saved"), ("u1", "credible_job_saved")]
+    assert completed == ["u1", "u1"]
+
+
 def test_saved_first_role_rebuilds_the_receipt_after_reload() -> None:
     jobs = _JobsRepo([])
     jobs.get_user_applications = lambda _user_id: [{

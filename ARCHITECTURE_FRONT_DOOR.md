@@ -17,6 +17,14 @@ CEO grill (D6, Shivam, 2026-09-30).** UI slices go through `/frontend-design`.
 > partner upload rate is the later read, after this is on `main`.
 > S1: one import model (`createJobImport`). A link is reviewed before save;
 > a failed extract offers paste-instead. Measured in `job-import.test.ts`.
+> S2–S5 built 2026-10-14. After skills, no direction returns `awaiting_job_choice`
+> and the result page paints three doors. Paste and the extension finish through
+> `POST /onboarding/first-job` onto `/cv?jobId=`. Jobs that fit is Direction.
+> The extension door is hidden below 768px. `/market` has Paste a job on desktop
+> and phone, and a person with a CV and no direction sees "Want Myro to find
+> more like this?" beside it. Door steps are in the core-loop vocabulary.
+> Measured in `job-choice.test.ts`, `test_onboarding_first_role.py`, and
+> `setup-nudge-step.test.ts`. The QA-account click-through is still owed.
 
 ---
 
@@ -182,10 +190,10 @@ Clicks = `core_loop_events` rows between them.
 |---|---|---|
 | S0 | B2 · partner SSO goes through onboarding | **Shipped 2026-10-14.** Connect approval, the Google return, and the emailed link all enter `/onboarding`. A finished journey still reaches `/market` from that page. |
 | S1 | `use-job-import` + both skins; delete the duplicate logic | **Shipped 2026-10-14.** `createJobImport`: link → review → imported, and a failed extract offers paste-instead. `JobImportDialog` replaces `ManualAddModal`; `AddJobSheet` renders the same model. Neither skin fetches. |
-| S2 | Backend: `awaiting_job_choice`, `POST /onboarding/first-job`, generalised `saved_first_role` | Tests: door kind appears after skills; first-job completes with a tailor receipt; idempotent retry |
-| S3 | Door screen + `JourneyProgress` labels + telemetry migration | Upload → paste → playground on dev with the QA account, desktop and 375px |
-| S4 | "Paste a job" on /market, desktop and phone | Reach gate green; QA U4 passes |
-| S5 | Direction-after-download nudge for doors 1–2 | No empty /market for a person without a direction |
+| S2 | Backend: `awaiting_job_choice`, `POST /onboarding/first-job`, generalised `saved_first_role` | **Shipped with S3.** Door kind after skills; first-job receipt; idempotent retry. |
+| S3 | Door screen + `JourneyProgress` labels + telemetry migration | **Built 2026-10-14.** Result page paints the three doors; rail says Your CV → Your job; door steps are in the core-loop CHECK. QA click-through still owed. |
+| S4 | "Paste a job" on /market, desktop and phone | **Built 2026-10-14.** `PasteJobEntry` on the desktop feed and the phone jobs surface; import opens `/cv?jobId=`. |
+| S5 | Direction-after-download nudge for doors 1–2 | **Built 2026-10-14.** No-direction copy is "Want Myro to find more like this?", beside Paste a job, so /market is not an empty list. |
 
 ## 8 · Out of scope
 

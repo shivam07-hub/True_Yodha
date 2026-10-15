@@ -8,6 +8,7 @@ import { MyroLogo } from "@/components/myro-logo"
 import { AnalysisProgress } from "@/components/onboarding/analysis-progress"
 import { BaselineGenerator } from "@/components/onboarding/baseline-generator"
 import { FirstRunPlayground } from "@/components/onboarding/first-run-playground"
+import { JobChoice } from "@/components/onboarding/job-choice"
 import { JourneyProgress } from "@/components/onboarding/journey-progress"
 import { TargetConfirm } from "@/components/onboarding/target-confirm"
 import { Button } from "@/components/ui/button"
@@ -31,11 +32,12 @@ export default function OnboardingResultPage() {
     () => searchParams.get("guide") === "1",
   )
   const [viewStep, setViewStep] = useState<number | null>(null)
+  const [fitting, setFitting] = useState(false)
   const [streamedPhase, setStreamedPhase] = useState<string | null>(null)
 
   const result = useQuery({
-    queryKey: [...dataKeys.onboardingResult(), viewStep] as const,
-    queryFn: () => onboarding.result(token!, viewStep ?? undefined),
+    queryKey: [...dataKeys.onboardingResult(), fitting ? 2 : viewStep] as const,
+    queryFn: () => onboarding.result(token!, fitting ? 2 : viewStep ?? undefined),
     enabled: Boolean(token),
     // Dead-man only: CVUploadLifecycleObserver streams phase events. Polling
     // /onboarding/result every few seconds was paying a heavy read for a status
@@ -138,13 +140,16 @@ export default function OnboardingResultPage() {
     if (result.data.kind === "awaiting_skill_confirmation") {
       return <FirstRunPlayground token={token} result={result.data} onConfirmed={advance} onForward={furthest > 1 ? forward : undefined} />
     }
+    if (result.data.kind === "awaiting_job_choice") {
+      return <JobChoice token={token} onFit={() => setFitting(true)} />
+    }
     if (result.data.kind === "awaiting_target") {
       return (
         <TargetConfirm
           token={token}
           result={result.data}
           onConfirmed={() => advance()}
-          onBack={() => setViewStep(1)}
+          onBack={() => fitting ? setFitting(false) : setViewStep(1)}
           onForward={furthest > 2 ? forward : undefined}
         />
       )

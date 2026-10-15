@@ -186,22 +186,6 @@ export function AuthedTopStrip({ model, mountFeedbackHub = false }: AuthedTopStr
                   <div style={{ padding: "6px 10px 8px" }}>
                     <ThemeControl fluid />
                   </div>
-                  <div className="tm-topbar-menu-divider" />
-                  {[
-                    { id: "settings", icon: "⚙", label: "Settings",  color: "var(--tm-interactive-rest)", hoverBg: "rgba(255,255,255,0.04)" },
-                    { id: "signout",  icon: "→", label: "Sign out",   color: "rgba(255,145,145,0.95)", hoverBg: "rgba(255,80,80,0.08)"   },
-                  ].map((a) => (
-                    <button
-                      key={a.id}
-                      onClick={() => { setMenuOpen(false); if (a.id === "settings") { setSettingsTab("Account"); setShowSettings(true) } if (a.id === "signout") setSignOutConfirm(true) }}
-                      className="tm-topbar-menu-item"
-                      onMouseEnter={(e) => { e.currentTarget.style.background = a.hoverBg }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
-                    >
-                      <span style={{ fontSize: "var(--tm-fs-body)", color: a.color, minWidth: 18 }}>{a.icon}</span>
-                      <span style={{ fontSize: "var(--tm-fs-body)", color: a.color }}>{a.label}</span>
-                    </button>
-                  ))}
                   {/* Learn — the retired /myro hub's reference cards find their home
                       here, with the other secondary/reference links. */}
                   <div className="tm-topbar-menu-divider" />
@@ -217,6 +201,25 @@ export function AuthedTopStrip({ model, mountFeedbackHub = false }: AuthedTopStr
                       <span style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text-faint)", minWidth: 18 }}>·</span>
                       <span style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-interactive-rest)" }}>{l.label}</span>
                     </Link>
+                  ))}
+                  {/* Account actions close the menu. Settings, then Sign out, sit
+                      under the reference links the way Claude pins them to the
+                      bottom of the account menu. The legal line stays the footer. */}
+                  <div className="tm-topbar-menu-divider" />
+                  {[
+                    { id: "settings", icon: "⚙", label: "Settings",  color: "var(--tm-interactive-rest)", hoverBg: "rgba(255,255,255,0.04)" },
+                    { id: "signout",  icon: "→", label: "Sign out",   color: "rgba(255,145,145,0.95)", hoverBg: "rgba(255,80,80,0.08)"   },
+                  ].map((a) => (
+                    <button
+                      key={a.id}
+                      onClick={() => { setMenuOpen(false); if (a.id === "settings") { setSettingsTab("Account"); setShowSettings(true) } if (a.id === "signout") setSignOutConfirm(true) }}
+                      className="tm-topbar-menu-item"
+                      onMouseEnter={(e) => { e.currentTarget.style.background = a.hoverBg }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+                    >
+                      <span style={{ fontSize: "var(--tm-fs-body)", color: a.color, minWidth: 18 }}>{a.icon}</span>
+                      <span style={{ fontSize: "var(--tm-fs-body)", color: a.color }}>{a.label}</span>
+                    </button>
                   ))}
                   <div className="tm-topbar-menu-divider" />
                   <AccountLegalLinks />

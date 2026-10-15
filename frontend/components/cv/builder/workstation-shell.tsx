@@ -81,6 +81,8 @@ export interface WorkstationShellProps {
   /** Deep-link entry: `?mentor=1&skill=…` resolves to one CV line and opens its
    *  rewrite. A new value re-opens; null leaves the user's own choice alone. */
   requestOpenIid?: string | null
+  /** Over one page, the meter offers this. Absent when the CV fits or cannot hide a bullet. */
+  onFitToOnePage?: () => void
   className?: string
 }
 
@@ -92,7 +94,7 @@ export function WorkstationShell(props: WorkstationShellProps) {
     onEditLine, onCopyLine,
     onToggleHidden, onPatch, identityEditable, onAddBullet, userSkills,
     onReorderRoles, sectionOrder, onSectionOrder,
-    initialRailTab, requestRailTab, requestOpenIid, className,
+    initialRailTab, requestRailTab, requestOpenIid, onFitToOnePage, className,
   } = props
 
   const history = usePaperHistory()
@@ -274,6 +276,7 @@ export function WorkstationShell(props: WorkstationShellProps) {
             canRedo={history.canRedo}
             onUndo={history.undo}
             onRedo={history.redo}
+            onFitToOnePage={onFitToOnePage}
           />
           <div className="cvb-v2-editorbody">
             {mode === "sheet" ? sheet : (

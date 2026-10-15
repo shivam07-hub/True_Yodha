@@ -265,7 +265,7 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
               fontSize: "var(--tm-fs-caption)", fontWeight: 600, color: "var(--tm-interactive)", textDecoration: "none",
             }}
           >
-            See reviews + funnel →
+            See roles →
           </Link>
         </div>
       </div>

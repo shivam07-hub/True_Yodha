@@ -19,6 +19,7 @@ from docx.enum.text import WD_TAB_ALIGNMENT
 from docx.shared import Pt, RGBColor
 
 from app.services.cv_section_order import normalize_section_order, section_title
+from app.services.cv_structured_shape import is_blank
 
 _DARK = RGBColor(0x0A, 0x0A, 0x0A)
 _BODY = RGBColor(0x1A, 0x1A, 0x1A)
@@ -174,7 +175,7 @@ def generate_cv_docx(visible: dict[str, Any], contact: dict[str, Any], template:
         kr.font.color.rgb = _BODY
 
     def emit_certs() -> None:
-        certs = [c for c in (visible.get("certs") or []) if (c or "").strip()]
+        certs = [c for c in (visible.get("certs") or []) if not is_blank(c)]
         if not certs:
             return
         heading(section_title("certs", titles))

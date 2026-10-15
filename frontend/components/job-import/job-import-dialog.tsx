@@ -34,7 +34,7 @@ export function JobImportDialog({
 }: {
   token: string
   onClose: () => void
-  onImported: () => void
+  onImported: (jobId: string) => void
 }) {
   const importJob = useJobImport(token)
   const { state } = importJob
@@ -138,7 +138,7 @@ export function JobImportDialog({
                 variant="solid"
                 size="sm"
                 disabled={busy || !draft.role.trim() || !draft.jd.trim()}
-                onClick={() => void importJob.confirm(status).then((saved) => { if (saved) onImported() })}
+                onClick={() => void importJob.confirm(status).then((saved) => { if (saved) onImported(saved.jobId) })}
               >
                 {state.step === "importing" ? "Saving…" : "Save"}
               </Button>

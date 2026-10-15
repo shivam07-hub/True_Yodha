@@ -131,7 +131,9 @@ def merge_bullet_apply(
         )
 
     new_structured = cv_skill_edit.apply_bullet_merge(structured, located_a, located_b, body.merged_text)
-    new_body_text = cv_skill_edit.render_baseline_text(new_structured)
+    new_body_text = cv_skill_edit.render_baseline_text(
+        new_structured, previous_body_text=baseline.get("body_text") or "",
+    )
 
     next_n = cv_repo.next_user_version_number(user_id)
     title = "Master CV · merged 2 lines"

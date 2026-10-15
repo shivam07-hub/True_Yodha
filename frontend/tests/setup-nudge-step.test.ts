@@ -16,13 +16,13 @@ test("the nudge names the step the user is actually on", () => {
   // those 300 users have never confirmed their skills, so they were pointed
   // past the thing in their way at a step they cannot reach yet.
   assert.match(NUDGE, /Confirm your skills/)
-  assert.match(NUDGE, /Pick a target role/)
+  assert.match(NUDGE, /Want Myro to find more like this\?/)
   assert.match(NUDGE, /Upload your CV/)
 })
 
 test("skill confirmation is checked before the target", () => {
   const skills = NUDGE.indexOf("Confirm your skills")
-  const target = NUDGE.indexOf("Pick a target role")
+  const target = NUDGE.indexOf("Want Myro to find more like this?")
   assert.ok(skills > -1 && target > -1)
   assert.ok(skills < target, "the earlier unfinished step must win")
 })

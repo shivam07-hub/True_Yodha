@@ -274,16 +274,26 @@ class ListingVerificationRepository:
                 update["confidence_reason"] = (
                     f"{result.provider}_verifier_unreachable_x{failures}"
                 )
-        # `error`, `unroutable` and `source_failure` are the remaining cases and
-        # are deliberately inert. `error` is almost entirely
-        # `page_loaded_without_role_evidence`: an HTTP 200 on a client-rendered
-        # ATS whose HTML our fetch cannot read. `unroutable` is an apply URL that
-        # could never have addressed the listing, so its status code describes our
-        # data defect, not the job. `source_failure` is a closure the sweep's
-        # closure-share guard withheld because one host closed nearly everything
-        # at once. None of the three says anything about this listing, so none may
-        # degrade it or count as a check — leaving the conclusive clock untouched
-        # is what stops them renewing a stale claim.
+        else:
+            # `error`, `unroutable` and `source_failure` are the remaining cases
+            # and are deliberately inert. `error` is almost entirely
+            # `page_loaded_without_role_evidence`: an HTTP 200 on a
+            # client-rendered ATS whose HTML our fetch cannot read. `unroutable`
+            # is an apply URL that could never have addressed the listing, so its
+            # status code describes our data defect, not the job.
+            # `source_failure` is a closure the sweep's closure-share guard
+            # withheld because one host closed nearly everything at once. None
+            # of the three says anything about this listing, so none may degrade
+            # it or count as a check — leaving the conclusive clock untouched is
+            # what stops them renewing a stale claim.
+            #
+            # Nor do they write the jobs row at all. The claim (or the intent
+            # gate's `mark_attempted`) already stamped the queue's clock in
+            # `job_verification_schedule`; stamping `last_verification_attempt_at`
+            # again changes an indexed column, so Postgres rewrites every index
+            # on jobs for a check that learned nothing — and `error` alone is the
+            # last observation of about half the active corpus.
+            return
         _with_retry(
             lambda: self.db.table("jobs")
             .update(update)

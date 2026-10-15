@@ -1,130 +1,233 @@
+/**
+ * Page fill for the CV the person actually downloads.
+ *
+ * The PDF is A4 with 14mm margins (`backend/app/services/cv_pdf_html.py`) and the
+ * sheet's on-screen padding and footer are stripped before Chromium paginates
+ * (`_SERVER_PRINT_OVERRIDE`). A character budget cannot see that, and it used to
+ * refuse a download that printed at 97%. This module measures the export box.
+ *
+ * Download is never gated on the result. `fits` is a fact about the page, not a
+ * permission.
+ */
+
 import type { CVStructured } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
 
-/**
- * Page-fill estimate for the CV playground (DESIGN_cv_playground_redesign §5).
- *
- * The "ideal one-page CV" is modelled as a deterministic LINE BUDGET, not a
- * pixel measurement of the dark on-screen preview (whose typography differs from
- * the exported PDF). A line budget is honest, browser-free testable, and is the
- * `ideal_cv_spec` metadata the redesign asked for. The meter it drives is a SOFT
- * signal + soft export block (never a hard trap), per the locked decision.
- *
- * Exact pagination remains the exported PDF's job — this is an estimate that
- * moves monotonically as the user includes/excludes bullets.
- */
+/** Chromium's CSS pixel, used by `page.pdf`. */
+const CSS_PX_PER_INCH = 96
+const MM_PER_INCH = 25.4
 
-/** Metadata describing the target one-page CV. Defaults; later per-template. */
-export const IDEAL_CV_SPEC = {
-  page: "A4" as const,
-  fontPt: 10.5,
-  marginsIn: 0.6,
-  /** Approx. characters per line on A4 printable width at 10.5pt. */
-  charsPerLine: 98,
-  /** Approx. usable body text lines on one A4 page at this spec. */
-  lineBudget: 50,
-  // Soft section caps — surfaced as gentle nudges, never blocks.
-  summaryLinesMax: 3,
-  bulletsPerRole: [3, 5] as const,
-  bulletLinesMax: 2,
-  skillsLinesMax: 2,
-} as const
+/** A4, matching `format="A4"` and `@page { size: A4; margin: 14mm }`. */
+export const PDF_PAGE_MM = { width: 210, height: 297, margin: 14 } as const
+
+/** Sub-pixel slack so a rounding error does not flip a fitting CV to two pages. */
+export const PAGE_SLACK_PX = 2
 
 export interface PageFill {
-  /** 0..n, where 1.0 == exactly one page. */
+  /** Content height ÷ one export page. 1 is exactly one page. */
   ratio: number
-  /** round(ratio * 100) — may exceed 100 when content spills. */
+  /** round(ratio * 100). May exceed 100. */
   pct: number
-  /** Estimated page count, min 1. */
+  /** Export page count. At least 1 once measured. */
   pages: number
-  /** True when content fits on one page. */
+  /** True when the export fits on one page. */
   fits: boolean
+  /** False until the sheet has been laid out. An unmeasured CV still downloads. */
+  measured: boolean
 }
 
-/** Estimate how many rendered lines a block of text occupies. Empty → 0. */
-export function estimateLines(
-  text: string | null | undefined,
-  charsPerLine: number = IDEAL_CV_SPEC.charsPerLine,
-): number {
-  const t = (text ?? "").trim()
-  if (!t) return 0
-  return Math.max(1, Math.ceil(t.length / charsPerLine))
+export const UNMEASURED_PAGE_FILL: PageFill = {
+  ratio: 0,
+  pct: 0,
+  pages: 1,
+  fits: true,
+  measured: false,
 }
 
-/** Turn a used-line count into a page-fill estimate against the ideal budget. */
-export function pageFillFromLines(usedLines: number): PageFill {
-  const ratio = Math.max(0, usedLines) / IDEAL_CV_SPEC.lineBudget
+/** The box Chromium paginates into: A4 minus the 14mm margin on every side. */
+export function pdfContentBox(marginMm: number = PDF_PAGE_MM.margin): { width: number; height: number } {
+  const pxPerMm = CSS_PX_PER_INCH / MM_PER_INCH
+  return {
+    width: (PDF_PAGE_MM.width - 2 * marginMm) * pxPerMm,
+    height: (PDF_PAGE_MM.height - 2 * marginMm) * pxPerMm,
+  }
+}
+
+export function pageFillFromHeight(
+  contentHeightPx: number,
+  pageHeightPx: number = pdfContentBox().height,
+): PageFill {
+  if (!Number.isFinite(contentHeightPx) || contentHeightPx <= 0) return { ...UNMEASURED_PAGE_FILL }
+  if (!Number.isFinite(pageHeightPx) || pageHeightPx <= 0) return { ...UNMEASURED_PAGE_FILL }
+  const ratio = contentHeightPx / pageHeightPx
+  const fits = contentHeightPx <= pageHeightPx + PAGE_SLACK_PX
+  const pages = fits
+    ? 1
+    : Math.max(2, Math.ceil((contentHeightPx - PAGE_SLACK_PX) / pageHeightPx))
   return {
     ratio,
     pct: Math.round(ratio * 100),
-    pages: Math.max(1, Math.ceil(ratio - 1e-6)),
-    fits: ratio <= 1 + 1e-6,
+    pages,
+    fits,
+    measured: true,
   }
+}
+
+/** ok under 90% of a page, tight as it nears or just passes one page, over past 115%. */
+export function pageFillBand(fill: PageFill): "ok" | "tight" | "over" {
+  if (!fill.measured || fill.ratio < 0.9) return "ok"
+  if (fill.fits || fill.ratio <= 1.15) return "tight"
+  return "over"
+}
+
+export interface BulletCandidate {
+  id: string
+  textLength: number
+  /** Document order. A length tie hides the later bullet. */
+  index: number
 }
 
 /**
- * THE one-page estimate for a CV. Every surface calls this — there is no second
- * copy to drift from.
- *
- * It used to be written out twice: once in the signed-in workstation and once in
- * the public preview, whose comment claimed to "mirror" it. They diverged, and
- * the signed-in copy was the degraded one — it counted only identity, summary,
- * experience and skills, so PROJECTS, EDUCATION and CERTIFICATIONS were invisible
- * to the meter that gates the signed-in user's download. An anonymous visitor got
- * a more accurate verdict than someone with an account.
- *
- * Measured against a real print render while building one CV: the old signed-in
- * calculation read 54% where the truth was 62% (a populated projects section it
- * ignored entirely), then 110% "spills onto 2 pages" against a CV that genuinely
- * fits at 97%. Both directions wrong. The line budget remains an estimate — see
- * IDEAL_CV_SPEC — but it is now one estimate, over the whole document.
+ * Longest bullets first, until `heightWith` reports one page. A bullet that
+ * does not shorten the page is left alone. Already one page → nothing hidden.
  */
-export function computeFill(cv: CVStructured, hidden: Set<string>): PageFill {
-  const cpl = IDEAL_CV_SPEC.charsPerLine
-  let lines = 3 // contact header
-
-  if (cv.summary && !hidden.has(itemId("summary", 0, cv.summary))) {
-    lines += 1 + estimateLines(cv.summary, cpl)
-  }
-
-  let expVisible = false
-  cv.experience.forEach((e, ei) => {
-    const kept = e.bullets.filter((b, bi) => !hidden.has(itemId("exp_bullet", ei * 100 + bi, b)))
-    if (kept.length) {
-      expVisible = true
-      lines += 1 + kept.reduce((s, b) => s + estimateLines(b, cpl), 0)
+export function selectBulletsToHide(
+  candidates: readonly BulletCandidate[],
+  heightWith: (hidden: ReadonlySet<string>) => number,
+  pageHeightPx: number = pdfContentBox().height,
+): string[] {
+  if (!Number.isFinite(pageHeightPx) || pageHeightPx <= 0) return []
+  const ranked = candidates
+    .filter(c => c.id.length > 0)
+    .sort((a, b) => b.textLength - a.textLength || b.index - a.index)
+  const hidden = new Set<string>()
+  let height = heightWith(hidden)
+  if (!Number.isFinite(height) || height <= 0 || height <= pageHeightPx + PAGE_SLACK_PX) return []
+  for (const item of ranked) {
+    if (hidden.has(item.id)) continue
+    hidden.add(item.id)
+    const next = heightWith(hidden)
+    if (!Number.isFinite(next) || next >= height) {
+      hidden.delete(item.id)
+      continue
     }
-  })
-  if (expVisible) lines += 1
-
-  let projVisible = false
-  cv.projects.forEach((p, pi) => {
-    const kept = p.bullets.filter((b, bi) => !hidden.has(itemId("proj_bullet", pi * 100 + bi, b)))
-    if (kept.length) {
-      projVisible = true
-      lines += 1 + kept.reduce((s, b) => s + estimateLines(b, cpl), 0)
-    }
-  })
-  if (projVisible) lines += 1
-
-  const eduVisible = cv.education
-    .map((ed, i) => ({ line: [ed.institution, ed.degree, ed.dates].filter(Boolean).join(" · "), i }))
-    .filter(({ line, i }) => !hidden.has(itemId("edu", i, line)))
-  if (eduVisible.length) lines += 1 + eduVisible.length
-
-  if (cv.skills_line && !hidden.has(itemId("skills_line", 0, cv.skills_line))) {
-    lines += 1 + estimateLines(cv.skills_line, cpl)
+    height = next
+    if (height <= pageHeightPx + PAGE_SLACK_PX) break
   }
-
-  const certVisible = cv.certs.filter((c, i) => !hidden.has(itemId("cert", i, c)))
-  if (certVisible.length) lines += 1 + certVisible.length
-
-  return pageFillFromLines(lines)
+  return [...hidden]
 }
 
-/** Severity band for the meter colour (ok → tight → over). */
-export function pageFillBand(fill: PageFill): "ok" | "tight" | "over" {
-  if (fill.ratio <= 1 + 1e-6) return "ok"
-  if (fill.ratio <= 1.15) return "tight"
-  return "over"
+/** A bullet the person can still hide. Blank bullets are on the sheet too. */
+export function hasHideableBullets(cv: CVStructured, hidden: Set<string>): boolean {
+  for (let ei = 0; ei < cv.experience.length; ei++) {
+    const bullets = cv.experience[ei]?.bullets ?? []
+    for (let bi = 0; bi < bullets.length; bi++) {
+      if (!hidden.has(itemId("exp_bullet", ei * 100 + bi, bullets[bi] ?? ""))) return true
+    }
+  }
+  for (let pi = 0; pi < cv.projects.length; pi++) {
+    const bullets = cv.projects[pi]?.bullets ?? []
+    for (let bi = 0; bi < bullets.length; bi++) {
+      if (!hidden.has(itemId("proj_bullet", pi * 100 + bi, bullets[bi] ?? ""))) return true
+    }
+  }
+  return false
+}
+
+function exportReady(): boolean {
+  return typeof document !== "undefined" && document.body != null
+}
+
+/** Lay the sheet out the way the PDF renderer does, then throw the clone away. */
+function withExportClone<T>(sheet: HTMLElement, read: (clone: HTMLElement) => T): T {
+  const box = pdfContentBox()
+  const clone = sheet.cloneNode(true) as HTMLElement
+  clone.style.position = "static"
+  clone.style.left = "0"
+  clone.style.top = "0"
+  clone.style.transform = "none"
+  clone.style.zoom = "1"
+  clone.style.boxSizing = "border-box"
+  clone.style.width = `${box.width}px`
+  clone.style.minHeight = "0"
+  clone.style.height = "auto"
+  clone.style.maxHeight = "none"
+  clone.style.margin = "0"
+  clone.style.padding = "0"
+  clone.style.boxShadow = "none"
+  clone.querySelectorAll<HTMLElement>(".pdf-foot").forEach(foot => {
+    foot.style.display = "none"
+  })
+  const host = document.createElement("div")
+  host.setAttribute("data-page-meter", "")
+  host.setAttribute("aria-hidden", "true")
+  host.style.cssText = [
+    "position:fixed",
+    "left:0",
+    "top:0",
+    "visibility:hidden",
+    "pointer-events:none",
+    "z-index:-1",
+    `width:${box.width}px`,
+  ].join(";")
+  host.appendChild(clone)
+  document.body.appendChild(host)
+  try {
+    return read(clone)
+  } finally {
+    host.remove()
+  }
+}
+
+function bulletCandidates(root: HTMLElement): BulletCandidate[] {
+  const nodes = root.querySelectorAll<HTMLElement>("[data-cv-item]")
+  const out: BulletCandidate[] = []
+  nodes.forEach((el, index) => {
+    const id = el.getAttribute("data-cv-item") ?? ""
+    if (!id.startsWith("exp_bullet:") && !id.startsWith("proj_bullet:")) return
+    out.push({ id, textLength: (el.textContent ?? "").trim().length, index })
+  })
+  return out
+}
+
+/** Show or hide bullets, and drop a role or section the sheet would not render. */
+function applyHidden(root: HTMLElement, hidden: ReadonlySet<string>): void {
+  root.querySelectorAll<HTMLElement>("[data-cv-item]").forEach(el => {
+    const id = el.getAttribute("data-cv-item") ?? ""
+    el.style.display = hidden.has(id) ? "none" : ""
+  })
+  root.querySelectorAll<HTMLElement>("[data-cv-role]").forEach(role => {
+    const bullets = role.querySelectorAll<HTMLElement>("[data-cv-item]")
+    if (bullets.length === 0) return
+    const anyVisible = Array.from(bullets).some(el => el.style.display !== "none")
+    role.style.display = anyVisible ? "" : "none"
+  })
+  root.querySelectorAll<HTMLElement>("[data-cv-section]").forEach(section => {
+    const roles = section.querySelectorAll<HTMLElement>("[data-cv-role]")
+    if (roles.length === 0) return
+    const anyVisible = Array.from(roles).some(el => el.style.display !== "none")
+    section.style.display = anyVisible ? "" : "none"
+  })
+}
+
+/** Height of `sheet` in the export box. Unmeasured when it cannot be laid out. */
+export function measurePageFill(sheet: HTMLElement | null): PageFill {
+  if (!sheet || !exportReady()) return { ...UNMEASURED_PAGE_FILL }
+  const height = withExportClone(sheet, clone => clone.scrollHeight)
+  return pageFillFromHeight(height)
+}
+
+/**
+ * Bullet ids to hide so this sheet's export fits one page. Empty when it
+ * already fits, when nothing on it is a bullet, or when it cannot be laid out.
+ */
+export function bulletsToHide(sheet: HTMLElement | null): string[] {
+  if (!sheet || !exportReady()) return []
+  return withExportClone(sheet, clone => {
+    const candidates = bulletCandidates(clone)
+    return selectBulletsToHide(candidates, hidden => {
+      applyHidden(clone, hidden)
+      return clone.scrollHeight
+    })
+  })
 }

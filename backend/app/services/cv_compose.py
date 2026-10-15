@@ -9,9 +9,26 @@ item_id scheme (Q10 lock):  stable across re-parse so long as content stays the 
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
+from app.services.cv_contact import is_section_heading
 from app.services.cv_section_order import normalize_section_order
+from app.services.cv_structured_shape import is_blank
+
+#: Headings the seven contract keys already render. An alias of one of them
+#: stays with that key. Anything else the person wrote is carried verbatim.
+_KNOWN_HEADINGS = frozenset({
+    "summary", "professional summary", "profile", "objective", "about",
+    "experience", "work experience", "professional experience", "employment",
+    "employment history", "work history", "career history",
+    "education", "academic background", "qualifications",
+    "skills", "technical skills", "core skills", "key skills", "competencies",
+    "core competencies",
+    "projects", "personal projects", "academic projects",
+    "certifications", "certificates", "licenses",
+})
+_JOINERS = frozenset({"and", "of", "the", "for"})
 
 
 def _djb2(s: str) -> str:
@@ -32,13 +49,94 @@ def item_id(section_type: str, index: int, content: str) -> str:
     return f"{section_type}:{index}:{_djb2(body)}"
 
 
+def _norm_heading(line: str) -> str:
+    return " ".join(re.sub(r"[^a-z ]", " ", line.casefold()).split())
+
+
+def _next_nonempty(lines: list[str], index: int) -> str | None:
+    for line in lines[index + 1:]:
+        if line.strip():
+            return line
+    return None
+
+
+def _is_bullet(line: str) -> bool:
+    return line.strip().startswith(("•", "-", "*", "–"))
+
+
+def _is_title_label(line: str) -> bool:
+    """A short label, not a sentence and not a dated role line."""
+    words = line.split()
+    if not 2 <= len(words) <= 6:
+        return False
+    if any(ch.isdigit() or ch in ",.;:()" for ch in line):
+        return False
+    for word in words:
+        bare = word.strip("&/-")
+        if not bare or bare.casefold() in _JOINERS:
+            continue
+        if not bare[0].isupper():
+            return False
+    return True
+
+
+def _is_block_heading(line: str, nxt: str | None) -> bool:
+    stripped = line.strip()
+    if not stripped or len(stripped) > 60:
+        return False
+    if stripped[0] in "•*-–" or "·" in stripped or "|" in stripped or "@" in stripped:
+        return False
+    if re.search(r"\d{4}", stripped):
+        return False
+    if is_section_heading(stripped):
+        return True
+    letters = re.sub(r"[^A-Za-z]", "", stripped)
+    if (
+        len(letters) >= 3
+        and letters.isupper()
+        and re.fullmatch(r"[A-Za-z][A-Za-z0-9 &/,'’.-]*", stripped)
+    ):
+        return True
+    return bool(nxt and _is_bullet(nxt) and _is_title_label(stripped))
+
+
+def unknown_sections(previous_body_text: str | None) -> str:
+    """Blocks from a CV whose heading is not one of the seven contract sections.
+
+    Kept verbatim, in the order they were written. A second rewrite of the
+    text this returns does not repeat them: the same heading is found once.
+    """
+    if not previous_body_text:
+        return ""
+    lines = previous_body_text.splitlines()
+    starts = [
+        index for index, line in enumerate(lines)
+        if line.strip() and _is_block_heading(line, _next_nonempty(lines, index))
+    ]
+    blocks: list[str] = []
+    for position, start in enumerate(starts):
+        heading = _norm_heading(lines[start])
+        if heading in _KNOWN_HEADINGS:
+            continue
+        end = starts[position + 1] if position + 1 < len(starts) else len(lines)
+        chunk = "\n".join(lines[start:end]).strip()
+        if chunk:
+            blocks.append(chunk)
+    return "\n\n".join(blocks)
+
+
 def render_deterministic(
     cv_structured: dict[str, Any],
     hidden_items: list[str] | None = None,
     edited_items: dict[str, str] | None = None,
     section_order: list[str] | None = None,
+    carry_unknown_from: str | None = None,
 ) -> str:
-    """Render cv_structured into a plain-text CV, skipping hidden items and applying edits."""
+    """Render cv_structured into a plain-text CV, skipping hidden items and applying edits.
+
+    ``carry_unknown_from`` is the body this render replaces. Sections the seven
+    keys cannot hold are appended in their original words.
+    """
     hidden = set(hidden_items or [])
     edits = edited_items or {}
 
@@ -137,8 +235,9 @@ def render_deterministic(
         kept_certs: list[str] = []
         for i, cert in enumerate(certs):
             iid = item_id("cert", i, cert)
-            if keep(iid):
-                kept_certs.append(text_of(iid, cert))
+            text = text_of(iid, cert)
+            if keep(iid) and not is_blank(text):
+                kept_certs.append(text)
         if not kept_certs:
             return []
         return ["CERTIFICATIONS", *(f"• {c}" for c in kept_certs), ""]
@@ -174,4 +273,8 @@ def render_deterministic(
     for key in normalize_section_order(section_order):
         lines.extend(emitters[key]())
 
-    return "\n".join(lines).rstrip() + "\n"
+    rendered = "\n".join(lines).rstrip()
+    carried = unknown_sections(carry_unknown_from)
+    if carried:
+        rendered = f"{rendered}\n\n{carried}"
+    return rendered + "\n"

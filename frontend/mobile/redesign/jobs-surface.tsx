@@ -26,6 +26,7 @@ import { feedItemToRow } from "./job-model"
 import { MobileAgentPicks } from "./agent-picks-mobile"
 import { useMobileUI } from "./mobile-ui"
 import { JobsMobileFeedRows } from "@/components/loading/mobile-page-skeletons"
+import { PasteJobEntry } from "@/components/job-import/paste-job-entry"
 
 /* ══════════════════════════════════════════════════════════════════════════
    JobsSurface — the handoff Jobs tab: swipe-triage feed over the REAL market
@@ -239,6 +240,7 @@ export function JobsSurface({
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
             {/* No rank toggle: the list is forty jobs chosen for one person, so it
                 has one order. "Best fit ⇄ Newest" was reordering a sample. */}
+            <PasteJobEntry token={token} />
             <button onClick={() => setFiltersOpen(true)} style={{ height: 32, flex: "none", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6, padding: "0 11px", borderRadius: 10, border: "1px solid var(--mm-border)", background: "transparent", color: "var(--mm-text-3)", fontSize: "var(--tm-fs-caption)", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
               <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M4 7h16M7 12h10M10 17h4" /></svg>
               {filterCount > 0 ? `Filters · ${filterCount}` : "Filters"}

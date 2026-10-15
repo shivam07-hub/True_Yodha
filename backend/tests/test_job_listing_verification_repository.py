@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+import pytest
+
 from app.repositories.job_listing_verification import ListingVerificationRepository
 from app.services.job_listing_verifier import VerificationResult
 
@@ -262,9 +264,25 @@ def test_unreadable_page_neither_degrades_nor_verifies() -> None:
         )
     )
 
-    update = next(payload for table, payload in db.calls if table == "jobs")
-    assert set(update) == {"last_verification_attempt_at", "lifecycle_updated_at"}
-    assert all(table != "job_listing_observations" for table, _ in db.calls)
+    assert db.calls == []
+
+
+@pytest.mark.parametrize("inert", ["error", "unroutable", "source_failure"])
+def test_a_check_that_learned_nothing_writes_nothing(inert: str) -> None:
+    """The claim already stamped `job_verification_schedule`, the queue's clock.
+
+    Stamping the wide jobs row as well changes an indexed column, so Postgres
+    rewrites every index on jobs — for a check that said nothing about the
+    listing, on a Micro instance where that write competes with user reads.
+    """
+    db = DB()
+    repo = ListingVerificationRepository(
+        db, now=lambda: datetime(2026, 7, 11, tzinfo=timezone.utc)
+    )
+
+    repo.record(VerificationResult("job-1", inert, "weak", "workday", 200))
+
+    assert db.calls == []
 
 
 def test_a_conclusive_verdict_clears_the_failure_run() -> None:

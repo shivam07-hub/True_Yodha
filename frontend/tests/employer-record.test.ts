@@ -52,7 +52,7 @@ test("a clean employer is told to the user too", () => {
 
 test("the note reaches both skins from one model", () => {
   // Desktop and mobile cannot tell a user different things about one employer.
-  const desktop = readFileSync("components/dashboard/detail-body.tsx", "utf8")
+  const desktop = readFileSync("components/market/job-detail-drawer.tsx", "utf8")
   const mobile = readFileSync("mobile/redesign/job-detail-sheet.tsx", "utf8")
   assert.match(desktop, /<EmployerRecordNote company=/)
   assert.match(mobile, /<EmployerRecordNote company=/)

@@ -6,6 +6,34 @@
 
 ---
 
+## 2026-10-15 — #58 S4 the page meter measures the export
+
+Download is never refused. The meter lays the sheet out in the A4 box the PDF uses. A page at 97% downloads; a real second page says so and still downloads. Fit to one page is the person's choice.
+
+## 2026-10-15 — #58 S3 unknown sections survive a master rewrite
+
+A skill edit, rewrite, merge, certificate, autosave, or restore keeps headings the seven keys cannot hold — leadership, awards, personal details — verbatim and in order. A fresh upload does not inherit the previous CV's sections.
+
+## 2026-10-14 — #58 S2 fabricated-role guard
+
+A job CV's experience must match a company and title on the master, and its dates may not widen. The write seam refuses anything else. Weave and polish drop the invented row and log it.
+
+## 2026-10-14 — #55 Return Loop closed
+
+In-app path verified against consumers: `/users/me` enqueues `list_reread`; /market and the phone feed mark stale cards `fc-rereading`; Picks, Collections, and the Next chip ask Verdict Currency; old Apply clicks are filed `saved`. S4 stays #59, blocked. The named `progress_line` ("N new · N moved up · N closed") was never a module — the bell says "N fresh matches" and /market says how many are worth your time.
+
+## 2026-10-14 — Reliability R1
+
+The closer ran two days running. `notice_closer_heartbeat.ran_at` and `notice_digest_state.sent_at` are 2026-10-13 02:30:05Z, then 2026-10-14 02:30:05Z. The digest timestamp moves only after the mail sends.
+
+## 2026-10-14 — Supabase compute stays Micro
+
+Small was the unpaid half of #16 (Pro + Small, decided 2026-09-30). Declined (Shivam, 2026-10-14): cost. Compute stays Micro — `shared_buffers` 224MB, `max_connections` 60. The ~300ms floor and the reads that clear 2s only because of that size stay until a query gets cheaper. S4's graded fit stays deferred for the same reason.
+
+## 2026-10-14 — Employer record is on the live job panel
+
+`EmployerRecordNote` and `ListingLiveness` mount in the desktop job drawer and the phone sheet. The unmounted subtree (`detail-body`, `lenses`, `more-roles`, `lens-company`, `deepeners`) is deleted.
+
 ## 2026-10-14 — The backend tests run on what ships; R2 retired
 
 `b9d4785e` passed locally on FastAPI 0.135 and could not boot on the pinned 0.110.3

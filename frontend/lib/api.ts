@@ -1034,6 +1034,7 @@ export type OnboardingResult = OnboardingReach & (
   | { kind: "full_result_processing"; target: OnboardingTarget; phase: string; journey_step?: 1 | 2 }
   | { kind: "first_role_saved"; job_id: string; title: string; company: string; tailor_href: string }
   | { kind: "onboarding_complete"; redirect_to: "/market"; journey_step?: 1 | 2 }
+  | { kind: "awaiting_job_choice"; baseline_version_id: number; journey_step?: 1 | 2 }
   | { kind: "terminal_failure"; target: OnboardingTarget; error_code?: string; message?: string; xp_refunded: boolean }
   | {
       kind: "awaiting_skill_confirmation"
@@ -1178,9 +1179,18 @@ export const onboarding = {
     // next. Seed the cache with it instead of re-asking: measured on prod
     // 2026-08-04, confirming took 8.4s and the refetch that discarded this
     // answer took another 8.2s, for one button press.
-    { status: "confirmed"; next: "target" | "shortlist_processing"; result: OnboardingResult }
+    { status: "confirmed"; next: "job_choice" | "target" | "shortlist_processing"; result: OnboardingResult }
   >(`/onboarding/baseline/${baselineId}/confirm-skills`, {
     method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ overrides }),
+  }),
+  acceptFirstJob: (token: string, jobId: string) => request<{
+    kind: "first_role_saved"
+    job_id: string
+    title: string
+    company: string
+    tailor_href: string
+  }>("/onboarding/first-job", {
+    method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ job_id: jobId }),
   }),
   commitFirstRole: (token: string, jobId: string) => request<FirstRoleReceipt>("/onboarding/first-role", {
     method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ job_id: jobId }),
@@ -2503,7 +2513,7 @@ export function emitJourneyPhase(
  *  tailoring, a Mentor run and an apply click each have their own record; these
  *  are the gaps between them. Tied to `CORE_LOOP_STEPS` and the SQL CHECK by
  *  `test_telemetry_vocabulary` — keep this union on one line. */
-export type CoreLoopStep = "card_tailor" | "panel_opened" | "panel_tailor" | "editor_opened" | "mentor_opened" | "downloaded" | "apply_asked"
+export type CoreLoopStep = "card_tailor" | "panel_opened" | "panel_tailor" | "editor_opened" | "mentor_opened" | "downloaded" | "apply_asked" | "door_shown" | "door_paste" | "door_extension" | "door_fit" | "job_imported"
 
 const CORE_LOOP_TELEMETRY_PATH = "/v1/telemetry/loop-step"
 
@@ -3603,6 +3613,7 @@ export interface CompanyReviewItem {
   outcome: string
   written_note: string | null
   created_at: string
+  author_ninja_name: string | null
 }
 
 export interface CompanyPage {
@@ -4131,12 +4142,6 @@ export interface SkillGapResponse {
   gap_pct: number
   total_required: number
   missing_count: number
-}
-
-/** A purchased deepener answer (Q8 XP-gated follow-up). */
-export interface DeepeningItem {
-  prompt_key: string
-  answer: string
 }
 
 /** One reach search — opened in the user's own browser (ADR-0018). */
@@ -4810,15 +4815,6 @@ export const jobs = {
   },
   /** SSE stream path for the streamed why-fit. Fed to useStreamingText.start(). */
   analyseStreamPath: (jobId: string) => `/jobs/analyse/${jobId}/stream`,
-  /** SSE stream path for an XP-gated deepener (Q8). prompt_key ∈ DEEPEN_KEYS. */
-  deepenStreamPath: (jobId: string, promptKey: string) =>
-    `/jobs/${encodeURIComponent(jobId)}/deepen/${encodeURIComponent(promptKey)}/stream`,
-  /** Already-purchased deepener answers for a job — lets the UI replay free + drop the 5 XP label. */
-  deepenings: (token: string, jobId: string) =>
-    request<{ items: DeepeningItem[]; sampled: boolean }>(
-      `/jobs/${encodeURIComponent(jobId)}/deepenings`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    ),
   path: (token: string, jobId: string) =>
     request<JobPathResponse>(`/jobs/applications/${encodeURIComponent(jobId)}/path`, {
       headers: { Authorization: `Bearer ${token}` },

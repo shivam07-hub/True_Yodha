@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { cv, type CVStructured } from "@/lib/api"
+import { isBlank } from "@/lib/cv-compose"
 import { hasCvContent, latestBaseline } from "@/lib/cv/durable-answer"
 import { dataKeys } from "@/lib/domain-data"
 import { CvStructuredRecovery } from "@/components/cv/cv-structured-recovery"
@@ -11,7 +12,7 @@ export function FirstRunCvPaper({ cv: raw }: { cv: CVStructured }) {
   const experience = raw.experience ?? []
   const projects = raw.projects ?? []
   const education = raw.education ?? []
-  const certs = raw.certs ?? []
+  const certs = (raw.certs ?? []).filter((cert) => !isBlank(cert))
   const contact = raw.contact
   const name = contact?.name?.trim() || "Your name"
   const title = contact?.title?.trim() || experience[0]?.role || ""

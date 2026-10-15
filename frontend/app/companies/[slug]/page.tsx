@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { cache } from "react"
-import type { CompanyJobsResponse } from "@/lib/api"
+import type { CompanyJobsResponse, CompanyPage, CompanyReviewItem } from "@/lib/api"
 import { publicRead } from "@/lib/public-api"
 import { CompanyJobsClient } from "@/components/companies/company-jobs-client"
 import { RelatedCompanies } from "@/components/companies/related-companies"
@@ -16,7 +16,7 @@ import { RelatedCompanies } from "@/components/companies/related-companies"
  * Now: server-fetch the first page of roles, emit company-specific
  * title/description/self-canonical + ItemList JSON-LD, and render the real job
  * list into the server HTML (via the client child seeded with `initialData`).
- * Save / comments / pagination / signup stay client-side.
+ * A written review is included when one exists. Save and pagination stay client-side.
  *
  * Public data (companies/{name}/jobs has no auth). ISR hourly.
  */
@@ -24,8 +24,21 @@ import { RelatedCompanies } from "@/components/companies/related-companies"
 const BASE = "https://www.himyro.com"
 export const revalidate = 3600
 
-// Shared between generateMetadata and the page so one request serves both
-// (React cache dedupes within a single render pass).
+const getCompany = cache(async (companyName: string): Promise<CompanyPage | null> => {
+  try {
+    return await publicRead<CompanyPage>(
+      `/companies/${encodeURIComponent(companyName)}`,
+      { missing: "empty", next: { revalidate: 3600 } },
+    )
+  } catch {
+    return null
+  }
+})
+
+function writtenNotes(company: CompanyPage | null): CompanyReviewItem[] {
+  return (company?.reviews ?? []).filter((review) => (review.written_note ?? "").trim().length > 0)
+}
+
 const getCompanyJobs = cache(async (companyName: string): Promise<CompanyJobsResponse | null> => {
   try {
     const params = new URLSearchParams({ page: "1", page_size: "50" })
@@ -58,11 +71,11 @@ export async function generateMetadata(
   // no manual step.
   const indexable = total > 0
 
-  const title = `${companyName} jobs and hiring signals | Myro`
+  const title = `${companyName} jobs | Myro`
   const description =
     total > 0
-      ? `Explore ${total} open role${total !== 1 ? "s" : ""} at ${companyName}, with locations and skill signals from Myro's live job database.`
-      : `Live open roles, locations, and skill signals for ${companyName}, from Myro's live job database.`
+      ? `${total} open role${total !== 1 ? "s" : ""} at ${companyName}.`
+      : `Open roles at ${companyName}.`
 
   return {
     title,
@@ -82,9 +95,12 @@ export default async function CompanyJobsPage(
   { params }: { params: { slug: string } },
 ) {
   const companyName = decodeURIComponent(params.slug)
-  // The one J0 read (React.cache dedupes it with generateMetadata). Skill
-  // demand is J2: the client loads it only after its disclosure is opened.
-  const data = await getCompanyJobs(companyName)
+  // Roles are the page. A written review, when one exists, rides the company
+  // payload — the same reviews the close-out already stores.
+  const [data, company] = await Promise.all([
+    getCompanyJobs(companyName),
+    getCompany(companyName),
+  ])
 
   // ItemList of the rendered roles — matches on-page content exactly (no invented
   // JobPosting salary/employment data). Helps AI engines chunk the role list.
@@ -114,6 +130,7 @@ export default async function CompanyJobsPage(
       <CompanyJobsClient
         companyName={companyName}
         initialData={data}
+        notes={writtenNotes(company)}
       />
       <RelatedCompanies current={companyName} />
     </>

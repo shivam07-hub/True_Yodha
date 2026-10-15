@@ -17,21 +17,19 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 
 | # | Step | Item | Spec · owner | Next |
 |---|---|---|---|---|
-| 1 | Find the job | **#55** a returning user's list never vanishes | [ARCHITECTURE_RETURN_LOOP.md](ARCHITECTURE_RETURN_LOOP.md) · decisions taken below | S0–S5 built 2026-10-13 · S4 (#59) live only after Shivam approves the preview |
 | 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read the funnel on prod after the next merge |
 | 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) | Built; first email = their whole /market list, later = new only (Shivam 2026-10-14, `0aafb324`). **BLOCKED on Shivam**: merge carrying `0aafb324` → preview → approve |
-| 4 | Front door | **#57** "Which job do you want?" after upload · partner SSO lands on the upload (22% of partner people upload vs 67% direct) | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor, 1st | S0–S1 shipped 2026-10-14 · next S2 door kind |
-| 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1 blank certs |
+| 4 | Front door | **#57** "Which job do you want?" after upload · partner SSO lands on the upload (22% of partner people upload vs 67% direct) | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor, 1st | S0–S5 built 2026-10-14 · QA click-through still owed |
+| 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1–S4 built · next S5 add role |
 | 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor, 3rd | S0 audit, today's rule |
 | 6 | Pay | **#56** the ₹199 Apply Pack | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Cursor, 4th | S1 settlement |
-| 1 | Find the job | Employer record on the live job panel (renders nowhere today) | below · Cursor, 5th | mount desktop + phone, delete dead subtree |
 | 1 | Find the job | **7e** semantic retrieval for the 21 still-empty lists | below · agent | measure, no judge calls |
 | — | Upload + direction | U1–U3 (QA list) · #46 S6 · #41 speed | below | — |
 
-**Cursor's order (Shivam, 2026-10-14):** #57 → #58 → #60 → #56 → employer record —
-the biggest absolute leak first (553 of 1,002 never upload; 511 arrived by partner
-SSO, 22% of them upload), then collected → tailored (26%); #60 once jobs flow
-again; pay after the value.
+**Cursor's order (Shivam, 2026-10-14):** #57 → #58 → #60 → #56. Employer record
+closed 2026-10-14 (live job panel). The biggest absolute leak first (553 of 1,002
+never upload; 511 arrived by partner SSO, 22% of them upload), then collected →
+tailored (26%); #60 once jobs flow again; pay after the value.
 
 Specs Cursor builds from, each slice its own commit with six gates green:
 RETURN_LOOP (#55) · PAYMENTS (#56) · FRONT_DOOR (#57) · CV_TIER_A (#58) ·
@@ -44,13 +42,6 @@ de-seed `f7dd4735`, `listing_time.py`; verify 3–6 in code) ·
 ---
 
 ## 1 · FIND THE JOB
-
-**#55 Return Loop — Shivam's decisions, 2026-09-30.** Show stale verdicts after
-current ones with **no word label** (a motion state only) · on return, re-rate the
-rows the person can already see first, then the normal 8-per-tick drain · when the
-re-read lands, one line: **"N new · N moved up · N closed since {day}"** (the
-existing `progress_line`) · the email transport (S4) goes **only to the golden
-list** — see §3. Do not bump `PROMPT_VERSION` casually until S1 ships.
 
 **The corpus is the scraper repo's (Shivam).** Running again since 2026-10-01 —
 28,120 active jobs younger than 7 days on 2026-10-02. This repo only reads jobs;
@@ -112,16 +103,6 @@ is the original grill.
     **LOCKED (3 forks):** **(F1) Ordinal rank** — 1st/2nd/3rd most important skill per job, not a numeric weight or 3-tier bucket. **(F2) Whole matcher, not extension-only** — feeds `job_matcher` weighted overlap, playground Ready/gap ranking (which gap matters MOST for THIS job — dovetails with Lane C JD coverage, memory `project_story_memory_jd_interview`), heatmap, AND extension chips; interacts with #36 N3 brain-eval as the deterministic-layer signal underneath the holistic LLM rank, not a replacement for it. **(F3) Extraction runs on the judgment lane** (`get_judgment_provider`/tier-2c+, per `feedback_no_cheap_models_judgment` — importance-from-JD-language is a judgment call, not counting) — current deterministic primary/secondary split stays as fail-soft.
 
     **⚠️ ROLLOUT GATE (Shivam): do NOT ship until BOTH extension-imported AND scraped (firecrawl_Supabase) jobs carry `job_skills` ordinal rank — a two-tier corpus (some jobs ranked, most not) was explicitly rejected.** This makes the item **blocked on sister-repo work**, not agent-actionable alone. Next agent: (1) open the coordination conversation with the scraper side (what does firecrawl_Supabase need to emit ordinal rank per skill it already extracts); (2) only once that path is real, build in this repo: extraction emits ordinal rank from JD language (judgment lane) → `job_skills.rank` column + import-path equivalent (shared-Supabase migration, manual-apply + PostgREST reload) → wire the 4 consumers above.
-
-**The employer's track record shows on no surface (found 2026-10-03, worse
-2026-10-14).** `EmployerRecordNote` is imported only by
-`components/dashboard/detail-body.tsx`, which nothing mounts since 2026-09-02
-(`e3c38423`); the phone sheet that used to show it is gone. The whole subtree is
-dead — `detail-body`, `lenses`, `more-roles`, `lens-company`, `deepeners` — while
-`dashboard-drawer-content.test.ts` and `employer-record.test.ts` still read its
-text and pass. **Cursor, 5th in its order (Shivam, 2026-10-14):** mount the
-employer record and `ListingLiveness` in the live job panel, desktop and phone,
-retarget those tests, delete the subtree on the way past.
 
 **#60 Skill evidence — [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md)
 (Shivam, 2026-10-07).** Stage A tags business jobs with "Transformation
@@ -187,10 +168,10 @@ CV for both. QA check **U4** is its acceptance.
 
 ## 5 · TAILOR + DOWNLOAD — #58 · [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md)
 
-**Tier A, now (Shivam, 2026-09-30):** #49 page-fill meter gates the download ·
-#52 empty certs heading · #50 add a role or project on desktop, and mobile edits
+**Tier A, now (Shivam, 2026-09-30):** #49 page meter measures the export and never gates the download (S4 built) ·
+#52 empty certs heading (S1 built) · #50 add a role or project on desktop, and mobile edits
 the job's CV not the master · #47/#48 minimum — the renderer keeps unknown
-sections verbatim · a fabricated-role guard: a tailored CV cannot add an employer
+sections verbatim (S3 built) · a fabricated-role guard (S2 built): a tailored CV cannot add an employer
 or title the master does not have. **Tier B, after front-door numbers exist:**
 #48 user-titled sections · #51 outcome not digits · #54 nine screens · #53 loss
 notice and restore.
@@ -226,13 +207,9 @@ notice and restore.
 
     Minimum fix: one user-titled section type with ordered entries, or at least `achievements` + a free-text heading per section. Additive migration; `normalize_section_order` already drops unknown keys, so old rows stay valid.
 
-49. **The page-fill meter is wrong in both directions and it gates the download.** `frontend/components/cv/builder/use-playground-model.ts:155-167` counts identity + `summary` + `experience` + `skills_line`. It never counts **projects, education or certs**. `playground-view.tsx:256` gates Download on `m.pageFill.fits`, and `trim-confirm.tsx` offers to auto-hide bullets on its verdict.
+49. **BUILT 2026-10-15 — the page meter reads the export, and a download is never refused.** A 98×50 character budget counted only identity, summary, experience and skills. It read 54% where a projects section made the page 62%, and 110% on a CV that printed at 97%, then refused the download.
 
-    Measured twice in one session against a real Chrome print render:
-    - CV with a populated `projects` section: **meter 54%, truth 62%** of printable height — understated by 34 points, because it ignored the entire section.
-    - Final CV: **meter 110% ("spills onto 2 pages"), truth 1 page at 97% fill.** It would have blocked the download of a CV that fits, and offered to delete bullets to fix a problem that did not exist.
-
-    The model is `charsPerLine: 98, lineBudget: 50` (`frontend/lib/cv/page-fill.ts`) — a constant-width approximation that matches no real typography. The build also showed **line-height, not font-size, is the binding constraint** on one-page fit (10.1pt/1.22 fits; 10.0pt/1.24 does not), and nothing in the product exposes either. Fix: measure the real rendered height of the export DOM at the export's own page width, or drop the hard gate to a soft warning until it can.
+    `measurePageFill` lays the sheet out in the A4 content box the PDF uses (14mm margins, on-screen padding and footer stripped). Checked against Chromium: 98% of that box is one page in the PDF; the next bullet is two pages in both. "Fit to one page" hides the longest bullets, including project bullets, until that height fits, and skips a bullet that does not shorten the page. The character model is gone.
 
 50. **Desktop cannot add a project or a role. Mobile can. Same account, same CV, capability split by viewport.** `ProjectsBody` returns `null` when `cv.projects.length === 0` (`cv-paper-sections.tsx:179-180`), and `EmptySection` — the only "add" affordance — is wired to exactly two sections, summary (`:102`) and skills (`:130`). Desktop has `onAddBullet(roleIndex, text)` and `onReorderRoles` but **no add-role, no delete-role, no move-between-sections**. Mobile has all of it: `mobile-cv-sections.tsx:105` (Add experience), `:139` (Add project), with delete and move. It is gated at `library-view.tsx:59` — `if (!isDesktop)`.
 
@@ -314,7 +291,7 @@ Upload reliability lives in QA checks **U1–U3** below. Read #46 S6 in the ligh
 
     Shape, decided: keep the five screens and make each a **one-tap confirmation** (Reddit/Pinterest pattern — every tap is Myro showing it knows them), not one summary screen behind a single tap. (a) **Work proposes the first DEFENSIBLE family in the top 5**, not only rank 1 — same `mayPropose` rule (non-catch-all AND the user holds one of its top skills), which takes it **14/27 → 27/27**; re-arm the proposal when the band-scoped list arrives, which also closes the `proposedRef` burn (the ref is spent on the band-LESS first response, and 13 of 27 get a catch-all there). (b) **Where opens on "Anywhere in India" as a stated answer**, with the CV city as the first chip labelled from the CV — never pre-selected, because location is a HARD filter on the match pool and a reflex tap must not shrink it (Shraddha studied in Kolkata and will relocate anywhere). (c) no false "could not save" after a save that succeeded — four things run after `saveTarget` inside the same `try`. ⚠️ **`target-confirm.tsx` is being actively worked by another agent** (`5d31bf83` added `withRealPrimary` and removed the `no_families` reasonCode); coordinate before starting.
 
-    **OPEN — S4 Graded job ↔ direction fit. ⚠️ MEASURED 2026-09-13 AND DEFERRED — it needs the paid DB compute gate, not more design.**
+    **OPEN — S4 Graded job ↔ direction fit. ⚠️ MEASURED 2026-09-13 AND DEFERRED.** It needed a larger database. That upgrade was declined (Shivam, 2026-10-14, cost). It stays deferred.
     The rule is right and Pareto-better (**76% precision / 40% reach** against the bucket's 71%/29%). The cost is the problem. On the shared Nano instance, against 46,801 live jobs:
 
     | how | cost |
@@ -328,7 +305,7 @@ Upload reliability lives in QA checks **U1–U3** below. Read #46 S6 in the ligh
 
     **Do not ship half of it.** Shipping the cheap half (the feed's role signal, which needs no new read — `main_skills` is already selected and `top_skills` is already on `role_family_labels`) while the candidate-pool selector keeps the bucket lookup would give the platform **two definitions of "does this job fit the direction"** — exactly the drift S1/S2 removed. One definition or none.
 
-    When compute allows, the shape is: a `role_family_pool(family, job_id, matched)` snapshot built in the same refresh, read by BOTH the selector and the feed so the definition stays single. Only then can `role_family_for_job`, `trg_refresh_job_role_family` and the column retire. Original notes:  Replace the remaining `jobs.role_family` reads (feed `_role_match_score`, `job_matcher` ROLE_BOOST, `get_candidate_job_ids_for_roles`, `roles_feed`, `partner/roles`, `refresh_sector_panel`) with "the job asks for ≥2 of the direction's characteristic skills": measured **76% precision / 40% reach** against the current bucket's 71%/29% — better on both. The feed can compute it with no extra read (`main_skills` is already selected and `top_skills` are display names; the two agree — 100% of scraper names are Stage A names). The candidate-pool selector needs an RPC over `job_skills` by `skill_id`. Only once these are gone can `role_family_for_job`, `trg_refresh_job_role_family` (per-row, ~2.9ms × 2 per skill row, ~57 min per two weeks of ingest) and the column itself retire.
+    The recorded shape, if it is ever built on this database: a `role_family_pool(family, job_id, matched)` snapshot built in the same refresh, read by BOTH the selector and the feed so the definition stays single. Only then can `role_family_for_job`, `trg_refresh_job_role_family` and the column retire. Original notes:  Replace the remaining `jobs.role_family` reads (feed `_role_match_score`, `job_matcher` ROLE_BOOST, `get_candidate_job_ids_for_roles`, `roles_feed`, `partner/roles`, `refresh_sector_panel`) with "the job asks for ≥2 of the direction's characteristic skills": measured **76% precision / 40% reach** against the current bucket's 71%/29% — better on both. The feed can compute it with no extra read (`main_skills` is already selected and `top_skills` are display names; the two agree — 100% of scraper names are Stage A names). The candidate-pool selector needs an RPC over `job_skills` by `skill_id`. Only once these are gone can `role_family_for_job`, `trg_refresh_job_role_family` (per-row, ~2.9ms × 2 per skill row, ~57 min per two weeks of ingest) and the column itself retire.
 
     **✅ S5 Prep ranks by closeness — SHIPPED 2026-09-14 (`bfc87170`, migration `20260914100000`). ⚠️ No authed run.** `compute_gap_skills` folds `skill_closeness` into `_priority`, normalised within the candidate set. This is the FIRST reader `skill_closeness` has ever had — S2 built 7,287 bonds and shipped with none, so "learn what is next to what you know" was a product claim with no code behind it. One RPC, **6.0ms as `authenticated`**, run inside the recompute's wave beside the family-market read rather than after it (a sequential hop on this path is ~165ms). Keyed on `taxonomy_key`, so it takes no user id and stays SECURITY INVOKER instead of becoming an oracle.
 
@@ -364,16 +341,13 @@ has one line in ARCHIVE 2026-10-14 with what it said.
 
 ## GATES — not a step
 
-- **#16 DB capacity — Shivam: Supabase Pro + Small compute** (decided
-  2026-09-30 for 2026-10-01). **Pro: done** — the Free plan's size quota
-  (1,789 MB vs 500 MB) RESTRICTED the project 2026-10-06 22:53 → 10-09 13:35
-  UTC: ~63h, zero SSO sessions and zero signups on 10-07/10-08. **Small: NOT
-  done** — `shared_buffers` still 224 MB / `max_connections` 60 on 2026-10-11
-  (Small ≈ 512 MB / 90): Settings → Compute and Disk → Small. Then rerun `market_arrival`: backend p95
-  < 500 ms, zero failures. Next latency target: `/users/me`, p95 2.75–4.2 s. An
-  unidentified ceiling sits at exactly 30,000 ms. `route.latency` and
-  `route_perf_events` are not yet verified against live traffic. History: ARCHIVE
-  2026-10-02 · `ARCHITECTURE_READ_PATH.md` §19.
+- **#16 DB capacity — Pro done, compute stays Micro** (Shivam, 2026-10-14).
+  Pro lifted the Free size quota that RESTRICTED the project 2026-10-06 22:53 →
+  10-09 13:35 UTC. Small was the other half of the 2026-09-30 decision.
+  **Declined, cost.** Compute stays Micro: `shared_buffers` 224 MB,
+  `max_connections` 60. Do not resize. The ~300ms floor, and any read that
+  clears 2s only because the database is this size, stay until a query gets
+  cheaper. History: ARCHIVE 2026-10-02 · `ARCHITECTURE_READ_PATH.md` §19.
 - **Prod deploy guard — Shivam.** `main` already holds `ea165951`. Confirm
   `curl https://api.himyro.com/health/ready` answers `ready`; then
   `railway variables -s mirror-backend-prod --set PORT=8000`; wait for green;
@@ -424,12 +398,8 @@ Locks: the closer runs from pg_cron (02:30 UTC, 06:30 retry) via
 query opens only at ≥2,000ms; the Railway death harvest is gone. ADR-0021
 amended. History: ARCHIVE 2026-10-10, `ARCHITECTURE_READ_PATH.md` §23–25.
 Agent-owned. The merge they waited for landed 2026-10-12 (PR #338, the 2s rule on
-prod); #339 followed 10-13. A scheduled check reads R1 on 10-14 and R3/R4 on 10-19.
+prod); #339 followed 10-13. A scheduled check reads R3/R4 on 10-19.
 
-- **R1 · Closer alive.** After the merge deploys: `notice_closer_heartbeat.ran_at`
-  moves after 02:30 UTC and a digest lands in hello@himyro.com (titan-email).
-  If not, read `net._http_response` (status/body) for the pg_cron call. Done =
-  two consecutive daily digests. 10-13: ran 02:30:05, 202, digest landed (1 of 2).
 - **R3 · Live latency.** Five warm samples / a week of `route.latency` on prod for
   `/jobs/feed-state`, `/jobs/at/{c}`, `/companies/{c}/jobs`, confirm-skills,
   `/partner/v1/sso/session`; record in §23–25. First 34 hours (10-12 08:57Z →
@@ -440,6 +410,32 @@ prod); #339 followed 10-13. A scheduled check reads R1 on 10-14 and R3/R4 on 10-
 - **R9 · Drain wall time** on the first scrape after the scraper is fixed: Stage A
   claim timestamps (`skill_floor_claimed_at` → `skill_floor_attempted_at`) for
   that run — expect minutes, not hours.
+- **R10 · Load off Micro, not a bigger Micro** (2026-10-14). Measured that night:
+  partner SSO's `resolve_credential`/`get_link` run 5–18 ms inside Postgres
+  (`pg_stat_statements`) yet open 2s+ Notices, and the app side is already wide
+  (100 threads, 40 in-flight reads, 100-conn pool) — the wait is the database.
+  The verifier claim's priority half took 1.16 s at 03:20 IST, ~57 µs per
+  shared-buffer HIT. So the lever is load. Shipped: `9d4ad00d` (Develop) — an
+  inert verifier result (`error`/`unroutable`/`source_failure`, `error` ≈54% of
+  active listings' last check) no longer rewrites the `jobs` row; the schedule
+  table is the queue clock. **Not on `origin/main` as of 2026-10-15 04:42 UTC**
+  (`git merge-base --is-ancestor 9d4ad00d origin/main` fails). HOT and the
+  verifier UPDATE volume move only after that deploy.
+  **Window 2026-10-15 03:00:28Z → 04:41:50Z** (101m). Counters still reset
+  2026-07-12 01:22:53Z. 171 queryids moved, **352.5s** of `total_exec_time`,
+  70,407 `shared_blks_read`. Full table: `ARCHITECTURE_READ_PATH.md` §28.
+  `jobs` HOT this window **134 / 2,714 updates (4.9%)**; lifetime
+  **87,499 / 3,238,435 (2.7%)**. 51 indexes at the start (heap 133MB, indexes
+  280MB, `shared_buffers` 224MB, db 1,471MB). The three verification indexes
+  scanned **0** times in the window. Lifetime since 07-12: `idx_jobs_verify_pending`
+  2 / 8.1MB, `idx_jobs_verification_queue` 1,305 / 47MB, `idx_jobs_verify_due`
+  7,104 / 36MB. Also zero since 07-12: `idx_jobs_job_content_hash` (4.8MB),
+  `idx_jobs_has_summary` (1.1MB). `idx_jobs_location_states_gin` is 0 scans and
+  stays — the feed still filters `location_states`. **Drop needs Shivam's yes.**
+  **Next load, do not build until asked:** the unload id page
+  (`listing_confidence` + `deletion_eligible_at`, 427 calls, **104.5s, 30%** of
+  the window, mean 245ms). `retire_closed_jobs` was another 49.3s. One SQL
+  LIMIT of history-free ids, keyset if it must resume. Compute stays Micro.
 
 ## AUTHED QA CHECKLIST — the CV machine (from the beta ledger, 2026-09-30)
 
@@ -492,13 +488,9 @@ Tracker (3) · no problem or not actionable (~25).
   `/users/me`, read before every continuation; it pauses when they leave and the
   next visit picks the pile up. 500 of 501 drain ticks on 10-13 had queued
   themselves.
-- **Compute → Small, now.** The plan is Pro (2026-10-14); the compute is still
-  Micro — `max_connections` 60, `shared_buffers` 224MB, Postgres up since 07-12
-  (Small reads 90 / 512MB and restarts it). It was meant to come before the merge
-  that put the Return door on prod; that merge landed 2026-10-13 (#339, with #55
-  S1–S5, the 1,000-row fix, the certificate fix, #59, Apply telemetry).
-  `capacity_queue` 10,803 on 10-14 (10,499 on 10-13). An agent re-runs
-  `market_arrival` after. Next merge: with Cursor's #57 S0 (Shivam, 2026-10-14).
+- **Next merge: with Cursor's #57 S0** (Shivam, 2026-10-14). #339 already
+  carried #55 S1–S5, the 1,000-row fix, the certificate fix, #59, and Apply
+  telemetry.
 - **Scraper (your repo, Shivam fixing it 2026-10-14): no feed since 2026-10-01.** Live jobs 70k+ → 49,637
   (10-11) as the verifier closes rows and nothing arrives — step 1 of the loop.
   `dead_man:job_ingestion` is open. Then: Axis Bank = 14,259 live rows (~18%,
@@ -509,6 +501,12 @@ Tracker (3) · no problem or not actionable (~25).
   "new since joining", which is nothing for all four. After the next merge, run
   the preview SQL in `ARCHITECTURE_GOLDEN_DIGEST.md` (status block), read the
   emails, approve; an agent then adds the schedule.
+- **Rotate the Finlatics API key.** The live key travelled in plain email
+  (hello@himyro.com thread "Re: shivam.mit20@gmail.com", 2026-08-10/11) and
+  Finlatics quoted it back. Order matters — revoking first cuts the SSO door
+  half of signups use: `scripts/partner_admin.py key --slug finlatics --scopes
+  sso,…` → hand it over through a secret channel → Finlatics swaps → `revoke
+  --prefix <old>`. Needs you + Finlatics.
 - Finlatics, optional: one user's SSO failed 2026-10-06 17:56 (`Server
   disconnected`, fixed `c9a0a047`); their auth account `b4203375…` exists with no
   seat, so their next SSO goes through the consent screen (safe, one extra step).

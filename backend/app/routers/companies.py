@@ -1,5 +1,3 @@
-import logging
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.database import get_supabase_admin
@@ -14,17 +12,13 @@ from app.schemas import (
     CompanyJobsResponse,
     CompanyPageResponse,
     CompanyReviewItem,
-    PostingNoteItem,
 )
 from app.services.concurrent_reads import run_concurrently
 
-_log = logging.getLogger(__name__)
-
-_POSTING_NOTES_LIMIT = 20
-# How many of a company's most recent postings the notes roll-up may join over.
-# Bounds both the PostgREST URL (one id per entry in a `comments.in_(...)`
-# filter) and the row count behind the company-page existence check.
-_NOTE_JOB_WINDOW = 200
+# Existence only. A company page is real when it has a listing or a review.
+# One row is enough; the old notes roll-up pulled 200 ids into a comments
+# filter and that read is gone with the comments table.
+_JOB_EXISTS_LIMIT = 1
 
 router = APIRouter(prefix="/companies", tags=["companies"])
 
@@ -76,31 +70,27 @@ def get_company_page(company_name: str) -> CompanyPageResponse:
         {
             "reviews": lambda: (
                 db.table("application_reviews")
-                .select("star_rating, last_stage, outcome, written_note, created_at")
+                .select(
+                    "user_id, star_rating, last_stage, outcome, written_note, created_at"
+                )
                 .ilike("company_name", company_name)
                 .order("created_at", desc=True)
                 .execute()
             ).data
             or [],
-            "jobs": lambda: _fetch_company_jobs_for_notes(db, company_name),
+            "jobs": lambda: _company_has_listing(db, company_name),
         },
         label="companies.detail",
     )
     rows = reads["reviews"]
-    company_jobs = reads["jobs"]
-    posting_notes = _notes_from_jobs(db, company_jobs) if company_jobs else []
+    has_listing = reads["jobs"]
 
-    # A company page exists if the company has EITHER a real job listing
-    # (the common case pre-trust — most companies have zero reviews this
-    # early, that's not the same as not existing) OR structured reviews OR
-    # public posting notes. Checking reviews/notes alone 404'd nearly every
-    # real company (Costco, Bain, Asian Paints, MSD all confirmed live in
-    # /jobs but 404ing here) — reviews are a trust output, not an existence
-    # gate; requiring them to render the page created a chicken-and-egg trust
-    # never gets a chance to build.
-    if not rows and not posting_notes and not company_jobs:
+    # A listing or a review is enough. Requiring a review 404'd companies that
+    # had live roles and no one had closed an application yet.
+    if not rows and not has_listing:
         raise HTTPException(status_code=404, detail="Nothing found for this company")
 
+    authors = _authors_for_notes(db, rows)
     review_count = len(rows)
     avg_star = round(sum(r["star_rating"] for r in rows) / review_count, 2) if review_count else None
     ghost_rate = (
@@ -120,6 +110,7 @@ def get_company_page(company_name: str) -> CompanyPageResponse:
             outcome=r["outcome"],
             written_note=r.get("written_note"),
             created_at=r["created_at"],
+            author_ninja_name=authors.get(r.get("user_id")) if _has_note(r) else None,
         )
         for r in rows
     ]
@@ -131,85 +122,35 @@ def get_company_page(company_name: str) -> CompanyPageResponse:
         ghost_rate=ghost_rate,
         stage_breakdown=stage_breakdown,
         reviews=reviews,
-        posting_notes=posting_notes,
-        posting_note_count=len(posting_notes),
     )
 
 
-def _fetch_company_jobs_for_notes(db, company_name: str) -> list[dict]:
-    """This company's most recent job rows (job_id, job_title only) — feeds both
-    the posting-notes join below and the company-page existence check (a company
-    with live listings and zero reviews/comments still exists).
+def _has_note(row: dict) -> bool:
+    return bool((row.get("written_note") or "").strip())
 
-    BOUNDED, deliberately. This read used to have no ``limit``: it pulled every
-    row a company had ever posted (Accenture ~2.7k) and handed all of those ids
-    to a single ``comments.in_(...)`` filter — a multi-kilobyte PostgREST URL
-    over an unindexed id list. On a big company the pair blew the 8s PostgREST
-    ceiling, which surfaced as ``httpx.ReadTimeout`` out of
-    ``_receive_response_headers`` and a **500 on the public company page**
-    (Google, CRED, Elastic, Aon, L.E.K. Consulting, Fermi AI all confirmed in
-    prod logs, the L.E.K. one timing out at exactly 8.0s). The same fetch-all
-    disease was already fixed once in ``fetch_company_jobs_page``; this was its
-    surviving twin.
 
-    Trade-off, stated rather than hidden: notes on a posting older than the
-    newest ``_NOTE_JOB_WINDOW`` roles for that company will not roll up onto the
-    company page. The companies that lose anything here are exactly the ones
-    that returned 500 before, so a bounded page beats an absent one — and the
-    truncation is logged, never silent.
+def _company_has_listing(db, company_name: str) -> bool:
+    """Whether this company has a job row.
+
+    Through the RPC because the fast plan needs ``lower(company_name) =``,
+    which PostgREST cannot express. One row: this used to pull 200 ids into
+    a comments filter, and that join left with the comments table.
     """
-    # Through the RPC for the same reason as `fetch_company_jobs_page`: the fast
-    # plan needs `lower(company_name) =`, which PostgREST cannot express. This
-    # `.ilike()` was the platform's #3 database consumer — 3,249 calls, mean
-    # 2,008ms, 6,524 seconds total, also pinned at the 8s statement_timeout.
-    # Through `idx_jobs_lower_company_first_seen`: 27ms.
     rows = (
         db.rpc(
             "company_jobs_for_notes",
-            {"p_company": company_name, "p_limit": _NOTE_JOB_WINDOW},
+            {"p_company": company_name, "p_limit": _JOB_EXISTS_LIMIT},
         ).execute()
     ).data or []
-    if len(rows) >= _NOTE_JOB_WINDOW:
-        _log.info(
-            "metric company_notes.window_truncated company=%s window=%s",
-            company_name,
-            _NOTE_JOB_WINDOW,
-        )
-    return rows
+    return bool(rows)
 
 
-def _notes_from_jobs(db, jobs: list[dict]) -> list[PostingNoteItem]:
-    """Roll up public notes left on this company's job postings (entity_type='job',
-    entity_id=job_id). Joins job title + author ninja_name service-side; user_id is
-    never surfaced. Returns [] on any miss so the company page never 500s on notes."""
-    title_by_id = {j["job_id"]: j.get("job_title") for j in jobs}
-
-    notes = (
-        db.table("comments")
-        .select("entity_id, body, user_id, created_at")
-        .eq("entity_type", "job")
-        .eq("status", "visible")
-        .in_("entity_id", list(title_by_id.keys()))
-        .order("created_at", desc=True)
-        .limit(_POSTING_NOTES_LIMIT)
-        .execute()
-    ).data or []
-    if not notes:
-        return []
-
-    user_ids = list({n["user_id"] for n in notes})
+def _authors_for_notes(db, rows: list[dict]) -> dict:
+    """Ninja names for reviews that carry a sentence. user_id stays here."""
+    user_ids = list({r["user_id"] for r in rows if _has_note(r) and r.get("user_id")})
+    if not user_ids:
+        return {}
     profiles = (
         db.table("user_profiles").select("id, ninja_name").in_("id", user_ids).execute()
     ).data or []
-    ninja_by_id = {p["id"]: p.get("ninja_name") for p in profiles}
-
-    return [
-        PostingNoteItem(
-            job_id=n["entity_id"],
-            role=title_by_id.get(n["entity_id"]),
-            body=n["body"],
-            author_ninja_name=ninja_by_id.get(n["user_id"]),
-            created_at=n["created_at"],
-        )
-        for n in notes
-    ]
+    return {p["id"]: p.get("ninja_name") for p in profiles}

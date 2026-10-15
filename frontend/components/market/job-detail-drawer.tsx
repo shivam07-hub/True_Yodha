@@ -14,6 +14,8 @@ import { useApplyCapture } from "@/components/jobs/use-apply-capture"
 import { ApplyCapturePrompt } from "@/components/jobs/apply-capture-prompt"
 import { ApplyRow } from "@/components/jobs/apply-row"
 import { MyroTake } from "@/components/jobs/myro-take"
+import { EmployerRecordNote } from "@/components/jobs/employer-record-note"
+import { ListingLiveness } from "@/components/jobs/listing-liveness"
 import { LocationLine, SkillChip } from "./job-card"
 import { JobReadinessPanel } from "./job-readiness"
 import { ShareJobButton } from "./share-job-button"
@@ -134,6 +136,10 @@ export function JobDetailDrawer({
           Computed once on first open, cached thereafter. Renders nothing when the
           brain has nothing to say. */}
       <MyroTake token={token} jobId={job.job_id} />
+      <div style={{ marginBottom: 18 }}>
+        <ListingLiveness jobId={job.job_id} />
+        <EmployerRecordNote company={job.company_name} />
+      </div>
       {job.skills.length > 0 ? (
         <div style={{ marginBottom: 18 }}>
           <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-muted)", marginBottom: 8 }}>Key skills</div>

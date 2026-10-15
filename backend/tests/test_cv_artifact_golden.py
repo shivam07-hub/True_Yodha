@@ -296,3 +296,24 @@ def test_role_and_education_locations_reach_the_page():
     text = " ".join(_extracted_text(_FIDELITY_HTML).split())
     assert "Chennai, India" in text
     assert "E-learning" in text
+
+
+def test_a_blank_cert_prints_no_heading_in_text_or_docx():
+    """`certs: [""]` used to emit a bare CERTIFICATIONS heading and a lone bullet."""
+    from app.services.cv_compose import render_deterministic
+
+    cv = {**VISIBLE_CV, "certs": ["", "   "]}
+    text = render_deterministic(cv)
+    assert "CERTIFICATIONS" not in text
+    assert not any(line.strip() == "•" for line in text.splitlines())
+    paragraphs = _docx_paragraphs(generate_cv_docx(cv, CONTACT))
+    assert not any("CERTIF" in paragraph.upper() for paragraph in paragraphs)
+
+
+@pytest.mark.skipif(not _chromium_available(), reason="Chromium not installed (playwright install)")
+def test_a_blank_cert_prints_no_heading_in_the_pdf():
+    from app.services.cv_compose import render_deterministic
+
+    text = render_deterministic({**VISIBLE_CV, "certs": [""]})
+    html = f'<div class="cvb-pdf-page"><pre>{text}</pre></div>'
+    assert "CERTIFICATIONS" not in _extracted_text(html)

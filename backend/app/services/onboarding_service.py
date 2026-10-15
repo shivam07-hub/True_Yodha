@@ -1088,6 +1088,16 @@ def _current_result(
             "journey_step": 1,
         }
 
+    # The door. After the skill check, a person with no direction and no job
+    # they already chose is asked which job they want. A direction skips the
+    # door and continues into Direction; a saved job is the receipt above.
+    if not has_target and not state.get("credible_job_saved_at"):
+        return {
+            "kind": "awaiting_job_choice",
+            "baseline_version_id": int(baseline["id"]),
+            "journey_step": 2,
+        }
+
     if not has_target or not profile.get("ninja_name_claimed_at"):
         # Direction is the last onboarding page. Target and claimed ninja name
         # are both required before Market. If a target was saved without a claim

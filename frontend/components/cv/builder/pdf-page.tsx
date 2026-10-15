@@ -9,7 +9,7 @@
 "use client"
 
 import type { CVStructured } from "@/lib/api"
-import { itemId } from "@/lib/cv-compose"
+import { isBlank, itemId } from "@/lib/cv-compose"
 import { normalizeSectionOrder } from "@/lib/cv/section-order"
 import type { CVTemplate } from "@/lib/cv/templates"
 import { useSectionTitle } from "@/components/cv/section-titles-provider"
@@ -68,9 +68,9 @@ function PdfBullet({ id, text, onClick, selected }: {
   // ATS — cannot tell a new bullet from a wrapped continuation line. Aria-hidden
   // because the <li> already announces itself to a screen reader.
   const mark = <span className="pdf-li-mark" aria-hidden>•</span>
-  if (!onClick) return <li>{mark}<span className="pdf-li-text">{text}</span></li>
+  if (!onClick) return <li data-cv-item={id}>{mark}<span className="pdf-li-text">{text}</span></li>
   return (
-    <li className={`pdf-bullet-interactive${selected ? " is-selected" : ""}`}>
+    <li data-cv-item={id} className={`pdf-bullet-interactive${selected ? " is-selected" : ""}`}>
       {mark}
       <button type="button" className="pdf-bullet-btn" onClick={() => onClick(id, text)}>{text}</button>
     </li>
@@ -104,7 +104,7 @@ export function PdfPage({
 
   const summaryHidden = cv.summary ? hidden.has(itemId("summary", 0, cv.summary)) : true
   const skillsHidden = cv.skills_line ? hidden.has(itemId("skills_line", 0, cv.skills_line)) : true
-  const visibleCerts = cv.certs.filter((c, i) => !hidden.has(itemId("cert", i, c)))
+  const visibleCerts = cv.certs.filter((c, i) => !isBlank(c) && !hidden.has(itemId("cert", i, c)))
 
   return (
     <div className="cvb-pdf-page" data-cv-template={template}>
@@ -128,10 +128,10 @@ export function PdfPage({
         }
         if (key === "experience" && visibleExperience.length > 0) {
           return (
-            <div key={key}>
+            <div key={key} data-cv-section="experience">
               <h2>{title("experience")}</h2>
               {visibleExperience.map((e, ei) => (
-                <div key={ei}>
+                <div key={ei} data-cv-role={ei}>
                   <div className="pdf-role-head">
                     <div>
                       <span className="pdf-role">{e.role}</span>
@@ -151,10 +151,10 @@ export function PdfPage({
         }
         if (key === "projects" && visibleProjects.length > 0) {
           return (
-            <div key={key}>
+            <div key={key} data-cv-section="projects">
               <h2>{title("projects")}</h2>
               {visibleProjects.map((p, pi) => (
-                <div key={pi}>
+                <div key={pi} data-cv-role={pi}>
                   <div className="pdf-role-head">
                     <div><span className="pdf-role">{p.name}</span></div>
                     {p.dates && <span className="pdf-dates">{p.dates}</span>}

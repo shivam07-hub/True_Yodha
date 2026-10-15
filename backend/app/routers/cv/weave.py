@@ -47,6 +47,7 @@ from app.services import (
     xp_service,
 )
 from app.services.llm_provider import get_blocking_judgment_provider
+from app.services.cv_role_guard import drop_invented
 from app.services.cv_structured_shape import has_content
 
 router = APIRouter()
@@ -513,6 +514,7 @@ def apply_weave(
             accept_summary=body.accept_summary,
             accept_skills_line=body.accept_skills_line,
         )
+    composed = drop_invented(master, composed)
     body_text = cv_compose.render_deterministic(composed)
     if draft:
         # The draft already carries its title — naming it again would cost a

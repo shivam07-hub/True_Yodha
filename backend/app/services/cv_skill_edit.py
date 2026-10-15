@@ -361,9 +361,19 @@ def _stamp_recompute_finished(cv_repo: CVVersionsRepository, baseline_id: int) -
 # ── New-baseline composer ─────────────────────────────────────────────────────
 
 
-def render_baseline_text(cv_structured: dict[str, Any]) -> str:
+def render_baseline_text(
+    cv_structured: dict[str, Any], *, previous_body_text: str | None = None,
+) -> str:
     """Render the mutated cv_structured into the body_text we persist on the
     new baseline_upload row. Reuses cv_compose.render_deterministic with no
     hidden_items overrides — the mutation already lives in cv_structured.
+
+    ``previous_body_text`` is the master being rewritten. Sections it holds
+    that the seven keys cannot are kept verbatim.
     """
-    return cv_compose.render_deterministic(cv_structured, hidden_items=None, edited_items=None)
+    return cv_compose.render_deterministic(
+        cv_structured,
+        hidden_items=None,
+        edited_items=None,
+        carry_unknown_from=previous_body_text,
+    )
