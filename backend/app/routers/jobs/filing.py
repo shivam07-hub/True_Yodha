@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from app.deps import Principal, get_principal
 from app.repositories.career_profile import CareerProfileRepository, get_career_profile_repository
+from app.repositories.connections import ConnectionsRepository, get_token_connections_repository
 from app.repositories.job_filing import JobFilingRepository, get_job_filing_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.services import core_loop, cv_of_record
@@ -24,8 +25,10 @@ from app.services.apply_filing import (
     with_stored_cv,
 )
 from app.services.filing_answers import FormQuestion, answer_questions
+from app.services.filing_notes import motion_match, written_to_choices
 from app.services.llm_provider import get_writer_provider
 from app.services.matching import on_demand
+from app.services.reach_intel import build_reach_intel
 
 router = APIRouter()
 
@@ -68,6 +71,20 @@ class FilingQuestionIn(BaseModel):
 class FilingResumeRequest(BaseModel):
     filename: str = Field(min_length=1, max_length=120)
     pdf_base64: str = Field(min_length=16, max_length=2_000_000)
+
+
+class FilingNote(BaseModel):
+    full_name: str
+    position: str
+
+
+class FilingNotesResponse(BaseModel):
+    applied: bool
+    has_export: bool
+    company: str
+    written_to: list[FilingNote]
+    motion_match: FilingNote | None
+    motion: str
 
 
 class FilingAnswersRequest(BaseModel):
@@ -350,6 +367,43 @@ def read_filing_resume(
         content=data,
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{name}"'},
+    )
+
+
+@router.get("/{job_id}/filing/notes", response_model=FilingNotesResponse)
+def filing_notes(
+    job_id: str,
+    principal: Principal = Depends(get_principal),
+    repo: JobFilingRepository = Depends(get_job_filing_repository),
+    jobs_repo: JobsRepository = Depends(get_token_jobs_repository),
+    connections: ConnectionsRepository = Depends(get_token_connections_repository),
+) -> FilingNotesResponse:
+    """The two notes after confirmation: one the person marks as already
+    written to, and the connection whose seat is the motion. Both from the
+    person's own export. Empty until the application is confirmed."""
+    auth = repo.authorization_for(principal.id, job_id)
+    applied = bool((auth or {}).get("received_at"))
+    meta = jobs_repo.get_jobs_by_ids([job_id])
+    company = str((meta[0].get("company_name") if meta else "") or "")
+    if not applied:
+        return FilingNotesResponse(
+            applied=False, has_export=connections.count(principal.id) > 0,
+            company=company, written_to=[], motion_match=None, motion="",
+        )
+    rows = connections.find_at_company(principal.id, company, limit=25) if company else []
+    intel = build_reach_intel(
+        job_title=str((meta[0].get("job_title") if meta else "") or ""),
+        job_description=str((meta[0].get("job_description") if meta else "") or ""),
+        company=company or None,
+    )
+    matched = motion_match(rows, function=intel.function, target_titles=intel.target_titles)
+    return FilingNotesResponse(
+        applied=True,
+        has_export=connections.count(principal.id) > 0,
+        company=company,
+        written_to=[FilingNote(full_name=c.full_name, position=c.position) for c in written_to_choices(rows)],
+        motion_match=FilingNote(full_name=matched.full_name, position=matched.position) if matched else None,
+        motion=intel.function or (intel.target_titles[0] if intel.target_titles else ""),
     )
 
 

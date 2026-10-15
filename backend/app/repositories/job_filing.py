@@ -65,7 +65,7 @@ class JobFilingRepository:
         )
         cv = safe_read(
             self._db.table("cv_versions")
-            .select("id")
+            .select("id, cv_structured")
             .eq("user_id", user_id)
             .eq("job_id", job_id)
             .neq("kind", "baseline_upload")
@@ -76,7 +76,14 @@ class JobFilingRepository:
         )
         score = match[0].get("overall_score") if match else None
         cv_id = cv[0].get("id") if cv else None
-        return FilingFacts(listing=listing[0], judge_score=score, tailored_cv_id=cv_id)
+        structured = cv[0].get("cv_structured") if cv else None
+        experience = structured.get("experience") if isinstance(structured, dict) else None
+        return FilingFacts(
+            listing=listing[0],
+            judge_score=score,
+            tailored_cv_id=cv_id,
+            cv_experience=experience if isinstance(experience, list) else (),
+        )
 
     def authorization_for(self, user_id: str, job_id: str) -> dict[str, Any] | None:
         row = safe_read(

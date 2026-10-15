@@ -18,6 +18,7 @@ from app.services.apply_filing import (
     QUALIFIED_SCORE,
     RECEIPT_HOST,
     RECEIPT_TEXT,
+    SIDE_ROLE_OVERLAP,
     STALE_CV,
     FilingFacts,
     decide,
@@ -50,12 +51,14 @@ def _facts(**overrides: object) -> FilingFacts:
         "listing": _live(),
         "judge_score": QUALIFIED_SCORE,
         "tailored_cv_id": 12,
+        "cv_experience": (),
     }
     base.update(overrides)
     return FilingFacts(
         listing=base["listing"],  # type: ignore[arg-type]
         judge_score=base["judge_score"],
         tailored_cv_id=base["tailored_cv_id"],
+        cv_experience=base["cv_experience"],
     )
 
 
@@ -99,6 +102,26 @@ def test_a_check_older_than_the_confirm_window_is_unconfirmed() -> None:
     decision = decide(_facts(listing=listing), now=NOW, yes=True)
     assert LISTING_UNCONFIRMED in decision.blocks
     assert decision.ready is False
+
+
+def test_a_side_role_dated_across_a_full_time_seat_is_not_ready() -> None:
+    experience = [
+        {"role": "Consultant", "company": "Capgemini", "dates": "2021 - 2023"},
+        {"role": "Analyst", "company": "Finlatics", "dates": "2022 - 2022"},
+    ]
+    decision = decide(_facts(cv_experience=experience), now=NOW, yes=True)
+    assert decision.ready is False
+    assert SIDE_ROLE_OVERLAP in decision.blocks
+
+
+def test_dated_non_overlapping_roles_stay_ready() -> None:
+    experience = [
+        {"role": "Analyst", "company": "Acme", "dates": "2020 - 2021"},
+        {"role": "Lead", "company": "Beta", "dates": "2022 - 2024"},
+    ]
+    decision = decide(_facts(cv_experience=experience), now=NOW, yes=True)
+    assert decision.ready is True
+    assert SIDE_ROLE_OVERLAP not in decision.blocks
 
 
 def test_a_closed_listing_is_named_closed_even_with_a_recent_check() -> None:

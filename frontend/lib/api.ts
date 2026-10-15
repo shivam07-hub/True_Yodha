@@ -3529,6 +3529,22 @@ export interface JobFiling {
   received: boolean
 }
 
+export interface JobFilingNote {
+  full_name: string
+  position: string
+}
+
+/** The two referral notes after a confirmed application (ADR-0026 step 8). Both
+ *  come from the person's own connections export; the person sends them. */
+export interface JobFilingNotes {
+  applied: boolean
+  has_export: boolean
+  company: string
+  written_to: JobFilingNote[]
+  motion_match: JobFilingNote | null
+  motion: string
+}
+
 /** Whether a listing still exists. `unknown` is a real answer — an ATS that
  *  blocks or times out our check is no evidence the role is gone, so the
  *  surface says "couldn't check" rather than implying either verdict. */
@@ -4674,6 +4690,11 @@ export const jobs = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
+    }),
+  /** The two referral notes after a confirmed application (empty until then). */
+  getFilingNotes: (token: string, jobId: string) =>
+    request<JobFilingNotes>(`/jobs/${encodeURIComponent(jobId)}/filing/notes`, {
+      headers: { Authorization: `Bearer ${token}` },
     }),
   recordApplyIntent: (token: string, jobId: string, input: ApplyIntentInput) =>
     request<void>(`/jobs/${encodeURIComponent(jobId)}/apply-intents`, {

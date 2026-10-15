@@ -18,6 +18,7 @@ from datetime import datetime
 from typing import Any, Mapping
 from urllib.parse import urlparse
 
+from app.services.cv_seat_exclusivity import overlapping_seats
 from app.services.listing_time import verdict
 
 QUALIFIED_SCORE = 3.5
@@ -29,6 +30,7 @@ BELOW_JUDGE = "below_judge"
 NO_TAILORED_CV = "no_tailored_cv"
 NO_YES = "no_yes"
 STALE_CV = "stale_cv"
+SIDE_ROLE_OVERLAP = "side_role_overlap"
 RECEIPT_HOST = "receipt_host"
 RECEIPT_TEXT = "receipt_text"
 
@@ -46,6 +48,7 @@ class FilingFacts:
     listing: Mapping[str, Any]
     judge_score: Any
     tailored_cv_id: Any
+    cv_experience: Any = ()
 
 
 @dataclass(frozen=True)
@@ -82,6 +85,8 @@ def decide(
     cv_id = _cv_id(facts.tailored_cv_id)
     if cv_id is None:
         blocks.append(NO_TAILORED_CV)
+    elif overlapping_seats(facts.cv_experience) is not None:
+        blocks.append(SIDE_ROLE_OVERLAP)
 
     if yes is False:
         blocks.append(NO_YES)

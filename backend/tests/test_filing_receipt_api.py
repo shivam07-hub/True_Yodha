@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from app.deps import Principal, get_principal
 from app.main import app
 from app.repositories.career_profile import get_career_profile_repository
+from app.repositories.connections import get_token_connections_repository
 from app.repositories.job_filing import get_job_filing_repository
 from app.repositories.jobs import get_token_jobs_repository
 from app.routers.jobs import filing as filing_router
@@ -98,6 +99,28 @@ class _Jobs:
         _ = user_id
         self.answered.append(job_id)
 
+    def get_jobs_by_ids(self, job_ids: list[str]) -> list[dict[str, Any]]:
+        _ = job_ids
+        return [{
+            "job_id": "job-1",
+            "job_title": "Partner Solution Sales",
+            "job_description": "Own the partner solution sales motion.",
+            "company_name": "Microsoft",
+        }]
+
+
+class _Connections:
+    def __init__(self, rows: list[dict[str, Any]] | None = None) -> None:
+        self.rows = rows or []
+
+    def count(self, user_id: str) -> int:
+        _ = user_id
+        return len(self.rows)
+
+    def find_at_company(self, user_id: str, company: str, limit: int = 5) -> list[dict[str, Any]]:
+        _ = (user_id, company, limit)
+        return self.rows
+
 
 def _live(**extra: object) -> dict:
     at = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
@@ -123,10 +146,16 @@ class _Profiles:
         return self.profile, None
 
 
-def _bind(repo: _FilingRepo, jobs: _Jobs, profile: dict[str, Any] | None = None) -> None:
+def _bind(
+    repo: _FilingRepo,
+    jobs: _Jobs,
+    profile: dict[str, Any] | None = None,
+    connections: "_Connections | None" = None,
+) -> None:
     app.dependency_overrides[get_job_filing_repository] = lambda: repo
     app.dependency_overrides[get_token_jobs_repository] = lambda: jobs
     app.dependency_overrides[get_career_profile_repository] = lambda: _Profiles(profile)
+    app.dependency_overrides[get_token_connections_repository] = lambda: connections or _Connections()
     app.dependency_overrides[get_principal] = lambda: Principal(id="user-1", email=None)
 
 
@@ -270,6 +299,46 @@ def test_a_sheet_pdf_is_stored_for_the_walk() -> None:
         assert read.headers["content-type"] == "application/pdf"
         assert 'filename="Asha_Rao.pdf"' in read.headers["content-disposition"]
         assert jobs.updates == []
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_notes_are_empty_until_the_application_is_confirmed() -> None:
+    repo = _FilingRepo(FilingFacts(listing=_live(), judge_score=4.0, tailored_cv_id=9))
+    jobs = _Jobs()
+    conns = _Connections([{"full_name": "Asha Rao", "position": "Partner Solution Sales"}])
+    _bind(repo, jobs, connections=conns)
+    try:
+        with TestClient(app) as client:
+            res = client.get("/jobs/job-1/filing/notes")
+        body = res.json()
+        assert res.status_code == 200
+        assert body["applied"] is False
+        assert body["has_export"] is True
+        assert body["written_to"] == []
+        assert body["motion_match"] is None
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_two_notes_come_from_the_export_after_a_receipt() -> None:
+    repo = _FilingRepo(FilingFacts(listing=_live(), judge_score=4.0, tailored_cv_id=9))
+    repo.row["received_at"] = "now"
+    jobs = _Jobs()
+    conns = _Connections([
+        {"full_name": "Dev Khanna", "position": "Recruiter"},
+        {"full_name": "Asha Rao", "position": "Partner Solution Sales Lead"},
+    ])
+    _bind(repo, jobs, connections=conns)
+    try:
+        with TestClient(app) as client:
+            res = client.get("/jobs/job-1/filing/notes")
+        body = res.json()
+        assert res.status_code == 200
+        assert body["applied"] is True
+        assert body["company"] == "Microsoft"
+        assert [n["full_name"] for n in body["written_to"]] == ["Dev Khanna", "Asha Rao"]
+        assert body["motion_match"]["full_name"] == "Asha Rao"
     finally:
         app.dependency_overrides.clear()
 

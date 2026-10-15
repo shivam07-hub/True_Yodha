@@ -7,6 +7,7 @@ const LINES: Record<string, string> = {
   no_tailored_cv: "Tailor a CV for this role before filing.",
   no_yes: "Filing waits for a yes on this CV.",
   stale_cv: "Approve the latest CV for this role.",
+  side_role_overlap: "A side role is dated across a full-time seat. Date it so it doesn't overlap, then file.",
   receipt_host: "Open the company page, then save the confirmation.",
   receipt_text: "The confirmation on the page is too short to count.",
 }

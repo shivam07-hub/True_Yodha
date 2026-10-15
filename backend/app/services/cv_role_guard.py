@@ -154,6 +154,15 @@ def _inside(claim: tuple[int, int], held: tuple[int, int]) -> bool:
     return claim[0] >= held[0] and claim[1] <= held[1]
 
 
+def date_span(dates: str) -> tuple[int, int] | None:
+    """Public read of a CV date range as ``(start, end)`` YYYYMM codes.
+
+    One parser for every caller that reasons about when a role ran — the seat
+    exclusivity gate reads it so a second copy cannot drift from this one.
+    """
+    return _span(dates)
+
+
 def _span(dates: str) -> tuple[int, int] | None:
     """``(start, end)`` as YYYYMM. An unknown month fills the whole year.
     An open end is 999912. No year at all is not a dated claim.
