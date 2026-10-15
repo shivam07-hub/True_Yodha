@@ -45,5 +45,11 @@ test("the toolbar's counts yield before the page fact, and the bar shrinks on ev
   assert.deepEqual(decls("app/(authed)/cv/cv-workstation-chrome.css", ".cvw-fill-bar"), [])
 
   const toolbar = read("components/cv/builder/cv-pane-toolbar.tsx")
-  assert.match(toolbar, /<span className="cvw-fill-counts">\{lineCount\} lines · ~\{wordCount\} words · <\/span>\s*\{pages\} · \{pageFill\.pct\}%/)
+  assert.match(toolbar, /<span className="cvw-fill-counts">\{lineCount\} lines · ~\{wordCount\} words · <\/span>/)
+  assert.match(toolbar, /\{pages\} · \{pageFill\.pct\}%/)
+  const countsAt = toolbar.indexOf('<span className="cvw-fill-counts">')
+  const countsSpan = toolbar.slice(countsAt, toolbar.indexOf("</span>", countsAt) + "</span>".length)
+  assert.doesNotMatch(countsSpan, /\{pages\}/)
+  assert.ok(decls(base, ".cvw-fit-long").some(d => d.prop === "display" && d.value === "none" && d.at === "@container (max-width: 679px)"))
+  assert.ok(decls(base, ".cvw-fit-short").some(d => d.prop === "display" && d.value === "inline" && d.at === "@container (max-width: 679px)"))
 })

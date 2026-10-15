@@ -7,16 +7,12 @@ CEO grill (D7, Shivam, 2026-09-30).** UI slices go through `/frontend-design`.
 > fix is its own commit on `Develop`, six gates green. Tier B (#48 full schema,
 > #51, #53, #54) waits for front-door numbers — see BACKLOG §5.
 
-> **Status 2026-10-14 — S1 and S2 built.** A blank cert string is no content.
+> **Status 2026-10-15 — S1–S4 built.** A blank cert string is no content.
 > `is_blank` / `isBlank` drop it in the text render, the DOCX, and the sheet
-> the PDF is cut from. Measured in `test_cv_artifact_golden.py` and
-> `cv-artifact-fidelity.test.tsx`. A job document's experience must match a
-> master `(company, role)` and may not widen its dates (`cv_role_guard`).
-> Weave and polish drop an invented row and log `cv.fabricated_role_dropped`;
-> any other tailored write raises `FabricatedRoleError` (422). Measured in
-> `test_cv_role_guard.py`. S3 built 2026-10-15: a master rewrite appends
-> sections the seven keys cannot hold, verbatim and in their original order
-> (`carry_unknown_from`). Measured in `test_cv_unknown_sections.py`. S4–S5 still open.
+> the PDF is cut from. A job document's experience must match a master
+> `(company, role)` and may not widen its dates. A master rewrite appends
+> sections the seven keys cannot hold. The page meter measures the A4 export
+> box and never gates a download. S5 still open.
 
 ---
 
@@ -97,6 +93,10 @@ the export DOM at the export page width — the preview *is* the export
 and offers "Fit to one page" (`trim-confirm.tsx`) as the person's choice. Delete
 the character model once nothing reads it.
 
+**Built 2026-10-15.** The export box is A4 minus 14mm, with the sheet padding
+and footer stripped the way `cv_pdf_html.py` strips them. The character model
+is gone.
+
 ## 3 · Platform sweep
 
 | Surface | Touched by |
@@ -118,7 +118,7 @@ the character model once nothing reads it.
 | S1 | A · blank certs | **Built 2026-10-14.** `certs: [""]` prints no heading in text, DOCX, or the sheet. |
 | S2 | B · fabricated-role guard | **Built 2026-10-14.** Invented pair refused at the seam; weave and polish drop it and log; a role on the master passes. |
 | S3 | C · keep unknown sections | **Built 2026-10-15.** The five measured headings survive a master rewrite, once, in their original order. |
-| S4 | E · measured page fill | A CV at 97% downloads; a real 2-page CV shows "2 pages" and still downloads |
+| S4 | E · measured page fill | **Built 2026-10-15.** A CV at 97% of the A4 export box downloads. A real second page shows "2 pages" and still downloads. |
 | S5 | D · add role/project; phone routing | Add a role on desktop → it appears on the job doc; a phone edit on a job doc leaves the master untouched |
 
 ## 5 · How we will know it worked

@@ -37,6 +37,7 @@ import { PdfPage, type PdfPageContact } from "@/components/cv/builder/pdf-page"
 import { Icon } from "@/components/cv/builder/icons"
 import { PlaygroundHeader } from "@/components/cv/builder/playground-header"
 import { WorkstationShell } from "@/components/cv/builder/workstation-shell"
+import { TrimConfirm } from "@/components/cv/builder/trim-confirm"
 import { CvMatchInvite, CvTerminalCard } from "@/components/cv/builder/cv-rail-clear"
 import { identityLines } from "@/components/cv/builder/cv-identity-lines"
 import { rewriteFetcher } from "@/components/cv/builder/rewrite-fetchers"
@@ -47,7 +48,8 @@ import { itemId, renderDeterministic } from "@/lib/cv-compose"
 import { printCvPage } from "@/lib/cv/print-cv"
 import { exportAnonSheetPdf } from "@/lib/cv/sheet-pdf"
 import { masterFilename } from "@/lib/cv/download-master"
-import { computeFill, type PageFill } from "@/lib/cv/page-fill"
+import { hasHideableBullets } from "@/lib/cv/page-fill"
+import { useMeasuredPageFill } from "@/lib/cv/use-measured-page-fill"
 import { stashComposedCvText, getAnonSessionId } from "@/lib/anon-cv-stash"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import { AnonRestructureModal } from "./anon-restructure-modal"
@@ -76,6 +78,7 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
   const [restructuredText, setRestructuredText] = useState<string | null>(null)
   const [restructureOpen, setRestructureOpen] = useState(false)
   const [downloading, setDownloading] = useState(false)
+  const [fitOpen, setFitOpen] = useState(false)
   // The visible preview wrapper — the SAME `.cvb-pdf-page` sheet gets serialized
   // and rendered server-side (ADR-0020), so the PDF === the preview.
   const sheetRef = useRef<HTMLDivElement>(null)
@@ -126,7 +129,10 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
     [contact.name, contact.email],
   )
   const atsChecks = useMemo(() => runAtsChecks(cv, fakeProfile, filename), [cv, fakeProfile, filename])
-  const pageFill = useMemo<PageFill>(() => computeFill(cv, hidden), [cv, hidden])
+  const pageFill = useMeasuredPageFill(
+    sheetRef,
+    JSON.stringify({ cv, hidden: [...hidden].sort() }),
+  )
   // ONE scan per change, same hook as both authed surfaces.
   const diagnosis = useCvDiagnosis({ cv, hidden, atsChecks })
 
@@ -198,7 +204,7 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
             ready={result.score} delta={0}
             canApply
             primaryLabel={downloading ? "Preparing…" : "Download CV"}
-            applyHint={pageFill.fits ? "Download your CV" : `Spills onto ${pageFill.pages} pages`}
+            applyHint="Download your CV"
             saveState=""
             hideOverflow
             onBack={() => router.push("/")}
@@ -214,6 +220,11 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
         atsChecks={atsChecks}
         diagnosis={diagnosis}
         pageFill={pageFill}
+        onFitToOnePage={
+          pageFill.measured && !pageFill.fits && hasHideableBullets(cv, hidden)
+            ? () => setFitOpen(true)
+            : undefined
+        }
         lineCount={lineCount}
         wordCount={wordCount}
         makeFetcher={(bullet, fix) =>
@@ -268,6 +279,14 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
           kept={!!restructuredText}
           onClose={() => setRestructureOpen(false)}
           onKeep={text => { setRestructuredText(text); setRestructureOpen(false) }}
+        />
+      )}
+
+      {fitOpen && (
+        <TrimConfirm
+          sheet={sheetRef.current?.querySelector<HTMLElement>(".cvb-pdf-page") ?? null}
+          toggleItem={toggle}
+          onClose={() => setFitOpen(false)}
         />
       )}
 

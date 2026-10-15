@@ -23,7 +23,6 @@ import { jobs as jobsApi, cv as cvApi } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
 import { hiddenLineTexts } from "@/lib/cv/hidden-lines"
 import { dataKeys } from "@/lib/domain-data"
-import { computeFill, type PageFill } from "@/lib/cv/page-fill"
 import { matchScore, projectCoverage } from "./match-score"
 import { resolvePlaygroundCompany } from "./keyword-utils"
 
@@ -152,11 +151,6 @@ export function usePlaygroundModel(
     [visibleText],
   )
 
-  const pageFill: PageFill = useMemo(
-    () => computeFill(cv, hiddenItems),
-    [cv, hiddenItems],
-  )
-
   const sheetContact = useMemo(() => ({
     name: cv.contact?.name?.trim() || profile?.full_name?.trim() || "Your name",
     title: cv.contact?.title?.trim() || cv.experience[0]?.role || "",
@@ -167,6 +161,6 @@ export function usePlaygroundModel(
   return {
     job, application, company, jobTitle, jdText, roles,
     visibleText, ready, hasSemantic, coverageQuery, reqCount, gapRequirements,
-    visibleCount, wordCount, pageFill, sheetContact,
+    visibleCount, wordCount, sheetContact,
   }
 }

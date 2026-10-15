@@ -26,10 +26,13 @@ interface CvPaneToolbarProps {
   canRedo?: boolean
   onUndo?: () => void
   onRedo?: () => void
+  /** Present only when the CV is over one page and a bullet can still be hidden. */
+  onFitToOnePage?: () => void
 }
 
 export function CvPaneToolbar({
   mode, onMode, pageFill, lineCount, wordCount, canUndo, canRedo, onUndo, onRedo,
+  onFitToOnePage,
 }: CvPaneToolbarProps) {
   const band = pageFillBand(pageFill)
   const pages = pageFill.fits
@@ -63,20 +66,27 @@ export function CvPaneToolbar({
         </div>
       )}
 
-      <div className="cvw-fill" data-band={band}>
+      <div className="cvw-fill" data-band={pageFill.measured ? band : "ok"}>
         <span className="cvw-fill-stats">
           <span className="cvw-fill-counts">{lineCount} lines · ~{wordCount} words · </span>
-          {pages} · {pageFill.pct}%
+          {pageFill.measured && <>{pages} · {pageFill.pct}%</>}
         </span>
+        {pageFill.measured && onFitToOnePage && (
+          <button type="button" className="cvw-fit" onClick={onFitToOnePage}>
+            <span className="cvw-fit-long">Fit to one page</span>
+            <span className="cvw-fit-short">Fit</span>
+          </button>
+        )}
         <span
           className="cvw-fill-bar"
-          role="meter"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.min(100, pageFill.pct)}
-          aria-label="How much of one page this CV fills"
+          role={pageFill.measured ? "meter" : undefined}
+          aria-valuemin={pageFill.measured ? 0 : undefined}
+          aria-valuemax={pageFill.measured ? Math.max(100, pageFill.pct) : undefined}
+          aria-valuenow={pageFill.measured ? pageFill.pct : undefined}
+          aria-valuetext={pageFill.measured ? `${pages}, ${pageFill.pct}%` : undefined}
+          aria-label={pageFill.measured ? "How much of one page this CV fills" : undefined}
         >
-          <span style={{ width: `${Math.min(100, pageFill.pct)}%` }} />
+          {pageFill.measured && <span style={{ width: `${Math.min(100, pageFill.pct)}%` }} />}
         </span>
       </div>
     </div>

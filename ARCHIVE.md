@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-10-15 — #58 S4 the page meter measures the export
+
+Download is never refused. The meter lays the sheet out in the A4 box the PDF uses. A page at 97% downloads; a real second page says so and still downloads. Fit to one page is the person's choice.
+
 ## 2026-10-15 — #58 S3 unknown sections survive a master rewrite
 
 A skill edit, rewrite, merge, certificate, autosave, or restore keeps headings the seven keys cannot hold — leadership, awards, personal details — verbatim and in order. A fresh upload does not inherit the previous CV's sections.

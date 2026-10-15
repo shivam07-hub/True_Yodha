@@ -1,55 +1,62 @@
 /**
- * TrimConfirm — one-page guard before Download PDF (page-fill meter).
- * Auto-trim hides the lowest-impact bullets (longest lines first) until the
- * sheet fits one page; "Download anyway" respects the user's call.
+ * TrimConfirm — the person's choice to fit a CV onto one page.
+ *
+ * Download is never routed through here. The meter offers this when the export
+ * is over one page; confirming hides the longest bullets until the measured
+ * sheet fits, or until hiding another bullet would not shorten it.
  */
 "use client"
 
-import type { CVStructured } from "@/lib/api"
-import { itemId } from "@/lib/cv-compose"
-import { IDEAL_CV_SPEC, estimateLines, type PageFill } from "@/lib/cv/page-fill"
+import { useEffect, useRef } from "react"
+import { bulletsToHide } from "@/lib/cv/page-fill"
 import { Button } from "@/components/ui/button"
-import { Icon } from "./icons"
 
 interface TrimConfirmProps {
-  cv: CVStructured
-  hiddenItems: Set<string>
-  pageFill: PageFill
+  sheet: HTMLElement | null
   toggleItem: (iid: string) => void
-  onDownload: () => void
   onClose: () => void
 }
 
-export function TrimConfirm({ cv, hiddenItems, pageFill, toggleItem, onDownload, onClose }: TrimConfirmProps) {
-  function autoTrimToFit() {
+export function TrimConfirm({ sheet, toggleItem, onClose }: TrimConfirmProps) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useEffect(() => { dialogRef.current?.focus() }, [])
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "Escape") return
+      e.preventDefault()
+      onClose()
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [onClose])
+
+  function fitToOnePage() {
+    if (sheet) {
+      for (const id of bulletsToHide(sheet)) toggleItem(id)
+    }
     onClose()
-    const overflow = Math.max(0, Math.round(pageFill.ratio * IDEAL_CV_SPEC.lineBudget) - IDEAL_CV_SPEC.lineBudget)
-    if (overflow <= 0) return
-    const cpl = IDEAL_CV_SPEC.charsPerLine
-    const cands: { iid: string; lines: number }[] = []
-    cv.experience.forEach((e, ei) => e.bullets.forEach((b, bi) => {
-      const iid = itemId("exp_bullet", ei * 100 + bi, b)
-      if (!hiddenItems.has(iid)) cands.push({ iid, lines: estimateLines(b, cpl) })
-    }))
-    cands.sort((a, b) => b.lines - a.lines)
-    let freed = 0
-    for (const c of cands) { if (freed >= overflow) break; toggleItem(c.iid); freed += c.lines }
   }
 
   return (
-    <div className="cvb-modal-backdrop" role="dialog" aria-modal="true" aria-label="Trim to fit one page" onClick={onClose}>
-      <div className="cvb-modal" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
-        <div className="cvb-modal-head">Spills onto {pageFill.pages} pages</div>
+    <div className="cvb-modal-backdrop" onClick={onClose}>
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        className="cvb-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Fit to one page"
+        style={{ maxWidth: 440 }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="cvb-modal-head">Fit to one page</div>
         <div className="cvb-modal-body" style={{ padding: 18 }}>
           <p style={{ margin: 0, fontSize: "var(--tm-fs-body)", lineHeight: 1.6, color: "var(--tm-text-muted)" }}>
-            Recruiters skim one page. Auto-trim hides your lowest-impact bullets until it fits — or download as-is.
+            Hides the longest bullets until the CV is one page.
           </p>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 18, flexWrap: "wrap" }}>
             <Button variant="neutral" size="sm" onClick={onClose}>Cancel</Button>
-            <Button variant="neutral" size="sm" onClick={autoTrimToFit}><Icon name="sparkle" size={12} /> Auto-trim to fit</Button>
-            <Button size="sm" onClick={() => { onClose(); onDownload() }}>
-              <Icon name="download" size={12} /> Download anyway
-            </Button>
+            <Button size="sm" onClick={fitToOnePage}>Fit to one page</Button>
           </div>
         </div>
       </div>

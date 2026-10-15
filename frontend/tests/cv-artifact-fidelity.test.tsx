@@ -160,6 +160,13 @@ test("a blank cert prints no heading on the sheet", () => {
   assert.equal(text.toLowerCase().includes("certification"), false)
 })
 
+test("every bullet is marked so the page meter can hide it", () => {
+  const markup = render()
+  assert.match(markup, /data-cv-section="experience"/)
+  assert.match(markup, /data-cv-role=/)
+  assert.match(markup, /data-cv-item="exp_bullet:/)
+})
+
 test("bullets carry a real marker character, not a CSS-drawn one", () => {
   // `list-style: disc` paints the marker outside the text layer, so an extracted
   // PDF cannot tell a new bullet from a wrapped continuation line — which is

@@ -20,7 +20,7 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 | 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read the funnel on prod after the next merge |
 | 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) | Built; first email = their whole /market list, later = new only (Shivam 2026-10-14, `0aafb324`). **BLOCKED on Shivam**: merge carrying `0aafb324` → preview → approve |
 | 4 | Front door | **#57** "Which job do you want?" after upload · partner SSO lands on the upload (22% of partner people upload vs 67% direct) | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor, 1st | S0–S5 built 2026-10-14 · QA click-through still owed |
-| 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1–S3 built · next S4 measured page fill |
+| 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1–S4 built · next S5 add role |
 | 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor, 3rd | S0 audit, today's rule |
 | 6 | Pay | **#56** the ₹199 Apply Pack | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Cursor, 4th | S1 settlement |
 | 1 | Find the job | **7e** semantic retrieval for the 21 still-empty lists | below · agent | measure, no judge calls |
@@ -168,7 +168,7 @@ CV for both. QA check **U4** is its acceptance.
 
 ## 5 · TAILOR + DOWNLOAD — #58 · [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md)
 
-**Tier A, now (Shivam, 2026-09-30):** #49 page-fill meter gates the download ·
+**Tier A, now (Shivam, 2026-09-30):** #49 page meter measures the export and never gates the download (S4 built) ·
 #52 empty certs heading (S1 built) · #50 add a role or project on desktop, and mobile edits
 the job's CV not the master · #47/#48 minimum — the renderer keeps unknown
 sections verbatim (S3 built) · a fabricated-role guard (S2 built): a tailored CV cannot add an employer
@@ -207,13 +207,9 @@ notice and restore.
 
     Minimum fix: one user-titled section type with ordered entries, or at least `achievements` + a free-text heading per section. Additive migration; `normalize_section_order` already drops unknown keys, so old rows stay valid.
 
-49. **The page-fill meter is wrong in both directions and it gates the download.** `frontend/components/cv/builder/use-playground-model.ts:155-167` counts identity + `summary` + `experience` + `skills_line`. It never counts **projects, education or certs**. `playground-view.tsx:256` gates Download on `m.pageFill.fits`, and `trim-confirm.tsx` offers to auto-hide bullets on its verdict.
+49. **BUILT 2026-10-15 — the page meter reads the export, and a download is never refused.** A 98×50 character budget counted only identity, summary, experience and skills. It read 54% where a projects section made the page 62%, and 110% on a CV that printed at 97%, then refused the download.
 
-    Measured twice in one session against a real Chrome print render:
-    - CV with a populated `projects` section: **meter 54%, truth 62%** of printable height — understated by 34 points, because it ignored the entire section.
-    - Final CV: **meter 110% ("spills onto 2 pages"), truth 1 page at 97% fill.** It would have blocked the download of a CV that fits, and offered to delete bullets to fix a problem that did not exist.
-
-    The model is `charsPerLine: 98, lineBudget: 50` (`frontend/lib/cv/page-fill.ts`) — a constant-width approximation that matches no real typography. The build also showed **line-height, not font-size, is the binding constraint** on one-page fit (10.1pt/1.22 fits; 10.0pt/1.24 does not), and nothing in the product exposes either. Fix: measure the real rendered height of the export DOM at the export's own page width, or drop the hard gate to a soft warning until it can.
+    `measurePageFill` lays the sheet out in the A4 content box the PDF uses (14mm margins, on-screen padding and footer stripped). Checked against Chromium: 98% of that box is one page in the PDF; the next bullet is two pages in both. "Fit to one page" hides the longest bullets, including project bullets, until that height fits, and skips a bullet that does not shorten the page. The character model is gone.
 
 50. **Desktop cannot add a project or a role. Mobile can. Same account, same CV, capability split by viewport.** `ProjectsBody` returns `null` when `cv.projects.length === 0` (`cv-paper-sections.tsx:179-180`), and `EmptySection` — the only "add" affordance — is wired to exactly two sections, summary (`:102`) and skills (`:130`). Desktop has `onAddBullet(roleIndex, text)` and `onReorderRoles` but **no add-role, no delete-role, no move-between-sections**. Mobile has all of it: `mobile-cv-sections.tsx:105` (Add experience), `:139` (Add project), with delete and move. It is gated at `library-view.tsx:59` — `if (!isDesktop)`.
 

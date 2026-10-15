@@ -37,6 +37,7 @@ import { identityLines } from "./cv-identity-lines"
 import { rewriteFetcher } from "./rewrite-fetchers"
 import { usePlaygroundModel } from "./use-playground-model"
 import { useDismissedFixes } from "./use-dismissed-fixes"
+import { useMeasuredPageFill } from "@/lib/cv/use-measured-page-fill"
 import { careerSkillPath, certificateCvLine } from "@/lib/career-skill-path"
 
 // Master CV has no per-job projection — every line renders.
@@ -184,6 +185,20 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
     })
   }, [onPatch])
 
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const sheetContact = useMemo(() => ({
+    name: identityLines(draft, profile).name,
+    title: draft.contact?.title?.trim() || draft.experience[0]?.role || "",
+    location: draft.contact?.location?.trim() || "",
+    email: draft.contact?.email?.trim() || profile?.email || "",
+    phone: draft.contact?.phone?.trim() || "",
+    linkedin: draft.contact?.linkedin?.trim() || profile?.linkedin_url || "",
+  }), [draft, profile])
+  const pageFill = useMeasuredPageFill(
+    sheetRef,
+    JSON.stringify({ cv: draft, contact: sheetContact, footer: baseline?.footer_mark_hidden ?? false }),
+  )
+
   const saveState =
     autosave.status === "saving" ? "Saving…"
     : autosave.status === "error" ? "Couldn’t save"
@@ -191,6 +206,7 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
     : autosave.status === "saved" ? "Saved" : ""
 
   return (
+    <>
     <WorkstationShell
       initialRailTab={initialRailTab}
       requestOpenIid={mentorIid}
@@ -226,7 +242,7 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
       hidden={NO_HIDDEN}
       targeted={false}
       atsChecks={atsChecks}
-      pageFill={m.pageFill}
+      pageFill={pageFill}
       lineCount={m.visibleCount}
       wordCount={m.wordCount}
       diagnosis={diagnosis}
@@ -270,18 +286,20 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
           <PdfPage
             cv={draft}
             hidden={NO_HIDDEN}
-            contact={{
-              name: identityLines(draft, profile).name,
-              title: draft.contact?.title?.trim() || draft.experience[0]?.role || "",
-              location: draft.contact?.location?.trim() || "",
-              email: draft.contact?.email?.trim() || profile?.email || "",
-              phone: draft.contact?.phone?.trim() || "",
-              linkedin: draft.contact?.linkedin?.trim() || profile?.linkedin_url || "",
-            }}
+            contact={sheetContact}
             footerMarkHidden={baseline?.footer_mark_hidden ?? false}
           />
         </div>
       }
     />
+    <div ref={sheetRef} hidden aria-hidden="true">
+      <PdfPage
+        cv={draft}
+        hidden={NO_HIDDEN}
+        contact={sheetContact}
+        footerMarkHidden={baseline?.footer_mark_hidden ?? false}
+      />
+    </div>
+    </>
   )
 }
