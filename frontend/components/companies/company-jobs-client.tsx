@@ -11,12 +11,11 @@ import { CapturePill } from "@/components/jobs/capture-pill"
 import { FeedCard } from "@/components/jobs/feed-card"
 import { feedDataFromCompanyJob } from "@/lib/jobs/card-view"
 import "@/components/jobs/feed-card.css"
-import type { CompanyJobCard, CompanyJobsResponse } from "@/lib/api"
+import type { CompanyJobCard, CompanyJobsResponse, CompanyReviewItem } from "@/lib/api"
 import { ParticleLoading } from "@/components/loading/particle-loading"
 import { useSession } from "@/lib/hooks/use-auth"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import { CompanySkillDemandPanel } from "./company-skill-demand-panel"
-import { CompanyPostingNotesPanel } from "./company-posting-notes-panel"
 
 // ── API ───────────────────────────────────────────────────────────────────────
 
@@ -74,14 +73,16 @@ function JobRow({
  * Interactive company-jobs surface. The server page (app/companies/[slug]/page.tsx)
  * fetches the first page and passes it as `initialData`, so this component renders
  * the real job list during SSR (no loading shell in the crawlable HTML). Page 2+,
- * Save, comments, and the signup gate stay client-side.
+ * Save and the signup gate stay client-side.
  */
 export function CompanyJobsClient({
   companyName,
   initialData,
+  notes,
 }: {
   companyName: string
   initialData: CompanyJobsResponse | null
+  notes: CompanyReviewItem[]
 }) {
   const { token } = useSession()
   const signup = useSignupGate()
@@ -140,18 +141,13 @@ export function CompanyJobsClient({
           >
             ← All companies
           </Link>
-          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-interactive)", marginBottom: 8 }}>
-            LIVE JOB LISTINGS
-          </div>
           <h1 style={{ margin: 0, fontSize: "var(--tm-fs-display)", fontWeight: 600, letterSpacing: "-0.025em", color: "var(--tm-text)", lineHeight: 1 }}>
-            {companyName} jobs &amp; hiring signals
+            {companyName}
           </h1>
           <div style={{ marginTop: 10, fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
             {total > 0
-              ? `${formatCount(total)} open role${total !== 1 ? "s" : ""} indexed`
-              : "No recent roles indexed"}
-            <span style={{ margin: "0 8px", opacity: 0.4 }}>·</span>
-            from Myro&apos;s job database
+              ? `${formatCount(total)} open role${total !== 1 ? "s" : ""}`
+              : "No open roles"}
           </div>
         </div>
       </div>
@@ -161,22 +157,10 @@ export function CompanyJobsClient({
 
         <CompanySkillDemandPanel companyName={companyName} />
 
-        {/* Question-style H2 — structural clarity for crawlers + AI answer engines. */}
-        <h2 style={{ margin: "0 0 18px", fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--tm-text)" }}>
-          What roles is {companyName} hiring for right now?
-        </h2>
-
         {jobs.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "80px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-            <div style={{ fontSize: "var(--tm-fs-hero)", opacity: 0.08, color: "var(--tm-interactive)" }}>◎</div>
-            <div style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--tm-text)" }}>No recent roles tracked for {companyName}</div>
-            <div style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-text-faint)", maxWidth: 300, lineHeight: 1.6 }}>
-              Our scrapers check regularly. Roles appear here as they&apos;re indexed.
-            </div>
-            <Button nativeButton={false} render={<Link href="/companies" />} variant="solid" size="md" style={{ marginTop: 8 }}>
-              Explore other companies →
-            </Button>
-          </div>
+          <Button nativeButton={false} render={<Link href="/companies" />} variant="solid" size="md">
+            Explore other companies
+          </Button>
         ) : (
           <>
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24, opacity: isFetching ? 0.6 : 1, transition: "opacity 200ms" }}>
@@ -203,7 +187,7 @@ export function CompanyJobsClient({
           </>
         )}
 
-        <CompanyPostingNotesPanel companyName={companyName} />
+        <CompanyNotes notes={notes} />
 
         {/* Score CTA — anonymous acquisition only. A logged-in user is already
             in the app, so this signup pitch (wrong-audience copy + a signup
@@ -240,6 +224,42 @@ export function CompanyJobsClient({
           <Link href="/newsletter" style={{ color: "var(--tm-interactive-rest)", textDecoration: "none", fontWeight: 600 }}>Hiring-trend newsletter →</Link>
         </nav>
       </div>
+    </div>
+  )
+}
+
+function CompanyNotes({ notes }: { notes: CompanyReviewItem[] }) {
+  if (notes.length === 0) return null
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 24 }}>
+      {notes.map((note) => {
+        const body = (note.written_note ?? "").trim()
+        const stage = note.last_stage
+          ? note.last_stage.charAt(0).toUpperCase() + note.last_stage.slice(1)
+          : ""
+        const author = note.author_ninja_name
+        return (
+          <div
+            key={`${note.created_at}-${author ?? body}`}
+            style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--tm-border-soft)" }}
+          >
+            <p style={{ margin: 0, fontSize: "var(--tm-fs-body)", lineHeight: 1.55, color: "var(--tm-text)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+              {body}
+            </p>
+            {(author || stage) && (
+              <div style={{ marginTop: 7, fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
+                {author && (
+                  <Link href={`/profile/${author}`} style={{ color: "var(--tm-interactive-rest)", fontWeight: 600, textDecoration: "none" }}>
+                    {author}
+                  </Link>
+                )}
+                {author && stage ? " · " : null}
+                {stage}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

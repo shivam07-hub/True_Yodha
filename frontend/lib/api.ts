@@ -3613,6 +3613,7 @@ export interface CompanyReviewItem {
   outcome: string
   written_note: string | null
   created_at: string
+  author_ninja_name: string | null
 }
 
 export interface CompanyPage {

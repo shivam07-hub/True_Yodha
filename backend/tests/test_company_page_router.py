@@ -1,6 +1,6 @@
 """Company page existence contract: a company with real job listings but zero
-reviews/comments must render (trust is a page OUTPUT, not an existence gate),
-and only a company with none of jobs/reviews/notes should 404."""
+reviews must render, and only a company with neither jobs nor reviews 404s.
+A written review note carries the author's ninja name, never their user id."""
 
 from types import SimpleNamespace
 
@@ -89,7 +89,7 @@ def test_company_with_only_job_listings_renders_not_404(monkeypatch) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["review_count"] == 0
-    assert body["posting_notes"] == []
+    assert body["reviews"] == []
 
 
 def test_company_with_nothing_at_all_is_404(monkeypatch) -> None:
@@ -121,27 +121,51 @@ def test_company_with_only_reviews_still_renders(monkeypatch) -> None:
     assert response.json()["review_count"] == 1
 
 
-def test_company_with_jobs_and_comments_returns_posting_notes(monkeypatch) -> None:
+def test_written_note_names_the_author(monkeypatch) -> None:
     response = _get_company(
         monkeypatch,
         {
-            "application_reviews": [],
-            "jobs": [{"job_id": "j1", "job_title": "Store Manager"}],
-            "comments": [
+            "application_reviews": [
                 {
-                    "entity_id": "j1",
-                    "body": "Interview was quick",
                     "user_id": "u1",
+                    "star_rating": 3,
+                    "last_stage": "applied",
+                    "outcome": "ghosted",
+                    "written_note": "Took the assignment. No reply after the second round.",
                     "created_at": "2026-07-01T00:00:00+00:00",
                 }
             ],
-            "user_profiles": [{"id": "u1", "ninja_name": "silent-fox-9k2"}],
+            "jobs": [{"job_id": "j1", "job_title": "Store Manager"}],
+            "user_profiles": [{"id": "u1", "ninja_name": "quiet-kite"}],
         },
     )
     assert response.status_code == 200
-    body = response.json()
-    assert body["posting_note_count"] == 1
-    assert body["posting_notes"][0]["author_ninja_name"] == "silent-fox-9k2"
+    review = response.json()["reviews"][0]
+    assert review["author_ninja_name"] == "quiet-kite"
+    assert review["last_stage"] == "applied"
+    assert "user_id" not in review
+
+
+def test_review_without_a_note_has_no_author(monkeypatch) -> None:
+    response = _get_company(
+        monkeypatch,
+        {
+            "application_reviews": [
+                {
+                    "user_id": "u1",
+                    "star_rating": 4,
+                    "last_stage": "interviewing",
+                    "outcome": "moved_forward",
+                    "written_note": "   ",
+                    "created_at": "2026-07-01T00:00:00+00:00",
+                }
+            ],
+            "jobs": [],
+            "user_profiles": [{"id": "u1", "ninja_name": "quiet-kite"}],
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["reviews"][0]["author_ninja_name"] is None
 
 
 class _RecordingQuery(_FakeQuery):
@@ -177,14 +201,12 @@ class _RecordingDB(_FakeDB):
         return _FakeRpc(rows, calls, params)
 
 
-def test_company_job_read_is_bounded(monkeypatch) -> None:
-    """The notes/existence read must never pull a company's whole job history.
+def test_company_job_read_is_one_row(monkeypatch) -> None:
+    """Existence is one listing, not a company's job history.
 
-    Unbounded, this read pulled every row a big company had ever posted and fed
-    all of those ids into one `comments.in_(...)` filter — the pair outran the
-    8s PostgREST ceiling and the public company page 500'd (Google, CRED,
-    Elastic, Aon, L.E.K. Consulting all confirmed in prod). Deleting the
-    `.limit()` reintroduces exactly that failure, so it is asserted here.
+    This read used to pull every row a big company had posted and feed those
+    ids into one comments filter. The comments table is gone. Raising the
+    limit reopens that scan, so the bound stays at one row.
     """
     db = _RecordingDB(
         {
@@ -203,5 +225,5 @@ def test_company_job_read_is_bounded(monkeypatch) -> None:
     # database consumer). The GUARANTEE is unchanged and still asserted: this read
     # never pulls a company's whole job history.
     params = db.calls["company_jobs_for_notes"]["rpc_params"]
-    assert params["p_limit"] == companies_router._NOTE_JOB_WINDOW
+    assert params["p_limit"] == companies_router._JOB_EXISTS_LIMIT
     assert params["p_company"] == "Accenture"

@@ -8,11 +8,15 @@ const client = readFileSync(
   "utf8",
 )
 
-test("company first render spends compute only on crawlable J0 truth", () => {
+test("company first render spends compute only on crawlable roles and written reviews", () => {
   assert.match(page, /getCompanyJobs\(companyName\)/)
+  assert.match(page, /getCompany\(companyName\)/)
   assert.doesNotMatch(page, /\/comments\?/)
   assert.doesNotMatch(page, /getCompanySkillIntelligence/)
   assert.doesNotMatch(page, /getPostingNotes/)
+  assert.doesNotMatch(client, /No note was written/)
+  assert.doesNotMatch(client, /The company page is unchanged/)
+  assert.doesNotMatch(client, /Show notes/)
 })
 
 test("secondary company signals require specific user intent", () => {
@@ -20,17 +24,11 @@ test("secondary company signals require specific user intent", () => {
     new URL("../components/companies/company-skill-demand-panel.tsx", import.meta.url),
     "utf8",
   )
-  const postingNotes = readFileSync(
-    new URL("../components/companies/company-posting-notes-panel.tsx", import.meta.url),
-    "utf8",
-  )
   assert.match(skillDemand, /enabled: showSkillIntelligence/)
   assert.match(skillDemand, /onClick=\{\(\) => setShowSkillIntelligence\(true\)\}/)
-  assert.match(postingNotes, /enabled: showPostingNotes/)
-  assert.match(postingNotes, /onClick=\{\(\) => setShowPostingNotes\(true\)\}/)
   assert.doesNotMatch(skillDemand, /requestIdleCallback|pointerdown|scroll/)
-  assert.doesNotMatch(postingNotes, /requestIdleCallback|pointerdown|scroll/)
   assert.doesNotMatch(client, /requestIdleCallback|pointerdown|scroll/)
+  assert.match(client, /CompanyNotes/)
 })
 
 test("company skill demand uses the public read and a brand retry CTA", () => {
