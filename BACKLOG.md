@@ -422,14 +422,24 @@ prod); #339 followed 10-13. A scheduled check reads R3/R4 on 10-19.
   shared-buffer HIT. So the lever is load. Shipped: `9d4ad00d` (Develop) — an
   inert verifier result (`error`/`unroutable`/`source_failure`, `error` ≈54% of
   active listings' last check) no longer rewrites the `jobs` row; the schedule
-  table is the queue clock. **Next, agent, after it reaches `main`:** diff two
-  `pg_stat_statements` snapshots an hour apart (totals run since 07-12 and
-  mislead — the 2s `company_name ilike` rows are code that no longer exists);
-  read `jobs` HOT share (`n_tup_hot_upd / n_tup_upd`) and per-index `idx_scan`.
-  `idx_jobs_verification_queue`, `idx_jobs_verify_due`, `idx_jobs_verify_pending`
-  index `last_verification_attempt_at`, which no claim has read since the
-  schedule table (08-13) — zero scans → **drop needs Shivam's yes**, with the
-  counts in hand (3c's "unused" indexes were live).
+  table is the queue clock. **Not on `origin/main` as of 2026-10-15 04:42 UTC**
+  (`git merge-base --is-ancestor 9d4ad00d origin/main` fails). HOT and the
+  verifier UPDATE volume move only after that deploy.
+  **Window 2026-10-15 03:00:28Z → 04:41:50Z** (101m). Counters still reset
+  2026-07-12 01:22:53Z. 171 queryids moved, **352.5s** of `total_exec_time`,
+  70,407 `shared_blks_read`. Full table: `ARCHITECTURE_READ_PATH.md` §28.
+  `jobs` HOT this window **134 / 2,714 updates (4.9%)**; lifetime
+  **87,499 / 3,238,435 (2.7%)**. 51 indexes at the start (heap 133MB, indexes
+  280MB, `shared_buffers` 224MB, db 1,471MB). The three verification indexes
+  scanned **0** times in the window. Lifetime since 07-12: `idx_jobs_verify_pending`
+  2 / 8.1MB, `idx_jobs_verification_queue` 1,305 / 47MB, `idx_jobs_verify_due`
+  7,104 / 36MB. Also zero since 07-12: `idx_jobs_job_content_hash` (4.8MB),
+  `idx_jobs_has_summary` (1.1MB). `idx_jobs_location_states_gin` is 0 scans and
+  stays — the feed still filters `location_states`. **Drop needs Shivam's yes.**
+  **Next load, do not build until asked:** the unload id page
+  (`listing_confidence` + `deletion_eligible_at`, 427 calls, **104.5s, 30%** of
+  the window, mean 245ms). `retire_closed_jobs` was another 49.3s. One SQL
+  LIMIT of history-free ids, keyset if it must resume. Compute stays Micro.
 
 ## AUTHED QA CHECKLIST — the CV machine (from the beta ledger, 2026-09-30)
 

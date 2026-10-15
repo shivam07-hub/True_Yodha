@@ -2413,3 +2413,86 @@ Develop pushes, tick ~80s against a 60s drain), fall inside it.
 **No scrape to time.** Newest `jobs.ingested_at` is 2026-10-05 15:29 UTC.
 Newest `skill_floor_attempted_at` is 2026-10-03 08:19 UTC. R9 waits on the
 scraper.
+
+## 28. Micro load, one window (2026-10-15)
+
+Compute stays Micro (`shared_buffers` 224MB, `max_connections` 60, database
+1,471MB). The lever is load. `pg_stat_statements` still resets at
+**2026-07-12 01:22:53 UTC**, the same instant as postmaster start, so a
+lifetime total is not current load. Two snapshots,
+**03:00:28 → 04:41:50 UTC** (101m 22s), same `stats_reset`:
+
+| | |
+|---|---|
+| queryids that moved | 171 |
+| delta `total_exec_time` | **352.5s** |
+| delta `shared_blks_read` | 70,407 |
+| `jobs` updates in the window | 2,714, of which **134 HOT (4.9%)** |
+| `jobs` updates since 07-12 | 3,238,435, of which **87,499 HOT (2.7%)** |
+| `jobs` heap / indexes at 03:00 | 133MB / 280MB (51 indexes) |
+
+`9d4ad00d` (inert verifier results stop rewriting `jobs`) is on `Develop` and
+is not an ancestor of `origin/main`. The HOT share above is still the old
+write path.
+
+**Top 15 by delta `total_exec_time`.**
+
+| # | ms | calls | mean | reads | what |
+|---|---:|---:|---:|---:|---|
+| 1 | 104,476 | 427 | 245ms | 10,475 | `jobs.job_id` where `listing_confidence` and `deletion_eligible_at <=` — `_due_ids_without_history` |
+| 2 | 49,280 | 133 | 371ms | 7,092 | `retire_closed_jobs(p_limit, p_job_ids)` |
+| 3 | 28,000 | 439 | 64ms | 875 | `apply_job_enrichment` |
+| 4 | 17,024 | 8,665 | 2.0ms | 700 | `user_job_matches.job_id = ANY` — the unload history check |
+| 5 | 16,137 | 7 | 2,305ms | 9,516 | `claim_verify_targets(p_limit, p_stale, p_priority_stale)` |
+| 6 | 16,068 | 1,016 | 16ms | 5,762 | verifier `UPDATE jobs` (`confidence_reason`, `consecutive_complete_misses`, …) |
+| 7 | 12,930 | 446 | 29ms | 1,416 | scalar RPC `(p_job_id, p_source_content_hash)` |
+| 8 | 12,037 | 266 | 45ms | 4,878 | wide `jobs` select (id, title, description, company, industry, …) |
+| 9 | 7,966 | 1 | 8.0s | 4,502 | one statement: `last_conclusive_verification_at` and `is_active` |
+| 10 | 7,750 | 1 | 7.8s | 11,921 | one statement: scraper `fill_blank_summaries` |
+| 11 | 7,701 | 244 | 32ms | 1,217 | `INSERT job_listing_observations` |
+| 12 | 7,268 | 458 | 16ms | 6 | scalar RPC `(p_msg_id)` |
+| 13 | 6,982 | 1 | 7.0s | 1 | one catalog read (`pg_class`) |
+| 14 | 6,803 | 266 | 26ms | 3,097 | `job_skills` by job — the archive's skill fetch |
+| 15 | 6,114 | 2 | 3.1s | 0 | `pg_available_extensions` |
+
+Row 1 is **29.6%** of the window. Rows 1, 2 and 4 are one path:
+`job_listing_verifier` calls `retire_eligible(500)` every sweep, and
+`_due_ids_without_history` restarts at offset 0, pages 1,000 ids
+(`listing_confidence = closed`, `deletion_eligible_at <= now`, order by that
+clock), then probes history 40 ids at a time. 427 pages and 133 deletes in
+this window is about three pages per sweep. `idx_jobs_deletion_eligible`
+scanned 433 times, so the index is in use. Mean 245ms with ~25 shared-buffer
+reads is the 133MB heap plus 280MB of indexes against a 224MB cache.
+
+**Proposed, not built.** One statement returns the next 500 closed, eligible,
+history-free ids, `LIMIT 500`, using that partial index. A sweep that must
+resume uses a keyset on `(deletion_eligible_at, job_id)` so the protected
+prefix is not read again. That also retires the 8,665 match-id round trips.
+`claim_verify_targets` is still 2.3s a call; across this window it was 16s,
+fifth, behind the unload.
+
+**`jobs` indexes.** Counts below are `pg_stat_user_indexes` since
+2026-07-12 01:22 UTC. The three that key `last_verification_attempt_at` did
+not scan in this window. Live `claim_verify_targets` does not mention that
+column; the schedule table is the queue. The app still writes the column
+(`record`, `mark_attempted`) and reads it by primary key (`snapshot`,
+liveness). The sync trigger copies `NEW.last_verification_attempt_at`. None
+of those is an index scan.
+
+| index | size | scans since 07-12 | this window | reader |
+|---|---:|---:|---:|---|
+| `idx_jobs_verification_queue` | 47MB | 1,305 | 0 | no live claim. Created 2026-07-11 for the old confidence queue |
+| `idx_jobs_verify_due` | 36MB | 7,104 | 0 | no live claim. The 7,104 include every scan before the schedule table (2026-08-13) |
+| `idx_jobs_verify_pending` | 8.1MB | 2 | 0 | no live claim |
+| `idx_jobs_job_content_hash` | 4.8MB | 0 | 0 | column is written by `apply_job_enrichment` and copied into the archive select. Nothing looks up by the hash |
+| `idx_jobs_has_summary` | 1.1MB | 0 | 0 | expression `(job_summary IS NOT NULL)`. No filter in `backend/app` |
+| `idx_jobs_location_states_gin` | 528kB | 0 | 0 | **keep.** `jobs.py` feed location clause filters `location_states.cs` |
+| `idx_jobs_job_title_trgm` | 20MB | 1 | 0 | expression on `coalesce(job_title,'')`. Still 1 scan since the 2026-09-15 baseline. The column index is `idx_jobs_job_title_trgm_all` |
+
+A 52nd index, `idx_jobs_company_name_job_id` (3.2MB), appeared during the
+window with 0 scans. It is new, so it is not on the drop list.
+
+**Drop needs Shivam's yes.** Candidates, in order: the three verification
+indexes, then `idx_jobs_job_content_hash` and `idx_jobs_has_summary`.
+`idx_jobs_job_title_trgm` is the same shape of leftover, with one lifetime
+scan. `idx_jobs_location_states_gin` stays. Nothing was dropped.
