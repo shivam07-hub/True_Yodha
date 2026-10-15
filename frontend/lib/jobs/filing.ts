@@ -15,6 +15,7 @@ const HOLDS: Record<string, string> = {
   login: "Sign in on the company page, then fill from the extension.",
   captcha: "The company page asked for a check. Finish it there.",
   unanswered: "A question on the form is absent from this CV. Fill that one yourself.",
+  resume: "Attach the CV for this job on the company page.",
 }
 
 export function filingLine(block: string | undefined): string | null {

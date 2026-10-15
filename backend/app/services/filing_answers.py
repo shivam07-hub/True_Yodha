@@ -1,8 +1,10 @@
-"""Answers for one company-page form, from the tailored CV only.
+"""Answers for one company-page form.
 
-Contact fields are copied. Every other question goes to the writer with the
-CV as the only source. BLANK means the CV does not contain the answer, and
-the filing stops on that question.
+Contact fields are copied from the tailored CV. Notice period, CTC, location,
+and relocation are copied from the career profile. A dropdown is answered only
+when one of its options is that stored fact. Every other question goes to the
+writer with the CV as the only source. BLANK means the source does not contain
+the answer, and that field stays empty.
 """
 
 from __future__ import annotations
@@ -26,6 +28,7 @@ Complete = Callable[[list[dict[str, str]]], Awaitable[str]]
 class FormQuestion:
     id: str
     label: str
+    options: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -34,6 +37,61 @@ class FormAnswer:
     label: str
     answer: str
     source: str
+
+
+def logistics_field(label: str) -> str | None:
+    """The career-profile key this label asks for, or None."""
+    text = " ".join(label.lower().replace("*", " ").split())
+    if _has(text, "notice"):
+        return "notice_period_days"
+    if _has(text, "relocat"):
+        return "open_to_relocate"
+    money = any(_has(text, word) for word in ("ctc", "salary", "compensation"))
+    if money and _has(text, "variable"):
+        return "current_ctc_variable_lpa"
+    if money and any(_has(text, word) for word in ("expected", "desired")):
+        return "expected_ctc_lpa"
+    if money and any(_has(text, word) for word in ("current", "present")):
+        return "current_ctc_fixed_lpa"
+    if _has(text, "years") and _has(text, "experience"):
+        return "total_experience_years"
+    return None
+
+
+def logistics_value(profile: Mapping[str, Any], field: str) -> str:
+    raw = profile.get(field)
+    if field == "open_to_relocate":
+        if raw is True:
+            return "Yes"
+        if raw is False:
+            return "No"
+        return ""
+    if raw is None or isinstance(raw, bool):
+        return ""
+    if isinstance(raw, float) and raw.is_integer():
+        return str(int(raw))
+    return str(raw).strip()
+
+
+def match_option(answer: str, options: list[str]) -> str:
+    """The option that is the stored fact, or empty when none is."""
+    wanted = answer.strip().lower()
+    if not wanted:
+        return ""
+    for option in options:
+        if option.strip().lower() == wanted:
+            return option.strip()
+    tokens = set(re.findall(r"[a-z0-9]+", wanted))
+    if not tokens:
+        return ""
+    hits = [
+        option.strip()
+        for option in options
+        if tokens <= set(re.findall(r"[a-z0-9]+", option.lower()))
+    ]
+    if len(hits) == 1:
+        return hits[0]
+    return ""
 
 
 def known_field(label: str) -> str | None:
@@ -112,36 +170,48 @@ async def answer_questions(
     body_text: str,
     questions: list[FormQuestion],
     complete: Complete,
+    profile: Mapping[str, Any] | None = None,
 ) -> list[FormAnswer]:
     contact = normalize_structured(dict(structured) if isinstance(structured, Mapping) else {}).get(
         "contact"
     ) or {}
+    facts = profile if isinstance(profile, Mapping) else {}
     cv_text = plain_cv(structured, body_text)
     answers: list[FormAnswer] = []
     for question in questions:
+        options = [item.strip() for item in question.options if item.strip()]
+        logistics = logistics_field(question.label)
+        if logistics is not None:
+            text = logistics_value(facts, logistics)
+            if options:
+                text = match_option(text, options)
+            answers.append(FormAnswer(
+                id=question.id, label=question.label, answer=text, source="profile",
+            ))
+            continue
         field = known_field(question.label)
         if field is not None:
-            answers.append(
-                FormAnswer(
-                    id=question.id,
-                    label=question.label,
-                    answer=contact_value(contact, field),
-                    source="cv",
-                )
-            )
+            source = "cv"
+            text = contact_value(contact, field)
+            if field == "location":
+                located = str(facts.get("current_location") or "").strip()
+                if located:
+                    text = located
+                    source = "profile"
+            if options:
+                text = match_option(text, options)
+            answers.append(FormAnswer(
+                id=question.id, label=question.label, answer=text, source=source,
+            ))
             continue
-        if not cv_text:
+        if options or not cv_text:
             answers.append(FormAnswer(id=question.id, label=question.label, answer="", source="writer"))
             continue
         raw = await complete(writer_messages(cv_text, question.label))
-        answers.append(
-            FormAnswer(
-                id=question.id,
-                label=question.label,
-                answer=parse_writer(raw),
-                source="writer",
-            )
-        )
+        text = parse_writer(raw)
+        answers.append(FormAnswer(
+            id=question.id, label=question.label, answer=text, source="writer",
+        ))
     return answers
 
 

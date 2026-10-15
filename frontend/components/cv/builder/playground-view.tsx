@@ -38,6 +38,7 @@ import { rewriteFetcher } from "./rewrite-fetchers"
 import { hasHideableBullets } from "@/lib/cv/page-fill"
 import { useMeasuredPageFill } from "@/lib/cv/use-measured-page-fill"
 import { exportSheetPdf } from "@/lib/cv/sheet-pdf"
+import { rememberFilingResume } from "@/lib/jobs/filing-resume"
 import { printCvPage } from "@/lib/cv/print-cv"
 import { masterFilename } from "@/lib/cv/download-master"
 import { addBulletToRole, replaceLineText, roleRefAt } from "@/lib/cv/line-edit"
@@ -271,7 +272,8 @@ export function PlaygroundView({
     const exported = sheetKey
     setPdfBusy(true)
     try {
-      await exportSheetPdf(token, el, pdfFilename)
+      const blob = await exportSheetPdf(token, el, pdfFilename)
+      void rememberFilingResume(token, jobId, blob, pdfFilename)
       emitLoopStep(token, "downloaded", jobId, "pdf")
       setDownloadedSheet(exported)
       try { localStorage.setItem("myro-cv-template-v1", template) } catch { /* storage blocked */ }

@@ -35,7 +35,8 @@ RECEIPT_TEXT = "receipt_text"
 HOLD_LOGIN = "login"
 HOLD_CAPTCHA = "captcha"
 HOLD_UNANSWERED = "unanswered"
-HOLD_REASONS = frozenset({HOLD_LOGIN, HOLD_CAPTCHA, HOLD_UNANSWERED})
+HOLD_RESUME = "resume"
+HOLD_REASONS = frozenset({HOLD_LOGIN, HOLD_CAPTCHA, HOLD_UNANSWERED, HOLD_RESUME})
 
 
 @dataclass(frozen=True)

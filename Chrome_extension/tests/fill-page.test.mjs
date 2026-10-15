@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 
-import { confirmationText, inspectPage, writeAnswers } from "../src/fill-page.js"
+import { attachResume, clickForward, confirmationText, inspectPage, writeAnswers } from "../src/fill-page.js"
 
 function node(tag, attrs = {}, text = "") {
   return {
@@ -17,13 +17,19 @@ function node(tag, attrs = {}, text = "") {
       return attrs[name] ?? null
     },
     dispatchEvent() {},
+    click() {
+      this.clicked = true
+    },
+    querySelectorAll() {
+      return []
+    },
   }
 }
 
-function page({ fields = [], extra = [], password = false, body = "" }) {
+function page({ fields = [], extra = [], controls = [], password = false, body = "" }) {
   const labels = new Map(fields.filter((field) => field.id).map((field) => [field.id, field.label]))
   return {
-    location: { href: "https://careers.example.com/apply" },
+    location: { href: "https://apply.careers.microsoft.com/careers/apply/200055836" },
     body: { innerText: body },
     getElementById(id) {
       return fields.find((field) => field.id === id) || null
@@ -41,7 +47,8 @@ function page({ fields = [], extra = [], password = false, body = "" }) {
     },
     querySelectorAll(selector) {
       if (selector === "iframe, script, div") return extra
-      if (selector === "input, textarea") return fields
+      if (selector === "input, textarea, select") return fields
+      if (selector === "button, input[type='submit'], [role='button']") return controls
       return []
     },
   }
@@ -87,7 +94,41 @@ describe("company page fill", () => {
   it("reads the confirmation text from the page", () => {
     const doc = page({ body: "Application submitted. Thank you for applying." })
     const read = confirmationText(doc)
-    assert.equal(read.url, "https://careers.example.com/apply")
+    assert.equal(read.url, "https://apply.careers.microsoft.com/careers/apply/200055836")
     assert.match(read.text, /Application submitted/)
+  })
+
+  it("attaches a PDF to a file field and clicks Next, never Submit", () => {
+    const resume = node("input", { id: "resume", type: "file" })
+    resume.label = "Resume"
+    const next = node("button", { type: "button" }, "Next")
+    const submit = node("button", { type: "submit" }, "Submit")
+    const doc = page({ fields: [resume], controls: [next, submit] })
+    const seen = inspectPage(doc)
+    assert.equal(seen.hold, null)
+    assert.equal(seen.files[0].id, "resume")
+    assert.equal(seen.forward, "next")
+    globalThis.File = class {
+      constructor(bits, name, opts) {
+        this.bits = bits
+        this.name = name
+        this.type = opts.type
+      }
+    }
+    globalThis.DataTransfer = class {
+      constructor() {
+        this._files = []
+        this.items = { add: (file) => { this._files.push(file) } }
+      }
+      get files() {
+        return this._files
+      }
+    }
+    assert.equal(attachResume({ id: "resume", filename: "asha.pdf", base64: btoa("%PDF-1.4") }, doc), 1)
+    assert.equal(resume.files[0].name, "asha.pdf")
+    assert.equal(clickForward(doc), true)
+    assert.equal(next.clicked, true)
+    assert.equal(submit.clicked, undefined)
+    assert.equal(clickForward(page({ controls: [submit] })), false)
   })
 })

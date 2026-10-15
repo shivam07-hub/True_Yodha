@@ -118,6 +118,38 @@ export async function postFilingReceipt(apiUrl, token, jobId, receiptUrl, receip
   })
 }
 
+export async function getFilingResume(apiUrl, token, jobId, _retried = false) {
+  if (!token) {
+    const err = new Error("Connect Myro before saving jobs.")
+    err.code = "auth_required"
+    throw err
+  }
+  const response = await fetch(endpoint(apiUrl, `/jobs/${encodeURIComponent(jobId)}/filing/resume`), {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (response.status === 401 && !_retried) {
+    const fresh = await refreshSession(apiUrl)
+    if (fresh) return getFilingResume(apiUrl, fresh, jobId, true)
+    const err = new Error("Your Myro session expired. Reconnect to continue.")
+    err.code = "auth_required"
+    throw err
+  }
+  if (response.status === 404) return null
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}))
+    throw new Error(errorBody.detail || `Myro API returned HTTP ${response.status}`)
+  }
+  const bytes = new Uint8Array(await response.arrayBuffer())
+  let binary = ""
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
+  }
+  const header = response.headers.get("Content-Disposition") || ""
+  const named = /filename="([^"]+)"/.exec(header)
+  return { filename: named?.[1] || "cv.pdf", base64: btoa(binary) }
+}
+
 export async function saveImport(apiUrl, token, state) {
   return request(apiUrl, token, "/jobs/import", {
     source_url: state.sourceUrl,

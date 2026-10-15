@@ -1,6 +1,7 @@
 "use client"
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import Link from "next/link"
 import type { ReactNode } from "react"
 import { jobs } from "@/lib/api"
 import { filingHoldLine, filingLine } from "@/lib/jobs/filing"
@@ -58,9 +59,9 @@ export function FilingApproval({ token, jobId }: { token: string; jobId: string 
     <div style={stackStyle}>
       {body}
       <p style={noteStyle}>
-        <a href="/filing" style={linkStyle}>
+        <Link href="/filing" style={linkStyle}>
           The ₹599 filing process
-        </a>
+        </Link>
       </p>
     </div>
   )

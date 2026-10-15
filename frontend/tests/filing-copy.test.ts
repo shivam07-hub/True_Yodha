@@ -16,5 +16,6 @@ test("each filing block says what has to happen before a yes is stored", () => {
   assert.equal(filingLine(undefined), null)
   assert.equal(filingHoldLine("captcha"), "The company page asked for a check. Finish it there.")
   assert.equal(filingHoldLine("login"), "Sign in on the company page, then fill from the extension.")
+  assert.equal(filingHoldLine("resume"), "Attach the CV for this job on the company page.")
   assert.equal(filingHoldLine(null), null)
 })

@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from app.deps import Principal, get_principal
 from app.main import app
+from app.repositories.career_profile import get_career_profile_repository
 from app.repositories.job_filing import get_job_filing_repository
 from app.repositories.jobs import get_token_jobs_repository
 from app.routers.jobs import filing as filing_router
@@ -28,6 +29,7 @@ class _FilingRepo:
         }
         self.receipts: list[dict[str, Any]] = []
         self.holds: list[str | None] = []
+        self.resumes: list[dict[str, Any]] = []
         self.cv = {
             "id": cv_id,
             "cv_structured": {
@@ -55,6 +57,21 @@ class _FilingRepo:
         self.holds.append(kwargs.get("reason"))
         if self.row is not None:
             self.row["hold_reason"] = kwargs.get("reason")
+
+    def save_resume(self, **kwargs: Any) -> None:
+        self.resumes.append(kwargs)
+        if self.row is not None:
+            self.row["resume_pdf"] = kwargs["resume_pdf"]
+            self.row["resume_filename"] = kwargs["resume_filename"]
+
+    def resume_for(self, user_id: str, job_id: str) -> dict[str, Any] | None:
+        _ = (user_id, job_id)
+        if self.row is None or not self.row.get("resume_pdf"):
+            return None
+        return {
+            "resume_pdf": self.row["resume_pdf"],
+            "resume_filename": self.row["resume_filename"],
+        }
 
     def tailored_cv(self, user_id: str, cv_version_id: int) -> dict[str, Any] | None:
         _ = (user_id, cv_version_id)
@@ -97,9 +114,19 @@ def _live(**extra: object) -> dict:
     return row
 
 
-def _bind(repo: _FilingRepo, jobs: _Jobs) -> None:
+class _Profiles:
+    def __init__(self, profile: dict[str, Any] | None = None) -> None:
+        self.profile = profile or {}
+
+    def get(self, user_id: str) -> tuple[dict[str, Any], None]:
+        _ = user_id
+        return self.profile, None
+
+
+def _bind(repo: _FilingRepo, jobs: _Jobs, profile: dict[str, Any] | None = None) -> None:
     app.dependency_overrides[get_job_filing_repository] = lambda: repo
     app.dependency_overrides[get_token_jobs_repository] = lambda: jobs
+    app.dependency_overrides[get_career_profile_repository] = lambda: _Profiles(profile)
     app.dependency_overrides[get_principal] = lambda: Principal(id="user-1", email=None)
 
 
@@ -219,5 +246,51 @@ def test_answers_copy_the_email_and_hold_when_the_writer_is_blank(monkeypatch) -
         assert body["answers"][1]["answer"] == ""
         assert repo.holds == ["unanswered"]
         assert jobs.updates == []
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_a_sheet_pdf_is_stored_for_the_walk() -> None:
+    import base64
+
+    repo = _FilingRepo(FilingFacts(listing=_live(), judge_score=4.0, tailored_cv_id=9))
+    jobs = _Jobs()
+    _bind(repo, jobs)
+    encoded = base64.b64encode(b"%PDF-1.4 resume").decode("ascii")
+    try:
+        with TestClient(app) as client:
+            stored = client.post(
+                "/jobs/job-1/filing/resume",
+                json={"filename": "Asha Rao.pdf", "pdf_base64": encoded},
+            )
+            read = client.get("/jobs/job-1/filing/resume")
+        assert stored.status_code == 204
+        assert read.status_code == 200
+        assert read.content == b"%PDF-1.4 resume"
+        assert read.headers["content-type"] == "application/pdf"
+        assert 'filename="Asha_Rao.pdf"' in read.headers["content-disposition"]
+        assert jobs.updates == []
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_a_resume_without_a_yes_is_refused() -> None:
+    import base64
+
+    repo = _FilingRepo(FilingFacts(listing=_live(), judge_score=4.0, tailored_cv_id=9))
+    repo.row = None
+    jobs = _Jobs()
+    _bind(repo, jobs)
+    try:
+        with TestClient(app) as client:
+            res = client.post(
+                "/jobs/job-1/filing/resume",
+                json={
+                    "filename": "cv.pdf",
+                    "pdf_base64": base64.b64encode(b"%PDF-1.4 resume").decode("ascii"),
+                },
+            )
+        assert res.status_code == 409
+        assert repo.resumes == []
     finally:
         app.dependency_overrides.clear()

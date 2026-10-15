@@ -193,3 +193,14 @@ def test_receipt_migration_names_the_confirmation_and_the_intake() -> None:
     assert "create table if not exists public.filing_intakes" in sql
     assert "revoke insert, update, delete on public.filing_intakes" in sql
     assert "notify pgrst, 'reload schema';" in sql
+
+
+def test_resume_migration_stores_the_sheet_and_names_the_hold() -> None:
+    sql = (
+        ROOT / "database" / "migrations" / "20261015200000_filing_resume.sql"
+    ).read_text(encoding="utf-8").lower()
+    assert "add column if not exists resume_pdf text" in sql
+    assert "resume_filename" in sql
+    assert "'resume'" in sql
+    assert "char_length(resume_pdf) <= 2000000" in sql
+    assert "notify pgrst, 'reload schema';" in sql

@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
+import re
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from app.deps import Principal, get_principal
+from app.repositories.career_profile import CareerProfileRepository, get_career_profile_repository
 from app.repositories.job_filing import JobFilingRepository, get_job_filing_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.services import core_loop, cv_of_record
@@ -57,6 +62,12 @@ class FilingReceiptResponse(BaseModel):
 class FilingQuestionIn(BaseModel):
     id: str = Field(min_length=1, max_length=80)
     label: str = Field(min_length=1, max_length=300)
+    options: list[str] = Field(default_factory=list, max_length=20)
+
+
+class FilingResumeRequest(BaseModel):
+    filename: str = Field(min_length=1, max_length=120)
+    pdf_base64: str = Field(min_length=16, max_length=2_000_000)
 
 
 class FilingAnswersRequest(BaseModel):
@@ -232,6 +243,7 @@ async def filing_answers(
     body: FilingAnswersRequest,
     principal: Principal = Depends(get_principal),
     repo: JobFilingRepository = Depends(get_job_filing_repository),
+    profiles: CareerProfileRepository = Depends(get_career_profile_repository),
 ) -> FilingAnswersResponse:
     _facts, _auth, decision = _open_authorization(repo, principal, job_id)
     if not decision.ready or decision.cv_version_id is None:
@@ -239,11 +251,21 @@ async def filing_answers(
     cv = repo.tailored_cv(principal.id, decision.cv_version_id)
     if cv is None:
         return FilingAnswersResponse(answers=[], blocks=["no_tailored_cv"])
+    stored, _updated = profiles.get(principal.id)
+    profile = stored if isinstance(stored, dict) else {}
     drafted = await answer_questions(
         structured=cv.get("cv_structured") if isinstance(cv.get("cv_structured"), dict) else None,
         body_text=str(cv.get("body_text") or ""),
-        questions=[FormQuestion(id=item.id, label=item.label) for item in body.questions],
+        questions=[
+            FormQuestion(
+                id=item.id,
+                label=item.label,
+                options=tuple(option.strip() for option in item.options if option.strip())[:20],
+            )
+            for item in body.questions
+        ],
         complete=_complete,
+        profile=profile,
     )
     if body.questions and any(not item.answer for item in drafted):
         repo.save_hold(user_id=principal.id, job_id=job_id, reason="unanswered")
@@ -255,6 +277,79 @@ async def filing_answers(
             for item in drafted
         ],
         blocks=[],
+    )
+
+
+def _pdf_bytes(raw: str) -> bytes:
+    try:
+        data = base64.b64decode(raw, validate=True)
+    except binascii.Error as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="The CV file is not a PDF.",
+        ) from exc
+    if len(data) > 1_500_000 or not data.startswith(b"%PDF-"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="The CV file is not a PDF.",
+        )
+    return data
+
+
+def _pdf_name(raw: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", raw.strip()).strip("._-") or "cv.pdf"
+    if not cleaned.lower().endswith(".pdf"):
+        cleaned = re.sub(r"\.(pdf|docx)$", "", cleaned, flags=re.IGNORECASE) + ".pdf"
+    return cleaned[:120]
+
+
+@router.post("/{job_id}/filing/resume", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
+def store_filing_resume(
+    job_id: str,
+    body: FilingResumeRequest,
+    principal: Principal = Depends(get_principal),
+    repo: JobFilingRepository = Depends(get_job_filing_repository),
+) -> None:
+    _facts, _auth, decision = _open_authorization(repo, principal, job_id)
+    if not decision.ready:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Filing waits for a yes on this CV.",
+        )
+    data = _pdf_bytes(body.pdf_base64)
+    repo.save_resume(
+        user_id=principal.id,
+        job_id=job_id,
+        resume_pdf=base64.b64encode(data).decode("ascii"),
+        resume_filename=_pdf_name(body.filename),
+    )
+
+
+@router.get("/{job_id}/filing/resume")
+def read_filing_resume(
+    job_id: str,
+    principal: Principal = Depends(get_principal),
+    repo: JobFilingRepository = Depends(get_job_filing_repository),
+) -> Response:
+    _facts, _auth, decision = _open_authorization(repo, principal, job_id)
+    if not decision.ready:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Filing waits for a yes on this CV.",
+        )
+    row = repo.resume_for(principal.id, job_id)
+    raw = row.get("resume_pdf") if row else None
+    if not raw:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="resume_unrendered")
+    try:
+        data = base64.b64decode(raw, validate=True)
+    except binascii.Error as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="resume_unrendered") from exc
+    name = _pdf_name(str((row or {}).get("resume_filename") or "cv.pdf"))
+    return Response(
+        content=data,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{name}"'},
     )
 
 

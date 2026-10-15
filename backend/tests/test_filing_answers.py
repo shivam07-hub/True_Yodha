@@ -8,6 +8,7 @@ from app.services.filing_answers import (
     FormQuestion,
     answer_questions,
     known_field,
+    match_option,
     parse_writer,
     writer_messages,
 )
@@ -74,3 +75,31 @@ def test_the_writer_is_told_to_stop_when_the_cv_lacks_the_answer() -> None:
     assert "BLANK" in messages[0]["content"]
     assert parse_writer("BLANK") == ""
     assert parse_writer("I built the weekly SQL report.") == "I built the weekly SQL report."
+
+
+def test_notice_period_matches_one_option_and_skips_the_writer() -> None:
+    async def complete(_messages: list[dict[str, str]]) -> str:
+        raise AssertionError("the writer is not asked for a stored fact")
+
+    answers = asyncio.run(answer_questions(
+        structured={"contact": {"name": "Asha Rao", "location": "Pune"}},
+        body_text="",
+        questions=[
+            FormQuestion(id="notice", label="Notice period", options=("15 days", "30 days")),
+            FormQuestion(id="city", label="Current location"),
+            FormQuestion(id="ctc", label="Expected CTC"),
+        ],
+        complete=complete,
+        profile={
+            "notice_period_days": 30,
+            "current_location": "Bengaluru",
+        },
+    ))
+    assert answers[0].answer == "30 days"
+    assert answers[0].source == "profile"
+    assert answers[1].answer == "Bengaluru"
+    assert answers[1].source == "profile"
+    assert answers[2].answer == ""
+    assert answers[2].source == "profile"
+    assert match_option("30", ["15 days", "30 days", "30+ days"]) == ""
+    assert match_option("30", ["130 days"]) == ""

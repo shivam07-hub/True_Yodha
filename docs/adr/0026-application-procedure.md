@@ -14,6 +14,8 @@ A job is applied to in this order, and the next company uses the same order. The
 4. **A full-time seat is exclusive on the page.** Side work is dated so it does not run across a full-time job or a full-time degree. Work they do beside the job is a pursuit, not a second employer.
 5. **One document for that job.** The reflection is that job's document (ADR-0025). Phrasing written for this description stays on that document. A fact the person confirms about themselves — a date, an owned number, a pursuit label — also lands on the master, because it is true on every CV. The master is not rewritten into one company's voice.
 6. **Apply is one click that carries the job's CV onto the company's form.** The CV is that job's document, rendered from the sheet (ADR-0020). The company still has to recognise the person, so the first visit to a careers site is their sign-in. After that session exists in the browser, the extension attaches the CV and fills the fields Myro already holds, and the click left is Submit. Opening the link and asking afterwards is the receipt, not the apply (Apply Transport).
+
+   On desktop Chrome the extension walks every screen it can fill and clicks Next. It stops on the Submit screen and does not click Submit (Shivam, 2026-10-15). A phone has no extension, so Apply there opens the company page and "Did you submit?" stays until the person confirms.
 7. **The company's status URL is saved on the application.** For this one it is `https://apply.careers.microsoft.com/careers/applications?domain=microsoft.com`, on the application notes until a status-URL column exists.
 8. **Then two notes, from their own connections export.** First, someone they have actually written to. Second, the person whose seat is the motion, even when the thread is cold. Same CV. The person sends. Myro does not (ADR-0018).
 
@@ -34,7 +36,7 @@ Doing the next company any other way repeats the defects this one had to be corr
 
 ## Consequences
 
-- Apply that only opens the company URL is not finished. The extension, in the person's own signed-in browser, carries that job's CV onto the form.
+- Apply that only opens the company URL is not finished on desktop Chrome. The extension, in the person's own signed-in browser, carries that job's CV onto the form, walks Next, and stops before Submit. On a phone the open-and-ask remains the apply, because there is no extension.
 - The next application starts at step 1 on the named account. It does not start by editing a previous job's document.
 - A tailor that cannot show owned scope, or that leaves a side role across a full-time seat, is not ready to send.
 - Referral copy is drafted for the person to send. Nothing in this procedure is a licence to scrape, to auto-send, or to name someone who is not in the person's own export.

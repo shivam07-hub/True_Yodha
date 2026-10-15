@@ -32,6 +32,7 @@ import { formatDate } from "@/lib/format"
 import { PdfPage, type PdfPageContact } from "./pdf-page"
 import { printCvPage } from "@/lib/cv/print-cv"
 import { exportSheetPdf, triggerBlobDownload, withRetry } from "@/lib/cv/sheet-pdf"
+import { rememberFilingResume } from "@/lib/jobs/filing-resume"
 import { masterFilename } from "@/lib/cv/download-master"
 import { selectVisibleCV } from "@/lib/cv/visible-cv"
 import { useSectionTitles } from "@/components/cv/section-titles-provider"
@@ -253,7 +254,8 @@ export function CVExportView({
     }
     setPdfBusy(true)
     try {
-      await exportSheetPdf(token, sheet, filename)
+      const blob = await exportSheetPdf(token, sheet, filename)
+      if (jobId) void rememberFilingResume(token, jobId, blob, filename)
     } catch {
       // Server renderer unavailable (503 / network) → native browser print is
       // the WYSIWYG fallback, so the user always gets a real PDF.

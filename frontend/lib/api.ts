@@ -4668,6 +4668,13 @@ export const jobs = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ yes: true }),
     }),
+  /** Store the sheet PDF that was just downloaded, so the extension can attach it. */
+  saveFilingResume: (token: string, jobId: string, body: { filename: string; pdf_base64: string }) =>
+    request<void>(`/jobs/${encodeURIComponent(jobId)}/filing/resume`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    }),
   recordApplyIntent: (token: string, jobId: string, input: ApplyIntentInput) =>
     request<void>(`/jobs/${encodeURIComponent(jobId)}/apply-intents`, {
       method: "POST",

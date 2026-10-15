@@ -148,6 +148,35 @@ class JobFilingRepository:
             {"hold_reason": reason}
         ).eq("user_id", user_id).eq("job_id", job_id).execute()
 
+    def save_resume(
+        self,
+        *,
+        user_id: str,
+        job_id: str,
+        resume_pdf: str,
+        resume_filename: str,
+    ) -> None:
+        self._admin.table("job_filing_authorizations").update(
+            {"resume_pdf": resume_pdf, "resume_filename": resume_filename}
+        ).eq("user_id", user_id).eq("job_id", job_id).execute()
+
+    def resume_for(self, user_id: str, job_id: str) -> dict[str, Any] | None:
+        row = safe_read(
+            self._db.table("job_filing_authorizations")
+            .select("resume_pdf, resume_filename")
+            .eq("user_id", user_id)
+            .eq("job_id", job_id)
+            .limit(1),
+            default=[],
+            context="filing_resume",
+        )
+        if not row or not row[0].get("resume_pdf"):
+            return None
+        return row[0]
+
+
+RESUME_COLUMNS = ("resume_pdf", "resume_filename")
+
 
 def get_job_filing_repository(db: Client = Depends(get_user_db)) -> JobFilingRepository:
     return JobFilingRepository(db, get_supabase_admin())
