@@ -31,6 +31,8 @@ _missing_at_boot: list[str] = []
 
 def contracts() -> dict[str, tuple[str, ...]]:
     """Table → the columns the code names on it, from the constants it already keeps."""
+    from app.repositories.filing_intake import INTAKE_COLUMNS
+    from app.repositories.job_filing import FILING_COLUMNS
     from app.repositories.jobs import JobsRepository
     from app.services.scoring.orchestrator import MIRROR_SCORE_COLUMNS
 
@@ -38,6 +40,8 @@ def contracts() -> dict[str, tuple[str, ...]]:
     return {
         "user_job_matches": tuple(dict.fromkeys(c.strip() for c in evals.split(",") if c.strip())),
         "mirror_scores": tuple(sorted(MIRROR_SCORE_COLUMNS)),
+        "job_filing_authorizations": FILING_COLUMNS,
+        "filing_intakes": INTAKE_COLUMNS,
     }
 
 

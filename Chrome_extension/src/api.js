@@ -99,6 +99,25 @@ export async function markApplied(apiUrl, token, jobId) {
   return request(apiUrl, token, `/jobs/applications/${encodeURIComponent(jobId)}`, { status: "applied", surface: "extension" }, false, "PUT")
 }
 
+export async function getFiling(apiUrl, token, jobId) {
+  return request(apiUrl, token, `/jobs/${encodeURIComponent(jobId)}/filing`, null, false, "GET")
+}
+
+export async function postFilingAnswers(apiUrl, token, jobId, questions) {
+  return request(apiUrl, token, `/jobs/${encodeURIComponent(jobId)}/filing/answers`, { questions })
+}
+
+export async function postFilingHold(apiUrl, token, jobId, reason) {
+  return request(apiUrl, token, `/jobs/${encodeURIComponent(jobId)}/filing/hold`, { reason })
+}
+
+export async function postFilingReceipt(apiUrl, token, jobId, receiptUrl, receiptText) {
+  return request(apiUrl, token, `/jobs/${encodeURIComponent(jobId)}/filing/receipt`, {
+    receipt_url: receiptUrl,
+    receipt_text: receiptText,
+  })
+}
+
 export async function saveImport(apiUrl, token, state) {
   return request(apiUrl, token, "/jobs/import", {
     source_url: state.sourceUrl,

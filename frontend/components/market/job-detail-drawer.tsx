@@ -11,8 +11,10 @@ import { QUALITY_REASONS } from "@/lib/jobs/feedback"
 import { DetailDrawer } from "@/components/jobs/detail-drawer"
 import { DetailHeader } from "@/components/jobs/detail-header"
 import { useApplyCapture } from "@/components/jobs/use-apply-capture"
+import { applyLinkAttrs } from "@/lib/jobs/apply-transport"
 import { ApplyCapturePrompt } from "@/components/jobs/apply-capture-prompt"
 import { ApplyRow } from "@/components/jobs/apply-row"
+import { FilingApproval } from "@/components/jobs/filing-approval"
 import { MyroTake } from "@/components/jobs/myro-take"
 import { EmployerRecordNote } from "@/components/jobs/employer-record-note"
 import { ListingLiveness } from "@/components/jobs/listing-liveness"
@@ -42,7 +44,7 @@ export function JobDetailDrawer({
   const confidence = pulse?.listing_confidence ?? (job.is_stale ? "uncertain" : "active")
   const capture = useApplyCapture({
     token,
-    job: { job_id: job.job_id, source_url: job.source_url, company: job.company_name, listing_confidence: confidence },
+    job: { job_id: job.job_id, source_url: job.source_url, company: job.company_name, listing_venue: job.listing_venue, listing_confidence: confidence },
     surface: "job_detail",
     intentSurface: "market",
     // The feed is already fit-ranked, so closing back to it IS "similar roles".
@@ -114,13 +116,14 @@ export function JobDetailDrawer({
           {msg ? <div style={{ padding: "10px 24px", fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-muted)", borderTop: "1px solid var(--tm-border-soft)" }}>{msg}</div> : null}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "16px 24px calc(16px + env(safe-area-inset-bottom))" }}>
+            <FilingApproval token={token} jobId={job.job_id} />
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {/* PRIMARY — tailor a CV for THIS job, Myro's core value. One tap
                   captures the save and crosses into the build stage. */}
               <button type="button" onClick={saveAndTailor} style={{ flex: "1 1 auto", textAlign: "center", padding: "11px 16px", borderRadius: 10, border: "none", fontWeight: 600, fontSize: "var(--tm-fs-body)", background: "var(--tm-interactive)", color: "var(--tm-on-interactive, #fff)", cursor: "pointer" }}>Tailor now →</button>
               {/* SECONDARY — apply on the source site (outline, not the accent). */}
-              {capture.target.kind === "direct" ? (
-                <a href={capture.href ?? undefined} target="_blank" rel="noopener noreferrer" onClick={capture.onApply} style={{ padding: "11px 16px", borderRadius: 10, textDecoration: "none", fontWeight: 600, fontSize: "var(--tm-fs-body)", border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text)" }}>{capture.target.actionLabel} ↗</a>
+              {capture.target.kind === "direct" || capture.target.kind === "hosted" ? (
+                <a {...applyLinkAttrs(capture.target)} onClick={capture.onApply} style={{ padding: "11px 16px", borderRadius: 10, textDecoration: "none", fontWeight: 600, fontSize: "var(--tm-fs-body)", border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text)" }}>{capture.target.actionLabel}{capture.target.kind === "direct" ? " ↗" : ""}</a>
               ) : (
                 <ApplyRow company={job.company_name} title={job.job_title} jobId={job.job_id} variant="compact" onApply={capture.onApply} />
               )}

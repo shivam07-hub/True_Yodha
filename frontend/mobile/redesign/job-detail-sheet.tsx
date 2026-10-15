@@ -1,5 +1,6 @@
 "use client"
 
+import { FilingApproval } from "@/components/jobs/filing-approval"
 import { useMatchBrain } from "@/lib/hooks/use-match-brain"
 import { useSkillUpvotes } from "@/lib/hooks/use-skill-upvotes"
 import { jobPlanSections } from "@/lib/jobs/detail-model"
@@ -175,6 +176,12 @@ export function JobDetailSheet({
       </div>
 
       {captureSlot ? <div style={{ flex: "none", padding: "0 16px", background: "var(--mm-card-2)" }}>{captureSlot}</div> : null}
+
+      {token ? (
+        <div style={{ flex: "none", padding: "10px 16px 0", background: "var(--mm-card-2)" }}>
+          <FilingApproval token={token} jobId={row.id} />
+        </div>
+      ) : null}
 
       <div style={{ flex: "none", display: "flex", gap: 8, padding: "11px 16px 16px", borderTop: "1px solid var(--mm-hair)", background: "var(--mm-card-2)" }}>
         {canDismiss ? (

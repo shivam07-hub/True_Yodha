@@ -17,6 +17,7 @@ from app.routers import (
     diary,
     email_prefs,
     feedback,
+    filing_intake,
     ghost_index,
     growth,
     home,
@@ -91,6 +92,7 @@ app.include_router(auth.router)
 app.include_router(companies.router)
 app.include_router(users.router)
 app.include_router(feedback.router)
+app.include_router(filing_intake.router)
 app.include_router(ghost_index.router)
 app.include_router(growth.router)
 app.include_router(institutions.router)
