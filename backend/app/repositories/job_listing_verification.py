@@ -13,7 +13,7 @@ from app.services.job_listing_verifier import (
     VerificationResult,
     VerificationTarget,
 )
-from app.services.job_unload_archive import archive_then_retire
+from app.services.job_unload_archive import unload
 
 log = logging.getLogger(__name__)
 
@@ -302,7 +302,7 @@ class ListingVerificationRepository:
         )
 
     def retire_eligible(self, *, limit: int = 500) -> int:
-        return archive_then_retire(self.db, limit=limit, now=self.now)
+        return unload(self.db, limit=limit)
 
     def record_sweep(self, *, targets: int, productive: int) -> None:
         """Stamp that a sweep ran, whether or not anything was due.

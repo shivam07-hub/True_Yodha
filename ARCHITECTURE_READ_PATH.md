@@ -2464,12 +2464,10 @@ this window is about three pages per sweep. `idx_jobs_deletion_eligible`
 scanned 433 times, so the index is in use. Mean 245ms with ~25 shared-buffer
 reads is the 133MB heap plus 280MB of indexes against a 224MB cache.
 
-**Proposed, not built.** One statement returns the next 500 closed, eligible,
-history-free ids, `LIMIT 500`, using that partial index. A sweep that must
-resume uses a keyset on `(deletion_eligible_at, job_id)` so the protected
-prefix is not read again. That also retires the 8,665 match-id round trips.
-`claim_verify_targets` is still 2.3s a call; across this window it was 16s,
-fifth, behind the unload.
+**Shipped.** `unload` calls `list_unload_candidates`: one statement returns the
+next closed, quarantined, history-free ids. The offset loop and the per-chunk
+history probes are gone. The bundle is still written before `retire_closed_jobs`.
+`claim_verify_targets` was 2.3s a call in this window, fifth, behind the unload.
 
 **`jobs` indexes.** Counts below are `pg_stat_user_indexes` since
 2026-07-12 01:22 UTC. The three that key `last_verification_attempt_at` did
@@ -2492,7 +2490,9 @@ of those is an index scan.
 A 52nd index, `idx_jobs_company_name_job_id` (3.2MB), appeared during the
 window with 0 scans. It is new, so it is not on the drop list.
 
-**Drop needs Shivam's yes.** Candidates, in order: the three verification
-indexes, then `idx_jobs_job_content_hash` and `idx_jobs_has_summary`.
-`idx_jobs_job_title_trgm` is the same shape of leftover, with one lifetime
-scan. `idx_jobs_location_states_gin` stays. Nothing was dropped.
+**Dropped 2026-10-15**, `DROP INDEX CONCURRENTLY`, after Shivam's yes: the three
+verification indexes, `idx_jobs_job_content_hash`, and `idx_jobs_has_summary`.
+Rollback is the `CREATE` commented in `20261015140000_drop_idle_jobs_indexes.sql`.
+`idx_jobs_job_title_trgm` stays (one lifetime scan; the live title index is
+`idx_jobs_job_title_trgm_all`). `idx_jobs_location_states_gin` and
+`idx_jobs_deletion_eligible` stay.

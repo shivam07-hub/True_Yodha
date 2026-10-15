@@ -337,17 +337,17 @@ def test_with_retry_reraises_client_error(monkeypatch) -> None:
 def test_retire_eligible_archives_before_any_delete(monkeypatch) -> None:
     seen: dict[str, object] = {}
 
-    def fake_archive(db, *, limit, now):
+    def fake_unload(db, *, limit=500, archive_dir=None):
         seen["limit"] = limit
-        seen["now"] = now
+        seen["archive_dir"] = archive_dir
         return 4
 
     monkeypatch.setattr(
-        "app.repositories.job_listing_verification.archive_then_retire",
-        fake_archive,
+        "app.repositories.job_listing_verification.unload",
+        fake_unload,
     )
     now = datetime(2026, 9, 13, tzinfo=timezone.utc)
     repo = ListingVerificationRepository(DB(), now=lambda: now)
     assert repo.retire_eligible(limit=25) == 4
     assert seen["limit"] == 25
-    assert seen["now"]() == now
+    assert seen["archive_dir"] is None
