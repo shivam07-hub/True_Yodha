@@ -14,7 +14,9 @@ CEO grill (D7, Shivam, 2026-09-30).** UI slices go through `/frontend-design`.
 > master `(company, role)` and may not widen its dates (`cv_role_guard`).
 > Weave and polish drop an invented row and log `cv.fabricated_role_dropped`;
 > any other tailored write raises `FabricatedRoleError` (422). Measured in
-> `test_cv_role_guard.py`. S3–S5 still open.
+> `test_cv_role_guard.py`. S3 built 2026-10-15: a master rewrite appends
+> sections the seven keys cannot hold, verbatim and in their original order
+> (`carry_unknown_from`). Measured in `test_cv_unknown_sections.py`. S4–S5 still open.
 
 ---
 
@@ -115,7 +117,7 @@ the character model once nothing reads it.
 |---|---|---|
 | S1 | A · blank certs | **Built 2026-10-14.** `certs: [""]` prints no heading in text, DOCX, or the sheet. |
 | S2 | B · fabricated-role guard | **Built 2026-10-14.** Invented pair refused at the seam; weave and polish drop it and log; a role on the master passes. |
-| S3 | C · keep unknown sections | The five measured headings survive a master rewrite |
+| S3 | C · keep unknown sections | **Built 2026-10-15.** The five measured headings survive a master rewrite, once, in their original order. |
 | S4 | E · measured page fill | A CV at 97% downloads; a real 2-page CV shows "2 pages" and still downloads |
 | S5 | D · add role/project; phone routing | Add a role on desktop → it appears on the job doc; a phone edit on a job doc leaves the master untouched |
 

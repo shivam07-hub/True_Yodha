@@ -20,7 +20,7 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 | 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read the funnel on prod after the next merge |
 | 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) | Built; first email = their whole /market list, later = new only (Shivam 2026-10-14, `0aafb324`). **BLOCKED on Shivam**: merge carrying `0aafb324` → preview → approve |
 | 4 | Front door | **#57** "Which job do you want?" after upload · partner SSO lands on the upload (22% of partner people upload vs 67% direct) | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor, 1st | S0–S5 built 2026-10-14 · QA click-through still owed |
-| 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1–S2 built · next S3 unknown sections |
+| 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1–S3 built · next S4 measured page fill |
 | 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor, 3rd | S0 audit, today's rule |
 | 6 | Pay | **#56** the ₹199 Apply Pack | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Cursor, 4th | S1 settlement |
 | 1 | Find the job | **7e** semantic retrieval for the 21 still-empty lists | below · agent | measure, no judge calls |
@@ -171,7 +171,7 @@ CV for both. QA check **U4** is its acceptance.
 **Tier A, now (Shivam, 2026-09-30):** #49 page-fill meter gates the download ·
 #52 empty certs heading (S1 built) · #50 add a role or project on desktop, and mobile edits
 the job's CV not the master · #47/#48 minimum — the renderer keeps unknown
-sections verbatim · a fabricated-role guard (S2 built): a tailored CV cannot add an employer
+sections verbatim (S3 built) · a fabricated-role guard (S2 built): a tailored CV cannot add an employer
 or title the master does not have. **Tier B, after front-door numbers exist:**
 #48 user-titled sections · #51 outcome not digits · #54 nine screens · #53 loss
 notice and restore.

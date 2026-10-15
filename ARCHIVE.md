@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-10-15 — #58 S3 unknown sections survive a master rewrite
+
+A skill edit, rewrite, merge, certificate, autosave, or restore keeps headings the seven keys cannot hold — leadership, awards, personal details — verbatim and in order. A fresh upload does not inherit the previous CV's sections.
+
 ## 2026-10-14 — #58 S2 fabricated-role guard
 
 A job CV's experience must match a company and title on the master, and its dates may not widen. The write seam refuses anything else. Weave and polish drop the invented row and log it.

@@ -106,7 +106,10 @@ def save_master_cv(
     """
     user_id = principal.id
     structured = body.model_dump()
-    new_body_text = cv_skill_edit.render_baseline_text(structured)
+    previous = cv_repo.latest_baseline(user_id)
+    new_body_text = cv_skill_edit.render_baseline_text(
+        structured, previous_body_text=(previous or {}).get("body_text") or "",
+    )
     snapshot_hash = cv_compose.item_id(
         "master_edit", cv_repo.next_user_version_number(user_id), new_body_text
     )
@@ -159,7 +162,9 @@ def restore_master_revision(
     if revision is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Main CV revision not found.")
     structured = CVStructuredResponse(**(revision.get("cv_structured") or {})).model_dump()
-    body_text = cv_skill_edit.render_baseline_text(structured)
+    body_text = cv_skill_edit.render_baseline_text(
+        structured, previous_body_text=revision.get("body_text") or "",
+    )
     updated = cv_repo.update_master(
         principal.id,
         body_text=body_text,

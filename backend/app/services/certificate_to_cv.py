@@ -172,7 +172,9 @@ async def _certificate_to_cv_handler(payload: dict[str, Any], allow_retry: bool)
         return
 
     structured["certs"] = updated
-    new_body_text = cv_skill_edit.render_baseline_text(structured)
+    new_body_text = cv_skill_edit.render_baseline_text(
+        structured, previous_body_text=baseline.get("body_text") or "",
+    )
     next_n = cv_repo.next_user_version_number(user_id)
     new_baseline = cv_repo.create(
         user_id,

@@ -92,9 +92,86 @@ export function isBlank(value: unknown): boolean {
   return !String(value ?? "").trim()
 }
 
+/** Headings the seven contract keys already render. Mirror of cv_compose._KNOWN_HEADINGS. */
+const KNOWN_HEADINGS = new Set([
+  "summary", "professional summary", "profile", "objective", "about",
+  "experience", "work experience", "professional experience", "employment",
+  "employment history", "work history", "career history",
+  "education", "academic background", "qualifications",
+  "skills", "technical skills", "core skills", "key skills", "competencies",
+  "core competencies",
+  "projects", "personal projects", "academic projects",
+  "certifications", "certificates", "licenses",
+])
+
+const SECTION_WORDS = new Set([
+  "experience", "work experience", "professional experience", "employment",
+  "employment history", "work history", "career history",
+  "education", "academic background", "qualifications",
+  "skills", "technical skills", "core skills", "key skills", "competencies",
+  "projects", "personal projects", "academic projects",
+  "certifications", "certificates", "licenses",
+  "summary", "professional summary", "profile", "objective", "about",
+  "achievements", "awards", "honors", "honours", "publications",
+  "interests", "hobbies", "languages", "references", "volunteering",
+])
+
+function normHeading(line: string): string {
+  return line.toLowerCase().replace(/[^a-z ]/g, " ").split(/\s+/).filter(Boolean).join(" ")
+}
+
+function isBullet(line: string): boolean {
+  const stripped = line.trim()
+  return stripped.startsWith("•") || stripped.startsWith("-") || stripped.startsWith("*") || stripped.startsWith("–")
+}
+
+function isTitleLabel(line: string): boolean {
+  const words = line.split(/\s+/)
+  if (words.length < 2 || words.length > 6) return false
+  if (/[0-9,.;:()]/.test(line)) return false
+  const joiners = new Set(["and", "of", "the", "for"])
+  return words.every(word => {
+    const bare = word.replace(/^[&/-]+|[&/-]+$/g, "")
+    if (!bare || joiners.has(bare.toLowerCase())) return true
+    return bare[0] === bare[0].toUpperCase()
+  })
+}
+
+function isBlockHeading(line: string, next: string | null): boolean {
+  const stripped = line.trim()
+  if (!stripped || stripped.length > 60) return false
+  if ("•*-–".includes(stripped[0]) || stripped.includes("·") || stripped.includes("|") || stripped.includes("@")) return false
+  if (/\d{4}/.test(stripped)) return false
+  const key = normHeading(stripped)
+  if (key && SECTION_WORDS.has(key)) return true
+  const letters = stripped.replace(/[^A-Za-z]/g, "")
+  if (letters.length >= 3 && letters === letters.toUpperCase() && /^[A-Za-z][A-Za-z0-9 &/,'’.-]*$/.test(stripped)) return true
+  return Boolean(next && isBullet(next) && isTitleLabel(stripped))
+}
+
+/** Sections a CV holds that the seven keys cannot. Verbatim, original order. */
+export function unknownSections(previousBodyText: string | null | undefined): string {
+  if (!previousBodyText) return ""
+  const lines = previousBodyText.split("\n")
+  const starts: number[] = []
+  lines.forEach((line, index) => {
+    const next = lines.slice(index + 1).find(item => item.trim()) ?? null
+    if (line.trim() && isBlockHeading(line, next)) starts.push(index)
+  })
+  const blocks: string[] = []
+  starts.forEach((start, position) => {
+    if (KNOWN_HEADINGS.has(normHeading(lines[start]))) return
+    const end = position + 1 < starts.length ? starts[position + 1] : lines.length
+    const chunk = lines.slice(start, end).join("\n").trim()
+    if (chunk) blocks.push(chunk)
+  })
+  return blocks.join("\n\n")
+}
+
 export function renderDeterministic(
   cv: CVStructured,
   hiddenItems: Set<string>,
+  carryUnknownFrom?: string | null,
 ): string {
   const keep = (iid: string) => !hiddenItems.has(iid)
   const lines: string[] = []
@@ -189,7 +266,9 @@ export function renderDeterministic(
     lines.push("")
   }
 
-  return lines.join("\n").trimEnd() + "\n"
+  const carried = unknownSections(carryUnknownFrom)
+  const rendered = lines.join("\n").trimEnd()
+  return (carried ? `${rendered}\n\n${carried}` : rendered) + "\n"
 }
 
 export function renderBaselineDisplayText(
