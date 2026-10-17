@@ -56,6 +56,7 @@ export function MobileAgentPicks({
       job_id: openItem?.job_id ?? "",
       source_url: openItem?.source_url ?? null,
       company: openItem?.company_name ?? null,
+      listing_venue: openItem?.listing_venue ?? null,
       listing_confidence: openItem?.is_stale || openItem?.is_active === false ? "uncertain" : undefined,
     },
     surface: "job_detail",

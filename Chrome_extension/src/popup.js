@@ -1,4 +1,5 @@
-import { saveImport, previewImport, reachSearch, pageEntry, markApplied } from "./api.js"
+import { saveImport, previewImport, reachSearch, pageEntry, markApplied, postFilingReceipt } from "./api.js"
+import { confirmationText } from "./fill-page.js"
 import { entryView } from "./entry-view.js"
 import { extractFromDocument } from "./extractors.js"
 import { enrichMopidPortalDraft } from "./mopid-portal.js"
@@ -42,6 +43,8 @@ const elements = {
   errorText: document.querySelector("#error-text"),
   savedCompany: document.querySelector("#saved-company"),
   appliedButton: document.querySelector("#applied-button"),
+  fillButton: document.querySelector("#fill-button"),
+  receiptButton: document.querySelector("#receipt-button"),
   nextLink: document.querySelector("#next-link"),
   captureMeta: document.querySelector("#capture-meta"),
   fitHook: document.querySelector("#fit-hook"),
@@ -484,6 +487,80 @@ function renderEntry(entry) {
 
 // "I applied" on the company's page. The answer is the user's; the popup only
 // records it, then moves the entry on to its next step (prepare).
+const FILING_STATUS = {
+  listing_closed: "This role is closed.",
+  listing_unconfirmed: "Filing waits until a check finds this role open.",
+  below_judge: "Filing waits for a judge score of 3.5 or higher.",
+  no_tailored_cv: "Tailor a CV for this role before filing.",
+  stale_cv: "Approve the latest CV in Myro.",
+  no_yes: "Approve this CV in Myro first.",
+}
+
+async function activeTab() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+  if (!tab?.id) throw new Error("No active tab found.")
+  return tab
+}
+
+async function fillApplication() {
+  const jobId = state.entry?.job_id
+  if (!jobId) return
+  if (browserPreview) {
+    setStatus("Preview mode")
+    return
+  }
+  try {
+    setStatus("Filling the form", true)
+    elements.fillButton.disabled = true
+    const result = await chrome.runtime.sendMessage({ type: "walk-application", jobId })
+    setStatus(result?.status || "Filled. Submit on this page.")
+  } catch (error) {
+    showError(error)
+  } finally {
+    elements.fillButton.disabled = false
+  }
+}
+
+async function saveConfirmation() {
+  const jobId = state.entry?.job_id
+  if (!jobId) return
+  if (browserPreview) {
+    setStatus("Preview mode")
+    return
+  }
+  try {
+    setStatus("Saving the confirmation", true)
+    elements.receiptButton.disabled = true
+    const tab = await activeTab()
+    const [read] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: confirmationText,
+    })
+    const page = read?.result || { url: tab.url || "", text: "" }
+    const result = await postFilingReceipt(
+      state.config.apiUrl,
+      state.config.token,
+      jobId,
+      page.url,
+      page.text,
+    )
+    if (!result.applied) {
+      const block = result.blocks?.[0]
+      setStatus(
+        block === "receipt_host"
+          ? "Open the company page, then save the confirmation."
+          : FILING_STATUS[block] || "The page needs a confirmation before this counts.",
+      )
+      return
+    }
+    renderEntry({ ...state.entry, stage: "applied", pending_apply: false })
+  } catch (error) {
+    showError(error)
+  } finally {
+    elements.receiptButton.disabled = false
+  }
+}
+
 async function markJobApplied() {
   try {
     setStatus("Saving", true)
@@ -527,6 +604,8 @@ async function init() {
   elements.saveButton.addEventListener("click", saveCurrentJob)
   elements.reachButton?.addEventListener("click", findPeopleToReach)
   elements.appliedButton.addEventListener("click", markJobApplied)
+  elements.fillButton?.addEventListener("click", fillApplication)
+  elements.receiptButton?.addEventListener("click", saveConfirmation)
   elements.reviewButton?.addEventListener("click", reviewCapturedDetails)
   elements.reachBackButton?.addEventListener("click", () => renderEntry(state.entry))
   elements.extractSkillsButton.addEventListener("click", extractSkillsFromReview)

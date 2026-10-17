@@ -1,46 +1,70 @@
 /**
  * Apply Transport — the single resolver for "where does applying to this job
  * send the user?". Every apply-out (web drawers, multi-role card, CV playground,
- * CV export, mobile Jobs/Collections) reads its destination from here, so the
- * scraped-URL → careers-search fallback lives in exactly one place.
+ * CV export, mobile Jobs/Collections) reads its destination from here.
  *
- * Pairs with `useApplyCapture` (the transport + liveness capture hook). This
- * module is pure — no React, no DOM — so the resolution rule is Node-testable.
+ * Three venues, four kinds:
+ *   hosted  — posted on Myro; Apply here, in-app, no leave-site prompt
+ *   direct  — company career-page URL; Apply, then "Did you apply?"
+ *   discovery — no exact URL; Find official opening
+ *   none
  */
 
-export type ApplyKind = "direct" | "discovery" | "none"
-export type ApplyDestinationType = "direct_role" | "career_search"
+export type ApplyKind = "direct" | "discovery" | "hosted" | "none"
+export type ApplyDestinationType = "direct_role" | "career_search" | "hosted_role"
+export type ListingVenue = "career_page" | "myro"
 
 export interface ApplyTarget {
-  /** Where to send the user, or null when we have neither a link nor a company. */
+  /** Where to send the user, or null when we have neither a link, a company, nor a hosted apply page. */
   url: string | null
-  /** direct = an exact role URL; discovery = official-opening search; none = nothing. */
   kind: ApplyKind
   company: string | null
-  /** Discovery is deliberately never labelled Apply. */
-  actionLabel: "Apply" | "Find official opening" | null
+  actionLabel: "Apply" | "Apply here" | "Find official opening" | null
   destinationType: ApplyDestinationType | null
 }
 
-/** The careers-search primitive — Google "{company} careers". Shared by the
- *  resolver and the Web Share sheet (job-share). Null when company is unknown. */
+export function hostedApplyPath(jobId: string): string {
+  return `/internships/${encodeURIComponent(jobId)}/apply`
+}
+
+/** Careers-search primitive — Google "{company} careers". Null when company is unknown. */
 export function careersSearchUrl(company: string | null | undefined): string | null {
   const c = company?.trim()
   return c ? `https://www.google.com/search?q=${encodeURIComponent(`${c} careers`)}` : null
 }
 
-/**
- * Resolve the apply destination: prefer the scraped portal link, fall back to a
- * "{company} careers" search (lands on the right page ~95% of the time and needs
- * zero backfill), else nothing. Defensible posture per ApplyRow — we surface a
- * search, not a hosted scraped URL, when no portal link exists.
- */
+/** Hosted apply stays on Myro. Portal apply leaves in a new tab. */
+export function applyLinkAttrs(target: ApplyTarget): {
+  href: string | undefined
+  target?: "_blank"
+  rel?: string
+} {
+  if (!target.url) return { href: undefined }
+  if (target.kind === "hosted") return { href: target.url }
+  return { href: target.url, target: "_blank", rel: "noopener noreferrer" }
+}
+
 export function resolveApplyTarget(job: {
+  job_id?: string | null
   source_url?: string | null
   company?: string | null
+  listing_venue?: ListingVenue | string | null
   listing_confidence?: "active" | "uncertain" | "likely_closed" | "closed" | null
 }): ApplyTarget {
   const company = job.company?.trim() || null
+  if (job.listing_venue === "myro") {
+    const id = job.job_id?.trim()
+    if (!id) {
+      return { url: null, kind: "none", company, actionLabel: null, destinationType: null }
+    }
+    return {
+      url: hostedApplyPath(id),
+      kind: "hosted",
+      company,
+      actionLabel: "Apply here",
+      destinationType: "hosted_role",
+    }
+  }
   const knownUnhealthy = job.listing_confidence != null && job.listing_confidence !== "active"
   const portal = knownUnhealthy ? null : job.source_url?.trim()
   if (portal) {

@@ -90,13 +90,17 @@ async def fit_batch(
 
     user_skill_map = repo.get_user_skill_map(principal.id)
     user_lower = {k.lower(): v for k, v in user_skill_map.items()}
+    from app.services.matching.paper_facts import skills_lines_for
+    paper_skills = skills_lines_for(repo, principal.id, job_ids)
 
     fits: list[FitItem] = []
     for jid in job_ids:
         rows = rows_by_job.get(jid)
         if not rows:
             continue
-        score, matched, missing = job_matcher.overlap(rows, user_lower)
+        score, matched, missing = job_matcher.overlap(
+            rows, user_lower, paper_skills=paper_skills.get(jid),
+        )
         fits.append(FitItem(
             job_id=jid,
             overlap_score=score,

@@ -431,11 +431,11 @@ prod); #339 followed 10-13. A scheduled check reads R3/R4 on 10-19.
   2 / 8.1MB, `idx_jobs_verification_queue` 1,305 / 47MB, `idx_jobs_verify_due`
   7,104 / 36MB. Also zero since 07-12: `idx_jobs_job_content_hash` (4.8MB),
   `idx_jobs_has_summary` (1.1MB). `idx_jobs_location_states_gin` is 0 scans and
-  stays — the feed still filters `location_states`. **Drop needs Shivam's yes.**
-  **Next load, do not build until asked:** the unload id page
-  (`listing_confidence` + `deletion_eligible_at`, 427 calls, **104.5s, 30%** of
-  the window, mean 245ms). `retire_closed_jobs` was another 49.3s. One SQL
-  LIMIT of history-free ids, keyset if it must resume. Compute stays Micro.
+  stays — the feed still filters `location_states`. **Shipped 2026-10-15:**
+  those five indexes dropped (`20261015140000`); `unload` lists through
+  `list_unload_candidates` instead of the offset page. `claim_verify_targets`
+  was still 2.3s a call in that window (16s total, fifth). Compute stays Micro.
+  Session closed 2026-10-15. Memory: `docs/agent-memory/project_micro_load_unload.md`.
 
 ## AUTHED QA CHECKLIST — the CV machine (from the beta ledger, 2026-09-30)
 

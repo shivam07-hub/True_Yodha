@@ -1,0 +1,87 @@
+{
+  "issue": 23,
+  "out": "Myro Newsletter/Issue 023 - carousel",
+  "og_out": "frontend/public/newsletter/issue-023-og.png",
+  "foot": "10 employers · Ghost Index · 24 Sept 2026",
+  "og": {
+    "series": "OPEN ROLE",
+    "h1": "If the job is still open, tailor the CV and apply on their page.",
+    "bars": [
+      ["Citibank", 3.4, "3.4%"],
+      ["Wells Fargo", 5.1, "5.1%"],
+      ["Barclays", 13.2, "13.2%"],
+      ["Cisco", 29.4, "29.4%"],
+      ["Okta", 39.5, "39.5%"],
+      ["AB InBev", 69.6, "69.6%"]
+    ],
+    "max": 70,
+    "foot": "Closed roles still advertised · himyro.com"
+  },
+  "slides": [
+    {
+      "kind": "statement",
+      "kicker": "OPEN ROLE",
+      "h1": "If the job is still open, tailor the CV and apply on their page",
+      "sub": "Ten India career pages, checked against each employer's own hiring system through 24 September 2026."
+    },
+    {
+      "kind": "bars",
+      "kicker": "Closed roles still advertised",
+      "bars": [
+        ["Citibank", 3.4, "3.4%"],
+        ["Wells Fargo", 5.1, "5.1%"],
+        ["Amazon", 10.6, "10.6%"],
+        ["Barclays", 13.2, "13.2%"],
+        ["Nike", 17.1, "17.1%"],
+        ["Capgemini", 23.6, "23.6%"],
+        ["Cisco", 29.4, "29.4%"],
+        ["Okta", 39.5, "39.5%"],
+        ["Palo Alto Networks", 50.0, "50.0%"],
+        ["AB InBev", 69.6, "69.6%"]
+      ],
+      "max": 70
+    },
+    {
+      "kind": "number",
+      "kicker": "STILL OPEN",
+      "huge": "2.6",
+      "sub": "Citibank pulls a closed listing in <b>2.6 days</b>. Tailor the CV and submit on their page."
+    },
+    {
+      "kind": "number",
+      "kicker": "CHECK FIRST",
+      "huge": "69.6%",
+      "sub": "AB InBev still advertises <b>69.6%</b> of roles its hiring system has closed."
+    },
+    {
+      "kind": "table",
+      "kicker": "Tailor, then submit on their page",
+      "head": ["Employer", "Still advertised"],
+      "rows": [
+        ["Citibank", "3.4%", true],
+        ["Wells Fargo", "5.1%", true],
+        ["Amazon", "10.6%", true],
+        ["Barclays", "13.2%", true]
+      ],
+      "note": "SQL 57 · compliance 55 · Java 49 · Python 40 · supply chain 12."
+    },
+    {
+      "kind": "table",
+      "kicker": "Check before you tailor",
+      "head": ["Employer", "Still advertised"],
+      "rows": [
+        ["Cisco", "29.4%", false],
+        ["Okta", "39.5%", false],
+        ["Palo Alto Networks", "50.0%", false],
+        ["AB InBev", "69.6%", false]
+      ],
+      "note": "Python 90 · Okta platform 37 · AI 30 · computer science 27."
+    },
+    {
+      "kind": "statement",
+      "kicker": "2030, NAMED BY THE FORUM",
+      "h1": "Big Data. AI and machine learning. Security management.",
+      "sub": "The Forum's India page, Future of Jobs 2025. An open ad is the career page that still serves the role this week."
+    }
+  ]
+}

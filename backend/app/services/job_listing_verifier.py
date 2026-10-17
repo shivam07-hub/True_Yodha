@@ -129,7 +129,7 @@ def classify_listing_response(
     if status_code < 200 or status_code >= 400:
         return _result(target, "error", "weak", provider, evidence)
 
-    normalized_body = _normalize(body)
+    normalized_body = _normalize(_strip_dormant_closed_widget(body))
     if any(marker in normalized_body for marker in _CLOSED_MARKERS):
         return _result(target, "closed", "strong", provider, evidence)
 
@@ -255,6 +255,27 @@ def _result(
         str(evidence["final_url"]),
         evidence,
     )
+
+
+def _strip_dormant_closed_widget(body: str) -> str:
+    """Phenom ships a hidden filled-state widget on live postings.
+
+    `data-ph-at-id="job-completion-info"` is that widget. Its copy is not the
+    posting's state. Blank closed markers in the widget's own text and leave
+    the rest of the document — including a real filled sentence elsewhere,
+    which is what closes Godrej.
+    """
+    match = re.search(
+        r'data-ph-at-id=["\']job-completion-info["\']', body, flags=re.IGNORECASE,
+    )
+    if match is None:
+        return body
+    start = match.end()
+    end = min(len(body), start + 800)
+    window = body[start:end]
+    for marker in _CLOSED_MARKERS:
+        window = re.sub(re.escape(marker), " ", window, flags=re.IGNORECASE)
+    return body[:start] + window + body[end:]
 
 
 def _normalize(value: str) -> str:

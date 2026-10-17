@@ -8,9 +8,12 @@ const webPrompt = read("../components/jobs/apply-capture-prompt.tsx")
 const mobilePrompt = read("../mobile/redesign/apply-capture-prompt.tsx")
 
 test("the shared Apply transport blocks a persisted closed verdict before handoff", () => {
-  assert.match(hook, /livenessNotice\(livenessState\)\?\.guardsApply/)
+  // A hosted internship is applied on Myro, so career-page liveness does not
+  // hold it. A career-page apply still waits, and a closed verdict still stops
+  // the handoff.
+  assert.match(hook, /if \(!hosted && livenessLoading\)/)
+  assert.match(hook, /if \(!hosted && livenessNotice\(livenessState\)\?\.guardsApply\)/)
   assert.match(hook, /event\?\.preventDefault\(\)/)
-  assert.match(hook, /if \(livenessLoading\)/)
   assert.match(hook, /setState\("checking"\)/)
   assert.match(hook, /setState\("closed"\)/)
   assert.match(hook, /if \(!onApply\(\)\) return/)

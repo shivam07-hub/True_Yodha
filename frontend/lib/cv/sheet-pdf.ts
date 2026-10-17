@@ -42,9 +42,10 @@ export function triggerBlobDownload(blob: Blob, filename: string, mime: string) 
 /** Render *sheet* (a `.cvb-pdf-page` element) to a PDF server-side and save it.
  *  Throws when the server renderer is unavailable after retries — callers
  *  decide the fallback (native print where a visible sheet exists). */
-export async function exportSheetPdf(token: string, sheet: HTMLElement, filename: string): Promise<void> {
+export async function exportSheetPdf(token: string, sheet: HTMLElement, filename: string): Promise<Blob> {
   const blob = await withRetry(() => cvApi.exportPdf(token, { html: sheet.outerHTML, filename }))
   triggerBlobDownload(blob, filename, "application/pdf")
+  return blob
 }
 
 /** Anon twin of exportSheetPdf for the logged-out playground — SAME sheet,

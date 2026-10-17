@@ -34,11 +34,12 @@ def test_parse_requirements_response_malformed_is_empty():
 # ── pure: coverage banding ─────────────────────────────────────────────────────
 
 def test_classify_bands():
-    assert jd_coverage._classify(0.90) == "covered"
-    assert jd_coverage._classify(jd_coverage.COVERED_MIN) == "covered"
-    assert jd_coverage._classify(0.60) == "weak"
-    assert jd_coverage._classify(jd_coverage.WEAK_MIN) == "weak"
-    assert jd_coverage._classify(0.30) == "gap"
+    """Cosine orders candidate lines. It is not a covered/weak/gap status."""
+    assert jd_coverage._classify(0.90) == "near"
+    assert jd_coverage._classify(jd_coverage.COVERED_MIN) == "near"
+    assert jd_coverage._classify(0.60) == "adjacent"
+    assert jd_coverage._classify(jd_coverage.WEAK_MIN) == "adjacent"
+    assert jd_coverage._classify(0.30) == "far"
 
 
 # ── async: assess end-to-end (stubbed provider + recall) ───────────────────────
@@ -62,8 +63,10 @@ def test_assess_classifies_each_requirement(monkeypatch):
 
     async def _recall(user_id, query, k=1):
         table = {
-            "Own quota": [StoryHit("s1", "Beat quota", "Beat $2M quota", "120%", ["GTM"], 0.85)],
-            "Design incentives": [StoryHit("s2", "Comp plan", "Built comp plan", "", [], 0.62)],
+            "Own quota": [StoryHit("s1", "Beat quota", "Own quota across the region", "120%", ["GTM"], 0.85)],
+            "Design incentives": [StoryHit(
+                "s2", "Comp plan", "Design incentives for the team", "", [], 0.62, told=False,
+            )],
             "Rust systems": [],
         }
         return table.get(query, [])
@@ -353,8 +356,11 @@ def test_router_404_when_job_is_unknown(monkeypatch):
 # ── L1: a CV line is a start, not an answer (BACKLOG #13, 2026-09-13) ────────
 
 def _hit(sim, told):
-    return StoryHit(id="s1", title="Billing migration", pointer="", result="Moved it to AWS.",
-                    skills=[], similarity=sim, told=told)
+    return StoryHit(
+        id="s1", title="Billing migration",
+        pointer="Migrate payments to the cloud last quarter", result="",
+        skills=[], similarity=sim, told=told,
+    )
 
 
 def test_a_thin_story_is_capped_at_weak_however_well_it_scores(monkeypatch):
@@ -379,8 +385,10 @@ def test_a_told_story_at_the_same_score_does_close_it(monkeypatch):
 
 
 def test_depth_does_not_rescue_a_genuine_gap(monkeypatch):
+    """A told story at a near-perfect cosine is still a gap when its words
+    do not carry the motion."""
     async def _recall(user_id, q, k=1):
-        return [_hit(0.20, told=True)]
+        return [_hit(0.97, told=True)]
 
     monkeypatch.setattr(jd_coverage.memory_recall, "recall_stories", _recall)
     assert asyncio.run(jd_coverage._cover_one("u1", "kubernetes")).status == "gap"

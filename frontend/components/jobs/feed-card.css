@@ -48,7 +48,8 @@
 .fc-chead .fc-role { flex: 1 1 auto; min-width: 0; font-size: var(--tm-fs-body); }
 .fc-chead-fit,
 .fc-chead-actions { flex-shrink: 0; display: inline-flex; align-items: center; }
-.fc-compact .fc-loc { font-size: var(--tm-fs-caption); }
+.fc-compact .fc-loc,
+.fc-compact .fc-logistics { font-size: var(--tm-fs-caption); }
 .fc-loc-age { color: var(--tm-text-faint); }
 
 /* ── main row: monogram · body · fit ──────────────────────────────────────────
@@ -90,6 +91,11 @@ a.fc-co:hover { color: var(--tm-interactive); }
   font-size: var(--tm-fs-caption); font-weight: 500;
   color: var(--tm-text-muted);
 }
+.fc-age.is-fresh, .fc-loc-age.is-fresh {
+  color: var(--tm-text);
+  padding: 1px 7px;
+  border: 1px solid var(--tm-border-soft);
+}
 /* Inline-fit header (market pill): company · time · skills cluster left, no gap —
    age no longer pushes to the far edge, and the fit pill sits right after it. */
 .fc-top-inlinefit .fc-age { margin-left: 0; }
@@ -103,10 +109,13 @@ a.fc-co:hover { color: var(--tm-interactive); }
 /* Location leads the meta (it's the load-bearing fact on a saved job) — stronger
    ink than the muted skill chips below. The mode pill keeps its own quiet tone. */
 .fc-loc { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: var(--tm-fs-body); color: var(--tm-text); }
-.fc-loc-mode {
-  font-size: var(--tm-fs-caption); font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase;
-  padding: 2px 8px; border-radius: var(--tm-button-radius); border: 1px solid var(--tm-border-soft); color: var(--tm-text-muted);
+.fc-logistics {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0 2px;
+  font-size: var(--tm-fs-body); color: var(--tm-text-muted); font-variant-numeric: tabular-nums;
 }
+.fc-log { color: var(--tm-text-muted); }
+.fc-log.is-below { color: var(--tm-warning-text, var(--tm-warning)); }
+.fc-log-dot { margin: 0 6px; color: var(--tm-text-faint); }
 
 .fc-meta { display: flex; flex-wrap: wrap; gap: 6px; }
 .fc-metachip {

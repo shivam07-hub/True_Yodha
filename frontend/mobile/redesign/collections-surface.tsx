@@ -101,6 +101,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
       job_id: detail?.job_id ?? "",
       source_url: detail?.job.source_url ?? null,
       company: detail?.job.company ?? null,
+      listing_venue: detail?.job.listing_venue ?? null,
       listing_confidence: detail?.liveness === "down" ? "closed" : detail?.liveness === "live" ? "active" : "uncertain",
     },
     surface: "other",

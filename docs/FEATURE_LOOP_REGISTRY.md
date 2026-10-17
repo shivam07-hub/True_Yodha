@@ -67,6 +67,7 @@ that starts after step 4 can only ever serve 14 people.
 | L10 | Newsletter → signup | unattributed | **UNINSTRUMENTED** |
 | L11 | Coin economy → spend → unlock | 818 ledgered, 2 paid | **NOT A LOOP YET** |
 | L12 | LinkedIn Services → scene → subscribe | door in product, 0 charges | **BUILT, UNCHARGED** |
+| L13 | Internships lane → Apply here / portal | **0** | **NEVER FIRED** |
 
 ---
 
@@ -295,6 +296,16 @@ Services page. The Myro door is `/job-switch-plan?utm_source=linkedin_services`
 (also `?from=linkedin_services`). Checkout opens a ₹199/month Razorpay
 subscription; month 1's pass is the resume they asked for, delivered in Myro.
 Reach is 0 until a real charge lands. Contract: [OFFERING.md](OFFERING.md).
+
+---
+
+### L13 — Internships lane → Apply here / portal · **NEVER FIRED**
+
+Internships are a Jobs lane, not mixed into the judged forty. Career-page intern
+roles apply on the company portal. Listings posted on Myro (`listing_venue=myro`)
+use Apply here on `/internships/{id}/apply`. Doors: `/market?lane=internships`,
+`/internships`, `/internships/post` from `/recruiters`. Reach is 0 until a hosted
+apply or intern-lane skip lands in production.
 
 ---
 

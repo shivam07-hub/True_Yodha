@@ -19,7 +19,13 @@ from razorpay import errors as razorpay_errors
 from app.config import settings
 from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
-from app.services import ai_workflow_audit, engagement_subscription as eng, job_switch_plan_service, xp_service
+from app.services import (
+    ai_workflow_audit,
+    engagement_subscription as eng,
+    filing_intake,
+    job_switch_plan_service,
+    xp_service,
+)
 
 CURRENCY = "INR"
 RAZORPAY_ORDER_TIMEOUT_SECONDS = 12
@@ -60,6 +66,14 @@ PRODUCTS: dict[str, Product] = {
     "ai_workflow_audit": Product(
         key="myro_ai_workflow_audit",
         price_paise=ai_workflow_audit.AUDIT_PRICE_PAISE,
+        xp_amount=0,
+        kind="entitlement",
+    ),
+    # ₹599 once. A person, a role, the career pages, and consent. Separate from
+    # the ₹199 Apply Pack, which stays the closer.
+    "filing_intake": Product(
+        key="myro_filing_intake",
+        price_paise=filing_intake.FILING_INTAKE_PRICE_PAISE,
         xp_amount=0,
         kind="entitlement",
     ),
@@ -340,6 +354,8 @@ def _apply_entitlement(user_id: str, product: Product, payment: dict[str, Any] |
         job_switch_plan_service.activate_plan(user_id, subscription_id=sub_id)
     elif product.key == PRODUCTS["ai_workflow_audit"].key:
         ai_workflow_audit.activate_audit(user_id)
+    elif product.key == PRODUCTS["filing_intake"].key:
+        filing_intake.mark_paid(user_id)
     else:
         _unlock_myrology(user_id)
 

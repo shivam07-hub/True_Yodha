@@ -113,7 +113,11 @@ async def deepen_job_stream(
 
     user_skill_map = repo.get_user_skill_map(user_id)
     user_lower = {k.lower(): v for k, v in user_skill_map.items()}
-    overlap_score, matched_skills, _missing = job_matcher.overlap(skill_rows, user_lower)
+    from app.services.matching.paper_facts import skills_lines_for
+    paper = skills_lines_for(repo, user_id, [job_id]).get(job_id)
+    overlap_score, matched_skills, _missing = job_matcher.overlap(
+        skill_rows, user_lower, paper_skills=paper,
+    )
     context = _build_context(
         user_skill_map,
         title=meta.get("job_title", ""),

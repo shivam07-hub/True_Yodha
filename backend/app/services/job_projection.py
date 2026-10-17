@@ -11,6 +11,7 @@ not a router concern; it lives here, and services import it directly.
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
+from app.services.internships import hosted_fields
 from app.services.listing_time import verdict as listing_time
 from app.schemas import ApplicationResponse, CVBadge, JobMatchResponse, MatchEval
 
@@ -117,6 +118,7 @@ def to_job_match(row: dict, batch_week: date) -> JobMatchResponse:
         baseline_version_id=ev.baseline_version_id,
         target_context_hash=ev.target_context_hash,
         seniority_compatibility=ev.seniority_compatibility,
+        **hosted_fields(job),
     )
 
 
@@ -174,6 +176,7 @@ def to_application(
         role_domain=job.get("role_domain"),
         min_years_experience=job.get("min_years_experience"),
         max_years_experience=job.get("max_years_experience"),
+        **hosted_fields(job),
     )
 
 

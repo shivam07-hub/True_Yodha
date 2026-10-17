@@ -3,9 +3,10 @@
 import { REASON_PROMPT_MS } from "@/lib/jobs/feedback"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { jobs, type JobFeedItem, type JobFeedResponse } from "@/lib/api"
+import { jobs, type InternshipsResponse, type JobFeedItem, type JobFeedResponse } from "@/lib/api"
+import { dataKeys } from "@/lib/domain-data"
 import type { FeedScope } from "@/lib/feed-scope"
-import { agentPicksQueryKey, dropJobFromAgentPicks, removeJobFromList } from "@/lib/jobs/job-triage-cache"
+import { agentPicksQueryKey, dropJobFromAgentPicks, removeJobFromInternships, removeJobFromList } from "@/lib/jobs/job-triage-cache"
 import { useLaneYields } from "@/store/matchRunStore"
 import { applyViewFilters, type FeedFilters } from "./feed-types"
 import { jobFeedQueryKey } from "./job-feed-query-key"
@@ -82,20 +83,36 @@ export function useJobFeed({
     gcTime: 24 * 60 * 60 * 1000,
   })
 
+  const internLane = filters.lane === "internships" || filters.lane === "hosted"
+  const internKey = dataKeys.internships(filters.lane === "hosted" ? "myro" : "all")
+  const internships = useQuery({
+    queryKey: internKey,
+    queryFn: () => jobs.internships({
+      token,
+      venue: filters.lane === "hosted" ? "myro" : undefined,
+    }),
+    enabled: !!token && internLane,
+    staleTime: 5 * 60 * 1000,
+  })
+
   const allJobs = useMemo(() => feed.data?.jobs ?? [], [feed.data])
+  const internJobs = useMemo(() => internships.data?.jobs ?? [], [internships.data])
+  const sourceJobs = internLane ? internJobs : allJobs
   // The one client-side pass, applied here so BOTH skins inherit it (a skin that
   // filtered locally is how desktop and mobile drifted apart).
   const visibleJobs = useMemo(
-    () => applyViewFilters(allJobs, filters, { q, skill }),
-    [allJobs, filters, q, skill],
+    () => applyViewFilters(sourceJobs, filters, { q, skill }),
+    [sourceJobs, filters, q, skill],
   )
-  const total = allJobs.length
+  const total = internLane ? internJobs.length : allJobs.length
   const shortlistSize = feed.data?.shortlist_size ?? 0
   // Loading = the query is enabled but has not produced a first result yet.
   // Keeping the skeleton up until the query SETTLES (rather than until some
   // pre-phase resolves) is what stops the "Feed clear" empty state flashing in
   // the tick before the first cards arrive.
-  const feedSettled = feed.isSuccess || feed.isError
+  const feedSettled = internLane
+    ? internships.isSuccess || internships.isError
+    : feed.isSuccess || feed.isError
   const loading = !!token && !feedSettled
   // How many leading cards the brain ranked. The list draws its "more roles"
   // divider after this many.
@@ -113,8 +130,12 @@ export function useJobFeed({
     (job: JobFeedItem, kind: TriageKind) => {
       // Any still-pending triage commits immediately (single undo slot).
       clearUndoTimer()
-      // Optimistic drain.
-      qc.setQueryData<JobFeedResponse>(queryKey, prev => removeJobFromList(prev, job.job_id))
+      // Optimistic drain. Intern lanes read a different cache than the forty.
+      if (internLane) {
+        qc.setQueryData<InternshipsResponse>(internKey, prev => removeJobFromInternships(prev, job.job_id))
+      } else {
+        qc.setQueryData<JobFeedResponse>(queryKey, prev => removeJobFromList(prev, job.job_id))
+      }
       dropJobFromAgentPicks(qc, token, job.job_id)
       if (kind === "saved") setSavedCount(c => c + 1)
       const call = kind === "saved" ? jobs.saveJob(token, job.job_id) : jobs.skipJob(token, job.job_id)
@@ -128,7 +149,7 @@ export function useJobFeed({
       setPending({ jobId: job.job_id, kind, job, operation })
       undoTimer.current = setTimeout(() => setPending(null), kind === "skipped" ? SKIP_UNDO_MS : UNDO_MS)
     },
-    [qc, queryKey, token, clearUndoTimer],
+    [qc, queryKey, internKey, internLane, token, clearUndoTimer],
   )
 
   const undo = useCallback(() => {
@@ -137,7 +158,7 @@ export function useJobFeed({
     clearUndoTimer()
     void operation.then((committed) => {
       const refresh = () => {
-        void qc.invalidateQueries({ queryKey })
+        void qc.invalidateQueries({ queryKey: internLane ? internKey : queryKey })
         void qc.invalidateQueries({ queryKey: agentPicksQueryKey(token) })
       }
       if (!committed) return refresh()
@@ -146,7 +167,7 @@ export function useJobFeed({
     })
     if (kind === "saved") setSavedCount(c => Math.max(0, c - 1))
     setPending(null)
-  }, [pending, token, qc, queryKey, clearUndoTimer])
+  }, [pending, token, qc, queryKey, internKey, internLane, clearUndoTimer])
 
   useEffect(() => clearUndoTimer, [clearUndoTimer])
 
@@ -154,5 +175,5 @@ export function useJobFeed({
   // existed. The real flag comes from `useFeedWarm`, which owns the deferred warm.
   // `settled` is J0's paint signal — that hook gates on it, and reading it from the
   // query is what keeps "after J0" a fact rather than a timer.
-  return { feed, allJobs, visibleJobs, total, shortlistSize, rankedCount, judgment, loading, settled: feedSettled, triage, undo, pending, commitPending, savedCount }
+  return { feed, allJobs, sourceJobs, internLane, visibleJobs, total, shortlistSize, rankedCount, judgment, loading, settled: feedSettled, triage, undo, pending, commitPending, savedCount }
 }

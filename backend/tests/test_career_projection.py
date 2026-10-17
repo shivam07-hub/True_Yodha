@@ -206,3 +206,41 @@ def test_project_for_job_ranks_by_requirements_reword_off(monkeypatch):
     assert "s3" not in out["included_ids"] + out["parked_ids"]
     assert out["cv_structured"]["experience"][0]["bullets"][0] == "Pointer one."
     assert out["cv_structured"]["summary"] == "S"
+
+
+def test_a_story_that_entails_outranks_a_closer_cosine():
+    ranked = [
+        (_story("near"), 0.9),
+        (_story("proves"), 0.1),
+    ]
+    pointers = {
+        "near": "Sold software to enterprise buyers last year.",
+        "proves": "Built data pipelines and warehouses for the finance team.",
+    }
+    out = cp.apply_reflection(
+        ranked,
+        ["Oversee creation of data pipelines and warehouses"],
+        pointers,
+    )
+    assert out[0][0]["id"] == "proves"
+    assert out[1][1] == 0.0
+
+
+def test_reflection_fails_open_when_nothing_entails():
+    ranked = [(_story("s1"), 0.8), (_story("s2"), 0.2)]
+    out = cp.apply_reflection(ranked, ["kubernetes platform"], {"s1": "Pointer one.", "s2": "Pointer two."})
+    assert out == ranked
+
+
+def test_a_gap_answer_pointer_must_stay_inside_the_answer():
+    from app.services.career_reservoir import clamp_gap_answer_pointers, gap_answer_body
+
+    framed = "Career experience — Own India territory:\nI own the India territory for 2 years."
+    body = gap_answer_body(framed, "Own India territory")
+    extraction = {"stories": [
+        {"pointer": "I own the India territory for 2 years."},
+        {"pointer": "Engineered a robust inbound pipeline across India."},
+    ]}
+    clamp_gap_answer_pointers(body, extraction)
+    assert extraction["stories"][0]["pointer"].startswith("I own")
+    assert extraction["stories"][1]["pointer"] == ""

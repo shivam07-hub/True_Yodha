@@ -46,6 +46,22 @@
 /* ── compact control bar: search-icon · rank · Filters (market-feed redesign) ─ */
 .tm-feed-bar {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  position: sticky; top: 0; z-index: 4;
+  padding: 8px 0 10px;
+  background: var(--tm-bg);
+}
+.tm-feed-lanes {
+  display: inline-flex; align-items: center; gap: 4px;
+  flex-wrap: wrap;
+}
+.tm-feed-lane {
+  min-height: 32px; padding: 0 12px;
+  border: 1px solid var(--tm-border-soft); background: transparent;
+  color: var(--tm-text-muted); font-size: var(--tm-fs-caption); font-weight: 500;
+  font-family: inherit; cursor: pointer; border-radius: var(--tm-button-radius);
+}
+.tm-feed-lane.is-on {
+  border-color: var(--tm-text); color: var(--tm-text); background: var(--tm-surface);
 }
 .tm-feed-iconbtn {
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;

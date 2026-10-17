@@ -99,10 +99,15 @@ backend/lightcast_skills_taxonomy copy.json
 
 # Newsletter drafts — local working folder
 Myro Newsletter/
+# Draft ids from scripts/push-substack-drafts.py. Local operator state.
+scripts/.substack-draft-state.json
 docs/free-llm-api-resources
-# /docs is local scratch EXCEPT adr/ — an ADR is a decision every machine must read.
+# /docs is local scratch EXCEPT adr/ and agent-memory/ — a decision or a
+# current-state note every machine must read.
 /docs/*
 !/docs/adr/
+!/docs/agent-memory/
+!/docs/agent-memory/**
 docs/free-llm-api-resources
 /Output per users
 docs/free-llm-api-resources

@@ -1,5 +1,14 @@
 import type { CompanyJobCard, JobFeedItem, JobMatch } from "@/lib/api"
+import {
+  isFreshAge,
+  listingVenueOf,
+  logisticsOf,
+  type ListingVenue,
+  type LogisticsItem,
+} from "@/lib/jobs/card-logistics"
 import { matchFitScore } from "@/lib/jobs/match-verdict"
+
+export { ageLabel, experienceLabel, isFreshAge } from "@/lib/jobs/card-logistics"
 
 /**
  * A skill pill on a feed card.
@@ -97,6 +106,11 @@ export interface FeedCardData {
   fit: FitView
   /** The role's pay band, when the brain placed one. Never a reason to hide a card. */
   pay?: PayView | null
+  /** Hunt facts under the title. Empty when the posting gave us none. */
+  logistics: LogisticsItem[]
+  listingVenue: ListingVenue
+  /** today / 1d — the age pill is a signal, not a timestamp. */
+  isFresh: boolean
 }
 
 /** A pay band on a card. `estimated` is the brain's placement from company and
@@ -119,27 +133,6 @@ export function payView(
   const band = low === high ? `₹${fmt(low)}L` : `₹${fmt(low)}–${fmt(high)}L`
   const estimated = job.ctc_basis !== "stated"
   return { label: estimated ? `~${band}` : band, estimated, belowFloor: job.pay_below_floor === true }
-}
-
-/** Compact relative-age badge from an ISO date (day granular). */
-export function ageLabel(iso: string | null | undefined): string | null {
-  if (!iso) return null
-  const then = new Date(iso)
-  if (Number.isNaN(then.getTime())) return null
-  const days = Math.floor((Date.now() - then.getTime()) / 86_400_000)
-  if (days <= 0) return "today"
-  if (days === 1) return "1d ago"
-  if (days < 7) return `${days}d ago`
-  if (days < 30) return `${Math.floor(days / 7)}w ago`
-  return `${Math.floor(days / 30)}mo ago`
-}
-
-/** Experience-range chip label from the scraper's min/max years (backlog #22). */
-export function experienceLabel(min: number | null, max: number | null): string | null {
-  if (min != null && max != null) return min === max ? `${min} yrs` : `${min}–${max} yrs`
-  if (min != null) return `${min}+ yrs`
-  if (max != null) return `≤${max} yrs`
-  return null
 }
 
 /** One fading body line. Inlined here (not imported from lenses) so the card
@@ -183,6 +176,14 @@ export function feedDataFromMatch(
     ageIso: job.first_seen ?? null,
     fit: src.fit != null ? { kind: "score", value: src.fit, verdict: job.verdict } : null,
     pay: payView(job),
+    ...listingOf(job, {
+      role: src.role,
+      locations: (job.locations ?? []).filter((c) => c && c.trim()),
+      location: job.location?.trim() || null,
+      locationMode: normalizeMode(job.location_mode, job.work_mode),
+      pay: payView(job),
+      ageIso: job.first_seen ?? null,
+    }),
   }
 }
 
@@ -231,6 +232,14 @@ export function feedDataFromFeedItem(
       ? { kind: "score", value: matchFitScore(job), verdict: job.verdict }
       : marketFit(job, hasCv),
     pay: payView(job),
+    ...listingOf(job, {
+      role: job.job_title,
+      locations: (job.locations ?? []).filter((c) => c && c.trim()),
+      location: job.location?.trim() || null,
+      locationMode: normalizeMode(job.location_mode, null),
+      pay: payView(job),
+      ageIso: job.first_seen ?? null,
+    }),
   }
 }
 
@@ -272,6 +281,14 @@ export function feedDataFromCompanyJob(job: CompanyJobCard, maxChips = 4): FeedC
     extraChipCount: Math.max(0, skills.length - maxChips),
     ageIso: null,
     fit: null,
+    ...listingOf({}, {
+      role: job.title,
+      locations: [],
+      location: job.location_city?.trim() || job.location?.trim() || job.location_country?.trim() || null,
+      locationMode: normalizeMode(job.location_mode as JobMatch["location_mode"], null),
+      pay: null,
+      ageIso: null,
+    }),
   }
 }
 
@@ -319,5 +336,59 @@ export function feedDataFromIntelJob(
     // ageMin (minutes) → an ISO the shared ageLabel understands (day-granular).
     ageIso: job.ageMin != null ? new Date(Date.now() - job.ageMin * 60_000).toISOString() : null,
     fit: null, // the surface passes its own <FitSlot> node (has anon "check fit" states)
+    ...listingOf({}, {
+      role: job.title,
+      locations: [],
+      location: job.city?.trim() || null,
+      locationMode: normalizeMode((job.mode ?? null) as JobMatch["location_mode"], job.mode),
+      pay: null,
+      ageIso: job.ageMin != null ? new Date(Date.now() - job.ageMin * 60_000).toISOString() : null,
+    }),
+  }
+}
+
+type ListingJob = {
+  seniority_level?: string | null
+  employment_kind?: string | null
+  listing_venue?: string | null
+  min_years_experience?: number | null
+  max_years_experience?: number | null
+  stipend_low_inr?: number | null
+  stipend_high_inr?: number | null
+  duration_months?: number | null
+  ppo?: boolean | null
+}
+
+function listingOf(
+  job: ListingJob,
+  extra: {
+    role: string
+    locations: string[]
+    location: string | null
+    locationMode: string | null
+    pay: PayView | null
+    ageIso: string | null
+  },
+): Pick<FeedCardData, "logistics" | "listingVenue" | "isFresh"> {
+  const venue = listingVenueOf(job.listing_venue)
+  return {
+    logistics: logisticsOf({
+      role: extra.role,
+      locations: extra.locations,
+      location: extra.location,
+      locationMode: extra.locationMode,
+      seniority: job.seniority_level,
+      employmentKind: job.employment_kind,
+      listingVenue: venue,
+      minYears: job.min_years_experience,
+      maxYears: job.max_years_experience,
+      pay: extra.pay,
+      stipendLowInr: job.stipend_low_inr,
+      stipendHighInr: job.stipend_high_inr,
+      durationMonths: job.duration_months,
+      ppo: job.ppo,
+    }),
+    listingVenue: venue,
+    isFresh: isFreshAge(extra.ageIso),
   }
 }

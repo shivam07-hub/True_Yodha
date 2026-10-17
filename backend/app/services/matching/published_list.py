@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+from app.services.internships import hosted_fields
 from app.services.listing_time import verdict as listing_time
 
 SHOW_FLOOR = 3.5
@@ -250,4 +251,5 @@ def _card(
         "ctc_basis": me.ctc_basis,
         "pay_below_floor": below_floor(floor, me.ctc_high_lpa),
         "rereading": rereading,
+        **hosted_fields(job),
     }

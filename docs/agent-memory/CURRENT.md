@@ -41,6 +41,10 @@ retrieval: default | on_demand
 
 ## Verified active decisions
 
+- **Database load:** `project_micro_load_unload.md` is the current contract for
+  Unload and for which `jobs` indexes may be dropped. Compute stays Micro.
+  Do not put the verifier claim back on the wide `jobs` row.
+
 - **CV and applications:** `project_cv_playground_linkedin_tracker.md` is the
   canonical contract for one active tailored CV per exact job, immutable
   submitted snapshots, and honest application handoff.

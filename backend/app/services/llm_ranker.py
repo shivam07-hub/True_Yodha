@@ -102,7 +102,9 @@ NO_TARGET_ROLES = "not set"
 #: v4 (2026-09-28): deal-breakers split into a pay floor and numbered won't-take
 #: lines; the brain names the lines a posting breaks and estimates its pay band.
 #: Pay never makes a Skip.
-PROMPT_VERSION = "v4-pay-band-breaks"
+#: v5 (2026-10-15): the job message may carry a JD Reflection — motions the
+#: person's own lines prove, and motions still unproven. Facts, not a grade.
+PROMPT_VERSION = "v5-jd-reflection"
 
 #: Literal non-answers that have been stored as a career goal. The prod case is
 #: a column of "No". Scoring growth against that is the same failure as scoring
@@ -284,6 +286,7 @@ Rules:
 - If overall_score < 3.5, recommendation MUST be "Skip" and summary must say why not to apply.
 - PAST SKILLS QUALIFY A CANDIDATE; THEY DO NOT SET THEIR DIRECTION. A posting that leans on skills from the candidate's past while moving them away from the target roles above is at best a deliberate pivot: say so in the summary, and do not let old skills alone carry role_fit. A candidate whose CV shows SQL and whose target is sales is not a data engineer.
 - Apply is a recommendation to spend an application. Use "Apply" only at 4.0+; 3.5-3.9 is "Negotiate" at best — worth a look for a specific reason, not a role to lead with.
+- When the job message lists motions this person's own lines prove, and motions still unproven, those are facts about the CV. Do not turn that list into a score. An unproven motion is not, by itself, a reason to Skip.
 
 Respond ONLY with valid JSON, no prose outside it, matching exactly:
 {{
@@ -326,6 +329,8 @@ def build_job_context(job: dict[str, Any]) -> str:
     matched_skills/description/overlap_score.
     """
     matched = ", ".join(job.get("matched_skills") or []) or "n/a"
+    reflection = str(job.get("jd_reflection") or "").strip()
+    reflection_block = f"\n\n{reflection}" if reflection else ""
     return f"""Job Title: {job.get('title')}
 Company: {job.get('company') or 'n/a'}
 Industry: {job.get('industry') or 'n/a'}
@@ -334,7 +339,7 @@ Skills this candidate already matches: {matched}
 Deterministic skill-overlap score (0–100): {job.get('overlap_score')}
 
 Job Description:
-{(job.get('description') or 'No description available')[:6000]}"""
+{(job.get('description') or 'No description available')[:6000]}{reflection_block}"""
 
 
 # ── Tier-1 triage (cheap, batched: pool → shortlist) ──────────────────────────

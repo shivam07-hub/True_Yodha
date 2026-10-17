@@ -231,6 +231,35 @@ class CVVersionsRepository:
         row = (result.data or [None])[0]
         return self._normalized(row) if row else None
 
+    def structured_for_jobs(
+        self, user_id: str, job_ids: list[str],
+    ) -> dict[str, dict[str, Any]]:
+        """Newest cv_structured per job. One read, chunked for the URL cap."""
+        ids = [job_id for job_id in dict.fromkeys(job_ids) if job_id]
+        best: dict[str, tuple[int, dict[str, Any]]] = {}
+        for start in range(0, len(ids), 40):
+            chunk = ids[start:start + 40]
+            result = (
+                self._db.table("cv_versions")
+                .select("job_id, user_version_number, cv_structured")
+                .eq("user_id", user_id)
+                .in_("job_id", chunk)
+                .execute()
+            )
+            for row in result.data or []:
+                job_id = str(row.get("job_id") or "")
+                structured = row.get("cv_structured")
+                if not job_id or not isinstance(structured, dict):
+                    continue
+                try:
+                    version = int(row.get("user_version_number") or 0)
+                except (TypeError, ValueError):
+                    version = 0
+                previous = best.get(job_id)
+                if previous is None or version >= previous[0]:
+                    best[job_id] = (version, structured)
+        return {job_id: structured for job_id, (_version, structured) in best.items()}
+
     def latest_for_thread_batch(
         self,
         user_id: str,

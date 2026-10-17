@@ -28,6 +28,7 @@ from typing import Any
 from app.services import embeddings, story_questions
 from app.services.career_reservoir import cosine
 from app.services.jd_coverage import CoverageItem
+from app.services.jd_reflection import entails
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,9 @@ class InterviewOption:
     label: str                   # the story title / CV line itself
     detail: str = ""             # canonical pointer / host-role label
     story_id: str | None = None
+    #: True only when this line entails the requirement. A nearby line can
+    #: still be offered, and choosing it does not count as proof.
+    proven: bool = False
     #: What this story's bullet is still missing, in the user's terms — the same
     #: question the Stories queue asks about it (#13 L3). Empty when the bullet
     #: already stands on its own.
@@ -141,7 +145,7 @@ async def build_interview(
         qvecs = await embeddings.embed_texts([q.requirement for q in questions])
     except Exception as exc:  # noqa: BLE001 — free-text-only interview still works
         logger.info("cv_weave_interview: requirement embed failed (%s)", exc.__class__.__name__)
-        return questions
+        return _label_options(questions)
 
     from app.database import get_supabase_admin
     from app.repositories.career_reservoir import CareerReservoirRepository
@@ -218,6 +222,14 @@ async def build_interview(
             _kinds, missing = story_questions.ask_for(story, o.detail)
             o.asks = missing
 
+    return _label_options(questions)
+
+
+def _label_options(questions: list[InterviewQuestion]) -> list[InterviewQuestion]:
+    for q in questions:
+        for o in q.options:
+            o.proven = entails(q.requirement, f"{o.label} {o.detail}")
+        q.options.sort(key=lambda o: 0 if o.proven else 1)
     return questions
 
 

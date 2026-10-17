@@ -434,6 +434,30 @@ async def backfill_missing_embeddings(repo: Any, user_id: str, limit: int = 20) 
         return 0
 
 
+def gap_answer_body(text: str, requirement: str | None) -> str:
+    """The person's words, without the requirement the frame prefixed."""
+    body = (text or "").strip()
+    req = " ".join(str(requirement or "").split()).strip()
+    if req:
+        prefix = f"Career experience — {req}:"
+        if body.lower().startswith(prefix.lower()):
+            return body[len(prefix):].strip()
+    marker = "Career experience:"
+    if body.lower().startswith(marker.lower()):
+        return body[len(marker):].strip()
+    return body
+
+
+def clamp_gap_answer_pointers(source: str, extraction: dict[str, Any]) -> None:
+    """Drop a pointer the answer does not already contain. The story can still land."""
+    from app.services.jd_reflection import pointer_inside_source
+
+    for story in extraction.get("stories") or []:
+        pointer = str(story.get("pointer") or "")
+        if pointer and not pointer_inside_source(source, pointer):
+            story["pointer"] = ""
+
+
 @handler(JOB_TYPE_INGEST)
 async def _ingest_entry(payload: dict[str, Any], allow_retry: bool) -> None:
     from app.database import get_supabase_admin
@@ -478,6 +502,15 @@ async def _ingest_entry(payload: dict[str, Any], allow_retry: bool) -> None:
         if allow_retry:
             raise TransientJobError("provider/budget unavailable")
         return  # in-process path: stays pending, visible in the status line
+
+    if entry.get("source") == "jd_gap_answer":
+        # The frame prefixes the requirement. The pointer may only use the
+        # words the person wrote, so a paraphrase cannot become a new motion.
+        payload = entry.get("payload") if isinstance(entry.get("payload"), dict) else {}
+        clamp_gap_answer_pointers(
+            gap_answer_body(entry.get("text") or "", payload.get("requirement")),
+            extraction,
+        )
 
     story_ids = await _persist_extraction(repo, user_id, entry_id, extraction)
     repo.mark_processed(user_id, entry_id, story_ids)

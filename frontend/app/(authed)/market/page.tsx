@@ -16,7 +16,7 @@ import { JobsSurface } from "@/mobile/redesign/jobs-surface"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useFeedState } from "@/lib/hooks/use-feed-state"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
-import { parseLocationMode, type FeedFilters } from "@/components/market/feed-types"
+import { parseFeedLane, parseLocationMode, type FeedFilters } from "@/components/market/feed-types"
 import { RequiresCareerTarget } from "@/components/career-path/requires-career-target"
 import { MarketSkeleton } from "@/components/loading/page-skeletons"
 
@@ -100,6 +100,7 @@ function IntelPageInner() {
     roleFamily: selectedCluster,
     locationMode: parseLocationMode(searchParams.get("mode")),
     hideLowConfidence: searchParams.get("quality") === "1",
+    lane: parseFeedLane(searchParams.get("lane")),
   }), [searchParams, selectedCluster])
   const browseQuery = searchParams.get("q") || ""
 
@@ -116,6 +117,7 @@ function IntelPageInner() {
       set("cluster", patch.filters.roleFamily)
       set("mode", patch.filters.locationMode)
       set("quality", patch.filters.hideLowConfidence ? "1" : null)
+      set("lane", patch.filters.lane === "jobs" ? null : patch.filters.lane)
     }
     const query = next.toString()
     router.replace(`/market${query ? `?${query}` : ""}`, { scroll: false })

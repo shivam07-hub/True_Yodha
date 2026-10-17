@@ -4,10 +4,12 @@ from app.services import job_importer, job_path as job_path_service
 
 from .analyse import router as analyse_router
 from .apply import router as apply_router
+from .filing import router as filing_router
 from .collections import router as collections_router
 from .deepen import router as deepen_router
 from .detail import router as detail_router
 from .intelligence import router as intelligence_router
+from .internships import router as internships_router
 from .intent_chat import router as intent_chat_router
 from .list import router as list_router
 from .match import router as match_router
@@ -24,6 +26,7 @@ from .skill_demand import router as skill_demand_router
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 router.include_router(list_router)
+router.include_router(internships_router)
 # Before detail_router: its `/{job_id}` would otherwise swallow `/skill-demand`
 # and `/contributions`.
 router.include_router(skill_demand_router)
@@ -34,6 +37,7 @@ router.include_router(provenance_router)
 router.include_router(intelligence_router)
 router.include_router(match_router)
 router.include_router(apply_router)
+router.include_router(filing_router)
 router.include_router(collections_router)
 router.include_router(review_router)
 router.include_router(milestone_router)

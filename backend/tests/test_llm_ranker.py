@@ -708,8 +708,21 @@ def test_a_growth_score_against_no_goal_is_dropped() -> None:
     assert llm_ranker.gate_growth_fit({"career_goal": "lead a team"}, kept)["growth_fit"] == 4.2
 
 
-def test_prompt_version_names_the_pay_band_rule() -> None:
-    assert llm_ranker.PROMPT_VERSION == "v4-pay-band-breaks"
+def test_prompt_version_names_the_reflection_rule() -> None:
+    assert llm_ranker.PROMPT_VERSION == "v5-jd-reflection"
+
+
+def test_the_job_message_carries_the_reflection_as_facts() -> None:
+    text = llm_ranker.build_job_context({
+        "title": "Manager",
+        "description": "Deals analytics.",
+        "overlap_score": 12,
+        "jd_reflection": "Motions this person's own lines prove:\n- reports — Built dashboards",
+    })
+    assert "Motions this person's own lines prove" in text
+    assert "Built dashboards" in text
+    prompt = llm_ranker.build_system_prompt({}, "CV")
+    assert "An unproven motion is not, by itself, a reason to Skip." in prompt
 
 
 # ── Deal-Breaker: numbered won't-take lines, a pay floor, a pay band ───────────

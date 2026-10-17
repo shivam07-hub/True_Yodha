@@ -128,3 +128,7 @@ on a known surface still holds, and `next` stays deleted.
 `write-like-human` lint clean, `brand-guidelines` voice matrix respected,
 600–1200 body words, the five build gates green, and the angle, heading and chart
 agreed with Shivam before drafting.
+
+The next piece to push is the first row in [NEWSLETTER_QUEUE.md](NEWSLETTER_QUEUE.md).
+Take the issue number from that file. The numbers inside `Myro Newsletter/scaffolds/`
+are retired.

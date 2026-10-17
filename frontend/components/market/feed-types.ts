@@ -1,4 +1,5 @@
 import type { JobFeedItem } from "@/lib/api"
+import { isInternRole, listingVenueOf } from "@/lib/jobs/card-logistics"
 
 /**
  * The narrowing the user can do to their own list. One object so the
@@ -30,6 +31,8 @@ import type { JobFeedItem } from "@/lib/api"
  * inside retrieval, surfaced read-only in the sheet, never a per-session filter.
  */
 export type LocationMode = "onsite" | "hybrid" | "remote"
+/** Jobs = the chosen forty. Internships = the intern lane. Hosted = Apply here. */
+export type FeedLane = "jobs" | "internships" | "hosted"
 
 export interface FeedFilters {
   /** One of the user's own target roles, narrowing the list to that family. The
@@ -38,13 +41,21 @@ export interface FeedFilters {
   roleFamily: string | null
   locationMode: LocationMode | null  // null = any work mode
   hideLowConfidence: boolean         // drop caution/suspicious/stale cards
+  lane: FeedLane
 }
 
 export const DEFAULT_FILTERS: FeedFilters = {
   roleFamily: null,
   locationMode: null,
   hideLowConfidence: false,
+  lane: "jobs",
 }
+
+export const FEED_LANES: ReadonlyArray<readonly [FeedLane, string]> = [
+  ["jobs", "Jobs"],
+  ["internships", "Internships"],
+  ["hosted", "Apply here"],
+] as const
 
 /** The work-mode segmented control. "Any" is the null state, not a value. */
 export const WORK_MODES: ReadonlyArray<readonly [LocationMode | null, string]> = [
@@ -57,6 +68,11 @@ export const WORK_MODES: ReadonlyArray<readonly [LocationMode | null, string]> =
 export function parseLocationMode(raw: string | null | undefined): LocationMode | null {
   const v = (raw ?? "").trim().toLowerCase()
   return v === "onsite" || v === "hybrid" || v === "remote" ? v : null
+}
+
+export function parseFeedLane(raw: string | null | undefined): FeedLane {
+  const v = (raw ?? "").trim().toLowerCase()
+  return v === "internships" || v === "hosted" ? v : "jobs"
 }
 
 /**
@@ -110,9 +126,20 @@ export function applyViewFilters<
     JobFeedItem,
     "legitimacy_tier" | "is_stale" | "location_mode" | "role_family"
     | "job_title" | "company_name" | "skills"
-  >,
+  > & Partial<Pick<JobFeedItem, "seniority_level" | "employment_kind" | "listing_venue" | "stipend_low_inr" | "stipend_high_inr">>,
 >(items: T[], f: FeedFilters, view: ViewQuery = {}): T[] {
   let out = items
+  if (f.lane === "hosted") {
+    out = out.filter(j => listingVenueOf(j.listing_venue) === "myro")
+  } else if (f.lane === "jobs") {
+    out = out.filter(j => !isInternRole({
+      role: j.job_title,
+      seniority: j.seniority_level,
+      employmentKind: j.employment_kind,
+      stipendLowInr: j.stipend_low_inr,
+      stipendHighInr: j.stipend_high_inr,
+    }) && listingVenueOf(j.listing_venue) !== "myro")
+  }
   if (f.hideLowConfidence) {
     out = out.filter(
       j => !(j.legitimacy_tier === "caution" || j.legitimacy_tier === "suspicious" || j.is_stale),

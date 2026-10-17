@@ -5,7 +5,9 @@ import { PulseRow } from "@/components/dashboard/card-atoms"
 import { FeedCard, feedCardConfidenceClass, feedCardRereadClass } from "@/components/jobs/feed-card"
 import { LegitimacyBadge } from "@/components/jobs/match-brain"
 import { CapturePill } from "@/components/jobs/capture-pill"
-import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
+import { ageLabel, feedDataFromFeedItem } from "@/lib/jobs/card-view"
+import { MODE_LABEL } from "@/lib/jobs/card-logistics"
+import Link from "next/link"
 import { ShareJobButton } from "@/components/market/share-job-button"
 
 // ── shared helpers (used by card, drawer, mobile feed) ───────────────────────
@@ -16,20 +18,7 @@ export function jdSnippet(text: string | null | undefined, max = 180): string {
   return flat.length > max ? `${flat.slice(0, max).trimEnd()}…` : flat
 }
 
-/** first_seen is an ISO date (day-granular). Compact age badge. */
-export function ageLabel(iso: string | null | undefined): string | null {
-  if (!iso) return null
-  const then = new Date(iso)
-  if (Number.isNaN(then.getTime())) return null
-  const days = Math.floor((Date.now() - then.getTime()) / 86_400_000)
-  if (days <= 0) return "today"
-  if (days === 1) return "1d ago"
-  if (days < 7) return `${days}d ago`
-  if (days < 30) return `${Math.floor(days / 7)}w ago`
-  return `${Math.floor(days / 30)}mo ago`
-}
-
-const MODE_LABEL: Record<string, string> = { onsite: "On-site", hybrid: "Hybrid", remote: "Remote" }
+export { ageLabel }
 
 export function SkillChip({ label }: { label: string }) {
   return (
@@ -83,12 +72,22 @@ export function TriageButtons({ job, onSave, onSkip, onTailor }: {
           pill only ever shows its rest state here; the confirmation + next-step
           live in the upgraded triage band. */}
       <CapturePill status="rest" onSave={onSave} label={label} />
+      {job.listing_venue === "myro" ? (
+        <Link
+          href={`/internships/${encodeURIComponent(job.job_id)}/apply`}
+          aria-label={label ? `Apply here for ${label}` : "Apply here"}
+          onClick={e => e.stopPropagation()}
+          className="tm-triage-btn tm-triage-tailor"
+        >
+          Apply here
+        </Link>
+      ) : null}
       {onTailor ? (
         <button
           type="button"
           aria-label={label ? `Tailor CV for ${label}` : "Tailor CV for this job"}
           onClick={e => { e.stopPropagation(); onTailor() }}
-          className="tm-triage-btn tm-triage-tailor"
+          className={job.listing_venue === "myro" ? "tm-triage-btn tm-triage-skip" : "tm-triage-btn tm-triage-tailor"}
         >
           Tailor CV
         </button>

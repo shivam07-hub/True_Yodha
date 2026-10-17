@@ -1,0 +1,125 @@
+.fi-wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: clamp(24px, 5vw, 56px) 20px 80px;
+}
+
+.fi-kicker {
+  color: var(--tm-accent-text);
+  font-size: var(--tm-fs-caption);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.fi-title {
+  margin: 6px 0 0;
+  font-size: var(--tm-fs-title);
+  font-weight: 600;
+  color: var(--tm-text);
+}
+
+.fi-sub,
+.fi-note {
+  margin: 14px 0 0;
+  color: var(--tm-text-muted);
+  font-size: var(--tm-fs-body);
+  line-height: 1.6;
+}
+
+.fi-card {
+  margin-top: 28px;
+  padding: clamp(20px, 4vw, 32px);
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-button-radius);
+}
+
+.fi-steps {
+  margin: 16px 0 0;
+  padding-left: 1.2em;
+  color: var(--tm-text);
+  font-size: var(--tm-fs-body);
+  line-height: 1.5;
+}
+
+.fi-steps li + li {
+  margin-top: 8px;
+}
+
+.fi-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.fi-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--tm-text);
+  font-size: var(--tm-fs-caption);
+  font-weight: 600;
+}
+
+.fi-form input,
+.fi-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-button-radius);
+  background: var(--tm-bg);
+  color: var(--tm-text);
+  font: inherit;
+  font-size: var(--tm-fs-body);
+}
+
+.fi-form label.fi-check {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  font-weight: 500;
+  font-size: var(--tm-fs-body);
+  line-height: 1.5;
+}
+
+.fi-check input {
+  width: auto;
+  margin-top: 3px;
+}
+
+.fi-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.fi-actions button {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: var(--tm-button-radius);
+  border: 1px solid var(--tm-border);
+  background: transparent;
+  color: var(--tm-text);
+  font-size: var(--tm-fs-body);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.fi-actions button:disabled {
+  cursor: default;
+  color: var(--tm-text-muted);
+}
+
+.fi-pay {
+  color: var(--tm-interactive);
+  border-color: var(--tm-interactive);
+}
+
+.fi-error {
+  margin: 0;
+  color: var(--tm-danger-text);
+  font-size: var(--tm-fs-caption);
+}

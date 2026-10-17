@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 from app.config import settings
-from app.services.job_unload_archive import archive_then_retire
+from app.services.job_unload_archive import unload
 from supabase import create_client
 from supabase.lib.client_options import ClientOptions
 
@@ -35,7 +35,7 @@ def main() -> None:
         deleted = 0
         for attempt in range(1, 4):
             try:
-                deleted = archive_then_retire(db, limit=batch_size, local_root=root)
+                deleted = unload(db, limit=batch_size, archive_dir=root)
                 break
             except Exception as exc:
                 print(f"retry={attempt} err={type(exc).__name__}: {exc}", flush=True)

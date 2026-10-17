@@ -4,19 +4,11 @@ import * as React from "react"
 import type { JobMatch, JobPulse } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { fitTier } from "@/lib/dashboard/feed-model"
-import { ageLabel, experienceLabel, type FeedCardData, type FitView } from "@/lib/jobs/card-view"
+import { ageLabel, type FeedCardData, type FitView } from "@/lib/jobs/card-view"
 import { verdictLabel } from "@/lib/jobs/match-verdict"
 import { CompanyLink, companyHref } from "@/components/companies/company-link"
 import "./feed-card.css"
 import Link from "next/link"
-
-const MODE_LABEL: Record<string, string> = { onsite: "On-site", hybrid: "Hybrid", remote: "Remote" }
-const CAREER_BAND_LABEL: Record<string, string> = {
-  engineering_data: "Engineering & Data",
-  business_product_operations: "Business, Product & Operations",
-  research_people_public_impact: "Research, People & Public Impact",
-  design_creative: "Design & Creative",
-}
 
 /** Deterministic per-company logo-tile colour. Replaces the letter-on-black
  *  monogram (the strongest "terminal" tell) with a warm coloured chip while we
@@ -162,10 +154,8 @@ export function FeedCard({
   data, fit, fitSize, badges, pulse, actions, rail, confirm, allowGapActions = true, variant = "row", open, leaving, extraClass = "", onOpen, articleProps, lede,
 }: FeedCardProps) {
   const age = ageLabel(data.ageIso)
-  const exp = experienceLabel(data.minYears, data.maxYears)
-  const showMode = data.locationMode && (!data.location || !data.location.toLowerCase().includes(data.locationMode))
-  const hasLoc = data.locations.length > 0 || data.location || showMode
-  const hasMeta = data.careerBand || data.seniority || exp || data.pay
+  const compact = variant === "compact"
+  const hasLogistics = data.logistics.length > 0 || (compact && !!age)
   // The fit slot is derived from the data by default; an explicit `fit` node overrides.
   const fitNode = fit ?? <FitIndicator fit={data.fit} size={fitSize} />
   const hasFit = fit != null || data.fit != null
@@ -174,11 +164,6 @@ export function FeedCard({
   // floats to the card edge on narrow mobile. The score *ring* stays its own
   // right column (that's its design).
   const fitInTop = fit == null && data.fit != null && data.fit.kind !== "score"
-
-  // Compact density (Intel + company pages): the company is the page/pane context,
-  // so the identity tile is dropped and the role leads, with fit + capture on the
-  // role line. Same body atoms (fc-role / fc-loc / fc-chip) → one card language.
-  const compact = variant === "compact"
 
   // Unified skill language: when the CV is known, lead with a "N/M skills" count
   // (matching the playground's Skills tab) + the top missing skills as one-tap
@@ -248,36 +233,22 @@ export function FeedCard({
               <div className={`fc-top${fitInTop ? " fc-top-inlinefit" : ""}`}>
                 <CompanyLink company={data.company} className="fc-co" />
                 {badges}
-                {age ? <span className="fc-age">{age}</span> : null}
+                {age ? <span className={`fc-age${data.isFresh ? " is-fresh" : ""}`}>{age}</span> : null}
                 {fitInTop ? fitNode : null}
               </div>
               <h3 className="fc-role">{data.role}</h3>
             </>
           )}
 
-          {hasLoc || (compact && age) ? (
-            <div className="fc-loc">
-              {data.locations.length > 0
-                ? data.locations.map((c) => <span key={c}>{c}</span>)
-                : data.location ? <span>{data.location}</span> : null}
-              {showMode ? <span className="fc-loc-mode">{MODE_LABEL[data.locationMode!] ?? data.locationMode}</span> : null}
-              {compact && age ? <span className="fc-loc-age">{age}</span> : null}
-            </div>
-          ) : null}
-
-          {hasMeta ? (
-            <div className="fc-meta">
-              {data.careerBand ? <span className="fc-metachip">{CAREER_BAND_LABEL[data.careerBand] ?? data.careerBand}</span> : null}
-              {data.seniority ? <span className="fc-metachip">{data.seniority}</span> : null}
-              {exp ? <span className="fc-metachip">{exp}</span> : null}
-              {data.pay ? (
-                <span
-                  className={`fc-metachip fc-pay${data.pay.belowFloor ? " is-below" : ""}`}
-                  title={`${data.pay.estimated ? "Estimated from company and peer pay bands" : "Stated on the posting"}${data.pay.belowFloor ? " · under your pay floor" : ""}`}
-                >
-                  {data.pay.label}
+          {hasLogistics ? (
+            <div className="fc-logistics">
+              {data.logistics.map((item, i) => (
+                <span key={`${item.kind}-${item.label}`}>
+                  {i > 0 ? <span className="fc-log-dot" aria-hidden>·</span> : null}
+                  <span className={`fc-log${item.tone === "warning" ? " is-below" : ""}`}>{item.label}</span>
                 </span>
-              ) : null}
+              ))}
+              {compact && age ? <span className={`fc-loc-age${data.isFresh ? " is-fresh" : ""}`}>{age}</span> : null}
             </div>
           ) : null}
 

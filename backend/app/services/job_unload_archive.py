@@ -14,7 +14,7 @@ import os
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 from uuid import uuid4
 
 from supabase import Client
@@ -70,7 +70,12 @@ def write_archive_bundle(
         "archive_format": ARCHIVE_FORMAT,
         "project_ref": "gipvxuugajkugntwkeiz",
         "created_at_utc": created_at.isoformat(),
-        "selector": "listing_confidence=closed AND deletion_eligible_at<=now()",
+        "selector": (
+            "listing_confidence=closed AND deletion_eligible_at<=now() "
+            "AND quarantine elapsed "
+            "AND job_id absent from user_job_matches, job_applications, "
+            "job_feedback_events, job_reports"
+        ),
         "jobs": {
             "count": len(jobs),
             "distinct_companies": len(by_company),
@@ -86,35 +91,30 @@ def write_archive_bundle(
     return manifest
 
 
-def archive_then_retire(
+def unload(
     db: Client,
     *,
     limit: int = 500,
-    now: Callable[[], datetime] | None = None,
-    local_root: Path | None = None,
+    archive_dir: Path | None = None,
 ) -> int:
-    """Write a v1 bundle to disk, then delete exactly those job ids."""
-    if (
-        local_root is None
-        and os.getenv("RAILWAY_ENVIRONMENT")
-        and not os.getenv("JOB_UNLOAD_ARCHIVE_DIR")
-    ):
+    """Archive the next closed, quarantined, history-free listings, then delete them.
+
+    Returns how many rows left ``jobs``. ``0`` means nothing was retired.
+    No durable directory means do not read or delete: Railway leaves
+    ``JOB_UNLOAD_ARCHIVE_DIR`` unset. A disk failure raises before any delete.
+    Eligibility is ``list_unload_candidates`` (database clock, quarantine, and
+    the four history tables). Callers do not page or name those tables.
+    """
+    root = archive_dir if archive_dir is not None else _env_archive_dir()
+    if root is None:
         log.info("metric job_unload.skipped reason=no_persistent_disk")
         return 0
     capped = max(1, min(limit, 5000))
-    stamp = (now or (lambda: datetime.now(timezone.utc)))()
     listed = (
-        db.table("jobs")
-        .select("job_id")
-        .eq("listing_confidence", "closed")
-        .lte("deletion_eligible_at", stamp.isoformat())
-        .order("deletion_eligible_at")
-        .limit(capped)
-        .execute()
-        .data
+        db.rpc("list_unload_candidates", {"p_limit": capped}).execute().data
         or []
     )
-    ids = [str(row["job_id"]) for row in listed if row.get("job_id")]
+    ids = [str(row["job_id"]) for row in listed if isinstance(row, dict) and row.get("job_id")]
     if not ids:
         return 0
     jobs = _fetch_jobs(db, ids)
@@ -123,8 +123,8 @@ def archive_then_retire(
         log.error("metric job_unload.fetch_empty listed=%d", len(ids))
         return 0
     skills = _fetch_skills(db, archived_ids)
+    stamp = datetime.now(timezone.utc)
     batch = stamp.strftime("%Y%m%dT%H%M%SZ") + "-" + uuid4().hex[:8]
-    root = local_root if local_root is not None else _default_local_root()
     output_dir = root / stamp.strftime("%Y-%m-%d") / batch
     write_archive_bundle(jobs, skills, output_dir, created_at=stamp)
     # Applications keep the job_id; match rows CASCADE off jobs. Clear the
@@ -145,8 +145,11 @@ def archive_then_retire(
     return len(deleted)
 
 
-def _default_local_root() -> Path:
-    return Path(os.getenv("JOB_UNLOAD_ARCHIVE_DIR", "job_unloads"))
+def _env_archive_dir() -> Path | None:
+    raw = os.getenv("JOB_UNLOAD_ARCHIVE_DIR")
+    if not raw:
+        return None
+    return Path(raw)
 
 
 def _freeze_feed_presence(db: Client, jobs: list[dict[str, Any]]) -> None:

@@ -1,0 +1,79 @@
+{
+  "issue": 24,
+  "out": "Myro Newsletter/Issue 024 - carousel",
+  "og_out": "frontend/public/newsletter/issue-024-og.png",
+  "foot": "3,138 branch roles · 9 Sept 2026",
+  "og": {
+    "series": "BRANCH BANKING",
+    "h1": "Two banks post three in four of India's branch jobs. They hire in different Indias.",
+    "bars": [
+      ["Kolkata", 89.2, "89.2%"],
+      ["Chennai", 84.3, "84.3%"],
+      ["Ahmedabad", 83.0, "83.0%"],
+      ["Delhi NCR", 81.2, "81.2%"],
+      ["Mumbai", 62.2, "62.2%"],
+      ["Outside", 0.0, "0.0%"]
+    ],
+    "max": 100,
+    "foot": "Axis Bank's share of the city's branch openings · himyro.com"
+  },
+  "slides": [
+    {
+      "kind": "statement",
+      "kicker": "BRANCH BANKING",
+      "h1": "Two banks post three in four of India's branch jobs. They hire in different Indias.",
+      "sub": "3,138 frontline roles, read on 9 September 2026 from 220+ career pages."
+    },
+    {
+      "kind": "bars",
+      "kicker": "Axis share of each city's branch openings",
+      "bars": [
+        ["Kolkata", 89.2, "89.2%"],
+        ["Chennai", 84.3, "84.3%"],
+        ["Ahmedabad", 83.0, "83.0%"],
+        ["Delhi NCR", 81.2, "81.2%"],
+        ["Pune", 77.6, "77.6%"],
+        ["Hyderabad", 69.1, "69.1%"],
+        ["Bengaluru", 63.0, "63.0%"],
+        ["Mumbai", 62.2, "62.2%"]
+      ],
+      "max": 100
+    },
+    {
+      "kind": "number",
+      "kicker": "AXIS",
+      "huge": "65.1%",
+      "sub": "Axis Bank holds <b>2,042</b> of 3,138 branch roles. Every one of its roles sits in a big metro."
+    },
+    {
+      "kind": "number",
+      "kicker": "KOTAK, OUTSIDE",
+      "huge": "51.9%",
+      "sub": "Kotak posts <b>51.9%</b> of its own roles outside the big metros. Axis posts 0.0% of its roles there."
+    },
+    {
+      "kind": "table",
+      "kicker": "Apply to Axis in these cities",
+      "head": ["City", "Both banks"],
+      "rows": [
+        ["Kolkata", "92.3%", true],
+        ["Chennai", "88.5%", true],
+        ["Ahmedabad", "88.1%", true],
+        ["Delhi NCR", "84.7%", true]
+      ],
+      "note": "Surat 17 · Indore 12 · Rajkot 9. That list is Kotak."
+    },
+    {
+      "kind": "number",
+      "kicker": "THE TITLE",
+      "huge": "763",
+      "sub": "Business Development Associate at Axis. <b>24.3%</b> of the lane, 100% entry level, 1.0 year."
+    },
+    {
+      "kind": "statement",
+      "kicker": "WHAT THE POSTINGS NAME",
+      "h1": "Sales 1,721. Banking 1,258. Lead generation 1,206.",
+      "sub": "Then financial services 1,160, business development 1,012, banking products 789."
+    }
+  ]
+}

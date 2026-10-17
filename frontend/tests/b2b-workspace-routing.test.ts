@@ -16,8 +16,12 @@ function exists(path: string): boolean {
 test("public recruiter and referral doors point to their workspace previews", () => {
   const recruiters = read("app/recruiters/page.tsx")
   const referrals = read("app/referrals/page.tsx")
+  const internshipPost = read("components/internships/post-form.tsx")
 
-  assert.match(recruiters, /secondaryCta: \{ href: "\/recruiters\/workspace", label: "Preview workspace" \}/)
+  // Paid internships are posted on Myro. The recruiter workspace stays one
+  // step on from that form; the referral door still opens its preview directly.
+  assert.match(recruiters, /secondaryCta: \{ href: "\/internships\/post", label: "Post a paid internship" \}/)
+  assert.match(internshipPost, /href="\/recruiters\/workspace"/)
   assert.match(referrals, /secondaryCta: \{ href: "\/referrals\/workspace", label: "Preview workspace" \}/)
 })
 

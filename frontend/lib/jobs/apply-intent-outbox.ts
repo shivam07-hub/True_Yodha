@@ -71,6 +71,8 @@ function isApplyIntentEvent(value: unknown): value is ApplyIntentEvent {
     typeof event.client_event_id === "string" &&
     typeof event.job_id === "string" &&
     typeof event.surface === "string" &&
-    (event.destination_type === "direct_role" || event.destination_type === "career_search")
+    (event.destination_type === "direct_role"
+      || event.destination_type === "career_search"
+      || event.destination_type === "hosted_role")
   )
 }

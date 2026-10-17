@@ -81,8 +81,8 @@ def test_a_thin_story_may_evidence_a_requirement_but_never_close_it():
     from app.services import jd_coverage
 
     assert jd_coverage.COVERED_MIN > jd_coverage.WEAK_MIN  # bands still ordered
-    thin_at_covered_strength = 0.90
-    assert jd_coverage._classify(thin_at_covered_strength) == "covered"
+    # Cosine is an order, not a close. A near score does not mean covered.
+    assert jd_coverage._classify(0.90) == "near"
     # …and _cover_one downgrades it, which the handler test below drives.
 
 

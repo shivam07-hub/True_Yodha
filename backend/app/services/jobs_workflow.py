@@ -505,6 +505,8 @@ async def compute_job_matches(
 
     def _persist_provisional(shortlist: list[dict[str, Any]]) -> None:
         try:
+            from app.services.matching.paper_facts import stamp_shortlist
+            stamp_shortlist(repo, user_id, shortlist, job_skill_rows, user_skill_map)
             llm_ranker.persist_matches(
                 repo.client, user_id, batch_week, shortlist, {}, profile
             )

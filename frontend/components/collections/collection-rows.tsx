@@ -11,6 +11,7 @@ import { LegitimacyBadge } from "@/components/jobs/match-brain"
 import { companyHref } from "@/components/companies/company-link"
 import { ApplyCapturePrompt } from "@/components/jobs/apply-capture-prompt"
 import { useApplyCapture } from "@/components/jobs/use-apply-capture"
+import { applyLinkAttrs } from "@/lib/jobs/apply-transport"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
@@ -72,6 +73,7 @@ export function CollectionRow({
       job_id: entry.job_id,
       source_url: job.source_url,
       company: job.company,
+      listing_venue: job.listing_venue,
       listing_confidence: entry.liveness === "down" ? "closed" : entry.liveness === "live" ? "active" : "uncertain",
     },
     surface: "dashboard",
@@ -173,9 +175,7 @@ export function CollectionRow({
               {entry.liveness !== "down" && capture.target.url && capture.target.actionLabel ? (
                 <a
                   className="db-btn db-btn-secondary tm-control-focus"
-                  href={capture.href ?? undefined}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  {...applyLinkAttrs(capture.target)}
                   onClick={capture.onApply}
                   title={capture.target.actionLabel}
                 >

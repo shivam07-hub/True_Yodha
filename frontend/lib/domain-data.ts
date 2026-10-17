@@ -61,6 +61,7 @@ export const dataKeys = {
     ["top-companies-at", kind ?? "", name ?? ""] as const,
   globalJobSearch: (q: string | null | undefined, limit: number) =>
     ["global-job-search", (q ?? "").toLowerCase().trim(), limit] as const,
+  internships: (venue?: string | null) => ["internships", venue ?? "all"] as const,
   entitySkills: (
     entity: string | null | undefined,
     type: string | null | undefined,

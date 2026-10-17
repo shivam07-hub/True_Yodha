@@ -585,27 +585,25 @@ platform clients do not reproduce those rules.
 
 ## Apply Transport
 
-The single frontend seam every "leave to apply" flows through — the producer of
-the click-verified liveness signal that feeds Job Feedback → Listing Confidence.
-Job boards are one-sided; this is how the user (the closest witness to whether a
-posting is real) writes their verdict back into the platform.
+The single frontend seam every apply-out flows through — the producer of the
+click-verified liveness signal that feeds Job Feedback → Listing Confidence for
+career-page jobs. Hosted Myro listings never leave the site.
 
 Two halves:
 
 - **Resolution** (`lib/jobs/apply-transport.ts`, pure) — `resolveApplyTarget(job)`
-  returns where applying sends the user: the scraped portal URL, else a
-  `"{company} careers"` search (`careersSearchUrl`), else nothing. This is the
-  one place the careers heuristic lives; the Web Share sheet reads the same
-  primitive. No surface re-derives it, and none falls back to `/companies`.
-- **Capture** (`components/jobs/use-apply-capture.tsx`, headless) — arms in the
-  same act as transport (`onApply` / `open`), so a user can never be sent out
-  without being asked on return "Did you submit?" (Yes / Not yet / Couldn't
-  apply). Yes writes `applied`; Couldn't apply asks what blocked them, and a
-  "gone" answer fires a `quality: apply_link_closed` feedback event. Every
-  answer sets `job_apply_intents.answered_at`; an unanswered click is asked
-  again by the Next chip and on its Collections row (§Next Best Step). It emits `state` (`idle | asking | gone`); each design system renders
-  its own band (`ApplyCapturePrompt` web `--tm-*`, `ApplyCapturePromptMobile`
-  `.mm-*`) — the presentation is a real seam with two adapters.
+  returns where applying sends the user. `listing_venue=myro` is **Apply here**
+  (`hosted` / `hosted_role`) on `/internships/{id}/apply`. Career-page jobs still
+  use the scraped portal URL, else a `"{company} careers"` search
+  (`careersSearchUrl`), else nothing. No surface re-derives it, and none falls
+  back to `/companies`.
+- **Capture** (`components/jobs/use-apply-capture.tsx`, headless) — career-page
+  clicks arm "Did you submit?" on return. Hosted clicks do not: the intern apply
+  page is the submit. Yes writes `applied`; Couldn't apply asks what blocked
+  them, and a "gone" answer fires a `quality: apply_link_closed` feedback event.
+  Every answer sets `job_apply_intents.answered_at`. It emits `state`; each
+  design system renders its own band (`ApplyCapturePrompt` web `--tm-*`,
+  `ApplyCapturePromptMobile` `.mm-*`).
 
 **Invariants**
 
@@ -616,6 +614,18 @@ Two halves:
   Job Pulse privacy invariant — null below the cohort threshold, never rendered
   as zero — and one report can never close a listing (that stays Job Pulse's
   confidence policy).
+
+## Application Procedure
+
+The order for sending one job, locked in ADR-0026. The CV is a reflection of that job's description, written only from the person's profile (ADR-0016), and it is that job's document (ADR-0025). Which lines entail which motions is JD Reflection.
+
+**Invariants**
+
+- Proof before the page. The figure the person owns is the figure on the page; the book it sat in is named as the book.
+- A full-time seat is exclusive on the page. Side work does not run across a full-time job or a full-time degree. Work beside the job is a pursuit, not a second employer.
+- JD phrasing stays on that job's document. A fact about the person also lands on the master.
+- Apply carries that job's CV onto the company form. The company's first screen can still be their sign-in. Once that session is in the browser, the extension on desktop Chrome walks every screen it can fill, clicks Next, and stops before Submit. The click left is Submit. On a phone there is no extension, so Apply opens the company page and "Did you submit?" stays until the person confirms. That question is the receipt. The company's application-status URL is saved on the application. The extension does not read that page.
+- Then two notes from their own connections export: someone they have written to, then the person whose seat is the motion. They send.
 
 ---
 
@@ -959,9 +969,17 @@ asserts through the response model, not the dispatch layer underneath it.
 - **Honesty is structural, per role**: a proposed role block must pass `loses_metrics` + `gains_foreign_numbers` (allowed = the user's stories + interview answers) + `loses_substance` over the old lines it claims (`from`/`dropped` accounting — nothing vanishes silently). A failing role falls back to its ORIGINAL bullets, flagged `guarded`; a proposal with zero surviving changes is not delivered (or charged).
 - **Money**: flat 50 coins per weave RUN (`CV_WEAVE_XP_COST`), preflight-funded, charged only after a deliverable proposal exists, unique ledger ref per run; the cached proposal (`job_deepenings:cv_weave`) replays free; interview/answer/apply are free.
 - **Extras ride the first write**: a proposed opening summary and skills line land with the first Keep/Take. No second confirm. The paper is the review surface — Hide or edit there.
-- **Fingerprint gate**: the proposal records a hash of the master's experience section; apply 409s on mismatch — a draft never lands on a CV it wasn't written for.
-- **Coverage reads stories ∪ CV bullets** (`jd_coverage.assess(cv_bullets=…)`, `source: "story"|"cv"`): a line already on the CV can no longer read "Missing" (the Oracle/mit20 trust breach). Embedding-less stories self-heal via `career_reservoir.backfill_missing_embeddings` before mining.
+- **Fingerprint gate**: the proposal records a hash of the experience section it was written against — the Job Document when one exists, otherwise the master (ADR-0025). Apply 409s on mismatch.
+- **Coverage reads stories ∪ CV bullets** (`jd_coverage.assess(cv_bullets=…)`, `source: "story"|"cv"`): a line already on the CV can no longer read "Missing" (the Oracle/mit20 trust breach). Whether that line entails the requirement is **JD Reflection**, not a cosine band. Embedding-less stories self-heal via `career_reservoir.backfill_missing_embeddings` before mining.
 - **ONE DOOR.** The named verb is **Tailor with Mentor**, once, on the playground header (with Match / Apply / Download). Cost `50` only when that tap will charge a weave RUN. The rail footer, the Skills ghost, and the words "Close gaps" are not doors. Skills is the map. The journey those taps enter is the Tailor Order.
+
+## JD Reflection
+
+The one answer to "does this line of the person's own evidence entail this motion in the job description?" Spec: [ARCHITECTURE_JD_REFLECTION.md](ARCHITECTURE_JD_REFLECTION.md). Coverage, the weave interview, the material handed to the writer, the weave `why`, reservoir projection, and Match Eval all read it. None of them decides entailment again.
+
+A motion is proven only by a line that carries that motion. A tool list phrased as alternatives ("such as", "at least one of") is proven by any one named tool present in the evidence. A shared noun is not a motion: a sales pipeline does not prove a data pipeline. An interview answer cannot mark a motion covered unless the answer's own words entail it. Cosine may rank which lines to try. It cannot promote a line to proven.
+
+The Job Document is the reflection on the page (ADR-0026): current seat first, then the motions the description is hiring for, skills led by the tools that proved a motion. A Take may not drop the only line that proves a motion. Summary and skills may use only facts the person already has (ADR-0016). Apply stays Match Eval's word (ADR-0024); the evaluation is shown the reflection as facts, not as a grade.
 
 ## Tailor Order
 
@@ -1204,6 +1222,13 @@ CV history. An unanswered apply intent is deleted with the listing.
   `applied` all drop. The CV remains. One inbox row (`listing_vanished`) tells
   people who were still on it that it vanished; people who already applied are
   not pinged. There is no Closed chip.
+- **A FILING YES IS NOT A STAGE.** `job_filing_authorizations` stores the
+  person's approval to file this tailored CV, and only when the listing is
+  `confirmed_open`, the judge score is at least 3.5, and a `cv_versions` row
+  exists for this job (APPLY3). It does not move the stage. `applied` is written
+  from `POST /jobs/{id}/filing/receipt` when that Yes still holds and the
+  confirmation URL is on the job's company host. A hold (`login`, `captcha`,
+  `unanswered`) stores the reason and leaves the stage alone.
 - **NEVER ADVANCE A STAGE ON THE USER'S BEHALF** (the pre-flight's *never mark a
   line kept*, one surface over). An apply click writes a `job_apply_intents`
   row, which is an INTENT; only the user's own answer writes `applied`. An
@@ -1584,20 +1609,20 @@ Postgres is the record. Tests use an in-memory adapter. Redis may page (skill-fl
 
 Whether a job we surface still exists. Two triggers, one truth — every verdict lands in the same `jobs` transition (`listing_confidence` · `last_verified_live_at` · quarantine/retire ladder), so the surface never has to ask which path checked it.
 
-- **Drain sweep** — background belt over the whole corpus. Claims work via `claim_verify_targets`, which selects the oldest-unchecked rows and stamps `last_verification_attempt_at` in the *same* statement under `FOR UPDATE SKIP LOCKED`. Claim-on-read is what makes a crashed sweep cost one batch instead of re-serving the same rows forever, and `NULLS FIRST` ordering keeps the never-checked tail draining ahead of any re-check. The queue is **confidence-agnostic**: a row marked `active` re-enters once stale, because a queue scoped to low-confidence rows lets verified listings decay invisibly.
+- **Drain sweep** — background belt over the whole corpus. Claims work via `claim_verify_targets`, which selects the oldest-unchecked rows on `job_verification_schedule` and stamps `last_attempt_at` in the same statement under `FOR UPDATE SKIP LOCKED`. Claim-on-read is what makes a crashed sweep cost one batch instead of re-serving the same rows forever, and `NULLS FIRST` ordering keeps the never-checked tail draining ahead of any re-check. The queue is **confidence-agnostic**: a row marked `active` re-enters once stale, because a queue scoped to low-confidence rows lets verified listings decay invisibly.
 - **Intent gate** (`app/services/job_liveness.py`) — jumps the queue for the single listing a user is about to act on (open / apply), cached ~6h. This is where a ghost actually costs someone effort, so it is checked at that moment rather than on a calendar. Volume is user-actions/day, not corpus size.
 
 **Ask the ATS, do not read its HTML** (`app/services/ats_probe.py`). On a client-rendered ATS the page a human sees is not evidence: a **pulled** Workday requisition answers HTTP 200 with a ~6.5KB shell that echoes its own URL, and the URL slug carries the role title — so the title-match branch called it live. Four Workday pages, three pulled and one open, produced the same `seen_live` verdict. The probe asks the provider's own JSON API instead, for the four with a public read API and no key: Workday, Greenhouse, Lever, Ashby. It is preferred where it concludes and silent everywhere else, so the HTML classifier is unchanged as the fallback.
 
 **Which endpoint is part of the contract.** Workday's per-posting CXS record answers **403 both** for a pulled requisition and for a tenant blocking us — one status, two meanings, so it can never conclude. Its job-*search* endpoint answers 200 for both and returns the posting's own `externalPath` only while the posting is open. Ashby publishes no per-posting endpoint without a key, so its probe reads the board and asks whether the id is still on it — which makes its payload far larger than a listing page (Sarvam's board is 701KB), and a probe body is capped at 4MB, not the 500KB the HTML read uses.
 
-**`unknown` is a first-class verdict.** A 401/403/429/timeout from an ATS is not evidence a role is gone; it resolves to `unknown` and the surface discloses "couldn't check". Only real closure evidence (404/410, an absent record on the ATS's own API, explicit closed-marker copy) may read as `closed`. Closed-marker copy is matched on the clause every phrasing shares — Godrej says "the job you are trying to apply for has been filled", which neither "position has been filled" nor "job has been filled" is a substring of.
+**`unknown` is a first-class verdict.** A 401/403/429/timeout from an ATS is not evidence a role is gone; it resolves to `unknown` and the surface discloses "couldn't check". Only real closure evidence (404/410, an absent record on the ATS's own API, explicit closed-marker copy) may read as `closed`. Closed-marker copy is matched on the clause every phrasing shares — Godrej says "the job you are trying to apply for has been filled", which neither "position has been filled" nor "job has been filled" is a substring of. A marker that lives only inside a dormant closed-state widget (Phenom `job-completion-info`) does not close a document that also carries this requisition's JobPosting and an apply control. Godrej stays closed: that page's marker is the posting, and the posting is not also live.
 
 **Liveness is not freshness.** `last_seen` records when the scraper last *ingested* a row, not when anyone confirmed it exists — while the scraper does not re-crawl, `last_seen` carries no liveness information at all and must not be rendered as if it does.
 
 **A feed sighting is not a check.** The crawler stamps `last_verified_live_at` (and re-activates the row) whenever a job_id is in the employer's feed. A listing is *confirmed* only by the verifier's last conclusive check finding it live — `listing_time.confirmed_at`, the one definition job cards and `listing_trust` share ([ARCHITECTURE_LISTING_TIME.md](ARCHITECTURE_LISTING_TIME.md) step 7).
 
-**Unload.** Any gone-signal writes `listing_confidence=closed` and starts a one-hour clock (`quarantine_until` / `deletion_eligible_at`): one complete scrape miss, verifier close (strong or weak), or a user report that the apply link is dead. `likely_closed` is leftover enum, not a holding pen. The card leaves Collection immediately. After the hour, the verifier writes a `job_archive_v1` bundle to a local `job_unloads/` tree, then `retire_closed_jobs` deletes those ids. Child DELETE triggers that maintain `job_verification_interest` do not run after the job row is gone (that derived row CASCADEs). Nothing is written to Supabase Storage. Railway skips unload unless `JOB_UNLOAD_ARCHIVE_DIR` points at a real disk. User history is snapshotted into `job_applications` / `cv_versions` first. A scrape that sees the posting again writes it back as live. Restore from `backend/`: `python -m scripts.restore_job_archive path/to/archive_dir`. The scraper does not delete rows on publish.
+**Unload.** Any gone-signal writes `listing_confidence=closed` and starts a one-hour clock (`quarantine_until` / `deletion_eligible_at`): one complete scrape miss, verifier close (strong or weak), or a user report that the apply link is dead. `likely_closed` is leftover enum, not a holding pen. The card leaves Collection immediately. After the hour, `python -m scripts.unload_closed_jobs` on this machine writes a `job_archive_v1` bundle under `job_unloads/`, then `retire_closed_jobs` deletes those ids. A job with a row in `user_job_matches`, `job_applications`, `job_feedback_events`, or `job_reports` stays in `jobs`. Child DELETE triggers that maintain `job_verification_interest` do not run after the job row is gone (that derived row CASCADEs). Nothing is written to Supabase Storage. Railway skips unload unless `JOB_UNLOAD_ARCHIVE_DIR` points at a real disk; that variable stays unset so the cron does not archive onto an ephemeral container. A scrape that sees the posting again writes it back as live. Restore from `backend/`: `python -m scripts.restore_job_archive path/to/archive_dir`. The scraper does not delete rows on publish.
 
 ## Tracked Listing
 

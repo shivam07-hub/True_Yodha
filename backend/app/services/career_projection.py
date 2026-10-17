@@ -28,6 +28,7 @@ from typing import Any
 
 from app.services import cv_parser, embeddings, project_rewrite, story_depth
 from app.services.career_reservoir import cosine
+from app.services.jd_reflection import entails
 
 logger = logging.getLogger("myro.career_projection")
 
@@ -66,6 +67,35 @@ def score_story(story_vec: list[float] | None, req_vecs: list[list[float]]) -> f
     if not story_vec or not req_vecs:
         return 0.0
     return sum(sim for rv in req_vecs if (sim := cosine(story_vec, rv)) >= REL_FLOOR)
+
+
+def apply_reflection(
+    ranked: list[tuple[dict[str, Any], float]],
+    requirements: list[str],
+    pointer_by_story: dict[str, str],
+) -> list[tuple[dict[str, Any], float]]:
+    """Prefer stories whose own line entails a motion. Fail open when none do.
+
+    Cosine still orders the list. It does not decide which story is evidence.
+    A story that entails keeps at least the role gate, so a low cosine cannot
+    park the only line that proves the motion. When nothing entails, the
+    cosine order stands — an empty projection is worse than a loose one.
+    """
+    if not requirements or not ranked:
+        return ranked
+    reflected: list[tuple[dict[str, Any], float]] = []
+    any_proven = False
+    for story, score in ranked:
+        text = pointer_by_story.get(str(story.get("id")), "")
+        if any(entails(requirement, text) for requirement in requirements):
+            reflected.append((story, max(score, ROLE_KEEP_MIN)))
+            any_proven = True
+        else:
+            reflected.append((story, 0.0))
+    if not any_proven:
+        return ranked
+    reflected.sort(key=lambda pair: -pair[1])
+    return reflected
 
 
 def rank_stories(
@@ -270,7 +300,11 @@ async def project_for_job(
         except Exception as exc:  # noqa: BLE001 — degrade to metric-ordered ranking
             logger.info("career_projection: requirement embed failed (%s)", exc.__class__.__name__)
 
-    ranked = rank_stories(with_pointers, story_vec_by_id, req_vecs)
+    ranked = apply_reflection(
+        rank_stories(with_pointers, story_vec_by_id, req_vecs),
+        reqs,
+        canonical,
+    )
     included, parked = select_stories(ranked, force_role_ids=_force_current_roles(roles))
 
     text_by_story = dict(canonical)

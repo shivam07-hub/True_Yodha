@@ -274,3 +274,23 @@ class TestDepthWeighting:
         )
 
         assert result[0]["overlap_score"] == 100.0
+
+
+def test_a_tool_on_the_paper_is_not_missing_for_that_job():
+    from app.services.job_matcher import overlap
+
+    rows = [{
+        "is_primary": True,
+        "required_level": 4,
+        "skills": {"taxonomy_key": "Python (Programming Language)", "skill_kind": "hard"},
+    }]
+    _score, matched, missing = overlap(rows, {}, paper_skills="Python, SQL, Tableau")
+    assert matched == ["Python (Programming Language)"]
+    assert missing == []
+
+    full, _, _ = overlap(
+        rows, {"python (programming language)": 4}, paper_skills="Python",
+    )
+    mention, _, _ = overlap(rows, {}, paper_skills="Python")
+    assert full == 100.0
+    assert mention < full

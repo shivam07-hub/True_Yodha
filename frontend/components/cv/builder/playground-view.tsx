@@ -38,6 +38,7 @@ import { rewriteFetcher } from "./rewrite-fetchers"
 import { hasHideableBullets } from "@/lib/cv/page-fill"
 import { useMeasuredPageFill } from "@/lib/cv/use-measured-page-fill"
 import { exportSheetPdf } from "@/lib/cv/sheet-pdf"
+import { rememberFilingResume } from "@/lib/jobs/filing-resume"
 import { printCvPage } from "@/lib/cv/print-cv"
 import { masterFilename } from "@/lib/cv/download-master"
 import { addBulletToRole, replaceLineText, roleRefAt } from "@/lib/cv/line-edit"
@@ -164,13 +165,13 @@ export function PlaygroundView({
   const sourceUrl = m.application?.source_url?.trim() ?? ""
   const capture = useApplyCapture({
     token,
-    job: { job_id: jobId, source_url: sourceUrl || null, company: m.company || null },
+    job: { job_id: jobId, source_url: sourceUrl || null, company: m.company || null, listing_venue: m.application?.listing_venue },
     surface: "other",
     intentSurface: "cv_playground",
     onSubmitted: recordSubmittedCv,
     onFindSimilar: () => router.push(similarRolesHref(m.application?.role_domain)),
   })
-  const applyHref = capture.href ?? ""
+  const applyHref = capture.target.url ?? ""
 
   // Every id the scan raised, dismissal included — an applied fix drops off the
   // session list only when the defect is genuinely gone from the text.
@@ -271,7 +272,8 @@ export function PlaygroundView({
     const exported = sheetKey
     setPdfBusy(true)
     try {
-      await exportSheetPdf(token, el, pdfFilename)
+      const blob = await exportSheetPdf(token, el, pdfFilename)
+      void rememberFilingResume(token, jobId, blob, pdfFilename)
       emitLoopStep(token, "downloaded", jobId, "pdf")
       setDownloadedSheet(exported)
       try { localStorage.setItem("myro-cv-template-v1", template) } catch { /* storage blocked */ }
@@ -329,10 +331,19 @@ export function PlaygroundView({
         onLead={tailor.showLead ? tailor.onHeader : undefined}
         primaryLabel={pdfBusy ? "Preparing…" : "Download CV"}
         applyHint="Download this CV"
-        secondaryLabel="Apply"
-        onSecondary={() => setApplyOpen(true)}
+        secondaryLabel={capture.target.actionLabel ?? "Apply"}
+        onSecondary={() => {
+          if (capture.target.kind === "hosted") capture.open()
+          else setApplyOpen(true)
+        }}
         secondaryDisabled={!applyHref}
-        secondaryHint={applyHref ? `Open ${m.company} careers` : "No application link yet"}
+        secondaryHint={
+          !applyHref
+            ? "No application link yet"
+            : capture.target.kind === "hosted"
+              ? "Apply here"
+              : `Open ${m.company} careers`
+        }
         secondaryLeads={downloadedSheet === sheetKey && !!applyHref}
         saveState={autosaving ? "Saving…" : autosaved ? "Saved" : ""}
         onBack={onBackToBaseline}
