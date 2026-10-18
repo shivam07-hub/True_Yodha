@@ -300,7 +300,7 @@ def _proof_that_can_close(
 def _opening(sighting: Sighting) -> tuple[Status, str | None]:
     if sighting.cause_class == "capacity_503":
         return "blocked", _CAPACITY_BLOCKED
-    if sighting.cause_class == "slow_200" and sighting.slow_kind == "capacity_queue":
+    if sighting.cause_class == "slow_200" and sighting.slow_kind in ("capacity_queue", "db_stall"):
         return "blocked", _CAPACITY_BLOCKED
     return "open", None
 

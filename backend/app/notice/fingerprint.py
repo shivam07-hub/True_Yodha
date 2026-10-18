@@ -12,7 +12,7 @@ from app.services.probe import SNAPSHOTS
 _TOKEN = re.compile(r"^[A-Za-z0-9_./-]+$")
 
 _BREAK_KINDS = frozenset({"object_no_job", "job_never_claimed"})
-_SLOW_KINDS = frozenset({"reads_over_budget", "capacity_queue", "slow_read"})
+_SLOW_KINDS = frozenset({"reads_over_budget", "capacity_queue", "slow_read", "db_stall"})
 _BELTS = frozenset({
     "skill_floor",
     "listing_verifier",

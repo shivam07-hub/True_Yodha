@@ -1569,7 +1569,7 @@ Uploads are never rejected for load (your "never fail an upload" rule). At peak 
 
 The operator-facing record that a Railway-visible **failure of a named cause** happened (or would have happened) to a user. Dual of Overload Policy: Overload Policy is what the product refuses to do to an upload; a Notice is what we refuse to let happen twice.
 
-The saturation mailbox is retired (ADR-0021). A Notice is the memory; a daily closer (pg_cron → the production API) harvests and sends one digest; Cursor closes. Slow 200s (`metric route.slow` on a 2xx) are Notices by **cause**, never by route: over-budget reads, a slow query named for the code that asked it, or a capacity queue victim.
+The saturation mailbox is retired (ADR-0021). A Notice is the memory; a daily closer (pg_cron → the production API) harvests and sends one digest; Cursor closes. Slow 200s (`metric route.slow` on a 2xx) are Notices by **cause**, never by route: over-budget reads, a slow query named for the code that asked it, a **database stall**, or a capacity queue victim.
 
 **Catalog**
 
@@ -1585,7 +1585,7 @@ Class 2 closes in Cursor: root-cause fix, five gates, branch from `main`, that N
 
 **Identity**
 
-`cause_key` = class + fingerprint. Unhandled 500 → exception type + file + function. 503 → which limiter / which timeout, not the route. Upload Guarantee → `object_no_job` vs `job_never_claimed`. Work Lane → job type + terminal error class. Dead-man → one key per belt. Slow 200 → over-budget, or the slowest round trip's app frame (file + function), or capacity queue. The trip is timed inside the read-capacity claim, so waiting for a slot never names a query. The route is evidence, never the identity. Reopen of the same `cause_key` after a closing commit is a **failed close**.
+`cause_key` = class + fingerprint. Unhandled 500 → exception type + file + function. 503 → which limiter / which timeout, not the route. Upload Guarantee → `object_no_job` vs `job_never_claimed`. Work Lane → job type + terminal error class. Dead-man → one key per belt. Slow 200 → over-budget, or the slowest round trip's app frame (file + function), or capacity queue. A slow read waits one minute in the web writer (`notice/stall.py`): if three or more different call sites crossed 2s within a minute of it, it is `slow_200:db_stall` (blocked) — the database stalled for everyone, and naming whichever query was running turned one stall into seven Notices (2026-10-16 05:08). One site slow many times is still that site. The trip is timed inside the read-capacity claim, so waiting for a slot never names a query. The route is evidence, never the identity. Reopen of the same `cause_key` after a closing commit is a **failed close**.
 
 **Status**
 
