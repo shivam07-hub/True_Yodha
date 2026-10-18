@@ -424,9 +424,9 @@ prod); #339 followed 10-13. A scheduled check reads R3/R4 on 10-19.
   shared-buffer HIT. So the lever is load. Shipped: `9d4ad00d` (Develop) — an
   inert verifier result (`error`/`unroutable`/`source_failure`, `error` ≈54% of
   active listings' last check) no longer rewrites the `jobs` row; the schedule
-  table is the queue clock. **On `origin/main` (checked 2026-10-18)**
-  (`git merge-base --is-ancestor 9d4ad00d origin/main` fails). HOT and the
-  verifier UPDATE volume move only after that deploy.
+  table is the queue clock. **On `main` since #342 (2026-10-17).** Next: one
+  fresh `pg_stat_statements` window for HOT share and verifier UPDATE volume —
+  the window below is the old write path.
   **Window 2026-10-15 03:00:28Z → 04:41:50Z** (101m). Counters still reset
   2026-07-12 01:22:53Z. 171 queryids moved, **352.5s** of `total_exec_time`,
   70,407 `shared_blks_read`. Full table: `ARCHITECTURE_READ_PATH.md` §28.
@@ -498,23 +498,6 @@ Tracker (3) · no problem or not actionable (~25).
 
 ## SHIVAM
 
-- **OpenRouter topped up 2026-10-14** (credits 25, used 15.20, $9.80 left) after
-  it ran out 2026-10-13 17:54 UTC and stopped the judge and the CV writer. Groq's
-  model was retired the same day — `b22c0f4b` moves every strong lane's fallback to
-  Groq `gpt-oss-120b`; the worker runs it, the prod API (Tailor writing, CV upload,
-  interactive) has it — on `main` (checked 2026-10-18). What spent the $15: drains reading whole
-  pools, ~12,500 verdicts 10-04→10-13, up to ~1,000 per new signup (≈ $1.2 per
-  1,000 verdicts at that rate — an upper bound, every lane shares the balance).
-  At that rate $9.80 is ~8,000 verdicts. **Decided (Shivam, 2026-10-14): a drain
-  spends only while its person is on Myro** — `services/presence.py`, marked by
-  `/users/me`, read before every continuation; it pauses when they leave and the
-  next visit picks the pile up. 500 of 501 drain ticks on 10-13 had queued
-  themselves.
-- **Merged 2026-10-17 (#342):** #57 S0–S5 (the door UI), `9d4ad00d`, `b22c0f4b`,
-  `bdc15976`, `0aafb324`, `17b5533d`. The door's CHECK migration was missing on prod
-  until 2026-10-18 (applied then). Prod rejected 6 beacons in between, all in
-  Railway logs (`core_loop.persist_failed`): 3 people, each `door_shown` →
-  `door_fit`. The table's door funnel starts 2026-10-18.
 - **Scraper: landing again since 2026-10-15** (2–3k rows a day, 04–05 UTC; was
   no feed 10-01 → 10-14). Still yours: Axis Bank = 14,259 live rows (~18%,
   747 titles) — dedupe at the source.
@@ -548,8 +531,6 @@ Tracker (3) · no problem or not actionable (~25).
 ## AGENT CHORES — approved, small
 
 
-- Delete `backend/scripts/recompute_banded_scores.py` — rescoring every user while
-  they are away is a backfill (Shivam: kill).
 - After Pro: re-measure the anyio threadpool and pool levers.
 - Then run the authed QA checklist.
 

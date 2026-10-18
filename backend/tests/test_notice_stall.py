@@ -15,8 +15,8 @@ def _slow(file: str, function: str, path: str = "/home/bootstrap") -> Sighting:
     return Sighting.slow_read(file=file, function=function, method="GET", path=path)
 
 
-# 2026-10-16 05:08–05:15, the scraper's landing: seven call sites crossed 2s
-# inside one stall, and each opened its own Notice.
+# 2026-10-16 05:08–05:15, the scraper's landing: five call sites crossed 2s
+# inside one stall, and each opened (or failed-closed) its own Notice.
 _LANDING = (
     _slow("app/repositories/cv.py", "latest_baseline"),
     _slow("app/repositories/users.py", "baseline_state", "/users/me"),

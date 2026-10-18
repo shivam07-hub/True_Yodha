@@ -7,7 +7,8 @@ CEO grill (D6, Shivam, 2026-09-30).** UI slices go through `/frontend-design`.
 > slice is its own commit on `Develop`, six gates green. Migrations are applied
 > by the agent before the code that reads them, then `NOTIFY pgrst`.
 
-> **Status 2026-10-14 — S0 and S1 built.** Partner consent (the signed-in Connect
+> **Status 2026-10-18 — S0–S5 on `main` (#342, 2026-10-17); door telemetry live
+> on prod from 2026-10-18; QA U4 still owed.** Detail as built, 2026-10-14: partner consent (the signed-in Connect
 > click, Google on that screen, and the emailed link) lands on `/onboarding`.
 > That page already sends `position === "completed"` to `/market` and
 > `result` to `/onboarding/result`; no CV stays on the upload. Measured in
@@ -191,7 +192,7 @@ Clicks = `core_loop_events` rows between them.
 | S0 | B2 · partner SSO goes through onboarding | **Shipped 2026-10-14.** Connect approval, the Google return, and the emailed link all enter `/onboarding`. A finished journey still reaches `/market` from that page. |
 | S1 | `use-job-import` + both skins; delete the duplicate logic | **Shipped 2026-10-14.** `createJobImport`: link → review → imported, and a failed extract offers paste-instead. `JobImportDialog` replaces `ManualAddModal`; `AddJobSheet` renders the same model. Neither skin fetches. |
 | S2 | Backend: `awaiting_job_choice`, `POST /onboarding/first-job`, generalised `saved_first_role` | **Shipped with S3.** Door kind after skills; first-job receipt; idempotent retry. |
-| S3 | Door screen + `JourneyProgress` labels + telemetry migration | **Built 2026-10-14.** Result page paints the three doors; rail says Your CV → Your job; door steps are in the core-loop CHECK. QA click-through still owed. |
+| S3 | Door screen + `JourneyProgress` labels + telemetry migration | **On `main` 2026-10-17 (#342).** Result page paints the three doors; rail says Your CV → Your job. The CHECK migration (`20261014193000`) reached prod only 2026-10-18; prod rejected 6 beacons in between (Railway `core_loop.persist_failed`): 3 real people, each `door_shown` → `door_fit`, none tailored by 10-18. QA click-through still owed. |
 | S4 | "Paste a job" on /market, desktop and phone | **Built 2026-10-14.** `PasteJobEntry` on the desktop feed and the phone jobs surface; import opens `/cv?jobId=`. |
 | S5 | Direction-after-download nudge for doors 1–2 | **Built 2026-10-14.** No-direction copy is "Want Myro to find more like this?", beside Paste a job, so /market is not an empty list. |
 

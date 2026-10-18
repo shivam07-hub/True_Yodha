@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-10-18 — OpenRouter outage closed; the 10-17 merge; backfill script gone
+
+OpenRouter ran out 2026-10-13 17:54 UTC and Groq retired its model the same day. Topped up 10-14 ($9.80 left). `b22c0f4b` (Groq `gpt-oss-120b` fallback) and `bdc15976` (a drain spends only while its person is on Myro — CONTEXT.md) reached `main` in #342 on 10-17, with #57 S0–S5, `9d4ad00d`, `0aafb324` and `17b5533d`. The banded-score backfill script was already deleted (`4709e630`).
+
 ## 2026-10-18 — Notice digest triage: flap, R4, door CHECK, pulse column
 
 The digest re-closed failed closes daily with the proof that had failed (`49654b13`). R4's 10-16 SSO 500 was a DB-stall timeout gotrue relabelled; now a 503. The door-steps CHECK reached prod a day after the door UI (6 beacons lost, in Railway logs). `company_pulse_snapshot.last_seen_at` dropped (`20261018120000`).

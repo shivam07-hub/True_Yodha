@@ -4,8 +4,9 @@ A slow read names the code that asked (`slow_200:slow_read:<file>:<function>`).
 That is right when one query is expensive, and wrong when the database stalls
 for everyone: each request's slowest trip crosses 2s and opens a Notice under
 whichever query happened to be running. 2026-10-16 05:08–05:15 (the scraper's
-landing) opened seven, six of them failed closes; 2026-10-13 14:52:13 opened
-three in one second. The digest then listed twenty queries to fix and no cause.
+landing) left five call sites sighted, four of them failed closes; at 05:09
+four different routes crossed 2s in one minute. 2026-10-13 14:52:13 opened
+three in one second. The 10-18 digest listed 31 slow reads to fix and no cause.
 
 So a slow read waits out its window before it is filed. If, within
 `STALL_WINDOW` either side of it, slow reads came from `STALL_SITES` or more

@@ -2433,7 +2433,8 @@ lifetime total is not current load. Two snapshots,
 
 `9d4ad00d` (inert verifier results stop rewriting `jobs`) is on `Develop` and
 is not an ancestor of `origin/main`. The HOT share above is still the old
-write path.
+write path. (It reached `main` in #342, 2026-10-17; the next window measures
+the new path.)
 
 **Top 15 by delta `total_exec_time`.**
 
@@ -2496,3 +2497,44 @@ Rollback is the `CREATE` commented in `20261015140000_drop_idle_jobs_indexes.sql
 `idx_jobs_job_title_trgm` stays (one lifetime scan; the live title index is
 `idx_jobs_job_title_trgm_all`). `idx_jobs_location_states_gin` and
 `idx_jobs_deletion_eligible` stay.
+
+## 29. What the digest said, and what happened (2026-10-18)
+
+Read from `notices`, Railway logs and `auth_logs`, not from the digest.
+
+**"Closed this run" was not evidence.** The closer reads every
+`NOTICE_CAUSE_KEY` in the tests production ships, on every run. A cause that
+fired again after its fix became `failed-close`, and the next run closed it
+with the same test. `fetch_company_jobs_page` was listed as closed on 10-17
+and 10-18 at 701 sightings; it fired again at 04:48 on 10-18. `fetch_all_rows`
+was re-closed 10-18 02:30 and fired at 14:11. Fixed on `Develop` (`49654b13`):
+a failed close refuses the test in `proof_test`. Live after the next merge.
+
+**R4's 500 was a stall, not the disconnect.** 2026-10-16 15:33:57 UTC,
+`POST /partner/v1/sso/session`, correlation `ad35b339…`. GoTrue `POST
+/admin/users` ran 4.8s and logged "unable to find user email address for
+duplicates: error finding user: context canceled". Our ReadTimeout came first;
+gotrue re-raised it as `AuthRetryableError` with the same message. The same
+second, `job_provenance: count failed: The read operation timed out` and
+`/jobs/feed` p50 5,000ms. No account was created. Fixed on `Develop`
+(`c5014040`): a relabelled timeout is the 503 upstream-timeout path.
+
+**One stall opened many slow reads.** Bursts by `last_seen_at`: 10-16
+05:08–05:15 (5 call sites by last sighting, the scraper landing at 04–05
+UTC; the Railway log shows 4 different routes over 2s at 05:09 and 3 at
+05:15, with `/jobs/feed` alone in between), 10-17 15:49–15:50 (4), 10-13
+14:52:13–14 (3, one second), 10-11 03:15:32–57 (4), 10-11 18:18–18:24 (3).
+None of the 10-13, 10-16 or 10-17 bursts lines up with a long pg_cron
+refresh. 18 of the 31 open or failed-close slow reads on 10-18 had n ≤ 4. Fixed on `Develop`
+(`971217e0`): three or more sites inside a minute are one `slow_200:db_stall`,
+opened blocked. Rows already opened by past stalls stay until re-proven.
+
+**Ingestion could not close.** `dead_man:job_ingestion` last seen dead
+2026-10-14 02:30; 2–3k rows a day landed from 10-15. A harvest sample may not
+clear a failed close and the cause lives in the scraper repo. Fixed on
+`Develop` (`b3242a86`): a week without a dead sighting clears it.
+
+**Load, for R12.** `pg_stat_statements` since 07-12, top by total:
+`claim_verify_targets` 18,313s (7,594 calls, mean 2,412ms) — over twice the
+next. `/companies/{c}/jobs` and `/public/stats` are R12: measure who calls
+them before caching.
