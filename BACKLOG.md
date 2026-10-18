@@ -442,6 +442,22 @@ prod); #339 followed 10-13. A scheduled check reads R3/R4 on 10-19.
   `list_unload_candidates` instead of the offset page. `claim_verify_targets`
   was still 2.3s a call in that window (16s total, fifth). Compute stays Micro.
   Session closed 2026-10-15. Memory: `docs/agent-memory/project_micro_load_unload.md`.
+- **R11 · The digest tells the truth — built on Develop 2026-10-18, live only after
+  the next `main` merge** (the closer runs on prod). Until then the old closer
+  keeps re-closing failed closes with the proof that failed. Three changes: a
+  failed close refuses the test in `proof_test` (`49654b13`); a belt with no dead
+  sighting for a week clears its failed close (`b3242a86` — `dead_man:job_ingestion`
+  closes at the first run after 2026-10-21 02:30 UTC); a slow read inside a
+  three-site minute is one `slow_200:db_stall` (`971217e0`). **After the merge:** read
+  two digests. The ~25 `slow_read` rows opened by past stalls stay until a new
+  proof closes them; a site that keeps opening OUTSIDE a stall is a real query →
+  `/read-path-perf`. Agent.
+- **R12 · Public pages read the database on every request — measure first.**
+  `/companies/{c}/jobs` (`fetch_company_jobs_page`, 701 sightings; the last path
+  of every recent `capacity_queue` row) and `/public/stats` (`job_provenance._count`,
+  74). Same answer for every viewer, changes once a day at ingest. Before any
+  cache: who calls them (Railway http logs, user agent — crawler or person) and
+  how often. Then an edge `Cache-Control` or a snapshot read. Agent.
 
 ## AUTHED QA CHECKLIST — the CV machine (from the beta ledger, 2026-09-30)
 
