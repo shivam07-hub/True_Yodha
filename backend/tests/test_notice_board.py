@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.notice.board import NoticeBook
@@ -226,6 +226,56 @@ def test_a_harvest_proof_does_not_erase_a_failed_close() -> None:
         )
     ])
     assert digest.closed_this_run == ()
+    assert book.snapshot()[0].status == "failed-close"
+
+
+def _ingestion_book() -> tuple[NoticeBook, FrozenClock]:
+    clock = FrozenClock(datetime(2026, 10, 14, 2, 30, tzinfo=timezone.utc))
+    book = NoticeBook(store=MemoryNoticeStore(), clock=clock, persist=True)
+    return book, clock
+
+
+def _ingestion_ran() -> CloseProof:
+    return CloseProof(
+        cause_key="dead_man:job_ingestion",
+        test_nodeid="harvest:job_ingestion_ran",
+        sha="main",
+        on_main=True,
+    )
+
+
+def test_a_belt_whose_recovery_held_a_week_closes_its_failed_close() -> None:
+    """dead_man:job_ingestion was last seen dead 2026-10-14 02:30; the scraper
+    has landed every morning since 10-15. Its cause lives in another repo, so
+    no test here can prove it — and one healthy sample may not. A week without
+    a dead sighting is a recovery that held."""
+    book, clock = _ingestion_book()
+    book.observe(Sighting.dead_man(belt="job_ingestion"))
+    book.settle([_ingestion_ran()])
+    book.observe(Sighting.dead_man(belt="job_ingestion"))
+    assert book.snapshot()[0].status == "failed-close"
+
+    clock.advance(timedelta(days=6, hours=23))
+    assert book.settle([_ingestion_ran()]).closed_this_run == ()
+
+    clock.advance(timedelta(hours=1))
+    digest = book.settle([_ingestion_ran()])
+
+    assert digest.closed_this_run == ("dead_man:job_ingestion",)
+    assert book.snapshot()[0].status == "closed"
+
+
+def test_a_belt_seen_dead_again_restarts_its_week() -> None:
+    book, clock = _ingestion_book()
+    book.observe(Sighting.dead_man(belt="job_ingestion"))
+    book.settle([_ingestion_ran()])
+    book.observe(Sighting.dead_man(belt="job_ingestion"))
+
+    clock.advance(timedelta(days=5))
+    book.observe(Sighting.dead_man(belt="job_ingestion"))
+    clock.advance(timedelta(days=5))
+
+    assert book.settle([_ingestion_ran()]).closed_this_run == ()
     assert book.snapshot()[0].status == "failed-close"
 
 

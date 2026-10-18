@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.notice.clock import Clock, FrozenClock
 from app.notice.fingerprint import cause_key_for, cause_key_for_proof
@@ -17,6 +17,11 @@ from app.notice.types import CloseProof, Digest, NoticeRecord, Sighting, Status
 _logger = logging.getLogger("app.notice")
 
 _CAPACITY_BLOCKED = "Overload Policy / paid compute gate"
+
+#: How long a belt must go without a dead sighting before a healthy harvest may
+#: clear its failed close: a week of daily closer runs, ingestion's own stall
+#: window (168h).
+RECOVERY_HELD = timedelta(days=7)
 
 def _blocked_band(count: int) -> int:
     """Highest power of two at or below count. A blocked row mails when this changes."""
@@ -143,7 +148,7 @@ class NoticeBook:
                 continue
             if row.status not in ("open", "failed-close"):
                 continue
-            proof = _proof_that_can_close(row, by_key.get(row.cause_key, ()))
+            proof = _proof_that_can_close(row, by_key.get(row.cause_key, ()), now)
             if proof is None:
                 continue
             next_status: Status = "closed" if proof.on_main else "open-on-prod"
@@ -268,23 +273,26 @@ class NoticeBook:
 
 
 def _proof_that_can_close(
-    row: NoticeRecord, proofs: Sequence[CloseProof]
+    row: NoticeRecord, proofs: Sequence[CloseProof], now: datetime
 ) -> CloseProof | None:
     """The first proof this row would accept, or None.
 
     An open cause takes any proof. A failed close takes only a proof that has
-    not already failed it. A harvest proof is one healthy sample, and the
-    sample that failed to hold must not launder it back to closed. Neither may
-    the test that closed it last time: production re-presents every test it
-    ships on every run, so the digest said "closed" for
-    `fetch_company_jobs_page` on 2026-10-17 and 10-18 while it fired 701 times.
+    not already failed it. The test that closed it last time is refused:
+    production re-presents every test it ships on every run, so the digest said
+    "closed" for `fetch_company_jobs_page` on 2026-10-17 and 10-18 while it
+    fired 701 times. A harvest proof is one healthy sample, and the sample that
+    failed to hold may not launder it — until the belt has gone `RECOVERY_HELD`
+    without a dead sighting. A dead-man's `last_seen_at` is the last time it was
+    seen dead, and some belts' causes (the scraper) live in no test here.
     """
     for proof in proofs:
-        if row.status == "failed-close" and (
-            proof.test_nodeid.startswith("harvest:")
-            or proof.test_nodeid == row.proof_test
-        ):
-            continue
+        if row.status == "failed-close":
+            if proof.test_nodeid.startswith("harvest:"):
+                if now - row.last_seen_at < RECOVERY_HELD:
+                    continue
+            elif proof.test_nodeid == row.proof_test:
+                continue
         return proof
     return None
 
