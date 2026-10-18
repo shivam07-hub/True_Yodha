@@ -2538,3 +2538,165 @@ clear a failed close and the cause lives in the scraper repo. Fixed on
 `claim_verify_targets` 18,313s (7,594 calls, mean 2,412ms) — over twice the
 next. `/companies/{c}/jobs` and `/public/stats` are R12: measure who calls
 them before caching.
+
+## 30. Public pages: who reads them, and what the database pays (2026-10-18)
+
+R12 asked whether crawlers read public pages that hit the database on every
+request. Measured before building anything. Sources: Railway HTTP logs for
+`mirror-backend-prod` across the five deployments `2992f690` → `6f16cbeb`,
+**2026-10-12 09:00Z → 10-18 18:24Z** (6.4 days, 14,814 requests, no slice
+truncated); `metric route.latency` (14,700 requests counted) and
+`metric route.slow` (1,483 lines) over the same span; `pg_stat_statements`
+snapshots below.
+
+### Who asks
+
+| route | requests, 6.4 days | per day | Vercel server (`node`) | browser | named bot |
+|---|---:|---:|---:|---:|---:|
+| `GET /companies/{c}/jobs` | 3,403 | 207–699 | 3,403 | 0 | 0 |
+| `GET /companies/{c}` (from 10-15) | 2,152 | 472–695 | 2,152 | 0 | 0 |
+| `GET /public/stats` | 739 | 61–151 | 682 | 24 | 33 (30 Bytespider) |
+| `GET /jobs/contributions` | 4 | — | 0 | 4 | 0 |
+
+Every company request is the Vercel server rendering `/companies/[slug]`, so
+**the API never sees the reader.** Who the reader is lives in Vercel's request
+log, which no tool in this session can read — unknown, not inferred. What the
+API does see: no browser asked for page 2 of any company in 6.4 days; 263
+companies are indexable (the sitemap); **264–293 distinct companies were
+rendered each day**, each about twice a day (1.7–2.5 on full days), never twice
+inside 10 minutes.
+The whole sitemap is re-rendered daily. That is the shape of a crawl sweep.
+
+`route.latency`: the two company routes are **37.7% of all server requests**
+(`/companies/{c}/jobs` 23.1%, p50 300–500ms, p95 1–1.5s, 343 of 3,390 over 1s;
+`/companies/{c}` 14.6%). `slow_200:capacity_queue` (11.7k, blocked) names the
+company route as its last path because it is the most frequent route that
+reads the database (`/jobs/analytics`, 24.6%, is served from a snapshot), not
+because it queues the others. It is a victim label here.
+
+### What Next caches, and why it misses
+
+- `/companies/[slug]` sets `revalidate = 3600`, and both fetches pass
+  `next: { revalidate: 3600 }`. The root layout reads `headers()` for the CSP
+  nonce, so the HTML is rendered on every request and only the fetch Data
+  Cache applies. **It works and almost never hits.** Since 10-15 there were
+  2,329 renders (counted by `/jobs/analytics`, which `RelatedCompanies`
+  fetches without a cache option on every render) and 2,158 company-jobs
+  fetches from origin: ≤7% hits. An hourly cache cannot catch a page that
+  comes back every ~14 hours.
+- `/public/stats` reaches the API from the newsletter rail
+  (`components/newsletter/rail.tsx` → `publicStats.get()` → `request()`, no
+  `next` option, so no-store in a dynamic route). The landing hook is
+  client-side.
+- **No CDN sits on either path.** 13,863 of 14,814 requests addressed
+  `mirror-backend-prod-production.up.railway.app` directly; `api.himyro.com`
+  is a CNAME to Railway (`server: railway-hikari`). Railway's edge does not
+  cache. An `s-maxage` header has nothing to honour it on the server path, and
+  the browser path asked for these routes 28 times in 6.4 days.
+
+### `/public/stats` is cached and still recomputes inline
+
+The route sits behind `shared_cache` (1h fresh, 30 min stale) and its edge p50
+is **42ms**. The requests come in bursts (gap p50 4.9 min, p90 33 min, max
+159 min), and whenever none lands inside the 30-minute stale window the next
+caller finds the entry gone and computes inline. Replaying the cache contract
+over the real request times predicts **26 inline computes and 88 background
+refreshes** in 6.4 days; the edge shows **27 requests of 7.9–15.0s, and 4 more
+ended 499** (the caller's 15s abort). So the cache does what it was built to do,
+and the database still runs the whole payload ~18 times a day on prod — close
+to the 19.6 a day `pg_stat_statements` gives for `verified_live` since
+2026-09-23 (503 calls, which also include dev and the signed-in card).
+Inline means the `_count` reads in `job_provenance` run while the newsletter
+render waits: the `slow_200:slow_read:…job_provenance.py:_count` Notice (75
+sightings, open). They also fail: **37 `job_provenance: count failed: The read
+operation timed out`** in 6.4 days, at the 8s client ceiling
+(`_POSTGREST_TIMEOUT_SECONDS`). `_count` returns 0 on failure, and that 0 is
+cached with the rest of the payload for the next hour.
+
+**A build is a stampede when the key is cold.** `newsletter/[slug]` has
+`generateStaticParams`, so every Vercel build prerenders ~48 issues and each
+calls `/public/stats` at once, from one build IP. Seven bursts of 48 reached
+the dev backend from 10-15 18:10 to 10-18 18:49, and prod shows 44 from one IP
+at 10-15 06:20. Six of the seven found a warm key (~30ms each). One, dev at
+10-18 18:4x, found it cold: 40 of 48 took over 1s (max 5.9s), and all 48 ended
+499 when the build went away. The cold-fill wait is 1.5s (`_COLD_FILL_WAIT_SECONDS`) and the payload
+takes 2–6s, so the peers stop waiting and compute themselves: **45
+`verified_live` counts on the shared database inside one minute.** Dev and prod
+share that database.
+
+The playbook's "`/public/stats` is 1.2ms this way" stopped being true when the
+provenance counts joined the payload (2026-08-06) and got worse when
+`verified_live` became a conclusive-check count (2026-09-23).
+
+### What it costs the database
+
+Two `pg_stat_statements` snapshots, **18:39:31 → 21:49:07 UTC** (3h 10m), same
+`stats_reset` (2026-07-12 01:22:53), `dealloc` 8 at both, so nothing was
+evicted. The window holds 65 company renders and the one cold dev build.
+
+| statement | calls | ms | share of time | mean | blocks read |
+|---|---:|---:|---:|---:|---:|
+| all statements | 23,823 | **256,344** | 100% | — | 74,270 |
+| `company_open_roles_page` (`/companies/{c}/jobs`) | 65 | 12,155 | **4.7%** | 187ms | 1,564 |
+| `company_jobs_for_notes` (`/companies/{c}`) | 65 | 1,652 | 0.6% | 25ms | 48 |
+| `application_reviews` by company (`/companies/{c}`) | 65 | 85 | 0.0% | 1ms | 0 |
+| provenance `verified_live` count | 45 | 38,965 | **15.2%** | 866ms | 5,078 (6.8%) |
+| provenance total count | 42 | 17,966 | **7.0%** | 428ms | 287 |
+| provenance community count | 44 | 10 | 0.0% | 0.2ms | 1 |
+
+Company pages: **5.3%** of the window. Provenance: **22.2%**, almost all of it
+the one dev build, because prod asked `/public/stats` three times in the window.
+Since 07-12 the `verified_live` statement averages **3,329ms** with a 7,997ms
+max (the 8s ceiling) and reads **~886 blocks per call** from disk (445,820 over
+503); 866ms in this window is the quiet evening, not the morning.
+
+Per day on prod, from the HTTP counts and those means: company pages ≈ 532
+renders × (150–190ms + 25ms) ≈ **95–115 s/day** in ~150ms pieces. Provenance ≈
+18 recomputes × (0.9–3.3s + 0.4–1.2s) ≈ **25–80 s/day** in multi-second
+statements that hit the ceiling, plus ~55s inside a minute for each cold build.
+The window's rate is 1,947 s/day for the whole database. For scale,
+`claim_verify_targets` alone is 18,313s since 07-12 (§29).
+
+### Recommendation: the provenance counts become Tier 0
+
+One row, `public_provenance_snapshot` (`total`, `community`, `verified_live`,
+`computed_at`), filled by a `public_provenance` task on the in-database rail
+(`run_snapshot_sql_refresh`, 20261004100000 / 20261010130000), with an hourly
+`*-refresh-retry` job like the other tasks and a `dead_man:snapshot.public_provenance`
+belt. `request_snapshot_refresh` marks a task pending only when ingest asks or
+its last success is over 20 hours old, so it runs about once a day.
+`read_provenance` reads the row; `/jobs/contributions` keeps its live `mine`
+count (1.3ms).
+
+- **Cost.** One migration (table, refresh function, the rail's task list, one
+  `cron.schedule`), a one-function repository change, the belt, tests. The
+  refresh is the same three counts once a day inside pg_cron, ~2–5s with no 8s
+  line. The public number is up to a day old; it is floored for display
+  ("4,300+") and the corpus lands once a day.
+- **What it removes from the Micro database.** Every `_count` on a request or a
+  cache refresh: ~18 multi-second recomputes a day on prod (25–80 s/day,
+  ~886 disk blocks each), every cold-build stampede (~55s in a minute), the 37
+  timeouts cached as 0, and the 8–15s inline waits on newsletter renders. The
+  rest of the payload is snapshot-backed or a count over a small table, so a
+  cold fill should finish inside the 1.5s wait and stop stampeding — measure it
+  when built. The `_count` Notice closes.
+
+**Not chosen, with the number that rules it out.**
+
+- **Edge `Cache-Control: s-maxage`.** No CDN on the path. Removes nothing.
+- **Next ISR on company pages.** Already on at 1h, ≤7% hits, because a page
+  returns every ~14h. At 24h it would remove up to about half of the 95–115
+  s/day, in 150ms reads that never hit the ceiling. The next lever if company
+  share grows; not the one that matters now.
+- **A company-page snapshot.** Page one for 263 companies is ~263 × 187ms ≈ 50s
+  of refresh a day to save ~100 s/day of reads already under 200ms. Small win,
+  new table per page shape.
+
+### Still open
+
+- Who the company-page reader is: Vercel's request log (unknown here).
+- `RelatedCompanies` fetches `/jobs/analytics` with no cache option on every
+  company render (3,595 calls, 24.6% of server requests). The backend serves it
+  from a snapshot (p50 under 100ms), so it costs a request, not the database.
+- `jobs.companyJobs` in `frontend/lib/api.ts` has no caller on `main` or
+  `Develop`.

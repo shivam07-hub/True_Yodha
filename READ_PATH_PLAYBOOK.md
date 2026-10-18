@@ -158,7 +158,10 @@ it is cold; do not report it as the result.
 ## Fixing: prefer in this order
 
 1. **Make it Tier 0** — precompute the answer (snapshot table / matview,
-   refreshed on ingest). `/public/stats` is 1.2ms this way.
+   refreshed on ingest). `/public/stats` was 1.2ms this way until live
+   provenance counts joined its payload; they run 0.9–3.3s and hit the 8s
+   ceiling (ARCHITECTURE_READ_PATH.md §30). Every part of a Tier-0 payload must
+   be Tier 0.
 2. **Fix the index** so the planner can use it. Cheapest real fix; often
    `CONCURRENTLY`, no deploy, no lock.
 3. **Collapse round trips** — one `run_concurrently` wave, or one RPC for

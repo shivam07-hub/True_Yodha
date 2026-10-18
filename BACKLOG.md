@@ -452,12 +452,17 @@ prod); #339 followed 10-13. A scheduled check reads R3/R4 on 10-19.
   two digests. The ~25 `slow_read` rows opened by past stalls stay until a new
   proof closes them; a site that keeps opening OUTSIDE a stall is a real query →
   `/read-path-perf`. Agent.
-- **R12 · Public pages read the database on every request — measure first.**
-  `/companies/{c}/jobs` (`fetch_company_jobs_page`, 701 sightings; the last path
-  of every recent `capacity_queue` row) and `/public/stats` (`job_provenance._count`,
-  74). Same answer for every viewer, changes once a day at ingest. Before any
-  cache: who calls them (Railway http logs, user agent — crawler or person) and
-  how often. Then an edge `Cache-Control` or a snapshot read. Agent.
+- **R12 · Public pages — measured 2026-10-18, the provenance counts become Tier 0.**
+  `ARCHITECTURE_READ_PATH.md` §30. Company pages: every API call is the Vercel
+  server rendering `/companies/[slug]` (3,403 in 6.4 days, 0 from browsers);
+  264–293 of the 263 sitemap companies re-rendered daily, the Next fetch cache
+  hits ≤7%; **5.3%** of DB time in a 3h window, ~150ms reads. No CDN on the path,
+  so an edge `s-maxage` removes nothing. `/public/stats`: cached, yet the
+  provenance counts run ~18×/day on prod (27 inline 8–15s waits, 37 timeouts
+  cached as 0) and a cold Vercel build stampedes them (45 `verified_live`
+  counts in a minute from one dev build) — **22.2%** of the same window. Build:
+  a `public_provenance` task on `run_snapshot_sql_refresh` + belt;
+  `read_provenance` reads the row. Not built yet. Agent.
 
 ## AUTHED QA CHECKLIST — the CV machine (from the beta ledger, 2026-09-30)
 
