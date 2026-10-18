@@ -23,7 +23,7 @@ Measured window 2026-10-15 03:00:28Z → 04:41:50Z (counters since 2026-07-12 01
 
 - Do not drop `idx_jobs_location_states_gin` (the feed filters `location_states`) or `idx_jobs_deletion_eligible` (Unload uses it). `idx_jobs_job_title_trgm` has one lifetime scan; the live title index is `idx_jobs_job_title_trgm_all`.
 - Do not delete `job_verification_schedule`, `job_verification_interest`, or `verifier_sweep_heartbeat`. The claim stamps `job_verification_schedule.last_attempt_at`. Putting that stamp back on `jobs.last_verification_attempt_at` is how a claim returned to 3.2s (2026-08-13).
-- `9d4ad00d` (inert verifier results skip the jobs rewrite) was not on `origin/main` at 2026-10-15 04:42Z. HOT share does not move until that deploys.
+- `9d4ad00d` (inert verifier results skip the jobs rewrite) was not on `origin/main` at 2026-10-15 04:42Z; it reached `main` in #342 (2026-10-17). Next: a fresh window for HOT share.
 
 ## Still open
 
