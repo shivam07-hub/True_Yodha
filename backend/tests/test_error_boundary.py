@@ -313,3 +313,79 @@ def test_any_other_postgrest_error_is_still_an_unhandled_500() -> None:
         assert [r.cause_class for r in book.snapshot()] == ["unhandled_500"]
     finally:
         unbind()
+
+
+# gotrue catches every transport error and re-raises it as AuthRetryableError,
+# so a read timeout on the auth API never reached the httpx handler above. On
+# 2026-10-16 15:33 UTC GoTrue's duplicate-email lookup took 4.8s inside a
+# database stall (/public/stats timed out the same second); partner SSO
+# answered 500 and the Notice board filed it as an auth bug. The bug class —
+# "Server disconnected" on a reused HTTP/2 stream — stays an unhandled 500.
+
+
+def _auth_error_raised_during(transport_error: Exception) -> Exception:
+    from gotrue.errors import AuthRetryableError
+
+    try:
+        raise transport_error
+    except Exception:
+        try:
+            raise AuthRetryableError(str(transport_error), 0)
+        except AuthRetryableError as wrapped:
+            return wrapped
+    raise AssertionError("unreachable")
+
+
+def test_an_auth_call_that_timed_out_is_a_503_and_a_blocked_capacity_notice() -> None:
+    import httpx
+
+    from app.notice import NoticeBook, bind, unbind
+
+    timed_out = _auth_error_raised_during(
+        httpx.ReadTimeout("The read operation timed out", request=httpx.Request("POST", "https://auth.test"))
+    )
+    book = NoticeBook.testing()
+    bind(book)
+    try:
+        test_app = FastAPI()
+        install_error_handling(test_app)
+
+        @test_app.post("/partner/v1/sso/session")
+        def sso() -> None:
+            raise timed_out
+
+        with TestClient(test_app, raise_server_exceptions=False) as client:
+            response = client.post("/partner/v1/sso/session")
+
+        assert response.status_code == 503
+        assert response.headers["retry-after"] == "2"
+        rows = book.snapshot()
+        assert [(r.cause_key, r.status) for r in rows] == [
+            ("capacity_503:upstream.read_timeout", "blocked")
+        ]
+    finally:
+        unbind()
+
+
+def test_an_auth_call_whose_connection_dropped_is_still_an_unhandled_500() -> None:
+    import httpx
+
+    from app.notice import NoticeBook, bind, unbind
+
+    dropped = _auth_error_raised_during(httpx.RemoteProtocolError("Server disconnected"))
+    book = NoticeBook.testing()
+    bind(book)
+    try:
+        test_app = FastAPI()
+        install_error_handling(test_app)
+
+        @test_app.post("/partner/v1/sso/session")
+        def sso() -> None:
+            raise dropped
+
+        with TestClient(test_app, raise_server_exceptions=False) as client:
+            assert client.post("/partner/v1/sso/session").status_code == 500
+
+        assert [r.cause_class for r in book.snapshot()] == ["unhandled_500"]
+    finally:
+        unbind()
