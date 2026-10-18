@@ -18,7 +18,7 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 | # | Step | Item | Spec · owner | Next |
 |---|---|---|---|---|
 | 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read the funnel on prod after the next merge |
-| 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) | Built; first email = their whole /market list, later = new only (Shivam 2026-10-14, `0aafb324`). **BLOCKED on Shivam**: merge carrying `0aafb324` → preview → approve |
+| 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) | Built; first email = their whole /market list, later = new only (Shivam 2026-10-14, `0aafb324`). `0aafb324` is on `main` (checked 2026-10-18). **BLOCKED on Shivam**: preview → approve |
 | 4 | Front door | **#57** "Which job do you want?" after upload · partner SSO lands on the upload (22% of partner people upload vs 67% direct) | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor, 1st | S0–S5 built 2026-10-14 · QA click-through still owed |
 | 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1–S4 built · next S5 add role |
 | 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor, 3rd | S0 audit, today's rule |
@@ -43,8 +43,8 @@ de-seed `f7dd4735`, `listing_time.py`; verify 3–6 in code) ·
 
 ## 1 · FIND THE JOB
 
-**The corpus is the scraper repo's (Shivam).** Running again since 2026-10-01 —
-28,120 active jobs younger than 7 days on 2026-10-02. This repo only reads jobs;
+**The corpus is the scraper repo's (Shivam).** Landing again since 2026-10-15:
+2–3k rows a day, 04–05 UTC; 54,870 active on 2026-10-18. This repo only reads jobs;
 never measure ingestion with `jobs.ingested_at` (an extension save masks a stall).
 
 7e. **Measured 2026-10-14 — don't wire it yet.** The 20 people whose /market stays
@@ -405,7 +405,13 @@ prod); #339 followed 10-13. A scheduled check reads R3/R4 on 10-19.
   `/partner/v1/sso/session`; record in §23–25. First 34 hours (10-12 08:57Z →
   10-13 19:33Z) are in §23–25. The week runs to 10-19. Pre-merge baseline
   (10-05→10-09): p50 ≤50 · ≤50 · ≤100 · ~3000 · ~1000 ms.
-- **R4 · SSO 500s gone.** No `AuthRetryableError: Server disconnected` /
+- **R4 · SSO 500s gone — FAILED 2026-10-16 15:33 UTC, fixed on Develop.** One
+  partner SSO 500 (`ad35b339…`). Not the disconnect class: GoTrue's duplicate-email
+  lookup took 4.8s inside a database stall (`/public/stats` timed out the same
+  second) and gotrue re-raised our ReadTimeout as `AuthRetryableError`, which the
+  boundary filed as an auth bug. Now a 503 + `capacity_503:upstream.read_timeout`
+  (`_relabelled_timeout`). The 10-17 digest's "closed" for it was the Notice flap
+  (fixed `49654b13`). Original check: no `AuthRetryableError: Server disconnected` /
   `CreateRaced` 10-12→10-19 (proofs ride `test_auth_client_http1.py`).
 - **R9 · Drain wall time** on the first scrape after the scraper is fixed: Stage A
   claim timestamps (`skill_floor_claimed_at` → `skill_floor_attempted_at`) for
@@ -418,7 +424,7 @@ prod); #339 followed 10-13. A scheduled check reads R3/R4 on 10-19.
   shared-buffer HIT. So the lever is load. Shipped: `9d4ad00d` (Develop) — an
   inert verifier result (`error`/`unroutable`/`source_failure`, `error` ≈54% of
   active listings' last check) no longer rewrites the `jobs` row; the schedule
-  table is the queue clock. **Not on `origin/main` as of 2026-10-15 04:42 UTC**
+  table is the queue clock. **On `origin/main` (checked 2026-10-18)**
   (`git merge-base --is-ancestor 9d4ad00d origin/main` fails). HOT and the
   verifier UPDATE volume move only after that deploy.
   **Window 2026-10-15 03:00:28Z → 04:41:50Z** (101m). Counters still reset
@@ -480,7 +486,7 @@ Tracker (3) · no problem or not actionable (~25).
   it ran out 2026-10-13 17:54 UTC and stopped the judge and the CV writer. Groq's
   model was retired the same day — `b22c0f4b` moves every strong lane's fallback to
   Groq `gpt-oss-120b`; the worker runs it, the prod API (Tailor writing, CV upload,
-  interactive) needs it merged to `main`. What spent the $15: drains reading whole
+  interactive) has it — on `main` (checked 2026-10-18). What spent the $15: drains reading whole
   pools, ~12,500 verdicts 10-04→10-13, up to ~1,000 per new signup (≈ $1.2 per
   1,000 verdicts at that rate — an upper bound, every lane shares the balance).
   At that rate $9.80 is ~8,000 verdicts. **Decided (Shivam, 2026-10-14): a drain
@@ -488,19 +494,19 @@ Tracker (3) · no problem or not actionable (~25).
   `/users/me`, read before every continuation; it pauses when they leave and the
   next visit picks the pile up. 500 of 501 drain ticks on 10-13 had queued
   themselves.
-- **Next merge: with Cursor's #57 S0** (Shivam, 2026-10-14). #339 already
-  carried #55 S1–S5, the 1,000-row fix, the certificate fix, #59, and Apply
-  telemetry.
-- **Scraper (your repo, Shivam fixing it 2026-10-14): no feed since 2026-10-01.** Live jobs 70k+ → 49,637
-  (10-11) as the verifier closes rows and nothing arrives — step 1 of the loop.
-  `dead_man:job_ingestion` is open. Then: Axis Bank = 14,259 live rows (~18%,
+- **Merged 2026-10-17 (#342):** #57 S0–S5 (the door UI), `9d4ad00d`, `b22c0f4b`,
+  `bdc15976`, `0aafb324`, `17b5533d`. The door's CHECK migration was missing on prod
+  until 2026-10-18 (applied then). Prod rejected 6 beacons in between, all in
+  Railway logs (`core_loop.persist_failed`): 3 people, each `door_shown` →
+  `door_fit`. The table's door funnel starts 2026-10-18.
+- **Scraper: landing again since 2026-10-15** (2–3k rows a day, 04–05 UTC; was
+  no feed 10-01 → 10-14). Still yours: Axis Bank = 14,259 live rows (~18%,
   747 titles) — dedupe at the source.
 - The prod deploy guard (above).
-- **#59 golden digest go-live**: prod has the digest (#339) but not its first-email
-  rule (`0aafb324`, Develop 2026-10-14) — a preview on prod today composes
-  "new since joining", which is nothing for all four. After the next merge, run
-  the preview SQL in `ARCHITECTURE_GOLDEN_DIGEST.md` (status block), read the
-  emails, approve; an agent then adds the schedule.
+- **#59 golden digest go-live**: prod now carries the first-email rule
+  (`0aafb324`, on `main` 2026-10-17). Run the preview SQL in
+  `ARCHITECTURE_GOLDEN_DIGEST.md` (status block), read the emails, approve; an
+  agent then adds the schedule.
 - **Rotate the Finlatics API key.** The live key travelled in plain email
   (hello@himyro.com thread "Re: shivam.mit20@gmail.com", 2026-08-10/11) and
   Finlatics quoted it back. Order matters — revoking first cuts the SSO door
@@ -526,11 +532,6 @@ Tracker (3) · no problem or not actionable (~25).
 ## AGENT CHORES — approved, small
 
 
-- After `main` carries `17b5533d`: drop `company_pulse_snapshot.last_seen_at`
-  (Shivam: standing yes, 2026-10-07). First confirm `main`'s
-  `repositories/company_signals.py` select no longer names it — prod's pulse
-  read fails, every card "—", if it still does. No refresh writes it since
-  `20261006090000`; rebuildable from `jobs`.
 - Delete `backend/scripts/recompute_banded_scores.py` — rescoring every user while
   they are away is a backfill (Shivam: kill).
 - After Pro: re-measure the anyio threadpool and pool levers.

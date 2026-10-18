@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-10-18 — Notice digest triage: flap, R4, door CHECK, pulse column
+
+The digest re-closed failed closes daily with the proof that had failed (`49654b13`). R4's 10-16 SSO 500 was a DB-stall timeout gotrue relabelled; now a 503. The door-steps CHECK reached prod a day after the door UI (6 beacons lost, in Railway logs). `company_pulse_snapshot.last_seen_at` dropped (`20261018120000`).
+
 ## 2026-10-15 — #58 S4 the page meter measures the export
 
 Download is never refused. The meter lays the sheet out in the A4 box the PDF uses. A page at 97% downloads; a real second page says so and still downloads. Fit to one page is the person's choice.
