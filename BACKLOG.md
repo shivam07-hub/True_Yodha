@@ -152,13 +152,35 @@ edits the wrong document for a tailored CV.
 **T1 findings, U4 run 2026-10-19** (Amazon "Business Analyst, Support, Supply
 Chain", QA account):
 
-- **Match reads 0/100 while coverage has 1 of 12 covered.** `/cv/jd-coverage`
-  returned covered 1 · weak 0 · gap 11, cached from before the tailor; the header
-  showed 0 before and after.
-- **Coverage credits stories only.** All 12 requirements came back
-  `source: "story"`. "Build and maintain self-serve dashboards" was a gap, yet the
-  CV's own JLL line ("built property-expense and portfolio dashboards for 50+
-  clients") was offered as a pick for that same question.
+- **Match reads 0/100 while coverage has 1 of 12 covered.** Not a display bug:
+  `matchScore` = coverage % − content penalty, clamped at 0 (`match-score.ts`).
+  1/12 = 8, the Fixes rail subtracts more, so 0. With coverage this low, Match is
+  0 for nearly everyone, so the header number tells nobody anything.
+- **Coverage is near zero for everyone, and has been since July — ROOT-CAUSED
+  2026-10-19.** All 52 cached panels on prod (676 requirements, 29 people): 9
+  covered, 0 by a CV line. Two rules, both wrong:
+  - *Until 10-17 on prod* a line needed cosine ≥0.58 (weak) / ≥0.74 (covered).
+    `text-embedding-3-small` scores a requirement against a CV bullet at
+    0.16–0.43 (measured on `8ff0c622`), so the CV leg fired 3 times in 622.
+  - *Since `3b29c282` (10-15 Develop, 10-17 `main`)* `jd_reflection.entails`
+    decides. Its "motion" is the last three content words of each clause, so it
+    misses real evidence ("dashboards with real-time visibility" needs the words
+    `real time visibility`) — and **63 of the 68 lines it would prove across all
+    676 requirements rest on one word** ("plan" proves "Plan and budget
+    projects", "own" proves "Own and drive product portfolio", "partners"
+    proves "co-sell across Microsoft and partners"). Requiring two words leaves
+    5 of 676. A phrase rule swings between a keyword match and nothing; it cannot
+    judge whether a line proves a requirement.
+  - **Decision for Shivam** — ARCHITECTURE_JD_REFLECTION.md §3 says the module
+    is "Pure. No provider". Recommendation: keep the string rule only for named
+    alternatives (Tableau on the skills line is a fact), and let one batched
+    judgment-lane call per (person, job) panel rule the top-3 cosine-ordered
+    lines per requirement, cached with the panel it already writes. Cost: one
+    call per panel, ever (52 so far). Method to re-run: every requirement in
+    `job_deepenings` (`prompt_key='jd_coverage'`) × the person's latest
+    `baseline_upload` bullets, skills line and summary, through `entails`.
+  - The CV leg also reads only bullets; the spec names the skills line and
+    summary as evidence. Moot until the rule above is settled.
 - **The weave proposed a broken summary.** Review 1/2 offered "GTM Business
   Development Manager, Capgemini, Insights & Data (GCC Growth). • Own the full B2B
   sales cycle…" — a role label and a bullet glyph — to replace a summary that
