@@ -173,14 +173,22 @@ Chain", QA account):
   penalty, clamped at 0 (`match-score.ts`). With honest coverage the QA job reads
   33 before the penalty. Re-read the header after the merge before deciding
   whether the penalty belongs in the same number.
-- **The weave proposes a summary that is a role label plus a bullet.** "GTM
-  Business Development Manager, Capgemini, Insights & Data (GCC Growth). ▪ Own
-  the full B2B sales cycle…". Cause: `cv_weave.seat_lead()` — spec S3 says the
-  summary leads with the current seat, so it builds "role, company. first
-  bullet" — and the uploaded CV's bullets carry their "▪" glyph into
-  `cv_structured`. Two fixes, both small: strip bullet glyphs at upload parse
-  (forward pass: on the next upload), and compose the seat as a sentence
-  rather than a label plus a raw bullet.
+- **Summary — FIXED `5ad8f6cc`.** The weave replaced the person's summary with
+  "GTM Business Development Manager, Capgemini, Insights & Data (GCC Growth). ▪
+  Own the full B2B sales cycle…". Two causes: the seat check matched the whole
+  stored company string, so "…at Capgemini" in the summary did not count; and
+  `seat_lead()` glued "role, company." to the first raw bullet. Now a summary
+  that names the employer is left alone, and otherwise the seat is one sentence
+  ("Role at Company.") before the summary's own words — never a bullet.
+- **Copied list markers — FIXED at upload `5ad8f6cc`; 25 people still carry
+  them.** The parser copies bullets verbatim, so "▪ Built…" was stored and the
+  renderer drew its own bullet in front: "• ▪ Built…" in the paper and the PDF.
+  387 baseline bullets across ~25 people (•, ▪, ▸, –, §, -, ◦, ■, Word's
+  U+F0B7); 6 baseline `body_text`s show the doubled glyph. Ingest
+  (`coerce_sections(ingest=True)`) now drops them for every new upload and
+  re-parse; a read still shows a row exactly as stored. **Open, forward pass:**
+  the 25 people's existing masters keep the marker until they upload again —
+  decide whether the CV page should offer a one-tap clean-up when it sees one.
 
 Tier B (#48 user-titled sections · #51 outcome not digits · #53 loss notice and
 restore · #54 nine screens) is parked until front-door numbers exist — ARCHIVE
