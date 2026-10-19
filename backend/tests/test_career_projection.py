@@ -208,28 +208,21 @@ def test_project_for_job_ranks_by_requirements_reword_off(monkeypatch):
     assert out["cv_structured"]["summary"] == "S"
 
 
-def test_a_story_that_entails_outranks_a_closer_cosine():
+def test_a_story_the_panel_ruled_proof_outranks_a_closer_cosine():
     ranked = [
         (_story("near"), 0.9),
         (_story("proves"), 0.1),
     ]
-    pointers = {
-        "near": "Sold software to enterprise buyers last year.",
-        "proves": "Built data pipelines and warehouses for the finance team.",
-    }
-    out = cp.apply_reflection(
-        ranked,
-        ["Oversee creation of data pipelines and warehouses"],
-        pointers,
-    )
+    out = cp.apply_reflection(ranked, {"proves"})
     assert out[0][0]["id"] == "proves"
+    assert out[0][1] == cp.ROLE_KEEP_MIN
     assert out[1][1] == 0.0
 
 
-def test_reflection_fails_open_when_nothing_entails():
+def test_reflection_fails_open_when_the_panel_proves_no_story():
     ranked = [(_story("s1"), 0.8), (_story("s2"), 0.2)]
-    out = cp.apply_reflection(ranked, ["kubernetes platform"], {"s1": "Pointer one.", "s2": "Pointer two."})
-    assert out == ranked
+    assert cp.apply_reflection(ranked, set()) == ranked
+    assert cp.apply_reflection(ranked, {"some-other-story"}) == ranked
 
 
 def test_a_gap_answer_pointer_must_stay_inside_the_answer():

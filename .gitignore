@@ -70,6 +70,12 @@ career-ops-web/frontend/agency-agents/
 
 # External tool repos — not part of this project
 agency-agents/
+# repos/ — upstream repos we build with. Clones stay local; the registry is
+# what every machine reads.
+/repos/*
+!/repos/README.md
+# /myro-brag output — rendered videos of product UI; generated, never committed.
+brag-output*/
 graphify-out/
 Screenshot*.png
 *.png

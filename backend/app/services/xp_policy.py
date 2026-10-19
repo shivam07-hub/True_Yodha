@@ -12,8 +12,6 @@ LINKEDIN_PROFILE_XP = 50
 # manual, pasted JD, or parsed file/image). Extraction itself stays free.
 ADD_JOB_REWARD_XP = 20
 
-SKILL_ADVICE_XP_COST = 20
-
 # Per-bullet Mentor rewrite is FREE and has no constant, deliberately.
 #
 # There was a `REWRITE_BULLET_XP_COST = 0` here, described as pricing "pending

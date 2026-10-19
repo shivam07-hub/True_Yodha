@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 **Date:** 2026-05-25
+**Amended 2026-10-19:** the stake quoted below was restated on 2026-09-30 —
+*"Myro is a CV-building machine for applying to the jobs you want"* (CLAUDE.md,
+The Goal). The NOT-list still stands against the new wording; where this ADR
+quotes "home for every version of your CV", read the restated stake.
 **Context:** Beta-3 surfaced users testing Myro against mental models from adjacent products (Canva, Rezi, Naukri, LinkedIn, ChatGPT). Several beta reports asked for features that would break the locked Brooks stake (*"Myro is the home for every version of your CV — scored against live jobs"*). Without an explicit NOT-list, every product question reopens the stake.
 
 ## Decision
@@ -60,7 +64,7 @@ This carve-out preserves the Brooks stake — the artifact the generator produce
 
 ## Consequences
 
-- Every product decision can now be checked against this list before discussion. "Should we add salary?" → item 7 says no, revisit only on v2 explicit demand.
+- Every product decision can now be checked against this list before discussion. "Should we add salary?" → item 7 as amended: show pay a source states, labelled with that source; never estimate it.
 - The Onboarding Baseline Generator graduates from question to backlog item. Implementation queue: ships after vocab + theme + identity PRs (per grill ordering γ).
 - Marketing copy on `/about` and elsewhere may reference the carve-out as a feature ("Don't have a CV yet? Get one in 2 minutes."), but the locked stake ("Home for every version of your CV — scored against live jobs") stays primary.
 - When external comparisons arise ("how is Myro different from X?"), this list is the answer.

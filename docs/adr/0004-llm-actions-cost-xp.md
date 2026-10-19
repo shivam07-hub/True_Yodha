@@ -4,6 +4,7 @@
 - **Date**: 2026-05-23
 - **Supersedes**: implicit time-based cooldown in `services/rate_limit.py` (`_COOLDOWN_DAYS = 3`) for CV uploads — that file has since been deleted; the supersession is complete
 - **Amended 2026-09-17**: the currency is called **Coins** in the product and in `coin_ledger`; the code seam kept its original names (`xp_service`, `xp_policy`, `routers/xp.py`, `MATCH_RUN_COST`). Both are the same thing. The decision — every LLM-bearing action is charged, none is rate-limited by a clock — is unchanged, and every ADR below that says "XP" means Coins.
+- **Amended 2026-10-19 — facts below that are no longer true; the decision is unchanged.** Following a company is **free** (DECISIONS IH2, reversed 2026-07-19), so the follow row in Context and Pricing is history. Timed Forge earning is **retired** (DECISIONS Economy). The ledger **exists** — `coin_ledger` (XP-DB3) — so the last parked question is closed. The welcome grant is a **DB trigger on profile insert** (XP-DB1), not app code. Coins can also be **bought**: the ₹199 Apply Pack (DECISIONS ENG2). The backfill SQL under Negative/risks predates the forward-pass rule (CLAUDE.md, never backfill) and would not be written today. The companion sweep list is stale; see its header.
 - **Related**: XP1 (XP permanent), IH2 (follow-cost economy), XP7 (cart ephemeral), SE17 (poll-based async completion)
 
 ## Context

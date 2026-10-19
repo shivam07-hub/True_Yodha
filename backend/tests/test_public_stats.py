@@ -29,24 +29,28 @@ class _FakeRepo:
         return self.payload
 
 
-class _FakeCountResult:
-    def __init__(self, count: int | None) -> None:
+class _FakeResult:
+    def __init__(self, count: int | None, data: list[dict[str, Any]] | None = None) -> None:
         self.count = count
+        self.data = data
 
 
 class _FakeAdmin:
-    """Chainable count stub.
+    """Chainable stub: exact counts for the seeker and role-family reads, and
+    the one `public_provenance_snapshot` row for provenance.
 
-    Must model `.eq()`/`.gte()` as well as select/limit: the provenance counts
-    filter, and a double that silently lacks the method sends `_count`'s
-    except-branch a zero — which looks exactly like a real count of zero.
+    Must model `.eq()` as well as select/limit: the snapshot read filters on
+    `id`, and a double that silently lacks the method sends the read's
+    except-branch to "no number" — which looks exactly like an empty snapshot.
     """
 
     def __init__(self, count: int | None) -> None:
         self._count = count
+        self._table = ""
         self.calls = 0
 
-    def table(self, _name: str) -> "_FakeAdmin":
+    def table(self, name: str) -> "_FakeAdmin":
+        self._table = name
         return self
 
     def select(self, *_a: Any, **_k: Any) -> "_FakeAdmin":
@@ -58,12 +62,19 @@ class _FakeAdmin:
     def eq(self, *_a: Any, **_k: Any) -> "_FakeAdmin":
         return self
 
-    def gte(self, *_a: Any, **_k: Any) -> "_FakeAdmin":
-        return self
-
-    def execute(self) -> _FakeCountResult:
+    def execute(self) -> _FakeResult:
         self.calls += 1
-        return _FakeCountResult(self._count)
+        if self._table == "public_provenance_snapshot":
+            if self._count is None:
+                return _FakeResult(None, [])
+            row = {
+                "total": self._count,
+                "community": self._count,
+                "verified_live": self._count,
+                "verified_window_days": 7,
+            }
+            return _FakeResult(None, [row])
+        return _FakeResult(self._count)
 
 
 @pytest.fixture(autouse=True)
@@ -122,7 +133,7 @@ def test_stats_cached_within_ttl(monkeypatch: pytest.MonkeyPatch) -> None:
     assert repo.calls == 1
     # The cache is the assertion, not the call count: a served-from-cache
     # response must do NO further DB work, however many reads one cold build
-    # costs (seekers + the provenance counts).
+    # costs (seekers + the provenance row).
     assert after_first > 0
     assert admin.calls == after_first
 

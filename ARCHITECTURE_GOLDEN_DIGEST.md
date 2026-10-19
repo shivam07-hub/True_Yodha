@@ -8,7 +8,8 @@ narrowed to the people Shivam picks.
 > slice is its own commit on `Develop`, six gates green. Migrations are applied
 > by the agent before the code that reads them, then `NOTIFY pgrst`.
 
-> **Status 2026-10-13 — S1–S3 built on `Develop`; S4 waits on Shivam.**
+> **Status 2026-10-18 — S1–S3 and the first-email rule are on `main` (#342,
+> 2026-10-17); S4 (preview → approve → schedule) waits on Shivam.** As built, 2026-10-13:
 > `services/golden_digest.py` (`compose`, `render`, `send_due`, the Supabase
 > store, the Resend mailer), `POST /email/unsubscribe` + `/unsubscribe`,
 > `send_email(headers=)`, `POST /internal/golden-digest/send`,
@@ -43,7 +44,8 @@ narrowed to the people Shivam picks.
 > card the drain re-reads gets a fresh timestamp but is not news; no cap on how
 > many. Dry run, prod data: Raj 23 jobs, Deveshwar 2, Rishabh and Adarsh nothing.
 >
-> **Go-live, in order (Shivam):** (1) `main` carries this; (2) the preview —
+> **Go-live, in order (Shivam):** (1) `main` carries this — done, #342
+> (2026-10-17); (2) the preview —
 > run once in the SQL editor, then read the four emails:
 > ```sql
 > select net.http_post(

@@ -73,20 +73,57 @@ async def recall_stories(user_id: str, query: str, k: int = 4) -> list[StoryHit]
     except Exception as exc:  # missing key, transient exhaustion, contract violation
         logger.info("memory_recall: embed failed (%s) — no story recall", exc.__class__.__name__)
         return []
+    return _ranked_stories(user_id, [qvec], k)[0]
+
+
+async def recall_stories_many(
+    user_id: str,
+    queries: list[str],
+    *,
+    k: int = 4,
+    qvecs: list[list[float]] | None = None,
+) -> list[list[StoryHit]]:
+    """`recall_stories` for many queries: one embedding call and one read of
+    the person's stories, however many queries. A coverage panel asks for 14 at
+    once; asking one at a time made it 14 embeddings and 28 reads (~30s).
+    Pass `qvecs` when the caller already embedded the queries. [] per query on
+    any failure."""
+    if not queries:
+        return []
+    if qvecs is None:
+        try:
+            qvecs = await embeddings.embed_texts(queries)
+        except Exception as exc:  # noqa: BLE001 — recall is garnish, never an outage
+            logger.info("memory_recall: embed failed (%s) — no story recall", exc.__class__.__name__)
+            return [[] for _ in queries]
+    return _ranked_stories(user_id, qvecs, k)
+
+
+def _ranked_stories(user_id: str, qvecs: list[list[float]], k: int) -> list[list[StoryHit]]:
+    """Each query vector's nearest stories, from one read of the bank."""
+    empty: list[list[StoryHit]] = [[] for _ in qvecs]
     try:
         repo = CareerReservoirRepository(get_supabase_admin())
         vec_rows = repo.story_embeddings(user_id)
         if not vec_rows:
-            return []
-        scored: dict[str, float] = {}
-        for row in vec_rows:
-            vec = _parse_vector(row.get("embedding"))
-            if vec:
-                scored[str(row["id"])] = cosine(qvec, vec)
-        if not scored:
-            return []
+            return empty
+        vectors = [
+            (str(row["id"]), vec)
+            for row in vec_rows
+            if (vec := _parse_vector(row.get("embedding")))
+        ]
+        if not vectors:
+            return empty
         stories = {str(s["id"]): s for s in repo.list_stories(user_id)}
-        top = sorted(scored.items(), key=lambda kv: kv[1], reverse=True)[:k]
+    except Exception as exc:  # noqa: BLE001 — recall is garnish, never an outage
+        logger.info("memory_recall: story recall failed (%s)", exc.__class__.__name__)
+        return empty
+    out: list[list[StoryHit]] = []
+    for qvec in qvecs:
+        top = sorted(
+            ((sid, cosine(qvec, vec)) for sid, vec in vectors),
+            key=lambda kv: kv[1], reverse=True,
+        )[:k]
         hits: list[StoryHit] = []
         for sid, sim in top:
             s = stories.get(sid)
@@ -102,10 +139,8 @@ async def recall_stories(user_id: str, query: str, k: int = 4) -> list[StoryHit]
                 similarity=sim,
                 told=story_depth.is_told(s),
             ))
-        return hits
-    except Exception as exc:  # noqa: BLE001 — recall is garnish, never an outage
-        logger.info("memory_recall: story recall failed (%s)", exc.__class__.__name__)
-        return []
+        out.append(hits)
+    return out
 
 
 async def recall(

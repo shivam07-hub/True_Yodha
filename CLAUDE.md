@@ -130,6 +130,7 @@ Jobs come from the scraper repo (Shivam's); this repo only reads them.
 | Domain language and code seams | [CONTEXT.md](CONTEXT.md) |
 | Architecture map of the code (AST, 2026-06-14 — rebuild before trusting) | `graphify-out/GRAPH_REPORT_frontend.md` |
 | **Every loop + its production reach number** | [FEATURE_LOOP_REGISTRY.md](docs/FEATURE_LOOP_REGISTRY.md) |
+| Upstream repos we build with · launch-video rules (`/myro-brag`) | [repos/README.md](repos/README.md) · [LAUNCH_VIDEOS.md](LAUNCH_VIDEOS.md) |
 
 `/docs` and `.claude/` are gitignored — a NEW file under either is invisible, so
 put new docs at the repo root; exception `docs/adr/` (held by
@@ -148,10 +149,10 @@ Order is the loop map — broken steps first, nearest the north star first (Shiv
 
 | # | Step | Now |
 |---|---|---|
-| 1 | Find the job | Corpus live again (ingestion 2026-10-01). #55 closed: a return shows the list and re-reads it. |
-| 2 | Apply | No Apply click since 2026-09-22. Ship what is built, then measure click → "Did you submit?" → application. |
+| 1 | Find the job | Scraper landing daily since 2026-10-15 (dark 10-01→10-14). #55 closed: a return shows the list and re-reads it. |
+| 2 | Apply | 2 real Apply clicks since 2026-09-22 (last 10-16), 0 answered. Built work is on `main` (#342); measure click → "Did you submit?" → application. |
 | 3 | Repeat | Golden-list digest (#59): email only to `golden_list_since`. Blocked until the preview is approved. |
-| 4 | Front door | #57 S0–S5 built 2026-10-14: after skills, paste · extension · jobs that fit. QA click-through still owed. Door telemetry migration is in the repo and not yet applied (no SQL credentials on this machine). |
+| 4 | Front door | #57 S0–S5 built 2026-10-14: after skills, paste · extension · jobs that fit. On `main` 2026-10-17; door telemetry live on prod from 2026-10-18. QA click-through still owed. |
 | 5 | Tailor + download | #58 S1–S4 built (blank certs, fabricated-role guard, unknown sections kept, measured page fill). Still open: add role. |
 | 6 | Pay | #56 Apply Pack — [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md), Cursor. |
 

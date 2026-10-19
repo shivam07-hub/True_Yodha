@@ -6,6 +6,58 @@
 
 ---
 
+## 2026-10-19 — Backlog prune: open work only
+
+BACKLOG.md was 580 lines; most of it was build history. Each item below was checked
+in git or on prod the same day. Full pre-prune text: `git show 48427fbb:BACKLOG.md`.
+Closed or parked, one line each:
+- **#49** page meter — shipped as #58 S4 (`332bec91`, entry 2026-10-15).
+- **#52** blank CERTIFICATIONS heading — fixed as #58 S1 (`240062eb`, `!isBlank(cert)` in `cv-compose.ts`).
+- **#47** master rewrite drops unknown sections — fixed as #58 S3 (`041d2cc3`). The
+  5 users damaged before it are #53's job. Regex traps from that measurement:
+  memory `feedback_postgres_regex_traps`.
+- **#48** user-titled sections / `achievements` field — Tier B, parked until front-door numbers exist.
+- **#51** "unquantified" checks digits, not outcomes — Tier B, same trigger.
+- **#53** no notice or restore when a CV loses content (5 known users) — Tier B, same
+  trigger; it would be a heal on the next CV open, never a backfill.
+- **#54** nine deterministic CV screens (location, title, overlap, restated figure…) — Tier B, same trigger.
+- **#38** role-dedup judge — built; its one open part (a fold receipt) is CS-16.
+- **CS-16** role fold has no receipt, so auto-fold stays off (`82f96ac0`) — parked with
+  Prepare until 20 people have applied. `upgrades_story_id` was still 0 on prod.
+- **#41** perceived-speed contract — built 2026-07-21 (`a319255c`, `9d56d2e7`,
+  `d1e57704`); its QA lives in the authed QA checklist, its capacity question was
+  answered by R10 (the wait is the database).
+- **Agent chore "re-measure the threadpool after Pro"** — answered by R10: app side
+  already 100 threads, 100-conn pool. Deleted.
+- **#42** mobile unification — slices 1–2 shipped; the leftovers (accent budget on
+  /practice, /skills empty state, drift-guard exemption for `mobile/redesign/`,
+  junk titles at the scraper) are cosmetic and fix no loop step. The CI secrets ask
+  stays in BACKLOG → SHIVAM; `qa:mobile` and `/dev/phone` are named in the QA checklist.
+- **#46** Direction = one platform — S1/S2/S3/S5 shipped 2026-09-12→14. **S4** graded
+  job↔direction fit stays deferred: the compute was declined 2026-10-14, and half
+  of it is not shipped (one definition or none). **S6** Direction opens answered —
+  demoted: #57 put Direction after the first tailored CV, so it no longer stands
+  before tailoring; reopen if the door's numbers show people stalling there. The
+  S5 "why" copy (name the neighbours) is Prepare, parked with it.
+- **7e** semantic retrieval — measured 2026-10-14: 1,420 extra jobs for ~11 CV-relevant
+  ones. 14 of the 20 empty lists were stalled drains, which now finish when the person
+  returns (`bdc15976`). Parked; `semantic_candidates.py` stays unwired.
+- **#36** event-driven matching slices 3–5 (brain-everywhere audit, Agent Picks
+  auto-gen, "want more" coins) — predates the cut rule and fixes no broken step. Parked.
+- **#37** ranked job-skill importance — blocked on the scraper repo, and Shivam's
+  rollout gate rejects a two-tier corpus. Parked.
+- **Extension saves duplicating a list job** (2 of 6 `ext_` rows) — parked; revisit only if it grows.
+- **The QA account (`04a07845…`) was counted as a real person** — `is_test_account`
+  was false, so its 2 tailored versions sat in the spine. Flagged 2026-10-19.
+
+## 2026-10-18 — OpenRouter outage closed; the 10-17 merge; backfill script gone
+
+OpenRouter ran out 2026-10-13 17:54 UTC and Groq retired its model the same day. Topped up 10-14 ($9.80 left). `b22c0f4b` (Groq `gpt-oss-120b` fallback) and `bdc15976` (a drain spends only while its person is on Myro — CONTEXT.md) reached `main` in #342 on 10-17, with #57 S0–S5, `9d4ad00d`, `0aafb324` and `17b5533d`. The banded-score backfill script was already deleted (`4709e630`).
+
+## 2026-10-18 — Notice digest triage: flap, R4, door CHECK, pulse column
+
+The digest re-closed failed closes daily with the proof that had failed (`49654b13`). R4's 10-16 SSO 500 was a DB-stall timeout gotrue relabelled; now a 503. The door-steps CHECK reached prod a day after the door UI (6 beacons lost, in Railway logs). `company_pulse_snapshot.last_seen_at` dropped (`20261018120000`).
+
 ## 2026-10-15 — #58 S4 the page meter measures the export
 
 Download is never refused. The meter lays the sheet out in the A4 box the PDF uses. A page at 97% downloads; a real second page says so and still downloads. Fit to one page is the person's choice.

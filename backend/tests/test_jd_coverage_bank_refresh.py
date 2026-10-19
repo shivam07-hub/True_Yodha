@@ -60,8 +60,10 @@ class _FakeJobsRepo:
 
 
 def _cached(computed_at: str) -> str:
+    """A panel the judge ruled (stamped). Unstamped panels are stale by design."""
     return json.dumps({
         "computed_at": computed_at,
+        jd_coverage.RULE_KEY: jd_coverage.RULE,
         "covered": 0, "weak": 0, "gap": 1,
         "requirements": [
             {"requirement": "Lead a matrixed programme", "status": "gap",
@@ -98,7 +100,7 @@ async def test_a_banked_story_re_matches_without_re_parsing(monkeypatch) -> None
     async def _never_parse(*a, **k):  # noqa: ANN002, ANN003
         raise AssertionError("re-parsing spends the judgment lane for nothing")
 
-    async def _rematch(user_id, requirements, *, cv_bullets=None):  # noqa: ANN001
+    async def _rematch(user_id, requirements, provider, *, cv_lines=None):  # noqa: ANN001
         seen["requirements"] = requirements
         return CoverageResult(
             requirements=[CoverageItem(

@@ -1,4 +1,6 @@
 import type { CVStructured, UserProfile } from "@/lib/api"
+import { markedLineCount, stripCopiedMarkers } from "@/lib/cv/list-markers"
+import type { CheckExample } from "./content-check-explainers"
 import { spellCheckCv } from "./cv-spellcheck"
 
 /** Where a failing check routes the user in the CV editor. Maps to a section
@@ -16,6 +18,14 @@ export interface AtsCheck {
   fix?: AtsFixTarget
   /** Optional checks warn but do NOT count against the score (e.g. phone). */
   optional?: boolean
+  /** A failing required check blocks unless it says otherwise. */
+  severity?: "weak"
+  /** One tap fixes it, through the open document's editor. When set, the row
+   *  applies this instead of jumping to `fix`. */
+  apply?: (cv: CVStructured) => CVStructured
+  /** This check's own reasons and specimen, when its tag's are too general. */
+  why?: string[]
+  example?: CheckExample
 }
 
 /** A `[REDACTED_*]` marker is an AI-egress artifact. If one is rendering as the
@@ -53,9 +63,26 @@ export function runAtsChecks(
   const typos = spellCheckCv(cv)
   const spellingOk = typos.length === 0
   const typoSummary = typos.slice(0, 4).map(t => t.wrong).join(", ") + (typos.length > 4 ? "…" : "")
+  const doubled = markedLineCount(cv)
 
   return [
     { label: "Single column · linear reading order", tag: "layout", pass: true },
+    {
+      label: "Bullets print one mark each",
+      tag: "layout",
+      pass: doubled === 0,
+      detail: doubled
+        ? `${doubled} ${doubled === 1 ? "bullet prints" : "bullets print"} a second mark`
+        : undefined,
+      fix: "experience",
+      severity: "weak",
+      apply: stripCopiedMarkers,
+      why: [
+        "Your file's own bullet marks came in with the text, so the page draws two.",
+        "Stray symbols are noise to the systems that read a CV before a person does.",
+      ],
+      example: { before: "• ▪ Built a reporting pipeline", after: "• Built a reporting pipeline" },
+    },
     {
       label: "Standard section headings present",
       tag: "section headings",

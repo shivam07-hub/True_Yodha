@@ -262,10 +262,30 @@ async def _postgrest_error_handler(request: Request, exc: APIError) -> JSONRespo
     )
 
 
+def _relabelled_timeout(exc: BaseException) -> httpx.TimeoutException | None:
+    """The transport timeout a client library re-raised as its own error.
+
+    gotrue catches every transport failure and raises `AuthRetryableError`
+    carrying the same message, so an auth call that timed out inside a
+    database stall (2026-10-16 15:33, partner SSO) reached this boundary as an
+    auth bug. One link back, and only when the wrapper says exactly what the
+    timeout said — a different error raised while handling a timeout is a bug
+    of its own. No auth error class is imported: it has moved packages before
+    (see `auth_links`).
+    """
+    link = exc.__cause__ or exc.__context__
+    if isinstance(link, httpx.TimeoutException) and str(exc) == str(link):
+        return link
+    return None
+
+
 async def _unhandled_exception_handler(
     request: Request,
     _exc: Exception,
 ) -> JSONResponse:
+    timeout = _relabelled_timeout(_exc)
+    if timeout is not None:
+        return await _upstream_timeout_handler(request, timeout)
     correlation_id = _correlation_id(request)
     _log.exception(
         "Unhandled request error correlation_id=%s method=%s path=%s",

@@ -116,14 +116,14 @@ async def create_prep_brief(
         baseline = cv_repo.latest_baseline(user_id)
         result = await jd_coverage.assess(
             user_id, jd_text, get_blocking_judgment_provider(),
-            cv_bullets=jd_coverage.bullets_from_cv((baseline or {}).get("cv_structured") or {}),
+            cv_lines=jd_coverage.evidence_lines((baseline or {}).get("cv_structured") or {}),
         )
-        if result.requirements:
+        if result and result.requirements:
             repo.upsert_deepening(
                 user_id, job_id, jd_coverage.CACHE_PROMPT_KEY,
                 jd_coverage.result_to_payload(result),
             )
-        coverage_rows = result.requirements
+        coverage_rows = result.requirements if result else []
 
     brief = await prep_brief_service.build_prep_brief(
         role=role,

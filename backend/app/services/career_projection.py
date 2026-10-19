@@ -28,7 +28,6 @@ from typing import Any
 
 from app.services import cv_parser, embeddings, project_rewrite, story_depth
 from app.services.career_reservoir import cosine
-from app.services.jd_reflection import entails
 
 logger = logging.getLogger("myro.career_projection")
 
@@ -71,23 +70,22 @@ def score_story(story_vec: list[float] | None, req_vecs: list[list[float]]) -> f
 
 def apply_reflection(
     ranked: list[tuple[dict[str, Any], float]],
-    requirements: list[str],
-    pointer_by_story: dict[str, str],
+    proven_story_ids: set[str],
 ) -> list[tuple[dict[str, Any], float]]:
-    """Prefer stories whose own line entails a motion. Fail open when none do.
+    """Prefer stories the coverage panel ruled as proof. Fail open when none are.
 
-    Cosine still orders the list. It does not decide which story is evidence.
-    A story that entails keeps at least the role gate, so a low cosine cannot
-    park the only line that proves the motion. When nothing entails, the
-    cosine order stands — an empty projection is worse than a loose one.
+    Cosine still orders the list. It does not decide which story is evidence —
+    the panel's judge did (ARCHITECTURE_JD_REFLECTION.md §0). A proving story
+    keeps at least the role gate, so a low cosine cannot park the only story
+    that proves a requirement. When none prove, the cosine order stands — an
+    empty projection is worse than a loose one.
     """
-    if not requirements or not ranked:
+    if not proven_story_ids or not ranked:
         return ranked
     reflected: list[tuple[dict[str, Any], float]] = []
     any_proven = False
     for story, score in ranked:
-        text = pointer_by_story.get(str(story.get("id")), "")
-        if any(entails(requirement, text) for requirement in requirements):
+        if str(story.get("id")) in proven_story_ids:
             reflected.append((story, max(score, ROLE_KEEP_MIN)))
             any_proven = True
         else:
@@ -279,6 +277,7 @@ async def project_for_job(
     pointers: list[dict[str, Any]],
     story_embeddings: list[dict[str, Any]],
     reword: bool = True,
+    proven_story_ids: set[str] | None = None,
 ) -> dict[str, Any]:
     """End-to-end: requirement-rank → relevance-gated select → guarded reword →
     compose. Returns {cv_structured, included_ids, parked_ids} for the caller to
@@ -302,8 +301,7 @@ async def project_for_job(
 
     ranked = apply_reflection(
         rank_stories(with_pointers, story_vec_by_id, req_vecs),
-        reqs,
-        canonical,
+        proven_story_ids or set(),
     )
     included, parked = select_stories(ranked, force_role_ids=_force_current_roles(roles))
 

@@ -20,13 +20,19 @@ from __future__ import annotations
 import logging
 import queue
 import threading
+from datetime import datetime, timezone
 
 from app.notice.board import NoticeBook
+from app.notice.stall import StallWindow
 from app.notice.types import Sighting
 
 _logger = logging.getLogger("app.notice")
 
 _QUEUE_MAX = 1000
+# How often the writer wakes with nothing queued, to file slow reads whose
+# stall window has closed.
+_TICK_SECONDS = 5.0
+_stall_window = StallWindow
 
 _book: NoticeBook | None = None
 _queue: queue.Queue[Sighting] | None = None
@@ -68,7 +74,8 @@ def observe(sighting: Sighting) -> None:
 
 
 def flush(timeout: float = 5.0) -> bool:
-    """Wait until every queued sighting is written. Tests and shutdown only."""
+    """Wait until every queued sighting is taken. A slow read is then still held
+    for its stall window. Tests and shutdown only."""
     pending = _queue
     if pending is None:
         return True
@@ -83,12 +90,23 @@ def flush(timeout: float = 5.0) -> bool:
 
 
 def _drain(book: NoticeBook, pending: queue.Queue[Sighting]) -> None:
+    """The one writer. Slow reads wait out their stall window here (`stall.py`)."""
+    stalls = _stall_window()
     while True:
-        sighting = pending.get()
         try:
-            book.observe(sighting)  # never raises: NoticeBook.observe is fail-soft
+            sighting = pending.get(timeout=_TICK_SECONDS)
+        except queue.Empty:
+            _file(book, stalls.due(datetime.now(timezone.utc)))
+            continue
+        try:
+            _file(book, stalls.admit(sighting, datetime.now(timezone.utc)))
         finally:
             pending.task_done()
+
+
+def _file(book: NoticeBook, sightings: tuple[Sighting, ...]) -> None:
+    for sighting in sightings:
+        book.observe(sighting)  # never raises: NoticeBook.observe is fail-soft
 
 
 def bind_from_settings(*, background: bool = False) -> None:

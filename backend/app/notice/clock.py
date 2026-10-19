@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Protocol
 
 
@@ -22,3 +22,6 @@ class FrozenClock:
 
     def now(self) -> datetime:
         return self._at
+
+    def advance(self, by: timedelta) -> None:
+        self._at += by

@@ -1,7 +1,9 @@
 """jd_coverage — Lane C: JD requirements → coverage vs the user's stories."""
 import asyncio
 
-from app.services import jd_coverage
+import json
+
+from app.services import jd_coverage, jd_reflection
 from app.services.memory_recall import StoryHit
 
 
@@ -31,25 +33,23 @@ def test_parse_requirements_response_malformed_is_empty():
     assert jd_coverage.parse_requirements_response("") == []
 
 
-# ── pure: coverage banding ─────────────────────────────────────────────────────
-
-def test_classify_bands():
-    """Cosine orders candidate lines. It is not a covered/weak/gap status."""
-    assert jd_coverage._classify(0.90) == "near"
-    assert jd_coverage._classify(jd_coverage.COVERED_MIN) == "near"
-    assert jd_coverage._classify(0.60) == "adjacent"
-    assert jd_coverage._classify(jd_coverage.WEAK_MIN) == "adjacent"
-    assert jd_coverage._classify(0.30) == "far"
-
-
-# ── async: assess end-to-end (stubbed provider + recall) ───────────────────────
+# ── async: assess end-to-end (stubbed provider + recall + embeddings) ───────
 
 class _FakeProvider:
-    def __init__(self, raw):
-        self._raw = raw
+    """Answers the requirement parse and the judge, and counts judge calls."""
 
-    async def complete(self, messages, max_tokens=None):
-        return self._raw
+    def __init__(self, parse_raw, judge_raw='{"proven": {}}'):
+        self._parse = parse_raw
+        self._judge = judge_raw
+        self.judge_calls: list[str] = []
+
+    async def complete(self, messages, max_tokens=None, temperature=None):
+        if messages[0]["content"] == jd_reflection.JUDGE_SYSTEM:
+            self.judge_calls.append(messages[1]["content"])
+            if isinstance(self._judge, Exception):
+                raise self._judge
+            return self._judge
+        return self._parse
 
 
 def _run(coro):
@@ -58,29 +58,60 @@ def _run(coro):
     return asyncio.run(coro)
 
 
-def test_assess_classifies_each_requirement(monkeypatch):
-    provider = _FakeProvider('{"requirements": ["Own quota", "Design incentives", "Rust systems"]}')
+def _proofs(mapping):
+    """The judge's answer: per requirement number, (line id, words quoted from it)."""
+    return json.dumps({"proven": {
+        str(n): [{"id": i, "shows": q} for i, q in proofs] for n, proofs in mapping.items()
+    }})
+
+
+def _patch_recall(monkeypatch, per_query):
+    """Coverage recalls every requirement in one batch; the fakes answer per query."""
+    async def _many(user_id, queries, *, k=4, qvecs=None):
+        return [await per_query(user_id, q, k) for q in queries]
+
+    monkeypatch.setattr(jd_coverage.memory_recall, "recall_stories_many", _many)
+
+
+def _no_embeddings(monkeypatch):
+    from app.services import embeddings
+
+    async def _embed(texts):
+        return [[1.0, 0.0] for _ in texts]
+
+    monkeypatch.setattr(embeddings, "embed_texts", _embed)
+
+
+def _story(sid, pointer, sim, told=True):
+    return StoryHit(sid, f"Story {sid}", pointer, "", [], sim, told=told)
+
+
+def test_assess_rules_each_requirement_with_one_judge_call(monkeypatch):
+    _no_embeddings(monkeypatch)
+    provider = _FakeProvider(
+        '{"requirements": ["Own quota", "Design incentives", "Rust systems"]}',
+        _proofs({1: [("1a", "Own quota across")], 2: [("2a", "sales comp plan")], 3: []}),
+    )
 
     async def _recall(user_id, query, k=1):
         table = {
-            "Own quota": [StoryHit("s1", "Beat quota", "Own quota across the region", "120%", ["GTM"], 0.85)],
-            "Design incentives": [StoryHit(
-                "s2", "Comp plan", "Design incentives for the team", "", [], 0.62, told=False,
-            )],
+            "Own quota": [_story("s1", "Own quota across the region at 120%", 0.85)],
+            "Design incentives": [_story("s2", "Designed the sales comp plan", 0.62, told=False)],
             "Rust systems": [],
         }
         return table.get(query, [])
 
-    monkeypatch.setattr(jd_coverage.memory_recall, "recall_stories", _recall)
+    _patch_recall(monkeypatch, _recall)
 
     result = _run(jd_coverage.assess("u1", "A long enough job description prose here.", provider))
     by_req = {r.requirement: r for r in result.requirements}
     assert by_req["Own quota"].status == "covered"
     assert by_req["Own quota"].story_id == "s1"
-    assert by_req["Design incentives"].status == "weak"
+    assert by_req["Design incentives"].status == "weak", "an untold story is evidence, not an answer"
     assert by_req["Rust systems"].status == "gap"
     assert by_req["Rust systems"].story_id is None
     assert (result.covered, result.weak, result.gap) == (1, 1, 1)
+    assert len(provider.judge_calls) == 1, "one judgment call per panel"
 
 
 def test_assess_empty_jd_is_empty():
@@ -88,17 +119,195 @@ def test_assess_empty_jd_is_empty():
     assert result.requirements == []
 
 
-def test_assess_recall_failure_downgrades_to_gap(monkeypatch):
-    provider = _FakeProvider('{"requirements": ["Own quota"]}')
+def test_a_cv_line_the_judge_rules_proving_covers_and_is_recorded(monkeypatch):
+    _no_embeddings(monkeypatch)
 
-    # recall_stories is documented fail-soft → []; _cover_one relies on that
-    # contract, so a story with no match downgrades cleanly to gap.
-    async def _empty(user_id, query, k=1):
+    async def _recall(user_id, query, k=1):
         return []
 
-    monkeypatch.setattr(jd_coverage.memory_recall, "recall_stories", _empty)
-    result = _run(jd_coverage.assess("u1", "A long enough job description prose here.", provider))
-    assert result.requirements[0].status == "gap"
+    _patch_recall(monkeypatch, _recall)
+    provider = _FakeProvider("", _proofs({1: [("1a", "property-management dashboards")]}))
+    lines = ["Built property-management dashboards for 50+ enterprise clients"]
+    result = _run(jd_coverage.rematch(
+        "u1", ["Build and maintain self-serve dashboards"], provider, cv_lines=lines,
+    ))
+    item = result.requirements[0]
+    assert (item.status, item.source) == ("covered", "cv")
+    assert item.story_pointer == lines[0]
+    assert item.proof_lines == lines
+
+
+def test_a_told_story_outranks_a_cv_line_and_an_untold_story_is_weak(monkeypatch):
+    _no_embeddings(monkeypatch)
+
+    async def _recall(user_id, query, k=1):
+        return [_story("told", "Ran the regional quota", 0.9), _story("thin", "Quota line", 0.8, told=False)]
+
+    _patch_recall(monkeypatch, _recall)
+    # Candidates sort by cosine: told story (0.9), thin story (0.8), CV line (cosine 1.0 here
+    # from the stub, so it is first). Every one is ruled proving.
+    provider = _FakeProvider("", _proofs({1: [
+        ("1a", "Owned quota"), ("1b", "regional quota"), ("1c", "Quota line"),
+    ]}))
+    item = _run(jd_coverage.rematch("u1", ["Own quota"], provider, cv_lines=["Owned quota"])).requirements[0]
+    assert (item.status, item.source, item.story_id) == ("covered", "story", "told")
+    assert item.proof_lines == ["Owned quota"]
+
+    thin_only = _FakeProvider("", _proofs({1: [("1c", "Quota line")]}))
+    item = _run(jd_coverage.rematch("u1", ["Own quota"], thin_only, cv_lines=["Owned quota"])).requirements[0]
+    assert (item.status, item.story_id) == ("weak", "thin")
+
+
+def test_shared_words_are_not_proof_when_the_judge_says_so(monkeypatch):
+    """The 63-of-68 class: "plan" in a GTM line no longer proves "Plan and
+    budget projects" — no string rule runs on it, and the judge said no."""
+    _no_embeddings(monkeypatch)
+
+    async def _recall(user_id, query, k=1):
+        return []
+
+    _patch_recall(monkeypatch, _recall)
+    provider = _FakeProvider("", '{"proven": {"1": []}}')
+    item = _run(jd_coverage.rematch(
+        "u1", ["Plan and budget projects to meet timelines"], provider,
+        cv_lines=["Owned the India GTM plan for GCC clients"],
+    )).requirements[0]
+    assert item.status == "gap"
+
+
+def test_a_named_tool_is_settled_by_string_without_the_judge(monkeypatch):
+    _no_embeddings(monkeypatch)
+
+    async def _recall(user_id, query, k=1):
+        return []
+
+    _patch_recall(monkeypatch, _recall)
+    provider = _FakeProvider("", '{"proven": {"1": []}}')
+    lines = ["Ran the weekly ops review", "Python, SQL, Tableau, Excel"]
+    result = _run(jd_coverage.rematch(
+        "u1",
+        ["Use tools such as Alteryx, Power BI, and Tableau", "Run weekly business reviews"],
+        provider, cv_lines=lines,
+    ))
+    tool, review = result.requirements
+    assert (tool.status, tool.source, tool.proof_lines) == ("covered", "cv", ["Python, SQL, Tableau, Excel"])
+    assert review.status == "gap"
+    assert len(provider.judge_calls) == 1
+    assert "Alteryx" not in provider.judge_calls[0], "the tool list never reaches the judge"
+
+
+def test_a_failed_judge_is_not_a_panel_of_gaps(monkeypatch):
+    from app.services.llm_provider import LLMProviderError
+
+    _no_embeddings(monkeypatch)
+
+    async def _recall(user_id, query, k=1):
+        return [_story("s1", "Own quota", 0.9)]
+
+    _patch_recall(monkeypatch, _recall)
+    assert _run(jd_coverage.rematch("u1", ["Own quota"], _FakeProvider("", LLMProviderError("down")))) is None
+    assert _run(jd_coverage.rematch("u1", ["Own quota"], _FakeProvider("", "no json here"))) is None
+
+
+def test_the_judge_sees_at_most_three_lines_per_requirement(monkeypatch):
+    _no_embeddings(monkeypatch)
+
+    async def _recall(user_id, query, k=1):
+        return [_story(f"s{i}", f"story line {i}", 0.5 - i / 100) for i in range(8)]
+
+    _patch_recall(monkeypatch, _recall)
+    provider = _FakeProvider("")
+    _run(jd_coverage.rematch("u1", ["Own quota"], provider, cv_lines=["a cv line"]))
+    body = provider.judge_calls[0]
+    assert "[1a]" in body and "[1b]" in body and "[1c]" in body and "[1d]" not in body
+
+
+# ── forward pass: an old panel re-judges with its own requirements ──────────
+
+class _MemRepo:
+    def __init__(self, raw=None):
+        self.deepenings: dict[str, str] = {}
+        if raw is not None:
+            self.deepenings[jd_coverage.CACHE_PROMPT_KEY] = raw
+
+    def get_deepening(self, _u, _j, key):
+        return self.deepenings.get(key)
+
+    def upsert_deepening(self, _u, _j, key, text):
+        self.deepenings[key] = text
+
+
+def _old_panel():
+    """Shape of every panel cached before 2026-10-19: no rule stamp."""
+    return json.dumps({
+        "computed_at": "2026-10-01T00:00:00+00:00",
+        "requirements": [{"requirement": "Own quota", "status": "gap", "source": "story"}],
+    })
+
+
+def test_an_unstamped_panel_is_stale_and_re_judges_without_a_parse(monkeypatch):
+    _no_embeddings(monkeypatch)
+
+    async def _recall(user_id, query, k=1):
+        return [_story("s1", "Own quota across the region", 0.9)]
+
+    _patch_recall(monkeypatch, _recall)
+    assert jd_coverage.is_stale(_old_panel())
+    repo = _MemRepo(_old_panel())
+    provider = _FakeProvider("PARSE MUST NOT RUN", _proofs({1: [("1a", "Own quota across")]}))
+    result, cached, _ = _run(jd_coverage.assess_for_job("u1", "j1", "jd", repo, {}, provider))
+    assert cached is False
+    assert result.requirements[0].status == "covered"
+    stored = repo.deepenings[jd_coverage.CACHE_PROMPT_KEY]
+    assert not jd_coverage.is_stale(stored), "a judged panel is stamped"
+    again, cached, _ = _run(jd_coverage.assess_for_job("u1", "j1", "jd", repo, {}, provider))
+    assert cached is True and len(provider.judge_calls) == 1
+
+
+def test_a_stale_panel_keeps_its_verdicts_when_the_judge_fails(monkeypatch):
+    from app.services.llm_provider import LLMProviderError
+
+    _no_embeddings(monkeypatch)
+
+    async def _recall(user_id, query, k=1):
+        return []
+
+    _patch_recall(monkeypatch, _recall)
+    repo = _MemRepo(_old_panel())
+    result, _cached, _ = _run(jd_coverage.assess_for_job(
+        "u1", "j1", "jd", repo, {}, _FakeProvider("", LLMProviderError("down")),
+    ))
+    assert result.requirements[0].requirement == "Own quota"
+    assert repo.deepenings[jd_coverage.CACHE_PROMPT_KEY] == _old_panel(), "nothing written"
+
+
+def test_a_fresh_panel_whose_judge_fails_is_neither_shown_nor_cached(monkeypatch):
+    from app.services.llm_provider import LLMProviderError
+
+    _no_embeddings(monkeypatch)
+
+    async def _recall(user_id, query, k=1):
+        return []
+
+    _patch_recall(monkeypatch, _recall)
+    repo = _MemRepo()
+    provider = _FakeProvider('{"requirements": ["Own quota"]}', LLMProviderError("down"))
+    result, _cached, _ = _run(jd_coverage.assess_for_job(
+        "u1", "j1", "A long enough job description prose here.", repo, {}, provider,
+    ))
+    assert result.requirements == []
+    assert repo.deepenings == {}
+
+
+def test_evidence_lines_are_bullets_then_skills_then_summary():
+    cv = {
+        "summary": "Six years in B2B SaaS",
+        "skills_line": "SQL, Python",
+        "experience": [{"bullets": ["a", " "]}],
+        "projects": [{"bullets": ["b"]}],
+    }
+    assert jd_coverage.evidence_lines(cv) == ["a", "b", "SQL, Python", "Six years in B2B SaaS"]
+    assert jd_coverage.evidence_lines(None) == []
 
 
 # ── cache payload round-trip (Preparations room) ───────────────────────────────
@@ -159,7 +368,7 @@ def test_router_cache_hit_skips_llm_and_refresh_recomputes(monkeypatch):
 
     calls = {"n": 0}
 
-    async def _assess(user_id, jd_text, provider, cv_bullets=None):
+    async def _assess(user_id, jd_text, provider, cv_lines=None):
         calls["n"] += 1
         return _sample_result()
 
@@ -208,7 +417,7 @@ def test_router_never_caches_empty_parse(monkeypatch):
         def upsert_deepening(self, _u, _j, key, text):
             self.deepenings[key] = text
 
-    async def _assess(user_id, jd_text, provider, cv_bullets=None):
+    async def _assess(user_id, jd_text, provider, cv_lines=None):
         return jd_coverage.CoverageResult()  # provider failure → fail-soft empty
 
     monkeypatch.setattr(jd_coverage, "assess", _assess)
@@ -255,7 +464,7 @@ def test_router_reads_snapshot_when_live_listing_is_hidden(monkeypatch):
         def upsert_deepening(self, _u, _j, key, text):
             self.deepenings[key] = text
 
-    async def _assess(user_id, jd_text, provider, cv_bullets=None):
+    async def _assess(user_id, jd_text, provider, cv_lines=None):
         repo.assessed_jd = jd_text
         return _sample_result()
 
@@ -299,7 +508,7 @@ def test_router_serves_cached_coverage_when_listing_and_snapshot_are_gone(monkey
         def upsert_deepening(self, _u, _j, key, text):
             self.deepenings[key] = text
 
-    async def _assess(user_id, jd_text, provider, cv_bullets=None):
+    async def _assess(user_id, jd_text, provider, cv_lines=None):
         raise AssertionError("cache must answer — do not re-parse a missing JD")
 
     monkeypatch.setattr(jd_coverage, "assess", _assess)
@@ -337,7 +546,7 @@ def test_router_404_when_job_is_unknown(monkeypatch):
         def upsert_deepening(self, _u, _j, key, text):
             pass
 
-    async def _assess(user_id, jd_text, provider, cv_bullets=None):
+    async def _assess(user_id, jd_text, provider, cv_lines=None):
         return jd_coverage.CoverageResult()
 
     monkeypatch.setattr(jd_coverage, "assess", _assess)
@@ -351,47 +560,6 @@ def test_router_404_when_job_is_unknown(monkeypatch):
         assert resp.status_code == 404
     finally:
         app.dependency_overrides.clear()
-
-
-# ── L1: a CV line is a start, not an answer (BACKLOG #13, 2026-09-13) ────────
-
-def _hit(sim, told):
-    return StoryHit(
-        id="s1", title="Billing migration",
-        pointer="Migrate payments to the cloud last quarter", result="",
-        skills=[], similarity=sim, told=told,
-    )
-
-
-def test_a_thin_story_is_capped_at_weak_however_well_it_scores(monkeypatch):
-    """`covered` is what removes a requirement from the weave interview — for
-    good, on this job and every later one. A story lifted from a CV line may
-    evidence the requirement; it may not close it."""
-    async def _recall(user_id, q, k=1):
-        return [_hit(0.97, told=False)]
-
-    monkeypatch.setattr(jd_coverage.memory_recall, "recall_stories", _recall)
-    item = asyncio.run(jd_coverage._cover_one("u1", "migrate payments to cloud"))
-    assert item.status == "weak", "a scraped bullet must not close the question"
-    assert item.story_id == "s1", "…but it is still shown as the evidence"
-
-
-def test_a_told_story_at_the_same_score_does_close_it(monkeypatch):
-    async def _recall(user_id, q, k=1):
-        return [_hit(0.97, told=True)]
-
-    monkeypatch.setattr(jd_coverage.memory_recall, "recall_stories", _recall)
-    assert asyncio.run(jd_coverage._cover_one("u1", "migrate payments to cloud")).status == "covered"
-
-
-def test_depth_does_not_rescue_a_genuine_gap(monkeypatch):
-    """A told story at a near-perfect cosine is still a gap when its words
-    do not carry the motion."""
-    async def _recall(user_id, q, k=1):
-        return [_hit(0.97, told=True)]
-
-    monkeypatch.setattr(jd_coverage.memory_recall, "recall_stories", _recall)
-    assert asyncio.run(jd_coverage._cover_one("u1", "kubernetes")).status == "gap"
 
 
 # ── L2: the answer knows which story it improves ─────────────────────────────
@@ -423,3 +591,58 @@ def test_a_gap_requirement_has_no_story_to_improve():
         ])
     )
     assert jd_coverage.story_for_requirement(payload, "Kubernetes") is None
+
+
+# ── the panel carries the judge's stamp and proof lines ─────────────────────
+
+def test_payload_round_trip_keeps_proof_lines_and_the_rule():
+    result = _sample_result()
+    result.requirements[0].proof_lines = ["Built the quota model"]
+    raw = jd_coverage.result_to_payload(result)
+    assert not jd_coverage.is_stale(raw)
+    item = jd_coverage.payload_to_result(raw)[0].requirements[0]
+    assert item.proof_lines == ["Built the quota model"]
+
+
+# ── a banked answer is ruled by the judge, once ─────────────────────────────
+
+def _gap_panel():
+    return jd_coverage.result_to_payload(jd_coverage.CoverageResult(requirements=[
+        jd_coverage.CoverageItem(requirement="Own quota", status="gap"),
+    ]))
+
+
+def test_an_answer_flips_its_row_only_when_the_judge_says_it_proves_it():
+    answer = "I owned a ₹4Cr quota across 12 cities for two years"
+    assert jd_coverage.patch_requirement_answered(_gap_panel(), "Own quota", answer, proven=False) is None
+    patched = jd_coverage.patch_requirement_answered(_gap_panel(), "own  QUOTA", answer, proven=True)
+    item = jd_coverage.payload_to_result(patched)[0].requirements[0]
+    assert (item.status, item.story_title) == ("covered", "Your answer")
+    assert not jd_coverage.is_stale(patched)
+
+
+def test_a_patch_does_not_stamp_an_old_panel_as_judged():
+    patched = jd_coverage.patch_requirement_answered(_old_panel(), "Own quota", "I owned it", proven=True)
+    assert jd_coverage.payload_to_result(patched)[0].requirements[0].status == "covered"
+    assert jd_coverage.is_stale(patched), "the other rows were never judged"
+
+
+def test_an_unproving_answer_marks_its_room_for_re_judging(monkeypatch):
+    repo = _MemRepo(_gap_panel())
+    provider = _FakeProvider("", '{"proven": {"1": []}}')
+    _run(jd_coverage.settle_answer(repo, "u1", "j1", _gap_panel(), "Own quota", "I like sales", provider))
+    stored = repo.deepenings[jd_coverage.CACHE_PROMPT_KEY]
+    assert jd_coverage.payload_to_result(stored)[0].requirements[0].status == "gap"
+    assert jd_coverage.is_stale(stored)
+    assert len(provider.judge_calls) == 1
+
+
+def test_a_proving_answer_is_written_covered(monkeypatch):
+    repo = _MemRepo(_gap_panel())
+    provider = _FakeProvider("", _proofs({1: [("1a", "4Cr quota")]}))
+    _run(jd_coverage.settle_answer(
+        repo, "u1", "j1", _gap_panel(), "Own quota", "I owned a ₹4Cr quota for two years", provider,
+    ))
+    stored = repo.deepenings[jd_coverage.CACHE_PROMPT_KEY]
+    assert jd_coverage.payload_to_result(stored)[0].requirements[0].status == "covered"
+    assert not jd_coverage.is_stale(stored)

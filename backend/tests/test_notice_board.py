@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.notice.board import NoticeBook
@@ -229,6 +229,56 @@ def test_a_harvest_proof_does_not_erase_a_failed_close() -> None:
     assert book.snapshot()[0].status == "failed-close"
 
 
+def _ingestion_book() -> tuple[NoticeBook, FrozenClock]:
+    clock = FrozenClock(datetime(2026, 10, 14, 2, 30, tzinfo=timezone.utc))
+    book = NoticeBook(store=MemoryNoticeStore(), clock=clock, persist=True)
+    return book, clock
+
+
+def _ingestion_ran() -> CloseProof:
+    return CloseProof(
+        cause_key="dead_man:job_ingestion",
+        test_nodeid="harvest:job_ingestion_ran",
+        sha="main",
+        on_main=True,
+    )
+
+
+def test_a_belt_whose_recovery_held_a_week_closes_its_failed_close() -> None:
+    """dead_man:job_ingestion was last seen dead 2026-10-14 02:30; the scraper
+    has landed every morning since 10-15. Its cause lives in another repo, so
+    no test here can prove it — and one healthy sample may not. A week without
+    a dead sighting is a recovery that held."""
+    book, clock = _ingestion_book()
+    book.observe(Sighting.dead_man(belt="job_ingestion"))
+    book.settle([_ingestion_ran()])
+    book.observe(Sighting.dead_man(belt="job_ingestion"))
+    assert book.snapshot()[0].status == "failed-close"
+
+    clock.advance(timedelta(days=6, hours=23))
+    assert book.settle([_ingestion_ran()]).closed_this_run == ()
+
+    clock.advance(timedelta(hours=1))
+    digest = book.settle([_ingestion_ran()])
+
+    assert digest.closed_this_run == ("dead_man:job_ingestion",)
+    assert book.snapshot()[0].status == "closed"
+
+
+def test_a_belt_seen_dead_again_restarts_its_week() -> None:
+    book, clock = _ingestion_book()
+    book.observe(Sighting.dead_man(belt="job_ingestion"))
+    book.settle([_ingestion_ran()])
+    book.observe(Sighting.dead_man(belt="job_ingestion"))
+
+    clock.advance(timedelta(days=5))
+    book.observe(Sighting.dead_man(belt="job_ingestion"))
+    clock.advance(timedelta(days=5))
+
+    assert book.settle([_ingestion_ran()]).closed_this_run == ()
+    assert book.snapshot()[0].status == "failed-close"
+
+
 def test_a_proof_on_main_still_closes_a_failed_close() -> None:
     book = NoticeBook.testing()
     book.observe(Sighting.dead_man(belt="listing_verifier"))
@@ -251,6 +301,76 @@ def test_a_proof_on_main_still_closes_a_failed_close() -> None:
     ])
     assert digest.closed_this_run == ("dead_man:listing_verifier",)
     assert book.snapshot()[0].status == "closed"
+
+
+_ONE_TRIP = "/app/tests/test_company_jobs_one_trip.py::NOTICE_CAUSE_KEY"
+_COMPANY_PAGE = "slow_200:slow_read:app/repositories/jobs.py:fetch_company_jobs_page"
+
+
+def _company_page_slow() -> Sighting:
+    return Sighting.slow_read(
+        file="app/repositories/jobs.py",
+        function="fetch_company_jobs_page",
+        method="GET",
+        path="/companies/Axis Bank/jobs",
+    )
+
+
+def test_the_proof_that_failed_does_not_close_its_cause_again() -> None:
+    """2026-10-17 and 10-18: the digest said this cause closed, twice, while it
+    had happened 701 times and fired again that morning. The proof was the test
+    that had already failed to hold; the next deploy re-presented it."""
+    book = NoticeBook.testing()
+    book.observe(_company_page_slow())
+    book.settle([CloseProof(cause_key=_COMPANY_PAGE, test_nodeid=_ONE_TRIP, sha="a", on_main=True)])
+    book.observe(_company_page_slow())
+    assert book.snapshot()[0].status == "failed-close"
+
+    digest = book.settle(
+        [CloseProof(cause_key=_COMPANY_PAGE, test_nodeid=_ONE_TRIP, sha="b", on_main=True)]
+    )
+
+    assert digest.closed_this_run == ()
+    assert book.snapshot()[0].status == "failed-close"
+    assert _COMPANY_PAGE in _digest_lines(digest, "failed-close")
+
+
+def test_a_new_proof_closes_a_failed_close() -> None:
+    book = NoticeBook.testing()
+    book.observe(_company_page_slow())
+    book.settle([CloseProof(cause_key=_COMPANY_PAGE, test_nodeid=_ONE_TRIP, sha="a", on_main=True)])
+    book.observe(_company_page_slow())
+
+    fix = "/app/tests/test_notice_close_company_page.py::NOTICE_CAUSE_KEY"
+    digest = book.settle([
+        CloseProof(cause_key=_COMPANY_PAGE, test_nodeid=_ONE_TRIP, sha="b", on_main=True),
+        CloseProof(cause_key=_COMPANY_PAGE, test_nodeid=fix, sha="b", on_main=True),
+    ])
+
+    assert digest.closed_this_run == (_COMPANY_PAGE,)
+    assert book.snapshot()[0].proof_test == fix
+
+
+def test_a_cause_two_tests_claim_closes_whichever_order_they_arrive() -> None:
+    """Two files carry the same cause key. The old dict kept whichever file
+    sorted last, so which proof a row was judged by depended on file names."""
+    book = NoticeBook.testing()
+    book.observe(_company_page_slow())
+    book.settle([CloseProof(cause_key=_COMPANY_PAGE, test_nodeid=_ONE_TRIP, sha="a", on_main=True)])
+    book.observe(_company_page_slow())
+
+    fix = "/app/tests/test_jobs_list_router.py::NOTICE_CAUSE_KEY"
+    digest = book.settle([
+        CloseProof(cause_key=_COMPANY_PAGE, test_nodeid=fix, sha="b", on_main=True),
+        CloseProof(cause_key=_COMPANY_PAGE, test_nodeid=_ONE_TRIP, sha="b", on_main=True),
+    ])
+
+    assert digest.closed_this_run == (_COMPANY_PAGE,)
+    assert book.snapshot()[0].proof_test == fix
+
+
+def _digest_lines(digest: Any, status: str) -> set[str]:
+    return {row.cause_key for row in digest.rows if row.status == status}
 
 
 def test_settle_closes_dead_man_by_cause_key() -> None:

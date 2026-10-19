@@ -140,3 +140,14 @@ test("a failed save is not a paste-instead, and retry returns to the same review
   if (review.step !== "review") return
   assert.equal(review.role, "Product Manager")
 })
+
+test("a link is read by a model, so it waits as long as the model does", () => {
+  // The server fetches the page and an LLM rewrites the whole posting: 31s on
+  // dev for an amazon.jobs link (2026-10-19). On the 15s default the door said
+  // "Request timed out." while the server answered 200 into the void.
+  const api = readFileSync(new URL("../lib/api.ts", import.meta.url), "utf8")
+  const start = api.indexOf("extractUrl: (token: string, url: string)")
+  assert.ok(start > 0, "extractUrl moved — point this test at it")
+  const block = api.slice(start, api.indexOf("\n    }),", start))
+  assert.match(block, /timeoutMs: LLM_REQUEST_TIMEOUT_MS/)
+})

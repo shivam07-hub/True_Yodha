@@ -259,6 +259,10 @@ def read_years_from_banked_cv(user_id: str) -> float | None:
 #: data it needs — the list is the answer to "what is a returning user behind on".
 #: `cv_years` is deliberately absent — it runs from the Direction payload, the one
 #: surface that shows the number it writes. See its docstring.
+#: Copied list markers ("• ▪ Built…", CVs uploaded before 5ad8f6cc) are absent
+#: too: nothing runs for them unasked. The CV page offers "Fix all" in its Fixes
+#: queue and the person's own tap edits their own document
+#: (frontend `lib/cv/list-markers.ts`).
 PASSES: tuple[tuple[str, Any], ...] = (
     ("baseline_bank", bank_existing_baseline),
     ("stray_skills", drop_stray_cv_skills),

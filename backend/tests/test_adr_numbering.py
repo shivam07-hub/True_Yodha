@@ -64,9 +64,13 @@ _EXCUSED = (
     "delet", "retire", "gone", "no longer", "does not exist", "never created",
     "never issued", "never tracked", "gitignore", "stale", "moved", "renamed",
     "superseded",
-    # The crawler is a separate repo by ADR-0001; its files are real and not here.
-    "crawler repo", "sister repo", "firecrawl", "crawler",
 )
+
+#: The scraper is a separate repo by ADR-0001; its files are real and not here.
+#: A citation names that repo in the path itself. Naming the crawler anywhere in
+#: a paragraph used to excuse every path in it, which is how ADR-0001 kept a
+#: crawler folder that no longer existed.
+_SISTER_REPOS = ("myro-job-scraper/",)
 
 
 def _repo_root() -> Path:
@@ -93,6 +97,8 @@ def _prefixed(cited: str) -> list[str]:
 
 
 def _resolves(cited: str, relpaths: set[str], names: set[str]) -> bool:
+    if cited.startswith(_SISTER_REPOS):
+        return True
     if any(candidate in relpaths for candidate in _prefixed(cited)):
         return True
     # Bare filename is prose. A path with directories must be that path, not
@@ -122,6 +128,31 @@ def test_a_bare_filename_matches_a_tracked_basename() -> None:
     assert _resolves("other/triad.ts", relpaths, names) is False
 
 
+def test_a_sister_repo_path_is_allowed_only_by_its_prefix() -> None:
+    assert _resolves("myro-job-scraper/KNOWN_PORTALS.md", set(), set()) is True
+    assert _resolves("KNOWN_PORTALS.md", set(), set()) is False
+
+
+def test_naming_the_crawler_does_not_excuse_a_dead_path() -> None:
+    block = "The crawler keeps its portal list in `scraper/KNOWN_PORTALS.md`."
+    assert not any(word in block.lower() for word in _EXCUSED)
+
+
+#: A path on one laptop resolves on that laptop only — not on CI, not in Codex,
+#: not on a fresh clone. ADR-0001 named the crawler at two of them in turn, and
+#: both stopped existing while the ADR still pointed there.
+_LAPTOP_PATH = re.compile(r"`(?:/Users/|/home/|~/)[^`]*`")
+
+
+def test_no_adr_cites_a_laptop_path():
+    cited = [
+        f"{path.name}: {match}"
+        for path in sorted(ADR_DIR.glob("*.md"))
+        for match in _LAPTOP_PATH.findall(path.read_text())
+    ]
+    assert not cited, f"name the repo, not the folder on one machine: {cited}"
+
+
 def test_no_adr_points_at_a_file_that_is_not_there():
     relpaths = _tracked_relpaths()
     names = _tracked_names(relpaths)
@@ -130,7 +161,7 @@ def test_no_adr_points_at_a_file_that_is_not_there():
         for block in _paragraphs(path.read_text()):
             excused = any(word in block.lower() for word in _EXCUSED)
             for cited in _PATH.findall(block):
-                if cited.startswith("/") or _resolves(cited, relpaths, names) or excused:
+                if _resolves(cited, relpaths, names) or excused:
                     continue
                 broken.append(f"{path.name}: `{cited}`")
     assert not broken, (

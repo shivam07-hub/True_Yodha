@@ -4821,12 +4821,14 @@ export const jobs = {
     return body as JobFileExtract
   },
   // Fetch a public posting URL server-side and parse it into tracker fields.
-  // SSRF-guarded on the backend. Free — no XP.
+  // SSRF-guarded on the backend. Free — no XP. A model rewrites the whole
+  // posting, so it is an LLM call: ~30s, past the 15s default.
   extractUrl: (token: string, url: string): Promise<JobFileExtract> =>
     request<JobFileExtract>("/jobs/import/extract-url", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ url }),
+      timeoutMs: LLM_REQUEST_TIMEOUT_MS,
     }),
   skillGap: (token: string, jobId: string) =>
     request<SkillGapResponse>(`/jobs/${jobId}/skill-gap`, {

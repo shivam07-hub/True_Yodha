@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { useRecomputeStore } from "@/store/recomputeStore"
 import { tierForScore } from "@/lib/score-tiers"
 
 interface ScoreRingProps {
@@ -28,7 +27,6 @@ export function ScoreRing({ score, onExpand, expanded, controls }: ScoreRingProp
   }, [score, CIRC])
 
   const tier = tierForScore(score)
-  const recomputing = useRecomputeStore(s => s.pendingBaselineId !== null)
 
   const rowStyle = { display: "flex", alignItems: "center", gap: 16, flexShrink: 0, color: "inherit", textDecoration: "none" } as const
 
@@ -36,13 +34,7 @@ export function ScoreRing({ score, onExpand, expanded, controls }: ScoreRingProp
     <>
       <svg
         width={68} height={68} viewBox="0 0 68 68"
-        aria-busy={recomputing}
-        style={{
-          flexShrink: 0,
-          animation: recomputing ? "tm-score-pulse 1400ms ease-in-out infinite" : "none",
-          opacity: recomputing ? 0.7 : 1,
-          transition: "opacity 200ms var(--tm-ease)",
-        }}
+        style={{ flexShrink: 0 }}
       >
         <circle cx={34} cy={34} r={R} fill="none" stroke="var(--tm-border)" strokeWidth={5} />
         <circle cx={34} cy={34} r={R} fill="none" stroke="var(--data-1)" strokeWidth={5}

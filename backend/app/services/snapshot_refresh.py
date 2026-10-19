@@ -8,8 +8,9 @@ Every call here is made as `authenticator`: 8s statement timeout, and
 `safeupdate` refuses a DELETE without WHERE. A refresh that cannot live inside
 that runs only in the database, on pg_cron through `run_snapshot_sql_refresh` —
 role_families, skill_closeness, company_pulse, ghost_index, sector_panel
-(migration 20261004100000). skill_demand and job_search run on both rails. All
-of them share `snapshot_refresh_state` and its lease.
+(migration 20261004100000), company_directory (20261010130000) and
+public_provenance (20261019090000). skill_demand and job_search run on both
+rails. All of them share `snapshot_refresh_state` and its lease.
 """
 
 from __future__ import annotations

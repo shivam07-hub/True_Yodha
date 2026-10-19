@@ -24,6 +24,7 @@ without pulling the parser, the LLM chain or the taxonomy in behind it.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 CONTRACT_KEYS = frozenset(
@@ -39,6 +40,30 @@ BLANK_CONTACT: dict[str, str] = {
 _CONTENT_SECTIONS = ("summary", "education", "experience", "projects", "skills_line", "certs")
 
 _MAX_BULLET_CHARS = 300
+
+# A list marker the parser copied from the CV with the line. The renderer draws
+# its own bullet, so a copied one printed twice ("• ▪ Built…"); measured
+# 2026-10-19 on 387 baseline bullets across ~25 people (•, ▪, ▸, –, §, -, ◦, ■
+# and Word's Wingdings bullet U+F0B7). A dash or an asterisk counts only when a
+# space follows it, so "–20% churn" and "*Nights* on call" keep their first
+# character.
+_LIST_MARKER = re.compile(
+    "^(?:"
+    "[\u2022\u2023\u2043\u00b7\u00a7\u25aa\u25ab\u25b8\u25b9\u25ba\u25b6"
+    "\u25e6\u25cf\u25cb\u25a0\u25a1\u25c6\u25c7\u2756\u27a2\u27a4\u2713\u2714"
+    "\uf0a7\uf0b7\uf076\uf0d8\uf0fc]"
+    "|[-\u2013\u2014*](?=\\s)"
+    ")\\s*"
+)
+
+
+def _without_marker(line: str) -> str:
+    """The line with every leading copied list marker removed."""
+    previous = None
+    while previous != line:
+        previous = line
+        line = _LIST_MARKER.sub("", line, count=1).lstrip()
+    return line
 
 
 def has_content(structured: Any) -> bool:
@@ -88,7 +113,8 @@ def coerce_sections(raw: dict, *, ingest: bool = False) -> dict:
     """The six content sections, coerced to their contract types.
 
     `ingest=True` additionally applies the hygiene an LLM response needs — strip
-    whitespace, cap a bullet at `_MAX_BULLET_CHARS`. That is a rule about what may
+    whitespace, drop a copied list marker from bullets and certs, cap a bullet at
+    `_MAX_BULLET_CHARS`. That is a rule about what may
     ENTER the system, so it stays off by default: the same function reads rows
     back out, and a read may not rewrite what it read.
 
@@ -106,8 +132,14 @@ def coerce_sections(raw: dict, *, ingest: bool = False) -> dict:
         out = [str(x) for x in v if isinstance(x, (str, int, float))]
         return [s.strip() for s in out if s.strip()] if ingest else out
 
+    def _items(v: Any) -> list[str]:
+        """List entries — bullets, certs. On ingest, the copied list marker goes."""
+        if not ingest:
+            return _strs(v)
+        return [line for line in (_without_marker(s) for s in _strs(v)) if line]
+
     def _bullets(v: Any) -> list[str]:
-        return [b[:_MAX_BULLET_CHARS] for b in _strs(v)] if ingest else _strs(v)
+        return [b[:_MAX_BULLET_CHARS] for b in _items(v)] if ingest else _items(v)
 
     def _text(v: Any) -> str:
         if v is None:
@@ -156,5 +188,5 @@ def coerce_sections(raw: dict, *, ingest: bool = False) -> dict:
         "experience":  experience,
         "projects":    projects,
         "skills_line": _optional_text(raw.get("skills_line")),
-        "certs":       _strs(raw.get("certs")),
+        "certs":       _items(raw.get("certs")),
     }

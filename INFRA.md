@@ -20,8 +20,9 @@ Railway project = **`clever-embrace`** (`a15c0013-…`), ONE Railway environment
 | **`mirror-backend-prod`** (`6f9d873b`) | **PROD API** — the live backend | `main` | **`https://api.himyro.com`** (custom domain, LE cert) + `mirror-backend-prod-production.up.railway.app` | `uvicorn app.main:app --host 0.0.0.0 --port 8000` |
 | **`True_Yodha`** (`1b3dca5a`) | **WORKER** — durable RQ runner (ADR-0008), 2/2 replicas, NOT an API. **Shared by both dev+prod.** | `Develop` | internal | `python -m app.workers.jobs_compute_worker` |
 | **`Redis`** (`7f3503cf`) | RQ queue + global provider budget (ADR-0008), has `redis-volume`. **Shared by both dev+prod.** | — | `redis.railway.internal:6379` | — |
+| **`job-listing-verifier`** (`62b216d5`) | **CRON** — one bounded listing-verification sweep every 15 min (`*/15 * * * *`), 1 replica, restart `NEVER`. Writes the shared DB, so it serves dev and prod alike. Tuned by `JOB_VERIFY_CONCURRENCY` / `JOB_VERIFY_LIMIT`. | `Develop` | none | `python -m app.workers.job_listing_verifier` |
 
-All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK.
+All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK — except `job-listing-verifier`, which builds `/backend/Dockerfile` (read from Railway 2026-10-19). Job ingestion is not here: it is the separate Railway project `myro-job-scraper`, service `daily-poll`.
 
 - **Healthcheck needs `PORT=8000`.** The app binds a fixed 8000 (`backend/Dockerfile` CMD) and both API domains target 8000, but Railway's healthcheck probes the port it injects. `mirror-backend-dev` runs `healthcheckPath=/health/ready` with `PORT=8000`; without the variable every deploy fails "service unavailable" while the app is up (2026-09-28, 14h). Set the variable before the path on any service.
 
@@ -30,25 +31,23 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
 - **Shared-infra couplings (known, accepted at this scale):** (a) dev + prod jobs share ONE Redis queue + ONE `llm:budget:slots` bucket — a dev test upload competes with prod traffic. (b) Worker tracks `Develop` while prod API tracks `main` → prod jobs are processed by slightly-ahead worker code. Full per-env isolation (separate Redis + `api-dev.himyro.com`) is documented but NOT built — see `docs/runbooks/railway-dev-main-env-split.md`.
 - **Worker deploys drain for 60s** (`RAILWAY_DEPLOYMENT_DRAINING_SECONDS=60` on `True_Yodha`, set 2026-10-03): RQ gets SIGTERM and finishes its current job before SIGKILL. Without it a Develop push killed in-flight jobs (`work_lane:story_ingest:AbandonedJobError`, 2026-09-29). A job longer than 60s still dies on deploy, so a long job must survive its own kill — the skill-floor drain does, through its lease.
 - **Supabase: `gipvxuugajkugntwkeiz` — ONE DB, shared by both dev+prod backends + worker.** A dev-env test upload writes to prod Supabase. Single by design (see policy above).
-- **#16 launch-capacity gate (measured 2026-08-13): BLOCKED.** The organization
-  is on **Free** and the database is **Nano**: 1,118MB database size, 224MB
-  `shared_buffers`, 60 `max_connections`, and 11 PostgREST authenticator
-  sessions. Nano's recommended maximum DB size is 500MB. After all known read
-  query, hop, payload, cache and journey fixes, one warm feed meets the 500ms
-  backend target (477ms p95), but 10 simultaneous Market arrivals (20 reads)
-  measure 2,161ms backend p95. Before launch: move the organization to a paid
-  plan, select **Small compute or larger** (Micro keeps the 60-connection class),
-  then rerun `backend/scripts/run_read_load_probe.py --scenario market_arrival`
-  at 10 and 20 users. Acceptance is backend p95 <500ms and zero failures at
-  both levels. This is a paid control-plane action; code agents must not claim
-  it happened from a `Develop` push.
+- **#16 DB capacity — Pro done, compute stays Micro (Shivam, 2026-10-14).** Pro
+  lifted the Free size quota that restricted the project 2026-10-06 22:53 →
+  10-09 13:35 UTC. Small compute was declined for cost, so the database keeps
+  224MB `shared_buffers` and 60 `max_connections`. **Do not resize.** The ~300ms
+  per-call floor, and any read that clears 2s only because of this size, stay
+  until a query gets cheaper. The 2026-08-13 measurement still describes this
+  class: one warm feed met the 500ms backend target (477ms p95); 10 simultaneous
+  Market arrivals (20 reads) measured 2,161ms p95. Re-measure with
+  `backend/scripts/run_read_load_probe.py --scenario market_arrival`. Record:
+  BACKLOG #16, ARCHIVE 2026-10-02, `ARCHITECTURE_READ_PATH.md` §19.
 - **Release tier = `MYRO_ENV` (`sandbox` | `dev` | `prod`), set per Railway service.** It is the environment boundary; `RAILWAY_ENVIRONMENT` reads `production` on ALL five services (dev+prod deliberately share one Railway environment object) so it can never be the tier. Service-name inference survives as fallback only, and resolves anything unlabelled to `prod` (fail-safe). `backend/app/config.py: release_tier`.
 - **CORS is a real exact allowlist (since `9116777f`), NOT a wildcard** — `ALLOWED_ORIGINS` is live config, `allow_credentials=False`, `install_cors` refuses `*`. **Prod = exact origins only.** **Dev additionally matches `PREVIEW_ORIGIN_REGEX`** (`^https://truemirror-[a-z0-9-]+\.vercel\.app$`) because Vercel mints a NEW origin per preview deployment — an exact list goes stale on every push to Develop, which is what silently broke the dev app for days until 2026-07-27. Production ignores the regex *structurally* (`Settings.cors_origin_regex` returns `""` when tier is prod), so it cannot leak by config mistake. Attach a new stable domain (e.g. `dev.himyro.com`) → add it to that tier's `ALLOWED_ORIGINS`.
 - **Every deployed tier validates its own config at boot** (`validate_runtime_configuration`): Supabase present + at least one origin/pattern a browser can match. Sandbox exempt. Boot logs `boot tier=… origins=… preview_regex=…` on `uvicorn.error` — check that line first when an env "looks online but does nothing". **Contract smoke:** `python -m scripts.smoke_env_contract` (backend/) asks from outside whether each tier's frontend can reach its own backend + that foreign origins are still refused; CI runs it on push to Develop/main and daily.
 - **DNS:** himyro.com on **GoDaddy**. `api` = CNAME → `rm336p0v.up.railway.app`; `_railway-verify.api` = TXT `railway-verify=<token>` (**single** prefix — a doubled `railway-verify=railway-verify=…` blocks cert issuance; cost real time 2026-06-03). Railway custom-domain cert needs BOTH records verified or it serves wildcard `*.up.railway.app` → TLS name mismatch → curl 000.
 - **Railway mgmt = MCP** (`mcp__railway__*`). Pass **snake_case `service_id`** or reads default to the linked service. `remove_service` confirm-boolean is broken via MCP → final service deletion needs a dashboard click.
 - **Cutover runbook:** fix DNS → wait cert green (`curl api.himyro.com/health` = 200, not 000) → THEN flip Vercel env + redeploy → verify → only then touch the old service. Flipping Vercel before cert live = outage.
-- **LLM chain:** OpenRouter free llama → Groq llama-3.3-70b → Gemini flash-lite → OpenRouter paid.
+- **LLM chain:** no single chain — each call picks a lane in `backend/app/services/llm_provider.py` (`get_*_provider`), and each lane is an ordered fallback: OpenRouter tiers → Groq `openai/gpt-oss-120b` → Gemini `gemini-2.0-flash-lite` where the lane allows it. Background work leads with free tiers; anything a person waits on is paid-first; judgment lanes are strong-only and leave out the cheap tiers and Gemini. Groq retired `llama-3.3-70b-versatile`; the fallback moved to `gpt-oss-120b` in `b22c0f4b` (2026-10-14). Models are listed in code, not here.
 
 ---
 

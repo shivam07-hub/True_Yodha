@@ -1,7 +1,8 @@
 """Job Document facts for overlap and the judge.
 
 Overlap unions the paper's skills line for that job. The judge receives the
-reflection as sentences, not a grade. Entailment stays in jd_reflection.
+coverage panel's verdicts as sentences, not a grade — the panel decided what
+proves what (ARCHITECTURE_JD_REFLECTION.md §0); nothing here judges again.
 """
 from __future__ import annotations
 
@@ -25,19 +26,24 @@ def requirement_strings(raw: str | None) -> list[str]:
     return [item.requirement for item in hit[0].requirements if item.requirement.strip()]
 
 
-def paper_lines(structured: dict | None) -> list[str]:
-    lines = jd_coverage.bullets_from_cv(structured)
-    skills = str((structured or {}).get("skills_line") or "").strip()
-    if skills:
-        lines.append(skills)
-    return lines
+def proof_sets(raw: str | None) -> list[list[str]]:
+    """Per requirement, the CV lines the panel ruled proving."""
+    hit = jd_coverage.payload_to_result(raw)
+    if hit is None:
+        return []
+    return [list(item.proof_lines) for item in hit[0].requirements]
 
 
-def reflection_text(requirements: list[str], structured: dict | None) -> str:
-    lines = paper_lines(structured)
-    if not requirements or not lines:
+def reflection_text(raw: str | None) -> str:
+    """The panel's verdicts as facts: each requirement with its proving line,
+    or as a gap."""
+    hit = jd_coverage.payload_to_result(raw)
+    if hit is None:
         return ""
-    return jd_reflection.format_block(requirements, lines)
+    return jd_reflection.format_block([
+        (item.requirement, item.story_pointer if item.status != "gap" and item.story_pointer else None)
+        for item in hit[0].requirements
+    ])
 
 
 def skills_lines_for(repo: Any, user_id: str, job_ids: list[str]) -> dict[str, str]:
@@ -95,6 +101,6 @@ def stamp_shortlist(
             job["matched_skills"] = list(dict.fromkeys(matched))
             job["missing_skills"] = missing[: job_matcher.MAX_MISSING_SKILLS]
         raw = (deepenings.get(job_id) or {}).get(jd_coverage.CACHE_PROMPT_KEY)
-        block = reflection_text(requirement_strings(raw), structured)
+        block = reflection_text(raw)
         if block:
             job["jd_reflection"] = block

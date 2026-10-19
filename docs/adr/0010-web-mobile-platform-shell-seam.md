@@ -2,7 +2,7 @@
 
 - **Status**: Accepted (C2 + C1 shipped; C3 + C4 deferred with reasons below)
 - **Date**: 2026-05-30
-- **Related**: backlog #9 (v2 native APK — `packages/api-client`, `mobile-native/` sibling, `packages/mobile-shared`) · ADR-0003 (page-scoped CSS) · `project_mobile_layout`
+- **Related**: backlog #9 (v2 native APK — `packages/api-client`, `mobile-native/` sibling, `packages/mobile-shared`) · `project_mobile_layout`
 
 ## Context
 
@@ -24,9 +24,9 @@ Establish a **platform-shell seam**: one seam (`AppShell`) picks the chrome adap
 
 **Platform surfaces** (one each, independent):
 - **Web** — `components/shell/authed-top-strip.tsx` (`AuthedTopStrip`): the one logged-in top strip (brand, nav, score/next chips, account menu, settings/sign-out/myrology). `components/shell/web-chrome.tsx` (`WebChrome`) was retired and renamed here. Web chrome CSS stays in `app/globals.css`.
-- **Mobile** — `mobile/shell.tsx` (`MobileTopBar`, `MobileBottomNav`, `MobileProfileSheet`) + `ForgeXpPill`. The native APK reuses these + `useShellModel`, never `WebChrome`/`AppShell`.
+- **Mobile** — `mobile/shell.tsx` (`MobileTopBar`, `MobileBottomNav`) + `PracticeSheet` (`mobile/redesign/practice-sheet.tsx`). The native APK reuses these + `useShellModel`, never `AuthedTopStrip`/`AppShell`. (`MobileProfileSheet` and `ForgeXpPill`, named here at first, are gone.)
 
-**`AppShell` is now a thin seam**: `useShellModel()` + shared overlays (`ForgeClockDriver`, `XPGateModal`, `XpExplainerModal`, `FeedbackHub`/`FeedbackFAB`, `ParticleBg`) + `{isDesktop && <WebChrome/>}` + the mobile bars. **Visibility stays CSS/gate-driven exactly as before** — no mount-strategy change → no first-paint flash.
+**`AppShell` is now a thin seam**: `useShellModel()` + shared overlays (`XPGateModal`, `XpExplainerModal`, `FeedbackHub`) + `{isDesktop && <AuthedTopStrip/>}` + the mobile bars + `{!isDesktop && <PracticeSheet/>}`. (`ForgeClockDriver`, `FeedbackFAB` and `ParticleBg` were in this list at first and are no longer mounted here; corrected 2026-10-19.) **Visibility stays CSS/gate-driven exactly as before** — no mount-strategy change → no first-paint flash.
 
 ## Why the cycle break matters
 

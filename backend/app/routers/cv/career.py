@@ -367,11 +367,18 @@ async def project_reservoir(
     # the paid-first blocking lane otherwise. Only reached once the user actually
     # has stories to project — never burn a JD parse on an empty reservoir.
     requirements: list[str] = []
+    proven_story_ids: set[str] = set()
     cached = jd_coverage.payload_to_result(
         jobs_repo.get_deepening(user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY)
     )
     if cached is not None:
         requirements = [i.requirement for i in cached[0].requirements]
+        # The panel's verdicts say which stories prove a requirement; the
+        # projection does not judge again.
+        proven_story_ids = {
+            i.story_id for i in cached[0].requirements
+            if i.story_id and i.status in ("covered", "weak")
+        }
     if not requirements:
         requirements = await jd_coverage.parse_requirements(
             job.get("job_description") or "", get_blocking_judgment_provider()
@@ -379,6 +386,7 @@ async def project_reservoir(
 
     result = await career_projection.project_for_job(
         user_id=user.id, job=job, requirements=requirements, baseline=baseline,
+        proven_story_ids=proven_story_ids,
         roles=roles, stories=stories, pointers=pointers,
         story_embeddings=repo.story_embeddings(user.id),
     )
@@ -521,16 +529,15 @@ async def jd_coverage_answer(
     if not entry_id:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Could not save your answer.")
     career_reservoir.enqueue_ingest(user.id, entry_id)
-    # Flip the cached coverage row to covered NOW (deterministic, no LLM) so the
-    # panel — and any later weave interview — never re-asks an answered question.
-    # The next refresh recompute replaces the patch with the ingested story.
+    # The judge rules the answer now: a proving answer flips its row so the
+    # panel and any later interview never re-ask it; anything else re-judges
+    # once it is a story.
     if body.job_id and requirement:
-        patched = jd_coverage.patch_requirement_answered(
+        await jd_coverage.settle_answer(
+            jobs_repo, user.id, body.job_id,
             jobs_repo.get_deepening(user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY),
-            requirement, answer,
+            requirement, answer, get_blocking_judgment_provider(),
         )
-        if patched:
-            jobs_repo.upsert_deepening(user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY, patched)
     _stale_other_rooms(jobs_repo, user.id, body.job_id)
     return GapAnswerResponse(entry_id=entry_id)
 

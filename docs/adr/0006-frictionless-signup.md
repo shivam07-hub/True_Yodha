@@ -3,6 +3,7 @@
 Date: 2026-05-24 (LinkedIn add-on locked same day)
 Status: Accepted
 Supersedes: Backlog #13 (Anonymous trial flow — upload before signup)
+Route names (2026-10-19): `/forge` below is `/practice` since 2026-08-06 (308 in `next.config.mjs`).
 
 ## Context
 

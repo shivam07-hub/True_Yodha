@@ -11,9 +11,9 @@
 Verified against code 2026-08-05. Numbers here are the contract; if code and this
 disagree, code wins and this line gets fixed in the same commit.
 
-- **Welcome grant: 3000 Myro Coins**, once, on first successful CV analysis
-  (`WELCOME_XP`, idempotent). Granted by a DB trigger, never by app code — see
-  XP-DB1 below.
+- **Welcome grant: 3000 Myro Coins**, once, when the profile row is created —
+  at signup, not on the first CV (`WELCOME_XP`, idempotent; corrected 2026-10-19).
+  Granted by a DB trigger, never by app code — see XP-DB1 below.
 - **Diary entry: +30 coins** (`routers/diary.py`, live).
 - **Timed Forge session earning is RETIRED.** Nothing awards coins per session
   any more. `user_skills.forge_sessions_count` survives as a display counter.
@@ -28,11 +28,11 @@ disagree, code wins and this line gets fixed in the same commit.
 
 | # | Decision |
 |---|---|
-| OQ1 | Separate repos. Myro + firecrawl_Supabase stay independent. |
+| OQ1 | Separate repos. Myro + the scraper repo stay independent — `myro-job-scraper` today, `firecrawl_Supabase` before the split (ADR-0001). |
 | OQ2 | Token-scoped for user endpoints. Service-role for admin/internal only. |
 | OQ3 | Intentional LLM separation. Scraper = local LM Studio. Myro = cloud (OpenRouter→Groq→Gemini). |
-| OQ4 | Single canonical scoring. `compute_and_persist_score()` is source of truth. |
-| CVJT1 | **CV Playground + Job Tracker + LinkedIn bridge contract is locked.** One active tailored CV per exact `job_id`; deterministic matcher before AI; honest/flexible status flow; immutable submitted-CV snapshots plus application attempts; extension saves/matches/links but editing stays in CV Playground. Full contract: `memory/project_cv_playground_linkedin_tracker.md`. |
+| OQ4 | Single canonical scoring: one private engine (`_score_math` + `_persist_score` in `services/scoring/orchestrator.py`) behind three facades — `record_cv_score`, `recompute_score`, `project_score` (ADR-0002). `compute_and_persist_score()` was deleted. |
+| CVJT1 | **CV Playground + Job Tracker + LinkedIn bridge contract is locked.** One active tailored CV per exact `job_id`; deterministic matcher before AI; honest/flexible status flow; immutable submitted-CV snapshots plus application attempts; extension saves/matches/links but editing stays in CV Playground. The longer write-up lived in gitignored agent memory and is not in the repo; this row and ADR-0025 are the record. |
 | S3 | `job_applications.status = 'pending'` means saved/targeted. Every saved job is an intended application. |
 | S4 | Intel is ephemeral. Skill targets inferred from saved jobs only. No DB writes. |
 | NU1 | Profile auto-provisioned from JWT email + user_metadata.full_name on first authenticated request. Admin client (bypass RLS). |
@@ -41,7 +41,7 @@ disagree, code wins and this line gets fixed in the same commit.
 | XP7 | Cart is ephemeral Zustand state until diary submit → snapshot as `daily_logs.cart_skills JSONB`. |
 | XP9 | Company tab selection reconfigures the WHOLE Mission Control page. |
 | XP10 | XP pricing modal is deferred. Pick it up only after XP fairness fixes and the single "How XP Works" modal are shipped. |
-| PV1 | **Privacy-first identity.** Myro collects minimum data — only email + password. Any email works (throwaway, alias, anything). No real name required. No forced identity. The share token IS the user's public identity, not their name/email. |
+| PV1 | **Privacy-first identity.** Myro collects minimum data — an email and a sign-in method (ADR-0006). Any email works (throwaway, alias, anything). No real name required. No forced identity. The share token IS the user's public identity, not their name/email. |
 | IH1 | **Intel heatmap = followed companies only.** User builds their own heatmap by starring companies. Empty state on first visit. No global defaults in heatmap. |
 | IH2 | ~~Follow cost: 10 XP. Floor: -30 XP.~~ **REVERSED 2026-07-19 (Signal Thread S1, verified in code 2026-08-04).** **Following is FREE.** Only limit = compare-slot cap `FOLLOWED_COMPANY_LIMIT` (10): `routers/users.py` charges nothing, `xp_policy.py` records `FOLLOW_COMPANY_XP_COST`/`FLOOR` as retired. Star disables on cap only. Grandfathered payers keep their spend (XP1). |
 | IH3 | ~~**Per-company row queries.** Each heatmap row is an independent `useQuery` keyed on `(company, skills)`. Adding a company appends a row without re-fetching others.~~ **REVERSED 2026-06-13 (Shivam-approved; read-path latency at scale, closed 2026-06-28 — [ARCHIVE.md](ARCHIVE.md)):** the per-company fan-out was a 10–15-request thundering herd. Now ONE batched `jobs.skillHeatmap(companies, skills)` (the batched endpoint already existed; `fetch_skill_heatmap_row` was already optimal). Traded incremental row-append for one matrix fetch — acceptable at the 10-company cap + 30-min cache. Do NOT reintroduce the fan-out. |
@@ -57,8 +57,8 @@ disagree, code wins and this line gets fixed in the same commit.
 | SH7 | **Referral attribution = cookie + permanent DB column.** `myro_ref` cookie 30d TTL set from `?ref=` query. Signup handler resolves cookie → `user_profiles.referred_by_user_id UUID REFERENCES auth.users(id)`. v2 XP credit = single trigger on `welcome_xp_granted` flipping TRUE AND `referred_by_user_id IS NOT NULL`. Self-referral guard. No referrals_log table in v1. |
 | SE1 | **Skill-edit creates a NEW `baseline_upload` row.** Baselines stay immutable (Git-commit invariant). `latest_baseline()` returns the new one. |
 | SE2 | **Bullet locator = text-match first occurrence (A) + multi-match picker (C).** If >1 verbatim/substring match, router answers 409 with candidates; frontend renders picker; retries with `(section_hint, item_index, bullet_index)`. |
-| SE3 | **Skill diff = sync keyword drop (D-sync) + async full LLM re-tag (D-async).** Sync: drop skills whose display_name + evidence_text no longer occur in new body_text. Async: `parse_cv_text` → `record_cv_score` via FastAPI BackgroundTasks. |
-| SE4 | **Modal blocks until sync save returns** (~200ms). Score ring shimmers (`tm-score-pulse`) while async runs, via `useRecomputeStore.pendingBaselineId`. |
+| SE3 | **Skill diff = sync keyword drop (D-sync) + async full LLM re-tag (D-async).** Sync: drop skills whose display_name + evidence_text no longer occur in new body_text. Async: `parse_cv_text` → `record_cv_score` as a Background Job on the `bulk` lane (ADR-0008; BackgroundTasks retired). |
+| SE4 | **Modal blocks until sync save returns** (~200ms). The re-score wait shows where the edit was made: the CV editor's "Saved · re-scoring" status (`useMasterAutosave().recomputePending`). The score-ring shimmer and its store were deleted 2026-10-19 — nothing had set the store since the skill card's removal on 2026-06-10. |
 | SE5 | **Editor scope = single bullet only.** Add-new-bullet + structured editor stay in `/cv`. |
 | SE6 | **Skill keyword guard = soft inline hint** when `display_name` not in textarea. Non-blocking. |
 | SE7 | **Reference text = greyed mono block under textarea.** No diff view. |
@@ -71,7 +71,7 @@ disagree, code wins and this line gets fixed in the same commit.
 | SE14 | **Mobile (<480px) = icons only.** Labels hidden via `.tm-skill-card-action-label { display: none }`. Buttons keep `aria-label` + `title`. |
 | SE15 | **Editable sections = bullets, summary, skills_line, certs.** Education routes to `/cv` (disabled fallback). |
 | SE16 | **Backend endpoint = `POST /cv/skill-edit`.** Body `{skill_key, new_text, section_hint?, item_index?, bullet_index?}`. 409 on multi-match with candidate list. |
-| SE17 | **Async completion signal = `cv_versions.recompute_finished_at`.** Frontend polls `GET /cv/skill-edit/recompute-status/{baseline_id}` every 3s, cap 30s, clears `useRecomputeStore` + invalidates `userSkills`/`scores` queries. |
+| SE17 | **Async completion signal = `cv_versions.recompute_finished_at`.** The CV autosave polls `GET /cv/skill-edit/recompute-status/{baseline_id}` every 3s, cap 30s (`lib/hooks/use-master-autosave.ts`), then invalidates the score and CV-version queries. The ADR-0009 stream for this lost its client on 2026-06-10 and was deleted 2026-10-19. |
 | MTR1 | **The billable unit for the partner API is a monthly ACTIVE seat** — a seat that signed in during the month, never the roster size. So the recorded fact is a session and the count is `count(distinct subject_id)`; a counter column cannot answer it. Locked 2026-09-05. |
 | MTR2 | **The meter records, it never blocks.** No plan, no quota, no enforcement column, and the write is a background task after the response leaves. Partner SSO is the sign-in path for 281 real students. A lost write undercounts, which is the acceptable direction for a distinct-seats unit. |
 | MTR3 | **`partners` is the account table for every B2B product.** No second tenant table: a dataset customer is a row in `partners` writing a different metric to `partner_usage_events`. Metric names are dotted and CHECK-enforced (`sso.session`), so a typo is a write error, not a silent second metric. |

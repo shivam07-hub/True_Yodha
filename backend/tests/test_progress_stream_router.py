@@ -1,7 +1,7 @@
-"""Tests for the ADR-0009 PR2 SSE relay endpoints.
+"""Tests for the ADR-0009 PR2 SSE relay endpoint.
 
-GET /jobs/refresh/{ticket}/stream  — snapshot-watch over Job Refresh state.
-GET /cv/skill-edit/recompute-status/{baseline_id}/stream — over the recompute flag.
+GET /jobs/refresh/{ticket}/stream — snapshot-watch over Job Refresh state.
+(The skill-edit stream had no client after 2026-06-10 and was deleted.)
 """
 
 from __future__ import annotations
@@ -16,8 +16,6 @@ from fastapi.testclient import TestClient
 
 from app.deps import Principal, get_principal
 from app.main import app
-from app.repositories.cv import CVVersionsRepository, get_token_cv_repository
-from app.routers.cv import skill_edit as skill_edit_router
 from app.routers.jobs import match as match_router
 from app.services import progress_stream
 from app.services.job_refresh.types import RefreshState
@@ -164,46 +162,3 @@ def test_refresh_stream_unknown_ticket(monkeypatch):
 
     frames = _frames(r.text)
     assert frames == [{"type": "error", "recoverable": False, "message": "Unknown refresh ticket."}]
-
-
-class _FakeCVRepo:
-    def __init__(self, rows: list[dict | None]) -> None:
-        self._rows = rows
-
-    def find(self, version_id: int, user_id: str) -> dict | None:
-        return self._rows.pop(0) if self._rows else self._rows_last
-
-    @property
-    def _rows_last(self):
-        return None
-
-
-def test_recompute_stream_phase_then_done(monkeypatch):
-    rows = [{"recompute_finished_at": None}, {"recompute_finished_at": "2026-05-30T00:00:00Z"}]
-    repo = _FakeCVRepo(rows)
-
-    app.dependency_overrides[get_principal] = lambda: Principal(id="u1")
-    app.dependency_overrides[get_token_cv_repository] = lambda: repo
-
-    with TestClient(app) as client:
-        r = client.get("/cv/skill-edit/recompute-status/55/stream")
-    app.dependency_overrides.clear()
-
-    assert r.status_code == 200
-    frames = _frames(r.text)
-    assert any(f["type"] == "phase" and f["phase"] == "scoring" for f in frames)
-    done = [f for f in frames if f["type"] == "done"]
-    assert done and done[0]["result"]["recompute_finished_at"] == "2026-05-30T00:00:00Z"
-
-
-def test_recompute_stream_missing_baseline(monkeypatch):
-    repo = _FakeCVRepo([None])
-    app.dependency_overrides[get_principal] = lambda: Principal(id="u1")
-    app.dependency_overrides[get_token_cv_repository] = lambda: repo
-
-    with TestClient(app) as client:
-        r = client.get("/cv/skill-edit/recompute-status/55/stream")
-    app.dependency_overrides.clear()
-
-    frames = _frames(r.text)
-    assert frames == [{"type": "error", "recoverable": False, "message": "Baseline not found."}]
