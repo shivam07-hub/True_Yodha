@@ -52,4 +52,10 @@ product. They can appear in a shot; they are never the headline.
 ## Output
 
 - Renders go to `brag-output*/` (gitignored). A render is never committed.
-- Needs Node, a headless Chromium (Playwright's), and `ffmpeg` on `PATH`.
+- Needs Node, a headless Chromium (Playwright's cached build) and an H.264/AAC
+  encoder. This Mac has no ffmpeg and no Homebrew: encode with AVFoundation
+  through `swiftc` (Command Line Tools), which needs no download.
+- Real components render outside Next by bundling them with esbuild from
+  `frontend/` (stub `next/link`, `next/navigation`, `next/image`) and building
+  Tailwind from `frontend/tailwind.config.ts`. Abort every non-file request
+  while capturing.
