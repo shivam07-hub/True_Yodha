@@ -716,7 +716,23 @@ def test_patch_requirement_answered_none_on_miss_or_garbage():
     assert jd_coverage.patch_requirement_answered(raw, "B", "answer", proven=True) is None
 
 
-def test_router_answer_patches_coverage_cache(monkeypatch):
+class _JudgeProvider:
+    """The judgment lane for the answer route: one canned verdict, or a failure."""
+
+    def __init__(self, raw: str | Exception) -> None:
+        self._raw = raw
+        self.calls = 0
+
+    async def complete(self, messages, max_tokens=None, temperature=None):
+        self.calls += 1
+        if isinstance(self._raw, Exception):
+            raise self._raw
+        return self._raw
+
+
+def _answer_a_gap(monkeypatch, judge: _JudgeProvider) -> tuple[str, bool]:
+    """Bank an answer against a cached gap through the route; return the stored
+    row's status and whether the room was marked stale."""
     from app.main import app
 
     from app.repositories.cv_dump import get_cv_dump_repository
@@ -727,6 +743,7 @@ def test_router_answer_patches_coverage_cache(monkeypatch):
             return {"id": "e1"}
 
     monkeypatch.setattr(weave_router.career_reservoir, "enqueue_ingest", lambda u, e: None)
+    monkeypatch.setattr(weave_router, "get_blocking_judgment_provider", lambda: judge)
     jobs_repo, cv_repo, charges = _JobsRepo(), _CVRepo(), []
     jobs_repo.deepenings[jd_coverage.CACHE_PROMPT_KEY] = jd_coverage.result_to_payload(
         jd_coverage.CoverageResult(
@@ -742,11 +759,31 @@ def test_router_answer_patches_coverage_cache(monkeypatch):
             "answer": "I own the India territory for 2 years across 12 cities.",
             "job_id": "j1",
         })
-        assert r.status_code == 200 and r.json()["entry_id"] == "e1"
-        hit = jd_coverage.payload_to_result(jobs_repo.deepenings[jd_coverage.CACHE_PROMPT_KEY])
-        assert hit is not None and hit[0].requirements[0].status == "covered"
     finally:
         app.dependency_overrides.clear()
+    assert r.status_code == 200 and r.json()["entry_id"] == "e1"
+    stored = jobs_repo.deepenings[jd_coverage.CACHE_PROMPT_KEY]
+    hit = jd_coverage.payload_to_result(stored)
+    assert hit is not None
+    return hit[0].requirements[0].status, jd_coverage.is_stale(stored)
+
+
+def test_router_answer_the_judge_proves_flips_its_row(monkeypatch):
+    judge = _JudgeProvider(json.dumps({"proven": {"1": [{"id": "1a", "shows": "India territory"}]}}))
+    status, stale = _answer_a_gap(monkeypatch, judge)
+    assert (status, stale) == ("covered", False)
+    assert judge.calls == 1
+
+
+def test_router_answer_a_failed_judge_leaves_the_gap_and_marks_the_room_stale(monkeypatch):
+    """What CI saw with no provider key: the judge call fails. The row is not
+    flipped on a ruling nobody made, and the room re-judges on its next open."""
+    from app.services.llm_provider import LLMProviderError
+
+    judge = _JudgeProvider(LLMProviderError("provider down"))
+    status, stale = _answer_a_gap(monkeypatch, judge)
+    assert (status, stale) == ("gap", True)
+    assert judge.calls == 1
 
 
 def test_the_job_room_names_what_the_weak_story_is_missing(monkeypatch):

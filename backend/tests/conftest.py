@@ -106,6 +106,35 @@ class RecordedSnapshotWrites:
         return None
 
 
+#: Settings fields that open a paid model provider. Embeddings ride the
+#: OpenRouter key too.
+_LLM_KEY_FIELDS = (
+    "openrouter_api_key", "groq_api_key", "google_api_key", "openai_api_key", "anthropic_api_key",
+)
+#: The same providers as plain environment variables (`skill_tagger` reads these).
+_LLM_KEY_ENV = (
+    "OPENROUTER_API_KEY", "GROQ_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY",
+    "CEREBRAS_API_KEY", "SAMBANOVA_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY",
+)
+
+
+@pytest.fixture(autouse=True)
+def no_live_llm(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No test reaches a paid model, on any machine.
+
+    Settings loads the real `.env`, so on a laptop with keys a test that forgot
+    to stub its provider made a live call and passed, while CI (no keys) failed:
+    the weave answer route's judge, 2026-10-19. Blank here, a missing stub fails
+    the same way everywhere. A test that needs a provider passes a fake one.
+    """
+    from app.config import settings
+
+    for field in _LLM_KEY_FIELDS:
+        monkeypatch.setattr(settings, field, "")
+    for name in _LLM_KEY_ENV:
+        monkeypatch.delenv(name, raising=False)
+
+
 @pytest.fixture(autouse=True)
 def snapshot_writes(monkeypatch: pytest.MonkeyPatch) -> RecordedSnapshotWrites:
     """Every direction write ends in `record_from_profile`, which holds its own
