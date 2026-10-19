@@ -180,15 +180,17 @@ Chain", QA account):
   `seat_lead()` glued "role, company." to the first raw bullet. Now a summary
   that names the employer is left alone, and otherwise the seat is one sentence
   ("Role at Company.") before the summary's own words — never a bullet.
-- **Copied list markers — FIXED at upload `5ad8f6cc`; 25 people still carry
-  them.** The parser copies bullets verbatim, so "▪ Built…" was stored and the
-  renderer drew its own bullet in front: "• ▪ Built…" in the paper and the PDF.
-  387 baseline bullets across ~25 people (•, ▪, ▸, –, §, -, ◦, ■, Word's
-  U+F0B7); 6 baseline `body_text`s show the doubled glyph. Ingest
-  (`coerce_sections(ingest=True)`) now drops them for every new upload and
-  re-parse; a read still shows a row exactly as stored. **Open, forward pass:**
-  the 25 people's existing masters keep the marker until they upload again —
-  decide whether the CV page should offer a one-tap clean-up when it sees one.
+- **Copied list markers — FIXED at upload `5ad8f6cc`; offered on the CV page
+  `d197a058`.** The parser copied bullets verbatim, so "▪ Built…" was stored and
+  the page drew its own mark in front: "• ▪ Built…". Uploads now drop it. The 24
+  people whose stored master still carries one (5 active in 30 days, 2 in 7)
+  get a Weak `ats · layout` row in the CV editor's Fixes queue — "11 bullets
+  print a second mark" — and "Fix all" cleans the open document through the
+  editor (undo brings it back). Nothing runs unasked. Upload and page read one
+  set of cases (`frontend/lib/cv/list-markers.cases.json`, tested on both
+  sides). Verified on the QA master: 11 → 0, every bullet kept, saved.
+  **Gap:** the phone editor has no Fixes queue, so a phone-only person is not
+  offered it.
 
 Tier B (#48 user-titled sections · #51 outcome not digits · #53 loss notice and
 restore · #54 nine screens) is parked until front-door numbers exist — ARCHIVE
