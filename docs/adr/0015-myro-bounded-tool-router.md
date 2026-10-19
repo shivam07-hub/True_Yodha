@@ -18,7 +18,7 @@ Each Myro turn is handled by a **bounded tool-router**: a cheap intent classifie
 **one** tool from a small, fixed belt (`recruiter_read`, `rewrite_experience`, `ats_pass`,
 `explain_skill`, `find_referrers`, `playbook_lookup`, `memory_read/write`, `schedule_recall`).
 Everything downstream of the router is deterministic-as-possible. Tools are **opted-in per
-surface** — `/cv` exposes the CV belt, `/forge` the tutoring belt.
+surface** — `/cv` exposes the CV belt, `/practice` (was `/forge`) the tutoring belt.
 
 ## Considered Options
 

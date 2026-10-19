@@ -2,7 +2,7 @@
 
 - **Status**: Accepted (built 2026-06-02; **migration applied** — verified 2026-09-17: `target_locations`, `target_location_countries` live, 15 users holding more than one chip)
 - **Date**: 2026-06-02
-- **Related**: ADR-0003 (page-scoped CSS) · ADR-0010 (web/mobile shell seam — `tm:open-settings` is the canonical cross-chrome trigger) · `project_mobile_card_perplexity_accordion` (the honest-interim location line this builds on) · firecrawl `HANDOFF_multiloc_locations_array.md` (scraper-side per-city capture) · reverses Backlog #12 "parked" status
+- **Related**: ADR-0010 (web/mobile shell seam — `tm:open-settings` is the canonical cross-chrome trigger) · `project_mobile_card_perplexity_accordion` (the honest-interim location line this builds on) · `myro-job-scraper/docs/handoffs/HANDOFF_multiloc_locations_array.md` (scraper-side per-city capture) · reverses Backlog #12 "parked" status
 
 ## Context
 

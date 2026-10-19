@@ -9,6 +9,8 @@
 > `memory/`, which is gitignored agent memory: invisible to Codex, to a fresh
 > clone, and to every machine but one. Whatever they held that mattered is in
 > this ADR or it is lost; the decision does not depend on them.
+>
+> `/forge` below is `/practice` since 2026-08-06 (308 in `next.config.mjs`).
 
 ---
 
@@ -76,4 +78,4 @@ ADR-0003 (2026-05-23) made **Intel / Map / Audit** the canonical 3-view triad an
 
 - Not a change to the triad semantics, defaults map, or sticky-pref storage — those are ADR-0003 and stand.
 - Not a routing change — `?view=` remains an additive concern.
-- Note: ADRs 0010/0011/0012 cite "ADR-0003 (page-scoped CSS)" — a stale mis-citation unrelated to the view triad. This ADR does not touch that; it supersedes only the triad's label-uniformity clause.
+- Note: ADRs 0010/0011/0012 cited "ADR-0003 (page-scoped CSS)" — a mis-citation unrelated to the view triad. Removed from all three 2026-10-19. This ADR supersedes only the triad's label-uniformity clause.

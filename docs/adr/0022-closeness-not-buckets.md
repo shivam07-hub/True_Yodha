@@ -67,13 +67,9 @@ paid-compute gate as #16. When the selector and the feed signal both read that
 snapshot, `role_family`, `role_family_for_job` and `trg_refresh_job_role_family`
 retire together, and this amendment goes with them.
 
-## Amended 2026-09-26 — the published fit is the judge's score
-
-`/market` membership is the career-ops evaluation: overall_score ≥ 3.5 and
-Apply or Negotiate, ordered by that score. `role_family` still recalls the
-pile (`get_candidate_job_ids_for_roles`). It does not decide which of those
-jobs the person sees. `direction_fit` (2 of 12 skills) is not that decision
-either. A skip is stored and stays off the list.
+That gate did not open: #16 closed 2026-10-14 on the Pro plan with compute kept
+at Micro (Shivam, cost; CLAUDE.md). The snapshot is still not built, so the
+column stays a recall index until one is built some other way (2026-10-19).
 
 ## Amended 2026-09-25 — the shortlist's verdict is the grade
 
@@ -85,3 +81,11 @@ returned — `main_skills` against the direction's `core_skills`, both already
 in memory — and that grade is the card's `on_direction` and the +6 that
 moves an on-direction job ahead of a higher raw score. The corpus-wide
 `role_family_pool` snapshot is still not built.
+
+## Amended 2026-09-26 — the published fit is the judge's score
+
+`/market` membership is the career-ops evaluation: overall_score ≥ 3.5 and
+Apply or Negotiate, ordered by that score. `role_family` still recalls the
+pile (`get_candidate_job_ids_for_roles`). It does not decide which of those
+jobs the person sees. `direction_fit` (2 of 12 skills) is not that decision
+either. A skip is stored and stays off the list.

@@ -23,7 +23,7 @@ export type { SidebarProfile } from "@/lib/shell/contract"
 /**
  * AppShell — the platform-shell SEAM (ADR-0010). Picks the chrome adapter for
  * the current surface and mounts the shared overlays. All shared state lives in
- * useShellModel; the web chrome lives in <WebChrome> (components/shell), the
+ * useShellModel; the web chrome lives in <AuthedTopStrip> (components/shell), the
  * mobile chrome in <MobileTopBar>/<MobileBottomNav> (mobile/shell). Neither
  * adapter imports the other.
  *
@@ -88,7 +88,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <XpExplainerModal open={m.xpModalOpen} onClose={() => m.setXPModalOpen(false)} balance={m.xpBalance} />
 
       {/* Feedback is no longer a floating FAB — it lives in the avatar menu
-          (web-chrome) + mobile drawer, opened via openFeedbackHub(). The Hub
+          (AuthedTopStrip) + mobile drawer, opened via openFeedbackHub(). The Hub
           modal itself stays mounted here as the single event-driven surface. */}
       <FeedbackHub
         open={m.feedbackHubOpen}

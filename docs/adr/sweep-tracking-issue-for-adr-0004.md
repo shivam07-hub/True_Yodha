@@ -1,5 +1,11 @@
 # ADR-0004 sweep — tracking issue draft
 
+> **Stale, 2026-10-19.** Never filed as an issue, and the list below is the code
+> of 2026-05-23. Four of its named sites no longer exist: `get_skill_advice`,
+> `ingest_cv_text`, `get_or_backfill_cv_structured`, `MATCH_REFRESH_XP_COST`
+> (`SKILL_ADVICE_XP_COST` survives in `xp_policy.py` with no caller). A real
+> sweep starts from a fresh grep of LLM call sites, not from this list.
+
 > File this as a GitHub issue once `gh` CLI is wired or via the web UI. Keep the
 > checked-in copy until the GitHub issue exists, then delete this file and link
 > the issue from ADR-0004 instead.

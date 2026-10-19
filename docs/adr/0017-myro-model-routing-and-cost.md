@@ -20,7 +20,7 @@ budget semaphore (extend the `get_cv_upload_provider` pattern into a per-task ti
 | Task | Tier |
 |---|---|
 | Recruiter Read + XYZ Rewrite (flagship) | **Frontier model** |
-| Skill tutoring (`/forge`) | Mid-tier |
+| Skill tutoring (`/practice`, was `/forge`) | Mid-tier |
 | Intent classifier, memory consolidation | Cheapest free tier |
 | Corpus embeddings | Cheap embedding model, offline |
 

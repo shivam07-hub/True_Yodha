@@ -2,7 +2,7 @@
 
 - **Status**: Accepted (CV-upload phases shipped; /home section-readiness PR1 shipped; teal-field fill PR2 shipped 2026-06-01)
 - **Date**: 2026-06-01
-- **Related**: ADR-0008 (durable background work — server jobs run on a separate worker) · ADR-0009 (progress-stream protocol — live token/phase/progress over SSE) · ADR-0003 (page-scoped CSS) · `project_cv_loading_redesign` (server phases, no lying clock) · `project_dashboard_loading_redesign` (parallel client queries, section readiness, teal-field playground)
+- **Related**: ADR-0008 (durable background work — server jobs run on a separate worker) · ADR-0009 (progress-stream protocol — live token/phase/progress over SSE) · `project_cv_loading_redesign` (server phases, no lying clock) · `project_dashboard_loading_redesign` (parallel client queries, section readiness, teal-field playground)
 
 ## Context
 
@@ -63,5 +63,6 @@ This is a reactive animation on a hot path, so the rules are strict and tested (
 - CV-upload phases: shipped (`project_cv_loading_redesign`, `cv_upload_jobs.current_phase`).
 - `/home` section-readiness + pill-bug fix: shipped (PR1, `project_dashboard_loading_redesign`).
 - `<TealField>` reactive playground + `EdgeGlow` refactor: shipped (PR2, 2026-06-01).
+- **Renamed 2026-08-23** (`45c67804`, the codebase stopped calling the accent "teal"): `<TealField>` is `<AccentField>` in `components/loading/accent-field.tsx`, same two modes; the rim is the interactive accent, azure since DECISIONS ACC1. `EdgeGlow` and `SectionGate` keep their names. Read "teal" in this ADR as "accent".
 - Match-refresh / skill-edit already stream phases via ADR-0009; they sit in the **Phases** row and need no change here.
 - `/home` was re-bundled after this ADR, without amending it: a BFF (`GET /home/bootstrap`, `useHomeBootstrap`) returns every section in ONE response, so the page waited on its slowest member — the global gate the section-readiness row exists to prevent. Measured over 21 prod loads (2026-09-08 → 09-11, `fanout.slow label=home.bootstrap`): `matches` was the slowest section 14 times, up to 12,389ms, while `score`, `diary` and `cv_versions` sat at 200–600ms. `7fd040c9` took `matches` out; it reads on its own clock through `useJobMatches`. **The remaining bundle is a transport optimisation, not a gate:** when another section starts setting the bundle's total, it leaves too. `applications` stays for now only because the hero prints a count from it and would print "0" while loading.

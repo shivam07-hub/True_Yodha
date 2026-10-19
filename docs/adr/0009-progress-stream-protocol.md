@@ -2,6 +2,7 @@
 
 - **Status**: Accepted (PR1 direct token stream + PR2 SSE relay both shipped 2026-05-30)
 - **Date**: 2026-05-30
+- **Amended 2026-10-19 — skill-edit is back on a poll.** The stream's only client, `skill-card-inline`, was deleted on 2026-06-10 (`d6713cf92`). The CV autosave now polls `GET /cv/skill-edit/recompute-status/{baseline_id}` every 3s with a 30s cap (`lib/hooks/use-master-autosave.ts`), and `GET …/stream` has no caller. Match-refresh still streams (`use-job-refresh.ts`). Read the skill-edit rows below as the design that shipped in PR2, not today's wire.
 - **Related**: ADR-0008 (durable background work — Work Lanes, Job Runner, Redis) · ADR-0004 (LLM actions cost XP; charge-on-success, refund-on-fail) · `project_cv_loading_redesign` (real phases, no lying clock) · SE17 (skill-edit recompute 3s poll) · `analyse_job` endpoint (`routers/jobs/analyse.py`)
 
 ## Context

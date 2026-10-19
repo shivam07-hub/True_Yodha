@@ -40,7 +40,8 @@ identity is therefore decided in exactly one module, `story_identity`, for every
 
 ## Consequences
 
-- The onboarding CV still writes positional `cv_points` and does not reach the reservoir.
-  Routing it in is the next step, and identity had to hold first — otherwise every re-upload
-  and tailored copy becomes a pile of near-duplicate stories.
+- The onboarding CV reaches the reservoir since 2026-09-13 (`a191350a`):
+  `cv_workflow.py` banks every upload through `career_reservoir.bank_uploaded_cv`, and
+  `reservoir_ingest_sweep` heals a dead ingest hourly. Identity had to hold first — otherwise
+  every re-upload and tailored copy becomes a pile of near-duplicate stories.
 - `career_projection` has no duplicate guard of its own; it relies on this invariant.

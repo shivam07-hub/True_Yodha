@@ -23,6 +23,10 @@ as shelf 5 through the same seam.
 The corpus is **RAG-grounded, never fine-tuned**. A new playbook is citable the day it ships,
 and Myro quotes its source rather than asserting unsourced authority.
 
+**Amended 2026-10-19.** Myrology is **₹299** (`routers/myrology.py`), not ₹499, and since 2026-09-30
+a second product line judged on its own revenue (CLAUDE.md). It has not been added as a shelf:
+`VALID_SHELVES` in `mentor_retriever.py` holds the four launch shelves only.
+
 This satisfies ADR-0005 item 4: Myro is not a generic AI rewriter — the shelves are what let it
 explain *why* a CV is or isn't ready, with provenance.
 

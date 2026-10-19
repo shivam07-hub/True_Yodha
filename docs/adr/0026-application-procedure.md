@@ -16,14 +16,14 @@ A job is applied to in this order, and the next company uses the same order. The
 6. **Apply is one click that carries the job's CV onto the company's form.** The CV is that job's document, rendered from the sheet (ADR-0020). The company still has to recognise the person, so the first visit to a careers site is their sign-in. After that session exists in the browser, the extension attaches the CV and fills the fields Myro already holds, and the click left is Submit. Opening the link and asking afterwards is the receipt, not the apply (Apply Transport).
 
    On desktop Chrome the extension walks every screen it can fill and clicks Next. It stops on the Submit screen and does not click Submit (Shivam, 2026-10-15). A phone has no extension, so Apply there opens the company page and "Did you submit?" stays until the person confirms.
-7. **The company's status URL is saved on the application.** For this one it is `https://apply.careers.microsoft.com/careers/applications?domain=microsoft.com`, on the application notes until a status-URL column exists.
+7. **The company's status URL is saved on the application** — on the application notes until a status-URL column exists.
 8. **Then two notes, from their own connections export.** First, someone they have actually written to. Second, the person whose seat is the motion, even when the thread is cold. Same CV. The person sends. Myro does not (ADR-0018).
 
 A server with no company session cannot post the application. The extension does not invent that login, and it does not read the status page. It does carry the CV onto the form once the person is signed in.
 
 ## Why
 
-On 2026-10-15 the Microsoft Partner Solution Sales application (job 200055836) was built on the wrong login first, then corrected on `shivam.mit20@gmail.com`. The page that went out named the person's own Azure scope inside the team's pursuit book, took Finlatics off the MBA years and off Capgemini, and labeled Myro a hobby pursuit. The referral notes went to the one Microsoft connection with a real thread, then to the one connection who leads a partner seat. The status of the application lives on Microsoft's own applications page, behind the person's login.
+On 2026-10-15 the Microsoft Partner Solution Sales application (job 200055836) was built on the wrong login first, then corrected on `shivam.mit20@gmail.com`. The page that went out named the person's own Azure scope inside the team's pursuit book, took Finlatics off the MBA years and off Capgemini, and labeled Myro a hobby pursuit. The referral notes went to the one Microsoft connection with a real thread, then to the one connection who leads a partner seat. The status of the application lives on Microsoft's own applications page (`https://apply.careers.microsoft.com/careers/applications?domain=microsoft.com`), behind the person's login.
 
 Doing the next company any other way repeats the defects this one had to be corrected out of: a CV that leads with the wrong work, a side role that makes a full-time job look part-time, and a referral ask sprayed at people who cannot refer.
 
