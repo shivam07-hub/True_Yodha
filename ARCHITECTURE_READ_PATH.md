@@ -2698,7 +2698,12 @@ next merge, and dev until `Develop` deploys. The proof to read after both:
 `/public/stats` fill comes in under the 1.5s cold-fill wait. The rest of that
 payload is four sequential reads at 7–29ms mean in Postgres (analytics
 snapshot, seekers, role families, this row), so the fill is round trips —
-roughly 0.7–1.2s at §24's per-hop floor. Close to the wait; measure it.
+roughly 0.7–1.2s at §24's per-hop floor. Close to the wait; measure it. The
+stampede has its own log line: `metric shared_cache.cold_fill_wait_expired
+key=public_stats`, one per caller that stopped waiting. Before: **47** in the
+cold dev build of 10-18 18:4x, **4** on prod in 6.4 days. After: 0. The dev
+deploy of `03f6aa41` (`e6e45e53`, 10-19 04:27) drew its build's 48 prerenders
+onto a warm key (28–42ms each), so it did not test the cold fill.
 
 **Not chosen, with the number that rules it out.**
 

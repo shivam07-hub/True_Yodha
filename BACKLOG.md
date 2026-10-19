@@ -466,8 +466,9 @@ prod); #339 followed 10-13. A scheduled check reads R3/R4 on 10-19.
   `dead_man:snapshot.public_provenance`); refresh 3,177ms once a day, read
   0.08ms. Code on `Develop`, live on prod after the next `main` merge. **After the
   merge:** `verified_live` queryid `3154336291968442631` stops gaining calls
-  (552 on 10-19 04:25 UTC), the `_count` Notice stops, and a cold `/public/stats`
-  fill is under 1.5s. Agent.
+  (552 on 10-19 04:25 UTC), the `_count` Notice stops, and
+  `cold_fill_wait_expired key=public_stats` reads 0 (47 in one cold dev build,
+  4 on prod in 6.4 days, before). Agent.
 
 ## AUTHED QA CHECKLIST — the CV machine (from the beta ledger, 2026-09-30)
 
