@@ -15,83 +15,82 @@ Two deliberate choices:
 * **Source is split on `ingestion_source`.** Extension rows are the community's;
   everything else is the agent's. `NULL` counts as agent — pre-extension crawl
   rows predate the column and were all ours.
+
+**The counts are Tier 0** (migration 20261019090000, ARCHITECTURE_READ_PATH.md
+§30). `refresh_public_provenance()` computes them on the in-database rail and
+is the one definition of "verified live" and its window; this module reads the
+row and counts nothing. Counted here, `verified_live` averaged 3.3s, hit the 8s
+ceiling, and a cold build ran it 45 times in a minute on the shared database.
 """
 
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Any
 
 from supabase import Client
 
 log = logging.getLogger(__name__)
 
-# The window the hero number claims. Seven days is the promise a user can check:
-# open the listing, it is there. Widen this and the claim starts outrunning the
-# verifier's actual sweep cadence.
-VERIFIED_WINDOW_DAYS = 7
+_SNAPSHOT_COLUMNS = "total,community,verified_live,verified_window_days"
 
-# `jobs.ingestion_source` value written by the extension import path
-# (services/job_importer.build_imported_job). Everything else — and NULL — is
-# agent-crawled.
-COMMUNITY_SOURCE = "extension"
-
-
-def _count(db: Client, apply: Any) -> int:
-    """Exact row count for a filtered `jobs` query, or 0 when the read fails.
-
-    A counter is decoration on every surface that shows it; a failed count must
-    degrade to "no number", never to a 500 on the landing page. The failure is
-    logged so a persistently zero counter is traceable to its cause instead of
-    being read as real.
-    """
-    try:
-        query = db.table("jobs").select("job_id", count="exact").limit(1)
-        result = apply(query).execute()
-        return int(result.count or 0)
-    except Exception as exc:  # noqa: BLE001 — a counter must not take a page down
-        log.warning("job_provenance: count failed: %s", exc)
-        return 0
-
-
-def _verified_cutoff() -> str:
-    cutoff = datetime.now(timezone.utc) - timedelta(days=VERIFIED_WINDOW_DAYS)
-    return cutoff.isoformat()
+# No row, or a read that failed: no number. Every field is zero together, and
+# the one surface that renders these reads `total == 0` as "Myro is counting the
+# pool". The three counts arrive in one row, so a real total can never sit
+# beside a verified-live of 0 that only means one count failed.
+_NO_NUMBER = {
+    "total": 0,
+    "agent": 0,
+    "community": 0,
+    "verified_live": 0,
+    "verified_window_days": 0,
+}
 
 
 def read_provenance(db: Client) -> dict[str, int]:
     """Collective counts: total pool, verified-live, and the source split."""
-    total = _count(db, lambda q: q)
-    community = _count(db, lambda q: q.eq("ingestion_source", COMMUNITY_SOURCE))
-    # `last_conclusive_verification_at`, never `last_verified_live_at`: the
-    # crawler stamps the latter when a job_id appears in an employer's FEED, so
-    # counting it made this hero number a count of crawl sightings. Measured
-    # 2026-09-22, that was 19,258 rows of which 18,080 had never been opened by
-    # anyone. The docstring above already promised "personally opened"; this is
-    # the code finally saying the same thing. Expect the number to FALL — it was
-    # never that high.
-    #
-    # BOTH halves are required. A conclusive check answers live or closed and
-    # stamps the same column either way: on 2026-09-23, 8,295 of the 27,681
-    # listings checked inside a week had been checked and found DEAD. Counting
-    # the timestamp alone would have called those verified live — a worse claim
-    # than the crawl stamp this replaced. See services/listing_trust.py.
-    verified_live = _count(
-        db,
-        lambda q: q.gte("last_conclusive_verification_at", _verified_cutoff())
-        .eq("is_active", True)
-        .eq("listing_confidence", "active"),
-    )
+    try:
+        rows = (
+            db.table("public_provenance_snapshot")
+            .select(_SNAPSHOT_COLUMNS)
+            .eq("id", 1)
+            .limit(1)
+            .execute()
+        ).data or []
+    except Exception as exc:  # noqa: BLE001 — a counter must not take a page down
+        log.warning("job_provenance: snapshot read failed: %s", exc)
+        return dict(_NO_NUMBER)
+    if not rows:
+        log.warning("job_provenance: public_provenance_snapshot has no row")
+        return dict(_NO_NUMBER)
+    row = rows[0]
+    total = int(row["total"])
+    community = int(row["community"])
     return {
         "total": total,
-        # Derived, not counted — one less scan, and the two can never disagree
-        # about what they sum to.
+        # Derived, not counted — the two can never disagree about what they
+        # sum to.
         "agent": max(total - community, 0),
         "community": community,
-        "verified_live": verified_live,
-        "verified_window_days": VERIFIED_WINDOW_DAYS,
+        "verified_live": int(row["verified_live"]),
+        "verified_window_days": int(row["verified_window_days"]),
     }
+
+
+def _count_mine(db: Client, user_id: str) -> int:
+    """Jobs this user put into the pool, or 0 when the read fails. 1.3ms: an
+    exact count on `created_by_user_id`, the one count still live."""
+    try:
+        result = (
+            db.table("jobs")
+            .select("job_id", count="exact")
+            .eq("created_by_user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+        return int(result.count or 0)
+    except Exception as exc:  # noqa: BLE001 — a counter must not take a page down
+        log.warning("job_provenance: count failed: %s", exc)
+        return 0
 
 
 def read_contributions(db: Client, user_id: str) -> dict[str, int]:
@@ -102,5 +101,5 @@ def read_contributions(db: Client, user_id: str) -> dict[str, int]:
     `job_applications` question and a different card.
     """
     counts = read_provenance(db)
-    counts["mine"] = _count(db, lambda q: q.eq("created_by_user_id", user_id))
+    counts["mine"] = _count_mine(db, user_id)
     return counts

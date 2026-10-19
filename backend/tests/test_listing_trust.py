@@ -6,8 +6,11 @@ a feed and nobody ever fetched, and rows a verifier fetched weeks ago.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from app.services import listing_trust
+
+MIGRATIONS = Path(__file__).parents[2] / "database" / "migrations"
 
 NOW = datetime(2026, 9, 23, 12, 0, tzinfo=timezone.utc)
 
@@ -95,38 +98,24 @@ def test_an_unparseable_timestamp_is_unchecked_not_a_crash():
     assert listing_trust.verification_claim(row, now=NOW)["state"] == "unchecked"
 
 
+def _provenance_refresh_sql() -> str:
+    """The one definition of the provenance counts (migration 20261019090000)."""
+    sql = (MIGRATIONS / "20261019090000_public_provenance_tier0.sql").read_text(encoding="utf-8")
+    body = sql.split("create or replace function public.refresh_public_provenance()")[1]
+    return body.split("$$;")[0]
+
+
+def _code(sql: str) -> str:
+    return "\n".join(line.split("--")[0] for line in sql.splitlines())
+
+
 def test_provenance_counts_opened_listings_not_crawl_sightings():
     """The hero number on the landing page. Its own docstring always promised
     "personally opened"; the query counted the crawler's stamp."""
-    from app.repositories import job_provenance
+    code = _code(_provenance_refresh_sql())
 
-    seen: list[str] = []
-
-    class _Q:
-        def gte(self, column, _value):
-            seen.append(column)
-            return self
-
-        def eq(self, *_a):
-            return self
-
-        def select(self, *_a, **_k):
-            return self
-
-        def limit(self, *_a):
-            return self
-
-        def execute(self):
-            return type("R", (), {"count": 1})()
-
-    class _DB:
-        def table(self, _name):
-            return _Q()
-
-    job_provenance.read_provenance(_DB())
-
-    assert "last_conclusive_verification_at" in seen
-    assert "last_verified_live_at" not in seen
+    assert "last_conclusive_verification_at >=" in code
+    assert "last_verified_live_at" not in code
 
 
 def test_partner_rows_carry_the_honest_field_alongside_the_legacy_one():
@@ -226,34 +215,9 @@ def test_a_listing_checked_and_found_dead_is_never_called_verified():
 
 
 def test_provenance_requires_the_verdict_as_well_as_the_check():
-    from app.repositories import job_provenance
+    code = _code(_provenance_refresh_sql())
+    verified = code.split("into v_verified_live")[1].split(";")[0]
 
-    filters: list[tuple] = []
-
-    class _Q:
-        def gte(self, c, _v):
-            filters.append(("gte", c))
-            return self
-
-        def eq(self, c, v):
-            filters.append(("eq", c, v))
-            return self
-
-        def select(self, *_a, **_k):
-            return self
-
-        def limit(self, *_a):
-            return self
-
-        def execute(self):
-            return type("R", (), {"count": 1})()
-
-    class _DB:
-        def table(self, _n):
-            return _Q()
-
-    job_provenance.read_provenance(_DB())
-
-    assert ("gte", "last_conclusive_verification_at") in filters
-    assert ("eq", "is_active", True) in filters
-    assert ("eq", "listing_confidence", "active") in filters
+    assert "last_conclusive_verification_at >=" in verified
+    assert "is_active = true" in verified
+    assert "listing_confidence = 'active'" in verified

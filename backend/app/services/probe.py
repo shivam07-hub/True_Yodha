@@ -40,6 +40,7 @@ SNAPSHOT_TASKS = (
     "company_pulse",
     "ghost_index",
     "job_search",
+    "public_provenance",
     "role_families",
     "sector_panel",
     "skill_closeness",

@@ -2681,6 +2681,25 @@ count (1.3ms).
   cold fill should finish inside the 1.5s wait and stop stampeding — measure it
   when built. The `_count` Notice closes.
 
+**Built 2026-10-19.** Migration `20261019090000` applied 04:21:58 UTC: the row
+holds total 71,852, community 8, verified-live 6,221 (7-day window). One
+refresh through the rail, timed: **3,177ms** for all three counts, once a day
+instead of ~18 times. The read that replaces them: an index scan on the row's
+key, **0.08ms, 5 buffers**. `read_provenance` reads the row and counts nothing;
+`refresh_public_provenance()` is now the one definition of "verified live" and
+its window, so `VERIFIED_WINDOW_DAYS` left Python. No row, or a failed read,
+returns every field 0 together, which the rail card already shows as "Myro is
+counting the pool".
+
+What is not yet measured: prod runs `main`, so prod keeps counting until the
+next merge, and dev until `Develop` deploys. The proof to read after both:
+`verified_live` (queryid `3154336291968442631`) stops gaining calls (552 at
+2026-10-19 04:25:09 UTC), the `_count` Notice stops sighting, and a cold
+`/public/stats` fill comes in under the 1.5s cold-fill wait. The rest of that
+payload is four sequential reads at 7–29ms mean in Postgres (analytics
+snapshot, seekers, role families, this row), so the fill is round trips —
+roughly 0.7–1.2s at §24's per-hop floor. Close to the wait; measure it.
+
 **Not chosen, with the number that rules it out.**
 
 - **Edge `Cache-Control: s-maxage`.** No CDN on the path. Removes nothing.

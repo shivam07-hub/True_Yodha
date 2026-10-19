@@ -460,9 +460,14 @@ prod); #339 followed 10-13. A scheduled check reads R3/R4 on 10-19.
   so an edge `s-maxage` removes nothing. `/public/stats`: cached, yet the
   provenance counts run ~18×/day on prod (27 inline 8–15s waits, 37 timeouts
   cached as 0) and a cold Vercel build stampedes them (45 `verified_live`
-  counts in a minute from one dev build) — **22.2%** of the same window. Build:
-  a `public_provenance` task on `run_snapshot_sql_refresh` + belt;
-  `read_provenance` reads the row. Not built yet. Agent.
+  counts in a minute from one dev build) — **22.2%** of the same window.
+  **Built 2026-10-19:** migration `20261019090000` applied (one row, task
+  `public_provenance` on `run_snapshot_sql_refresh` at :35, belt
+  `dead_man:snapshot.public_provenance`); refresh 3,177ms once a day, read
+  0.08ms. Code on `Develop`, live on prod after the next `main` merge. **After the
+  merge:** `verified_live` queryid `3154336291968442631` stops gaining calls
+  (552 on 10-19 04:25 UTC), the `_count` Notice stops, and a cold `/public/stats`
+  fill is under 1.5s. Agent.
 
 ## AUTHED QA CHECKLIST — the CV machine (from the beta ledger, 2026-09-30)
 
