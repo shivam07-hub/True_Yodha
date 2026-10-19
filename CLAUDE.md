@@ -130,6 +130,7 @@ Jobs come from the scraper repo (Shivam's); this repo only reads them.
 | Domain language and code seams | [CONTEXT.md](CONTEXT.md) |
 | Architecture map of the code (AST, 2026-06-14 — rebuild before trusting) | `graphify-out/GRAPH_REPORT_frontend.md` |
 | **Every loop + its production reach number** | [FEATURE_LOOP_REGISTRY.md](docs/FEATURE_LOOP_REGISTRY.md) |
+| Upstream repos we build with · launch-video rules (`/myro-brag`) | [repos/README.md](repos/README.md) · [LAUNCH_VIDEOS.md](LAUNCH_VIDEOS.md) |
 
 `/docs` and `.claude/` are gitignored — a NEW file under either is invisible, so
 put new docs at the repo root; exception `docs/adr/` (held by
