@@ -78,6 +78,7 @@ export function CvIssueQueue({
                 brief={issue.brief}
                 severity={issue.severity}
                 onJump={() => onGo(issue)}
+                jumpLabel={issue.apply ? "Fix all" : undefined}
                 onDismiss={onDismiss && issue.fix ? () => onDismiss(issue) : undefined}
               />
             )}

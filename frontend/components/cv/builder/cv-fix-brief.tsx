@@ -31,10 +31,12 @@ interface CvFixBriefProps {
   onDismiss?: () => void
   /** Rail context: the fix happens on the paper, so the rail sends you there. */
   onJump?: () => void
+  /** A row that fixes in one tap names that act instead. */
+  jumpLabel?: string
 }
 
 export function CvFixBrief({
-  brief, severity, onRewrite, onEdit, onDismiss, onJump,
+  brief, severity, onRewrite, onEdit, onDismiss, onJump, jumpLabel,
 }: CvFixBriefProps) {
   return (
     <div className="cvw-brief" data-sev={severity}>
@@ -66,7 +68,7 @@ export function CvFixBrief({
       <div className="cvw-brief-acts">
         {onJump && (
           <button type="button" className="cvw-rw-primary" onClick={onJump}>
-            Fix this line
+            {jumpLabel ?? "Fix this line"}
           </button>
         )}
         {onRewrite && (

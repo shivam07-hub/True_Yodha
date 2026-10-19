@@ -64,7 +64,10 @@ export interface Issue {
   brief: IssueBrief
   /** Action word on a non-line row. `null` on line rows — those say
    *  "open on the line →" when active and nothing when not. */
-  action: "Fix" | "Add" | null
+  action: "Fix" | "Fix all" | "Add" | null
+  /** Set when one tap fixes the issue: the shell applies it through the open
+   *  document's editor instead of jumping to `target`. */
+  apply?: (cv: CVStructured) => CVStructured
 }
 
 interface BuildIssuesInput {
@@ -129,8 +132,9 @@ export function buildIssues({
       provenance: `ats · ${c.tag}`,
       fix: null,
       target: c.fix ?? null,
-      action: c.optional ? "Add" : "Fix",
-      brief: { reasons: ATS_EXPLAINERS[c.tag] ?? [] },
+      action: c.apply ? "Fix all" : c.optional ? "Add" : "Fix",
+      apply: c.apply,
+      brief: { reasons: c.why ?? ATS_EXPLAINERS[c.tag] ?? [], example: c.example },
     })
   }
 

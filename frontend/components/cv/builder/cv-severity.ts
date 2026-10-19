@@ -51,7 +51,8 @@ export function findingSeverity(f: ContentFinding): Severity {
 /** A failing required check blocks; an optional one only invites. Passing
  *  checks never reach here — they collapse into the rail's green strip. */
 export function atsSeverity(check: AtsCheck): Severity {
-  return check.optional ? "optional" : "blocking"
+  if (check.optional) return "optional"
+  return check.severity ?? "blocking"
 }
 
 /** Worst-first, so a line with one blocking and two weak findings reads red. */

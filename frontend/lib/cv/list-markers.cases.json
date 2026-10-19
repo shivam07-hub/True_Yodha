@@ -1,0 +1,27 @@
+{
+  "_readme": [
+    "A list marker copied from the uploaded file into a bullet: the page draws its own, so it printed twice ('• ▪ Built…').",
+    "TWO implementations read these cases and must agree: backend cv_structured_shape._without_marker (upload ingest)",
+    "and frontend lib/cv/list-markers.ts withoutMarker (the CV page's 'Fix all'). Pinned by",
+    "backend/tests/test_list_marker_cases.py and frontend/tests/list-markers.test.ts.",
+    "An empty 'out' means the line was only a marker and is dropped."
+  ],
+  "cases": [
+    { "in": "•   Assigned to the contract team", "out": "Assigned to the contract team" },
+    { "in": "▪  Built a qualified pipeline", "out": "Built a qualified pipeline" },
+    { "in": "▸ Architected a low-code platform", "out": "Architected a low-code platform" },
+    { "in": "– Analyzed features and risks", "out": "Analyzed features and risks" },
+    { "in": "§ Back tested 5 strategies", "out": "Back tested 5 strategies" },
+    { "in": "- Achieved ~90% accuracy", "out": "Achieved ~90% accuracy" },
+    { "in": "◦Analyzed 10+ startups", "out": "Analyzed 10+ startups" },
+    { "in": "   Directed restaurant operations", "out": "Directed restaurant operations" },
+    { "in": "■ Assisted the DSMG team", "out": "Assisted the DSMG team" },
+    { "in": "➤ Shipped the app", "out": "Shipped the app" },
+    { "in": "• ▪ Doubled up in the source", "out": "Doubled up in the source" },
+    { "in": "–20% churn in two quarters", "out": "–20% churn in two quarters" },
+    { "in": "-12 days off the close", "out": "-12 days off the close" },
+    { "in": "*Nights* on call for the payments platform", "out": "*Nights* on call for the payments platform" },
+    { "in": "Built a pipeline", "out": "Built a pipeline" },
+    { "in": "•", "out": "" }
+  ]
+}

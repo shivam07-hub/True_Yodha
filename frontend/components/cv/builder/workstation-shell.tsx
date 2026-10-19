@@ -165,6 +165,14 @@ export function WorkstationShell(props: WorkstationShellProps) {
   /** Going to the line: scrolls the pane and opens the fix card there, still in
    *  its brief phase — the model runs only when the user asks on the line. */
   function goToIssue(issue: Issue) {
+    // One tap fixes it: through the editor, so undo brings it back and the
+    // paper changing is the confirmation.
+    if (issue.apply && onPatch) {
+      wrapPatch(issue.apply)
+      setOpenIssueId(null)
+      setActiveIssueId(null)
+      return
+    }
     setActiveIssueId(issue.id)
     // The brief moves to the line with the user. Leaving the rail copy expanded
     // puts the same three reasons and the same example on screen twice.
@@ -257,7 +265,9 @@ export function WorkstationShell(props: WorkstationShellProps) {
   }, [history])
 
   const next = issues[0]
-  const nextLabel = next?.fix ? "Fix this line" : next?.action === "Add" ? "Add it" : "Open it"
+  const nextLabel = next?.fix
+    ? "Fix this line"
+    : next?.action === "Add" ? "Add it" : next?.action === "Fix all" ? "Fix all" : "Open it"
 
   return (
     <div className={`cvb-v2${className ? ` ${className}` : ""}`} data-tab={mode}>
