@@ -420,10 +420,13 @@ def test_coverage_cv_bullet_pass_upgrades_gap(monkeypatch):
     async def _no_stories(user_id, query, k=1):
         return []
 
-    monkeypatch.setattr(jd_coverage.memory_recall, "recall_stories", _no_stories)
+    async def _no_stories_many(user_id, queries, *, k=4, qvecs=None):
+        return [[] for _ in queries]
+
+    monkeypatch.setattr(jd_coverage.memory_recall, "recall_stories_many", _no_stories_many)
     result = _run(jd_coverage.assess(
         "u1", "A long enough job description prose here.", provider,
-        cv_bullets=jd_coverage.bullets_from_cv(CV),
+        cv_lines=jd_coverage.bullets_from_cv(CV),
     ))
     item = result.requirements[0]
     assert item.status == "covered"
@@ -687,7 +690,7 @@ def test_patch_requirement_answered_flips_gap_to_covered():
         covered=1, weak=0, gap=1,
     ))
     patched = jd_coverage.patch_requirement_answered(
-        raw, "own india territory", "I own the India territory for 2 years",
+        raw, "own india territory", "I own the India territory for 2 years", proven=True,
     )
     assert patched is not None
     hit = jd_coverage.payload_to_result(patched)
@@ -701,16 +704,16 @@ def test_patch_requirement_answered_flips_gap_to_covered():
 
 
 def test_patch_requirement_answered_none_on_miss_or_garbage():
-    assert jd_coverage.patch_requirement_answered(None, "x", "y") is None
-    assert jd_coverage.patch_requirement_answered("not json", "x", "y") is None
+    assert jd_coverage.patch_requirement_answered(None, "x", "y", proven=True) is None
+    assert jd_coverage.patch_requirement_answered("not json", "x", "y", proven=True) is None
     raw = jd_coverage.result_to_payload(jd_coverage.CoverageResult(
         requirements=[CoverageItem(requirement="A", status="covered", story_id="s1")],
         covered=1, weak=0, gap=0,
     ))
     # already covered → nothing to patch
-    assert jd_coverage.patch_requirement_answered(raw, "A", "answer") is None
+    assert jd_coverage.patch_requirement_answered(raw, "A", "answer", proven=True) is None
     # unknown requirement → leave cache alone
-    assert jd_coverage.patch_requirement_answered(raw, "B", "answer") is None
+    assert jd_coverage.patch_requirement_answered(raw, "B", "answer", proven=True) is None
 
 
 def test_router_answer_patches_coverage_cache(monkeypatch):
@@ -979,18 +982,17 @@ def test_the_interview_is_a_door_not_a_toll():
     assert len(items) == 14
 
 
-def test_the_only_proving_line_is_kept_and_a_gap_why_is_dropped():
+def test_the_only_proving_line_is_kept():
+    """The panel ruled this bullet the only proof; a trim may not drop it."""
     cv = json.loads(json.dumps(CV))
-    cv["experience"][0]["bullets"] = [
-        "Owned the India territory for two years.",
-        "Built data pipelines and warehouses for finance teams.",
-    ]
+    proof = "Built data pipelines and warehouses for finance teams."
+    cv["experience"][0]["bullets"] = ["Owned the India territory for two years.", proof]
     parsed = {
         "summary": None,
         "skills_line": None,
         "roles": [{
             "role_index": 0,
-            "why": "You now show data pipelines and warehouses.",
+            "why": "Tighter.",
             "bullets": [{
                 "text": "Owned the India territory for two years.",
                 "from": [0], "story_ids": [], "used_answer": False,
@@ -999,14 +1001,49 @@ def test_the_only_proving_line_is_kept_and_a_gap_why_is_dropped():
         }],
     }
     items = [CoverageItem(
-        requirement="Oversee creation of data pipelines and warehouses", status="gap",
+        requirement="Oversee creation of data pipelines and warehouses", status="covered",
+        source="cv", story_pointer=proof, proof_lines=[proof],
     )]
     out = cv_weave.build_proposal(cv, parsed, [], [], items)
     assert out is not None
     texts = [bullet["text"] for bullet in out["roles"][0]["bullets"]]
-    assert "Built data pipelines and warehouses for finance teams." in texts
+    assert proof in texts
     assert out["roles"][0]["dropped_lines"] == []
-    assert out["roles"][0]["why"] == ""
+
+
+def test_a_line_with_a_second_proof_on_the_paper_may_be_dropped():
+    keep, drop = "Ran SQL on the billing warehouse.", "Wrote SQL for the finance close."
+    blocks = [{"index": 0, "bullets": [keep, drop]}]
+    assert cv_weave.sole_proof_texts(blocks, [[keep, drop]]) == set()
+    assert cv_weave.sole_proof_texts(blocks, [[drop, "a line no longer on the paper"]]) == {drop}
+
+
+def test_a_why_naming_a_gap_tool_is_dropped_and_other_whys_stand():
+    cv = json.loads(json.dumps(CV))
+    cv["experience"][0]["bullets"] = ["Owned the India territory for two years."]
+
+    def _proposal(why):
+        parsed = {
+            "summary": None,
+            "skills_line": None,
+            "roles": [{
+                "role_index": 0,
+                "why": why,
+                "bullets": [{
+                    "text": "Owned the India territory, for two years.",
+                    "from": [0], "story_ids": [], "used_answer": False,
+                }],
+                "dropped": [],
+            }],
+        }
+        items = [CoverageItem(
+            requirement="Build reports with tools such as Alteryx, Power BI, or Tableau",
+            status="gap",
+        )]
+        return cv_weave.build_proposal(cv, parsed, [], [], items)
+
+    assert _proposal("You now show Tableau reporting.")["roles"][0]["why"] == ""
+    assert _proposal("Leads with the quota.")["roles"][0]["why"] == "Leads with the quota."
 
 
 def test_a_tool_that_proves_a_motion_leads_the_skills_line():
@@ -1021,3 +1058,26 @@ def test_a_tool_that_proves_a_motion_leads_the_skills_line():
     assert out is not None
     assert out["skills_line"] == "Tableau, Excel, PowerPoint"
     assert out["summary"] is None
+
+
+# ── interview options take proof from the panel ─────────────────────────────
+
+def test_an_option_is_proof_only_where_the_panel_ruled_it():
+    from app.services.cv_weave_interview import InterviewOption, InterviewQuestion, _label_options
+
+    weak = CoverageItem(requirement="Own quota", status="weak", story_id="s1")
+    gap = CoverageItem(requirement="Run weekly business reviews", status="gap")
+    questions = [
+        InterviewQuestion(requirement=weak.requirement, status="weak", options=[
+            InterviewOption(kind="cv", label="Owned the regional quota"),
+            InterviewOption(kind="story", label="Quota story", story_id="s1"),
+        ]),
+        InterviewQuestion(requirement=gap.requirement, status="gap", options=[
+            InterviewOption(kind="cv", label="Ran the weekly ops review"),
+        ]),
+    ]
+    out = _label_options(questions, [weak, gap])
+    assert [(o.label, o.proven) for o in out[0].options] == [
+        ("Quota story", True), ("Owned the regional quota", False),
+    ]
+    assert out[1].options[0].proven is False, "nearby is offered, never counted"

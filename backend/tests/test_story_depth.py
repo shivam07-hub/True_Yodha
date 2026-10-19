@@ -77,13 +77,18 @@ def test_a_paragraph_is_not_a_cv_line():
 def test_a_thin_story_may_evidence_a_requirement_but_never_close_it():
     """L1. `covered` removes a requirement from the weave interview permanently —
     on this job and every later one. A line we scraped off a CV must not be able
-    to do that, or the bridge silences the door that actually works."""
+    to do that, or the bridge silences the door that actually works. The judge
+    may rule an untold story proving; the panel still files it `weak`."""
     from app.services import jd_coverage
+    from app.services.jd_coverage import _Line, _rule
 
-    assert jd_coverage.COVERED_MIN > jd_coverage.WEAK_MIN  # bands still ordered
-    # Cosine is an order, not a close. A near score does not mean covered.
-    assert jd_coverage._classify(0.90) == "near"
-    # …and _cover_one downgrades it, which the handler test below drives.
+    thin = _Line(id="1a", text="Migrated payments", kind="story", similarity=0.97,
+                 story_id="s1", told=False)
+    assert _rule("Migrate payments to cloud", [thin]).status == "weak"
+    told = _Line(id="1b", text="Migrated payments", kind="story", similarity=0.5,
+                 story_id="s2", told=True)
+    assert _rule("Migrate payments to cloud", [thin, told]).status == "covered"
+    assert jd_coverage.RULE  # the panel is stamped by the judge's rule
 
 
 def test_pick_keep_prefers_the_story_the_user_actually_told():

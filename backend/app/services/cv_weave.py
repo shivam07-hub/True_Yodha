@@ -34,7 +34,7 @@ from app.services.cv_weave_interview import StoryMaterial
 from app.services.deepening_keys import DeepeningKey
 from app.services.jd_brief import JobBrief, digest as brief_digest
 from app.services.jd_coverage import CoverageItem
-from app.services.jd_reflection import Evidence, entails, proving_ids
+from app.services.jd_reflection import names_a_tool
 from app.services import myro_voice
 from app.services.llm_provider import LLMProvider, LLMProviderError, get_writer_provider
 
@@ -295,26 +295,24 @@ def edit_kind(old_bullets: list[str], new_texts: list[str], dropped: list[int]) 
 
 
 def _why_overclaims(why: str, items: list[CoverageItem]) -> bool:
-    """A why that names a gap motion is dropped. The bullets can still land."""
+    """A why that names a tool the panel ruled a gap is dropped. The bullets can
+    still land. Only named tools are a string fact; whether a sentence claims
+    any other motion is the judge's call, and the judge ruled the panel."""
     return any(
-        item.status == "gap" and entails(item.requirement, why)
+        item.status == "gap" and names_a_tool(item.requirement, why)
         for item in items
     )
 
 
-def sole_proof_texts(blocks: list[dict[str, Any]], requirements: list[str]) -> set[str]:
-    """Bullet texts that are the only line carrying some motion."""
-    evidence = [
-        Evidence(id=f"{block['index']}:{i}", text=text)
-        for block in blocks
-        for i, text in enumerate(block["bullets"])
-    ]
-    by_id = {line.id: line.text for line in evidence}
+def sole_proof_texts(blocks: list[dict[str, Any]], proofs: list[list[str]]) -> set[str]:
+    """Bullet texts that are the only line on this paper proving some
+    requirement, per the panel's verdicts (`CoverageItem.proof_lines`)."""
+    on_paper = {text for block in blocks for text in block["bullets"]}
     sole: set[str] = set()
-    for requirement in requirements:
-        ids = proving_ids(requirement, evidence)
-        if len(ids) == 1:
-            sole.add(by_id[ids[0]])
+    for lines in proofs:
+        present = [text for text in dict.fromkeys(lines) if text in on_paper]
+        if len(present) == 1:
+            sole.add(present[0])
     return sole
 
 
@@ -343,16 +341,16 @@ def seat_lead(cv_structured: dict | None) -> str | None:
 
 
 def restore_sole_proof(
-    source: dict, dest: dict, requirements: list[str] | None,
+    source: dict, dest: dict, proofs: list[list[str]] | None,
 ) -> None:
-    """A line that is the only proof of a motion stays. The bullet cap yields."""
-    if not requirements:
+    """A line that is the only proof of a requirement stays. The bullet cap yields."""
+    if not proofs:
         return
     blocks = [
         {"index": i, "bullets": [str(text) for text in (block.get("bullets") or [])]}
         for i, block in enumerate(source.get("experience") or [])
     ]
-    sole = sole_proof_texts(blocks, requirements)
+    sole = sole_proof_texts(blocks, proofs)
     if not sole:
         return
     dest_blocks = dest.get("experience") or []
@@ -369,11 +367,11 @@ def restore_sole_proof(
 
 
 def lead_proven_tools(skills_line: str, requirements: list[str]) -> str:
-    """Tools that prove a motion lead the line. Nothing is added."""
+    """Tools a requirement names lead the line. Nothing is added."""
     parts = [part.strip() for part in (skills_line or "").split(",") if part.strip()]
     if len(parts) < 2 or not requirements:
         return skills_line
-    lead = [part for part in parts if any(entails(req, part) for req in requirements)]
+    lead = [part for part in parts if any(names_a_tool(req, part) for req in requirements)]
     rest = [part for part in parts if part not in lead]
     ordered = lead + rest
     if ordered == parts:
@@ -437,7 +435,7 @@ def build_proposal(
     by_index = {e["role_index"]: e for e in parsed.get("roles") or []}
     roles_out: list[dict[str, Any]] = []
     changed_count = 0
-    sole = sole_proof_texts(blocks, [item.requirement for item in coverage_items])
+    sole = sole_proof_texts(blocks, [item.proof_lines for item in coverage_items])
     for b in blocks:
         entry = by_index.get(b["index"])
         base = {
@@ -577,7 +575,7 @@ def compose_weave(
     *,
     accept_summary: bool = True,
     accept_skills_line: bool = True,
-    requirements: list[str] | None = None,
+    proofs: list[list[str]] | None = None,
 ) -> dict:
     """cv_structured for the tailored version: accepted+changed roles take their
     proposed bullets, everything else carries over verbatim. Pure."""
@@ -591,7 +589,7 @@ def compose_weave(
         next_cv["summary"] = proposal["summary"]
     if accept_skills_line and proposal.get("skills_line"):
         next_cv["skills_line"] = proposal["skills_line"]
-    restore_sole_proof(cv_structured, next_cv, requirements)
+    restore_sole_proof(cv_structured, next_cv, proofs)
     return next_cv
 
 
@@ -648,7 +646,7 @@ def land_role(
     action: str,
     master: dict,
     original_indexes: list[int] | None = None,
-    requirements: list[str] | None = None,
+    proofs: list[list[str]] | None = None,
 ) -> dict:
     """Patch one role onto the working draft. Take writes Mentor's bullets
     (per-pointer original puts the old line back); undo restores the master's;
@@ -669,5 +667,5 @@ def land_role(
                 str(b) for b in (master_blocks[role_index].get("bullets") or [])
             ]
     if action == "take":
-        restore_sole_proof(cv_structured, next_cv, requirements)
+        restore_sole_proof(cv_structured, next_cv, proofs)
     return next_cv

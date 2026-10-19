@@ -11,6 +11,47 @@ through `/frontend-design`.
 
 ---
 
+## 0 · Amendment 2026-10-19 — a judge rules the panel (Shivam)
+
+**What changed.** §3 rule 2 ("a motion is a phrase") is retired. Measured on
+every cached panel on prod (52 panels, 676 requirements): the phrase rule took
+the last three content words of a clause, so it missed real evidence
+("dashboards with real-time visibility" needed the words `real time
+visibility`), and 63 of the 68 lines it would prove rested on one word ("plan"
+proved "Plan and budget projects"). Requiring two words left 5 of 676. A string
+rule cannot judge whether a line proves a requirement.
+
+**The rule now.**
+
+1. **Named tools stay a string fact.** A requirement that offers tools as
+   alternatives — "such as", "at least one of", "one of the following", or a
+   list joined by "or" ("SQL, Python, or R") — is proven by any line that names
+   one of them as a whole token. No model. (§3 rule 1, unchanged.)
+2. **Everything else is one judgment-lane call per (person, job) panel.**
+   Each requirement's three best lines by cosine — told and untold stories, CV
+   bullets, the skills line, the summary — go to the judge in one batch. It
+   names the lines that, on their own, show the person did what the
+   requirement asks. Cosine orders the candidates; it is never the verdict.
+3. **The panel is the one answer.** The verdict, the proving line, and every
+   CV line the judge ruled proving (`proof_lines`) are cached in the coverage
+   row (`job_deepenings`, `jd_coverage`). The weave interview, the weave's
+   sole-proof and `why` guard, reservoir projection, and Match Eval's
+   reflection block read the panel. None of them judges again.
+4. **Status.** A told story or a CV line that proves → `covered`; an untold
+   story that proves → `weak` (Shivam, 2026-09-13: a CV line is a start, not
+   an answer); nothing proves → `gap`.
+5. **An answer is judged once.** A banked gap answer flips its row only when
+   the judge says the answer proves it. Otherwise the room is marked stale and
+   re-judged once the answer is a story.
+6. **A failed judge writes nothing.** A fresh panel whose judge call fails is
+   not cached and shows no rows (same as a failed parse); a stale panel keeps
+   its last verdicts.
+7. **Forward pass.** A panel without the judge's stamp is stale: it re-judges
+   with its own requirements (no re-parse) the next time its person opens it.
+   No backfill.
+
+The rest of this spec reads with "`reflect`" meaning the panel's verdicts.
+
 ## 1 · The rule
 
 One module answers "does this line of the person's own evidence entail this
@@ -52,6 +93,9 @@ Measured on Shivam's job document v11 and the weave cache from 2026-10-15:
 ## 3 · The module
 
 `app/services/jd_reflection.py`. Pure. No database, no provider, no cosine.
+Since §0 it holds only the named-tools rule, the judge's prompt and parser,
+and the Match Eval block built from panel verdicts; the call itself runs in
+`jd_coverage`.
 
 ```text
 reflect(requirements, evidence) -> list[Motion]
@@ -76,10 +120,10 @@ nearby is a gap.
    any one of those names appears as a whole token in some evidence line.
    "Alteryx, Power BI, and Tableau" is proven by Tableau on the skills line.
    It is not proven by a dashboard bullet that names none of the three.
-2. **A motion is a phrase.** "Data pipelines and warehouses" is proven by a
-   line that says data pipeline or warehouse. It is not proven by "pipeline"
-   beside inbound, qualified, sales, or requirements. Shared nouns do not
-   transfer across domains.
+2. **Retired 2026-10-19 (§0) — the judge decides.** It said a motion is a phrase.
+   The intent stands — "pipeline" beside inbound, qualified, sales, or
+   requirements does not prove a data pipeline; shared nouns do not transfer
+   across domains — and the judge prompt says so.
 3. **The proving line is the one that carries the motion.** The Motion records
    that line's id. A later `why`, coverage row, or interview option that
    cites a different line is discarded.

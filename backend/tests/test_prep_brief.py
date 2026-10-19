@@ -245,7 +245,7 @@ def test_post_computes_coverage_inline_on_cache_miss(monkeypatch):
     repo = _FakeRepo()  # no cached coverage
     provider = _StubProvider(_GOOD_REPLY)
 
-    async def _assess(user_id, jd_text, _provider, cv_bullets=None):
+    async def _assess(user_id, jd_text, _provider, cv_lines=None):
         return jd_coverage.CoverageResult(
             requirements=[CoverageItem(requirement="Own quota", status="gap")],
             covered=0, weak=0, gap=1,

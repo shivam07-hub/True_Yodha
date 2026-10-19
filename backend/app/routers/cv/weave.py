@@ -47,7 +47,7 @@ from app.services import (
     xp_service,
 )
 from app.services.llm_provider import get_blocking_judgment_provider
-from app.services.matching.paper_facts import requirement_strings
+from app.services.matching.paper_facts import proof_sets
 from app.services.cv_role_guard import drop_invented
 from app.services.cv_structured_shape import has_content
 
@@ -351,13 +351,13 @@ async def weave_answer(
     if not entry_id:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Could not save your answer.")
     career_reservoir.enqueue_ingest(user.id, entry_id)
-    # Flip the cached coverage row to covered NOW (deterministic, no LLM) so a
-    # later interview never re-asks an answered question; the next real refresh
-    # replaces the patch with the ingested story. Best-effort.
-    if coverage_raw:
-        patched = jd_coverage.patch_requirement_answered(coverage_raw, requirement, answer)
-        if patched:
-            jobs_repo.upsert_deepening(user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY, patched)
+    # The judge rules the answer now: a proving answer flips its row so a later
+    # interview never re-asks it; anything else re-judges once it is a story.
+    if coverage_raw and body.job_id:
+        await jd_coverage.settle_answer(
+            jobs_repo, user.id, body.job_id, coverage_raw, requirement, answer,
+            get_blocking_judgment_provider(),
+        )
     return WeaveAnswerResponse(entry_id=entry_id)
 
 
@@ -511,7 +511,7 @@ def apply_weave(
             status.HTTP_409_CONFLICT,
             "Your CV changed since this draft was written — run Tailor with Mentor again.",
         )
-    motions = requirement_strings(reads["coverage"])
+    proofs = proof_sets(reads["coverage"])
     accepted = list(dict.fromkeys(body.accepted_roles))
     decided = list(dict.fromkeys(
         body.decided_roles if body.decided_roles is not None else body.accepted_roles
@@ -539,14 +539,14 @@ def apply_weave(
             source, proposal.model_dump(), body.role_index,
             action=body.action, master=master,
             original_indexes=body.original_pointers,
-            requirements=motions,
+            proofs=proofs,
         )
     else:
         composed = cv_weave.compose_weave(
             source, proposal.model_dump(), set(accepted),
             accept_summary=body.accept_summary,
             accept_skills_line=body.accept_skills_line,
-            requirements=motions,
+            proofs=proofs,
         )
     composed = drop_invented(master, composed)
     body_text = cv_compose.render_deterministic(composed)
