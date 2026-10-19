@@ -47,6 +47,8 @@ Closed or parked, one line each:
 - **#37** ranked job-skill importance — blocked on the scraper repo, and Shivam's
   rollout gate rejects a two-tier corpus. Parked.
 - **Extension saves duplicating a list job** (2 of 6 `ext_` rows) — parked; revisit only if it grows.
+- **The QA account (`04a07845…`) was counted as a real person** — `is_test_account`
+  was false, so its 2 tailored versions sat in the spine. Flagged 2026-10-19.
 
 ## 2026-10-18 — OpenRouter outage closed; the 10-17 merge; backfill script gone
 

@@ -18,7 +18,7 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 |---|---|---|---|---|
 | 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read `apply_asked` ~10-27; nothing to build before it |
 | 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) | Built; `0aafb324` on `main`. **BLOCKED on Shivam**: preview → approve |
-| 4 | Front door | **#57** "Which job do you want?" after upload | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor, 1st | On `main` 2026-10-17 · authed click-through (U4) never run |
+| 4 | Front door | **#57** "Which job do you want?" after upload | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor, 1st | On `main` 2026-10-17 · U4 desktop run 2026-10-19: link paste was broken (fixed `2cc7b264`); 12 clicks to download vs ≤5 — FD1–FD3 below · phone run owed |
 | 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1–S4 on `main` · next S5 add role |
 | 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor, 3rd | Spec only, no commits · S0 audit |
 | 6 | Pay | **#56** the ₹199 Apply Pack | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Cursor, 4th | Spec only, no commits · S1 settlement |
@@ -105,9 +105,31 @@ on mobile. Direction moves **after** the first tailored CV. Target: upload →
 tailored CV downloaded in **<10 min, ≤5 clicks**, read from `core_loop_events`.
 
 S0–S5 built 2026-10-14, on `main` 2026-10-17, door telemetry on prod from 10-18.
-**Measured 2026-10-19 (real accounts): 36 signups since 10-14 → 9 uploaded (25%)
-→ 1 tailored.** The all-time upload rate is 45%, so the leak is still here. QA
-check **U4** is its acceptance and has not been run.
+**Measured 2026-10-19 (real accounts): 36 signups since 10-14 → 10 uploaded →
+8 confirmed skills (2 stopped there) → 2 tailored.** Every real person who saw the
+door picked "Jobs that fit" (4 of 4: 3 in the lost beacons of 10-17/18 —
+FRONT_DOOR §7 S3 — and 1 on 10-19);
+none pasted a job. The all-time upload rate is 45%; this week's is 28%.
+
+**U4 desktop run, 2026-10-19** (QA account, dev, Amazon BA link): the door renders
+and Paste → review → playground works. Found on the way:
+
+- **Fixed — a pasted link always failed.** `extractUrl` used the 15s default
+  timeout; the server answers in 31–45s, so the door and /market's "Paste a job"
+  said "Request timed out." while the server returned 200 (`2cc7b264`, live after
+  the next `main` merge).
+- **FD1 · Reading a link takes 31–45s.** `extract_job_from_text` asks the model to
+  return the whole posting as `job_description` (`max_tokens=2048`), so the wait
+  is output tokens. Lift role/company/location by model and keep the page text
+  for the JD, or stream. Front door.
+- **FD2 · 12 clicks from the door to Download, target ≤5.** Paste, Fetch, Tailor a
+  CV (3) → Tailor with Mentor (4) → five gap questions one at a time, each needing
+  Skip or That's it (9) → two line reviews (11) → "Every line is decided" → Back
+  to the paper (12) → Download. The questions and the done screen are the cost.
+- **FD3 · Small:** Enter in the link field does nothing (only Fetch submits); the
+  playground header reads "Untitled role" until the job loads.
+
+T1 findings from the same run are under §5.
 
 ---
 
@@ -126,6 +148,21 @@ or move-between-sections; mobile has all three (`mobile-cv-sections.tsx`), gated
 at `library-view.tsx` `if (!isDesktop)`. Mobile writes through
 `useMasterAutosave` to the **master**, so the one surface that can add a section
 edits the wrong document for a tailored CV.
+
+**T1 findings, U4 run 2026-10-19** (Amazon "Business Analyst, Support, Supply
+Chain", QA account):
+
+- **Match reads 0/100 while coverage has 1 of 12 covered.** `/cv/jd-coverage`
+  returned covered 1 · weak 0 · gap 11, cached from before the tailor; the header
+  showed 0 before and after.
+- **Coverage credits stories only.** All 12 requirements came back
+  `source: "story"`. "Build and maintain self-serve dashboards" was a gap, yet the
+  CV's own JLL line ("built property-expense and portfolio dashboards for 50+
+  clients") was offered as a pick for that same question.
+- **The weave proposed a broken summary.** Review 1/2 offered "GTM Business
+  Development Manager, Capgemini, Insights & Data (GCC Growth). • Own the full B2B
+  sales cycle…" — a role label and a bullet glyph — to replace a summary that
+  already led with dashboards.
 
 Tier B (#48 user-titled sections · #51 outcome not digits · #53 loss notice and
 restore · #54 nine screens) is parked until front-door numbers exist — ARCHIVE
@@ -186,9 +223,13 @@ Agent-owned. A scheduled check reads R3/R4 on 10-19.
   `capacity_503:upstream.read_timeout` (`_relabelled_timeout`), live after the
   next `main` merge. Original check: no `AuthRetryableError: Server disconnected`
   / `CreateRaced` (proofs ride `test_auth_client_http1.py`).
-- **R9 · Drain wall time.** Measurable now — the scraper has landed daily since
-  10-15. Stage A claim timestamps (`skill_floor_claimed_at` →
-  `skill_floor_attempted_at`) for one run: expect minutes, not hours.
+- **R9 · Drain wall time — measured 2026-10-19: about an hour, and one day lost.**
+  Scraper jobs since 10-15, first ingest → last `skill_floor_attempted_at`: 66 ·
+  65 · 1,441 · 58 · 61 min (10-15 → 10-19); median wait 37–52 min. The expectation
+  was minutes. On **10-17** all 3,265 jobs waited ~24h and were attempted at
+  10-18 05:04 with the next batch — the day #342 reached `main`; the cause is
+  unverified. **Next:** read the worker log for 10-17 05:00–06:00 UTC, then decide
+  whether an hour is the claim cadence or the work.
 - **R10 · Load off Micro, not a bigger Micro** (2026-10-14). The wait is the
   database, not the app (100 threads, 40 in-flight reads, 100-conn pool already).
   Shipped: `9d4ad00d` (an inert verifier result no longer rewrites the `jobs`
@@ -238,7 +279,10 @@ and asserts contrast, squeeze, reach, theme and tap size (credentials in
   every seniority option is tappable. — 96 143
 - **U4 · After upload, the next step is obvious.** Acceptance for the front door
   (grill D6: "Which job do you want?"). *The single biggest theme, 17 reports* —
-  19 21 27 34 39 41 58 59 79 85 87 89 92 102 106 107 136
+  19 21 27 34 39 41 58 59 79 85 87 89 92 102 106 107 136. **Desktop run
+  2026-10-19: the door is obvious; the path behind it is not** — see §4 (fix
+  `2cc7b264`, FD1–FD3). Phone owed: the QA account finished onboarding in this run,
+  so the door no longer shows for it.
 - **T1 · Paste a JD → the CV actually changes toward it.** Bullets rewritten
   against the JD's terms, not generic "add numbers" tips. — 31 66 90 148
 - **T2 · Tailoring never swaps in a life you did not live.** Acceptance for the
