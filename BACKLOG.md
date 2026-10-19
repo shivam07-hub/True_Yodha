@@ -152,39 +152,35 @@ edits the wrong document for a tailored CV.
 **T1 findings, U4 run 2026-10-19** (Amazon "Business Analyst, Support, Supply
 Chain", QA account):
 
-- **Match reads 0/100 while coverage has 1 of 12 covered.** Not a display bug:
-  `matchScore` = coverage % − content penalty, clamped at 0 (`match-score.ts`).
-  1/12 = 8, the Fixes rail subtracts more, so 0. With coverage this low, Match is
-  0 for nearly everyone, so the header number tells nobody anything.
-- **Coverage is near zero for everyone, and has been since July — ROOT-CAUSED
-  2026-10-19.** All 52 cached panels on prod (676 requirements, 29 people): 9
-  covered, 0 by a CV line. Two rules, both wrong:
-  - *Until 10-17 on prod* a line needed cosine ≥0.58 (weak) / ≥0.74 (covered).
-    `text-embedding-3-small` scores a requirement against a CV bullet at
-    0.16–0.43 (measured on `8ff0c622`), so the CV leg fired 3 times in 622.
-  - *Since `3b29c282` (10-15 Develop, 10-17 `main`)* `jd_reflection.entails`
-    decides. Its "motion" is the last three content words of each clause, so it
-    misses real evidence ("dashboards with real-time visibility" needs the words
-    `real time visibility`) — and **63 of the 68 lines it would prove across all
-    676 requirements rest on one word** ("plan" proves "Plan and budget
-    projects", "own" proves "Own and drive product portfolio", "partners"
-    proves "co-sell across Microsoft and partners"). Requiring two words leaves
-    5 of 676. A phrase rule swings between a keyword match and nothing; it cannot
-    judge whether a line proves a requirement.
-  - **Decision for Shivam** — ARCHITECTURE_JD_REFLECTION.md §3 says the module
-    is "Pure. No provider". Recommendation: keep the string rule only for named
-    alternatives (Tableau on the skills line is a fact), and let one batched
-    judgment-lane call per (person, job) panel rule the top-3 cosine-ordered
-    lines per requirement, cached with the panel it already writes. Cost: one
-    call per panel, ever (52 so far). Method to re-run: every requirement in
-    `job_deepenings` (`prompt_key='jd_coverage'`) × the person's latest
-    `baseline_upload` bullets, skills line and summary, through `entails`.
-  - The CV leg also reads only bullets; the spec names the skills line and
-    summary as evidence. Moot until the rule above is settled.
-- **The weave proposed a broken summary.** Review 1/2 offered "GTM Business
-  Development Manager, Capgemini, Insights & Data (GCC Growth). • Own the full B2B
-  sales cycle…" — a role label and a bullet glyph — to replace a summary that
-  already led with dashboards.
+- **Coverage — FIXED `19dd2389` (Shivam's call, 2026-10-19).** It was near
+  zero for everyone since July: all 52 cached panels on prod (676 requirements,
+  29 people) had 9 covered and 0 by a CV line. Until 10-17 a cosine band nothing
+  reached (requirement ↔ bullet scores 0.16–0.43); since `3b29c282` a phrase rule
+  that missed real evidence and proved 63 of its 68 lines on one word ("plan"
+  proved "Plan and budget projects"). Now (ARCHITECTURE_JD_REFLECTION.md §0):
+  named tools by string; everything else one judgment-lane call per (person,
+  job) panel over each requirement's top-3 lines by cosine — stories, bullets,
+  skills line, summary — and each proof must quote the words that show it.
+  Every reader (interview, weave sole-proof and `why`, projection, Match Eval)
+  takes the panel's verdicts. Old panels re-judge on their person's next open.
+  Re-judged on prod data, nothing written: QA 1 → 4 of 12, `8ff0c622` 0 → 7 of
+  14, `9c360957` 0 → 8 of 14. A panel now takes 9–45s once (was 31–70s: story
+  recall is one batch, not one per requirement); the judge call alone is 4–40s.
+  Still lenient at the edges: ESG reporting proved "reports on global real
+  estate portfolio performance". **After the merge:** re-run the method above
+  on fresh panels and read 20 proofs by eye.
+- **Match reads 0 for almost everyone.** `matchScore` = coverage % − content
+  penalty, clamped at 0 (`match-score.ts`). With honest coverage the QA job reads
+  33 before the penalty. Re-read the header after the merge before deciding
+  whether the penalty belongs in the same number.
+- **The weave proposes a summary that is a role label plus a bullet.** "GTM
+  Business Development Manager, Capgemini, Insights & Data (GCC Growth). ▪ Own
+  the full B2B sales cycle…". Cause: `cv_weave.seat_lead()` — spec S3 says the
+  summary leads with the current seat, so it builds "role, company. first
+  bullet" — and the uploaded CV's bullets carry their "▪" glyph into
+  `cv_structured`. Two fixes, both small: strip bullet glyphs at upload parse
+  (forward pass: on the next upload), and compose the seat as a sentence
+  rather than a label plus a raw bullet.
 
 Tier B (#48 user-titled sections · #51 outcome not digits · #53 loss notice and
 restore · #54 nine screens) is parked until front-door numbers exist — ARCHIVE
