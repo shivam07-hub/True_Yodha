@@ -27,6 +27,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 from typing import Any
 
 from app.services.cv_rewrite import gains_foreign_numbers, loses_metrics, loses_substance
@@ -323,21 +324,33 @@ def _current_company(cv_structured: dict | None) -> str:
     return str(experience[0].get("company") or "").strip()
 
 
-def seat_lead(cv_structured: dict | None) -> str | None:
-    """Current seat, then its first line. Nothing here is new."""
+def _employer(company: str) -> str:
+    """The employer's own name, without the team or unit a CV appends to it:
+    "Capgemini, Insights & Data (GCC Growth)" → "Capgemini"."""
+    return re.split(r"[,(|]| - | – ", company, maxsplit=1)[0].strip()
+
+
+def names_seat(text: str, company: str) -> bool:
+    """Does this text already say where the person works now?"""
+    employer = _employer(company)
+    return bool(employer) and employer.casefold() in (text or "").casefold()
+
+
+def seat_lead(cv_structured: dict | None, summary: str) -> str | None:
+    """The summary, led by the current seat as a sentence: "Role at Company."
+    then the summary's own words. Nothing here is new, and no bullet is lifted
+    into it — a role label glued to a raw bullet (with its "▪") is what this
+    used to produce."""
     experience = (cv_structured or {}).get("experience") or []
     if not experience:
         return None
     role = str(experience[0].get("role") or "").strip()
-    company = _current_company(cv_structured)
-    bullet = next(
-        (str(item).strip() for item in (experience[0].get("bullets") or []) if str(item).strip()),
-        "",
-    )
-    lead = ", ".join(part for part in (role, company) if part)
-    if not lead:
+    if not role:
         return None
-    return f"{lead}. {bullet}".strip()
+    company = _current_company(cv_structured)
+    seat = f"{role} at {company}." if company else f"{role}."
+    rest = " ".join((summary or "").split())
+    return f"{seat} {rest}" if rest else seat
 
 
 def restore_sole_proof(
@@ -499,9 +512,8 @@ def build_proposal(
         logger.info("metric cv_weave.extras_guard_failed field=summary")
     company = _current_company(cv_structured)
     existing = str((cv_structured or {}).get("summary") or "")
-    opening_names_seat = bool(company) and company.casefold() in (summary or existing).casefold()
-    if coverage_items and company and not opening_names_seat:
-        seated = seat_lead(cv_structured)
+    if coverage_items and company and not names_seat(summary or existing, company):
+        seated = seat_lead(cv_structured, summary or existing)
         if extras_guard_ok(seated, own_material):
             summary = seated
     reqs = [item.requirement for item in coverage_items]

@@ -146,3 +146,69 @@ def test_normalizing_a_canonical_payload_is_a_no_op() -> None:
     })
 
     assert cv_parser.normalize_structured(canonical) == canonical
+
+
+def test_a_list_marker_the_model_copied_is_not_part_of_the_bullet() -> None:
+    """The parser copies bullets verbatim, so the CV's own marker came along
+    ("▪ Built…") and the renderer drew its own in front of it: "• ▪ Built…".
+    Measured 2026-10-19: 387 baseline bullets across ~25 people. The markers
+    below are the ones found on prod."""
+    ingested = cv_parser._validate_structured({
+        "experience": [{"company": "Cap", "role": "BDM", "bullets": [
+            "•   Assigned to the contract team",
+            "▪  Built a qualified pipeline",
+            "▸ Architected a low-code platform",
+            "– Analyzed features and risks",
+            "§ Back tested 5 strategies",
+            "- Achieved ~90% accuracy",
+            "◦Analyzed 10+ startups",
+            "   Directed restaurant operations",
+            "■ Assisted the DSMG team",
+            "• ▪ Doubled up in the source",
+        ]}],
+        "projects": [{"name": "P", "bullets": ["➤ Shipped the app"]}],
+        "certs": ["• AWS Certified Cloud Practitioner"],
+    })
+
+    assert ingested["experience"][0]["bullets"] == [
+        "Assigned to the contract team",
+        "Built a qualified pipeline",
+        "Architected a low-code platform",
+        "Analyzed features and risks",
+        "Back tested 5 strategies",
+        "Achieved ~90% accuracy",
+        "Analyzed 10+ startups",
+        "Directed restaurant operations",
+        "Assisted the DSMG team",
+        "Doubled up in the source",
+    ]
+    assert ingested["projects"][0]["bullets"] == ["Shipped the app"]
+    assert ingested["certs"] == ["AWS Certified Cloud Practitioner"]
+
+
+def test_a_leading_figure_or_a_marker_only_line_is_handled_honestly() -> None:
+    ingested = cv_parser._validate_structured({
+        "experience": [{"company": "Cap", "role": "BDM", "bullets": [
+            "–20% churn in two quarters",
+            "-12 days off the close",
+            "*Nights* on call for the payments platform",
+            "•",
+        ]}],
+    })
+    assert ingested["experience"][0]["bullets"] == [
+        "–20% churn in two quarters",
+        "-12 days off the close",
+        "*Nights* on call for the payments platform",
+    ]
+
+
+def test_reading_a_cv_keeps_its_markers() -> None:
+    """Stripping is ingest hygiene. A stored row is shown as stored."""
+    stored = {
+        **_minimal_payload(),
+        "experience": [{"company": "Cap", "role": "BDM", "dates": "", "location": "",
+                        "bullets": ["▪ Built a qualified pipeline"]}],
+    }
+    assert cv_parser.normalize_structured(stored)["experience"][0]["bullets"] == [
+        "▪ Built a qualified pipeline",
+    ]

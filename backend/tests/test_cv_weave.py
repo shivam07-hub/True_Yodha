@@ -171,7 +171,7 @@ def test_build_proposal_guard_fail_falls_back_to_original():
     assert proposal["roles"][0]["guarded"] is True
     assert proposal["roles"][0]["changed"] is False
     # The role fell back, and the opening still leads with the current seat.
-    assert proposal["summary"].startswith("BD Manager, Capgemini.")
+    assert proposal["summary"] == "BD Manager at Capgemini. Old summary"
 
 
 def test_build_proposal_provenance_and_counts():
@@ -1081,3 +1081,49 @@ def test_an_option_is_proof_only_where_the_panel_ruled_it():
         ("Quota story", True), ("Owned the regional quota", False),
     ]
     assert out[1].options[0].proven is False, "nearby is offered, never counted"
+
+
+# ── the summary leads with the seat, as a sentence ──────────────────────────
+
+def _seat_cv(summary):
+    cv = json.loads(json.dumps(CV))
+    cv["experience"][0]["role"] = "GTM Business Development Manager"
+    cv["experience"][0]["company"] = "Capgemini, Insights & Data (GCC Growth)"
+    cv["experience"][0]["bullets"] = ["▪ Own the full B2B sales cycle across India GCC accounts."]
+    cv["summary"] = summary
+    return cv
+
+
+def _summary_for(cv):
+    parsed = {"summary": None, "skills_line": None, "roles": []}
+    items = [CoverageItem(requirement="Own the sales cycle", status="covered")]
+    out = cv_weave.build_proposal(cv, parsed, [], [], items)
+    return None if out is None else out["summary"]
+
+
+def test_a_summary_that_names_the_employer_is_left_alone():
+    """The QA run, 2026-10-19: the stored company is "Capgemini, Insights & Data
+    (GCC Growth)" and the summary says "at Capgemini". Matching the whole company
+    string missed it and replaced the person's summary."""
+    cv = _seat_cv("Six years in B2B SaaS; delivered €500K+ GTM revenue at Capgemini.")
+    assert _summary_for(cv) is None
+
+
+def test_a_summary_that_misses_the_seat_is_led_by_it_as_a_sentence():
+    summary = _summary_for(_seat_cv("Six years across B2B SaaS and proptech."))
+    assert summary == (
+        "GTM Business Development Manager at Capgemini, Insights & Data (GCC Growth). "
+        "Six years across B2B SaaS and proptech."
+    )
+
+
+def test_the_seat_is_never_a_label_plus_a_raw_bullet():
+    summary = _summary_for(_seat_cv(""))
+    assert summary == "GTM Business Development Manager at Capgemini, Insights & Data (GCC Growth)."
+    assert "▪" not in summary and "Own the full" not in summary
+
+
+def test_seat_lead_needs_a_role():
+    cv = _seat_cv("")
+    cv["experience"][0]["role"] = ""
+    assert cv_weave.seat_lead(cv, "") is None

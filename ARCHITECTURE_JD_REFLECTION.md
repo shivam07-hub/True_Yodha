@@ -178,6 +178,12 @@ On land (`land_role`, `land_extras`, `compose_weave`):
   reservoir. The summary leads with the current seat, then motions that are
   proven. A summary that is only the master (the fest, the school team) does
   not stay at the top when the experience section contains a proven motion.
+  *Amended 2026-10-19:* a summary that already names the employer (its own
+  name, not the team suffix — "Capgemini", not "Capgemini, Insights & Data
+  (GCC Growth)") is left alone. Otherwise the seat is one sentence, "Role at
+  Company.", followed by the summary's own words. A bullet is never lifted
+  into the summary: "role, company. ▪ first bullet" read as a label glued to
+  a list item.
   The skills line leads with the tools that proved a motion, then the rest of
   the person's own tools. No tool is added that the evidence does not contain.
 
