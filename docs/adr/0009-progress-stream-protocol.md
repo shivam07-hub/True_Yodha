@@ -2,7 +2,7 @@
 
 - **Status**: Accepted (PR1 direct token stream + PR2 SSE relay both shipped 2026-05-30)
 - **Date**: 2026-05-30
-- **Amended 2026-10-19 — skill-edit is back on a poll.** The stream's only client, `skill-card-inline`, was deleted on 2026-06-10 (`d6713cf92`). The CV autosave now polls `GET /cv/skill-edit/recompute-status/{baseline_id}` every 3s with a 30s cap (`lib/hooks/use-master-autosave.ts`), and `GET …/stream` has no caller. Match-refresh still streams (`use-job-refresh.ts`). Read the skill-edit rows below as the design that shipped in PR2, not today's wire.
+- **Amended 2026-10-19 — skill-edit is back on a poll.** The stream's only client, `skill-card-inline`, was deleted on 2026-06-10 (`d6713cf92`). The CV autosave now polls `GET /cv/skill-edit/recompute-status/{baseline_id}` every 3s with a 30s cap (`lib/hooks/use-master-autosave.ts`). The skill-edit stream had no caller and was deleted on 2026-10-19. Match-refresh still streams (`use-job-refresh.ts`) and is now the relay's only surface. Read the skill-edit rows below as the design that shipped in PR2, not today's wire.
 - **Related**: ADR-0008 (durable background work — Work Lanes, Job Runner, Redis) · ADR-0004 (LLM actions cost XP; charge-on-success, refund-on-fail) · `project_cv_loading_redesign` (real phases, no lying clock) · SE17 (skill-edit recompute 3s poll) · `analyse_job` endpoint (`routers/jobs/analyse.py`)
 
 ## Context
@@ -58,7 +58,7 @@ worker / sync handler ──publish──▶ redis channel(job_id)
 The original Decision pictured workers *publishing* to a Redis channel that the web relay *subscribes* to. Implementation chose a simpler, equally-correct shape: the source of truth for both surfaces is **already cross-process** — Job Refresh state lives in a Redis key (`set_state`/`get_state`, written by the RQ worker), skill-edit completion is the `cv_versions.recompute_finished_at` Postgres flag. So the web relay just **tails the existing snapshot** on a short server-side tick (`TICK_SECONDS=0.7`, hard `TIMEOUT_SECONDS=45`) and emits the typed envelope:
 
 - `GET /jobs/refresh/{ticket_id}/stream` — `phase` (queued/computing, on label change) → `done` (matches_written, outcome_kind, refund, new_xp_balance) / `error` (failed | timeout).
-- `GET /cv/skill-edit/recompute-status/{baseline_id}/stream` — `phase` (scoring) → `done` (recompute_finished_at | timeout) / `error` (missing baseline).
+- `GET /cv/skill-edit/recompute-status/{baseline_id}/stream` *(deleted 2026-10-19 — no client after 2026-06-10)* — `phase` (scoring) → `done` (recompute_finished_at | timeout) / `error` (missing baseline).
 
 Why snapshot-watch won:
 - **Dev/prod parity** — works with REDIS_URL set (worker writes Redis key) AND unset (in-process state / DB flag) with the same code. Pub/sub would only fire on the durable path.
