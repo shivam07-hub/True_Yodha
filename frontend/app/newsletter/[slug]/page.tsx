@@ -1,3 +1,4 @@
+import type { ComponentPropsWithoutRef } from "react"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
@@ -79,7 +80,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
+// A table box cannot scroll, so a wide one ran past the column — under the rail
+// on desktop, clipped by the mobile overflow guard at 375px. The wrapper scrolls;
+// the table inside keeps width: 100%, so a narrow one still fills the column.
+function ProseTable(props: ComponentPropsWithoutRef<"table">) {
+  return (
+    <div className="mdx-table-scroll">
+      <table {...props} />
+    </div>
+  )
+}
+
 const mdxComponents = {
+  table: ProseTable,
   NewsletterCTA, ChartEmbed,
   TldrCard, StatCards, DataTable,
   LocationChart, SkillsList, CareerCards,
