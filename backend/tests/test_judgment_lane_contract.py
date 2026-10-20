@@ -23,6 +23,8 @@ request.
 
 from __future__ import annotations
 
+import pytest
+
 from fastapi.routing import APIRoute
 
 from app.main import app
@@ -81,18 +83,21 @@ def test_every_judgment_route_uses_a_judgment_safe_provider() -> None:
     assert not missing, f"judgment routes vanished from the app — renamed or deleted? {missing}"
 
 
-def test_warming_the_feed_does_not_resolve_a_model_on_the_request() -> None:
+@pytest.mark.parametrize("path", ["/jobs/feed/warm", "/jobs/feed/read-more"])
+def test_starting_the_feed_drain_does_not_resolve_a_model_on_the_request(path: str) -> None:
+    """Both enqueue `feed_warm` and return. Read more (ADR-0027) is the same
+    Durable Answer as the warm: the request never waits on a model."""
     for route in app.routes:
         if not isinstance(route, APIRoute):
             continue
-        if route.path != "/jobs/feed/warm" or "POST" not in route.methods:
+        if route.path != path or "POST" not in route.methods:
             continue
         assert not _provider_factories_for(route), (
-            "POST /jobs/feed/warm enqueues feed_warm — a provider dependency "
+            f"POST {path} enqueues feed_warm — a provider dependency "
             "means the request can wait on a model"
         )
         return
-    raise AssertionError("POST /jobs/feed/warm vanished from the app")
+    raise AssertionError(f"POST {path} vanished from the app")
 
 
 def test_feed_warm_worker_uses_the_judgment_provider() -> None:

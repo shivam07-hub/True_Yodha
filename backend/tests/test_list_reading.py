@@ -127,3 +127,36 @@ def test_a_pay_floor_alone_is_not_a_line_to_drop_for() -> None:
     provider = _Provider(json.dumps({"shortlist": [1]}))
     kept = asyncio.run(list_reading.triage_round(profile, [_job(1), _job(2)], provider))
     assert kept == ["j1", "j2"] and provider.messages == []
+
+
+# ── the read target (ADR-0027 points 3 and 5) ─────────────────────────────────
+
+@pytest.fixture
+def _local_store(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(list_reading.settings, "redis_url", "")
+    list_reading._LOCAL.clear()
+
+
+def test_a_list_is_read_until_it_holds_forty_good_jobs(_local_store) -> None:
+    assert list_reading.read_target("u1", "ctx") == list_reading.LIST_FULL == 40
+
+
+def test_read_more_asks_for_one_more_list_past_what_is_on_it(_local_store) -> None:
+    assert list_reading.ask_for_more("u1", "ctx", cleared=43) == 83
+    assert list_reading.read_target("u1", "ctx") == 83
+
+
+def test_a_change_to_what_the_judge_was_told_reads_to_forty_again(_local_store) -> None:
+    list_reading.ask_for_more("u1", "old-ctx", cleared=40)
+    assert list_reading.read_target("u1", "new-ctx") == 40
+
+
+def test_read_more_never_lowers_the_target(_local_store) -> None:
+    list_reading.ask_for_more("u1", "ctx", cleared=40)   # 80
+    assert list_reading.ask_for_more("u1", "ctx", cleared=12) == 120
+
+
+def test_an_unreachable_store_reads_as_forty_not_more(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Not knowing means not spending — the same rule presence follows."""
+    monkeypatch.setattr(list_reading.settings, "redis_url", "redis://127.0.0.1:9/0")
+    assert list_reading.read_target("u1", "ctx") == 40

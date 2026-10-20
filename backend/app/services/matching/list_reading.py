@@ -6,10 +6,12 @@ ADR-0027 and CONTEXT.md §List Reading. A pile is read in rounds: the next
 call, and only the jobs triage keeps get the full evaluation. Reading stops
 when the list is full.
 
-Built so far: the triage round. The rounds, the stop at 40, the recorded pass
-and Read more are not built; nothing in production calls this module yet. It
-goes live only after `scripts/triage_replay.py` shows the triage keeps at least
-90% of the jobs the full evaluation cleared at 3.5.
+Live: the read target. The /market drain (`feed_warm`) reads the pile freshest
+first only while the list holds fewer than `read_target` good jobs, and Read
+more raises the target by one list. The triage round below is NOT live: four
+replays (ADR-0027) could not make it keep 90% of the jobs the full evaluation
+cleared, so every job the drain reads gets the full evaluation. It stays, with
+`scripts/triage_replay.py`, until List Reading ships.
 
 The triage judges the same person the evaluation judges: both render
 `llm_ranker.candidate_brief`. It never sees an overlap number or the matched
@@ -21,12 +23,72 @@ model fails. A round nobody read here stays unread instead.
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
+from app.config import settings
 from app.services import deal_breakers, llm_ranker
 from app.services.llm_provider import LLMProvider, LLMProviderError
+from app.services.matching.published_list import LIST_FULL
 
 logger = logging.getLogger(__name__)
+
+#: One Read more asks for one more list's worth of good jobs.
+READ_MORE = LIST_FULL
+#: How long a Read more holds. Past this the list reads to 40 again.
+_TARGET_SECONDS = 7 * 24 * 60 * 60
+
+# user id → (eval context, target, monotonic expiry). Only when Redis is absent.
+_LOCAL: dict[str, tuple[str, int, float]] = {}
+
+
+def _key(user_id: str) -> str:
+    return f"list_read_until:{user_id}"
+
+
+def read_target(user_id: str, eval_ctx: str) -> int:
+    """How many good jobs this person's list is read until.
+
+    `LIST_FULL` unless they asked for more under the brief the judge reads now.
+    The target is keyed to the eval context, so a new CV, fact, direction or
+    prompt reads to 40 again rather than to an old Read more. A store that
+    cannot be read reads as 40: not knowing means not spending (as presence).
+    """
+    url = settings.redis_url.strip()
+    if not url:
+        held = _LOCAL.get(user_id)
+        if held and held[0] == eval_ctx and held[2] > time.monotonic():
+            return max(LIST_FULL, held[1])
+        return LIST_FULL
+    try:
+        from redis import Redis
+
+        raw = Redis.from_url(url, decode_responses=True).get(_key(user_id))
+    except Exception as exc:  # noqa: BLE001 — unknown reads as the default: no extra spend
+        logger.warning("metric list_reading.target_unavailable exc=%s", exc.__class__.__name__)
+        return LIST_FULL
+    if not raw:
+        return LIST_FULL
+    ctx, _, number = str(raw).rpartition(":")
+    if ctx != eval_ctx or not number.isdigit():
+        return LIST_FULL
+    return max(LIST_FULL, int(number))
+
+
+def ask_for_more(user_id: str, eval_ctx: str, cleared: int) -> int:
+    """Read more: one more list past what is on it now. Never lowers the target."""
+    target = max(read_target(user_id, eval_ctx), cleared) + READ_MORE
+    url = settings.redis_url.strip()
+    if not url:
+        _LOCAL[user_id] = (eval_ctx, target, time.monotonic() + _TARGET_SECONDS)
+        return target
+    try:
+        from redis import Redis
+
+        Redis.from_url(url, decode_responses=True).set(_key(user_id), f"{eval_ctx}:{target}", ex=_TARGET_SECONDS)
+    except Exception as exc:  # noqa: BLE001 — the list keeps reading to its old target
+        logger.warning("metric list_reading.target_unwritable exc=%s", exc.__class__.__name__)
+    return target
 
 #: Jobs one triage call reads. The same chunk `triage_shortlist` uses: a strong
 #: model ranks 50 rows well and the prompt stays inside every lane's context.

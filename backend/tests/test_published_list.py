@@ -208,3 +208,68 @@ def test_a_prompt_version_bump_leaves_the_card_count_unchanged(monkeypatch) -> N
 
     assert len(before) == len(after) == 2
     assert all(c["rereading"] for c in after)
+
+
+# ── List Reading (ADR-0027): a full list stops reading and offers more ──────
+
+class _PileRepo(_Repo):
+    def __init__(self, stack: list[dict], pool: list[str]) -> None:
+        super().__init__(stack, profile={**_PROFILE, "target_roles": ["Data Analytics"]})
+        self._pool = pool
+
+    def get_candidate_job_ids_for_roles(self, roles, **_kw) -> list[str]:
+        return list(self._pool)
+
+
+def _pile(cleared: int, unread: int) -> _PileRepo:
+    now, direction = _keys(7, {**_PROFILE, "target_roles": ["Data Analytics"]})
+    stack = [_row(f"good-{i}", 4.2, eval_hash=now, direction=direction) for i in range(cleared)]
+    pool = [f"good-{i}" for i in range(cleared)] + [f"unread-{i}" for i in range(unread)]
+    return _PileRepo(stack, pool)
+
+
+def test_a_full_list_stops_reading_and_offers_more(monkeypatch) -> None:
+    from app.services.matching import list_reading
+    from app.services.matching.published_list import assemble
+
+    monkeypatch.setattr(list_reading.settings, "redis_url", "")
+    list_reading._LOCAL.clear()
+    cards, judgment = assemble(_pile(cleared=40, unread=300), "u1")
+    assert len(cards) == 40
+    assert judgment["reading"] is False
+    assert judgment["can_read_more"] is True
+    assert judgment["pending"] == 300
+
+
+def test_a_list_short_of_forty_keeps_reading_and_offers_nothing(monkeypatch) -> None:
+    from app.services.matching import list_reading
+    from app.services.matching.published_list import assemble
+
+    monkeypatch.setattr(list_reading.settings, "redis_url", "")
+    list_reading._LOCAL.clear()
+    _, judgment = assemble(_pile(cleared=12, unread=300), "u1")
+    assert judgment["reading"] is True
+    assert judgment["can_read_more"] is False
+
+
+def test_after_read_more_the_full_list_reads_again(monkeypatch) -> None:
+    from app.services import onboarding_service
+    from app.services.matching import list_reading
+    from app.services.matching.published_list import assemble
+
+    monkeypatch.setattr(list_reading.settings, "redis_url", "")
+    list_reading._LOCAL.clear()
+    ctx = onboarding_service.eval_context_key({**_PROFILE, "target_roles": ["Data Analytics"], "baseline_version_id": 7})
+    list_reading.ask_for_more("u1", ctx, cleared=40)
+    _, judgment = assemble(_pile(cleared=40, unread=300), "u1")
+    assert judgment["reading"] is True and judgment["can_read_more"] is False
+
+
+def test_nothing_left_to_read_offers_nothing(monkeypatch) -> None:
+    from app.services.matching import list_reading
+    from app.services.matching.published_list import assemble
+
+    monkeypatch.setattr(list_reading.settings, "redis_url", "")
+    list_reading._LOCAL.clear()
+    _, judgment = assemble(_pile(cleared=40, unread=0), "u1")
+    assert judgment["reading"] is False and judgment["can_read_more"] is False

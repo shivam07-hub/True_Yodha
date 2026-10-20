@@ -775,6 +775,9 @@ class MarketJudgment(BaseModel):
     """
 
     reading: bool = False
+    #: The list holds its target and the pile still has unread jobs (ADR-0027):
+    #: the client offers Read more, which POSTs /jobs/feed/read-more.
+    can_read_more: bool = False
     read: int = 0
     pending: int = 0
     cleared: int = 0
