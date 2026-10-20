@@ -113,6 +113,15 @@ Noise seen so far: `Track (Rail Transport)` (taxonomy mis-map of the word
 Apply a stoplist, set a frequency floor, and eyeball the final list before it
 ships. Never publish the field raw.
 
+**Company boilerplate is the larger trap.** The extractor reads an employer's
+"about us" text as skills, so every posting that repeats it gets the same
+credits. Issue 25: EY's consulting-practice paragraph put `Internal Controls` on
+236 of 575 EY postings; its role text names internal control in 45. A skill that
+one employer holds 80%+ of is the tell. Count from the posting's own text
+instead: drop every sentence an employer repeats across a quarter or more of its
+postings in the lane, then match skill terms in what is left. Say so in the
+dataset methodology.
+
 ## The CTA lane
 
 The footer CTA links to
