@@ -18,7 +18,7 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 |---|---|---|---|---|
 | 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read `apply_asked` ~10-27; nothing to build before it |
 | 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) | Built; `0aafb324` on `main`. **BLOCKED on Shivam**: preview → approve |
-| 4 | Front door | **#57** "Which job do you want?" after upload | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor, 1st | On `main` 2026-10-17 · U4 desktop run 2026-10-19: link paste was broken (fixed `2cc7b264`); 12 clicks to download vs ≤5 — FD1–FD3 below · phone run owed |
+| 4 | Front door | **#57** "Which job do you want?" after upload | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor, 1st | On `main` 2026-10-17 · link paste fixed `2cc7b264`; 5 clicks to Download `8c372968` · FD1 and phone run owed |
 | 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1–S4 on `main` · next S5 add role |
 | 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor, 3rd | Spec only, no commits · S0 audit |
 | 6 | Pay | **#56** the ₹199 Apply Pack | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Cursor, 4th | Spec only, no commits · S1 settlement |
@@ -122,12 +122,19 @@ and Paste → review → playground works. Found on the way:
   return the whole posting as `job_description` (`max_tokens=2048`), so the wait
   is output tokens. Lift role/company/location by model and keep the page text
   for the JD, or stream. Front door.
-- **FD2 · 12 clicks from the door to Download, target ≤5.** Paste, Fetch, Tailor a
-  CV (3) → Tailor with Mentor (4) → five gap questions one at a time, each needing
-  Skip or That's it (9) → two line reviews (11) → "Every line is decided" → Back
-  to the paper (12) → Download. The questions and the done screen are the cost.
-- **FD3 · Small:** Enter in the link field does nothing (only Fetch submits); the
-  playground header reads "Untitled role" until the job loads.
+- **FD2 · door to Download — FIXED `8c372968`: 12 clicks → 5.** Paste a job (1)
+  → paste the link, it reads itself → Tailor a CV for this (2) → Mentor is
+  already open → Weave now · 50 (3) → Take all (4) → Download (5). A job CV that
+  was never tailored opens on Mentor once per job, which is aimed at the 4 of 6
+  people who opened the editor and pressed nothing. Verified end to end on a
+  local backend: `editor_opened → mentor_opened (auto) → weave_ran → review_done
+  (take_all)`; a reload lands on the paper. **After the merge:** read those four
+  steps per person on `core_loop_events` for two weeks — the question is whether
+  the editor still loses people before Mentor, and how many answer a question
+  before "Weave now". Cost of the design: fewer gap answers banked.
+- **FD3 · Small:** the playground header reads "Untitled role" until the job
+  loads. On Collections, "Add a job → Save" left the Saved tab at 0 until a
+  reload, and a job the person pasted is labelled "Myro found".
 
 T1 findings from the same run are under §5.
 
