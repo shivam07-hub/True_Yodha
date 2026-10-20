@@ -69,8 +69,12 @@ OR_TIERS: list[list[str]] = [
     # call through this tier before falling through — the paid equivalents
     # backstop in Tier 2c below. Re-check openrouter.ai/models for revived or
     # new free-tier candidates before re-adding a Tier 1a.
-    # Tier 1b: free, remaining (verified live 2026-07-24)
-    ["nvidia/nemotron-3-super-120b-a12b:free"],
+    # Tier 1b (former): "nvidia/nemotron-3-super-120b-a12b:free" — removed
+    # 2026-10-20. Still listed on OpenRouter, but its only provider answers
+    # 404 "Function ... Not found for account" (Nvidia) on every call, and the
+    # worker logged "returned empty response" from it on 2026-10-19. Every
+    # judgment call paid a dead hop before reaching the paid strong tier.
+    # There is no free tier now; re-check openrouter.ai/models before adding one.
     # Tier 2a: cheap paid — $0.04–$0.05/M
     [
         "google/gemma-3-4b-it",
@@ -117,10 +121,13 @@ GROQ_FALLBACK_EXTRA: dict = {"reasoning_effort": "low"}
 # OR_TIERS[0:FREE_OR_TIER_COUNT] are free tiers.
 # get_cv_upload_provider() skips these to avoid free-tier exhaustion on the
 # user-blocking CV upload path.
-# 2026-07-24: was 2 (Tier 1a + Tier 1b) — Tier 1a's three :free slugs all went
-# dead and were removed above, leaving only Tier 1b free. Must track the real
-# tier count or this silently skips the first PAID tier too.
-FREE_OR_TIER_COUNT = 1
+# Derived from the tiers, never typed: it was a hand-kept 2, then 1, and each
+# time a free tier was removed a stale count would have skipped the first PAID
+# tier too. Zero since 2026-10-20 (no free tier left).
+FREE_OR_TIER_COUNT = next(
+    (i for i, tier in enumerate(OR_TIERS) if not all(":free" in model for model in tier)),
+    len(OR_TIERS),
+)
 
 # Models too small to trust with a JUDGMENT call — ranking, triage, 5/6-axis eval,
 # verdicts, agent picks. Trust rule (feedback_no_cheap_models_judgment / ADR-0017):
@@ -152,7 +159,7 @@ def _is_free_tier(tier: list[str]) -> bool:
 # JUDGMENT), but reordered PAID-STRONG-FIRST. A CV rewrite is a judgment-grade
 # generation the user is watching on a spinner: free strong tiers can queue, so a
 # paid-strong tier (gpt-4o-mini / llama-70b, ~$0.15/M) leads to keep the blocking
-# path fast, with the free strong tiers as the no-cost backstop. Small models can
+# path fast, with any free strong tier as the no-cost backstop. Small models can
 # never appear — derived from JUDGMENT_OR_TIERS, which already dropped them.
 WRITER_OR_TIERS: list[list[str]] = (
     [t for t in JUDGMENT_OR_TIERS if not _is_free_tier(t)]
@@ -407,9 +414,9 @@ def get_judgment_provider() -> LLMProvider:
     """Strong-only lane for every JUDGMENT call — triage, 5/6-axis eval, verdicts,
     agent picks. This is THE model floor for [[feedback_no_cheap_models_judgment]].
 
-    Leads with the strong FREE tiers (llama-3.3-70b, qwen3-coder — no cost, no
-    quality loss), backstops with strong PAID (gpt-4o-mini, llama-70b) and the last
-    resort (kimi-k2), plus Groq gpt-oss-120b direct. It NEVER falls to a small
+    Strong tiers in cost order: a strong FREE tier first whenever one is live
+    (none since 2026-10-20), then strong PAID (llama-3.3-70b, gpt-4o-mini), the
+    last resort (kimi-k2), and Groq gpt-oss-120b direct. It NEVER falls to a small
     model: the cheap paid tiers (gemma / granite / nano / glm-flash) are excluded by
     ``JUDGMENT_OR_TIERS`` and Gemini flash-lite is deliberately omitted — so a total
     strong-model outage fails the run (→ refund + honest retry) rather than emitting a
