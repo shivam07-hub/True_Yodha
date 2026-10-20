@@ -113,9 +113,16 @@ class _Provider:
 
 
 LINK = "https://hcbt.fa.em2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/job/270652"
+KOTAK_JD = (
+    "Own the digital banking analytics for Kotak 811: define the product funnels, "
+    "build the weekly business review, size the opportunities in onboarding and "
+    "activation, and work with product, risk and operations teams to turn the "
+    "findings into decisions. You will write SQL against large datasets, build "
+    "self-serve dashboards, and present to the leadership team every month."
+)
 LISTING = {
     "job_id": "270652", "job_title": "Business Analyst", "company_name": "Kotak Mahindra Bank",
-    "location": "Mumbai", "job_description": "Own the digital banking analytics for Kotak 811.",
+    "location": "Mumbai", "job_description": KOTAK_JD,
     "apply_url": LINK,
 }
 
@@ -133,7 +140,7 @@ def test_a_link_to_a_listing_myro_holds_is_that_listing(monkeypatch):
     assert source == "corpus"
     assert fields == {
         "role": "Business Analyst", "company": "Kotak Mahindra Bank", "location": "Mumbai",
-        "job_description": "Own the digital banking analytics for Kotak 811.", "listing_job_id": "270652",
+        "job_description": KOTAK_JD, "listing_job_id": "270652",
     }
     assert provider.calls == 0
 
@@ -198,3 +205,21 @@ def test_an_office_code_is_not_an_employer_or_a_place():
     fields = reader.jobposting_fields(_page(coded))
     assert fields["company"] == ""
     assert fields["location"] == "Hyderabad, India"
+
+
+def test_a_listing_without_a_real_description_is_not_the_answer(monkeypatch):
+    """4,279 live listings carry the scraper's stub, measured 2026-10-20. A
+    paste that lands on one must not hand the tailor a JD that says there is
+    no JD — the page is read instead (and an unreadable page says so)."""
+    stub = dict(LISTING, job_description=(
+        "No JD provided on the company page. Matching and skill extraction are "
+        "unavailable for this role until a job description is published."
+    ))
+
+    async def _html(url):
+        return _page(POSTING)
+
+    monkeypatch.setattr(jfp, "fetch_posting_html", _html)
+    fields, source = asyncio.run(reader.read_link(LINK, _Repo([stub]), _Provider()))
+    assert source == "jobposting"
+    assert fields["listing_job_id"] is None

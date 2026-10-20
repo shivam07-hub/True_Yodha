@@ -37,6 +37,11 @@ logger = logging.getLogger("myro.job_link_reader")
 #: More ids than this in one link is not a job link; the lookup stays one query.
 MAX_CANDIDATES = 30
 
+#: A listing's description shorter than this is not one. 4,279 live listings
+#: carry the scraper's "No JD provided on the company page…" stub (133 chars),
+#: measured 2026-10-20; tailoring against it is tailoring against nothing.
+MIN_LISTING_JD_CHARS = 300
+
 _LD_BLOCK = re.compile(r"<script[^>]+application/ld\+json[^>]*>(.*?)</script>", re.I | re.S)
 _SEGMENT_TAIL_ID = re.compile(r"([A-Za-z]*\d[\w]*)$")
 
@@ -76,7 +81,7 @@ def corpus_fields(url: str, jobs_repo: Any) -> dict[str, Any] | None:
             continue
         role = str(row.get("job_title") or "").strip()
         jd = str(row.get("job_description") or "").strip()
-        if not role or len(jd) < jfp.MIN_TEXT_CHARS:
+        if not role or len(jd) < MIN_LISTING_JD_CHARS:
             continue
         return {
             "role": role,
