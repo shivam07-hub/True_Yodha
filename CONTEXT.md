@@ -1029,6 +1029,21 @@ The ONE module every match surface routes through (`app/services/matching/match_
 
 ---
 
+## List Reading
+
+How the judge reads a person's /market pile: the one module that decides which jobs reach the full career-ops evaluation next, and when it stops (decided 2026-10-20, Shivam). **Not built yet.** It replaces the drain's rule of judging every aspiration-matched job — up to `ASPIRATION_READ` (1,000), one evaluation each, in `last_verified_live_at` order — and the separate triage path inside Match Run.
+
+- **A round** takes the next 50 unread jobs of the pile, freshest first, runs one career-ops **triage** call over them (`llm_ranker.triage_shortlist`), and gives the full evaluation only to the jobs triage keeps.
+- **Triage sees the Targeting Brief** the full evaluation sees — direction, known facts, deal-breakers, seniority, places — and no overlap number. Skills qualify a job; they never decide which jobs the judge reads (ADR-0024).
+- **It stops when the list is full:** 40 jobs at or above 3.5 (`published_list.SHOW_FLOOR`, `_FULL`). The rest of the pile stays unread until the person asks. **Read more** resumes rounds. Nothing stops silently: the list shows how much of the pile is read.
+- **A pass is recorded.** A job triage did not keep gets its own row keyed by (person, job, eval context): read, not a fit. The list's count then ends, and Read more skips it. A change to the CV, facts, direction or prompt re-opens it, the same way it re-opens a verdict.
+- **After a change**, the cards already on the list are re-read first (Verdict Currency), then rounds continue only until the list is full again.
+- **Every pile reader goes through it:** the drain, Match Run, the Return door, Read more. Opening one job (`on_demand`, brain-on-open) stays outside it — the person asked for that job.
+- **Proof before it reads real piles:** a replay over piles the full evaluation already judged must keep at least 90% of the jobs that cleared 3.5.
+- **Why** (measured 2026-10-20, 24 real people, 13,580 evaluations): 84% of evaluations 8–30 days old were never shown. Scores fall on five values (2.8 / 3.2 / 3.8 / 4.2 / 4.8), with 36–642 jobs tied at the 40th place, so "the best 40 of 1,000" is mostly a tie-break. Stopping at 40 alone, in freshest-first order, would have cut evaluations by 47%.
+
+---
+
 ## Match Freshness
 
 **Were the matches this user is looking at computed for the direction they hold NOW?** One pure module (`app/services/matching/match_freshness.py`) over the pair `user_profiles.target_updated_at` (stamped by `targeting_write.commit` on a real direction change) and `user_profiles.last_match_run_at` (stamped by `match_run.run_match` alone). Five states: `no_direction · unknown · covered · running · outstanding`.
