@@ -179,7 +179,9 @@ async def read_link(url: str, jobs_repo: Any, provider: LLMProvider) -> tuple[di
     host = urlsplit(link).netloc.lower() if link else ""
 
     def done(fields: dict[str, Any], source: str) -> tuple[dict[str, Any], str]:
-        logger.info(
+        # WARNING, like every `metric` line: the app namespace has no INFO
+        # handler, so an INFO metric never reaches the logs (main.py).
+        logger.warning(
             "metric job_import.read source=%s ms=%d host=%s",
             source, int((time.monotonic() - started) * 1000), host,
         )
