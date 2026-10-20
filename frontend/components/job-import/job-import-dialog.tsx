@@ -45,6 +45,7 @@ export function JobImportDialog({
 
   const busy = state.step === "extracting" || state.step === "importing"
   const draft = state.step === "review" || state.step === "importing" ? state : null
+  const listing = state.step === "review" && state.listing
 
   return (
     <Dialog open onOpenChange={(next) => { if (!next) onClose() }}>
@@ -52,7 +53,11 @@ export function JobImportDialog({
         <DialogHeader>
           <DialogTitle>{ADD_JOB_LABEL}</DialogTitle>
           <DialogDescription>
-            {draft ? "Check the role before it is saved. A link sometimes comes back as the page tagline." : "Paste a link, a file, or the description."}
+            {listing
+              ? "The listing at this link."
+              : draft
+                ? "Check the role before it is saved. A link sometimes comes back as the page tagline."
+                : "Paste a link, a file, or the description."}
           </DialogDescription>
         </DialogHeader>
 
@@ -107,6 +112,7 @@ export function JobImportDialog({
             company={draft.company}
             jd={draft.jd}
             location={draft.location}
+            locked={listing}
             onChange={importJob.updateReview}
           />
         )}
@@ -162,31 +168,33 @@ export function JobImportDialog({
 }
 
 function Review({
-  role, company, jd, location, onChange,
+  role, company, jd, location, locked, onChange,
 }: {
   role: string
   company: string
   jd: string
   location: string
+  /** A listing Myro holds: its fields are the listing's. */
+  locked: boolean
   onChange: (patch: { role?: string; company?: string; jd?: string; location?: string }) => void
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <label style={labelStyle}>
         Role
-        <input value={role} onChange={(e) => onChange({ role: e.target.value })} style={fieldStyle} />
+        <input value={role} readOnly={locked} onChange={(e) => onChange({ role: e.target.value })} style={fieldStyle} />
       </label>
       <label style={labelStyle}>
         Company
-        <input value={company} onChange={(e) => onChange({ company: e.target.value })} style={fieldStyle} />
+        <input value={company} readOnly={locked} onChange={(e) => onChange({ company: e.target.value })} style={fieldStyle} />
       </label>
       <label style={labelStyle}>
         Location
-        <input value={location} onChange={(e) => onChange({ location: e.target.value })} style={fieldStyle} />
+        <input value={location} readOnly={locked} onChange={(e) => onChange({ location: e.target.value })} style={fieldStyle} />
       </label>
       <label style={labelStyle}>
         Job description
-        <textarea value={jd} onChange={(e) => onChange({ jd: e.target.value })} rows={6} style={{ ...fieldStyle, resize: "vertical" }} />
+        <textarea value={jd} readOnly={locked} onChange={(e) => onChange({ jd: e.target.value })} rows={6} style={{ ...fieldStyle, resize: "vertical" }} />
       </label>
     </div>
   )

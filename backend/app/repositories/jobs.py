@@ -2670,6 +2670,24 @@ class JobsRepository:
             _hydrate_location_fields(row)
         return rows
 
+    def listings_for_link(self, job_ids: list[str]) -> list[dict[str, Any]]:
+        """Live listings among a pasted link's candidate ids (job_link_reader).
+
+        A primary-key lookup — the corpus carries the ATS requisition id as
+        `job_id` — so a pasted link never scans `jobs`. Fail-soft to [] so a
+        slow read sends the link on to the page instead of failing the paste.
+        """
+        if not job_ids:
+            return []
+        return safe_read(
+            self._db.table("jobs")
+            .select("job_id, job_title, company_name, location, job_description, apply_url")
+            .in_("job_id", job_ids)
+            .eq("is_active", True),
+            default=[],
+            context="listings_for_link",
+        ) or []
+
     def get_user_target_roles(self, user_id: str) -> list[str]:
         """The families this person's search scopes on — `direction.of`, not the
         raw column.

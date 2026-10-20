@@ -9,12 +9,16 @@ import { useXPStore } from "@/store/xpStore"
  *
  * Review is always shown. The extractor sometimes reads a page tagline as the
  * role, and the save is the moment that mistake becomes the job.
+ *
+ * A link that is a listing Myro already holds (`listing_job_id`, FD1) reviews
+ * read-only and saves that listing by id — its fields are the listing's, and
+ * an edit would not reach it.
  */
 
 export type JobImportState =
   | { step: "idle" }
   | { step: "extracting" }
-  | { step: "review"; role: string; company: string; jd: string; location: string }
+  | { step: "review"; role: string; company: string; jd: string; location: string; listing: boolean }
   | { step: "importing"; role: string; company: string; jd: string; location: string }
   | { step: "imported"; jobId: string; tailorHref: string }
   | { step: "failed"; reason: string; canPasteInstead: boolean }
@@ -24,6 +28,8 @@ export interface JobExtract {
   role: string
   location: string
   job_description: string
+  /** A link only: the live listing Myro holds at that page. */
+  listing_job_id?: string | null
 }
 
 export interface JobImportClient {
@@ -39,6 +45,7 @@ export interface JobImportClient {
     primary_skills: string[]
     secondary_skills: string[]
     status: ApplicationStatus
+    listing_job_id: string | null
   }) => Promise<{ job_id: string; coin_balance?: number | null }>
 }
 
@@ -48,9 +55,10 @@ interface Draft {
   jd: string
   location: string
   sourceUrl: string | null
+  listingJobId: string | null
 }
 
-const EMPTY_DRAFT: Draft = { role: "", company: "", jd: "", location: "", sourceUrl: null }
+const EMPTY_DRAFT: Draft = { role: "", company: "", jd: "", location: "", sourceUrl: null, listingJobId: null }
 
 function message(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback
@@ -63,6 +71,7 @@ function reviewOf(draft: Draft): JobImportState {
     company: draft.company,
     jd: draft.jd,
     location: draft.location,
+    listing: draft.listingJobId !== null,
   }
 }
 
@@ -108,6 +117,7 @@ export function createJobImport(
         jd: parsed.job_description,
         location: parsed.location,
         sourceUrl: draft.sourceUrl,
+        listingJobId: parsed.listing_job_id ?? null,
       }
       openReview()
     } catch (error) {
@@ -141,7 +151,7 @@ export function createJobImport(
       openReview()
     },
     updateReview(patch) {
-      if (state.step !== "review") return
+      if (state.step !== "review" || draft.listingJobId) return
       draft = { ...draft, ...patch }
       openReview()
     },
@@ -165,6 +175,7 @@ export function createJobImport(
           primary_skills: [],
           secondary_skills: [],
           status,
+          listing_job_id: draft.listingJobId,
         })
         if (mine !== ticket) return null
         if (typeof app.coin_balance === "number") opts?.onBalance?.(app.coin_balance)
@@ -193,8 +204,10 @@ export function createJobImport(
   }
 }
 
-/** React binding. The skins subscribe; they do not choose the next step. */
-export function useJobImport(token: string) {
+/** React binding. The skins subscribe; they do not choose the next step.
+ *  `sourcePlatform` names the surface — the onboarding door says "onboarding",
+ *  which is how a listing it saves becomes the first role. */
+export function useJobImport(token: string, sourcePlatform?: string) {
   const setBalance = useXPStore((s) => s.setBalance)
   const controller = useMemo(
     () =>
@@ -204,9 +217,9 @@ export function useJobImport(token: string) {
           extractFile: (file) => jobs.extractFile(token, file),
           importJob: (body) => jobs.importJob(token, body),
         },
-        { onBalance: setBalance },
+        { onBalance: setBalance, sourcePlatform },
       ),
-    [token, setBalance],
+    [token, setBalance, sourcePlatform],
   )
   const [state, setState] = useState<JobImportState>(controller.getState)
   useEffect(() => {

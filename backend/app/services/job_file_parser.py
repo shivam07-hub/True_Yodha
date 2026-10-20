@@ -168,9 +168,11 @@ _BLOCK_CLOSE = re.compile(r"(?is)</(p|div|li|h[1-6]|tr|section|article)>")
 _TAGS = re.compile(r"(?s)<[^>]+>")
 _INLINE_WS = re.compile(r"[ \t\r\f]+")
 _BLANK_LINES = re.compile(r"\n\s*\n+")
+# A tag that closed mid-line leaves a space on either side of the break.
+_LINE_EDGES = re.compile(r" *\n *")
 
 
-def _html_to_text(raw_html: str) -> str:
+def html_to_text(raw_html: str) -> str:
     """Strip a posting page down to readable plain text for the field extractor."""
     text = _BLOCK_TAGS.sub(" ", raw_html)
     text = _BR.sub("\n", text)
@@ -178,11 +180,12 @@ def _html_to_text(raw_html: str) -> str:
     text = _TAGS.sub(" ", text)
     text = html_lib.unescape(text)
     text = _INLINE_WS.sub(" ", text)
+    text = _LINE_EDGES.sub("\n", text)
     text = _BLANK_LINES.sub("\n\n", text)
     return text.strip()
 
 
-async def _fetch_posting_html(url: str) -> str:
+async def fetch_posting_html(url: str) -> str:
     """Fetch a posting page, re-validating against SSRF on each redirect hop."""
     headers = {
         "User-Agent": _URL_USER_AGENT,
@@ -213,17 +216,6 @@ async def _fetch_posting_html(url: str) -> str:
                 raise JobUrlFetchError("That page is too large to read automatically.")
             return resp.text[: _URL_MAX_BYTES]
     raise JobUrlFetchError("That link redirected too many times.")
-
-
-async def extract_job_from_url(url: str, provider: LLMProvider) -> dict:
-    """Fetch a public posting URL and lift the four tracker fields from it."""
-    raw_html = await _fetch_posting_html(url.strip())
-    text = _html_to_text(raw_html)
-    if len(text) < MIN_TEXT_CHARS:
-        raise JobUrlFetchError(
-            "Couldn't read a job posting at that link — paste the text instead."
-        )
-    return await extract_job_from_text(text, provider)
 
 
 async def extract_job_from_image(data: bytes, mime: str, provider: LLMProvider) -> dict:

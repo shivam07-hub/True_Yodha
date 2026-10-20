@@ -151,3 +151,36 @@ test("a link is read by a model, so it waits as long as the model does", () => {
   const block = api.slice(start, api.indexOf("\n    }),", start))
   assert.match(block, /timeoutMs: LLM_REQUEST_TIMEOUT_MS/)
 })
+
+test("a link that is a listing Myro holds is that listing, read-only, saved by id", async () => {
+  const api = client({
+    extractUrl: async () => ({
+      role: "Business Analyst",
+      company: "Kotak Mahindra Bank",
+      location: "Mumbai",
+      job_description: "Own the digital banking analytics.",
+      listing_job_id: "270652",
+    }),
+  })
+  const importer = createJobImport(api)
+  await importer.submitLink("https://hcbt.fa.em2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/job/270652")
+  const review = importer.getState()
+  assert.equal(review.step, "review")
+  if (review.step !== "review") return
+  assert.equal(review.listing, true)
+  importer.updateReview({ role: "Something else" })
+  const still = importer.getState()
+  assert.equal(still.step === "review" && still.role, "Business Analyst", "a listing's fields are the listing's")
+  await importer.confirm()
+  assert.equal(api.imported[0].listing_job_id, "270652")
+})
+
+test("a link Myro does not hold reviews and imports as before", async () => {
+  const api = client()
+  const importer = createJobImport(api)
+  await importer.submitLink("https://jobs.example/pm")
+  const review = importer.getState()
+  assert.equal(review.step === "review" && review.listing, false)
+  await importer.confirm()
+  assert.equal(api.imported[0].listing_job_id, null)
+})

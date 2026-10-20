@@ -3821,6 +3821,8 @@ export interface JobFileExtract {
   role: string
   location: string
   job_description: string
+  /** A link only: the live listing Myro holds at that page. */
+  listing_job_id?: string | null
 }
 
 export interface JobPathTarget {
@@ -4809,6 +4811,8 @@ export const jobs = {
       secondary_skills: string[]
       emerging_skills?: Array<{ label: string; skill_type: string; source: string }>
       status?: ApplicationStatus
+      /** The pasted link was a live listing Myro holds: save that listing. */
+      listing_job_id?: string | null
     },
   ) =>
     request<ApplicationResponse>("/jobs/import", {

@@ -290,3 +290,77 @@ def test_a_repeat_applied_queues_nothing(monkeypatch) -> None:
     assert response.status_code == 200
     assert judged == [] and frozen == []
     assert _put_status.steps == []
+
+
+# ── a pasted link that is a listing Myro holds (FD1, 2026-10-20) ─────────────
+
+class _LinkedRepo(_FakeJobsRepository):
+    def __init__(self, live: bool) -> None:
+        self.live = live
+        self.upserts: list[tuple] = []
+        self.minted: list = []
+
+    def listings_for_link(self, job_ids):
+        return [{"job_id": job_ids[0]}] if self.live else []
+
+    def upsert_application(self, user_id, job_id, updates):
+        self.upserts.append((user_id, job_id, updates))
+
+    def get_application_with_job(self, user_id, job_id):
+        return {"id": 7, "job_id": job_id, "status": self.upserts[-1][2]["status"],
+                "source": "user_discovery", "created_at": "2026-10-20T00:00:00+00:00",
+                "jobs": {"job_title": "Business Analyst", "company_name": "Kotak Mahindra Bank",
+                         "job_description": "Own the digital banking analytics."}}
+
+    def save_imported_job(self, user_id, body):
+        self.minted.append(body)
+        return {"id": 8, "job_id": "ext_new", "title": body.role_name, "company": body.company_name,
+                "job_description": body.job_description, "status": "saved", "applied_at": None,
+                "response_at": None, "checkin_sent_at": None, "notes": None,
+                "created_at": "2026-10-20T00:00:00+00:00"}
+
+
+def _import_linked(monkeypatch, repo, status="saved", platform=None):
+    judged: list = []
+    monkeypatch.setattr(jobs.apply.on_demand, "open_job_eval", lambda r, uid, jid: judged.append(jid))
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    try:
+        with TestClient(app) as client:
+            response = client.post("/jobs/import", json={
+                "source_url": "https://hcbt.fa.em2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/job/270652",
+                "role_name": "Business Analyst", "company_name": "Kotak Mahindra Bank",
+                "job_description": "Own the digital banking analytics.",
+                "listing_job_id": "270652", "status": status, "source_platform": platform,
+            })
+    finally:
+        app.dependency_overrides.clear()
+    return response, judged
+
+
+def test_a_link_to_a_live_listing_saves_that_listing_not_a_copy(monkeypatch) -> None:
+    repo = _LinkedRepo(live=True)
+    response, judged = _import_linked(monkeypatch, repo, status="applied")
+    assert response.status_code == 200
+    assert response.json()["job_id"] == "270652"
+    assert repo.minted == [], "no ext_ copy of a listing Myro holds"
+    assert repo.upserts == [("u1", "270652", {"status": "applied", "source": "user_discovery"})]
+    assert judged == ["270652"], "the saved listing still gets its verdict"
+
+
+def test_a_listing_that_closed_since_the_read_imports_the_text(monkeypatch) -> None:
+    repo = _LinkedRepo(live=False)
+    response, _ = _import_linked(monkeypatch, repo)
+    assert response.json()["job_id"] == "ext_new"
+    assert len(repo.minted) == 1 and repo.upserts == []
+
+
+def test_a_listing_pasted_at_the_onboarding_door_is_the_door_s_import(monkeypatch) -> None:
+    """The first-job step accepts a non-`ext_` job only from an onboarding
+    source; a listing pasted at the door is exactly that."""
+    from app.services.onboarding_first_role import FIRST_ROLE_SOURCES
+
+    repo = _LinkedRepo(live=True)
+    _import_linked(monkeypatch, repo, platform="onboarding")
+    assert repo.upserts[0][2]["source"] == "onboarding_import"
+    assert "onboarding_import" in FIRST_ROLE_SOURCES

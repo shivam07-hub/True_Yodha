@@ -9,7 +9,9 @@ from typing import Any, Literal
 from app.repositories.job_tracks import JobTracksRepository
 from app.repositories.jobs import JobsRepository
 from app.repositories.scores import ScoresRepository
+from app.schemas.jobs import APPLICATION_STATUSES
 from app.services import direction, job_importer, job_matcher, job_tracks, llm_ranker, onboarding_service
+from app.services.job_projection import to_application
 from app.services.llm_provider import LLMProvider, get_judgment_provider
 from app.services.matching import candidate_pool, match_freshness, ranking, targeting
 from app.services.scoring.aspirations import fetch_aspiration_skills
@@ -634,3 +636,25 @@ def preview_fit(repo: JobsRepository, user_id: str, preview: dict[str, Any]) -> 
 
 def save_imported_job(repo: JobsRepository, user_id: str, body: Any) -> dict[str, Any]:
     return repo.save_imported_job(user_id, body)
+
+
+def save_linked_listing(
+    repo: JobsRepository, user_id: str, job_id: str, status: str, *, door: bool,
+) -> dict[str, Any] | None:
+    """A pasted link that is a live listing Myro holds: save THAT listing.
+
+    No `ext_` copy, so the job keeps its skills, its verdict and its liveness
+    checks (FD1, job_link_reader). Same status rule as an import. From the
+    onboarding door the source is `onboarding_import` — what the first-job step
+    gives every door import, and what lets it accept a listing that is not an
+    `ext_` id; anywhere else `user_discovery`, like every other save.
+    None when the listing is no longer live — the caller imports the text.
+    """
+    if not repo.listings_for_link([job_id]):
+        return None
+    repo.upsert_application(user_id, job_id, {
+        "status": status if status in APPLICATION_STATUSES else "saved",
+        "source": "onboarding_import" if door else "user_discovery",
+    })
+    data = repo.get_application_with_job(user_id, job_id)
+    return to_application(data).model_dump() if data else None
