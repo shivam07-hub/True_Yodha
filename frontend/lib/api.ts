@@ -4033,6 +4033,9 @@ export interface MatchBrainResult {
 /** Where the career-ops read of this person's aspirations stands. */
 export interface MarketJudgment {
   reading: boolean
+  /** The list holds its target (40 good jobs) and the pile still has unread
+   *  jobs — offer Read more, which POSTs /jobs/feed/read-more (ADR-0027). */
+  can_read_more?: boolean
   read: number
   pending: number
   cleared: number
@@ -4576,6 +4579,13 @@ export const jobs = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       signal,
+    }),
+  /** POST /jobs/feed/read-more — read past a full list: one more list's worth
+   *  of jobs. The request does not rank; re-read GET /jobs/feed as for a warm. */
+  readMore: (token: string) =>
+    request<FeedWarmResponse>("/jobs/feed/read-more", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
     }),
   /** The curated "Myro Agent Picks" band — the brain's hand-vetted shortlist that
    *  sits above the algorithm feed. Empty list for users with no picks. */

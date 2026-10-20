@@ -128,6 +128,17 @@
   font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption);
   letter-spacing: 0.04em; color: var(--tm-text-faint);
 }
+/* Read more sits in the list's foot; a quiet control, the same weight as the
+   location pill, because it is a choice the person makes, not a call to act. */
+.tm-feed-readmore {
+  padding: 6px 14px; border-radius: var(--tm-button-radius); cursor: pointer;
+  font-family: inherit; font-size: var(--tm-fs-caption); font-weight: 600; letter-spacing: 0;
+  color: var(--tm-interactive); background: transparent; border: 1px solid var(--tm-int-border);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.tm-feed-readmore:hover:not(:disabled) { background: var(--tm-int-bg-wash); }
+.tm-feed-readmore:focus-visible { outline: 2px solid var(--tm-interactive); outline-offset: 2px; }
+.tm-feed-readmore:disabled { cursor: progress; opacity: 0.6; }
 .tm-feed-summary-loc {
   display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: var(--tm-button-radius); cursor: pointer;
   font-size: var(--tm-fs-caption); font-weight: 500; color: var(--tm-text-muted);

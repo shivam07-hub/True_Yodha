@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Search, X } from "lucide-react"
 import type { GlobalJobHit, JobFeedItem, JobPulse, MarketJudgment } from "@/lib/api"
 import { MarketJudgmentNote, AspirationRead } from "./market-judgment"
+import { ReadMoreJobs } from "./read-more-jobs"
 import type { UseFollowCompany } from "@/lib/hooks/use-follow-company"
 import { formatCount } from "@/lib/format"
 import { AgentPicksBand } from "@/components/jobs/agent-picks-band"
@@ -60,6 +61,7 @@ export function MarketJobsColumn({
   onOpenJob,
   onStoryPrimary,
   onStorySecondary,
+  onReadMore,
 }: {
   token: string
   hasCv: boolean
@@ -98,6 +100,8 @@ export function MarketJobsColumn({
   onOpenJob: (job: JobFeedItem) => void
   onStoryPrimary: (s: FeedStory) => void
   onStorySecondary: (s: FeedStory) => void
+  /** POST /jobs/feed/read-more, then re-read the list while it reads. */
+  onReadMore: () => Promise<void>
 }) {
   const router = useRouter()
   const internLane = filters.lane !== "jobs"
@@ -280,6 +284,13 @@ export function MarketJobsColumn({
                 can see its end. An infinite scroll that ran out used to need a
                 label explaining it had. */}
             <ListEnd shown={visibleJobs.length} of={total} cap={shortlistSize} />
+            {/* List Reading (ADR-0027): while the pile is read the loom says how
+                far; once the list is full, the person can ask for more. */}
+            {internLane ? null : judgment?.reading ? (
+              <AspirationRead judgment={judgment} />
+            ) : (
+              <ReadMoreJobs judgment={judgment} onReadMore={onReadMore} />
+            )}
           </>
         )}
       </div>
