@@ -1,6 +1,6 @@
 # The /market List Is Read Until It Is Full, Through One Career-Ops Triage
 
-**Status:** Accepted — triage built; three replays failed the gate (recall 43%, 66%, 75%) and a fourth skips it for everyone tested (2026-10-20); nothing reads real piles with it
+**Status:** Accepted — built on the no-triage fallback (2026-10-20, `3e4ccc57`, `05341540`): freshest first, stop at 40, Read more. The triage failed its gate in four replays and is not live
 **Date:** 2026-10-20
 **Related:** ADR-0022 (closeness, not buckets), ADR-0024 (one career-ops evaluation per job), CONTEXT.md §List Reading, §Verdict Currency, §CandidatePool, §Match Run
 
@@ -66,4 +66,5 @@ The replay also showed the judgment lane's first model, `nvidia/nemotron-3-super
 - A person sees a list once 40 good jobs are found, not after the whole pile is read. With triage, fewer evaluations are spent per good job found.
 - Triage becomes a judgment step that can drop a good job. The replay gate (point 7) is the guard, and the recorded pass is re-opened on every change of what the brain is told.
 - The drain's "does not stop at a silent cap" rule is replaced by a visible stop and Read more.
-- Not built yet: the pass record (needs a migration), the rounds module, the switch of every pile reader, the Read more control.
+- **Built (2026-10-20), on the fallback:** the drain reads freshest first only while the list is short of its target (40, or more after Read more); stale cards on the list are re-read first; `POST /jobs/feed/read-more` and the list's `can_read_more` give the person the next list. Every job read gets the full evaluation.
+- **Not built:** the triage in the live path (it failed the gate), and therefore the pass record, which only a triage needs. Match Run still keeps its own triage pool; moving it onto these rules is open.

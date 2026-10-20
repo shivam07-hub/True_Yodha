@@ -1031,16 +1031,16 @@ The ONE module every match surface routes through (`app/services/matching/match_
 
 ## List Reading
 
-How the judge reads a person's /market pile: the one module that decides which jobs reach the full career-ops evaluation next, and when it stops (decided 2026-10-20, Shivam; ADR-0027). **Built so far: the triage round** (`matching/list_reading.py`), proven against stored verdicts by `scripts/triage_replay.py` before anything reads a real pile. The rest is not built. It replaces the drain's rule of judging every aspiration-matched job — up to `ASPIRATION_READ` (1,000), one evaluation each, in `last_verified_live_at` order — and the separate triage path inside Match Run.
+How the judge reads a person's /market pile, and when it stops (decided 2026-10-20, Shivam; ADR-0027). Built on its no-triage fallback (`3e4ccc57`, `05341540`). It replaced the drain's rule of judging every aspiration-matched job — up to `ASPIRATION_READ` (1,000), one evaluation each — when 84% of evaluations were never shown.
 
-- **A round** takes the next 50 unread jobs of the pile, freshest first, runs one career-ops **triage** call over them (`list_reading.triage_round`), and gives the full evaluation only to the jobs triage keeps.
-- **Triage sees the Targeting Brief** the full evaluation sees — the same rendering, `llm_ranker.candidate_brief`: target roles, places, career goal, superpower, won't-take lines, pay floor, remembered facts, the CV — and no overlap number or matched-skill list. Skills qualify a job; they never decide which jobs the judge reads (ADR-0024).
-- **It stops when the list is full:** 40 jobs at or above 3.5 (`published_list.SHOW_FLOOR`, `_FULL`). The rest of the pile stays unread until the person asks. **Read more** resumes rounds. Nothing stops silently: the list shows how much of the pile is read.
-- **A pass is recorded.** A job triage did not keep gets its own row keyed by (person, job, eval context): read, not a fit. The list's count then ends, and Read more skips it. A change to the CV, facts, direction or prompt re-opens it, the same way it re-opens a verdict.
-- **After a change**, the cards already on the list are re-read first (Verdict Currency), then rounds continue only until the list is full again.
-- **Every pile reader goes through it:** the drain, Match Run, the Return door, Read more. Opening one job (`on_demand`, brain-on-open) stays outside it — the person asked for that job.
-- **Proof before it reads real piles:** a replay over piles the full evaluation already judged must keep at least 90% of the jobs that cleared 3.5.
-- **Why** (measured 2026-10-20, 24 real people, 13,580 evaluations): 84% of evaluations 8–30 days old were never shown. Scores fall on five values (2.8 / 3.2 / 3.8 / 4.2 / 4.8), with 36–642 jobs tied at the 40th place, so "the best 40 of 1,000" is mostly a tie-break. Stopping at 40 alone, in freshest-first order, would have cut evaluations by 47%.
+- **The drain (`feed_warm`) reads the pile freshest first only while the list is short of its target.** The target is 40 good jobs (`published_list.LIST_FULL`). Every job read gets the full career-ops evaluation.
+- **One count for both sides:** `published_list.cleared_current` — cards the list shows from verdicts current for the person's brief (`kept`: worth showing, then Admission). The list and the drain count the same thing; stale cards do not count, they are re-read.
+- **Stale cards are re-read first, full or not** (Verdict Currency), so a change to the CV or facts re-reads what is on screen, then reads on only until 40 again.
+- **Read more** (`POST /jobs/feed/read-more` → `feed_warm.read_more`) raises the target by one list and starts the drain. Offered only when the list's judgment says `can_read_more`: full, unread jobs left, nothing being re-read. The target lives in `list_reading.read_target` (Redis like presence, local fallback), keyed to the eval context: a new CV, fact, direction or prompt reads to 40 again, and a store that cannot be read reads as 40.
+- **`reading`** is true only while the pile is read toward the target or stale cards are re-read; the client polls the feed while it is.
+- **Not live: the triage.** Four replays could not make a career-ops triage keep 90% of the jobs the full evaluation cleared (recall 43%, 66%, 75%, then skipped for everyone tested). `list_reading.triage_round` and `scripts/triage_replay.py` stay until List Reading ships, then go or come back with new evidence.
+- **Not yet through it:** Match Run keeps its own triage pool (150 → 15); opening one job (`on_demand`) stays outside by design. The Return door starts the drain, so it reads by these rules.
+- **Why** (measured 2026-10-20, 24 real people, 13,580 evaluations): scores fall on five values (2.8 / 3.2 / 3.8 / 4.2 / 4.8), with 36–642 jobs tied at the 40th place, so "the best 40 of 1,000" is mostly a tie-break. Stopping at 40, freshest first, would have cut evaluations by 47%.
 
 ---
 
