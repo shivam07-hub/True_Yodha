@@ -1,6 +1,6 @@
 # The /market List Is Read Until It Is Full, Through One Career-Ops Triage
 
-**Status:** Accepted — triage built; the first replay failed the gate (2026-10-20), so nothing reads real piles with it
+**Status:** Accepted — triage built; two replays failed the gate (2026-10-20, recall 43% then 66%), so nothing reads real piles with it
 **Date:** 2026-10-20
 **Related:** ADR-0022 (closeness, not buckets), ADR-0024 (one career-ops evaluation per job), CONTEXT.md §List Reading, §Verdict Currency, §CandidatePool, §Match Run
 
@@ -37,7 +37,16 @@ Measured on production, 2026-10-20, 24 real people (own accounts excluded), 13,5
 
 The current key is the honest one: three of the four largest piles had no verdict written under the brief the person has today, and the stale key's 34% precision is mostly that drift. Against it, the triage is precise but keeps too few: 81% of what it keeps clears 3.5, yet it keeps under half of the good jobs and stays below its own cap (30 of 45 on the richest pile). Its instruction, not the cap, makes it strict.
 
-The replay also showed the judgment lane's first model, `nvidia/nemotron-3-super-120b-a12b:free`, failing on every call (`NotFoundError` here, "returned empty response" in the worker's logs on 2026-10-19), so production judgment runs on the next, paid tier after a wasted hop.
+**Second replay, same day:** the triage now keeps when unsure, up to 25 per round. The replay retries a round the provider failed (as the next pass would) and scores recall only over rounds the triage read. Same four people, current verdicts only, all 6 rounds read:
+
+| Triage | Recall | Precision | Evaluations: today → stop at 40 → with triage |
+|---|---|---|---|
+| keep ≤15, keep only expected fits | 42.9% | 81.4% | 287 → 236 → 70 (+8) |
+| keep ≤25, keep when unsure | **66.2%** | 68.0% | 287 → 236 → 150 (+8) |
+
+Still below 90%. Run to run, one person moved from 43% to 76% between identical runs, because whichever strong model answers first (llama-3.3-70b, gpt-4o-mini, kimi-k2, gpt-oss-120b) varies with provider health. These piles are also small (27–115 current verdicts each), not the 1,000-job piles the drain reads.
+
+The replay also showed the judgment lane's first model, `nvidia/nemotron-3-super-120b-a12b:free`, failing on every call (`NotFoundError` here, "returned empty response" in the worker's logs on 2026-10-19), so production judgment ran on the next, paid tier after a wasted hop. It was removed from `OR_TIERS` the same day (`fe62760f`).
 
 ## Considered Options
 
