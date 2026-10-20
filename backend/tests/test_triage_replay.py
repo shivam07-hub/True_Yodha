@@ -6,7 +6,7 @@ from scripts.triage_replay import LIST_FULL, PersonReplay, _report, _until_full
 
 def _person(**kw) -> PersonReplay:
     base = dict(
-        user_id="u1", pile=100, good=50, good_in_read_rounds=50, current_verdicts=100, rounds=2, rounds_unread=0,
+        user_id="u1", pile=100, good=50, good_in_read_rounds=50, current_verdicts=100, rounds=2, triage_calls=2, rounds_unread=0,
         kept=30, good_kept=45, evals_today=100, evals_stop_only=80, evals_list_reading=30,
         list_reading_reached_40=True,
     )

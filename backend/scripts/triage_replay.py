@@ -50,6 +50,7 @@ class PersonReplay:
     good_in_read_rounds: int
     current_verdicts: int
     rounds: int
+    triage_calls: int
     rounds_unread: int
     kept: int
     good_kept: int
@@ -136,7 +137,7 @@ async def replay_person(
     db: Any, provider: Any, user_id: str, *, max_jobs: int, keep: int, current_only: bool = False,
 ) -> PersonReplay:
     from app.repositories.jobs import JobsRepository
-    from app.services import onboarding_service
+    from app.services import deal_breakers, onboarding_service
     from app.services.matching import list_reading, targeting
 
     repo = JobsRepository(db, db)
@@ -200,6 +201,8 @@ async def replay_person(
         good_in_read_rounds=len(good & read_ids),
         current_verdicts=current,
         rounds=len(rounds),
+        # No won't-take lines: list_reading sends the round straight through.
+        triage_calls=len(rounds) if deal_breakers.read(profile).wont_take else 0,
         rounds_unread=unread,
         kept=len(kept),
         good_kept=len(good & kept),
@@ -229,7 +232,7 @@ def _report(people: list[PersonReplay]) -> dict[str, Any]:
         "recall": recall,
         "gate_recall": GATE_RECALL,
         "passes_gate": recall is not None and recall >= GATE_RECALL,
-        "triage_calls": sum(p.rounds for p in people),
+        "triage_calls": sum(p.triage_calls for p in people),
         "rounds_unread": sum(p.rounds_unread for p in people),
         "evals_today": sum(p.evals_today for p in people),
         "evals_stop_only": sum(p.evals_stop_only for p in people),
@@ -273,7 +276,8 @@ def main() -> int:
         print(
             f"{p.user_id[:8]}  pile {p.pile:>4}  good {p.good:>4}  kept {p.kept:>4}  "
             f"recall {recall:>4}  evals today {p.evals_today:>4} · stop-only {p.evals_stop_only:>4} · "
-            f"list reading {p.evals_list_reading:>4}  unread rounds {p.rounds_unread}  current verdicts {p.current_verdicts}"
+            f"list reading {p.evals_list_reading:>4}  triage calls {p.triage_calls}  unread rounds {p.rounds_unread}  "
+            f"current verdicts {p.current_verdicts}"
         )
     recall = report["recall"]
     print(
