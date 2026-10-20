@@ -1,6 +1,6 @@
 # The /market List Is Read Until It Is Full, Through One Career-Ops Triage
 
-**Status:** Accepted — triage built; three replays failed the gate (2026-10-20, recall 43%, 66%, 75%), so nothing reads real piles with it
+**Status:** Accepted — triage built; three replays failed the gate (recall 43%, 66%, 75%) and a fourth skips it for everyone tested (2026-10-20); nothing reads real piles with it
 **Date:** 2026-10-20
 **Related:** ADR-0022 (closeness, not buckets), ADR-0024 (one career-ops evaluation per job), CONTEXT.md §List Reading, §Verdict Currency, §CandidatePool, §Match Run
 
@@ -44,10 +44,13 @@ The current key is the honest one: three of the four largest piles had no verdic
 | keep ≤15, keep only expected fits | 42.9% | 81.4% | 287 → 236 → 70 (+8) |
 | keep ≤25, keep when unsure | **66.2%** | 68.0% | 287 → 236 → 150 (+8) |
 | keep ≤35, drop only a clear won't-take break | **74.7%** | 61.2% | 287 → 236 → 169 (+8) |
+| + never drop a lookalike, skip triage with no won't-take lines | 100% (vacuous) | 53.7% | 287 → 236 → 236 (+0) |
 
 The third setting shows where the misses come from. One person with no won't-take lines at all, and a cap above their whole pile, still had 14 of 25 good jobs dropped in every run. Across people the triage drops near-duplicate postings (five "Branch Manager – Branch Banking" in different cities, several "Playwright Test Automation" roles) and applies its own sense of fit against the instruction, worst where target roles are broad family names. Each loosening buys recall by evaluating more of the pile: at 75% recall it still spends 169 of the 236 evaluations that stopping at 40 alone would, so at 90% it would save little over that fallback while still dropping one good job in ten.
 
-All below 90%. Run to run, one person moved from 43% to 76% between identical runs, because whichever strong model answers first (llama-3.3-70b, gpt-4o-mini, kimi-k2, gpt-oss-120b) varies with provider health. These piles are also small (27–115 current verdicts each), not the 1,000-job piles the drain reads.
+The fourth setting passes only because it never runs: none of the four people has a won't-take line, so every round went straight to the full evaluation, which is the fallback. Across production the rule would rarely run at all: 2 of the 60 real people with a judged pile have any won't-take line (3 lines between them), 6 of 992 real profiles store one, and neither of the two has a verdict current for today's brief, so the triage cannot yet be tested on the only people it would read for.
+
+The first three are below 90%. Run to run, one person moved from 43% to 76% between identical runs, because whichever strong model answers first (llama-3.3-70b, gpt-4o-mini, kimi-k2, gpt-oss-120b) varies with provider health. These piles are also small (27–115 current verdicts each), not the 1,000-job piles the drain reads.
 
 The replay also showed the judgment lane's first model, `nvidia/nemotron-3-super-120b-a12b:free`, failing on every call (`NotFoundError` here, "returned empty response" in the worker's logs on 2026-10-19), so production judgment ran on the next, paid tier after a wasted hop. It was removed from `OR_TIERS` the same day (`fe62760f`).
 
