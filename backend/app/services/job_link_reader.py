@@ -127,11 +127,13 @@ def _location(item: dict[str, Any]) -> str:
     for place in places:
         address = place.get("address") if isinstance(place, dict) else None
         if isinstance(address, dict):
+            # A part can hold a place and a code together ("Hyderabad, HDC3C").
             parts = [
-                _name(address.get(key))
+                piece.strip()
                 for key in ("addressLocality", "addressRegion", "addressCountry")
+                for piece in _name(address.get(key)).split(",")
             ]
-            parts = [p for p in parts if not _coded(p)]
+            parts = [p for p in parts if p and not _coded(p)]
             text = ", ".join(dict.fromkeys(p for p in parts if p))
             if text:
                 return text

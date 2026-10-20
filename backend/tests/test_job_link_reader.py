@@ -199,8 +199,9 @@ def test_every_read_names_its_reader(monkeypatch, caplog):
 def test_an_office_code_is_not_an_employer_or_a_place():
     """Accenture's Workday JobPosting, 2026-10-20: hiringOrganization "8126 ASOL-
     Hyderabad 3" and region "HDC3C". The review asks for the company instead."""
-    coded = dict(POSTING, hiringOrganization={"name": "8126 ASOL- Hyderabad 3"}, jobLocation={
-        "address": {"addressLocality": "Hyderabad", "addressRegion": "HDC3C", "addressCountry": "India"},
+    # The live page's shape: the office code shares the locality string.
+    coded = dict(POSTING, hiringOrganization={"name": "8126 ASOL- Hyderabad 3 SEZ Company"}, jobLocation={
+        "address": {"addressLocality": "Hyderabad, HDC3C", "addressCountry": "India"},
     })
     fields = reader.jobposting_fields(_page(coded))
     assert fields["company"] == ""
