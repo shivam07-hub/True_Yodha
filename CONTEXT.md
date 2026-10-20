@@ -1031,10 +1031,10 @@ The ONE module every match surface routes through (`app/services/matching/match_
 
 ## List Reading
 
-How the judge reads a person's /market pile: the one module that decides which jobs reach the full career-ops evaluation next, and when it stops (decided 2026-10-20, Shivam). **Not built yet.** It replaces the drain's rule of judging every aspiration-matched job — up to `ASPIRATION_READ` (1,000), one evaluation each, in `last_verified_live_at` order — and the separate triage path inside Match Run.
+How the judge reads a person's /market pile: the one module that decides which jobs reach the full career-ops evaluation next, and when it stops (decided 2026-10-20, Shivam; ADR-0027). **Built so far: the triage round** (`matching/list_reading.py`), proven against stored verdicts by `scripts/triage_replay.py` before anything reads a real pile. The rest is not built. It replaces the drain's rule of judging every aspiration-matched job — up to `ASPIRATION_READ` (1,000), one evaluation each, in `last_verified_live_at` order — and the separate triage path inside Match Run.
 
-- **A round** takes the next 50 unread jobs of the pile, freshest first, runs one career-ops **triage** call over them (`llm_ranker.triage_shortlist`), and gives the full evaluation only to the jobs triage keeps.
-- **Triage sees the Targeting Brief** the full evaluation sees — direction, known facts, deal-breakers, seniority, places — and no overlap number. Skills qualify a job; they never decide which jobs the judge reads (ADR-0024).
+- **A round** takes the next 50 unread jobs of the pile, freshest first, runs one career-ops **triage** call over them (`list_reading.triage_round`), and gives the full evaluation only to the jobs triage keeps.
+- **Triage sees the Targeting Brief** the full evaluation sees — the same rendering, `llm_ranker.candidate_brief`: target roles, places, career goal, superpower, won't-take lines, pay floor, remembered facts, the CV — and no overlap number or matched-skill list. Skills qualify a job; they never decide which jobs the judge reads (ADR-0024).
 - **It stops when the list is full:** 40 jobs at or above 3.5 (`published_list.SHOW_FLOOR`, `_FULL`). The rest of the pile stays unread until the person asks. **Read more** resumes rounds. Nothing stops silently: the list shows how much of the pile is read.
 - **A pass is recorded.** A job triage did not keep gets its own row keyed by (person, job, eval context): read, not a fit. The list's count then ends, and Read more skips it. A change to the CV, facts, direction or prompt re-opens it, the same way it re-opens a verdict.
 - **After a change**, the cards already on the list are re-read first (Verdict Currency), then rounds continue only until the list is full again.

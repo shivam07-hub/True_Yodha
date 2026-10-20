@@ -191,11 +191,12 @@ def _ctc_band(value: Any) -> tuple[float | None, float | None]:
     return (low, high) if low <= high else (high, low)
 
 
-def build_system_prompt(profile: dict[str, Any], cv_markdown: str) -> str:
-    """Career Ops evaluator persona, driven by the per-user profile.
+def candidate_brief(profile: dict[str, Any], cv_markdown: str) -> str:
+    """The person the judge reads: identity lines, remembered facts, the CV.
 
-    Unlike the source agent, this carries NO hardcoded location/role bias — the
-    rewards and penalties come from the candidate's own target_roles and location.
+    One rendering for every career-ops step that judges this person, so the
+    List Reading triage (ADR-0027) and the evaluation never see two different
+    people. `test_list_reading` holds the evaluation prompt to containing it.
     """
     roles = ", ".join(profile.get("target_roles") or []) or NO_TARGET_ROLES
     location = preferred_locations(profile)
@@ -219,6 +220,30 @@ def build_system_prompt(profile: dict[str, Any], cv_markdown: str) -> str:
     if stated.pay_floor_lpa is not None:
         identity.append(f"- Pay floor: ₹{stated.pay_floor_lpa:g} LPA")
     identity_block = "\n".join(identity)
+
+    # Targeting Brief: memory facts (authored + distilled) ride as known_facts —
+    # the same key the intent-chat concierge reads. Soft context, never hard rules.
+    facts = [str(f).strip() for f in (profile.get("known_facts") or []) if str(f).strip()]
+    facts_block = ""
+    if facts:
+        lines = "\n".join(f"- {f}" for f in facts)
+        facts_block = f"\n\nWhat Myro remembers about this candidate (their notes + observed activity):\n{lines}"
+
+    return f"""This candidate:
+{identity_block}{facts_block}
+
+CV:
+{cv_block}"""
+
+
+def build_system_prompt(profile: dict[str, Any], cv_markdown: str) -> str:
+    """Career Ops evaluator persona, driven by the per-user profile.
+
+    Unlike the source agent, this carries NO hardcoded location/role bias — the
+    rewards and penalties come from the candidate's own target_roles and location.
+    """
+    career_goal = career_goal_of(profile)
+    superpower = superpower_of(profile)
     if career_goal:
         growth_axis = (
             f"- growth_fit: will this move the candidate toward this career goal: {career_goal}?"
@@ -238,21 +263,9 @@ def build_system_prompt(profile: dict[str, Any], cv_markdown: str) -> str:
             "- Frame application_angle from the CV. There is no stated superpower; do not invent one."
         )
 
-    # Targeting Brief: memory facts (authored + distilled) ride as known_facts —
-    # the same key the intent-chat concierge reads. Soft context, never hard rules.
-    facts = [str(f).strip() for f in (profile.get("known_facts") or []) if str(f).strip()]
-    facts_block = ""
-    if facts:
-        lines = "\n".join(f"- {f}" for f in facts)
-        facts_block = f"\n\nWhat Myro remembers about this candidate (their notes + observed activity):\n{lines}"
-
     return f"""You are Career Ops, an elite AI career advisor. You evaluate a job posting against ONE specific candidate with brutal honesty and strategic insight. No flattery, no score inflation.
 
-This candidate:
-{identity_block}{facts_block}
-
-CV:
-{cv_block}
+{candidate_brief(profile, cv_markdown)}
 
 Score the posting on a 0.0–5.0 scale (use decimals; NEVER round to whole numbers):
 - role_fit: match to skills, experience, seniority, and the candidate's target roles
