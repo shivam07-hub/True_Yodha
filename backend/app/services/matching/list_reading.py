@@ -31,10 +31,9 @@ logger = logging.getLogger(__name__)
 #: Jobs one triage call reads. The same chunk `triage_shortlist` uses: a strong
 #: model ranks 50 rows well and the prompt stays inside every lane's context.
 ROUND_SIZE = 50
-#: Most jobs a round sends to the full evaluation. The first replay kept at most
-#: 15 and missed more than half the good jobs (ADR-0027); 25 of 50 leaves room
-#: for a rich pile, where half the round can clear 3.5.
-KEEP_PER_ROUND = 25
+#: Most jobs a round sends to the full evaluation. Replays (ADR-0027): at most
+#: 15 kept 43% of the good jobs, at most 25 kept 66%. 35 of 50 is the third try.
+KEEP_PER_ROUND = 35
 #: Description characters per job. With no skill list beside it, the posting
 #: itself is the evidence, so this is wider than the old triage's 220.
 _SNIPPET = 400
@@ -46,7 +45,7 @@ def triage_system_prompt(profile: dict[str, Any]) -> str:
     brief = llm_ranker.candidate_brief(profile, profile.get("cv_markdown") or "")
     return f"""You are Career Ops, an elite AI career advisor. You are reading a batch of job postings for ONE candidate to choose which deserve your full evaluation.
 
-The full evaluation scores a posting from 0.0 to 5.0 against this candidate, and only postings that reach 3.5 are shown to them. Keep every posting that could reach 3.5: a fit for where this candidate is going — their target roles, places and career goal — read against their CV. When you are unsure, keep it. The full evaluation decides, and a posting you drop here is never shown to them. Drop a posting only when it clearly breaks a won't-take line or clearly points away from the target roles. Past skills qualify a candidate; they do not set their direction.
+The full evaluation scores a posting from 0.0 to 5.0 against this candidate, and only postings that reach 3.5 are shown to them. Keep every posting that could reach 3.5 for where this candidate is going — their target roles, places and career goal — read against their CV. When you are unsure, keep it. The full evaluation decides, and a posting you drop here is never shown to them. Drop a posting only when it clearly breaks one of the candidate's won't-take lines. Past skills qualify a candidate; they do not set their direction.
 
 {brief}"""
 
@@ -65,7 +64,7 @@ def triage_user_message(jobs: list[dict[str, Any]], keep_n: int) -> str:
             f"\n   {snippet or 'No description.'}"
         )
     listing = "\n".join(lines)
-    return f"""{len(jobs)} postings below. Keep at most {keep_n} that deserve a full evaluation for this candidate, best first. When unsure, keep. None is fine only when none could fit.
+    return f"""{len(jobs)} postings below. Keep at most {keep_n} that deserve a full evaluation for this candidate, best first. When unsure, keep. Drop only a clear won't-take break.
 
 {listing}
 
