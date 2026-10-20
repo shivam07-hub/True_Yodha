@@ -7,8 +7,11 @@ CEO grill (D6, Shivam, 2026-09-30).** UI slices go through `/frontend-design`.
 > slice is its own commit on `Develop`, six gates green. Migrations are applied
 > by the agent before the code that reads them, then `NOTIFY pgrst`.
 
-> **Status 2026-10-18 — S0–S5 on `main` (#342, 2026-10-17); door telemetry live
-> on prod from 2026-10-18; QA U4 still owed.** Detail as built, 2026-10-14: partner consent (the signed-in Connect
+> **Status 2026-10-20 — S0–S5 on `main` (#342, 2026-10-17); door telemetry live
+> on prod from 2026-10-18. U4 desktop run 2026-10-19 found link paste broken
+> (fixed `2cc7b264`) and 12 clicks to Download; FD2 `8c372968` made it 5: a pasted
+> link reads itself, a never-tailored job opens on Mentor, Weave now on any
+> question, Take all, no done screen. Phone U4 still owed.** Detail as built, 2026-10-14: partner consent (the signed-in Connect
 > click, Google on that screen, and the emailed link) lands on `/onboarding`.
 > That page already sends `position === "completed"` to `/market` and
 > `result` to `/onboarding/result`; no CV stays on the upload. Measured in

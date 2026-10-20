@@ -1,7 +1,8 @@
 /**
  * Playground adapter for Tailor Order landing.
  *
- * Header, ?mentor=1, and the Skills-map row all enter through here.
+ * Header, ?mentor=1, the Skills-map row, and the first visit to a job whose
+ * CV was never tailored (autoOpens, once per job per browser) all enter here.
  * The step machine stays in tailor-order.ts — this file only fetches
  * the facts and opens the overlay landingStep named.
  */

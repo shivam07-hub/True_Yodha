@@ -152,7 +152,7 @@ Order is the loop map — broken steps first, nearest the north star first (Shiv
 | 1 | Find the job | Scraper landing daily since 2026-10-15 (dark 10-01→10-14). #55 closed: a return shows the list and re-reads it. |
 | 2 | Apply | 2 real Apply clicks since 2026-09-22 (last 10-16), 0 answered. Built work is on `main` (#342); measure click → "Did you submit?" → application. |
 | 3 | Repeat | Golden-list digest (#59): email only to `golden_list_since`. Blocked until the preview is approved. |
-| 4 | Front door | #57 S0–S5 built 2026-10-14: after skills, paste · extension · jobs that fit. On `main` 2026-10-17; door telemetry live on prod from 2026-10-18. QA click-through still owed. |
+| 4 | Front door | #57 on `main` 2026-10-17: after skills, paste · extension · jobs that fit. Desktop QA 2026-10-19; FD2 on `Develop`: door to Download in 5 clicks (Mentor opens itself on a never-tailored job). Phone QA owed. |
 | 5 | Tailor + download | #58 S1–S4 built (blank certs, fabricated-role guard, unknown sections kept, measured page fill). Still open: add role. |
 | 6 | Pay | #56 Apply Pack — [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md), Cursor. |
 
