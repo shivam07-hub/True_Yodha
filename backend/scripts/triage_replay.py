@@ -35,6 +35,9 @@ from typing import Any
 
 GATE_RECALL = 0.90
 LIST_FULL = 40
+#: A round nobody read stays unread and the next pass reads it (list_reading),
+#: so the replay retries it the same way before calling it unread.
+_ROUND_ATTEMPTS = 3
 SHOW_FLOOR = 3.5
 _IN_CHUNK = 100
 
@@ -44,6 +47,7 @@ class PersonReplay:
     user_id: str
     pile: int
     good: int
+    good_in_read_rounds: int
     current_verdicts: int
     rounds: int
     rounds_unread: int
@@ -57,7 +61,9 @@ class PersonReplay:
 
     @property
     def recall(self) -> float | None:
-        return self.good_kept / self.good if self.good else None
+        """Over the rounds the triage actually read: an unread round is a
+        provider failure, not a triage decision."""
+        return self.good_kept / self.good_in_read_rounds if self.good_in_read_rounds else None
 
 
 def _real_users_with_piles(db: Any, limit: int) -> list[str]:
@@ -168,16 +174,22 @@ async def replay_person(
             }
             for jid in ids
         ]
-        async with sem:
-            return await list_reading.triage_round(profile, jobs, provider, keep_n=keep)
+        for _ in range(_ROUND_ATTEMPTS):
+            async with sem:
+                kept = await list_reading.triage_round(profile, jobs, provider, keep_n=keep)
+            if kept is not None:
+                return kept
+        return None
 
     results = await asyncio.gather(*(read(ids) for ids in rounds))
     kept_order: list[str] = []
+    read_ids: set[str] = set()
     unread = 0
-    for result in results:
+    for ids, result in zip(rounds, results):
         if result is None:
             unread += 1
             continue
+        read_ids.update(ids)
         kept_order.extend(result)
     kept = set(kept_order)
 
@@ -185,6 +197,7 @@ async def replay_person(
         user_id=user_id,
         pile=len(order),
         good=len(good),
+        good_in_read_rounds=len(good & read_ids),
         current_verdicts=current,
         rounds=len(rounds),
         rounds_unread=unread,
@@ -195,20 +208,24 @@ async def replay_person(
         evals_list_reading=_until_full(kept_order, good),
         list_reading_reached_40=len(good & kept) >= LIST_FULL,
         missed_good_titles=[
-            str(metas[jid].get("job_title") or jid) for jid in order if jid in good and jid not in kept
+            str(metas[jid].get("job_title") or jid)
+            for jid in order if jid in good and jid in read_ids and jid not in kept
         ][:8],
     )
 
 
 def _report(people: list[PersonReplay]) -> dict[str, Any]:
-    good = sum(p.good for p in people)
+    good = sum(p.good_in_read_rounds for p in people)
     good_kept = sum(p.good_kept for p in people)
     recall = good_kept / good if good else None
     return {
         "people": len(people),
         "pile": sum(p.pile for p in people),
-        "good": good,
+        "good": sum(p.good for p in people),
+        "good_in_read_rounds": good,
         "good_kept": good_kept,
+        "kept": sum(p.kept for p in people),
+        "precision": good_kept / sum(p.kept for p in people) if sum(p.kept for p in people) else None,
         "recall": recall,
         "gate_recall": GATE_RECALL,
         "passes_gate": recall is not None and recall >= GATE_RECALL,
