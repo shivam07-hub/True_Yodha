@@ -18,7 +18,7 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 |---|---|---|---|---|
 | 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read `apply_asked` ~10-27; nothing to build before it |
 | 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) | Built; `0aafb324` on `main`. **BLOCKED on Shivam**: preview → approve |
-| 4 | Front door | **#57** "Which job do you want?" after upload | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor, 1st | On `main` 2026-10-17 · link paste fixed `2cc7b264`; 5 clicks to Download `8c372968` · FD1 and phone run owed |
+| 4 | Front door | **#57** "Which job do you want?" after upload | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor, 1st | On `main` 2026-10-17 · link paste fixed `2cc7b264`; 5 clicks to Download `8c372968`; links read from the corpus `515fd697` · phone run owed |
 | 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1–S4 on `main` · next S5 add role |
 | 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor, 3rd | Spec only, no commits · S0 audit |
 | 6 | Pay | **#56** the ₹199 Apply Pack | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Cursor, 4th | Spec only, no commits · S1 settlement |
@@ -118,10 +118,24 @@ and Paste → review → playground works. Found on the way:
   timeout; the server answers in 31–45s, so the door and /market's "Paste a job"
   said "Request timed out." while the server returned 200 (`2cc7b264`, live after
   the next `main` merge).
-- **FD1 · Reading a link takes 31–45s.** `extract_job_from_text` asks the model to
-  return the whole posting as `job_description` (`max_tokens=2048`), so the wait
-  is output tokens. Lift role/company/location by model and keep the page text
-  for the JD, or stream. Front door.
+- **FD1 · reading a pasted link — FIXED `515fd697`.** The 31–45s was a dead free
+  model at the head of the lane (removed `fe62760f`), not the JD rewrite (30/31
+  sentences came back verbatim). The real fault: 5 of the 18 biggest hosts gave
+  the reader no text at all (Workday, Oracle Cloud — Kotak, the largest — and
+  Infosys draw their posting with JavaScript), so the paste failed. Now
+  `job_link_reader` answers cheapest first and logs
+  `metric job_import.read source= ms= host=`: **corpus** (89.8% of live jobs carry
+  their `job_id` in the link; one primary-key lookup + `page.same_page`; saves the
+  listing itself, no `ext_` copy) → **JobPosting** (schema.org on the page) →
+  **model**. Verified on real links: Genpact/Workday, Lever, Qualcomm, Amazon,
+  Axis, Infosys from the corpus in 0.1–0.2s; Accenture from its JobPosting in
+  ~2s; a pasted Genpact link saved as `JR10022480` with no `ext_` row. **After
+  the merge:** read the `source=` split on prod for two weeks.
+- **4,279 live listings carry the scraper's stub description** ("No JD provided
+  on the company page…", 133 chars) — 4,468 are under 300 chars, measured
+  2026-10-20. A paste never answers with one (`MIN_LISTING_JD_CHARS`), but every
+  other surface still matches, judges and tailors against them. Kotak's Oracle
+  pages are the bulk. Owner: Shivam (scraper repo).
 - **FD2 · door to Download — FIXED `8c372968`: 12 clicks → 5.** Paste a job (1)
   → paste the link, it reads itself → Tailor a CV for this (2) → Mentor is
   already open → Weave now · 50 (3) → Take all (4) → Download (5). A job CV that

@@ -110,7 +110,14 @@ type JobImportState =
 ```
 
 One flow for a link, pasted text, or a file; review is always shown (the
-extractor sometimes reads a page tagline as the role). The web skin
+extractor sometimes reads a page tagline as the role).
+
+*Amended 2026-10-20 (FD1/FD2):* a pasted link reads itself (paste or Enter).
+The server reads it cheapest first (`job_link_reader`): Myro's corpus by the
+id in the link (then `review.listing` is true, the review is read-only, and
+the save keeps that listing via `listing_job_id` — no `ext_` copy), else the
+page's schema.org JobPosting, else the model. The door saves a corpus listing
+as `onboarding_import`, so `/onboarding/first-job` accepts it. The web skin
 (`JobImportDialog`, replacing `ManualAddModal`) and the phone skin (`AddJobSheet`)
 render this model and own no fetch logic. Delete the duplicated logic in the
 same slice. The interface is the test surface: drive the hook, assert states.
