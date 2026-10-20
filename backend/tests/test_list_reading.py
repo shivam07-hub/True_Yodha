@@ -107,3 +107,23 @@ def test_a_round_is_at_most_fifty_jobs() -> None:
 def test_an_empty_round_costs_no_call() -> None:
     kept, provider = _round([], json.dumps({"shortlist": [1]}))
     assert kept == [] and provider.messages == []
+
+
+def test_a_person_with_no_wont_take_lines_skips_the_triage_call() -> None:
+    """With nothing the person refuses, the triage has nothing to drop for, so
+    every job in the round goes to the full evaluation and no call is spent."""
+    profile = {**PROFILE, "deal_breakers": []}
+    provider = _Provider(json.dumps({"shortlist": [1]}))
+    jobs = [_job(n) for n in range(1, 41)]
+    kept = asyncio.run(list_reading.triage_round(profile, jobs, provider))
+    assert kept == [f"j{n}" for n in range(1, 41)]
+    assert provider.messages == []
+
+
+def test_a_pay_floor_alone_is_not_a_line_to_drop_for() -> None:
+    """A pay floor never makes a posting Skip in the evaluation, so it gives the
+    triage nothing to drop for either."""
+    profile = {**PROFILE, "deal_breakers": ["Below 30 LPA"]}
+    provider = _Provider(json.dumps({"shortlist": [1]}))
+    kept = asyncio.run(list_reading.triage_round(profile, [_job(1), _job(2)], provider))
+    assert kept == ["j1", "j2"] and provider.messages == []
