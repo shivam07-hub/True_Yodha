@@ -4,6 +4,7 @@ import { useRef, useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { APPLICATION_STAGES, type ApplicationStatus } from "@/lib/api"
+import { pastedLink } from "@/lib/job-import/pasted-link"
 import { EXTENSION_WEBSTORE_URL } from "@/lib/extension"
 import { useJobImport } from "@/lib/job-import/use-job-import"
 import { STAGE_LABEL, type StageKey } from "@/components/cv/pipeline/useTrackerBoard"
@@ -64,6 +65,16 @@ export function JobImportDialog({
               <input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
+                onPaste={(e) => {
+                  const link = pastedLink(e.clipboardData.getData("text"))
+                  if (!link || busy) return
+                  e.preventDefault()
+                  setUrl(link)
+                  void importJob.submitLink(link)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && url.trim() && !busy) void importJob.submitLink(url)
+                }}
                 placeholder="https://… job posting link"
                 aria-label="Job posting link"
                 style={{ ...fieldStyle, flex: 1, minWidth: 0 }}

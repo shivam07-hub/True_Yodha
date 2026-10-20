@@ -21,7 +21,8 @@ interface Landing {
   accepted: number[]
   decided: number[]
   roleIndex: number | null
-  action: "take" | "keep" | "undo" | "extras"
+  /** "all" is Take all: every card in one write (sent with no action). */
+  action: "take" | "keep" | "undo" | "extras" | "all"
   originalPointers: number[]
   acceptSummary: boolean
   acceptSkillsLine: boolean
@@ -65,7 +66,7 @@ export function useWeaveLanding({
         .then(() => cvApi.weave.apply(token, jobId, land.accepted, {
           decidedRoles: land.decided,
           roleIndex: land.roleIndex,
-          action: land.action,
+          action: land.action === "all" ? undefined : land.action,
           originalPointers: land.originalPointers,
           acceptSummary: land.acceptSummary,
           acceptSkillsLine: land.acceptSkillsLine,
@@ -78,10 +79,13 @@ export function useWeaveLanding({
       setError(null)
       setAccepted(land.accepted)
       setDecided(land.decided)
-      if (land.action === "extras") setExtrasDecided(true)
+      if (land.action === "extras" || land.action === "all") setExtrasDecided(true)
       if (land.action === "undo" && land.roleIndex === null) setExtrasDecided(false)
       setOriginals(new Set())
-      setIdx(i => (land.action === "undo" ? Math.max(0, i - 1) : i + 1))
+      setIdx(i => (
+        land.action === "all" ? steps.length
+          : land.action === "undo" ? Math.max(0, i - 1) : i + 1
+      ))
       return before
     },
     onSuccess: (res, land) => {
@@ -147,6 +151,22 @@ export function useWeaveLanding({
     })
   }
 
+  /** Take all: every changed role and the CV-wide lines, one write. The
+   *  server records the summary card as decided with it. */
+  function takeAll() {
+    const roles = steps.flatMap(s => (s.kind === "role" ? [s.role.role_index] : []))
+    const extras = steps.find(s => s.kind === "extras")
+    apply.mutate({
+      accepted: roles,
+      decided: roles,
+      roleIndex: null,
+      action: "all",
+      originalPointers: [],
+      acceptSummary: extras?.kind === "extras" && Boolean(extras.summary),
+      acceptSkillsLine: extras?.kind === "extras" && Boolean(extras.skillsLine),
+    })
+  }
+
   function undoLast() {
     const prev = steps[idx - 1]
     if (!prev) return
@@ -168,5 +188,8 @@ export function useWeaveLanding({
     })
   }
 
-  return { idx, originals, error, toggleOriginal, decide, undoLast, seed, reset }
+  return {
+    idx, originals, error, saving: apply.isPending,
+    toggleOriginal, decide, takeAll, undoLast, seed, reset,
+  }
 }

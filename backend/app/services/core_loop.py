@@ -22,8 +22,10 @@ from app.database import get_supabase_admin
 
 _log = logging.getLogger(__name__)
 
-#: Written only by the server, where the fact happens.
-SERVER_STEPS: tuple[str, ...] = ("applied",)
+#: Written only by the server, where the fact happens. `weave_ran`: a Mentor
+#: weave produced a proposal and was paid for. `review_done`: the landing that
+#: decided that proposal's last card.
+SERVER_STEPS: tuple[str, ...] = ("applied", "weave_ran", "review_done")
 
 
 def record_step(user_id: str, job_id: str, step: str, surface: str | None) -> bool:

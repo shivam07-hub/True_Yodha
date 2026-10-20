@@ -1164,3 +1164,95 @@ def test_seat_lead_needs_a_role():
     cv = _seat_cv("")
     cv["experience"][0]["role"] = ""
     assert cv_weave.seat_lead(cv, "") is None
+
+
+# ── the loop's Mentor steps are stated by the server (FD2, 2026-10-20) ──────
+
+def _capture_steps(monkeypatch):
+    from app.routers.cv import weave as weave_router
+
+    steps: list[tuple[str, str, str | None]] = []
+    monkeypatch.setattr(
+        weave_router.core_loop, "record_step",
+        lambda u, j, step, surface: steps.append((j, step, surface)) or True,
+    )
+    return steps
+
+
+def test_a_paid_weave_records_weave_ran_and_a_replay_does_not(monkeypatch):
+    from app.main import app
+    from app.routers.cv import weave as weave_router
+
+    jobs_repo, cv_repo, charges = _JobsRepo(), _CVRepo(), []
+    _seed_coverage(jobs_repo)
+    client = _client(monkeypatch, jobs_repo, cv_repo, charges)
+    steps = _capture_steps(monkeypatch)
+
+    async def _weave(**kwargs):
+        return {"fingerprint": cv_weave.source_fingerprint(CV), "summary": "S", "skills_line": None,
+                "roles": [], "changed_roles": 1, "requirements_total": 2, "asks_unproven": 1}
+
+    async def _material(_u, _reqs, cap=12):
+        return []
+
+    monkeypatch.setattr(weave_router.cv_weave, "weave", _weave)
+    monkeypatch.setattr(weave_router.cv_weave_interview, "gather_story_material", _material)
+    try:
+        assert client.post("/cv/weave", json={"job_id": "j1"}).status_code == 200
+        assert client.post("/cv/weave", json={"job_id": "j1"}).json()["cached"] is True
+        assert steps == [("j1", "weave_ran", "mentor")]
+    finally:
+        app.dependency_overrides.clear()
+
+
+def _two_card_proposal():
+    return {
+        "fingerprint": cv_weave.source_fingerprint(CV),
+        "summary": "BD Manager at Capgemini. Old summary", "skills_line": None,
+        "roles": [{"role_index": 0, "role": "BD Manager", "company": "Capgemini", "changed": True,
+                   "guarded": False, "why": "", "bullets": [{"text": "Merged."}], "dropped_lines": []}],
+        "changed_roles": 1, "requirements_total": 1, "asks_unproven": 0, "computed_at": "t",
+    }
+
+
+def test_take_all_decides_every_card_and_records_review_done_once(monkeypatch):
+    from app.main import app
+
+    jobs_repo, cv_repo, charges = _JobsRepo(), _CVRepo(), []
+    client = _client(monkeypatch, jobs_repo, cv_repo, charges)
+    steps = _capture_steps(monkeypatch)
+    jobs_repo.deepenings[cv_weave.CACHE_PROMPT_KEY] = json.dumps(_two_card_proposal())
+    take_all = {"job_id": "j1", "accepted_roles": [0], "decided_roles": [0], "accept_summary": True}
+    try:
+        assert client.post("/cv/weave/apply", json=take_all).status_code == 200
+        got = client.get("/cv/weave/j1").json()
+        assert got["decided_roles"] == [0]
+        assert got["extras_decided"] is True, "the next visit must not reopen the review"
+        assert cv_repo.created[0].cv_structured["summary"] == "BD Manager at Capgemini. Old summary"
+        assert steps == [("j1", "review_done", "take_all")]
+        assert client.post("/cv/weave/apply", json=take_all).status_code == 200
+        assert len(steps) == 1, "a finished review is not finished twice"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_the_stepper_records_review_done_on_the_card_that_finishes_it(monkeypatch):
+    from app.main import app
+
+    jobs_repo, cv_repo, charges = _JobsRepo(), _CVRepo(), []
+    client = _client(monkeypatch, jobs_repo, cv_repo, charges)
+    steps = _capture_steps(monkeypatch)
+    jobs_repo.deepenings[cv_weave.CACHE_PROMPT_KEY] = json.dumps(_two_card_proposal())
+    try:
+        client.post("/cv/weave/apply", json={
+            "job_id": "j1", "accepted_roles": [], "decided_roles": [],
+            "action": "extras", "accept_summary": True,
+        })
+        assert steps == []
+        client.post("/cv/weave/apply", json={
+            "job_id": "j1", "accepted_roles": [0], "decided_roles": [0],
+            "role_index": 0, "action": "take",
+        })
+        assert steps == [("j1", "review_done", "stepper")]
+    finally:
+        app.dependency_overrides.clear()

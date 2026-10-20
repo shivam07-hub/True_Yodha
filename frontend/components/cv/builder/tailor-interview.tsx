@@ -20,11 +20,15 @@ interface TailorInterviewProps {
   skipLabel: string
   onSubmit: (text: string, final: boolean) => void
   onSkip: () => void
+  /** Weave with the answers so far. Absent on the last question, whose skip
+   *  already weaves. */
+  onWeaveNow?: () => void
+  weaveNowLabel?: string
   probe: string | null
 }
 
 export function TailorInterview({
-  question: q, index, total, banking, skipLabel, onSubmit, onSkip, probe,
+  question: q, index, total, banking, skipLabel, onSubmit, onSkip, onWeaveNow, weaveNowLabel, probe,
 }: TailorInterviewProps) {
   const [draft, setDraft] = useState("")
   const [picked, setPicked] = useState<Set<number>>(new Set())
@@ -98,6 +102,11 @@ export function TailorInterview({
         <button type="button" className="tw-btn tw-btn-ghost" onClick={onSkip}>
           {skipLabel}
         </button>
+        {onWeaveNow && weaveNowLabel && (
+          <button type="button" className="tw-btn tw-btn-ghost" disabled={banking} onClick={onWeaveNow}>
+            {weaveNowLabel}
+          </button>
+        )}
       </div>
     </div>
   )

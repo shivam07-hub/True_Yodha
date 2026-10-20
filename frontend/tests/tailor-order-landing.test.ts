@@ -11,6 +11,7 @@ import { strict as assert } from "node:assert"
 import { test } from "node:test"
 
 import {
+  autoOpens,
   factsFromGet,
   landingStep,
   overlayFor,
@@ -143,4 +144,19 @@ test("factsFromGet is not settled while the summary card is unanswered", () => {
   }, 0)
   assert.equal(done.acceptComplete, true)
   assert.equal(landingStep(done), "paper")
+})
+
+// ── FD2: a job CV that was never tailored opens on Mentor, once ─────────────
+
+test("a never-tailored job opens Mentor the first time, and only the first time", () => {
+  const fresh = factsFromGet({ purchased: false }, null)
+  assert.equal(autoOpens(fresh, false), true)
+  assert.equal(autoOpens(fresh, true), false, "closing it once means it stays closed")
+})
+
+test("a job that already has a weave never auto-opens", () => {
+  const woven = factsFromGet({ purchased: true, proposal: { roles: [{ changed: true }] } }, 3)
+  assert.equal(autoOpens(woven, false), false)
+  const applied = factsFromGet({ purchased: false, applied: true }, 0)
+  assert.equal(autoOpens(applied, false), false)
 })

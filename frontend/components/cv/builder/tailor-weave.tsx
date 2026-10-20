@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { cv as cvApi, type WeaveProposal } from "@/lib/api"
+import { interviewActions } from "@/lib/cv/interview-actions"
 import { buildSteps } from "@/lib/cv/weave-steps"
 import { useXPStore } from "@/store/xpStore"
 import { WeaveLoom } from "./mentor-thinking"
@@ -152,6 +153,8 @@ export function TailorWeave({
       return
     }
     if (!interview.isSuccess) return
+    // "Weave now" already left the interview; do not put it back on screen.
+    if (weaveStarted.current) return
     if (interview.data.questions.length > 0) {
       setAct("interview")
       return
@@ -174,12 +177,21 @@ export function TailorWeave({
     "Checking every number survives",
   ], [loomRoles])
 
+  /** Weave with the answers banked so far. The loom shows while it runs —
+   *  the last question used to sit on screen, unchanged, for the 20–30s the
+   *  weave takes, which reads as nothing happening. */
+  function startWeave() {
+    if (weaveStarted.current || runWeave.isPending) return
+    setProbe(null)
+    weaveStarted.current = true
+    setAct("loom")
+    runWeave.mutate({ refresh: stale })
+  }
+
   function advanceInterview() {
     setProbe(null)
-    if (qIdx >= questions.length - 1) {
-      weaveStarted.current = true
-      runWeave.mutate({ refresh: stale })
-    } else setQIdx(i => i + 1)
+    if (qIdx >= questions.length - 1) startWeave()
+    else setQIdx(i => i + 1)
   }
 
   function submitAnswer(text: string, final: boolean) {
@@ -207,7 +219,7 @@ export function TailorWeave({
   }
 
   const q = questions[qIdx]
-  const skipLabel = qIdx >= questions.length - 1 ? `Skip & weave · ${cost}` : "Skip"
+  const actions = interviewActions(qIdx, questions.length, cost)
 
   return (
     <div className="tw-backdrop" role="dialog" aria-modal="true" aria-label="Tailor with Mentor" onClick={onClose}>
@@ -238,7 +250,9 @@ export function TailorWeave({
               index={qIdx}
               total={questions.length}
               banking={bankAnswer.isPending}
-              skipLabel={skipLabel}
+              skipLabel={actions.skipLabel}
+              weaveNowLabel={actions.weaveNowLabel ?? undefined}
+              onWeaveNow={actions.weaveNowLabel ? startWeave : undefined}
               probe={probe}
               onSubmit={submitAnswer}
               onSkip={advanceInterview}
@@ -253,8 +267,10 @@ export function TailorWeave({
               currentSummary={currentSummary}
               currentSkillsLine={currentSkillsLine}
               error={error ?? landing.error}
+              saving={landing.saving}
               onToggleOriginal={landing.toggleOriginal}
               onDecide={landing.decide}
+              onTakeAll={landing.takeAll}
               onBack={landing.undoLast}
               onDone={onClose}
             />

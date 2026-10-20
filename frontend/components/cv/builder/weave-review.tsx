@@ -4,8 +4,16 @@
  * The page turns on the click. Nothing here waits on the write: the overlay
  * advances optimistically and rolls back only if the landing actually failed,
  * so a Take never freezes the card it just decided.
+ *
+ * FD2 (2026-10-20): a fresh review leads with "Take all" — every card in one
+ * write, the same guards on every line — with "Review each" for anyone who
+ * wants the stepper. There is no "Every line is decided" screen: when the last
+ * write lands the modal closes and the paper is the answer. A write still in
+ * flight shows "Saving…"; a failed one stays open and says so.
  */
 "use client"
+
+import { useEffect, useState } from "react"
 
 import type { WeaveStep } from "@/lib/cv/weave-steps"
 import { WeaveExtrasCard } from "./weave-extras-card"
@@ -13,7 +21,7 @@ import { WeaveRoleCard } from "./weave-role-card"
 
 export function WeaveReview({
   steps, idx, originals, currentSummary, currentSkillsLine,
-  error, onToggleOriginal, onDecide, onBack, onDone,
+  error, saving, onToggleOriginal, onDecide, onTakeAll, onBack, onDone,
 }: {
   steps: WeaveStep[]
   idx: number
@@ -21,27 +29,42 @@ export function WeaveReview({
   currentSummary: string
   currentSkillsLine: string
   error: string | null
+  /** A landing is still being written. */
+  saving: boolean
   onToggleOriginal: (i: number) => void
   onDecide: (action: "take" | "keep") => void
+  onTakeAll: () => void
   onBack: () => void
   onDone: () => void
 }) {
   const step = steps[idx]
+  const [stepping, setStepping] = useState(false)
+  const settled = !step && !saving && !error
+
+  useEffect(() => {
+    if (settled) onDone()
+  }, [settled, onDone])
 
   if (!step) {
     return (
       <div className="tw-review">
-        <p className="tw-settled-title">Every line is decided.</p>
-        <p className="tw-settled-sub">Your tailored draft is on the paper.</p>
-        {error && <p className="tw-err" role="alert">{error}</p>}
-        <div className="tw-review-actions">
-          <button type="button" className="tw-btn tw-btn-primary" onClick={onDone}>
-            Back to the paper
-          </button>
-        </div>
+        {error ? (
+          <>
+            <p className="tw-err" role="alert">{error}</p>
+            <div className="tw-review-actions">
+              <button type="button" className="tw-btn tw-btn-primary" onClick={onDone}>
+                Back to the paper
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="tw-settled-sub" aria-live="polite">Saving…</p>
+        )}
       </div>
     )
   }
+
+  const offerAll = idx === 0 && !stepping && steps.length > 1
 
   return (
     <div className="tw-review">
@@ -72,14 +95,25 @@ export function WeaveReview({
       )}
 
       {error && <p className="tw-err" role="alert">{error}</p>}
-      <div className="tw-review-actions">
-        <button type="button" className="tw-btn tw-btn-ghost" onClick={() => onDecide("keep")}>
-          Keep mine
-        </button>
-        <button type="button" className="tw-btn tw-btn-primary" onClick={() => onDecide("take")}>
-          Take this
-        </button>
-      </div>
+      {offerAll ? (
+        <div className="tw-review-actions">
+          <button type="button" className="tw-btn tw-btn-ghost" onClick={() => setStepping(true)}>
+            Review each
+          </button>
+          <button type="button" className="tw-btn tw-btn-primary" onClick={onTakeAll}>
+            Take all
+          </button>
+        </div>
+      ) : (
+        <div className="tw-review-actions">
+          <button type="button" className="tw-btn tw-btn-ghost" onClick={() => onDecide("keep")}>
+            Keep mine
+          </button>
+          <button type="button" className="tw-btn tw-btn-primary" onClick={() => onDecide("take")}>
+            Take this
+          </button>
+        </div>
+      )}
       {idx > 0 && (
         <button type="button" className="tw-back" onClick={onBack}>← Back</button>
       )}

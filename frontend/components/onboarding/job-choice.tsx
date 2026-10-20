@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
+import { pastedLink } from "@/lib/job-import/pasted-link"
 import { emitLoopStep, jobs, onboarding } from "@/lib/api"
 import { EXTENSION_WEBSTORE_URL } from "@/lib/extension"
 import { useJobImport } from "@/lib/job-import/use-job-import"
@@ -126,6 +127,16 @@ export function JobChoice({ token, onFit }: { token: string; onFit: () => void }
                 placeholder="Paste a link"
                 value={sourceUrl}
                 onChange={(event) => setSourceUrl(event.target.value)}
+                onPaste={(event) => {
+                  const link = pastedLink(event.clipboardData.getData("text"))
+                  if (!link) return
+                  event.preventDefault()
+                  setSourceUrl(link)
+                  void importJob.submitLink(link)
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && sourceUrl.trim()) void importJob.submitLink(sourceUrl)
+                }}
               />
               <Button variant="solid" onClick={() => void importJob.submitLink(sourceUrl)}>
                 Fetch

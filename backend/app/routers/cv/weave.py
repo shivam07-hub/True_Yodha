@@ -17,11 +17,11 @@ against — the Job Document when one exists, otherwise the master.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Collection
 from datetime import datetime, timezone
-
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.deps import CurrentUser, get_current_user
@@ -36,6 +36,7 @@ from app.security import redact_sensitive_text
 from app.services import (
     career_reservoir,
     concurrent_reads,
+    core_loop,
     cv_compose,
     cv_weave,
     cv_weave_cache,
@@ -393,6 +394,7 @@ def get_weave(
 @router.post("/weave", response_model=WeaveRunResponse)
 async def run_weave(
     body: WeaveRunRequest,
+    background_tasks: BackgroundTasks,
     user: CurrentUser = Depends(get_current_user),
     jobs_repo: JobsRepository = Depends(get_token_jobs_repository),
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
@@ -466,12 +468,22 @@ async def run_weave(
     jobs_repo.upsert_deepening(
         user.id, body.job_id, cv_weave.CACHE_PROMPT_KEY, cv_weave_cache.dump(proposal),
     )
+    background_tasks.add_task(core_loop.record_step, user.id, body.job_id, "weave_ran", "mentor")
     return WeaveRunResponse(proposal=WeaveProposal(**proposal), new_coin_balance=new_balance)
+
+
+def _review_complete(proposal: WeaveProposal, decided: Collection[int], extras_decided: bool) -> bool:
+    """Every card of the proposal has a decision: each changed role, and the
+    CV-wide card when there is one (`lib/cv/weave-steps.ts` stepsRemaining)."""
+    changed = {role.role_index for role in proposal.roles if role.changed}
+    has_extras = bool(proposal.summary or proposal.skills_line)
+    return changed <= set(decided) and (extras_decided or not has_extras)
 
 
 @router.post("/weave/apply", response_model=WeaveApplyResponse)
 def apply_weave(
     body: WeaveApplyRequest,
+    background_tasks: BackgroundTasks,
     user: CurrentUser = Depends(get_current_user),
     jobs_repo: JobsRepository = Depends(get_token_jobs_repository),
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
@@ -542,6 +554,12 @@ def apply_weave(
             proofs=proofs,
         )
     else:
+        # Take all: every changed role and the CV-wide lines in one write. A
+        # yes to the summary or skills line here is that card's decision too,
+        # or the next visit would reopen a review the person already finished.
+        if body.accept_summary or body.accept_skills_line:
+            extras_decided = True
+            extras_accepted = True
         composed = cv_weave.compose_weave(
             source, proposal.model_dump(), set(accepted),
             accept_summary=body.accept_summary,
@@ -569,6 +587,12 @@ def apply_weave(
             title=title,
         ))
     vid = int(version["id"])
+    if not _review_complete(proposal, _cache.decided_roles, _cache.extras_decided) and \
+            _review_complete(proposal, decided, extras_decided):
+        background_tasks.add_task(
+            core_loop.record_step, user.id, body.job_id, "review_done",
+            "take_all" if body.action is None else "stepper",
+        )
     jobs_repo.upsert_deepening(
         user.id, body.job_id, cv_weave.CACHE_PROMPT_KEY,
         cv_weave_cache.dump(
