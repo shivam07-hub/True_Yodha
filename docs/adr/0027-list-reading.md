@@ -1,6 +1,6 @@
 # The /market List Is Read Until It Is Full, Through One Career-Ops Triage
 
-**Status:** Accepted — triage built; the reading itself waits on the replay gate below
+**Status:** Accepted — triage built; the first replay failed the gate (2026-10-20), so nothing reads real piles with it
 **Date:** 2026-10-20
 **Related:** ADR-0022 (closeness, not buckets), ADR-0024 (one career-ops evaluation per job), CONTEXT.md §List Reading, §Verdict Currency, §CandidatePool, §Match Run
 
@@ -25,6 +25,19 @@ Measured on production, 2026-10-20, 24 real people (own accounts excluded), 13,5
 - **Scores fall on five values** (2.8 / 3.2 / 3.8 / 4.2 / 4.8). Between 36 and 642 jobs tie at whatever score holds the 40th place, so "the best 40 of 1,000" is mostly a tie-break on `job_id`.
 - **Stopping at 40 alone**, freshest first, would have cut evaluations from 13,580 to 7,177 (−47%).
 - **Skill overlap is not the filter.** It correlates with the judge's score at 0.44, and keeping 87% of a person's top 40 would still mean judging the top 500 by overlap. That is why the round is triaged by the career-ops judge, not cut by overlap.
+
+## Replay, 2026-10-20 — fails the gate
+
+`triage_replay.py`, keep at most 15 per round of 50, judgment lane:
+
+| Answer key | People | Good jobs | Recall | Precision | Triage calls |
+|---|---|---|---|---|---|
+| Every stored verdict, 500 freshest per person | 4 | 253 | 45.5% | 34.3% | 40 |
+| Only verdicts current for today's brief | 4 | 154 | 37.0% (42.9% without the one round the provider failed) | 81.4% | 8 |
+
+The current key is the honest one: three of the four largest piles had no verdict written under the brief the person has today, and the stale key's 34% precision is mostly that drift. Against it, the triage is precise but keeps too few: 81% of what it keeps clears 3.5, yet it keeps under half of the good jobs and stays below its own cap (30 of 45 on the richest pile). Its instruction, not the cap, makes it strict.
+
+The replay also showed the judgment lane's first model, `nvidia/nemotron-3-super-120b-a12b:free`, failing on every call (`NotFoundError` here, "returned empty response" in the worker's logs on 2026-10-19), so production judgment runs on the next, paid tier after a wasted hop.
 
 ## Considered Options
 

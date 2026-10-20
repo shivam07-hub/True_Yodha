@@ -126,7 +126,9 @@ def _until_full(order: list[str], good: set[str]) -> int:
     return len(order)
 
 
-async def replay_person(db: Any, provider: Any, user_id: str, *, max_jobs: int, keep: int) -> PersonReplay:
+async def replay_person(
+    db: Any, provider: Any, user_id: str, *, max_jobs: int, keep: int, current_only: bool = False,
+) -> PersonReplay:
     from app.repositories.jobs import JobsRepository
     from app.services import onboarding_service
     from app.services.matching import list_reading, targeting
@@ -137,6 +139,10 @@ async def replay_person(db: Any, provider: Any, user_id: str, *, max_jobs: int, 
     eval_ctx = onboarding_service.eval_context_key(profile)
 
     verdicts = {str(v["job_id"]): v for v in _verdicts(db, user_id)}
+    if current_only:
+        # Only answers the evaluation gave for the brief this person has today:
+        # the triage reads that brief, so an older verdict is a different question.
+        verdicts = {jid: v for jid, v in verdicts.items() if v.get("eval_context_hash") == eval_ctx}
     metas = _jobs(db, list(verdicts))
     # Freshest first, the order a round reads in. A judged job whose listing row
     # is gone cannot be read again, so it leaves the answer key too.
@@ -222,6 +228,7 @@ def main() -> int:
     parser.add_argument("--max-jobs", type=int, default=500, help="freshest judged jobs per person (bounds the spend)")
     parser.add_argument("--keep", type=int, default=None, help="most jobs a round keeps (default: list_reading.KEEP_PER_ROUND)")
     parser.add_argument("--out", default="", help="write the full report as JSON here")
+    parser.add_argument("--current-only", action="store_true", help="answer key = verdicts current for today's brief")
     args = parser.parse_args()
 
     from app.database import get_supabase_admin_batch
@@ -236,12 +243,13 @@ def main() -> int:
     provider = get_judgment_provider()
 
     people = [
-        asyncio.run(replay_person(db, provider, uid, max_jobs=args.max_jobs, keep=keep))
+        asyncio.run(replay_person(db, provider, uid, max_jobs=args.max_jobs, keep=keep, current_only=args.current_only))
         for uid in user_ids
     ]
     report = _report(people)
     report["keep_per_round"] = keep
     report["max_jobs"] = args.max_jobs
+    report["current_only"] = args.current_only
 
     for p in people:
         recall = f"{p.recall:.0%}" if p.recall is not None else "n/a"
