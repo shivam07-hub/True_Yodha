@@ -1048,6 +1048,37 @@ def test_the_only_proving_line_is_kept():
     assert out["roles"][0]["dropped_lines"] == []
 
 
+def test_a_proving_line_rewritten_into_a_new_one_is_not_kept_twice():
+    """U4, 2026-10-22: the model wrote a new bullet FROM the only proving line
+    and also listed that line as dropped; the keep rule put the original back
+    beside its rewrite, and the CV carried the bullet twice."""
+    cv = json.loads(json.dumps(CV))
+    proof = "Built funnel analytics for an early-stage startup, presenting roadmap proposals to the CEO."
+    cv["experience"][0]["bullets"] = ["Owned the India territory for two years.", proof]
+    rewrite = "Built funnel analytics for an early-stage startup; presented roadmap proposals to the CEO."
+    parsed = {
+        "summary": None,
+        "skills_line": None,
+        "roles": [{
+            "role_index": 0,
+            "why": "Tighter.",
+            "bullets": [
+                {"text": "Owned the India territory for two years.", "from": [0], "story_ids": [], "used_answer": False},
+                {"text": rewrite, "from": [1], "story_ids": [], "used_answer": False},
+            ],
+            "dropped": [1],
+        }],
+    }
+    items = [CoverageItem(
+        requirement="Build funnel analytics", status="covered",
+        source="cv", story_pointer=proof, proof_lines=[proof],
+    )]
+    out = cv_weave.build_proposal(cv, parsed, [], [], items)
+    assert out is not None
+    texts = [bullet["text"] for bullet in out["roles"][0]["bullets"]]
+    assert texts == ["Owned the India territory for two years.", rewrite]
+
+
 def test_a_line_with_a_second_proof_on_the_paper_may_be_dropped():
     keep, drop = "Ran SQL on the billing warehouse.", "Wrote SQL for the finance close."
     blocks = [{"index": 0, "bullets": [keep, drop]}]
