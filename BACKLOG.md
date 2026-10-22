@@ -167,26 +167,34 @@ failures logged nothing (`09a51daa`). Open:
   74.5s, client 60s: "Request timed out." while the server delivered and
   charged 50, and a Retry before it finished paid for a second run. Measured
   on `coin_ledger`: **12 of 23 weave charges ever came within 3 min of another
-  on the same job**; one real person paid **11 × 50 in 42s** on 2026-10-21 —
-  `main`'s client puts the last question back on screen mid-run, so each
-  "Skip & weave · 50" started another run (client half fixed on `Develop` in
-  `8c372968`, not on `main`). Now: one run per (user, job) holds a Redis
-  claim (`cv_weave_run`); a second POST gets 409 `weave_in_flight` and the
-  GET reports `weaving`; the work is bounded at 240s, under the 300s claim. A
-  timed-out POST reads the GET until the proposal lands or the run stops
-  (`lib/cv/weave-wait.ts`). The 503's "you were not charged" reaches the screen
-  (`ServiceUnavailable`). Both commits on `main` via #344 (2026-10-22);
-  closes when one real weave hits the claim. Shivam: refund the 500
-  welcome coins of `2ec5bfb0…` (10 duplicate charges, job `1019397362`)?
-  After the merge: `metric cv_weave.run_in_flight` and same-job charges
-  inside 3 min should read 0. The other authored 503s pass the boundary too
-  (outreach plan, brief, polish, anon score, company search, search start);
-  still blanked: onboarding first-role save, account setup, engagement sale.
-- **FD5 · a paid weave that changes almost nothing.** Mindtickle BDR on the
-  QA's sales CV: 4 of 5 roles and the summary failed the guard
-  (`metric cv_weave.role_guard_failed`); the first run 503'd after 44.5s, the
-  second charged 50 to turn a comma into a semicolon. Read the guard metrics
-  on Develop before changing the guard.
+  on the same job**; one real person paid **10 × 50 in 42s** on 2026-10-21 —
+  `main`'s client put the last question back on screen mid-run, so each
+  "Skip & weave · 50" started another run (client half `8c372968`). Now: one
+  run per (user, job) holds a Redis claim (`cv_weave_run`); a second POST gets
+  409 `weave_in_flight` and the GET reports `weaving`; the work is bounded at
+  240s, under the 300s claim. A timed-out POST reads the GET until the
+  proposal lands or the run stops (`lib/cv/weave-wait.ts`). Both commits on
+  `main` via #344; closes when one real weave hits the claim. **Refunded
+  2026-10-22 (REFUND1):** the 9 duplicates of `2ec5bfb0…` (450, ledger rows
+  1671–1679, bell row "450 coins returned · Your Cargill draft is waiting.").
+  Check scheduled 2026-10-29 (local task `fd4-weave-ledger-check`): same-job
+  charges inside 3 min must read 0. Authored 503s pass the boundary
+  (`ServiceUnavailable`); still blanked: onboarding first-role save, account
+  setup, engagement sale.
+- **FD5 · a paid weave that changes almost nothing — price half on `Develop`
+  (`2153c9a1`, DECISIONS WEAVE1).** One real person paid 50 for a
+  summary-only draft (2026-10-19); the guard refused 4 of 5 roles on the QA's
+  last three runs. A weave now costs 50 only when it rewrites or trims a role;
+  buttons read "Weave now · up to 50". Forward only — no refund for the
+  10-19 draft. **Open: the guard itself** — read `metric
+  cv_weave.role_guard_failed` (needs `railway login`) before loosening it.
+- **UP1 · the orphan sweep refunds a copy of the charge, not the charge.**
+  `sweep_stale_cv_upload_jobs` refunds `cv_upload_jobs.xp_charged`, which the
+  worker stamps after `charge_coins`; a job swept between the two was charged
+  200, refunded 0 and marked `xp_refunded` (`80d1aa19…`, 2026-06-20 — the only
+  one; refunded by hand 2026-10-22 with a bell row "200 coins returned"). Fix:
+  the sweep reads the charge off `coin_ledger` by ref. **Owner: Shivam** — a
+  money function on the shared database; not applied.
 - **FD6 · the summary names the seat twice.** "GTM Business Development
   Manager at Capgemini… Currently serving as GTM Business Development
   Manager, …" — `names_seat` checks only the employer, so a summary that names
