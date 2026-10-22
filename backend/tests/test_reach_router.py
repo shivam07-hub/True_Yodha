@@ -8,6 +8,8 @@ deepen equivalents); the pack was the one paid route with no router test at all.
 """
 from __future__ import annotations
 
+import json
+
 from fastapi.testclient import TestClient
 
 from app.deps import Principal, get_principal
@@ -106,6 +108,45 @@ def test_reach_pack_provider_failure_is_503_and_never_charges(monkeypatch):
     # The whole point: no deliverable, no LLM value delivered, no coins taken.
     assert charged == []
     assert repo.deepenings == {}
+
+
+def test_reach_pack_post_replays_cached_purchase_without_charging(monkeypatch):
+    """A Retry after the client gave up on a run that then finished pays nothing:
+    the second POST finds the pack the first one cached and replays it."""
+    pack = {
+        "outreach_message": "Hi — I run presales for a data analytics team.",
+        "referral_ask": "Would you refer me?",
+        "timing": "Tuesday morning",
+        "warm_intro": "",
+    }
+    repo = _FakeJobsRepo()
+    repo.deepenings["reach_pack"] = json.dumps(pack)
+    charged: list = []
+
+    async def _charge(*a, **kw):
+        charged.append(a)
+        return 0
+
+    async def _balance(*_a, **_kw):
+        return 3000
+
+    monkeypatch.setattr(xp_service, "get_xp_balance", _balance)
+    monkeypatch.setattr(xp_service, "charge_or_raise", _charge)
+
+    provider = _DeadProvider()
+    client = _client()
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    app.dependency_overrides[get_token_cv_repository] = lambda: _FakeCVRepo()
+    app.dependency_overrides[get_token_connections_repository] = lambda: _FakeConnectionsRepo()
+    app.dependency_overrides[get_llm_provider] = lambda: provider
+
+    resp = client.post("/jobs/j1/reach/pack")
+
+    assert resp.status_code == 200
+    assert resp.json()["pack"] == pack
+    assert resp.json()["new_coin_balance"] == 3000
+    assert provider.calls == 0
+    assert charged == []
 
 
 def _search_client(repo: _FakeJobsRepo) -> TestClient:

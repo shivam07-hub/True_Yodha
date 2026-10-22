@@ -4871,11 +4871,14 @@ export const jobs = {
     request<ReachPackResponse>(`/jobs/${encodeURIComponent(jobId)}/reach/pack`, {
       headers: { Authorization: `Bearer ${token}` },
     }),
-  /** Generate the 50-coin outreach pack (charge-on-success; replay free). */
+  /** Generate the 50-coin outreach pack (charge-on-success; replay free).
+   *  An LLM call, so it waits as long as the model does: on the 15s default the
+   *  card said it failed while the server delivered, charged and cached. */
   createReachPack: (token: string, jobId: string) =>
     request<ReachPackResponse>(`/jobs/${encodeURIComponent(jobId)}/reach/pack`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
+      timeoutMs: LLM_REQUEST_TIMEOUT_MS,
     }),
   listReachTargets: (token: string, opts?: { jobId?: string | null; due?: boolean }) => {
     const q = new URLSearchParams()
@@ -4912,11 +4915,14 @@ export const jobs = {
     request<PrepBriefResponse>(`/jobs/${encodeURIComponent(jobId)}/prep/brief`, {
       headers: { Authorization: `Bearer ${token}` },
     }),
-  /** Generate the 30-coin day-of brief (charge-on-success; replay free). */
+  /** Generate the 30-coin day-of brief (charge-on-success; replay free).
+   *  Up to two LLM calls — the room's coverage panel on a cache miss, then the
+   *  brief — so it gets the LLM ceiling, like /cv/jd-coverage alone does. */
   createPrepBrief: (token: string, jobId: string) =>
     request<PrepBriefResponse>(`/jobs/${encodeURIComponent(jobId)}/prep/brief`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
+      timeoutMs: LLM_REQUEST_TIMEOUT_MS,
     }),
   /** How many own-connections the user has uploaded (warm-intro source). */
   connectionsStatus: (token: string) =>
