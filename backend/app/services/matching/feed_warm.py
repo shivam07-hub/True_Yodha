@@ -34,7 +34,7 @@ from typing import Any
 from app.services import direction
 from app.services import background, llm_ranker, onboarding_service
 from app.services.llm_provider import LLMProvider
-from app.services.matching import direction_fit, on_demand, published_list, ranking, targeting
+from app.services.matching import direction_fit, list_reading, on_demand, published_list, ranking, targeting
 
 logger = logging.getLogger(__name__)
 
@@ -221,6 +221,38 @@ def enqueue_feed_warm(user_id: str, *, announce: bool = False) -> bool:
     return True
 
 
+#: One Read more starts one drain. A second click inside this window is the same ask.
+_READ_MORE_CLAIM_SECONDS = 60
+
+
+def read_more(repo: Any, user_id: str) -> bool:
+    """Read past a full list: raise the target by one list and start the drain.
+
+    Offered only when the list is full (`can_read_more`), which is when the drain
+    has stopped, so this starts a new chain rather than waiting on the warm claim
+    a stopped drain may still hold. Returns whether a drain is in flight.
+    """
+    from app.services.job_refresh._dispatch import user_has_live_refresh
+
+    if user_has_live_refresh(user_id):
+        logger.info("metric feed_warm.yielded user=%s stage=read_more", user_id)
+        return False
+    profile = targeting.for_ranking(repo, user_id).ranking_profile()
+    profile["baseline_version_id"] = repo.get_latest_baseline_id(user_id)
+    eval_ctx = onboarding_service.eval_context_key(profile)
+    cleared = published_list.cleared_current(repo, user_id, profile)
+    target = list_reading.ask_for_more(user_id, eval_ctx, cleared)
+    logger.info("metric feed_warm.read_more user=%s cleared=%d target=%d", user_id, cleared, target)
+    if not background.claim(f"feed_read_more:{user_id}", _READ_MORE_CLAIM_SECONDS):
+        return True
+    background.enqueue(
+        background.LANE_FAST,
+        "feed_warm",
+        payload={"user_id": user_id, "announce": False},
+    )
+    return True
+
+
 def _cached_evals(repo: Any, user_id: str, job_ids: list[str]) -> dict[str, Any]:
     """Badge reads in slices. One `in_` of a thousand ids blows the request URL."""
     found: dict[str, Any] = {}
@@ -331,11 +363,18 @@ async def run_feed_warm(
     # the rest of the pile, in the pool's order (#55 decision 3).
     shown_stale = _shown_stale(repo, user_id, profile)
     first = set(shown_stale)
-    pending = shown_stale + [
+    # List Reading (ADR-0027): the pile is read only while the list is short of
+    # its target — 40 good jobs, or more after Read more. The cards already on
+    # the list are re-read either way.
+    full = published_list.cleared_current(repo, user_id, profile) >= list_reading.read_target(user_id, eval_ctx)
+    pile = [] if full else [
         job_id for job_id in ids
         if job_id not in first
         and not onboarding_service.eval_matches_context(cached.get(job_id), eval_ctx)
     ]
+    if full:
+        logger.info("metric feed_warm.list_full user=%s stale=%d", user_id, len(shown_stale))
+    pending = shown_stale + pile
     batch = pending[:DRAIN_BATCH]
     written = 0
     if batch:

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useViewport } from "@/mobile"
-import { emitLoopStep, type JobFeedItem } from "@/lib/api"
+import { emitLoopStep, jobs, type JobFeedItem } from "@/lib/api"
 import { useJobFeed } from "./use-job-feed"
 import { useFeedWarm } from "./use-feed-warm"
 import { usePulses } from "@/lib/hooks/use-pulses"
@@ -109,7 +109,13 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   // J1: the brain warms the fit-top shortlist AFTER J0 has painted, then the feed
   // re-reads and the leading cards arrive ranked. Never on the arrival path — see
   // the "Jobs paints its J0 feed before secondary compute" contract test.
-  const { accepted: warmAccepted } = useFeedWarm({ token, scope, settled })
+  const { accepted: warmAccepted, watch: watchWarm } = useFeedWarm({ token, scope, settled })
+  // Read more (ADR-0027): a full list stopped reading; the person asks for the
+  // next list's worth, and the feed is re-read while that drain runs.
+  const readMore = useCallback(async () => {
+    const res = await jobs.readMore(token)
+    if (res.pending) watchWarm()
+  }, [token, watchWarm])
 
   // The brain's picks sit at the top; a quiet divider marks where the ranked
   // shortlist ends and the deterministic browse feed begins (so the verdicts
@@ -308,6 +314,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
         onOpenJob={setOpenJob}
         onStoryPrimary={onStoryPrimary}
         onStorySecondary={onStorySecondary}
+        onReadMore={readMore}
       />
     </MarketFeedFrame>
   )

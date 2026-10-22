@@ -50,6 +50,7 @@ sequence skips it. A gap reads like a lost decision, so it is recorded here.
 | 0024 | One Career Ops evaluation per job; the direction decides who sees it | Accepted |
 | 0025 | One document per job — the newest row for that job is that job's CV | Accepted |
 | 0026 | Every application follows one procedure: reflect the job, click and apply, two notes | Accepted |
+| 0027 | The /market list is read until it is full, through one career-ops triage | Accepted — built on the no-triage fallback (stop at 40, Read more); triage failed its gate, not live |
 
 `sweep-tracking-issue-for-adr-0004.md` is a companion to 0004, deliberately
 outside the numeric sequence — a number names a decision, not a work item.

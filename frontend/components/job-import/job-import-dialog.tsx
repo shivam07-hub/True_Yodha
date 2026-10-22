@@ -4,6 +4,7 @@ import { useRef, useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { APPLICATION_STAGES, type ApplicationStatus } from "@/lib/api"
+import { pastedLink } from "@/lib/job-import/pasted-link"
 import { EXTENSION_WEBSTORE_URL } from "@/lib/extension"
 import { useJobImport } from "@/lib/job-import/use-job-import"
 import { STAGE_LABEL, type StageKey } from "@/components/cv/pipeline/useTrackerBoard"
@@ -44,6 +45,7 @@ export function JobImportDialog({
 
   const busy = state.step === "extracting" || state.step === "importing"
   const draft = state.step === "review" || state.step === "importing" ? state : null
+  const listing = state.step === "review" && state.listing
 
   return (
     <Dialog open onOpenChange={(next) => { if (!next) onClose() }}>
@@ -51,7 +53,11 @@ export function JobImportDialog({
         <DialogHeader>
           <DialogTitle>{ADD_JOB_LABEL}</DialogTitle>
           <DialogDescription>
-            {draft ? "Check the role before it is saved. A link sometimes comes back as the page tagline." : "Paste a link, a file, or the description."}
+            {listing
+              ? "The listing at this link."
+              : draft
+                ? "Check the role before it is saved. A link sometimes comes back as the page tagline."
+                : "Paste a link, a file, or the description."}
           </DialogDescription>
         </DialogHeader>
 
@@ -64,6 +70,16 @@ export function JobImportDialog({
               <input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
+                onPaste={(e) => {
+                  const link = pastedLink(e.clipboardData.getData("text"))
+                  if (!link || busy) return
+                  e.preventDefault()
+                  setUrl(link)
+                  void importJob.submitLink(link)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && url.trim() && !busy) void importJob.submitLink(url)
+                }}
                 placeholder="https://… job posting link"
                 aria-label="Job posting link"
                 style={{ ...fieldStyle, flex: 1, minWidth: 0 }}
@@ -96,6 +112,7 @@ export function JobImportDialog({
             company={draft.company}
             jd={draft.jd}
             location={draft.location}
+            locked={listing}
             onChange={importJob.updateReview}
           />
         )}
@@ -151,31 +168,33 @@ export function JobImportDialog({
 }
 
 function Review({
-  role, company, jd, location, onChange,
+  role, company, jd, location, locked, onChange,
 }: {
   role: string
   company: string
   jd: string
   location: string
+  /** A listing Myro holds: its fields are the listing's. */
+  locked: boolean
   onChange: (patch: { role?: string; company?: string; jd?: string; location?: string }) => void
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <label style={labelStyle}>
         Role
-        <input value={role} onChange={(e) => onChange({ role: e.target.value })} style={fieldStyle} />
+        <input value={role} readOnly={locked} onChange={(e) => onChange({ role: e.target.value })} style={fieldStyle} />
       </label>
       <label style={labelStyle}>
         Company
-        <input value={company} onChange={(e) => onChange({ company: e.target.value })} style={fieldStyle} />
+        <input value={company} readOnly={locked} onChange={(e) => onChange({ company: e.target.value })} style={fieldStyle} />
       </label>
       <label style={labelStyle}>
         Location
-        <input value={location} onChange={(e) => onChange({ location: e.target.value })} style={fieldStyle} />
+        <input value={location} readOnly={locked} onChange={(e) => onChange({ location: e.target.value })} style={fieldStyle} />
       </label>
       <label style={labelStyle}>
         Job description
-        <textarea value={jd} onChange={(e) => onChange({ jd: e.target.value })} rows={6} style={{ ...fieldStyle, resize: "vertical" }} />
+        <textarea value={jd} readOnly={locked} onChange={(e) => onChange({ jd: e.target.value })} rows={6} style={{ ...fieldStyle, resize: "vertical" }} />
       </label>
     </div>
   )

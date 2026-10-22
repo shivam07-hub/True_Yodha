@@ -39,6 +39,8 @@ from app.services.jd_reflection import names_a_tool
 from app.services import myro_voice
 from app.services.llm_provider import LLMProvider, LLMProviderError, get_writer_provider
 
+# Every failure line is WARNING: the app namespace has no INFO handler
+# (main.py), and a weave that 503s with no line says nothing about why.
 logger = logging.getLogger(__name__)
 
 MAX_BULLETS_PER_ROLE = 4
@@ -490,8 +492,12 @@ def build_proposal(
                 ]
                 base["dropped_lines"] = [b["bullets"][i] for i in entry["dropped"]]
                 kept = [item["text"] for item in base["bullets"]]
+                # A line a new bullet was written from is carried, not lost — the
+                # model may also list it as dropped (the original goes), and
+                # putting it back printed the bullet twice (U4, 2026-10-22).
+                carried = {line for item in base["bullets"] for line in item["from_lines"]}
                 for text in list(base["dropped_lines"]):
-                    if text in sole and text not in kept:
+                    if text in sole and text not in kept and text not in carried:
                         base["bullets"].append({
                             "text": text,
                             "from_lines": [text],
@@ -503,13 +509,13 @@ def build_proposal(
                 changed_count += 1
             else:
                 base["guarded"] = True
-                logger.info("metric cv_weave.role_guard_failed role_index=%d", b["index"])
+                logger.warning("metric cv_weave.role_guard_failed role_index=%d", b["index"])
         roles_out.append(base)
     raw_summary = parsed.get("summary")
     summary = raw_summary.strip() if isinstance(raw_summary, str) and raw_summary.strip() else None
     if not extras_guard_ok(summary, own_material):
         summary = None
-        logger.info("metric cv_weave.extras_guard_failed field=summary")
+        logger.warning("metric cv_weave.extras_guard_failed field=summary")
     company = _current_company(cv_structured)
     existing = str((cv_structured or {}).get("summary") or "")
     if coverage_items and company and not names_seat(summary or existing, company):
@@ -528,8 +534,9 @@ def build_proposal(
         skills_line = lead_proven_tools(skills_line, reqs)
     if not extras_guard_ok(skills_line if isinstance(skills_line, str) else None, own_material):
         skills_line = None
-        logger.info("metric cv_weave.extras_guard_failed field=skills_line")
+        logger.warning("metric cv_weave.extras_guard_failed field=skills_line")
     if changed_count == 0 and not summary and not skills_line:
+        logger.warning("metric cv_weave.nothing_survived roles=%d", len(roles_out))
         return None
     return {
         "fingerprint": source_fingerprint(cv_structured),
@@ -561,6 +568,7 @@ async def weave(
     override — the writer floor is owned here."""
     blocks = experience_blocks(cv_structured)
     if not any(b["bullets"] for b in blocks):
+        logger.warning("cv_weave: no experience bullets to weave")
         return None
     provider = provider or get_writer_provider()
     messages = _build_messages(
@@ -569,11 +577,11 @@ async def weave(
     try:
         raw = await provider.complete(messages, max_tokens=_MAX_TOKENS)
     except LLMProviderError:
-        logger.info("cv_weave: all providers failed")
+        logger.warning("cv_weave: all providers failed")
         return None
     parsed = parse_weave_response(raw or "", blocks)
     if parsed is None:
-        logger.info("cv_weave: unparseable proposal")
+        logger.warning("cv_weave: unparseable proposal")
         return None
     return build_proposal(cv_structured, parsed, stories, answers, coverage_items)
 

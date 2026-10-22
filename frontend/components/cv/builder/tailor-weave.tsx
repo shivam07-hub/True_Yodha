@@ -4,18 +4,23 @@
  * Overlay opens on the loom. Interview POST fires once after coverage has
  * settled. Timeout is not an empty list — retry stays on the loom. A current
  * proposal skips to Accept. Each Take lands on the paper now (Google Docs).
+ * A weave the POST stopped waiting for is waited on, never re-run.
  */
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { useMutation, useQuery } from "@tanstack/react-query"
-import { cv as cvApi, type WeaveProposal } from "@/lib/api"
+import { cv as cvApi, xp as xpApi, type WeaveProposal } from "@/lib/api"
+import { interviewActions } from "@/lib/cv/interview-actions"
+import { weaveOutcomeUnseen } from "@/lib/cv/weave-wait"
 import { buildSteps } from "@/lib/cv/weave-steps"
 import { useXPStore } from "@/store/xpStore"
 import { WeaveLoom } from "./mentor-thinking"
 import { TailorInterview } from "./tailor-interview"
 import { useTailorGateRefresh } from "./use-tailor-gate"
 import { useWeaveLanding } from "./use-weave-landing"
+import { useWeaveWait } from "./use-weave-wait"
 import { WeaveReview } from "./weave-review"
 
 type Act = "loom" | "interview" | "review"
@@ -81,6 +86,18 @@ export function TailorWeave({
     ? existing.data.proposal
     : null
   const staleDraft = Boolean(existing.data?.purchased && existing.data.stale)
+  const weavingNow = Boolean(existing.data?.weaving)
+
+  // The landed proposal is seeded by the effect below, from the read the wait
+  // wrote into `existing`. The balance is the one thing that read lacks.
+  const refreshBalance = useCallback(() => {
+    xpApi.balance(token)
+      .then(r => applyXpChange({ newBalance: r.balance, action: "cv_weave" }))
+      .catch(() => {})
+  }, [token, applyXpChange])
+  const waitFailed = useCallback(() => setError("Mentor couldn't finish this draft."), [])
+  const wait = useWeaveWait({ token, jobId, onLanded: refreshBalance, onFailed: waitFailed })
+  const startWait = wait.start
 
   useEffect(() => {
     if (seeded.current || !existing.isSuccess || !currentProposal) return
@@ -100,7 +117,7 @@ export function TailorWeave({
     queryKey: ["cv-weave-interview", jobId],
     queryFn: () => cvApi.weave.interview(token, jobId),
     enabled: coverageSettled && !coverageFailed && existing.isFetched
-      && !currentProposal && !staleDraft && act !== "review",
+      && !currentProposal && !staleDraft && !weavingNow && act !== "review",
     staleTime: 60_000,
     retry: false,
   })
@@ -119,8 +136,11 @@ export function TailorWeave({
       setAct("review")
     },
     onError: (e: Error) => {
-      setError(e.message)
       setAct("loom")
+      // A timeout is not a failure: the server may still be weaving, and a
+      // Retry then would pay for a second run. Read the cache instead.
+      if (weaveOutcomeUnseen(e)) startWait()
+      else setError(e.message)
     },
   })
 
@@ -134,6 +154,14 @@ export function TailorWeave({
 
   useEffect(() => {
     if (currentProposal || act === "review") return
+    // A run for this job is already working (a reload, a second tab).
+    if (weavingNow) {
+      if (!weaveStarted.current) {
+        weaveStarted.current = true
+        startWait()
+      }
+      return
+    }
     if (coverageFailed) {
       setError("Could not read this job. Retry from here.")
       return
@@ -152,6 +180,8 @@ export function TailorWeave({
       return
     }
     if (!interview.isSuccess) return
+    // "Weave now" already left the interview; do not put it back on screen.
+    if (weaveStarted.current) return
     if (interview.data.questions.length > 0) {
       setAct("interview")
       return
@@ -161,9 +191,9 @@ export function TailorWeave({
       weaveMutate({ refresh: false })
     }
   }, [
-    coverageSettled, coverageFailed, currentProposal, staleDraft,
+    coverageSettled, coverageFailed, currentProposal, staleDraft, weavingNow,
     existing.isFetched, interview.isSuccess, interview.isError, interview.data,
-    interview.error, act, weaving, weaveMutate,
+    interview.error, act, weaving, weaveMutate, startWait,
   ])
 
 
@@ -174,12 +204,21 @@ export function TailorWeave({
     "Checking every number survives",
   ], [loomRoles])
 
+  /** Weave with the answers banked so far. The loom shows while it runs —
+   *  the last question used to sit on screen, unchanged, for the 20–30s the
+   *  weave takes, which reads as nothing happening. */
+  function startWeave() {
+    if (weaveStarted.current || runWeave.isPending) return
+    setProbe(null)
+    weaveStarted.current = true
+    setAct("loom")
+    runWeave.mutate({ refresh: stale })
+  }
+
   function advanceInterview() {
     setProbe(null)
-    if (qIdx >= questions.length - 1) {
-      weaveStarted.current = true
-      runWeave.mutate({ refresh: stale })
-    } else setQIdx(i => i + 1)
+    if (qIdx >= questions.length - 1) startWeave()
+    else setQIdx(i => i + 1)
   }
 
   function submitAnswer(text: string, final: boolean) {
@@ -207,9 +246,13 @@ export function TailorWeave({
   }
 
   const q = questions[qIdx]
-  const skipLabel = qIdx >= questions.length - 1 ? `Skip & weave · ${cost}` : "Skip"
+  const actions = interviewActions(qIdx, questions.length, cost)
 
-  return (
+  // To <body>: the app shell's <main> is its own stacking context (z-index 2),
+  // so inside it the phone's top bar and bottom nav painted over the overlay —
+  // the close button under the score chip, Take all under the nav (U4, 375px).
+  // Mounted only on a click or an auto-open, never during server render.
+  return createPortal(
     <div className="tw-backdrop" role="dialog" aria-modal="true" aria-label="Tailor with Mentor" onClick={onClose}>
       <div className="tw-modal" data-act={act} onClick={e => e.stopPropagation()}>
         <div className="tw-head">
@@ -221,7 +264,7 @@ export function TailorWeave({
         <div className="tw-stage">
           {act === "loom" && (
             <>
-              <WeaveLoom lines={loomLines} settled={!runWeave.isPending && !interview.isFetching && coverageSettled && !coverageFailed} />
+              <WeaveLoom lines={loomLines} settled={!runWeave.isPending && !wait.waiting && !interview.isFetching && coverageSettled && !coverageFailed} />
               {error && (
                 <div className="tw-loom-retry">
                   <p className="tw-err" role="alert">{error}</p>
@@ -238,7 +281,9 @@ export function TailorWeave({
               index={qIdx}
               total={questions.length}
               banking={bankAnswer.isPending}
-              skipLabel={skipLabel}
+              skipLabel={actions.skipLabel}
+              weaveNowLabel={actions.weaveNowLabel ?? undefined}
+              onWeaveNow={actions.weaveNowLabel ? startWeave : undefined}
               probe={probe}
               onSubmit={submitAnswer}
               onSkip={advanceInterview}
@@ -253,14 +298,17 @@ export function TailorWeave({
               currentSummary={currentSummary}
               currentSkillsLine={currentSkillsLine}
               error={error ?? landing.error}
+              saving={landing.saving}
               onToggleOriginal={landing.toggleOriginal}
               onDecide={landing.decide}
+              onTakeAll={landing.takeAll}
               onBack={landing.undoLast}
               onDone={onClose}
             />
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

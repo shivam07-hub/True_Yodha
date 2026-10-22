@@ -15,8 +15,10 @@ from app.services.listing_time import verdict as listing_time
 
 SHOW_FLOOR = 3.5
 WORTH = frozenset({"Apply", "Negotiate"})
-# Compared only to decide which sentence to lead with. Never a pad, never a cap.
-_FULL = 40
+# A full list: what the drain reads until (List Reading, ADR-0027) and what
+# decides which sentence the notice leads with. Never a pad and never a display
+# cap — every card that clears is shown, and Read more raises the reading target.
+LIST_FULL = 40
 
 
 def worth_showing(overall: Any, recommendation: Any) -> bool:
@@ -37,15 +39,40 @@ def order_by_score(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     )
 
 
+def kept(profile: dict[str, Any], rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The rows this list shows: worth showing by the verdict, then only if the
+    listing is still open and still fits where and at what level this person
+    looks now (Admission), best first."""
+    from app.services.matching import admission
+
+    return order_by_score(admission.admitted(profile, [
+        row for row in rows
+        if worth_showing(row.get("overall_score"), row.get("recommendation"))
+    ]))
+
+
+def cleared_current(repo: Any, user_id: str, profile: dict[str, Any]) -> int:
+    """How many cards the list shows from verdicts current for `profile` — the
+    count List Reading stops at. Stale cards do not count: they are re-read."""
+    from app.services.matching import verdict_currency
+
+    currency = verdict_currency.for_profile(profile)
+    current = [
+        row for row in (repo.get_user_match_stack(user_id) or [])
+        if row.get("overall_score") is not None and currency.of(row) == "current"
+    ]
+    return len(kept(profile, current))
+
+
 def larger_cut(pool: int, cleared: int) -> str | None:
     """Which shortage removed more jobs. None when the list is not short."""
-    if cleared >= _FULL:
+    if cleared >= LIST_FULL:
         return None
     skipped = max(0, pool - cleared)
-    aspiration_gap = max(0, _FULL - pool)
+    aspiration_gap = max(0, LIST_FULL - pool)
     if skipped > aspiration_gap and skipped > 0:
         return "skills"
-    if pool < _FULL:
+    if pool < LIST_FULL:
         return "aspirations"
     return None
 
@@ -119,8 +146,8 @@ def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, A
     drain re-reads them. A returning person sees the list they were judged
     for, not nothing (Verdict Currency, #55 S1).
     """
-    from app.services import deal_breakers, direction
-    from app.services.matching import admission, targeting, verdict_currency
+    from app.services import deal_breakers, direction, onboarding_service
+    from app.services.matching import list_reading, targeting, verdict_currency
 
     profile = targeting.for_ranking(repo, user_id).ranking_profile()
     latest = (
@@ -160,16 +187,8 @@ def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, A
             source = previous
             cv_replaced = True
 
-    # Worth showing by the verdict, then shown only if the listing is still open
-    # and still fits where and at what level this person looks NOW.
-    def kept(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        return order_by_score(admission.admitted(profile, [
-            row for row in rows
-            if worth_showing(row.get("overall_score"), row.get("recommendation"))
-        ]))
-
     # A stale verdict never outranks a current one, whatever it scored.
-    shown, rereading = kept(source), kept(stale)
+    shown, rereading = kept(profile, source), kept(profile, stale)
     visible = shown + rereading
     skipped = [
         row for row in source + stale
@@ -178,7 +197,12 @@ def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, A
     judged = {str(row.get("job_id")) for row in current}
     read = sum(1 for job_id in pool if job_id in judged)
     pending = max(0, len(pool) - read)
-    reading = pending > 0
+    # List Reading (ADR-0027): the pile is read until the list holds its target,
+    # then waits for Read more. Stale cards on the list are always re-read.
+    target = list_reading.read_target(user_id, onboarding_service.eval_context_key(profile))
+    full = len(kept(profile, current)) >= target
+    reading = bool(rereading) or (pending > 0 and not full)
+    can_read_more = pending > 0 and full and not rereading
     cause = None if reading or cv_replaced else larger_cut(len(pool), len(visible))
     skills = skill_lines(skipped) if cause == "skills" else []
     text = notice(
@@ -193,6 +217,7 @@ def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, A
     ]
     return cards, {
         "reading": reading,
+        "can_read_more": can_read_more,
         "read": read,
         "pending": pending,
         "cleared": len(visible),

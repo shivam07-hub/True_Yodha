@@ -327,6 +327,9 @@ def test_the_drain_finishes_on_the_cv_it_started_with(monkeypatch: Any) -> None:
         def get_cached_match_evals(self, _user_id: str, _ids: list[str]) -> dict[str, Any]:
             return {}
 
+        def get_user_match_stack(self, _user_id: str) -> list[dict[str, Any]]:
+            return []  # nothing judged yet: the list is short of 40
+
     async def _warm(_repo: Any, _provider: Any, _user_id: str, ids: list[str], **kw: Any) -> int:
         seen["ids"] = ids
         seen["profile"] = kw["profile"]
@@ -376,6 +379,8 @@ def test_an_unwatched_drain_tells_the_bell_only_what_the_list_will_show(monkeypa
             return {}
 
         def get_user_match_stack(self, _user_id: str) -> list[dict[str, Any]]:
+            if "profile" not in seen:
+                return []  # the stop rule reads the list before the round: nothing judged yet
             ctx = feed_warm.onboarding_service.eval_context_key(seen["profile"])
             here = {"is_active": True, "location_city": "Bengaluru", "location_country": "India"}
             return [
@@ -434,11 +439,17 @@ def test_a_drain_someone_is_watching_does_not_ring_the_bell(monkeypatch: Any) ->
             return {}
 
         def get_user_match_stack(self, _user_id: str) -> list[dict[str, Any]]:
-            raise AssertionError("a watched drain read the stack to announce")
+            return []  # read by the stop rule (List Reading), not to announce
 
     async def _warm(*_args: Any, **_kw: Any) -> int:
         return 1
 
+    from app.services.matching import match_run
+
+    def _no_bell(*_args: Any, **_kw: Any) -> None:
+        raise AssertionError("a watched drain rang the bell")
+
+    monkeypatch.setattr(match_run, "announce_fresh", _no_bell)
     monkeypatch.setattr(feed_warm, "warm_feed_shortlist", _warm)
     assert asyncio.run(feed_warm.run_feed_warm(_Repo(), object(), "u1")) == 1  # type: ignore[arg-type]
 
@@ -551,3 +562,132 @@ def test_a_returning_drain_rereads_the_cards_on_the_list_first(monkeypatch: Any)
     assert rated == [["outside-pool", "on-list-low", "pool-a"]]
     assert announced == [["pool-a"]]
     assert len(enqueued) == 1  # pool-b is next round
+
+
+# ── List Reading (ADR-0027): the drain stops when the list is full ──────────
+
+def _list_reading_repo(cleared: int, pile: list[str], stale: list[str] | None = None) -> Any:
+    profile = {"target_roles": ["Sales"], "cv_markdown": "cv"}
+    keyed = {**profile, "baseline_version_id": 1}
+    ctx = feed_warm.onboarding_service.eval_context_key(keyed)
+    direction = feed_warm.onboarding_service.context_key(keyed)
+    here = {"is_active": True}
+
+    class _Repo:
+        rated: list[list[str]] = []
+
+        def get_user_profile_targeting(self, _user_id: str) -> dict[str, Any]:
+            return dict(profile)
+
+        def get_latest_baseline_id(self, _user_id: str) -> int:
+            return 1
+
+        def get_candidate_job_ids_for_roles(self, _roles: list[str], **_kw: Any) -> list[str]:
+            return [f"good-{i}" for i in range(cleared)] + list(pile)
+
+        def get_shown_verdict_keys(self, _user_id: str, *, floor: float) -> list[dict[str, Any]]:
+            return [{"job_id": j, "overall_score": 4.0, "recommendation": "Apply",
+                     "eval_context_hash": "an-older-prompt", "target_context_hash": direction}
+                    for j in (stale or [])]
+
+        def get_cached_match_evals(self, _user_id: str, ids: list[str]) -> dict[str, Any]:
+            return {j: {"overall_score": 4.2, "eval_context_hash": ctx} for j in ids if j.startswith("good-")}
+
+        def get_user_match_stack(self, _user_id: str) -> list[dict[str, Any]]:
+            return [{"job_id": f"good-{i}", "eval_context_hash": ctx, "target_context_hash": direction,
+                     "baseline_version_id": 1, "overall_score": 4.2, "recommendation": "Apply", "jobs": here}
+                    for i in range(cleared)]
+
+    return _Repo(), ctx
+
+
+def _drain(monkeypatch: Any, repo: Any) -> tuple[list[list[str]], list[dict[str, Any]]]:
+    rated: list[list[str]] = []
+    enqueued: list[dict[str, Any]] = []
+
+    async def _warm(_repo: Any, _provider: Any, _user_id: str, ids: list[str], **_kw: Any) -> int:
+        rated.append(list(ids))
+        return len(ids)
+
+    monkeypatch.setattr(feed_warm, "warm_feed_shortlist", _warm)
+    monkeypatch.setattr(feed_warm.background, "enqueue", lambda _l, _j, **kw: enqueued.append(kw["payload"]))
+    asyncio.run(feed_warm.run_feed_warm(repo, object(), "u1"))  # type: ignore[arg-type]
+    return rated, enqueued
+
+
+@pytest.fixture
+def _local_target(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.services.matching import list_reading
+
+    monkeypatch.setattr(list_reading.settings, "redis_url", "")
+    list_reading._LOCAL.clear()
+
+
+def test_a_full_list_does_not_read_the_pile(monkeypatch: Any, _local_target: None) -> None:
+    repo, _ = _list_reading_repo(cleared=40, pile=["p1", "p2", "p3", "p4"])
+    rated, enqueued = _drain(monkeypatch, repo)
+    assert rated == [] and enqueued == []
+
+
+def test_a_list_short_of_forty_reads_the_pile(monkeypatch: Any, _local_target: None) -> None:
+    repo, _ = _list_reading_repo(cleared=39, pile=["p1", "p2", "p3", "p4"])
+    rated, enqueued = _drain(monkeypatch, repo)
+    assert rated == [["p1", "p2", "p3"]] and len(enqueued) == 1
+
+
+def test_a_full_list_still_rereads_its_own_stale_cards(monkeypatch: Any, _local_target: None) -> None:
+    repo, _ = _list_reading_repo(cleared=40, pile=["p1", "p2"], stale=["s1"])
+    rated, enqueued = _drain(monkeypatch, repo)
+    assert rated == [["s1"]] and enqueued == []
+
+
+def test_read_more_lets_a_full_list_read_on(monkeypatch: Any, _local_target: None) -> None:
+    from app.services.matching import list_reading
+
+    repo, ctx = _list_reading_repo(cleared=40, pile=["p1", "p2", "p3", "p4"])
+    list_reading.ask_for_more("u1", ctx, cleared=40)
+    rated, enqueued = _drain(monkeypatch, repo)
+    assert rated == [["p1", "p2", "p3"]] and len(enqueued) == 1
+
+
+def test_read_more_raises_the_target_and_starts_a_drain(monkeypatch: Any, _local_target: None) -> None:
+    from app.services.matching import list_reading
+
+    repo, ctx = _list_reading_repo(cleared=40, pile=["p1"])
+    enqueued: list[dict[str, Any]] = []
+    monkeypatch.setattr(feed_warm.background, "claim", lambda _key, _seconds: True)
+    monkeypatch.setattr(feed_warm.background, "enqueue", lambda _l, job, **kw: enqueued.append({"job": job, **kw["payload"]}))
+    assert feed_warm.read_more(repo, "u1") is True
+    assert list_reading.read_target("u1", ctx) == 80
+    assert enqueued == [{"job": "feed_warm", "user_id": "u1", "announce": False}]
+
+
+def test_a_second_click_inside_the_window_does_not_start_a_second_drain(monkeypatch: Any, _local_target: None) -> None:
+    repo, _ = _list_reading_repo(cleared=40, pile=["p1"])
+    enqueued: list[Any] = []
+    monkeypatch.setattr(feed_warm.background, "claim", lambda _key, _seconds: False)
+    monkeypatch.setattr(feed_warm.background, "enqueue", lambda *a, **kw: enqueued.append(kw))
+    assert feed_warm.read_more(repo, "u1") is True
+    assert enqueued == []
+
+
+def test_the_read_more_route_starts_the_drain_and_does_not_rank(monkeypatch: Any) -> None:
+    from fastapi.testclient import TestClient
+
+    from app.deps import Principal, get_principal
+    from app.main import app
+    from app.repositories.jobs import get_token_jobs_repository
+    from app.routers.jobs import list as list_router
+
+    asked: list[str] = []
+    monkeypatch.setattr(list_router.feed_warm, "read_more", lambda _repo, uid: asked.append(uid) or True)
+    app.dependency_overrides[get_principal] = lambda: Principal(id="u1")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: object()
+    try:
+        with TestClient(app) as client:
+            r = client.post("/jobs/feed/read-more")
+    finally:
+        app.dependency_overrides.clear()
+    assert r.status_code == 200
+    assert r.json()["pending"] is True and r.json()["warmed"] == 0
+    assert asked == ["u1"]

@@ -412,6 +412,12 @@
   color: var(--tm-text);
 }
 .mdx-prose tr:last-child td { border-bottom: none; }
+/* ProseTable's wrapper: a table wider than the column scrolls inside it. */
+.mdx-table-scroll {
+  overflow-x: auto;
+  margin: 1.5rem 0;
+}
+.mdx-table-scroll > table { margin: 0; }
 @media (max-width: 480px) {
   .mdx-prose h1 { font-size: var(--tm-fs-title); }
   .mdx-prose h2 { font-size: var(--tm-fs-heading); }

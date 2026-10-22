@@ -18,7 +18,7 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 |---|---|---|---|---|
 | 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read `apply_asked` ~10-27; nothing to build before it |
 | 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) | Built; `0aafb324` on `main`. **BLOCKED on Shivam**: preview → approve |
-| 4 | Front door | **#57** "Which job do you want?" after upload | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor, 1st | On `main` 2026-10-17 · U4 desktop run 2026-10-19: link paste was broken (fixed `2cc7b264`); 12 clicks to download vs ≤5 — FD1–FD3 below · phone run owed |
+| 4 | Front door | **#57** "Which job do you want?" after upload | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor, 1st | On `main` 2026-10-17 · link paste fixed `2cc7b264`; 5 clicks to Download `8c372968`; links read from the corpus `515fd697` · phone run owed |
 | 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1–S4 on `main` · next S5 add role |
 | 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor, 3rd | Spec only, no commits · S0 audit |
 | 6 | Pay | **#56** the ₹199 Apply Pack | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Cursor, 4th | Spec only, no commits · S1 settlement |
@@ -118,18 +118,81 @@ and Paste → review → playground works. Found on the way:
   timeout; the server answers in 31–45s, so the door and /market's "Paste a job"
   said "Request timed out." while the server returned 200 (`2cc7b264`, live after
   the next `main` merge).
-- **FD1 · Reading a link takes 31–45s.** `extract_job_from_text` asks the model to
-  return the whole posting as `job_description` (`max_tokens=2048`), so the wait
-  is output tokens. Lift role/company/location by model and keep the page text
-  for the JD, or stream. Front door.
-- **FD2 · 12 clicks from the door to Download, target ≤5.** Paste, Fetch, Tailor a
-  CV (3) → Tailor with Mentor (4) → five gap questions one at a time, each needing
-  Skip or That's it (9) → two line reviews (11) → "Every line is decided" → Back
-  to the paper (12) → Download. The questions and the done screen are the cost.
-- **FD3 · Small:** Enter in the link field does nothing (only Fetch submits); the
-  playground header reads "Untitled role" until the job loads.
+- **FD1 · reading a pasted link — FIXED `515fd697`.** The 31–45s was a dead free
+  model at the head of the lane (removed `fe62760f`), not the JD rewrite (30/31
+  sentences came back verbatim). The real fault: 5 of the 18 biggest hosts gave
+  the reader no text at all (Workday, Oracle Cloud — Kotak, the largest — and
+  Infosys draw their posting with JavaScript), so the paste failed. Now
+  `job_link_reader` answers cheapest first and logs
+  `metric job_import.read source= ms= host=`: **corpus** (89.8% of live jobs carry
+  their `job_id` in the link; one primary-key lookup + `page.same_page`; saves the
+  listing itself, no `ext_` copy) → **JobPosting** (schema.org on the page) →
+  **model**. Verified on real links: Genpact/Workday, Lever, Qualcomm, Amazon,
+  Axis, Infosys from the corpus in 0.1–0.2s; Accenture from its JobPosting in
+  ~2s; a pasted Genpact link saved as `JR10022480` with no `ext_` row. **After
+  the merge:** read the `source=` split on prod for two weeks.
+- **4,279 live listings carry the scraper's stub description** ("No JD provided
+  on the company page…", 133 chars) — 4,468 are under 300 chars, measured
+  2026-10-20. A paste never answers with one (`MIN_LISTING_JD_CHARS`), but every
+  other surface still matches, judges and tailors against them. Kotak's Oracle
+  pages are the bulk. Owner: Shivam (scraper repo).
+- **FD2 · door to Download — FIXED `8c372968`: 12 clicks → 5.** Paste a job (1)
+  → paste the link, it reads itself → Tailor a CV for this (2) → Mentor is
+  already open → Weave now · 50 (3) → Take all (4) → Download (5). A job CV that
+  was never tailored opens on Mentor once per job, which is aimed at the 4 of 6
+  people who opened the editor and pressed nothing. Verified end to end on a
+  local backend: `editor_opened → mentor_opened (auto) → weave_ran → review_done
+  (take_all)`; a reload lands on the paper. **After the merge:** read those four
+  steps per person on `core_loop_events` for two weeks — the question is whether
+  the editor still loses people before Mentor, and how many answer a question
+  before "Weave now". Cost of the design: fewer gap answers banked.
+- **FD3 · Small:** the playground header reads "Untitled role" until the job
+  loads. On Collections, "Add a job → Save" left the Saved tab at 0 until a
+  reload, and a job the person pasted is labelled "Myro found".
 
 T1 findings from the same run are under §5.
+
+**U4 phone run, 2026-10-22** (375px, QA account reset with
+`python -m scripts.qa_front_door reset <email> --to skills --apply`, local
+Develop backend; Qualcomm and Mindtickle links). Door → Download is **5 taps and
+a paste**: Paste a job → paste → Tailor a CV for this → Weave now · 50 → Take
+all / Take this → Download CV. Corpus reads in 0.17–0.67s. Fixed on the way:
+the review column shrank to 254px (`a63371b0`) · Mentor rendered under the
+phone's bars — no close button, Take all under the nav (`0e5f82cd`) · Take
+all's version missed the paper until a reload, desktop too (`0e5f82cd`) · a
+proving line rewritten into a new one printed twice (`09a51daa`) · weave
+failures logged nothing (`09a51daa`). Open:
+
+- **FD4 · the weave outlives its client — built on `Develop` (`dd629e10`).** Server
+  74.5s, client 60s: "Request timed out." while the server delivered and
+  charged 50, and a Retry before it finished paid for a second run. Measured
+  on `coin_ledger`: **12 of 23 weave charges ever came within 3 min of another
+  on the same job**; one real person paid **11 × 50 in 42s** on 2026-10-21 —
+  `main`'s client puts the last question back on screen mid-run, so each
+  "Skip & weave · 50" started another run (client half fixed on `Develop` in
+  `8c372968`, not on `main`). Now: one run per (user, job) holds a Redis
+  claim (`cv_weave_run`); a second POST gets 409 `weave_in_flight` and the
+  GET reports `weaving`; the work is bounded at 240s, under the 300s claim. A
+  timed-out POST reads the GET until the proposal lands or the run stops
+  (`lib/cv/weave-wait.ts`). The 503's "you were not charged" reaches the screen
+  (`ServiceUnavailable`). **Prod still double-charges until `main` carries
+  both commits — core-loop fix, merge at once.** Shivam: refund the 500
+  welcome coins of `2ec5bfb0…` (10 duplicate charges, job `1019397362`)?
+  After the merge: `metric cv_weave.run_in_flight` and same-job charges
+  inside 3 min should read 0. Other routers' authored 503s are still blanked
+  by the boundary (reach, prep, polish…) — not converted here.
+- **FD5 · a paid weave that changes almost nothing.** Mindtickle BDR on the
+  QA's sales CV: 4 of 5 roles and the summary failed the guard
+  (`metric cv_weave.role_guard_failed`); the first run 503'd after 44.5s, the
+  second charged 50 to turn a comma into a semicolon. Read the guard metrics
+  on Develop before changing the guard.
+- **FD6 · the summary names the seat twice.** "GTM Business Development
+  Manager at Capgemini… Currently serving as GTM Business Development
+  Manager, …" — `names_seat` checks only the employer, so a summary that names
+  the role without the company gets `seat_lead` prepended.
+- **FD7 · Small:** the phone step rail shows "1" and "2" with no labels; when
+  the onboarding state call fails, /onboarding shows "Upload your CV" — a
+  person with a CV is invited to upload again.
 
 ---
 
@@ -309,8 +372,8 @@ and asserts contrast, squeeze, reach, theme and tap size (credentials in
   (grill D6: "Which job do you want?"). *The single biggest theme, 17 reports* —
   19 21 27 34 39 41 58 59 79 85 87 89 92 102 106 107 136. **Desktop run
   2026-10-19: the door is obvious; the path behind it is not** — see §4 (fix
-  `2cc7b264`, FD1–FD3). Phone owed: the QA account finished onboarding in this run,
-  so the door no longer shows for it.
+  `2cc7b264`, FD1–FD3). **Phone run 2026-10-22: passes at 375px after four
+  fixes** — see §4 (FD4 on `Develop`, FD5–FD7 open). Rerun: `scripts/qa_front_door.py`.
 - **T1 · Paste a JD → the CV actually changes toward it.** Bullets rewritten
   against the JD's terms, not generic "add numbers" tips. — 31 66 90 148
 - **T2 · Tailoring never swaps in a life you did not live.** Acceptance for the

@@ -209,7 +209,6 @@ button.tw-prov-chip:hover { color: var(--tm-text); border-color: var(--tm-int-bo
   font-size: var(--tm-fs-caption); line-height: 1.5; color: var(--tm-text-faint);
 }
 
-.tw-settled-title { margin: 0; font-size: var(--tm-fs-body); color: var(--tm-text); }
 .tw-settled-sub { margin: 6px 0 0; font-size: var(--tm-fs-caption); color: var(--tm-text-muted); }
 
 .tw-review-actions { display: flex; justify-content: flex-end; gap: 10px; }

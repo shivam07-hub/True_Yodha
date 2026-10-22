@@ -1785,6 +1785,8 @@ export interface WeaveGetResponse {
   /** The summary / skills-line card has had its Keep or Take. */
   extras_decided?: boolean
   extras_accepted?: boolean
+  /** A run for this job is working now (`lib/cv/weave-wait.ts`). */
+  weaving?: boolean
 }
 
 /** One remembered fact in the user_memory store (authored or distilled). */
@@ -2326,6 +2328,9 @@ export const cv = {
           job_id: body.jobId ?? null, final: body.final ?? false,
         }),
       }),
+    /** The socket gives up at 60s; the run can take longer and charges on
+     *  delivery. A timeout is read off `get` (`lib/cv/weave-wait.ts`), never
+     *  retried — the server refuses a second run while one works. */
     run: (token: string, jobId: string, answers: { requirement: string; text: string }[], opts?: { refresh?: boolean }) =>
       request<WeaveRunResponse>("/cv/weave", {
         method: "POST",
@@ -3821,6 +3826,8 @@ export interface JobFileExtract {
   role: string
   location: string
   job_description: string
+  /** A link only: the live listing Myro holds at that page. */
+  listing_job_id?: string | null
 }
 
 export interface JobPathTarget {
@@ -4033,6 +4040,9 @@ export interface MatchBrainResult {
 /** Where the career-ops read of this person's aspirations stands. */
 export interface MarketJudgment {
   reading: boolean
+  /** The list holds its target (40 good jobs) and the pile still has unread
+   *  jobs — offer Read more, which POSTs /jobs/feed/read-more (ADR-0027). */
+  can_read_more?: boolean
   read: number
   pending: number
   cleared: number
@@ -4577,6 +4587,13 @@ export const jobs = {
       headers: { Authorization: `Bearer ${token}` },
       signal,
     }),
+  /** POST /jobs/feed/read-more — read past a full list: one more list's worth
+   *  of jobs. The request does not rank; re-read GET /jobs/feed as for a warm. */
+  readMore: (token: string) =>
+    request<FeedWarmResponse>("/jobs/feed/read-more", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   /** The curated "Myro Agent Picks" band — the brain's hand-vetted shortlist that
    *  sits above the algorithm feed. Empty list for users with no picks. */
   agentPicks: (token: string) =>
@@ -4799,6 +4816,8 @@ export const jobs = {
       secondary_skills: string[]
       emerging_skills?: Array<{ label: string; skill_type: string; source: string }>
       status?: ApplicationStatus
+      /** The pasted link was a live listing Myro holds: save that listing. */
+      listing_job_id?: string | null
     },
   ) =>
     request<ApplicationResponse>("/jobs/import", {

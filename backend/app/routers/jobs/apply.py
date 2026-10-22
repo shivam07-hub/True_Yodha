@@ -23,7 +23,7 @@ from app.schemas import (
     MatchEval,
     JobUrlExtractRequest,
 )
-from app.services import core_loop, cv_of_record, job_liveness, jobs_workflow, xp_service
+from app.services import core_loop, cv_of_record, job_link_reader, job_liveness, jobs_workflow, xp_service
 from app.services.collections import PENDING_INTENT_AFTER, PENDING_INTENT_FOR
 from app.services.job_extract_backstop import backfill_fields, is_valid_company, is_valid_role
 from app.services.cv_parser import extract_raw_text
@@ -34,7 +34,6 @@ from app.services.job_file_parser import (
     detect_file_kind,
     extract_job_from_image,
     extract_job_from_text,
-    extract_job_from_url,
 )
 from app.services.llm_provider import get_llm_provider, get_vision_provider
 from app.services.matching import on_demand
@@ -234,17 +233,20 @@ async def extract_job_file(
 async def extract_job_url(
     body: JobUrlExtractRequest,
     principal: Principal = Depends(get_principal),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> JobFileExtractResponse:
-    """Fetch a public job-posting URL and parse it into tracker fields.
+    """Read a public job-posting link into tracker fields — Myro's corpus first,
+    then the page's JobPosting, then a model (`job_link_reader`).
 
     Free — no XP charge, same as extract-file. SSRF-guarded: only public http(s)
     hosts are fetched, re-validated on every redirect hop. The reward is granted
-    later, on POST /import (the save).
+    later, on POST /import (the save). `listing_job_id` names the live listing
+    when the link is one Myro holds, so the save keeps that listing.
     """
     if not body.url.strip():
         raise HTTPException(status_code=422, detail="Paste a job posting link first.")
     try:
-        parsed = await extract_job_from_url(body.url, get_llm_provider())
+        parsed, _source = await job_link_reader.read_link(body.url, repo, get_llm_provider())
     except JobFileParseError as exc:
         raise HTTPException(status_code=422, detail=redact_sensitive_text(exc)) from exc
     return JobFileExtractResponse(**parsed)
@@ -259,7 +261,15 @@ async def import_job(
 ) -> ApplicationResponse:
     if not body.role_name.strip() or not body.job_description.strip():
         raise HTTPException(status_code=422, detail="Role name and job description are required.")
-    saved = jobs_workflow.save_imported_job(repo, principal.id, body)
+    # A link that was a live listing saves that listing; one that has since
+    # closed imports its text like any other paste.
+    saved = (
+        jobs_workflow.save_linked_listing(
+            repo, principal.id, body.listing_job_id, body.status,
+            door=body.source_platform == "onboarding",
+        )
+        if body.listing_job_id else None
+    ) or jobs_workflow.save_imported_job(repo, principal.id, body)
     # A job saved anywhere gets the Matching Brain's verdict (CONTEXT → rank_one:
     # "opened/saved anywhere"). Only the /market drawer used to ask, so a job
     # saved with the extension or pasted was never judged — and an application

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
+import { pastedLink } from "@/lib/job-import/pasted-link"
 import { emitLoopStep, jobs, onboarding } from "@/lib/api"
 import { EXTENSION_WEBSTORE_URL } from "@/lib/extension"
 import { useJobImport } from "@/lib/job-import/use-job-import"
@@ -20,7 +21,7 @@ const DOOR_JOB = "onboarding"
 export function JobChoice({ token, onFit }: { token: string; onFit: () => void }) {
   const router = useRouter()
   const firstDoor = useRef<HTMLButtonElement>(null)
-  const importJob = useJobImport(token)
+  const importJob = useJobImport(token, "onboarding")
   const [mode, setMode] = useState<"choose" | "paste" | "extension">("choose")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -75,6 +76,8 @@ export function JobChoice({ token, onFit }: { token: string; onFit: () => void }
   const draft = importJob.state.step === "review" || importJob.state.step === "importing"
     ? importJob.state
     : null
+  // A listing Myro holds reviews read-only: its fields are the listing's.
+  const listing = importJob.state.step === "review" && importJob.state.listing
 
   async function savePaste() {
     const imported = await importJob.confirm()
@@ -126,6 +129,16 @@ export function JobChoice({ token, onFit }: { token: string; onFit: () => void }
                 placeholder="Paste a link"
                 value={sourceUrl}
                 onChange={(event) => setSourceUrl(event.target.value)}
+                onPaste={(event) => {
+                  const link = pastedLink(event.clipboardData.getData("text"))
+                  if (!link) return
+                  event.preventDefault()
+                  setSourceUrl(link)
+                  void importJob.submitLink(link)
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && sourceUrl.trim()) void importJob.submitLink(sourceUrl)
+                }}
               />
               <Button variant="solid" onClick={() => void importJob.submitLink(sourceUrl)}>
                 Fetch
@@ -150,15 +163,15 @@ export function JobChoice({ token, onFit }: { token: string; onFit: () => void }
             <div className="tm-job-choice-review">
               <label>
                 Role
-                <input aria-label="Role" value={draft.role} onChange={(event) => importJob.updateReview({ role: event.target.value })} />
+                <input aria-label="Role" value={draft.role} readOnly={listing} onChange={(event) => importJob.updateReview({ role: event.target.value })} />
               </label>
               <label>
                 Company
-                <input aria-label="Company" value={draft.company} onChange={(event) => importJob.updateReview({ company: event.target.value })} />
+                <input aria-label="Company" value={draft.company} readOnly={listing} onChange={(event) => importJob.updateReview({ company: event.target.value })} />
               </label>
               <label>
                 Description
-                <textarea aria-label="Job description" value={draft.jd} onChange={(event) => importJob.updateReview({ jd: event.target.value })} />
+                <textarea aria-label="Job description" value={draft.jd} readOnly={listing} onChange={(event) => importJob.updateReview({ jd: event.target.value })} />
               </label>
               <Button variant="solid" disabled={saving || importJob.state.step === "importing"} onClick={() => void savePaste()}>
                 {saving || importJob.state.step === "importing" ? "Saving…" : "Tailor a CV for this"}

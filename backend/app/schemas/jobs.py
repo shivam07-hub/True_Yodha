@@ -603,6 +603,9 @@ class JobImportRequest(BaseModel):
     emerging_skills: list[EmergingSkillInput] = []
     capture_method: str = "visible_page"
     status: str = "saved"  # one of APPLICATION_STATUSES; manual web add sends "applied", extension defaults to saved
+    # The pasted link was a live listing Myro holds (extract-url said so): save
+    # that listing instead of minting an `ext_` copy of it.
+    listing_job_id: str | None = None
 
 
 class JobImportedDetailsUpdate(BaseModel):
@@ -628,6 +631,8 @@ class JobFileExtractResponse(BaseModel):
     role: str = ""
     location: str = ""
     job_description: str = ""
+    # A link only: the live listing Myro already holds at that page.
+    listing_job_id: str | None = None
 
 
 class NameCountItem(BaseModel):
@@ -775,6 +780,9 @@ class MarketJudgment(BaseModel):
     """
 
     reading: bool = False
+    #: The list holds its target and the pile still has unread jobs (ADR-0027):
+    #: the client offers Read more, which POSTs /jobs/feed/read-more.
+    can_read_more: bool = False
     read: int = 0
     pending: int = 0
     cleared: int = 0

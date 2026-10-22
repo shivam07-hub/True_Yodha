@@ -39,6 +39,9 @@ product. They can appear in a shot; they are never the headline.
 - Myro does not apply for you. You apply on the company's page with the CV Myro
   made. Never show or say auto-apply.
 - No prices until checkout is live (#56 is spec only).
+- Film only what a user can do today. An extension feature counts once the
+  Chrome Web Store listing carries the version that has it — on `main` is not
+  enough (2026-10-20: store 0.2.3, form fill is 0.2.5).
 
 ## Voice and look
 

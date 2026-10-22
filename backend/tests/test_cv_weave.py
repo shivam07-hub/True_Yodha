@@ -594,6 +594,8 @@ def test_router_weave_failure_charges_nothing(monkeypatch):
     try:
         r = client.post("/cv/weave", json={"job_id": "j1"})
         assert r.status_code == 503
+        # The authored copy reaches the screen — not the boundary's generic 5xx.
+        assert r.json()["detail"].endswith("you were not charged.")
         assert charges == [] and cv_weave.CACHE_PROMPT_KEY not in jobs_repo.deepenings
     finally:
         app.dependency_overrides.clear()
@@ -1048,6 +1050,37 @@ def test_the_only_proving_line_is_kept():
     assert out["roles"][0]["dropped_lines"] == []
 
 
+def test_a_proving_line_rewritten_into_a_new_one_is_not_kept_twice():
+    """U4, 2026-10-22: the model wrote a new bullet FROM the only proving line
+    and also listed that line as dropped; the keep rule put the original back
+    beside its rewrite, and the CV carried the bullet twice."""
+    cv = json.loads(json.dumps(CV))
+    proof = "Built funnel analytics for an early-stage startup, presenting roadmap proposals to the CEO."
+    cv["experience"][0]["bullets"] = ["Owned the India territory for two years.", proof]
+    rewrite = "Built funnel analytics for an early-stage startup; presented roadmap proposals to the CEO."
+    parsed = {
+        "summary": None,
+        "skills_line": None,
+        "roles": [{
+            "role_index": 0,
+            "why": "Tighter.",
+            "bullets": [
+                {"text": "Owned the India territory for two years.", "from": [0], "story_ids": [], "used_answer": False},
+                {"text": rewrite, "from": [1], "story_ids": [], "used_answer": False},
+            ],
+            "dropped": [1],
+        }],
+    }
+    items = [CoverageItem(
+        requirement="Build funnel analytics", status="covered",
+        source="cv", story_pointer=proof, proof_lines=[proof],
+    )]
+    out = cv_weave.build_proposal(cv, parsed, [], [], items)
+    assert out is not None
+    texts = [bullet["text"] for bullet in out["roles"][0]["bullets"]]
+    assert texts == ["Owned the India territory for two years.", rewrite]
+
+
 def test_a_line_with_a_second_proof_on_the_paper_may_be_dropped():
     keep, drop = "Ran SQL on the billing warehouse.", "Wrote SQL for the finance close."
     blocks = [{"index": 0, "bullets": [keep, drop]}]
@@ -1164,3 +1197,212 @@ def test_seat_lead_needs_a_role():
     cv = _seat_cv("")
     cv["experience"][0]["role"] = ""
     assert cv_weave.seat_lead(cv, "") is None
+
+
+# ── the loop's Mentor steps are stated by the server (FD2, 2026-10-20) ──────
+
+def _capture_steps(monkeypatch):
+    from app.routers.cv import weave as weave_router
+
+    steps: list[tuple[str, str, str | None]] = []
+    monkeypatch.setattr(
+        weave_router.core_loop, "record_step",
+        lambda u, j, step, surface: steps.append((j, step, surface)) or True,
+    )
+    return steps
+
+
+def test_a_paid_weave_records_weave_ran_and_a_replay_does_not(monkeypatch):
+    from app.main import app
+    from app.routers.cv import weave as weave_router
+
+    jobs_repo, cv_repo, charges = _JobsRepo(), _CVRepo(), []
+    _seed_coverage(jobs_repo)
+    client = _client(monkeypatch, jobs_repo, cv_repo, charges)
+    steps = _capture_steps(monkeypatch)
+
+    async def _weave(**kwargs):
+        return {"fingerprint": cv_weave.source_fingerprint(CV), "summary": "S", "skills_line": None,
+                "roles": [], "changed_roles": 1, "requirements_total": 2, "asks_unproven": 1}
+
+    async def _material(_u, _reqs, cap=12):
+        return []
+
+    monkeypatch.setattr(weave_router.cv_weave, "weave", _weave)
+    monkeypatch.setattr(weave_router.cv_weave_interview, "gather_story_material", _material)
+    try:
+        assert client.post("/cv/weave", json={"job_id": "j1"}).status_code == 200
+        assert client.post("/cv/weave", json={"job_id": "j1"}).json()["cached"] is True
+        assert steps == [("j1", "weave_ran", "mentor")]
+    finally:
+        app.dependency_overrides.clear()
+
+
+def _two_card_proposal():
+    return {
+        "fingerprint": cv_weave.source_fingerprint(CV),
+        "summary": "BD Manager at Capgemini. Old summary", "skills_line": None,
+        "roles": [{"role_index": 0, "role": "BD Manager", "company": "Capgemini", "changed": True,
+                   "guarded": False, "why": "", "bullets": [{"text": "Merged."}], "dropped_lines": []}],
+        "changed_roles": 1, "requirements_total": 1, "asks_unproven": 0, "computed_at": "t",
+    }
+
+
+def test_take_all_decides_every_card_and_records_review_done_once(monkeypatch):
+    from app.main import app
+
+    jobs_repo, cv_repo, charges = _JobsRepo(), _CVRepo(), []
+    client = _client(monkeypatch, jobs_repo, cv_repo, charges)
+    steps = _capture_steps(monkeypatch)
+    jobs_repo.deepenings[cv_weave.CACHE_PROMPT_KEY] = json.dumps(_two_card_proposal())
+    take_all = {"job_id": "j1", "accepted_roles": [0], "decided_roles": [0], "accept_summary": True}
+    try:
+        assert client.post("/cv/weave/apply", json=take_all).status_code == 200
+        got = client.get("/cv/weave/j1").json()
+        assert got["decided_roles"] == [0]
+        assert got["extras_decided"] is True, "the next visit must not reopen the review"
+        assert cv_repo.created[0].cv_structured["summary"] == "BD Manager at Capgemini. Old summary"
+        assert steps == [("j1", "review_done", "take_all")]
+        assert client.post("/cv/weave/apply", json=take_all).status_code == 200
+        assert len(steps) == 1, "a finished review is not finished twice"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_the_stepper_records_review_done_on_the_card_that_finishes_it(monkeypatch):
+    from app.main import app
+
+    jobs_repo, cv_repo, charges = _JobsRepo(), _CVRepo(), []
+    client = _client(monkeypatch, jobs_repo, cv_repo, charges)
+    steps = _capture_steps(monkeypatch)
+    jobs_repo.deepenings[cv_weave.CACHE_PROMPT_KEY] = json.dumps(_two_card_proposal())
+    try:
+        client.post("/cv/weave/apply", json={
+            "job_id": "j1", "accepted_roles": [], "decided_roles": [],
+            "action": "extras", "accept_summary": True,
+        })
+        assert steps == []
+        client.post("/cv/weave/apply", json={
+            "job_id": "j1", "accepted_roles": [0], "decided_roles": [0],
+            "role_index": 0, "action": "take",
+        })
+        assert steps == [("j1", "review_done", "stepper")]
+    finally:
+        app.dependency_overrides.clear()
+
+
+# ── one run per (user, job) at a time (FD4, U4 phone run 2026-10-22) ──────────
+
+def _held_weave(monkeypatch):
+    """A weave that stays in flight until the test lets it finish."""
+    from app.routers.cv import weave as weave_router
+
+    entered, finish = asyncio.Event(), asyncio.Event()
+
+    async def _weave(**kwargs):
+        entered.set()
+        await finish.wait()
+        return {"fingerprint": cv_weave.source_fingerprint(CV), "summary": "S", "skills_line": None,
+                "roles": [], "changed_roles": 1, "requirements_total": 2, "asks_unproven": 1}
+
+    async def _material(_u, _reqs, cap=12):
+        return []
+
+    monkeypatch.setattr(weave_router.cv_weave, "weave", _weave)
+    monkeypatch.setattr(weave_router.cv_weave_interview, "gather_story_material", _material)
+    return entered, finish
+
+
+def test_a_second_weave_while_the_first_works_never_runs_or_charges(monkeypatch):
+    """The client gave up at 60s while the server took 74.5s; a Retry in that
+    gap started a second run and a second charge. One person paid eleven times
+    in 42 seconds (2026-10-21). The first run holds the claim; the second is
+    told it is still working, and the GET says so."""
+    import httpx
+
+    from app.config import settings
+    from app.main import app
+
+    monkeypatch.setattr(settings, "redis_url", "")
+    jobs_repo, cv_repo, charges = _JobsRepo(), _CVRepo(), []
+    _seed_coverage(jobs_repo)
+    _client(monkeypatch, jobs_repo, cv_repo, charges)
+    entered, finish = _held_weave(monkeypatch)
+
+    async def _scenario():
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://t") as client:
+            first = asyncio.create_task(client.post("/cv/weave", json={"job_id": "j1"}))
+            await asyncio.wait_for(entered.wait(), 5)
+
+            # Bounded: without the claim the second run would sit in the held
+            # weave beside the first instead of being refused.
+            second = await asyncio.wait_for(client.post("/cv/weave", json={"job_id": "j1"}), 5)
+            retry_refresh = await asyncio.wait_for(
+                client.post("/cv/weave", json={"job_id": "j1", "refresh": True}), 5,
+            )
+            during = (await client.get("/cv/weave/j1")).json()
+
+            finish.set()
+            done = await asyncio.wait_for(first, 5)
+            after = (await client.get("/cv/weave/j1")).json()
+            replay = await client.post("/cv/weave", json={"job_id": "j1"})
+            return second, retry_refresh, during, done, after, replay
+
+    try:
+        second, retry_refresh, during, done, after, replay = _run(_scenario())
+        for refused in (second, retry_refresh):
+            assert refused.status_code == 409, refused.text
+            assert refused.json()["detail"]["code"] == "weave_in_flight"
+        assert during == {**during, "purchased": False, "weaving": True}
+        assert done.status_code == 200 and done.json()["cached"] is False
+        assert after["purchased"] is True and after["weaving"] is False
+        assert replay.json()["cached"] is True
+        assert len(charges) == 1, charges
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_a_refresh_against_the_paper_it_was_written_for_replays_free(monkeypatch):
+    """A refresh asked twice: the first finished and released a moment before
+    the second claimed. The second reads the first's proposal under the claim
+    instead of paying for the same draft again."""
+    from app.config import settings
+    from app.main import app
+
+    monkeypatch.setattr(settings, "redis_url", "")
+    jobs_repo, cv_repo, charges = _JobsRepo(), _CVRepo(), []
+    client = _client(monkeypatch, jobs_repo, cv_repo, charges)
+    proposal = {"fingerprint": cv_weave.source_fingerprint(CV), "summary": "S", "skills_line": None,
+                "roles": [], "changed_roles": 1, "requirements_total": 2, "asks_unproven": 1}
+    jobs_repo.deepenings[cv_weave.CACHE_PROMPT_KEY] = cv_weave_cache.dump(proposal)
+    try:
+        r = client.post("/cv/weave", json={"job_id": "j1", "refresh": True})
+        assert r.status_code == 200 and r.json()["cached"] is True
+        assert charges == []
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_a_weave_that_outruns_its_bound_charges_nothing_and_frees_the_claim(monkeypatch):
+    """The work is bounded below the claim's lifetime, so a slow provider
+    ladder cannot finish after its claim expired and race a successor."""
+    from app.config import settings
+    from app.main import app
+    from app.services import cv_weave_run
+
+    monkeypatch.setattr(settings, "redis_url", "")
+    monkeypatch.setattr(cv_weave_run, "RUN_SECONDS", 0.05)
+    assert cv_weave_run.CLAIM_SECONDS > 240
+    jobs_repo, cv_repo, charges = _JobsRepo(), _CVRepo(), []
+    _seed_coverage(jobs_repo)
+    client = _client(monkeypatch, jobs_repo, cv_repo, charges)
+    _held_weave(monkeypatch)  # never told to finish
+    try:
+        r = client.post("/cv/weave", json={"job_id": "j1"})
+        assert r.status_code == 503
+        assert r.json()["detail"].endswith("you were not charged.")
+        assert charges == []
+        assert client.get("/cv/weave/j1").json()["weaving"] is False
+    finally:
+        app.dependency_overrides.clear()

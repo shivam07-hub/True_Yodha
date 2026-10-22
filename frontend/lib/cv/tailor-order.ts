@@ -86,3 +86,16 @@ export function overlayFor(step: TailorStep): TailorOverlay {
 export function willCharge(step: TailorStep): boolean {
   return step === "proof" || step === "weave"
 }
+
+/**
+ * Opening a job's CV that was never tailored lands on Mentor — once.
+ *
+ * 2026-10-19: of 6 real people who opened a job's tailor editor, 4 pressed
+ * nothing after: a 0/100 score, a Fixes rail and four buttons, with the one
+ * step that tailors the CV among them. `seen` is this person having been shown
+ * it on this job already; closing it once leaves the paper alone after that.
+ * Opening costs nothing — only "Weave now · 50" charges.
+ */
+export function autoOpens(facts: TailorFacts, seen: boolean): boolean {
+  return !seen && facts.proposal === "none" && !facts.acceptComplete
+}

@@ -1,38 +1,42 @@
 # Issue 024 — where it goes
 
-Heading: Two banks post three in four of India's branch jobs. They hire in different Indias.
+Link: https://www.himyro.com/newsletter/2026-10-branch-banking-two-banks
 
-Chart: Axis Bank's share of each metro's frontline branch openings. Read 9 September 2026. Lane size 3,138.
+Heading: Nearly a quarter of India's branch banking openings carry one title. Axis Bank posts 65.1% of them.
+
+Chart: Axis Bank's share of each place's frontline branch openings. Read 9 September 2026. Lane size 3,138.
 
 ## X
 
-1. Axis Bank holds 65.1% of India's frontline branch jobs. 2,042 postings. It posts 0.0% of its roles outside the big metros.
-2. Kotak holds 10.4% of the lane and posts 51.9% of its own roles outside those metros. Surat 17, Indore 12, Rajkot 9.
-3. Kolkata's branch jobs are 71.4% entry level, at 1.7 years. Outside the metros: 6.9% entry, 3.6 years, 360 roles.
-4. One title is a quarter of the lane. Business Development Associate at Axis: 763 openings, 100% entry level, 1.0 year.
-5. The postings name sales 1,721 times, banking 1,258, lead generation 1,206, financial services 1,160, business development 1,012.
+1. One title is 24.3% of India's frontline branch banking openings. Business Development Associate (RB-LS) at Axis Bank: 763 openings, every one entry level, 1.0 year on average.
+2. Axis Bank posts 65.1% of the lane, 2,042 of 3,138. It leads every big metro, from 62.2% of Mumbai's openings to 89.2% of Kolkata's.
+3. Outside the big metros the picture flips. Axis posts 0.0% of those openings and Kotak posts 51.9%. Surat 17, Indore 12, Rajkot 9.
+4. Kolkata asks for the least: 71.4% entry level, at 1.7 years. Bengaluru is 25.8% entry level, at 4.3 years.
+5. The postings ask for sales (1,721), banking (1,258) and lead generation (1,206). The whole skill list reads like a sales job.
 
 ## LinkedIn
 
-Two banks post three in four of India's branch jobs, and they hire in different Indias.
+Nearly a quarter of India's branch banking openings carry one title, and Axis Bank posts 65.1% of them.
 
-We read 220+ career pages on 9 September 2026. 3,138 of the openings are frontline branch banking. Axis Bank holds 65.1% (2,042) and posts 0.0% of its roles outside the big metros. Kotak holds 10.4% and posts 51.9% of its own roles there.
+Our agents read 220+ MNC career pages on 9 September 2026 and pulled close to 23,000 openings. 3,138 were frontline sales and branch banking roles in India.
 
-In Kolkata the two banks hold 92.3% of branch openings. Chennai 88.5%. Ahmedabad 88.1%. Delhi NCR, the largest city in the lane at 616, is 84.7%.
+If you are starting out, start with Business Development Associate (RB-LS) at Axis. 763 openings, 24.3% of the lane, every one entry level, 1.0 year on average. Axis posts the next three titles too: Branch Relationship Officer (11.0%), Assistant Manager Sales – Corporate Salary (6.0%) and Teller (3.8%).
 
-Kolkata is 71.4% entry level at 1.7 years. The 360 roles outside the metros are 6.9% entry level at 3.6 years.
+If you want an entry-level role, Kolkata asks for the least: 71.4% of its openings are entry level, at 1.7 years. Delhi NCR follows at 51.5% and Chennai at 47.8%. Bengaluru is 25.8%, at 4.3 years.
 
-Business Development Associate (RB-LS) at Axis is 763 openings, 24.3% of the lane, 100% entry level, 1.0 year. The skills the lane names: sales 1,721, banking 1,258, lead generation 1,206, financial services 1,160, business development 1,012, banking products 789, relationship building 683, mutual funds 582, general insurance 561, retail banking 520.
+Axis leads in every big metro, from 62.2% of openings in Mumbai to 89.2% in Kolkata. Outside the big metros the picture flips: Axis's share is 0.0% and Kotak's is 51.9%.
+
+These employers ask for sales (1,721), banking (1,258), lead generation (1,206), financial services (1,160) and business development (1,012). The whole skill list reads like a sales job.
 
 ## Instagram caption
 
-Axis: 65.1% of India's branch jobs, all of them in the big metros.
-Kotak: 51.9% of its own roles outside those metros.
+One title: 24.3% of India's branch banking openings.
+Business Development Associate at Axis Bank. 763 openings, all entry level.
+
+Axis posts 65.1% of the lane. Outside the big metros, Kotak posts 51.9%.
+
+Kolkata asks for the least experience: 1.7 years.
 
 3,138 roles. Read 9 September 2026.
-
-Kolkata hires at 1.7 years. Surat, Indore and Rajkot are Kotak's map.
-
-Business Development Associate, Axis: 763 openings, entry level.
 
 Sales 1,721 · banking 1,258 · lead generation 1,206.

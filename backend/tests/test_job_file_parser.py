@@ -6,7 +6,7 @@ from app.services.job_file_parser import (
     JobFileParseError,
     JobUrlFetchError,
     _assert_public_http_url,
-    _html_to_text,
+    html_to_text,
     _parse_fields_json,
     detect_file_kind,
 )
@@ -95,20 +95,20 @@ def test_url_guard_allows_public_host():
 
 # --- URL fetch: HTML → text ---
 
-def test_html_to_text_drops_script_and_style():
+def testhtml_to_text_drops_script_and_style():
     html = (
         "<html><head><style>.x{color:red}</style></head>"
         "<body><script>steal()</script>"
         "<h1>Senior PM</h1><p>Build &amp; ship products.</p></body></html>"
     )
-    text = _html_to_text(html)
+    text = html_to_text(html)
     assert "steal()" not in text
     assert "color:red" not in text
     assert "Senior PM" in text
     assert "Build & ship products." in text
 
 
-def test_html_to_text_preserves_block_breaks():
-    text = _html_to_text("<li>One</li><li>Two</li>")
+def testhtml_to_text_preserves_block_breaks():
+    text = html_to_text("<li>One</li><li>Two</li>")
     assert "One" in text and "Two" in text
     assert "OneTwo" not in text

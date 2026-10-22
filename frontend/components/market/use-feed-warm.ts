@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { jobs, type JobFeedResponse } from "@/lib/api"
 import type { FeedScope } from "@/lib/feed-scope"
@@ -54,6 +54,8 @@ export function useFeedWarm({
   // owns the judgment lane, and a shed warm must retry after.
   const attempted = useRef<Set<string>>(new Set())
   const polls = useRef(0)
+  // Each Read more is a new watch: a finished watch stopped its own polling.
+  const [watchRound, setWatchRound] = useState(0)
 
   const queryKey = jobFeedQueryKey({ token, scope })
   const signature = JSON.stringify(queryKey)
@@ -100,7 +102,7 @@ export function useFeedWarm({
   }, [enabled, token, settled, signature, yieldLane])
 
   useQuery({
-    queryKey: ["feed-warm-watch", signature],
+    queryKey: ["feed-warm-watch", signature, watchRound],
     enabled: watching && !yieldLane,
     queryFn: async () => {
       polls.current += 1
@@ -120,5 +122,13 @@ export function useFeedWarm({
     },
   })
 
-  return { warming, accepted: acceptedFor === signature }
+  /** Read more started a drain: re-read the list while it reads again. */
+  const watch = useCallback(() => {
+    polls.current = 0
+    setAcceptedFor(signature)
+    setWatchRound((round) => round + 1)
+    setWatching(true)
+  }, [signature])
+
+  return { warming, accepted: acceptedFor === signature, watch }
 }

@@ -504,6 +504,21 @@ async def warm_feed(
     return FeedWarmResponse(ready=True, warmed=0, pending=feed_warm.enqueue_feed_warm(uid))
 
 
+@router.post("/feed/read-more", response_model=FeedWarmResponse)
+def read_more(
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+    principal: Principal = Depends(get_principal),
+) -> FeedWarmResponse:
+    """Read past a full list (List Reading, ADR-0027). This request does not rank.
+
+    The drain reads a person's pile until the list holds 40 good jobs, then
+    stops and GET /jobs/feed says `can_read_more`. This raises the target by
+    one list and starts the drain; the rows land on the next feed reads, the
+    same way a warm's do. `pending` is whether a drain is in flight.
+    """
+    return FeedWarmResponse(ready=True, warmed=0, pending=feed_warm.read_more(repo, principal.id))
+
+
 @router.post("/feed/{job_id}/skip", status_code=status.HTTP_204_NO_CONTENT)
 def skip_feed_job(
     job_id: str,

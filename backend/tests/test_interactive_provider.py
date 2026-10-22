@@ -109,13 +109,24 @@ def test_judgment_provider_never_includes_a_small_model():
     assert _with_all_keys(check)
 
 
-def test_judgment_provider_leads_free_strong_then_paid_strong():
-    """Strong FREE tiers lead (cost managed, no quality loss); strong PAID backstops."""
+def test_free_tier_count_is_the_leading_run_of_free_tiers():
+    """Derived, not typed: a hand count that outlives a removed free tier makes
+    `OR_TIERS[FREE_OR_TIER_COUNT:]` skip the first PAID tier as well."""
+    leading = 0
+    for tier in OR_TIERS:
+        if not all(":free" in model for model in tier):
+            break
+        leading += 1
+    assert FREE_OR_TIER_COUNT == leading
+
+
+def test_judgment_provider_leads_with_the_cheapest_strong_tier():
+    """Strong tiers in cost order — a free strong tier first when one exists —
+    and strong PAID backstops. Never a small model."""
     def check():
         provider = get_judgment_provider()
         or_entries = [e for e in provider._providers if e[2] and "models" in e[2]]
-        # First OR call is a free-strong tier (leads with no cost).
-        assert or_entries[0][1] == OR_TIERS[0][0]
+        assert or_entries[0][2]["models"] == JUDGMENT_OR_TIERS[0]
         ids = _judgment_model_ids(provider)
         # Strong paid backstop present.
         assert "openai/gpt-4o-mini" in ids
