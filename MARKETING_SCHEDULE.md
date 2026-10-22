@@ -1,21 +1,25 @@
-# Marketing schedule — what goes out when
+# Marketing schedule — the weekly rhythm and the gates
 
-Set 2026-10-22. Shivam posts everything. Agents write the files and never post.
-Times are IST. When something goes out, write `posted` and the date in its cell.
-When a week is over, delete its row; git log keeps it.
+Set 2026-10-22. Shivam posts everything. Agents write the copy and never post.
+Times are IST.
+
+**What is drafted, planned and posted lives in the Distribution Tracker at
+[himyro.com/admin/growth](https://www.himyro.com/admin/growth)**: one row per
+post, with its date, copy and tracked link. Mark a post done there with its live
+URL. This file only says when things go out and what each must pass first.
 
 Which issue is next: [NEWSLETTER_QUEUE.md](NEWSLETTER_QUEUE.md). What a launch
 video may show: [LAUNCH_VIDEOS.md](LAUNCH_VIDEOS.md).
 
 ## The week
 
-| Day | IST | What | Where | Copy lives in |
-|---|---|---|---|---|
-| Tue | 10:00 | Newsletter issue goes live | himyro.com/newsletter | `frontend/content/newsletter/issues/` |
-| Tue | 10:30 | That issue's post and thread | LinkedIn company page · X | `scripts/newsletter-carousel-specs/issue-NNN-distribution.md` |
-| Wed | 19:00 | That issue's caption | Instagram | same file |
-| Thu | 10:00 | Launch video | LinkedIn, Shivam's profile | `brag-output*/linkedin.txt` |
-| Sat | 10:00 | Same video as a reel | Instagram | `brag-output*/instagram.txt` |
+| Day | IST | What | Where |
+|---|---|---|---|
+| Tue | 10:00 | Newsletter issue goes live | himyro.com/newsletter |
+| Tue | 10:30 | That issue's post and thread | LinkedIn company page · X |
+| Wed | 19:00 | That issue's carousel | Instagram |
+| Thu | 10:00 | Launch video | LinkedIn, Shivam's profile |
+| Sat | 10:00 | Same video as a reel | Instagram |
 
 Newsletter posts go on the company page because their kits speak as "we". Launch
 videos go on Shivam's profile, so the same post never sits on both within 7 days
@@ -25,30 +29,14 @@ because the brand guide names weekend mornings as the student segment's best win
 This is the floor: two LinkedIn, two Instagram, one issue a week. The brand guide
 allows more. Add slots only once these hold for a month.
 
-## Next four weeks
-
-| Week of | Newsletter (Tue, Wed) | Launch video (Thu, Sat) |
-|---|---|---|
-| 10-19 | Issue 25, live 10-20. LinkedIn, X, Instagram from `issue-025-distribution.md`: not marked | **Loop** (`brag-output/`): sharing 10-22 on LinkedIn and Instagram |
-| 10-26 | Issue 26, Software Engineer to Risk & Compliance Analyst. Gates in NEWSLETTER_QUEUE row 1 | **Extension fill** (`brag-output-2026-10-20-155052/`). Copy to write |
-| 11-02 | Issue 27, banks where to apply | **Match + apply** (`brag-output-2026-10-20-134012/`). Copy to write |
-| 11-09 | Issue 28, finance as India's job engine | **Door to Download in 5 clicks.** To film |
-
-## Next to film
-
-Each one only once a user can do it on himyro.com today (LAUNCH_VIDEOS.md).
-
-- Door to Download in 5 clicks (FD2, `8c372968`). On `main` 2026-10-22.
-- The judge reading your /market list (List Reading, `3e4ccc57`). On `main` 2026-10-22.
-- Myrology. LAUNCH_VIDEOS.md §3.
-
 ## Before anything goes out
 
 - **Newsletter:** angle, chart and heading agreed with Shivam before drafting.
-  When the issue ships, delete its NEWSLETTER_QUEUE row.
+  When the issue ships, delete its NEWSLETTER_QUEUE row and add its posts to the
+  tracker. Its copy lives in `scripts/newsletter-carousel-specs/issue-NNN-distribution.md`.
 - **Launch video:** someone listens to the soundtrack first. Nobody had listened
   to any of the three as of 2026-10-22. An extension video waits for the store
-  version.
+  version. Its copy lives beside it in `brag-output*/linkedin.txt` and `instagram.txt`.
 - **Copy:** the brand-guidelines surface file for the channel, then
   write-like-human. Both lints pass (`ai-tells-lint.mjs`, `lint-vocab.sh`).
   No prices, no counts except `loop_reach.py` with its date, no auto-apply.

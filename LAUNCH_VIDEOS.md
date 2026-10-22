@@ -3,7 +3,8 @@
 `/myro-brag` (local skill) runs the upstream `/brag-slim` from `repos/brag/`
 (pinned in [repos/README.md](repos/README.md)) under the rules below. Where the
 two disagree, this file wins. Output is files only; posting is Shivam's.
-When each video goes out: [MARKETING_SCHEDULE.md](MARKETING_SCHEDULE.md).
+Weekly slots: [MARKETING_SCHEDULE.md](MARKETING_SCHEDULE.md). What is planned and posted:
+the Distribution Tracker at `/admin/growth`.
 
 ## What to film — the loop, nearest the north star first
 
@@ -14,6 +15,10 @@ When each video goes out: [MARKETING_SCHEDULE.md](MARKETING_SCHEDULE.md).
    `frontend/components/cv/download-cv-button.tsx`.
 2. **The extension.** Save a job from any page → tailored CV. `Chrome_extension/`.
 3. **Myrology.** The second product line, judged on its own — `frontend/app/myrology/`.
+
+Filmed: the loop, the extension fill, match + apply (`brag-output*/`). Next, both
+on `main` 2026-10-22: door to Download in 5 clicks (FD2, `8c372968`) and the
+judge reading your /market list (List Reading, `3e4ccc57`).
 
 The Myro Score and the gap read are what the machine knows about you, not the
 product. They can appear in a shot; they are never the headline.
