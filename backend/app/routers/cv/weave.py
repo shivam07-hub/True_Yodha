@@ -17,7 +17,6 @@ against — the Job Document when one exists, otherwise the master.
 """
 from __future__ import annotations
 
-import asyncio
 import logging
 import uuid
 from collections.abc import Collection
@@ -44,10 +43,10 @@ from app.services import (
     cv_weave,
     cv_weave_cache,
     cv_weave_interview,
-    cv_weave_run,
     jd_brief,
     jd_coverage,
     job_history,
+    paid_run,
     xp_policy,
     xp_service,
 )
@@ -382,7 +381,7 @@ def get_weave(
     since the draft — the surface offers a re-run instead of a doomed apply.
     Keep/Take progress rides `accepted_roles` / `decided_roles` so a landed
     line survives abort. `weaving` is one Redis read: the claim a run holds."""
-    weaving = cv_weave_run.in_flight(user.id, job_id)
+    weaving = paid_run.in_flight(user.id, job_id, cv_weave.CACHE_PROMPT_KEY)
     hit = _load_cache(jobs_repo, user.id, job_id)
     if hit is None:
         return WeaveGetResponse(purchased=False, weaving=weaving)
@@ -414,7 +413,7 @@ async def run_weave(
     exists and only when it reworks a role (`cv_weave.reworks_experience`); a
     cached proposal replays free unless `refresh` explicitly re-runs.
 
-    One run per (user, job) at a time (`cv_weave_run`): a second POST while one
+    One run per (user, job) at a time (`paid_run`): a second POST while one
     is working gets a 409 and reads the cache through the GET instead of paying
     again."""
     job = _job_or_404(jobs_repo, user.id, body.job_id)
@@ -424,19 +423,12 @@ async def run_weave(
     cv_structured = _paper_structured(cv_repo, user.id, body.job_id, baseline)
     current_fp = cv_weave.source_fingerprint(cv_structured)
 
-    token = cv_weave_run.claim(user.id, body.job_id)
-    if token is None:
-        logger.info("metric cv_weave.run_in_flight user=%s job=%s", user.id, body.job_id)
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            {"code": cv_weave_run.IN_FLIGHT_CODE, "message": "Mentor is still drafting this one."},
-        )
-    try:
+    with paid_run.held(
+        user.id, body.job_id, cv_weave.CACHE_PROMPT_KEY, "Mentor is still drafting this one.",
+    ):
         return await _claimed_run(
             body, background_tasks, user, job, cv_structured, current_fp, jobs_repo,
         )
-    finally:
-        cv_weave_run.release(user.id, body.job_id, token)
 
 
 async def _claimed_run(
@@ -469,27 +461,25 @@ async def _claimed_run(
         {"requirement": a.requirement.strip(), "text": a.text.strip()}
         for a in body.answers if a.text.strip()
     ]
-    # Bounded so the run can never outlive its claim (cv_weave_run.CLAIM_SECONDS).
-    try:
-        async with asyncio.timeout(cv_weave_run.RUN_SECONDS):
-            rows = await _coverage_rows(user.id, body.job_id, jd_text, jobs_repo, cv_structured)
-            brief = await _job_brief(user.id, body.job_id, jd_text, jobs_repo)
-            stories = await cv_weave_interview.gather_story_material(
-                user.id, [r.requirement for r in rows] or [job.get("job_title") or ""],
-            )
-            proposal = await cv_weave.weave(
-                job_title=job.get("job_title") or "",
-                company=job.get("company_name") or "",
-                jd_text=jd_text,
-                coverage_items=rows,
-                cv_structured=cv_structured,
-                stories=stories,
-                answers=answers,
-                brief=brief,
-            )
-    except TimeoutError:
-        logger.warning("metric cv_weave.run_timeout user=%s job=%s", user.id, body.job_id)
-        proposal = None
+
+    async def _draft() -> dict | None:
+        rows = await _coverage_rows(user.id, body.job_id, jd_text, jobs_repo, cv_structured)
+        brief = await _job_brief(user.id, body.job_id, jd_text, jobs_repo)
+        stories = await cv_weave_interview.gather_story_material(
+            user.id, [r.requirement for r in rows] or [job.get("job_title") or ""],
+        )
+        return await cv_weave.weave(
+            job_title=job.get("job_title") or "",
+            company=job.get("company_name") or "",
+            jd_text=jd_text,
+            coverage_items=rows,
+            cv_structured=cv_structured,
+            stories=stories,
+            answers=answers,
+            brief=brief,
+        )
+
+    proposal = await paid_run.bounded(_draft(), user.id, body.job_id, cv_weave.CACHE_PROMPT_KEY)
     if proposal is None:
         raise ServiceUnavailable(
             "Couldn't draft your tailored CV right now. Try again shortly — you were not charged.",

@@ -1363,7 +1363,7 @@ def test_a_second_weave_while_the_first_works_never_runs_or_charges(monkeypatch)
         second, retry_refresh, during, done, after, replay = _run(_scenario())
         for refused in (second, retry_refresh):
             assert refused.status_code == 409, refused.text
-            assert refused.json()["detail"]["code"] == "weave_in_flight"
+            assert refused.json()["detail"]["code"] == "run_in_flight"
         assert during == {**during, "purchased": False, "weaving": True}
         assert done.status_code == 200 and done.json()["cached"] is False
         assert after["purchased"] is True and after["weaving"] is False
@@ -1399,11 +1399,11 @@ def test_a_weave_that_outruns_its_bound_charges_nothing_and_frees_the_claim(monk
     ladder cannot finish after its claim expired and race a successor."""
     from app.config import settings
     from app.main import app
-    from app.services import cv_weave_run
+    from app.services import paid_run
 
     monkeypatch.setattr(settings, "redis_url", "")
-    monkeypatch.setattr(cv_weave_run, "RUN_SECONDS", 0.05)
-    assert cv_weave_run.CLAIM_SECONDS > 240
+    monkeypatch.setattr(paid_run, "RUN_SECONDS", 0.05)
+    assert paid_run.CLAIM_SECONDS > 240
     jobs_repo, cv_repo, charges = _JobsRepo(), _CVRepo(), []
     _seed_coverage(jobs_repo)
     client = _client(monkeypatch, jobs_repo, cv_repo, charges)

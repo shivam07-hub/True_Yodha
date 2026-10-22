@@ -170,12 +170,14 @@ failures logged nothing (`09a51daa`). Open:
   on the same job**; one real person paid **10 × 50 in 42s** on 2026-10-21 —
   `main`'s client put the last question back on screen mid-run, so each
   "Skip & weave · 50" started another run (client half `8c372968`). Now: one
-  run per (user, job) holds a Redis claim (`cv_weave_run`); a second POST gets
-  409 `weave_in_flight` and the GET reports `weaving`; the work is bounded at
-  240s, under the 300s claim. A timed-out POST reads the GET until the
-  proposal lands or the run stops (`lib/cv/weave-wait.ts`). Both commits on
-  `main` via #344; closes when one real weave hits the claim. **Refunded
-  2026-10-22 (REFUND1):** the 9 duplicates of `2ec5bfb0…` (450, ledger rows
+  run per (user, job) holds a Redis claim; a second POST gets 409 and the GET
+  reports `weaving`; the work is bounded at 240s, under the 300s claim. A
+  timed-out POST reads the GET until the proposal lands or the run stops. Both
+  commits on `main` via #344; closes when one real weave hits the claim. On
+  `Develop` the claim is `paid_run` (409 `run_in_flight`, client
+  `lib/run-wait.ts`), shared with the outreach pack and the day-of brief, which
+  carried the same race (GET `building`; 0 real buyers of either 2026-10-22).
+  **Refunded 2026-10-22 (REFUND1):** the 9 duplicates of `2ec5bfb0…` (450, ledger rows
   1671–1679, bell row "450 coins returned · Your Cargill draft is waiting.").
   Check scheduled 2026-10-29 (local task `fd4-weave-ledger-check`): same-job
   charges inside 3 min must read 0. Railway (30d retained): the only prod

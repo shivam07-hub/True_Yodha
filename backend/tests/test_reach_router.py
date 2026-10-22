@@ -8,8 +8,10 @@ deepen equivalents); the pack was the one paid route with no router test at all.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 
+import httpx
 from fastapi.testclient import TestClient
 
 from app.deps import Principal, get_principal
@@ -17,7 +19,7 @@ from app.main import app
 from app.repositories.connections import get_token_connections_repository
 from app.repositories.cv import get_token_cv_repository
 from app.repositories.jobs import get_token_jobs_repository
-from app.services import xp_service
+from app.services import paid_run, xp_service
 from app.services.llm_provider import get_llm_provider
 
 
@@ -147,6 +149,110 @@ def test_reach_pack_post_replays_cached_purchase_without_charging(monkeypatch):
     assert resp.json()["new_coin_balance"] == 3000
     assert provider.calls == 0
     assert charged == []
+
+
+# ── one run per (user, job) at a time (paid_run) ──────────────────────────────
+
+_PACK_REPLY = json.dumps({
+    "outreach_message": "Hi — I run presales for a data analytics team.",
+    "referral_ask": "Would you refer me?",
+    "timing": "Tuesday morning",
+    "warm_intro": "",
+})
+
+
+class _HeldProvider:
+    """A model call that stays in flight until the test lets it finish, or
+    answers on its own after `slow` seconds."""
+
+    def __init__(self, slow: float | None = None) -> None:
+        self.calls = 0
+        self.slow = slow
+        self.entered = asyncio.Event()
+        self.finish = asyncio.Event()
+
+    async def complete(self, _messages, max_tokens=900, temperature=None):
+        self.calls += 1
+        self.entered.set()
+        if self.slow is None:
+            await self.finish.wait()
+        else:
+            await asyncio.sleep(self.slow)
+        return _PACK_REPLY
+
+
+def _held_pack_client(
+    monkeypatch, repo: _FakeJobsRepo, charged: list, provider: _HeldProvider,
+) -> None:
+    from app.config import settings
+
+    async def _charge(*a, **kw):
+        charged.append(a)
+        return 2950
+
+    async def _assert_can_spend(*_a, **_kw):
+        return None
+
+    monkeypatch.setattr(settings, "redis_url", "")
+    monkeypatch.setattr(xp_service, "assert_can_spend_xp", _assert_can_spend)
+    monkeypatch.setattr(xp_service, "charge_or_raise", _charge)
+    _client()
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    app.dependency_overrides[get_token_cv_repository] = lambda: _FakeCVRepo()
+    app.dependency_overrides[get_token_connections_repository] = lambda: _FakeConnectionsRepo()
+    app.dependency_overrides[get_llm_provider] = lambda: provider
+
+
+def test_a_second_pack_post_while_the_first_works_never_runs_or_charges(monkeypatch):
+    """A Retry after the client gave up, a double click, a second tab: the first
+    run holds the claim, the second is told it is still working and never
+    reaches the model or the wallet, and the GET says a run is building."""
+    repo, charged, provider = _FakeJobsRepo(), [], _HeldProvider()
+    _held_pack_client(monkeypatch, repo, charged, provider)
+
+    async def _scenario():
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://t") as client:
+            first = asyncio.create_task(client.post("/jobs/j1/reach/pack"))
+            await asyncio.wait_for(provider.entered.wait(), 5)
+
+            # Bounded: without the claim the second run would sit in the held
+            # model call beside the first instead of being refused.
+            second = await asyncio.wait_for(client.post("/jobs/j1/reach/pack"), 5)
+            calls_during, charged_during = provider.calls, list(charged)
+            during = (await client.get("/jobs/j1/reach/pack")).json()
+
+            provider.finish.set()
+            done = await asyncio.wait_for(first, 5)
+            after = (await client.get("/jobs/j1/reach/pack")).json()
+            return second, calls_during, charged_during, during, done, after
+
+    second, calls_during, charged_during, during, done, after = asyncio.run(_scenario())
+    assert second.status_code == 409, second.text
+    assert second.json()["detail"]["code"] == paid_run.IN_FLIGHT_CODE
+    assert calls_during == 1 and charged_during == []
+    assert during["purchased"] is False and during["building"] is True
+    assert done.status_code == 200, done.text
+    assert after["purchased"] is True and after["building"] is False
+    assert provider.calls == 1
+    assert len(charged) == 1, charged
+
+
+def test_a_pack_that_outruns_its_bound_charges_nothing_and_frees_the_claim(monkeypatch):
+    """The model work is bounded below the claim's lifetime, so a slow provider
+    ladder cannot finish after its claim expired and race a successor."""
+    monkeypatch.setattr(paid_run, "RUN_SECONDS", 0.05)
+    repo, charged = _FakeJobsRepo(), []
+    # Answers well after the bound: unbounded, it would be delivered and charged.
+    _held_pack_client(monkeypatch, repo, charged, _HeldProvider(slow=1.0))
+    client = TestClient(app)
+
+    resp = client.post("/jobs/j1/reach/pack")
+
+    assert resp.status_code == 503
+    assert resp.json()["detail"].endswith("you were not charged.")
+    assert charged == []
+    assert client.get("/jobs/j1/reach/pack").json()["building"] is False
 
 
 def _search_client(repo: _FakeJobsRepo) -> TestClient:

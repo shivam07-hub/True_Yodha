@@ -12,8 +12,7 @@ import { collectHiddenLines } from "../lib/cv/hidden-lines"
 import { gapCardMatches } from "../lib/cv/gap-focus"
 import type { CVStructured, WeaveProposal } from "../lib/api"
 import { itemId } from "../lib/cv-compose"
-import { ApiError } from "../lib/api-error"
-import { WEAVE_IN_FLIGHT, weaveOutcomeUnseen, weaveWaitVerdict } from "../lib/cv/weave-wait"
+import { weaveWaitVerdict } from "../lib/cv/weave-wait"
 
 const read = (path: string) =>
   readFileSync(new URL(`../${path}`, import.meta.url), "utf8")
@@ -39,15 +38,10 @@ test("LLM coverage and weave calls wait 60s, and do not blindly retry", () => {
 
 test("a weave the POST stopped waiting for is waited on, not failed or re-run", () => {
   // U4 phone run 2026-10-22: the server took 74.5s, the client gave up at 60s
-  // and offered a Retry that started a second charged run.
-  assert.equal(weaveOutcomeUnseen(new ApiError("Request timed out.", { kind: "timeout" })), true)
-  assert.equal(weaveOutcomeUnseen(new ApiError("Network request failed.", { kind: "network" })), true)
-  assert.equal(weaveOutcomeUnseen(new ApiError("Still drafting", { kind: "http", status: 409, code: WEAVE_IN_FLIGHT })), true)
-  assert.equal(weaveOutcomeUnseen(new ApiError("you were not charged.", { kind: "http", status: 503 })), false)
-  assert.equal(weaveOutcomeUnseen(new Error("boom")), false)
-
+  // and offered a Retry that started a second charged run. Which errors are an
+  // outcome not seen: tests/paid-run-wait.test.ts.
   const onError = code(weave.slice(weave.indexOf("onError: (e: Error) => {"), weave.indexOf("const bankAnswer")))
-  assert.match(onError, /if \(weaveOutcomeUnseen\(e\)\) startWait\(\)\s*else setError\(e\.message\)/)
+  assert.match(onError, /if \(runOutcomeUnseen\(e\)\) startWait\(\)\s*else setError\(e\.message\)/)
   // A run already working when the overlay opens (reload, second tab) is waited on too.
   assert.match(code(weave), /if \(weavingNow\) \{\s*if \(!weaveStarted\.current\) \{\s*weaveStarted\.current = true\s*startWait\(\)/)
 })
@@ -64,10 +58,9 @@ test("the wait ends only on a landed proposal or a run that stopped", () => {
   assert.equal(weaveWaitVerdict({ purchased: true, proposal, stale: true, weaving: false }), "failed")
   assert.equal(weaveWaitVerdict({ purchased: false, proposal: null, stale: false, weaving: false }), "failed")
 
-  const hook = code(read("components/cv/builder/use-weave-wait.ts"))
   // The read lands in the overlay's own entry, so the reopen path seeds it.
-  assert.match(hook, /client\.setQueryData\(\["cv-weave", jobId\], poll\.data\)/)
-  assert.match(hook, /refetchInterval: WEAVE_POLL_MS/)
+  assert.match(code(weave), /entry: "cv-weave"/)
+  assert.match(code(weave), /verdict: weaveWaitVerdict/)
 })
 
 test("the Mentor overlay renders on <body>, above the phone's bars", () => {

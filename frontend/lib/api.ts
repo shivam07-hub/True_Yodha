@@ -1785,7 +1785,7 @@ export interface WeaveGetResponse {
   /** The summary / skills-line card has had its Keep or Take. */
   extras_decided?: boolean
   extras_accepted?: boolean
-  /** A run for this job is working now (`lib/cv/weave-wait.ts`). */
+  /** A run for this job is working now (`lib/run-wait.ts`). */
   weaving?: boolean
 }
 
@@ -4228,6 +4228,8 @@ export interface ReachPackResponse {
   pack: ReachPack | null
   cost: number
   new_coin_balance: number | null
+  /** A run for this pack is working now (`lib/run-wait.ts`). */
+  building?: boolean
 }
 
 /** ADR-0018 Path 3 — a person the user nominated, not a scrape. */
@@ -4275,6 +4277,8 @@ export interface PrepBriefResponse {
   brief: PrepBrief | null
   cost: number
   new_coin_balance: number | null
+  /** A run for this brief is working now (`lib/run-wait.ts`). */
+  building?: boolean
 }
 
 export interface UserSkillDemandItem {

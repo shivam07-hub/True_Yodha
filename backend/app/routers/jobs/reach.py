@@ -26,8 +26,8 @@ from app.repositories.connections import (
 from app.repositories.cv import CVVersionsRepository, get_token_cv_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.security import ServiceUnavailable, redact_sensitive_text
+from app.services import paid_run, xp_policy, xp_service
 from app.services import reach_pack as reach_pack_service
-from app.services import xp_policy, xp_service
 from app.services.connections_import import format_warm_connection
 from app.services.llm_provider import LLMProvider, get_llm_provider
 from app.services.reach_intel import ReachSearch, build_reach_intel
@@ -106,6 +106,9 @@ class ReachPackResponse(BaseModel):
     pack: ReachPack | None
     cost: int = xp_policy.REACH_PACK_XP_COST
     new_coin_balance: int | None = None
+    #: A run for this pack is working now. A client that stopped waiting on the
+    #: POST reads this until the pack lands or the run ends without one.
+    building: bool = False
 
 
 def _cached_pack(repo: JobsRepository, user_id: str, job_id: str) -> ReachPack | None:
@@ -125,9 +128,11 @@ def get_reach_pack(
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> ReachPackResponse:
     """Replay a purchased pack for free. UI reads this to show 'view' vs
-    'get · 50 coins' without charging."""
+    'get · 50 coins' without charging. `building` is one Redis read: the claim
+    a run holds."""
+    building = paid_run.in_flight(principal.id, job_id, _PACK_PROMPT_KEY)
     cached = _cached_pack(repo, principal.id, job_id)
-    return ReachPackResponse(purchased=cached is not None, pack=cached)
+    return ReachPackResponse(purchased=cached is not None, pack=cached, building=building)
 
 
 @router.post("/{job_id}/reach/pack", response_model=ReachPackResponse)
@@ -140,9 +145,23 @@ async def create_reach_pack(
     provider: LLMProvider = Depends(get_llm_provider),
 ) -> ReachPackResponse:
     """Generate the full outreach pack for a job. 50 coins, charged on success
-    only; a purchased pack replays free (idempotent per user+job)."""
-    user_id = principal.id
+    only; a purchased pack replays free (idempotent per user+job).
 
+    One run per (user, job) at a time (`paid_run`): a second POST while one is
+    working gets a 409 and reads the GET instead of paying again."""
+    with paid_run.held(principal.id, job_id, _PACK_PROMPT_KEY, "Still drafting your outreach plan."):
+        return await _claimed_pack(job_id, principal.id, repo, cv_repo, connections_repo, provider)
+
+
+async def _claimed_pack(
+    job_id: str,
+    user_id: str,
+    repo: JobsRepository,
+    cv_repo: CVVersionsRepository,
+    connections_repo: ConnectionsRepository,
+    provider: LLMProvider,
+) -> ReachPackResponse:
+    # Read under the claim: a run that finished a moment ago has cached its pack.
     cached = _cached_pack(repo, user_id, job_id)
     if cached is not None:
         balance = await xp_service.get_xp_balance(user_id)
@@ -164,14 +183,17 @@ async def create_reach_pack(
     matches = connections_repo.find_at_company(user_id, company, limit=1)
     warm_connection = format_warm_connection(matches[0]) if matches else None
 
-    pack = await reach_pack_service.build_reach_pack(
-        cv_structured=baseline.get("cv_structured") or {},
-        body_text=baseline.get("body_text") or "",
-        role=role,
-        company=company,
-        target_titles=intel.target_titles,
-        warm_connection=warm_connection,
-        provider=provider,
+    pack = await paid_run.bounded(
+        reach_pack_service.build_reach_pack(
+            cv_structured=baseline.get("cv_structured") or {},
+            body_text=baseline.get("body_text") or "",
+            role=role,
+            company=company,
+            target_titles=intel.target_titles,
+            warm_connection=warm_connection,
+            provider=provider,
+        ),
+        user_id, job_id, _PACK_PROMPT_KEY,
     )
     if pack is None:
         raise ServiceUnavailable(

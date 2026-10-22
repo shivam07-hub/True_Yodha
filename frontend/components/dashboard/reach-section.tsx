@@ -6,7 +6,8 @@
  * Free tier (ADR-0018): the roles to search for + LinkedIn/Google searches the
  * user opens in their OWN browser. Myro constructs the query and never fetches
  * the result. Paid tier (50 coins): the outreach drafted in the user's voice
- * from their CV + a referral-ask + timing — replayed free once purchased.
+ * from their CV + a referral-ask + timing — replayed free once purchased. A
+ * pack the POST stopped waiting for is waited on, never re-run (`lib/run-wait.ts`).
  */
 
 import * as React from "react"
@@ -14,7 +15,9 @@ import { useQuery, useMutation } from "@tanstack/react-query"
 import { jobs as jobsApi, type ReachPack } from "@/lib/api"
 import { serverMessage } from "@/lib/api-error"
 import { ReachLog } from "@/components/reach/reach-log"
+import { useRunWait } from "@/lib/hooks/use-run-wait"
 import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
+import { purchaseWaitVerdict, runOutcomeUnseen } from "@/lib/run-wait"
 import { useXPStore } from "@/store/xpStore"
 
 const PACK_COST = 50
@@ -82,15 +85,38 @@ export function ReachSection({ job, token, active }: { job: ReachJobRef; token: 
     staleTime: 5 * 60 * 1000,
   })
 
+  const [failed, setFailed] = React.useState<string | null>(null)
+  const waitFailed = React.useCallback(() => setFailed("Couldn’t build the plan right now — try again."), [])
+  const wait = useRunWait({
+    token, jobId: job.job_id, entry: "reach-pack", action: "reach_pack",
+    read: () => jobsApi.getReachPack(token, job.job_id),
+    verdict: purchaseWaitVerdict,
+    onFailed: waitFailed,
+  })
+  const startWait = wait.start
+  // A run already working when the section opens (a reload, a second tab).
+  const buildingNow = Boolean(packState.data?.building)
+  React.useEffect(() => {
+    if (buildingNow && !wait.waiting) startWait()
+  }, [buildingNow, wait.waiting, startWait])
+
   const buy = useMutation({
     mutationFn: () => jobsApi.createReachPack(token, job.job_id),
+    onMutate: () => setFailed(null),
     onSuccess: (res) => {
       if (typeof res.new_coin_balance === "number") {
         applyXpChange({ newBalance: res.new_coin_balance, action: "reach_pack" })
       }
       packState.refetch()
     },
+    onError: (e: Error) => {
+      // A timeout is not a failure: the server may still be drafting, and a
+      // Retry then would pay for a second run. Read the pack instead.
+      if (runOutcomeUnseen(e)) startWait()
+      else setFailed(serverMessage(e, "Couldn’t build the plan right now — try again."))
+    },
   })
+  const drafting = buy.isPending || wait.waiting
 
   const searches = React.useMemo(() => {
     const s = search.data
@@ -192,14 +218,12 @@ export function ReachSection({ job, token, active }: { job: ReachJobRef; token: 
           <button
             type="button"
             className="db-lockbtn"
-            disabled={buy.isPending}
+            disabled={drafting}
             onClick={() => gate.attempt(() => buy.mutate())}
           >
-            {buy.isPending ? "Drafting…" : `Get the outreach plan · ${PACK_COST}`}
+            {drafting ? "Drafting…" : `Get the outreach plan · ${PACK_COST}`}
           </button>
-          {buy.isError ? (
-            <p className="db-reach-err">{serverMessage(buy.error, "Couldn’t build the plan right now — try again.")}</p>
-          ) : null}
+          {failed ? <p className="db-reach-err">{failed}</p> : null}
         </div>
       )}
 

@@ -11,16 +11,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useMutation, useQuery } from "@tanstack/react-query"
-import { cv as cvApi, xp as xpApi, type WeaveProposal } from "@/lib/api"
+import { cv as cvApi, type WeaveProposal } from "@/lib/api"
 import { interviewActions } from "@/lib/cv/interview-actions"
-import { weaveOutcomeUnseen } from "@/lib/cv/weave-wait"
+import { weaveWaitVerdict } from "@/lib/cv/weave-wait"
+import { useRunWait } from "@/lib/hooks/use-run-wait"
+import { runOutcomeUnseen } from "@/lib/run-wait"
 import { buildSteps } from "@/lib/cv/weave-steps"
 import { useXPStore } from "@/store/xpStore"
 import { WeaveLoom } from "./mentor-thinking"
 import { TailorInterview } from "./tailor-interview"
 import { useTailorGateRefresh } from "./use-tailor-gate"
 import { useWeaveLanding } from "./use-weave-landing"
-import { useWeaveWait } from "./use-weave-wait"
 import { WeaveReview } from "./weave-review"
 
 type Act = "loom" | "interview" | "review"
@@ -89,14 +90,14 @@ export function TailorWeave({
   const weavingNow = Boolean(existing.data?.weaving)
 
   // The landed proposal is seeded by the effect below, from the read the wait
-  // wrote into `existing`. The balance is the one thing that read lacks.
-  const refreshBalance = useCallback(() => {
-    xpApi.balance(token)
-      .then(r => applyXpChange({ newBalance: r.balance, action: "cv_weave" }))
-      .catch(() => {})
-  }, [token, applyXpChange])
+  // wrote into `existing`.
   const waitFailed = useCallback(() => setError("Mentor couldn't finish this draft."), [])
-  const wait = useWeaveWait({ token, jobId, onLanded: refreshBalance, onFailed: waitFailed })
+  const wait = useRunWait({
+    token, jobId, entry: "cv-weave", action: "cv_weave",
+    read: () => cvApi.weave.get(token, jobId),
+    verdict: weaveWaitVerdict,
+    onFailed: waitFailed,
+  })
   const startWait = wait.start
 
   useEffect(() => {
@@ -139,7 +140,7 @@ export function TailorWeave({
       setAct("loom")
       // A timeout is not a failure: the server may still be weaving, and a
       // Retry then would pay for a second run. Read the cache instead.
-      if (weaveOutcomeUnseen(e)) startWait()
+      if (runOutcomeUnseen(e)) startWait()
       else setError(e.message)
     },
   })
