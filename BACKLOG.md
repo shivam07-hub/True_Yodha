@@ -178,7 +178,9 @@ failures logged nothing (`09a51daa`). Open:
   2026-10-22 (REFUND1):** the 9 duplicates of `2ec5bfb0…` (450, ledger rows
   1671–1679, bell row "450 coins returned · Your Cargill draft is waiting.").
   Check scheduled 2026-10-29 (local task `fd4-weave-ledger-check`): same-job
-  charges inside 3 min must read 0. Authored 503s pass the boundary
+  charges inside 3 min must read 0. Railway (30d retained): the only prod
+  weave runs are that burst — 10 POSTs, 37–60s each, none past the client's
+  60s; the 74.5s run was a local backend. Authored 503s pass the boundary
   (`ServiceUnavailable`); still blanked: onboarding first-role save, account
   setup, engagement sale.
 - **FD5 · a paid weave that changes almost nothing — price half on `Develop`
@@ -186,8 +188,11 @@ failures logged nothing (`09a51daa`). Open:
   summary-only draft (2026-10-19); the guard refused 4 of 5 roles on the QA's
   last three runs. A weave now costs 50 only when it rewrites or trims a role;
   buttons read "Weave now · up to 50". Forward only — no refund for the
-  10-19 draft. **Open: the guard itself** — read `metric
-  cv_weave.role_guard_failed` (needs `railway login`) before loosening it.
+  10-19 draft. **Open: the guard itself.** Railway read 2026-10-22: no
+  `role_guard_failed` lines yet (on `main` since 10:15 UTC, no real weave
+  since). Cached proposals: real people 3 of 5 roles refused, QA 4 of 5. The
+  metric names the role, not the rule that refused it (number lost, foreign
+  number, substance lost) — log the rule before loosening anything.
 - **FD6 · the summary names the seat twice.** "GTM Business Development
   Manager at Capgemini… Currently serving as GTM Business Development
   Manager, …" — `names_seat` checks only the employer, so a summary that names
