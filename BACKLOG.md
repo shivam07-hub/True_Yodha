@@ -163,12 +163,24 @@ all's version missed the paper until a reload, desktop too (`0e5f82cd`) · a
 proving line rewritten into a new one printed twice (`09a51daa`) · weave
 failures logged nothing (`09a51daa`). Open:
 
-- **FD4 · the weave outlives its client.** Server 74.5s, client 60s
-  (`LLM_REQUEST_TIMEOUT_MS`): the phone said "Request timed out." while the
-  server delivered and charged 50. Retry replays the cached proposal free —
-  but a Retry before the server finishes starts a second, charged run. Owner:
-  agent, next. A 503 shows "Something went wrong" instead of the server's
-  "you were not charged".
+- **FD4 · the weave outlives its client — built on `Develop` (`dd629e10`).** Server
+  74.5s, client 60s: "Request timed out." while the server delivered and
+  charged 50, and a Retry before it finished paid for a second run. Measured
+  on `coin_ledger`: **12 of 23 weave charges ever came within 3 min of another
+  on the same job**; one real person paid **11 × 50 in 42s** on 2026-10-21 —
+  `main`'s client puts the last question back on screen mid-run, so each
+  "Skip & weave · 50" started another run (client half fixed on `Develop` in
+  `8c372968`, not on `main`). Now: one run per (user, job) holds a Redis
+  claim (`cv_weave_run`); a second POST gets 409 `weave_in_flight` and the
+  GET reports `weaving`; the work is bounded at 240s, under the 300s claim. A
+  timed-out POST reads the GET until the proposal lands or the run stops
+  (`lib/cv/weave-wait.ts`). The 503's "you were not charged" reaches the screen
+  (`ServiceUnavailable`). **Prod still double-charges until `main` carries
+  both commits — core-loop fix, merge at once.** Shivam: refund the 500
+  welcome coins of `2ec5bfb0…` (10 duplicate charges, job `1019397362`)?
+  After the merge: `metric cv_weave.run_in_flight` and same-job charges
+  inside 3 min should read 0. Other routers' authored 503s are still blanked
+  by the boundary (reach, prep, polish…) — not converted here.
 - **FD5 · a paid weave that changes almost nothing.** Mindtickle BDR on the
   QA's sales CV: 4 of 5 roles and the summary failed the guard
   (`metric cv_weave.role_guard_failed`); the first run 503'd after 44.5s, the
@@ -361,7 +373,7 @@ and asserts contrast, squeeze, reach, theme and tap size (credentials in
   19 21 27 34 39 41 58 59 79 85 87 89 92 102 106 107 136. **Desktop run
   2026-10-19: the door is obvious; the path behind it is not** — see §4 (fix
   `2cc7b264`, FD1–FD3). **Phone run 2026-10-22: passes at 375px after four
-  fixes** — see §4 (FD4–FD7 open). Rerun: `scripts/qa_front_door.py`.
+  fixes** — see §4 (FD4 on `Develop`, FD5–FD7 open). Rerun: `scripts/qa_front_door.py`.
 - **T1 · Paste a JD → the CV actually changes toward it.** Bullets rewritten
   against the JD's terms, not generic "add numbers" tips. — 31 66 90 148
 - **T2 · Tailoring never swaps in a life you did not live.** Acceptance for the
