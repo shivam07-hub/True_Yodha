@@ -16,6 +16,8 @@ against — the Job Document when one exists, otherwise the master.
 """
 from __future__ import annotations
 
+import asyncio
+import logging
 import uuid
 from collections.abc import Collection
 from datetime import datetime, timezone
@@ -32,7 +34,7 @@ from app.repositories.career_reservoir import (
 from app.repositories.cv import CVVersionsRepository, CVVersionWriteSpec, get_token_cv_repository
 from app.repositories.cv_dump import CvDumpRepository, get_cv_dump_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
-from app.security import redact_sensitive_text
+from app.security import ServiceUnavailable, redact_sensitive_text
 from app.services import (
     career_reservoir,
     concurrent_reads,
@@ -41,6 +43,7 @@ from app.services import (
     cv_weave,
     cv_weave_cache,
     cv_weave_interview,
+    cv_weave_run,
     jd_brief,
     jd_coverage,
     job_history,
@@ -51,6 +54,8 @@ from app.services.llm_provider import get_blocking_judgment_provider
 from app.services.matching.paper_facts import proof_sets
 from app.services.cv_role_guard import drop_invented
 from app.services.cv_structured_shape import has_content
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -160,6 +165,9 @@ class WeaveGetResponse(BaseModel):
     decided_roles: list[int] = Field(default_factory=list)
     extras_decided: bool = False
     extras_accepted: bool = False
+    #: A run for this job is working now. A client that stopped waiting on the
+    #: POST reads this until the proposal lands or the run ends without one.
+    weaving: bool = False
 
 
 class WeaveApplyRequest(BaseModel):
@@ -372,10 +380,11 @@ def get_weave(
     """Replay a purchased proposal for free. `stale` flags a master that changed
     since the draft — the surface offers a re-run instead of a doomed apply.
     Keep/Take progress rides `accepted_roles` / `decided_roles` so a landed
-    line survives abort."""
+    line survives abort. `weaving` is one Redis read: the claim a run holds."""
+    weaving = cv_weave_run.in_flight(user.id, job_id)
     hit = _load_cache(jobs_repo, user.id, job_id)
     if hit is None:
-        return WeaveGetResponse(purchased=False)
+        return WeaveGetResponse(purchased=False, weaving=weaving)
     proposal, cache = hit
     baseline = cv_repo.latest_baseline(user.id)
     current = cv_weave.source_fingerprint(_paper_structured(cv_repo, user.id, job_id, baseline))
@@ -388,6 +397,7 @@ def get_weave(
         decided_roles=list(cache.decided_roles),
         extras_decided=cache.extras_decided,
         extras_accepted=cache.extras_accepted,
+        weaving=weaving,
     )
 
 
@@ -400,7 +410,11 @@ async def run_weave(
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
 ) -> WeaveRunResponse:
     """The weave. 50 coins per run, charged only after a deliverable proposal
-    exists; a cached proposal replays free unless `refresh` explicitly re-runs."""
+    exists; a cached proposal replays free unless `refresh` explicitly re-runs.
+
+    One run per (user, job) at a time (`cv_weave_run`): a second POST while one
+    is working gets a 409 and reads the cache through the GET instead of paying
+    again."""
     job = _job_or_404(jobs_repo, user.id, body.job_id)
     baseline = _baseline_or_409(cv_repo, user.id)
     # The Job Document is the paper (ADR-0025). The master seeds it only when
@@ -408,44 +422,74 @@ async def run_weave(
     cv_structured = _paper_structured(cv_repo, user.id, body.job_id, baseline)
     current_fp = cv_weave.source_fingerprint(cv_structured)
 
-    if not body.refresh:
-        hit = _load_cache(jobs_repo, user.id, body.job_id)
-        if hit is not None:
-            cached, cache = hit
-            balance = await xp_service.get_xp_balance(user.id)
-            return WeaveRunResponse(
-                proposal=cached, cached=True,
-                stale=_paper_changed(current_fp, cached.fingerprint, cache),
-                new_coin_balance=balance,
-            )
+    token = cv_weave_run.claim(user.id, body.job_id)
+    if token is None:
+        logger.info("metric cv_weave.run_in_flight user=%s job=%s", user.id, body.job_id)
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {"code": cv_weave_run.IN_FLIGHT_CODE, "message": "Mentor is still drafting this one."},
+        )
+    try:
+        return await _claimed_run(
+            body, background_tasks, user, job, cv_structured, current_fp, jobs_repo,
+        )
+    finally:
+        cv_weave_run.release(user.id, body.job_id, token)
+
+
+async def _claimed_run(
+    body: WeaveRunRequest,
+    background_tasks: BackgroundTasks,
+    user: CurrentUser,
+    job: dict,
+    cv_structured: dict,
+    current_fp: str,
+    jobs_repo: JobsRepository,
+) -> WeaveRunResponse:
+    # Read under the claim: a run that finished a moment ago has written its
+    # proposal, and a refresh against the paper it was written for is the same
+    # run asked twice.
+    hit = _load_cache(jobs_repo, user.id, body.job_id)
+    if hit is not None and (not body.refresh or hit[0].fingerprint == current_fp):
+        cached, cache = hit
+        balance = await xp_service.get_xp_balance(user.id)
+        return WeaveRunResponse(
+            proposal=cached, cached=True,
+            stale=_paper_changed(current_fp, cached.fingerprint, cache),
+            new_coin_balance=balance,
+        )
 
     # Preflight funding so we never spend an LLM call the user can't pay for.
     await xp_service.assert_can_spend_xp(user.id, xp_policy.CV_WEAVE_XP_COST, "cv_weave")
 
     jd_text = job.get("job_description") or ""
-    rows = await _coverage_rows(user.id, body.job_id, jd_text, jobs_repo, cv_structured)
-    brief = await _job_brief(user.id, body.job_id, jd_text, jobs_repo)
-    stories = await cv_weave_interview.gather_story_material(
-        user.id, [r.requirement for r in rows] or [job.get("job_title") or ""],
-    )
     answers = [
         {"requirement": a.requirement.strip(), "text": a.text.strip()}
         for a in body.answers if a.text.strip()
     ]
-
-    proposal = await cv_weave.weave(
-        job_title=job.get("job_title") or "",
-        company=job.get("company_name") or "",
-        jd_text=jd_text,
-        coverage_items=rows,
-        cv_structured=cv_structured,
-        stories=stories,
-        answers=answers,
-        brief=brief,
-    )
+    # Bounded so the run can never outlive its claim (cv_weave_run.CLAIM_SECONDS).
+    try:
+        async with asyncio.timeout(cv_weave_run.RUN_SECONDS):
+            rows = await _coverage_rows(user.id, body.job_id, jd_text, jobs_repo, cv_structured)
+            brief = await _job_brief(user.id, body.job_id, jd_text, jobs_repo)
+            stories = await cv_weave_interview.gather_story_material(
+                user.id, [r.requirement for r in rows] or [job.get("job_title") or ""],
+            )
+            proposal = await cv_weave.weave(
+                job_title=job.get("job_title") or "",
+                company=job.get("company_name") or "",
+                jd_text=jd_text,
+                coverage_items=rows,
+                cv_structured=cv_structured,
+                stories=stories,
+                answers=answers,
+                brief=brief,
+            )
+    except TimeoutError:
+        logger.warning("metric cv_weave.run_timeout user=%s job=%s", user.id, body.job_id)
+        proposal = None
     if proposal is None:
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
+        raise ServiceUnavailable(
             "Couldn't draft your tailored CV right now. Try again shortly — you were not charged.",
         )
 

@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
-from app.security.error_handling import install_error_handling
+from app.security.error_handling import ServiceUnavailable, install_error_handling
 from app.services.read_capacity import ReadCapacityExceeded
 
 
@@ -48,6 +48,33 @@ def test_explicit_server_error_detail_is_never_exposed() -> None:
     assert response.headers["x-correlation-id"] == response.json()["correlation_id"]
     assert "SELECT" not in response.text
     assert "/srv/api/repository.py" not in response.text
+
+
+def test_authored_unavailable_copy_reaches_the_person() -> None:
+    """A deliberate 503 says what to do next; blanking it told a person whose
+    weave found nothing "Something went wrong" instead of "you were not
+    charged" (U4, 2026-10-22). Any other 5xx stays generic."""
+    test_app = FastAPI()
+    install_error_handling(test_app)
+
+    @test_app.get("/busy")
+    def busy() -> None:
+        raise ServiceUnavailable("Couldn't draft it right now. Try again shortly.")
+
+    @test_app.get("/leaky")
+    def leaky() -> None:
+        raise ServiceUnavailable('File "/app/internal.py", line 42: ValueError: boom')
+
+    with TestClient(test_app) as client:
+        busy_response = client.get("/busy")
+        leaky_response = client.get("/leaky")
+
+    assert busy_response.status_code == 503
+    assert busy_response.json()["detail"] == "Couldn't draft it right now. Try again shortly."
+    assert busy_response.headers["x-correlation-id"] == busy_response.json()["correlation_id"]
+    assert leaky_response.status_code == 503
+    assert leaky_response.json()["detail"] == "Something went wrong. Please try again."
+    assert "/app/internal.py" not in leaky_response.text
 
 
 class _Payload(BaseModel):

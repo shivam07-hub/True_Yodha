@@ -106,7 +106,23 @@ def _contains_internal_detail(value: Any) -> bool:
     return False
 
 
+class ServiceUnavailable(StarletteHTTPException):
+    """A 503 whose detail was written for the person reading it.
+
+    The boundary blanks every 5xx detail, because a 5xx usually carries an
+    exception's text. A deliberate "not right now" is the case it must not
+    blank: the copy is authored and says what to do next. A weave that found
+    nothing to deliver told the person "Something went wrong" instead of "you
+    were not charged" (U4 phone run, 2026-10-22).
+    """
+
+    def __init__(self, detail: str, *, headers: Mapping[str, str] | None = None) -> None:
+        super().__init__(status_code=503, detail=detail, headers=dict(headers) if headers else None)
+
+
 def _public_http_detail(exc: StarletteHTTPException) -> Any:
+    if isinstance(exc, ServiceUnavailable) and not _contains_internal_detail(exc.detail):
+        return exc.detail
     if exc.status_code >= 500 or _contains_internal_detail(exc.detail):
         return (
             GENERIC_SERVER_ERROR

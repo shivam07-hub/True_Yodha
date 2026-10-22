@@ -1785,6 +1785,8 @@ export interface WeaveGetResponse {
   /** The summary / skills-line card has had its Keep or Take. */
   extras_decided?: boolean
   extras_accepted?: boolean
+  /** A run for this job is working now (`lib/cv/weave-wait.ts`). */
+  weaving?: boolean
 }
 
 /** One remembered fact in the user_memory store (authored or distilled). */
@@ -2326,6 +2328,9 @@ export const cv = {
           job_id: body.jobId ?? null, final: body.final ?? false,
         }),
       }),
+    /** The socket gives up at 60s; the run can take longer and charges on
+     *  delivery. A timeout is read off `get` (`lib/cv/weave-wait.ts`), never
+     *  retried — the server refuses a second run while one works. */
     run: (token: string, jobId: string, answers: { requirement: string; text: string }[], opts?: { refresh?: boolean }) =>
       request<WeaveRunResponse>("/cv/weave", {
         method: "POST",

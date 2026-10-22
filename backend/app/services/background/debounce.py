@@ -95,6 +95,26 @@ def acquire_lease(key: str, ttl_seconds: int) -> str | None:
         return None
 
 
+def lease_held(key: str) -> bool:
+    """True while someone holds ``key``. A store that cannot answer reads as
+    free — the same quiet failure as the rest of this module."""
+    url = settings.redis_url.strip()
+    if not url:
+        current = _LOCAL_LEASES.get(key)
+        return current is not None and current[0] > time.monotonic()
+
+    try:
+        from redis import Redis
+
+        return bool(Redis.from_url(url, decode_responses=True).exists(f"claim:{key}"))
+    except Exception as exc:  # noqa: BLE001 — a read must never break its caller
+        logger.warning(
+            "metric background.lease_read_unavailable key=%s exc=%s",
+            key, exc.__class__.__name__,
+        )
+        return False
+
+
 def release_lease(key: str, token: str) -> None:
     """Release ``key`` only when ``token`` still owns it."""
     url = settings.redis_url.strip()
