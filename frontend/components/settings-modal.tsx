@@ -17,6 +17,7 @@ import { CompanyLink } from "@/components/companies/company-link"
 import { FollowCompanyControl } from "@/components/companies/follow-company-control"
 import { billing, jobs, users } from "@/lib/api"
 import type { ProfileUpdate } from "@/lib/api"
+import { serverMessage } from "@/lib/api-error"
 import { dataKeys } from "@/lib/domain-data"
 import { MAX_TARGET_LOCATIONS } from "@/lib/career-target"
 import { catalogFromAnalytics, suggestLocations } from "@/lib/location-catalog"
@@ -298,7 +299,7 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
     return () => clearTimeout(timer)
   }, [companyInput])
 
-  const { data: companySuggestions = [] } = useQuery({
+  const { data: companySuggestions = [], error: companySearchError } = useQuery({
     queryKey: ["companySuggestions", companySearchTerm],
     queryFn: () => jobs.searchCompanies(companySearchTerm),
     enabled: open && activeTab === "Following" && companySearchTerm.length >= 2,
@@ -882,6 +883,11 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
                       </div>
                     )}
                   </div>
+                  {companySearchError && (
+                    <div role="alert" style={{ marginTop: 8, fontSize: "var(--tm-fs-caption)", color: "var(--tm-danger)" }}>
+                      {serverMessage(companySearchError, "Couldn’t search companies right now. Try again.")}
+                    </div>
+                  )}
                   {following.error && (
                     <div role="alert" style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10, fontSize: "var(--tm-fs-caption)", color: "var(--tm-danger, #f87171)" }}>
                       <span>{following.error.message}</span>

@@ -7,6 +7,7 @@ from datetime import date
 from fastapi import HTTPException, status
 
 from app.repositories.jobs import JobsRepository
+from app.security import ServiceUnavailable
 from app.services import new_inventory
 from app.services.job_refresh import _dispatch, _xp_charge
 from app.services.job_refresh.types import SEARCH_UNAVAILABLE, RefreshState, RefreshTicket
@@ -48,10 +49,7 @@ class JobRefresh:
         debit — a search that cannot start must not touch the wallet.
         """
         if _dispatch.cannot_run():
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=SEARCH_UNAVAILABLE,
-            )
+            raise ServiceUnavailable(SEARCH_UNAVAILABLE)
         excluded_job_ids = repo.get_existing_match_job_ids(user_id)
         price = 0 if new_inventory.waives_charge(new_inventory.count_for_user(repo, user_id)) else MATCH_RUN_COST
         new_balance = await _xp_charge.charge(user_id, price) if price else None

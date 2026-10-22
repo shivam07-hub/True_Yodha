@@ -5,8 +5,8 @@ from datetime import date
 from typing import Any
 
 import pytest
-from fastapi import HTTPException
 
+from app.security import ServiceUnavailable
 from app.services.job_refresh import _dispatch
 from app.services.job_refresh.facade import JobRefresh
 from app.services.job_refresh.types import (
@@ -76,7 +76,8 @@ def test_dispatch_refuses_when_redis_has_no_worker(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr(_dispatch._xp_charge, "refund", fake_refund)
 
     async def run() -> None:
-        with pytest.raises(HTTPException) as ei:
+        # ServiceUnavailable: the boundary passes "try again" through, not a blank 5xx.
+        with pytest.raises(ServiceUnavailable) as ei:
             await _dispatch.dispatch(
                 user_id="user-1",
                 batch_week=date(2026, 6, 1),
@@ -101,7 +102,7 @@ def test_start_does_not_charge_when_the_runner_is_down(monkeypatch: pytest.Monke
     monkeypatch.setattr("app.services.job_refresh._xp_charge.charge", fake_charge)
 
     repo = _RefreshRepo(new_jobs=0)
-    with pytest.raises(HTTPException) as ei:
+    with pytest.raises(ServiceUnavailable) as ei:
         asyncio.run(JobRefresh.start("user-1", repo, date(2026, 6, 1)))  # type: ignore[arg-type]
     assert ei.value.status_code == 503
     assert ei.value.detail == SEARCH_UNAVAILABLE

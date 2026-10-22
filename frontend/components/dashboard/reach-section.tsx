@@ -12,6 +12,7 @@
 import * as React from "react"
 import { useQuery, useMutation } from "@tanstack/react-query"
 import { jobs as jobsApi, type ReachPack } from "@/lib/api"
+import { serverMessage } from "@/lib/api-error"
 import { ReachLog } from "@/components/reach/reach-log"
 import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
 import { useXPStore } from "@/store/xpStore"
@@ -197,7 +198,7 @@ export function ReachSection({ job, token, active }: { job: ReachJobRef; token: 
             {buy.isPending ? "Drafting…" : `Get the outreach plan · ${PACK_COST}`}
           </button>
           {buy.isError ? (
-            <p className="db-reach-err">Couldn’t build the plan right now — try again.</p>
+            <p className="db-reach-err">{serverMessage(buy.error, "Couldn’t build the plan right now — try again.")}</p>
           ) : null}
         </div>
       )}

@@ -25,7 +25,7 @@ from app.repositories.connections import (
 )
 from app.repositories.cv import CVVersionsRepository, get_token_cv_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
-from app.security import redact_sensitive_text
+from app.security import ServiceUnavailable, redact_sensitive_text
 from app.services import reach_pack as reach_pack_service
 from app.services import xp_policy, xp_service
 from app.services.connections_import import format_warm_connection
@@ -174,9 +174,8 @@ async def create_reach_pack(
         provider=provider,
     )
     if pack is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Could not build the reach pack right now. Try again shortly.",
+        raise ServiceUnavailable(
+            "Couldn't build the outreach plan right now. Try again shortly — you were not charged.",
         )
 
     try:

@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from app.deps import Principal, get_principal
 from app.repositories.cv import CVVersionsRepository, get_token_cv_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
-from app.security import redact_sensitive_text
+from app.security import ServiceUnavailable, redact_sensitive_text
 from app.services import jd_coverage, job_history, prep_brief as prep_brief_service, xp_policy, xp_service
 from app.services.llm_provider import LLMProvider, get_blocking_judgment_provider
 from app.services.deepening_keys import DeepeningKey
@@ -133,9 +133,8 @@ async def create_prep_brief(
         provider=provider,
     )
     if brief is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Could not build the brief right now. Try again shortly.",
+        raise ServiceUnavailable(
+            "Couldn't build the brief right now. Try again shortly — you were not charged.",
         )
 
     try:

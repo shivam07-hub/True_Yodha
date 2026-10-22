@@ -10,6 +10,7 @@
 import * as React from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { jobs as jobsApi, type PrepBrief } from "@/lib/api"
+import { serverMessage } from "@/lib/api-error"
 import { Button } from "@/components/ui/button"
 import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
 import { useXPStore } from "@/store/xpStore"
@@ -98,7 +99,7 @@ export function BriefCard({ token, jobId }: { token: string; jobId: string }) {
       >
         {buy.isPending ? "Writing your brief" : `Get the day-of brief · ${BRIEF_COST}`}
       </Button>
-      {buy.isError ? <p className="prp-err">Couldn&rsquo;t build the brief right now — nothing was charged. Try again.</p> : null}
+      {buy.isError ? <p className="prp-err">{serverMessage(buy.error, "Couldn’t build the brief right now. Try again.")}</p> : null}
     </div>
   )
 }

@@ -220,6 +220,9 @@ def test_post_provider_failure_is_503_and_never_charges(monkeypatch):
 
     resp = _client(repo, _StubProvider("no json here")).post("/jobs/j1/prep/brief")
     assert resp.status_code == 503
+    assert resp.json()["detail"] == (
+        "Couldn't build the brief right now. Try again shortly — you were not charged."
+    )
     assert charged == []
     assert "prep_brief" not in repo.deepenings
 

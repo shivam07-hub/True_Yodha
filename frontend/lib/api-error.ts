@@ -132,6 +132,16 @@ export function toFailureKind(err: unknown): FailureKind {
   }
 }
 
+/**
+ * The server's own words for a failure it answered. Its detail is written for
+ * the person (the API boundary blanks anything internal). A request that got no
+ * answer has no such words, so the caller's line stands in — and that line must
+ * not promise an outcome nobody saw: a paid call that timed out may still finish.
+ */
+export function serverMessage(err: unknown, fallback: string): string {
+  return err instanceof ApiError && err.kind === "http" && err.message ? err.message : fallback
+}
+
 /** Convenience: resolved copy + trace id for a failure, ready to render. */
 export function describeFailure(err: unknown) {
   const e = classifyError(err)

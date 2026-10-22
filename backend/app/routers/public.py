@@ -22,7 +22,7 @@ from app.repositories.search_queries import SearchQueriesRepository
 from app.repositories.job_provenance import read_provenance
 from app.repositories.jobs import get_public_jobs_repository
 from app.repositories.scores import ScoresRepository
-from app.security import redact_sensitive_text
+from app.security import ServiceUnavailable, redact_sensitive_text
 from app.security.anon_rate_limit import enforce_anon_rate
 from app.services import cv_parser, cv_restructure, cv_rewrite, job_query_parser
 from app.services.cv_pdf_html import (
@@ -249,10 +249,7 @@ async def _verify_turnstile(token: str | None, ip: str) -> None:
             _log.error(
                 "TURNSTILE_SECRET is missing; anonymous CV endpoints are disabled"
             )
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Verification is temporarily unavailable.",
-            )
+            raise ServiceUnavailable("Verification is temporarily unavailable.")
         return
     if not token:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Verification required.")
@@ -339,10 +336,7 @@ async def _score_anon_cv(
 
     parsed = await cv_parser.parse_cv_text(raw_text, provider=get_cv_upload_provider())
     if parsed.get("provider_failed"):
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Our CV analysis service is busy right now. Try again in a moment.",
-        )
+        raise ServiceUnavailable("Our CV analysis service is busy right now. Try again in a moment.")
 
     skills_detected = parsed.get("skills_detected", [])
     if not skills_detected:

@@ -179,8 +179,9 @@ failures logged nothing (`09a51daa`). Open:
   both commits — core-loop fix, merge at once.** Shivam: refund the 500
   welcome coins of `2ec5bfb0…` (10 duplicate charges, job `1019397362`)?
   After the merge: `metric cv_weave.run_in_flight` and same-job charges
-  inside 3 min should read 0. Other routers' authored 503s are still blanked
-  by the boundary (reach, prep, polish…) — not converted here.
+  inside 3 min should read 0. The other authored 503s pass the boundary too
+  (outreach plan, brief, polish, anon score, company search, search start);
+  still blanked: onboarding first-role save, account setup, engagement sale.
 - **FD5 · a paid weave that changes almost nothing.** Mindtickle BDR on the
   QA's sales CV: 4 of 5 roles and the summary failed the guard
   (`metric cv_weave.role_guard_failed`); the first run 503'd after 44.5s, the

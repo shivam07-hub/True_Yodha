@@ -4,16 +4,22 @@ from collections import Counter
 from typing import Any
 
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 
 from app.repositories import jobs as jobs_module
-from app.repositories.jobs import CompanySearchUnavailable, JobsRepository, MarketAnalyticsCompiler
+from app.main import app
+from app.repositories.jobs import (
+    CompanySearchUnavailable,
+    JobsRepository,
+    MarketAnalyticsCompiler,
+    get_public_jobs_repository,
+)
 from app.services import shared_cache
 from app.services.background import debounce
 from app.routers.jobs.list import (
     get_market_analytics,
     get_my_analytics,
     list_top_companies_at,
-    search_companies,
     search_jobs,
 )
 import pytest
@@ -499,14 +505,16 @@ def test_search_companies_skips_blank_queries_after_trim() -> None:
     assert result == []
 
 
-def test_search_companies_returns_503_when_repository_unavailable() -> None:
+def test_search_companies_says_search_is_unavailable_through_the_boundary() -> None:
+    """The boundary blanks a 5xx; this detail is authored and must pass it."""
+    app.dependency_overrides[get_public_jobs_repository] = lambda: _UnavailableCompanySearchRepo()
     try:
-        search_companies(q="go", limit=10, repo=_UnavailableCompanySearchRepo())
-    except HTTPException as exc:
-        assert exc.status_code == 503
-        assert exc.detail == "Company search is temporarily unavailable."
-    else:
-        raise AssertionError("expected HTTPException")
+        res = TestClient(app).get("/jobs/companies/search", params={"q": "go"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert res.status_code == 503
+    assert res.json()["detail"] == "Company search is temporarily unavailable."
 
 
 def _clear_feed_ts_cache() -> None:

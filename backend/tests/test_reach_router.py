@@ -95,6 +95,11 @@ def test_reach_pack_provider_failure_is_503_and_never_charges(monkeypatch):
     resp = client.post("/jobs/j1/reach/pack")
 
     assert resp.status_code == 503
+    # The boundary blanks a 5xx to "Something went wrong"; this one is authored
+    # and must reach the person, who otherwise cannot tell they kept their coins.
+    assert resp.json()["detail"] == (
+        "Couldn't build the outreach plan right now. Try again shortly — you were not charged."
+    )
     # Non-vacuous: the route really did reach the model and come back empty-handed,
     # rather than 503-ing somewhere earlier for an unrelated reason.
     assert provider.calls == 1
