@@ -152,6 +152,36 @@ and Paste → review → playground works. Found on the way:
 
 T1 findings from the same run are under §5.
 
+**U4 phone run, 2026-10-22** (375px, QA account reset with
+`python -m scripts.qa_front_door reset <email> --to skills --apply`, local
+Develop backend; Qualcomm and Mindtickle links). Door → Download is **5 taps and
+a paste**: Paste a job → paste → Tailor a CV for this → Weave now · 50 → Take
+all / Take this → Download CV. Corpus reads in 0.17–0.67s. Fixed on the way:
+the review column shrank to 254px (`a63371b0`) · Mentor rendered under the
+phone's bars — no close button, Take all under the nav (`0e5f82cd`) · Take
+all's version missed the paper until a reload, desktop too (`0e5f82cd`) · a
+proving line rewritten into a new one printed twice (`09a51daa`) · weave
+failures logged nothing (`09a51daa`). Open:
+
+- **FD4 · the weave outlives its client.** Server 74.5s, client 60s
+  (`LLM_REQUEST_TIMEOUT_MS`): the phone said "Request timed out." while the
+  server delivered and charged 50. Retry replays the cached proposal free —
+  but a Retry before the server finishes starts a second, charged run. Owner:
+  agent, next. A 503 shows "Something went wrong" instead of the server's
+  "you were not charged".
+- **FD5 · a paid weave that changes almost nothing.** Mindtickle BDR on the
+  QA's sales CV: 4 of 5 roles and the summary failed the guard
+  (`metric cv_weave.role_guard_failed`); the first run 503'd after 44.5s, the
+  second charged 50 to turn a comma into a semicolon. Read the guard metrics
+  on Develop before changing the guard.
+- **FD6 · the summary names the seat twice.** "GTM Business Development
+  Manager at Capgemini… Currently serving as GTM Business Development
+  Manager, …" — `names_seat` checks only the employer, so a summary that names
+  the role without the company gets `seat_lead` prepended.
+- **FD7 · Small:** the phone step rail shows "1" and "2" with no labels; when
+  the onboarding state call fails, /onboarding shows "Upload your CV" — a
+  person with a CV is invited to upload again.
+
 ---
 
 ## 5 · TAILOR + DOWNLOAD — #58 · [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md)
@@ -330,8 +360,8 @@ and asserts contrast, squeeze, reach, theme and tap size (credentials in
   (grill D6: "Which job do you want?"). *The single biggest theme, 17 reports* —
   19 21 27 34 39 41 58 59 79 85 87 89 92 102 106 107 136. **Desktop run
   2026-10-19: the door is obvious; the path behind it is not** — see §4 (fix
-  `2cc7b264`, FD1–FD3). Phone owed: the QA account finished onboarding in this run,
-  so the door no longer shows for it.
+  `2cc7b264`, FD1–FD3). **Phone run 2026-10-22: passes at 375px after four
+  fixes** — see §4 (FD4–FD7 open). Rerun: `scripts/qa_front_door.py`.
 - **T1 · Paste a JD → the CV actually changes toward it.** Bullets rewritten
   against the JD's terms, not generic "add numbers" tips. — 31 66 90 148
 - **T2 · Tailoring never swaps in a life you did not live.** Acceptance for the
