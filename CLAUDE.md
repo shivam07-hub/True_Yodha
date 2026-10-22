@@ -120,7 +120,7 @@ Jobs come from the scraper repo (Shivam's); this repo only reads them.
 | Locked decisions + data model | [DECISIONS.md](DECISIONS.md) |
 | Servers, domains, env, DNS, deploy order | [INFRA.md](INFRA.md) |
 | Open work, in loop order | [BACKLOG.md](BACKLOG.md) |
-| **Which newsletter to push next** | [NEWSLETTER_QUEUE.md](NEWSLETTER_QUEUE.md) |
+| **Which newsletter to push next · what goes out when** | [NEWSLETTER_QUEUE.md](NEWSLETTER_QUEUE.md) · [MARKETING_SCHEDULE.md](MARKETING_SCHEDULE.md) |
 | **Specs Cursor builds from** | `ARCHITECTURE_*.md` at the root — RETURN_LOOP #55 · PAYMENTS #56 · FRONT_DOOR #57 · CV_TIER_A #58 · GOLDEN_DIGEST #59 · SKILL_EVIDENCE #60 · LISTING_TIME · CONTRACTS_BY_TYPE |
 | **Prep = one ladder, four steps** | [UNIFIED_PREP_V2.md](UNIFIED_PREP_V2.md) |
 | Vibecoded tells, ruled against our code | [ANTI_SLOP.md](ANTI_SLOP.md) |

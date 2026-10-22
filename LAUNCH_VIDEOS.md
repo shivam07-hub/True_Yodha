@@ -3,6 +3,7 @@
 `/myro-brag` (local skill) runs the upstream `/brag-slim` from `repos/brag/`
 (pinned in [repos/README.md](repos/README.md)) under the rules below. Where the
 two disagree, this file wins. Output is files only; posting is Shivam's.
+When each video goes out: [MARKETING_SCHEDULE.md](MARKETING_SCHEDULE.md).
 
 ## What to film — the loop, nearest the north star first
 
@@ -41,7 +42,8 @@ product. They can appear in a shot; they are never the headline.
 - No prices until checkout is live (#56 is spec only).
 - Film only what a user can do today. An extension feature counts once the
   Chrome Web Store listing carries the version that has it — on `main` is not
-  enough (2026-10-20: store 0.2.3, form fill is 0.2.5).
+  enough (form fill was on `main` in 0.2.5 while the store read 0.2.3; its
+  video waited for the store).
 
 ## Voice and look
 
