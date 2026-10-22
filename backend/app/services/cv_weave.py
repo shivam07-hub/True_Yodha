@@ -297,6 +297,13 @@ def edit_kind(old_bullets: list[str], new_texts: list[str], dropped: list[int]) 
     return "trim" if all(t in originals for t in new_texts) else "rewrite"
 
 
+def reworks_experience(proposal: dict[str, Any]) -> bool:
+    """Whether this weave costs its price: at least one role rewritten or
+    trimmed. A draft that touches only the summary or skills line, or nothing,
+    is free (Shivam, 2026-10-22, FD5 — one person paid 50 for a summary line)."""
+    return any(role.get("edit_kind") in ("rewrite", "trim") for role in proposal.get("roles") or [])
+
+
 def _why_overclaims(why: str, items: list[CoverageItem]) -> bool:
     """A why that names a tool the panel ruled a gap is dropped. The bullets can
     still land. Only named tools are a string fact; whether a sentence claims

@@ -94,7 +94,7 @@ export function willCharge(step: TailorStep): boolean {
  * nothing after: a 0/100 score, a Fixes rail and four buttons, with the one
  * step that tailors the CV among them. `seen` is this person having been shown
  * it on this job already; closing it once leaves the paper alone after that.
- * Opening costs nothing — only "Weave now · 50" charges.
+ * Opening costs nothing — only a weave that reworks a role charges.
  */
 export function autoOpens(facts: TailorFacts, seen: boolean): boolean {
   return !seen && facts.proposal === "none" && !facts.acceptComplete
