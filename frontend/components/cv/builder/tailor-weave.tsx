@@ -8,6 +8,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { cv as cvApi, type WeaveProposal } from "@/lib/api"
 import { interviewActions } from "@/lib/cv/interview-actions"
@@ -221,7 +222,11 @@ export function TailorWeave({
   const q = questions[qIdx]
   const actions = interviewActions(qIdx, questions.length, cost)
 
-  return (
+  // To <body>: the app shell's <main> is its own stacking context (z-index 2),
+  // so inside it the phone's top bar and bottom nav painted over the overlay —
+  // the close button under the score chip, Take all under the nav (U4, 375px).
+  // Mounted only on a click or an auto-open, never during server render.
+  return createPortal(
     <div className="tw-backdrop" role="dialog" aria-modal="true" aria-label="Tailor with Mentor" onClick={onClose}>
       <div className="tw-modal" data-act={act} onClick={e => e.stopPropagation()}>
         <div className="tw-head">
@@ -277,6 +282,7 @@ export function TailorWeave({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

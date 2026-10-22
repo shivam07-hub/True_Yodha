@@ -180,18 +180,36 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     )
   }, [companyVersions, currentBaseline, selectedVersionId])
 
-  const selectVersion = useCallback((id: number) => {
-    const target = threadVersions.find(v => v.id === id)
-    if (!target) return
-    setSelectedVersionId(id)
+  // A pick of a row the list does not hold yet. The weave's apply hands back
+  // only the new id, before the refetch brings its row: dropping the pick left
+  // Take all's CV off the paper until a reload (U4, 2026-10-22). It waits for
+  // the row instead.
+  const pendingPickRef = useRef<number | null>(null)
+
+  const hydrateFrom = useCallback((target: CVVersion) => {
+    setSelectedVersionId(target.id)
     setHiddenItems(new Set(target.hidden_items))
     setSectionOrderState(normalizeSectionOrder(target.section_order))
-    lastHydratedRef.current = id
+    lastHydratedRef.current = target.id
     lastSavedRef.current = serializeProjection(
       target.hidden_items,
       normalizeSectionOrder(target.section_order),
     )
-  }, [threadVersions])
+  }, [])
+
+  const selectVersion = useCallback((id: number) => {
+    const target = threadVersions.find(v => v.id === id)
+    pendingPickRef.current = target ? null : id
+    if (target) hydrateFrom(target)
+  }, [hydrateFrom, threadVersions])
+
+  useEffect(() => {
+    const id = pendingPickRef.current
+    const target = id == null ? undefined : threadVersions.find(v => v.id === id)
+    if (!target) return
+    pendingPickRef.current = null
+    hydrateFrom(target)
+  }, [hydrateFrom, threadVersions])
 
   const toggleItem = useCallback((iid: string) => {
     setHiddenItems(prev => {

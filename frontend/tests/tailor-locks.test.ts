@@ -35,6 +35,24 @@ test("LLM coverage and weave calls wait 60s, and do not blindly retry", () => {
   )
 })
 
+test("the Mentor overlay renders on <body>, above the phone's bars", () => {
+  // Inside the app shell's <main> (z-index 2) the top bar and bottom nav
+  // (z-index 30) covered it: no close button, no Take all at 375px.
+  assert.match(code(weave), /return createPortal\(\s*<div className="tw-backdrop"/)
+  assert.match(code(weave), /document\.body,\s*\)/)
+})
+
+test("a weave's new version is picked when its row arrives, not dropped", () => {
+  // Take all is one apply: its id comes back before the refetch brings the
+  // row, and a pick that returned on a miss left the master on the paper.
+  const hook = code(read("lib/hooks/use-cv-playground.ts"))
+  const pick = hook.slice(hook.indexOf("const selectVersion"), hook.indexOf("const toggleItem"))
+  assert.match(pick, /pendingPickRef\.current = target \? null : id/)
+  assert.match(pick, /useEffect\(\(\) => \{\s*const id = pendingPickRef\.current/)
+  assert.doesNotMatch(pick, /if \(!target\) return\s*\n\s*setSelectedVersionId/)
+  assert.match(read("components/cv/builder/playground-view.tsx"), /onApplied=\{versionId => \{\s*playground\.selectVersion\(versionId\)/)
+})
+
 test("interview waits for playground coverage and never treats a miss as empty", () => {
   assert.match(weave, /coverageSettled/)
   assert.match(weave, /Retry/)
