@@ -188,13 +188,6 @@ failures logged nothing (`09a51daa`). Open:
   buttons read "Weave now · up to 50". Forward only — no refund for the
   10-19 draft. **Open: the guard itself** — read `metric
   cv_weave.role_guard_failed` (needs `railway login`) before loosening it.
-- **UP1 · the orphan sweep refunds a copy of the charge, not the charge.**
-  `sweep_stale_cv_upload_jobs` refunds `cv_upload_jobs.xp_charged`, which the
-  worker stamps after `charge_coins`; a job swept between the two was charged
-  200, refunded 0 and marked `xp_refunded` (`80d1aa19…`, 2026-06-20 — the only
-  one; refunded by hand 2026-10-22 with a bell row "200 coins returned"). Fix:
-  the sweep reads the charge off `coin_ledger` by ref. **Owner: Shivam** — a
-  money function on the shared database; not applied.
 - **FD6 · the summary names the seat twice.** "GTM Business Development
   Manager at Capgemini… Currently serving as GTM Business Development
   Manager, …" — `names_seat` checks only the employer, so a summary that names

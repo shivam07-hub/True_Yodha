@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-10-22 — UP1 the upload orphan sweep refunds what the ledger charged
+
+`sweep_stale_cv_upload_jobs` refunded `cv_upload_jobs.xp_charged`, stamped after the charge; a job swept between the two was charged 200, refunded 0, marked refunded (`80d1aa19…`, 2026-06-20, the only one — refunded by hand with a bell row). Now it sums the job's `coin_ledger` charges by ref (`20261022120000`, applied to the shared DB 2026-10-22, Shivam). Checked live in a rolled-back transaction: the June shape refunds 200, an already-refunded job is paid once.
+
 ## 2026-10-19 — Backlog prune: open work only
 
 BACKLOG.md was 580 lines; most of it was build history. Each item below was checked
