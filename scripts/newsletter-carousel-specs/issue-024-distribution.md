@@ -30,13 +30,11 @@ These employers ask for sales (1,721), banking (1,258), lead generation (1,206),
 
 ## Instagram caption
 
-One title: 24.3% of India's branch banking openings.
-Business Development Associate at Axis Bank. 763 openings, all entry level.
+Two lines, 110 characters at most (brand-guidelines `surfaces/instagram.md`).
 
-Axis posts 65.1% of the lane. Outside the big metros, Kotak posts 51.9%.
+One Axis Bank title is 24.3% of India's branch banking openings.
+Full issue: himyro.com/newsletter
 
-Kolkata asks for the least experience: 1.7 years.
+First comment: #jobsearch #bankingjobs #freshers #himyro
 
-3,138 roles. Read 9 September 2026.
-
-Sales 1,721 · banking 1,258 · lead generation 1,206.
+Bio link while this is the newest post: https://www.himyro.com/newsletter/2026-10-branch-banking-two-banks?utm_source=instagram&utm_medium=social&utm_campaign=issue-024

@@ -30,12 +30,11 @@ If you are starting out, 9.6% of the lane is entry level, at 0.7 years. Axis pos
 
 ## Instagram caption
 
-EY: 30.8% of India's risk and compliance openings.
-EY, Deloitte and KPMG together: 50.5%.
+Two lines, 110 characters at most (brand-guidelines `surfaces/instagram.md`).
 
-Big Four ask for a CA: 25.9% of their postings.
-BFSI firms ask for Excel, AML and KYC, and credit risk.
+EY, Deloitte and KPMG post half of India's risk and compliance openings.
+Full issue: himyro.com/newsletter
 
-Risk analytics: 45 titles, 2.4% of the lane.
+First comment: #jobsearch #riskmanagement #bigfour #himyro
 
-1,868 live openings. Checked 20 October 2026.
+Bio link while this is the newest post: https://www.himyro.com/newsletter/2026-10-risk-compliance-big-four-india?utm_source=instagram&utm_medium=social&utm_campaign=issue-025

@@ -30,11 +30,11 @@ Give the Ghost Index thirty seconds before you tailor a CV to a listing.
 
 ## Instagram caption
 
-Citibank: 3.4% of closed roles still advertised.
-AB InBev: 69.6%.
+Two lines, 110 characters at most (brand-guidelines `surfaces/instagram.md`).
 
-Ten global employers in India, checked against their own hiring systems.
+Citibank: 3.4% of closed roles still advertised. AB InBev: 69.6%.
+Full issue: himyro.com/newsletter
 
-Okta's dead ads stay up 42.4 days on average.
+First comment: #jobsearch #ghostjobs #jobsindia #himyro
 
-Check the listing before you tailor a CV to it.
+Bio link while this is the newest post: https://www.himyro.com/newsletter/2026-10-ghost-job-index-mnc-employers?utm_source=instagram&utm_medium=social&utm_campaign=issue-022
