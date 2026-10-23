@@ -15,4 +15,5 @@ new number is 26.
 All three rest on the June claim that BFSI out-hires tech. Re-read it on live data
 before drafting: issue 25 found risk and compliance is 58.3% consulting and 33.2% BFSI.
 
-Nothing else is queued. The May 2026 content calendar is closed.
+Nothing else is queued. When an issue ships, its posts go into `/admin/growth`
+([MARKETING_SCHEDULE.md](MARKETING_SCHEDULE.md)).

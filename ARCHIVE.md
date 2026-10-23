@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-10-23 — One distribution stream: /admin/growth
+
+Retired the May growth-agent calendar and playbooks (`Myro Newsletter/growth-agent/`, `0d28fcd5`) and the LinkedIn outbox publisher (15-minute workflow, `scripts/linkedin-*`, its npm scripts and runbook), which only ever saw an empty outbox in CI because the outbox files were never tracked; posts are planned and marked in `/admin/growth`, the rhythm is `MARKETING_SCHEDULE.md`. Full text: `git show aa0f889b:"Myro Newsletter/growth-agent/content-calendar.md"`.
+
 ## 2026-10-22 — UP1 the upload orphan sweep refunds what the ledger charged
 
 `sweep_stale_cv_upload_jobs` refunded `cv_upload_jobs.xp_charged`, stamped after the charge; a job swept between the two was charged 200, refunded 0, marked refunded (`80d1aa19…`, 2026-06-20, the only one — refunded by hand with a bell row). Now it sums the job's `coin_ledger` charges by ref (`20261022120000`, applied to the shared DB 2026-10-22, Shivam). Checked live in a rolled-back transaction: the June shape refunds 200, an already-refunded job is paid once.

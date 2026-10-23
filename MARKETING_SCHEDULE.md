@@ -43,6 +43,7 @@ allows more. Add slots only once these hold for a month.
 - **Links:** every link carries `utm_source`, `utm_medium=social` and a
   `utm_campaign` per item (`brag-loop`, `issue-026`). Signup stores them
   (`frontend/lib/attribution.ts`), so each post's signups can be counted.
-- **Outbox:** `.github/workflows/linkedin-outbox-publisher.yml` publishes any
-  outbox file marked `Status: scheduled` to the company page once its time
-  passes. Only Shivam sets `scheduled`.
+- **LinkedIn:** no link in the post body. It goes in the first comment, and the
+  post carries the carousel, the OG image or the video. The company page is
+  posted from `linkedin.com/company/118214305/admin/` (the `himyro` slug
+  redirected to an unavailable page when checked on 2026-06-02).
