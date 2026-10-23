@@ -64,7 +64,10 @@ The capture is on `main` (`3ff55125` "Did you submit?"; `a624c2e1` Apply after
 download). QA check **A1** below: Apply opens the company's own posting.
 
 **Apply funnel, measured by door (2026-10-13, DECISIONS APPLY1/APPLY2).**
-Extension 0.2.3 is live (Page Entry + "I applied"); 0.2.4 names its door.
+Extension 0.2.5 is live on the store since 2026-10-20 (seen 10-22): Page Entry,
+"I applied", and the form fill — after the web Yes ("Approve this CV for
+filing") it fills the company form, attaches the tailored CV, stops on Submit,
+and **Save the confirmation** writes `applied` with door `filing_receipt`.
 `loop_reach.py` reads clicked → asked → answered → applied per door, plus the
 leading number (tailored apply-outs on ≥3.5 jobs). **2026-10-13 → 10-19, real
 accounts: 1 person, 2 clicks, 2 asked, 0 answered.**
@@ -245,6 +248,15 @@ Chain", QA account):
   penalty, clamped at 0 (`match-score.ts`). With honest coverage the QA job reads
   33 before the penalty. Re-read the header after the merge before deciding
   whether the penalty belongs in the same number.
+- **Two numbers called "match" for one job (found 2026-10-23, making the
+  launch videos).** The card's ring is the Match Verdict `match_score` ("82
+  Strong" — CONTEXT.md calls it the ONE fit number). The editor header
+  ("/100 · Match", `playground-header.tsx`) and the apply window ("match for
+  this job", `apply-modal.tsx`) show `matchScore` instead — coverage minus the
+  content penalty (`use-playground-model.ts:121`). A person reads one "match"
+  on the card and a different one at the moment they apply. **Shivam:** rename
+  the CV number (what it measures is how well this CV proves the job) or make
+  both read the verdict. Decide with the penalty question above.
 - **Summary — FIXED `5ad8f6cc`.** The weave replaced the person's summary with
   "GTM Business Development Manager, Capgemini, Insights & Data (GCC Growth). ▪
   Own the full B2B sales cycle…". Two causes: the seat check matched the whole
