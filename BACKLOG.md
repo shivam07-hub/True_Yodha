@@ -155,16 +155,8 @@ and Paste → review → playground works. Found on the way:
 
 T1 findings from the same run are under §5.
 
-**U4 phone run, 2026-10-22** (375px, QA account reset with
-`python -m scripts.qa_front_door reset <email> --to skills --apply`, local
-Develop backend; Qualcomm and Mindtickle links). Door → Download is **5 taps and
-a paste**: Paste a job → paste → Tailor a CV for this → Weave now · 50 → Take
-all / Take this → Download CV. Corpus reads in 0.17–0.67s. Fixed on the way:
-the review column shrank to 254px (`a63371b0`) · Mentor rendered under the
-phone's bars — no close button, Take all under the nav (`0e5f82cd`) · Take
-all's version missed the paper until a reload, desktop too (`0e5f82cd`) · a
-proving line rewritten into a new one printed twice (`09a51daa`) · weave
-failures logged nothing (`09a51daa`). Open:
+**U4 phone run, 2026-10-22:** passes at 375px — door → Download in 5 taps and a
+paste. Its five fixes are on `main` (ARCHIVE 2026-10-22). Open:
 
 - **FD4 · the weave outlives its client — on `main` (`dd629e10`).** Server
   74.5s, client 60s: "Request timed out." while the server delivered and
@@ -372,7 +364,7 @@ Agent-owned. A scheduled check reads R3/R4 on 10-19.
 
 ## AUTHED QA CHECKLIST — the CV machine (from the beta ledger, 2026-09-30)
 
-Agent-owned, never run. **U4 first** — it is #57's acceptance. A check that fails
+Agent-owned. U4, #57's acceptance, passed 2026-10-22 (ARCHIVE). A check that fails
 becomes a fresh item with evidence; one that passes is struck. Report ids point
 into `docs/beta-testing/closure-ledger/beta-feedback-closure-ledger.jsonl` (git).
 Phone checks: `npm run qa:mobile` logs in, walks 20 surfaces × 2 themes at 375px
@@ -389,12 +381,6 @@ and asserts contrast, squeeze, reach, theme and tap size (credentials in
   apart, stack skills (HTML, CSS, JS, MySQL) detected. — 36 46 72 100 105 133
 - **U3 · Onboarding on a phone.** The primary-role step waits for your choice;
   every seniority option is tappable. — 96 143
-- **U4 · After upload, the next step is obvious.** Acceptance for the front door
-  (grill D6: "Which job do you want?"). *The single biggest theme, 17 reports* —
-  19 21 27 34 39 41 58 59 79 85 87 89 92 102 106 107 136. **Desktop run
-  2026-10-19: the door is obvious; the path behind it is not** — see §4 (fix
-  `2cc7b264`, FD1–FD3). **Phone run 2026-10-22: passes at 375px after four
-  fixes** — see §4 (FD4 on `main`, FD5–FD7 open). Rerun: `scripts/qa_front_door.py`.
 - **T1 · Paste a JD → the CV actually changes toward it.** Bullets rewritten
   against the JD's terms, not generic "add numbers" tips. — 31 66 90 148
 - **T2 · Tailoring never swaps in a life you did not live.** Acceptance for the
@@ -443,7 +429,7 @@ Tracker (3) · no problem or not actionable (~25).
 
 ## AGENT CHORES — approved, small
 
-- Run the authed QA checklist, U4 first.
+- Run the authed QA checklist.
 
 ## COMPANY OBLIGATIONS — off the working backlog
 
