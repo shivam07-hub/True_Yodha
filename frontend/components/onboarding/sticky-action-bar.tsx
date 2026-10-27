@@ -26,7 +26,7 @@ export function StickyOnboardingActionBar({ children, error, contentClassName, a
   const content = cn("mx-auto", contentClassName)
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--tm-border-soft)] bg-[var(--tm-bg)]">
+    <div className="tm-onboarding-action-bar fixed inset-x-0 bottom-0 z-30 border-t border-[var(--tm-border-soft)] bg-[var(--tm-bg)]">
       {above}
       <div className={cn(content, "[padding-bottom:calc(0.75rem+env(safe-area-inset-bottom))]")}>
         {children}

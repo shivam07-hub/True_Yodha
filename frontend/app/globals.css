@@ -933,6 +933,17 @@
     text-transform: uppercase;
   }
 
+  /* Inside the app shell an onboarding action bar sits ON the bottom nav, not
+     under it. Both are fixed at z-30 and the nav, later in the DOM, won: the
+     Direction journey's Continue and the level ask's Save could not be tapped
+     at 375px (measured 2026-10-27). The nav owns the safe area below it. */
+  .tm-main-scroll .tm-onboarding-action-bar {
+    bottom: calc(var(--tm-mobile-bottomnav-h) + env(safe-area-inset-bottom));
+  }
+  .tm-main-scroll .tm-onboarding-action-bar > :last-child {
+    padding-bottom: 0.75rem;
+  }
+
   /* Push scrollable content clear of fixed bars */
   .tm-main-scroll {
     padding-top: calc(var(--tm-mobile-topbar-h) + env(safe-area-inset-top)) !important;

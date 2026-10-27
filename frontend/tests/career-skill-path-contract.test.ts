@@ -264,3 +264,14 @@ test("the gate renders the level ask, and it saves through the level door", () =
   assert.match(ask, /<LevelStep\b/)
   assert.doesNotMatch(ask, /<RoleStep\b|<BandStep\b/, "the role is not asked again")
 })
+
+test("the onboarding action bar sits on the phone nav, not under it", () => {
+  // Measured 2026-10-27 at 375px: both bars fixed at z-30, the nav later in the
+  // DOM — Continue and Save were covered and could not be tapped.
+  assert.match(read("components/onboarding/sticky-action-bar.tsx"), /tm-onboarding-action-bar/)
+  const css = read("app/globals.css")
+  assert.match(
+    css,
+    /\.tm-main-scroll \.tm-onboarding-action-bar \{\s*bottom: calc\(var\(--tm-mobile-bottomnav-h\)/,
+  )
+})
