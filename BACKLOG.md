@@ -430,6 +430,15 @@ Tracker (3) · no problem or not actionable (~25).
 ## AGENT CHORES — approved, small
 
 - Run the authed QA checklist.
+- **Listing Liveness index swap — BLOCKED on the `main` merge of `e2e232d0`
+  (owner: Shivam merges; then an agent).** Prod runs `main`, whose PostgREST
+  reads still send `is_active = true` and use the bare-spelled
+  `idx_jobs_candidate_band`, `idx_jobs_lower_company_active_jobid`,
+  `idx_jobs_live_company_first_seen` and `idx_jobs_feed_active_first_seen`
+  (a duplicate of `idx_jobs_live_first_seen_job_id`). After the merge: watch
+  their `idx_scan` stop moving (baseline 18:23 UTC 10-27: 458 / 23,346 / 2,154 /
+  1,337), `DROP INDEX CONCURRENTLY` the four, rename the three `_v2` twins back.
+  `ARCHITECTURE_READ_PATH.md` §31.
 
 ## COMPANY OBLIGATIONS — off the working backlog
 
