@@ -405,7 +405,9 @@ row.
 
 **Not liveness:** "did new rows land?" (`count_new_jobs_since`, the scrape sweep) is an ingestion question and reads `is_active` alone, on purpose.
 
-**Measured 2026-10-27, before the build:** the live rule was spelled in 16 SQL functions, the RLS policy, 12 partial indexes and 6 Python sites; down in 3 Python sites that split on `likely_closed`; `refresh_sector_panel` dropped `is_active`; `listing_trust` failed open on a missing column. Zero rows disagreed — the copies had not yet drifted on data. Built in full anyway (Shivam, 2026-10-27): the next change to "live" must land in one place. Every hot feed read is re-measured (`/read-path-perf`) before its SQL copy is replaced.
+**Where it lives (built 2026-10-27).** Python: `app/services/listing_liveness.py` — `liveness`, `is_live`, `is_down`, and `live_only(query)` for PostgREST reads. SQL: `public.listing_is_live(jobs)`, called by every function that reads the rule and by the `jobs public read` RLS policy. Partial indexes cannot call a whole-row function, so they spell `SQL_PREDICATE` — always `is_active IS TRUE`: Postgres cannot prove that from a bare `is_active` or the reverse, and one mismatched index sent the candidate-pool read to a seq scan. `tests/test_listing_liveness.py` fails the build if Python outside the module, or a migration after `20261027120000`, spells the rule again.
+
+**Measured 2026-10-27, before the build:** the live rule was spelled in 15 SQL functions, the RLS policy, 12 partial indexes and 6 Python sites; down in 3 Python sites that split on `likely_closed`; `refresh_sector_panel` dropped `is_active`; `listing_trust` failed open on a missing column. Zero rows disagreed — the copies had not yet drifted on data. Built in full anyway (Shivam, 2026-10-27): the next change to "live" must land in one place. After the swap every hot read returned the same rows at the same speed (the function inlines; the RLS filter shows the spelled-out expression, not a call).
 
 ## Company Demand Pulse
 
@@ -434,31 +436,6 @@ the compare strip as a live jobs query.
   success. Stale is stamped by `refreshed_at`, not by a per-request scan.
 - Formula (`compute_pulse`, sparkline) lives in one Python module. SQL only
   aggregates the raw inputs: live count, weekly inflow, the inflow series.
-
-## Scoped Skill Demand
-
-**Unreachable — to be deleted (Shivam, 2026-10-27).** No screen has asked for it since `65be8907` (2026-06-22) moved the movers widget to market analytics; nothing passes `location_scoped` and nothing renders `scoped_job_count`. Its count read `is_active` alone, so it also disagreed with Listing Liveness. Removed with the Listing Liveness build, this section with it.
-
-The count of **active jobs in the user's location scope whose skill set includes skill S**. The unit behind the market rail's "Skill-demand movers" — each mover badge is this number, and clicking a mover filters the triage feed by the same skill.
-
-**Why this exists**
-
-A mover badge is a promise: click "↑1190" and you must land on ~1190 roles (the LinkedIn/Inshorts contract — *the number on a chip is what you get*). Before this concept existed, the badge counted one thing (every `job_skills` row for S, globally, active + inactive, all locations) and the click did another (a free-text search of `job_title`/`company_name` for the skill name, which almost never matches) — so "↑1190" routinely landed on an empty feed.
-
-**The single predicate**
-
-`is_active = true AND <location scope> AND S ∈ main_skills`. Defined once, read by both halves of the seam:
-
-- **Count half** — `JobsRepository.scoped_skill_demand_counts(skill_displays, location_prefs)`: one indexed head-count per skill. Powers the rail badge (`UserSkillDemandItem.scoped_job_count`, populated only when `/jobs/my-skills/demand?location_scoped=true`).
-- **Filter half** — the rail's skill chip, applied to the /market list in the browser (`applyViewFilters`). It was `feed_jobs(skill=…)`, a server facet, until the list became finite: narrowing forty cards the client already holds needs no round trip.
-
-Because both read the same predicate, the badge equals the corpus the list was drawn from — but the list is a chosen forty, so a chip's badge can exceed the cards it reveals. That is the honest reading of "this skill is in demand" next to "these are your best matches for it".
-
-**Boundary**
-
-- Distinct from market-wide demand (`job_count_30d` / `weighted_demand` from `build_user_skill_demand`), which is the **unscoped** signal the Skills page, landing chips, Forge, peek, and newsletter read. Scoped Skill Demand never replaces it; it is the location-aware count for the click-through rail only.
-- `location_scoped` is opt-in on the demand endpoint so unscoped callers pay nothing.
-- The skill facet matches the canonical skill name against `main_skills` (the back-compat mirror of `job_skills`), case-sensitive on the array-contains; canonical Lightcast names are stored on both sides, so this aligns.
 
 ## Taxonomy Read-Model
 

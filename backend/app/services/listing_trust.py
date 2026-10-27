@@ -40,6 +40,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from app.services.listing_liveness import is_live
 from app.services.listing_time import CONFIRM_WITHIN, verdict as listing_time
 
 __all__ = ["CHECKED_FRESH_DAYS", "checked_cutoff", "verification_claim", "was_checked_within"]
@@ -64,9 +65,7 @@ def _found_live(row: dict[str, Any], confirmed_at: datetime | None) -> bool:
     retired by the crawl's misses, or degraded by failed fetches, is not one
     we may call checked and live.
     """
-    return confirmed_at is not None and bool(row.get("is_active", True)) and (
-        row.get("listing_confidence", "active") == "active"
-    )
+    return confirmed_at is not None and is_live(row)
 
 
 def was_checked_within(

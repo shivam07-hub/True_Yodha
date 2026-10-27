@@ -10,6 +10,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+from app.services.listing_liveness import live_only
 from app.services.listing_time import CARD_COLUMNS, HOSTED_COLUMNS, verdict as listing_time
 
 _INTERN_TITLE = re.compile(r"\bintern(?:ship)?\b", re.I)
@@ -167,12 +168,7 @@ def without_dismissed(
 
 
 def list_internships(db: Any, *, venue: str | None = None, limit: int = 60) -> list[dict[str, Any]]:
-    query = (
-        db.table("jobs")
-        .select(_SELECT)
-        .eq("is_active", True)
-        .limit(limit)
-    )
+    query = live_only(db.table("jobs").select(_SELECT)).limit(limit)
     if venue == "myro":
         query = query.eq("listing_venue", "myro")
     else:
@@ -184,10 +180,7 @@ def list_internships(db: Any, *, venue: str | None = None, limit: int = 60) -> l
 
 def get_internship(db: Any, job_id: str) -> dict[str, Any] | None:
     rows = (
-        db.table("jobs")
-        .select(_SELECT)
-        .eq("job_id", job_id)
-        .eq("is_active", True)
+        live_only(db.table("jobs").select(_SELECT).eq("job_id", job_id))
         .limit(1)
         .execute()
         .data

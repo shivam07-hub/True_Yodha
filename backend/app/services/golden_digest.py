@@ -355,7 +355,7 @@ class SupabaseStore:
         return {str(r["job_id"]) for r in rows}
 
     def unfinished(self, user_id: str) -> list[dict[str, Any]]:
-        from app.services.job_intelligence_policy import is_recommendable_listing
+        from app.services.listing_liveness import is_live
 
         versions = (
             self._db.table("cv_versions")
@@ -373,7 +373,7 @@ class SupabaseStore:
         return [
             {"job_id": jid, "job_title": jobs[jid].get("job_title"), "company_name": jobs[jid].get("company_name")}
             for jid in job_ids
-            if jid in jobs and is_recommendable_listing(jobs[jid])
+            if jid in jobs and is_live(jobs[jid])
         ]
 
     def listed(self, user_id: str) -> list[dict[str, Any]]:

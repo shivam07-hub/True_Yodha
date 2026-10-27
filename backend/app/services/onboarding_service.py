@@ -337,8 +337,8 @@ def save_target(
     them. Requires the `target_role_titles` column (migration 20260706).
 
     Locations are plural for the same reason roles are: `target_locations` is
-    already an array end-to-end (`user_target_locations` → `build_location_scope`
-    ORs across cities), so the singular `location` was a narrowing that lived
+    already an array end-to-end (`match_credibility.location_compatible` ORs
+    across cities), so the singular `location` was a narrowing that lived
     only in this write path and the picker above it.
 
     `career_bands` is the Direction journey's first answer, and it travels in this

@@ -4,15 +4,13 @@ Q1 a job with no city is shown to everyone in its country.
 Q2 a job naming only a state is shown to users whose cities are in that state.
 Q6 "Delhi NCR" is the cities Delhi, Gurugram and Noida.
 
-Admission (`location_compatible`) and the feed scope (`build_location_scope`)
-must answer the same way. Cases are live rows from 2026-10-04: Kotak Mahindra
+Admission (`location_compatible`) is where they are answered. Cases are live rows from 2026-10-04: Kotak Mahindra
 Bank posted 178 jobs located only "Maharashtra", 68 only "Haryana".
 """
 from __future__ import annotations
 
 from typing import Any
 
-from app.repositories.jobs import build_location_scope
 from app.services import location_vocab
 from app.services.location_normalizer import normalize_location
 from app.services.match_credibility import location_compatible
@@ -88,34 +86,6 @@ def test_q6_delhi_ncr_does_not_take_haryana_or_up_state_only_jobs() -> None:
     assert location_compatible(_profile("Delhi NCR"), _job(location_states=["Delhi"]))
     # A Gurugram user is in Haryana, so Haryana-only jobs reach them.
     assert location_compatible(_profile("Gurugram"), _KOTAK_HARYANA)
-
-
-# ── feed scope agrees with admission ─────────────────────────────────────────
-
-def test_feed_scope_for_a_city_adds_its_state_and_its_country() -> None:
-    clause, sig = build_location_scope(["Pune, India"])
-    assert "location_city.eq.Pune" in clause
-    assert "and(location_city.is.null,location_mode.neq.remote,location_states.cs.{Maharashtra})" in clause
-    assert (
-        "and(location_city.is.null,location_mode.neq.remote,location_states.eq.{},location_country.eq.India)"
-        in clause
-    )
-    assert sig == ("city:pune", "state:maharashtra", "no_city:india")
-
-
-def test_feed_scope_for_delhi_ncr_is_three_cities_and_delhi_state() -> None:
-    clause, sig = build_location_scope(["Delhi NCR"])
-    for city in ("Delhi NCR", "Gurugram", "Noida"):
-        assert f"location_city.eq.{city}" in clause
-    assert "location_states.cs.{Delhi}" in clause
-    assert "location_states.cs.{Haryana}" not in clause
-    assert "location_states.cs.{Uttar Pradesh}" not in clause
-    assert "state:delhi" in sig
-
-
-def test_feed_country_chip_needs_no_separate_no_city_term() -> None:
-    clause, _ = build_location_scope(["Pune", "India (All)"])
-    assert "location_states.eq.{}" not in clause
 
 
 # ── the label is display copy, not a place ───────────────────────────────────

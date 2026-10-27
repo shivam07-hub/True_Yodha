@@ -35,16 +35,6 @@ LISTING_CONFIDENCE_VALUES = frozenset(
 )
 
 
-def is_recommendable_listing(row: dict) -> bool:
-    """Return True only for a listing explicitly verified as active.
-
-    Missing lifecycle state is deliberately untrusted. Once the lifecycle
-    migration is deployed every jobs row has a value; treating absence as
-    uncertain keeps partial rollouts and malformed reads fail-closed.
-    """
-    return bool(row.get("is_active")) and row.get("listing_confidence") == "active"
-
-
 def validate_feedback(
     *,
     feedback_kind: str,

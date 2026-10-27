@@ -185,12 +185,7 @@ class MatchComputeOutcome:
         return self.kind == "needs_onboarding"
 
 
-def build_user_skill_demand(
-    repo: JobsRepository,
-    user_id: str,
-    *,
-    location_scoped: bool = False,
-) -> list[dict[str, Any]]:
+def build_user_skill_demand(repo: JobsRepository, user_id: str) -> list[dict[str, Any]]:
     if hasattr(repo, "get_user_skill_demand_snapshot"):
         items = list(repo.get_user_skill_demand_snapshot(user_id))
     else:
@@ -306,34 +301,6 @@ def build_user_skill_demand(
             str(item["display_name"]).lower(),
         )
     )
-
-    # Scoped Skill Demand (rail only). job_count_30d stays the market-wide signal
-    # the Skills page / landing / Forge / peek read; the market rail instead links
-    # each mover into the location-scoped triage feed, so its badge must promise
-    # what that feed lands on. Compute the scoped count only for the handful the
-    # rail can show (the global-demand leaders), via the same predicate the feed
-    # facet uses — see JobsRepository.scoped_skill_demand_counts. Opt-in so the
-    # other (unscoped) callers pay nothing.
-    if location_scoped and hasattr(repo, "scoped_skill_demand_counts"):
-        candidates = enriched_items[:8]
-        location_prefs: list[str] = []
-        if hasattr(repo, "user_target_locations"):
-            location_prefs = repo.user_target_locations(user_id) or []
-        scoped = repo.scoped_skill_demand_counts(
-            [str(item["display_name"]) for item in candidates],
-            location_prefs=location_prefs,
-        )
-        for item in enriched_items:
-            item["scoped_job_count"] = scoped.get(str(item["display_name"]))
-        # Re-rank the scoped leaders to the front by what's actually hiring in
-        # scope; unscoped items (scoped_job_count is None) keep global order below.
-        enriched_items.sort(
-            key=lambda item: (
-                -(item.get("scoped_job_count") or 0),
-                -item["weighted_demand"],
-                str(item["display_name"]).lower(),
-            )
-        )
 
     return enriched_items
 

@@ -4,7 +4,6 @@ CONTEXT.md → Collection Record.
 """
 
 from .resolve import (
-    LIVENESS_DOWN,
     PENDING_INTENT_AFTER,
     PENDING_INTENT_FOR,
     STAGE_ORDER,
@@ -13,7 +12,6 @@ from .resolve import (
 from .page import applications_on_page, entry_for_page, same_page
 
 __all__ = [
-    "LIVENESS_DOWN",
     "PENDING_INTENT_AFTER",
     "PENDING_INTENT_FOR",
     "STAGE_ORDER",

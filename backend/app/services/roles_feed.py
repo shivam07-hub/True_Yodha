@@ -28,6 +28,7 @@ from typing import Any
 
 from app.database import get_supabase_admin
 from app.services import listing_trust
+from app.services.listing_liveness import live_only
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ _COLUMNS = (
     "job_id, job_title, company_name, industry_group, role_family, career_band, "
     "seniority_level, location_city, location_country, work_mode, "
     "min_years_experience, max_years_experience, main_skills, apply_url, "
-    "date_posted, ingested_at, listing_confidence, last_verified_live_at, "
+    "date_posted, ingested_at, is_active, listing_confidence, last_verified_live_at, "
     "last_conclusive_verification_at, reactivated_at"
 )
 
@@ -126,12 +127,7 @@ def fetch_roles(
     limit = max(1, min(int(limit), MAX_LIMIT))
     db = get_supabase_admin()
 
-    query = (
-        db.table("jobs")
-        .select(_COLUMNS)
-        .eq("is_active", True)
-        .eq("listing_confidence", "active")
-    )
+    query = live_only(db.table("jobs").select(_COLUMNS))
     if sector:
         query = query.eq("industry_group", sector)
     if role_family:

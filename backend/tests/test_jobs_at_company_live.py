@@ -14,7 +14,7 @@ from app.repositories import jobs as jobs_repo
 
 _INDEX = (
     Path(__file__).parents[2]
-    / "database/migrations/20261003130000_live_company_roles_index.sql"
+    / "database/migrations/20261027120500_live_indexes_is_true.sql"
 )
 
 
@@ -27,6 +27,10 @@ class _Query:
 
     def eq(self, column: str, value: Any) -> "_Query":
         self._calls.append(("eq", (column, value)))
+        return self
+
+    def is_(self, column: str, value: Any) -> "_Query":
+        self._calls.append(("is_", (column, value)))
         return self
 
     def order(self, column: str, *, desc: bool = False) -> "_Query":
@@ -59,9 +63,9 @@ def test_open_roles_are_live_roles(monkeypatch) -> None:
 
     jobs_repo.JobsRepository(db).list_jobs_at_company("Axis Bank", limit=6)  # type: ignore[arg-type]
 
-    filters = {value for kind, value in db.calls if kind == "eq"}
+    filters = {value for kind, value in db.calls if kind in ("eq", "is_")}
     assert ("company_name", "Axis Bank") in filters
-    assert ("is_active", True) in filters
+    assert ("is_active", "true") in filters  # IS TRUE: the spelling the index predicate proves
     assert ("listing_confidence", "active") in filters
     assert ("order", ("first_seen", True)) in db.calls
 
@@ -69,5 +73,5 @@ def test_open_roles_are_live_roles(monkeypatch) -> None:
 def test_the_index_matches_the_read_it_serves() -> None:
     sql = _INDEX.read_text()
 
-    assert "ON public.jobs (company_name, first_seen DESC)" in sql
-    assert "WHERE is_active AND listing_confidence = 'active'" in sql
+    assert "on public.jobs using btree (company_name, first_seen desc)" in sql
+    assert "where ((is_active is true) and (listing_confidence = 'active'::text))" in sql

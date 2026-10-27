@@ -10,7 +10,6 @@ from supabase import Client
 from app.database import get_supabase_admin
 from app.db_safe import safe_profile_update, safe_read
 from app.deps import get_user_db
-from app.repositories.jobs import clear_user_target_locations_cache
 from app.services.location_normalizer import derive_location_columns
 from app.services.scoring import _PROFICIENCY_TITLES
 
@@ -163,7 +162,6 @@ class UsersRepository:
         Career-Ops re-run for an identical question.
         """
         payload = dict(updates)
-        touches_location = "target_locations" in payload or "target_location" in payload
         _sync_location_columns(payload)
         changed = self._direction_changed(user_id, payload)
         if changed and "target_updated_at" not in payload:
@@ -178,8 +176,6 @@ class UsersRepository:
             match_value=user_id,
             context="update_profile",
         )
-        if touches_location:
-            clear_user_target_locations_cache(user_id)
         return changed
 
     def _direction_changed(self, user_id: str, payload: dict[str, Any]) -> bool:

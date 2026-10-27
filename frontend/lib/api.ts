@@ -4291,9 +4291,6 @@ export interface UserSkillDemandItem {
   job_count_30d: number
   weighted_demand: number
   demand_band?: DemandBand
-  /** Active jobs needing this skill in the user's location scope. Present only
-   *  on location-scoped demand reads (the market rail); null otherwise. */
-  scoped_job_count?: number | null
 }
 
 export type DemandBand = "very_high" | "high" | "moderate" | "low" | "none"
@@ -4625,13 +4622,10 @@ export const jobs = {
     request<HiddenJobItem[]>("/jobs/feed/hidden", {
       headers: { Authorization: `Bearer ${token}` },
     }),
-  mySkillDemand: (token: string, opts?: { locationScoped?: boolean }) =>
-    request<UserSkillDemandResponse>(
-      `/jobs/my-skills/demand${opts?.locationScoped ? "?location_scoped=true" : ""}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      },
-    ),
+  mySkillDemand: (token: string) =>
+    request<UserSkillDemandResponse>("/jobs/my-skills/demand", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   matches: (token: string) =>
     request<JobMatchesResponse>("/jobs/matches", {
       headers: { Authorization: `Bearer ${token}` },
