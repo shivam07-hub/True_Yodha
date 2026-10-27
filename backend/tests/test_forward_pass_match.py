@@ -15,6 +15,15 @@ import pytest
 
 from app.services import forward_pass
 
+
+@pytest.fixture(autouse=True)
+def _no_unrated_yes_pass(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`on_profile_read` also queues unrated Yeses for the judge — its own file
+    covers it (test_forward_pass_unrated_yes.py). Here it would reach a real DB."""
+    from app.services import forward_pass as _fp
+
+    monkeypatch.setattr(_fp, "judge_unrated_yeses", lambda _uid: 0)
+
 NOW = datetime(2026, 9, 25, 12, 0, 0, tzinfo=timezone.utc)
 
 

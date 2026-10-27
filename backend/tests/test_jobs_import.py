@@ -6,6 +6,7 @@ from app.deps import CurrentUser, get_current_user
 from app.main import app
 from app.repositories.jobs import get_token_jobs_repository
 from app.routers import jobs
+from app.services import application_yes
 
 
 class _FakeSkillsDb:
@@ -224,14 +225,15 @@ def test_update_imported_details_success() -> None:
 class _StatusRepo:
     """Just enough of JobsRepository for PUT /jobs/applications/{job_id}."""
 
-    def __init__(self, prior_status: str) -> None:
+    def __init__(self, prior_status: str, applied_at: str | None = None) -> None:
         self.status = prior_status
+        self.applied_at = applied_at
         self.answered: list[str] = []
 
     def _row(self) -> dict:
         return {
             "id": 1, "job_id": "ext_abc", "status": self.status, "source": "user_discovery",
-            "applied_at": None, "response_at": None, "checkin_sent_at": None, "notes": None,
+            "applied_at": self.applied_at, "response_at": None, "checkin_sent_at": None, "notes": None,
             "created_at": "2026-10-01T00:00:00+00:00",
             "jobs": {"job_title": "Data Engineer", "company_name": "Acme"},
         }
@@ -241,19 +243,31 @@ class _StatusRepo:
 
     def upsert_application(self, _uid: str, _job_id: str, updates: dict) -> None:
         self.status = updates.get("status", self.status)
+        if "applied_at" in updates:
+            self.applied_at = updates["applied_at"]
 
     def answer_apply_intents(self, _uid: str, job_id: str) -> None:
         self.answered.append(job_id)
 
 
-def _put_status(monkeypatch, prior: str, status: str, surface: str | None = "extension"):
-    repo = _StatusRepo(prior)
+def _patch_yes_effects(monkeypatch) -> tuple[list, list, list]:
     judged: list = []
     frozen: list = []
     steps: list = []
-    monkeypatch.setattr(jobs.apply.on_demand, "open_job_eval", lambda r, uid, jid: judged.append(jid))
-    monkeypatch.setattr(jobs.apply.cv_of_record, "record_on_apply", lambda uid, jid: frozen.append(jid))
-    monkeypatch.setattr(jobs.apply.core_loop, "record_step", lambda *a: steps.append(a))
+    monkeypatch.setattr(application_yes.on_demand, "open_job_eval", lambda r, uid, jid: judged.append(jid))
+    monkeypatch.setattr(
+        application_yes.cv_of_record, "record_on_apply", lambda uid, jid, *, since: frozen.append(jid)
+    )
+    monkeypatch.setattr(application_yes.core_loop, "record_step", lambda *a: steps.append(a))
+    return judged, frozen, steps
+
+
+def _put_status(
+    monkeypatch, prior: str, status: str, surface: str | None = "extension",
+    applied_at: str | None = None,
+):
+    repo = _StatusRepo(prior, applied_at)
+    judged, frozen, steps = _patch_yes_effects(monkeypatch)
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[get_token_jobs_repository] = lambda: repo
     body = {"status": status} if surface is None else {"status": status, "surface": surface}
@@ -286,10 +300,30 @@ def test_an_unnamed_door_is_recorded_as_none(monkeypatch) -> None:
 
 
 def test_a_repeat_applied_queues_nothing(monkeypatch) -> None:
-    response, _repo, judged, frozen = _put_status(monkeypatch, "applied", "applied")
+    response, _repo, judged, frozen = _put_status(
+        monkeypatch, "applied", "applied", applied_at="2026-10-01T00:00:00+00:00"
+    )
     assert response.status_code == 200
     assert judged == [] and frozen == []
     assert _put_status.steps == []
+
+
+def test_dragging_saved_straight_to_interviewing_is_a_yes(monkeypatch) -> None:
+    response, repo, judged, frozen = _put_status(monkeypatch, "saved", "interviewing", surface="tracker")
+    assert response.status_code == 200
+    assert repo.applied_at is not None
+    assert frozen == ["ext_abc"] and judged == ["ext_abc"]
+    assert _put_status.steps == [("u1", "ext_abc", "applied", "tracker")]
+
+
+def test_dragging_back_to_saved_withdraws_the_yes(monkeypatch) -> None:
+    response, repo, judged, frozen = _put_status(
+        monkeypatch, "applied", "saved", surface="tracker", applied_at="2026-10-01T00:00:00+00:00"
+    )
+    assert response.status_code == 200
+    assert response.json()["applied_at"] is None
+    assert repo.applied_at is None
+    assert judged == [] and frozen == [] and _put_status.steps == []
 
 
 # ── a pasted link that is a listing Myro holds (FD1, 2026-10-20) ─────────────
@@ -306,8 +340,12 @@ class _LinkedRepo(_FakeJobsRepository):
     def upsert_application(self, user_id, job_id, updates):
         self.upserts.append((user_id, job_id, updates))
 
+    def answer_apply_intents(self, user_id, job_id):
+        pass
+
     def get_application_with_job(self, user_id, job_id):
         return {"id": 7, "job_id": job_id, "status": self.upserts[-1][2]["status"],
+                "applied_at": self.upserts[-1][2].get("applied_at"),
                 "source": "user_discovery", "created_at": "2026-10-20T00:00:00+00:00",
                 "jobs": {"job_title": "Business Analyst", "company_name": "Kotak Mahindra Bank",
                          "job_description": "Own the digital banking analytics."}}
@@ -321,8 +359,8 @@ class _LinkedRepo(_FakeJobsRepository):
 
 
 def _import_linked(monkeypatch, repo, status="saved", platform=None):
-    judged: list = []
-    monkeypatch.setattr(jobs.apply.on_demand, "open_job_eval", lambda r, uid, jid: judged.append(jid))
+    judged, _frozen, steps = _patch_yes_effects(monkeypatch)
+    _import_linked.steps = steps
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[get_token_jobs_repository] = lambda: repo
     try:
@@ -344,8 +382,27 @@ def test_a_link_to_a_live_listing_saves_that_listing_not_a_copy(monkeypatch) -> 
     assert response.status_code == 200
     assert response.json()["job_id"] == "270652"
     assert repo.minted == [], "no ext_ copy of a listing Myro holds"
-    assert repo.upserts == [("u1", "270652", {"status": "applied", "source": "user_discovery"})]
+    assert repo.upserts[0] == ("u1", "270652", {"status": "applied", "source": "user_discovery"})
     assert judged == ["270652"], "the saved listing still gets its verdict"
+
+
+def test_a_job_logged_as_already_applied_is_a_yes_through_the_logged_door(monkeypatch) -> None:
+    """Applied elsewhere counts (Shivam, 2026-10-27). The import wrote the stage;
+    the Yes follows it, once, with its door named."""
+    repo = _LinkedRepo(live=True)
+    response, _judged = _import_linked(monkeypatch, repo, status="applied")
+    assert response.status_code == 200
+    assert response.json()["applied_at"] is not None
+    assert repo.upserts[-1][2]["applied_at"] is not None
+    assert _import_linked.steps == [("u1", "270652", "applied", "logged")]
+
+
+def test_a_job_saved_by_import_is_not_a_yes(monkeypatch) -> None:
+    repo = _LinkedRepo(live=True)
+    _response, judged = _import_linked(monkeypatch, repo, status="saved")
+    assert len(repo.upserts) == 1
+    assert judged == ["270652"]
+    assert _import_linked.steps == []
 
 
 def test_a_listing_that_closed_since_the_read_imports_the_text(monkeypatch) -> None:

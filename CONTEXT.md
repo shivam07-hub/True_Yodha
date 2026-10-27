@@ -643,13 +643,11 @@ The order for sending one job, locked in ADR-0026. The CV is a reflection of tha
 - **Applied elsewhere counts.** A job added as already applied is a Yes with door `logged`. The judge's 3.5 bar still decides whether it is qualified.
 - **Every Yes names its door** — `logged`, `hosted`, `filing_receipt`, or the tracker surface the answer came from.
 
-**One writer.** One module records a Yes and does everything a first Yes entails: stamp `applied_at`, answer open apply intents, freeze the CV of record, open the judge, write the door. Every door calls it — the tracker and "Did you submit?" (`PUT /jobs/applications/{id}`), the filing receipt, hosted Apply here, a job logged as applied, and a stage move that implies it. The same module withdraws.
+**One writer: `app/services/application_yes.py`.** It records a Yes and does everything a first Yes entails: stamp `applied_at`, answer open apply intents, freeze the CV of record, open the judge, write the door. `move` is the person setting a stage (`PUT /jobs/applications/{id}` — the tracker and "Did you submit?"); `say_yes` is a door that knows only that it was sent (filing receipt, hosted Apply here, a job logged as applied) and never moves the stage back. The same module withdraws. `SENT_STAGES` lives there and nowhere else.
 
-**Readers ask one of two questions.** "Has this person sent it?" (north star, golden digest, Collections' `applied` stage) reads the Yes. "Where is it now?" (prep ladder, CV workspace, public profile) reads the stage.
+**Readers ask one of two questions.** "Has this person sent it?" (north star in `loop_reach.py`, golden digest) reads the Yes. "Where is it now?" (prep ladder, CV workspace, public profile, Collections' stage partition) reads the stage. Since 2026-10-27 the one writer keeps a stage past `saved` and a Yes equal on every write; rows written before can differ (13, all Myro's own accounts).
 
-**A Yes the judge never rated is not a verdict.** It is rated when its owner next arrives (forward pass), never by a sweep.
-
-**Not built yet (2026-10-27).** Five paths write the Yes four ways: only the tracker and filing receipt do the full set, hosted Apply here skips the CV, judge and door, a logged job and a `saved → interviewing` drag write no `applied_at`. `loop_reach.py` still counts `status = 'applied'`.
+**A Yes the judge never rated is not a verdict.** `forward_pass.judge_unrated_yeses` queues it for the judge when its owner next opens any authed page, once a day, skipping a settled Model Outcome and a deleted listing. Never a sweep. On 2026-10-27: 7 real Yeses, 2 qualified, 4 unrated (1 of them on a deleted listing, which can never be rated).
 
 ---
 
@@ -1327,7 +1325,7 @@ prepare.
   a save, so every job they went to apply to from Myro is there; the corpus is
   never scanned on a popup open.
 - **Every Yes names its door.** `PUT /jobs/applications/{id}` takes `surface`;
-  the first move to `applied` writes the `applied` core-loop step with it,
+  the first Yes (Application Yes) writes the `applied` core-loop step with it,
   server-side only (a client cannot send that step). The return-to-tab prompt
   beacons `apply_asked` once per click when it actually renders. Together with
   `job_apply_intents` (click, `answered_at`) that is the Apply funnel —

@@ -43,8 +43,6 @@ EVERY = timedelta(days=3)
 MAX_UNFINISHED = 2
 UTM = "utm_source=golden_digest"
 _JOB_LINK = re.compile(r"jobId=([^&\s]+)")
-#: A job application past these has been sent; its tailored CV is not unfinished.
-_SENT = frozenset({"applied", "interviewing", "rejected", "ghosted", "offer"})
 
 
 @dataclass(frozen=True)
@@ -348,11 +346,13 @@ class SupabaseStore:
         ).data or []
         return _parse(rows[0]["created_at"]) if rows else None
 
-    def _applications(self, user_id: str) -> dict[str, str]:
+    def _sent(self, user_id: str) -> set[str]:
+        """Jobs with a Yes (CONTEXT → Application Yes): their tailored CV went out."""
         rows = (
-            self._db.table("job_applications").select("job_id, status").eq("user_id", user_id).execute()
+            self._db.table("job_applications").select("job_id")
+            .eq("user_id", user_id).not_.is_("applied_at", "null").execute()
         ).data or []
-        return {str(r["job_id"]): str(r.get("status") or "saved") for r in rows}
+        return {str(r["job_id"]) for r in rows}
 
     def unfinished(self, user_id: str) -> list[dict[str, Any]]:
         from app.services.job_intelligence_policy import is_recommendable_listing
@@ -365,9 +365,9 @@ class SupabaseStore:
             .order("created_at", desc=True)
             .execute()
         ).data or []
-        statuses = self._applications(user_id)
+        sent = self._sent(user_id)
         job_ids = list(dict.fromkeys(
-            str(v["job_id"]) for v in versions if statuses.get(str(v["job_id"])) not in _SENT
+            str(v["job_id"]) for v in versions if str(v["job_id"]) not in sent
         ))
         jobs = {str(j["job_id"]): j for j in self._jobs.get_jobs_by_ids(job_ids)} if job_ids else {}
         return [

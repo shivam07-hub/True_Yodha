@@ -16,7 +16,7 @@ from app.repositories.career_profile import CareerProfileRepository, get_career_
 from app.repositories.connections import ConnectionsRepository, get_token_connections_repository
 from app.repositories.job_filing import JobFilingRepository, get_job_filing_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
-from app.services import core_loop, cv_of_record
+from app.services import application_yes
 from app.services.apply_filing import (
     HOLD_REASONS,
     as_cv_id,
@@ -27,7 +27,6 @@ from app.services.apply_filing import (
 from app.services.filing_answers import FormQuestion, answer_questions
 from app.services.filing_notes import motion_match, written_to_choices
 from app.services.llm_provider import get_writer_provider
-from app.services.matching import on_demand
 from app.services.reach_intel import build_reach_intel
 
 router = APIRouter()
@@ -164,21 +163,10 @@ def _commit_applied(
     user_id: str,
     job_id: str,
 ) -> None:
-    """The applied writes. Same door as the tracker, surface filing_receipt."""
-    now = datetime.now(timezone.utc).isoformat()
-    existing = jobs.get_application_with_job(user_id, job_id) or {}
-    prior = existing.get("status")
-    updates: dict = {"status": "applied", "applied_at": now}
-    if prior != "applied":
-        updates["last_stage_changed_at"] = now
-    jobs.upsert_application(user_id, job_id, updates)
-    jobs.answer_apply_intents(user_id, job_id)
-    if prior != "applied":
-        cv_of_record.record_on_apply(user_id, job_id)
-        background_tasks.add_task(on_demand.open_job_eval, jobs, user_id, job_id)
-        background_tasks.add_task(
-            core_loop.record_step, user_id, job_id, "applied", "filing_receipt"
-        )
+    """The company page's receipt is the Yes (CONTEXT → Application Yes)."""
+    application_yes.say_yes(
+        jobs, background_tasks, user_id=user_id, job_id=job_id, door=application_yes.DOOR_FILING,
+    )
 
 
 @router.get("/{job_id}/filing", response_model=FilingResponse)

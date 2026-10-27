@@ -485,15 +485,55 @@ def reread_list(user_id: str) -> bool:
         return False
 
 
+def judge_unrated_yeses(user_id: str) -> int:
+    """A Yes the judge never rated is rated when its owner next arrives.
+
+    The north star counts a Yes on a job the judge rated at least 3.5 (DECISIONS
+    APPLY1). Measured 2026-10-27: 4 of the 7 real Yeses had never been rated —
+    sent before a save or a first Yes queued the judge — so they could never
+    count, and an absent rating is not a verdict. Finishing it starts nothing
+    the person did not: they said they sent it.
+
+    Claim + three narrow reads + enqueue. `application_yes.unrated_yes_job_ids`
+    leaves out a settled Model Outcome and a deleted listing, so nothing is asked
+    twice for nothing; the judge itself runs on the Work Lane. Returns how many
+    were queued.
+    """
+    if not _claim("unrated_yes", user_id):
+        return 0
+    try:
+        from app.database import get_supabase_admin
+        from app.services import application_yes
+        from app.services.matching import on_demand
+
+        job_ids = application_yes.unrated_yes_job_ids(get_supabase_admin(), user_id)
+        for job_id in job_ids:
+            on_demand.enqueue_job_eval(user_id, job_id)
+        if job_ids:
+            logger.info(
+                "metric forward_pass.unrated_yes_queued user=%s n=%d", user_id, len(job_ids),
+            )
+        return len(job_ids)
+    except Exception as exc:  # noqa: BLE001 — a read must never fail on a forward pass
+        logger.warning(
+            "metric forward_pass.failed pass=unrated_yes user=%s reason=%s",
+            user_id, exc.__class__.__name__,
+        )
+        return 0
+
+
 def on_profile_read(user_id: str, profile: dict[str, Any]) -> None:
     """What `/users/me` — the shell on every authed page — can put right.
 
-    Three passes, in order. A catch-all cannot stay the main role; a direction
-    whose Match Run never landed gets that run; and a list judged under rules,
-    facts or a CV that have since moved is read again. Each earlier pass enqueues
-    a run that rebuilds the list, so it returns before the later ones rather than
-    queueing the same work twice.
+    First, a Yes the judge never rated is queued for its rating; it rebuilds no
+    list, so nothing below it can make it redundant. Then three passes, in
+    order. A catch-all cannot stay the main role; a direction whose Match Run
+    never landed gets that run; and a list judged under rules, facts or a CV
+    that have since moved is read again. Each earlier pass enqueues a run that
+    rebuilds the list, so it returns before the later ones rather than queueing
+    the same work twice.
     """
+    judge_unrated_yeses(user_id)
     if _promote_catch_all_primary(user_id, profile):
         return
     # Before the match pass: restoring the scope IS a direction change, and
