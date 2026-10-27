@@ -439,6 +439,16 @@ Tracker (3) · no problem or not actionable (~25).
   their `idx_scan` stop moving (baseline 18:23 UTC 10-27: 458 / 23,346 / 2,154 /
   1,337), `DROP INDEX CONCURRENTLY` the four, rename the three `_v2` twins back.
   `ARCHITECTURE_READ_PATH.md` §31.
+- **Drop five stored copies — APPROVED (Shivam, 2026-10-27), in this order.**
+  `mirror_scores.skill_scores` (`{}` on all 467 rows, read by nothing),
+  `user_skills.proficiency_title` (derive from the level; 16 rows drifted),
+  `user_profiles.target_location`, `target_location_country`,
+  `target_role_title` (synced copies). 1) Move every reader and writer off them
+  — the singular direction columns still have primary readers listed in
+  `test_direction_level.py::_PRIMARY_READS`, incl. the verdict-context hash,
+  which must hash the same string from the list (0 rows out of sync, so the
+  hash does not move); 2) ship, then a week with no reads; 3) drop in one
+  migration. Users see nothing. CONTEXT → Skill Level, Targeting Brief.
 
 ## COMPANY OBLIGATIONS — off the working backlog
 
