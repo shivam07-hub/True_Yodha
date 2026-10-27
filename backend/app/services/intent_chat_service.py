@@ -26,6 +26,7 @@ from app.repositories.users import UsersRepository
 from app.services import myro_voice, onboarding_service
 from app.services.career_target import MAX_TARGET_ROLES
 from app.services.llm_provider import LLMProvider, LLMProviderError
+from app.services import direction
 
 logger = logging.getLogger("myro.intent_chat")
 
@@ -131,10 +132,8 @@ def reply_for_extract(reply: str) -> str:
 
 
 def _profile_context(profile: dict[str, Any]) -> str:
-    titles = profile.get("target_role_titles") or (
-        [profile["target_role_title"]] if profile.get("target_role_title") else []
-    )
-    locations = profile.get("target_locations") or []
+    titles = list(direction.of(profile).titles)
+    locations = direction.locations(profile)
     seniority = profile.get("target_seniority") or "any"
     lines = [
         f"Current target roles: {', '.join(titles) or 'none set'}.",
@@ -273,9 +272,7 @@ def apply_diff(db: Client, user_id: str, diff: dict[str, Any]) -> dict[str, Any]
     profile = users_repo.get_profile(user_id) or {}
     changed: dict[str, Any] = {}
 
-    current = profile.get("target_role_titles") or (
-        [profile["target_role_title"]] if profile.get("target_role_title") else []
-    )
+    current = list(direction.of(profile).titles)
     add = diff.get("add_roles") or []
     remove = {r.casefold() for r in (diff.get("remove_roles") or [])}
     new_titles = [t for t in current if t.casefold() not in remove]

@@ -40,6 +40,7 @@ from typing import Any
 
 from app.database import get_supabase_admin
 from app.services import embeddings
+from app.services import direction
 
 logger = logging.getLogger(__name__)
 
@@ -53,9 +54,7 @@ def build_query(profile: dict[str, Any]) -> str:
     """The user's intent as one embeddable string: what they're aiming for + who
     they are. Roles/known-facts lead (intent), CV tail grounds it in real skills."""
     parts: list[str] = []
-    titles = profile.get("target_role_titles") or (
-        [profile["target_role_title"]] if profile.get("target_role_title") else []
-    )
+    titles = list(direction.of(profile).titles)
     if titles:
         parts.append("Target roles: " + ", ".join(str(t) for t in titles if t))
     known = [f for f in (profile.get("known_facts") or []) if f]

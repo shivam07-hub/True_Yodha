@@ -38,6 +38,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Literal
 
+from app.services.job_eligibility import SOURCE_SENIORITY, canonical_source_seniority
+
 #: What a search can honestly promise.
 #:
 #: - ``targeted``    — a corpus scope; role-targeted matching runs
@@ -47,6 +49,11 @@ from typing import Any, Literal
 #:   direction stayed invisible for months.
 #: - ``none``        — nothing to run; ask for a target
 ScopeMode = Literal["targeted", "skills_only", "none"]
+
+#: What a direction still needs before it is one (Shivam, 2026-10-27: a direction
+#: is a role and a level). ``role`` — nothing the matcher can scope on; ``level``
+#: — the work is chosen, the level is not, and only the level is asked.
+Missing = Literal["role", "level"]
 
 
 def _clean(value: Any) -> tuple[str, ...]:
@@ -72,6 +79,8 @@ class Direction:
     titles: tuple[str, ...]
     #: What the matcher scopes on. Corpus families.
     families: tuple[str, ...]
+    #: One of the six source bands, or None. Legacy `any` is not a level.
+    level: str | None = None
 
     @property
     def primary_title(self) -> str | None:
@@ -98,6 +107,20 @@ class Direction:
             return "targeted"
         return "skills_only" if self.titles else "none"
 
+    @property
+    def missing(self) -> Missing | None:
+        """What to ask next, or None when the direction is whole.
+
+        A role is a corpus family — titles alone cannot run. A role with no level
+        is asked the level and nothing else: sending someone back to pick work
+        they already chose is how a returning person reads the product as broken.
+        """
+        if not self.families:
+            return "role"
+        if self.level is None:
+            return "level"
+        return None
+
     def to_dict(self) -> dict[str, Any]:
         """The shape `/users/me` carries, so no surface rebuilds it."""
         return {
@@ -107,6 +130,8 @@ class Direction:
             "is_set": self.is_set,
             "is_runnable": self.is_runnable,
             "scope_mode": self.scope_mode,
+            "level": self.level,
+            "missing": self.missing,
         }
 
 
@@ -118,12 +143,35 @@ def of(profile: dict[str, Any] | None) -> Direction:
     profile, so the one answer costs nothing to add and a second endpoint would
     have cost a round trip on nine surfaces.
 
-    `target_role_title` (the legacy singular) is read only when the list is
-    empty — it is the same fact, written before the column was plural.
+    `target_role_title` is never read: it is the synced copy of titles[0] the
+    writer keeps, and no row has had it without the list (2026-10-27).
     """
     profile = profile or {}
-    titles = _clean(profile.get("target_role_titles"))
-    if not titles:
-        single = str(profile.get("target_role_title") or "").strip()
-        titles = (single,) if single else ()
-    return Direction(titles=titles, families=_clean(profile.get("target_roles")))
+    level = canonical_source_seniority(profile.get("target_seniority"))
+    return Direction(
+        titles=_clean(profile.get("target_role_titles")),
+        families=_clean(profile.get("target_roles")),
+        level=level if level in SOURCE_SENIORITY else None,
+    )
+
+
+def _places(value: Any) -> list[str]:
+    seen: list[str] = []
+    for text in _clean(value):
+        if text.casefold() not in {kept.casefold() for kept in seen}:
+            seen.append(text)
+    return seen
+
+
+def locations(profile: dict[str, Any] | None) -> list[str]:
+    """The places this person is searching, as they named them.
+
+    `target_locations` only. `target_location` is the synced copy of the first;
+    seven readers fell back to it and the fallback fired for no row (2026-10-27).
+    """
+    return _places((profile or {}).get("target_locations"))
+
+
+def countries(profile: dict[str, Any] | None) -> list[str]:
+    """The countries those places are in. `target_location_countries` only."""
+    return _places((profile or {}).get("target_location_countries"))

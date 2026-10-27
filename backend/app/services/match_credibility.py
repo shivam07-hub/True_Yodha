@@ -8,6 +8,7 @@ from app.schemas.jobs import SeniorityCompat
 from app.services.job_eligibility import seniority_fit, seniority_for_job
 from app.services.location_vocab import is_country, is_state, metro_cities, state_of
 from app.services.onboarding_service import context_key
+from app.services import direction
 
 
 @dataclass(frozen=True)
@@ -42,16 +43,12 @@ def _location_token(value: str) -> str:
 
 
 def _profile_locations(profile: dict[str, Any]) -> list[str]:
-    """Every location the user targets, scalar-only profiles included."""
-    raw = profile.get("target_locations")
-    values = raw if isinstance(raw, list) else [profile.get("target_location")]
-    return [token for token in (_location_token(str(v or "")) for v in values) if token]
+    """Every location the user targets."""
+    return [token for token in (_location_token(v) for v in direction.locations(profile)) if token]
 
 
 def _profile_countries(profile: dict[str, Any]) -> list[str]:
-    raw = profile.get("target_location_countries")
-    values = raw if isinstance(raw, list) else [profile.get("target_location_country")]
-    return [token for token in (_location_token(str(v or "")) for v in values) if token]
+    return [token for token in (_location_token(v) for v in direction.countries(profile)) if token]
 
 
 def _job_place(job: dict[str, Any]) -> tuple[str, list[str]]:

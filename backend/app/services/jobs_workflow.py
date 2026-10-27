@@ -42,9 +42,7 @@ def _match_pool_nonempty(repo: JobsRepository, user_id: str) -> bool:
     if not keys:
         return False
     profile = targeting.for_ranking(repo, user_id).ranking_profile()
-    countries = profile.get("target_location_countries") or []
-    if not countries and profile.get("target_location_country"):
-        countries = [profile["target_location_country"]]
+    countries = direction.countries(profile)
     ids = repo.get_candidate_job_ids_for_skills(keys, target_location_countries=countries)
     return bool(ids)
 
@@ -397,9 +395,7 @@ async def compute_job_matches(
     run_eval_ctx = onboarding_service.eval_context_key(profile)
     run_direction = direction.of(profile)
     target_roles_count = len(run_direction.families)
-    target_countries = profile.get("target_location_countries") or []
-    if not target_countries and profile.get("target_location_country"):
-        target_countries = [profile["target_location_country"]]
+    target_countries = direction.countries(profile)
     candidate_jobs = repo.candidate_jobs_for_skills(
         list(user_skill_map.keys()),
         target_location_countries=target_countries,

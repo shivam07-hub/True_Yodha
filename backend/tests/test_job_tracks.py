@@ -65,11 +65,14 @@ def test_track_one_is_named_by_the_users_own_words():
     assert tracks[0].label == "Consulting"
 
 
-def test_track_one_falls_back_through_the_legacy_target_fields():
-    assert tracks_for(FakeRepo(), "u1", {"target_role_title": "Data Analyst"})[0].label == (
+def test_track_one_is_named_by_its_titles_then_its_families():
+    # `target_role_title` is the synced copy of titles[0], never a source
+    # (CONTEXT → Targeting Brief).
+    assert tracks_for(FakeRepo(), "u1", {"target_role_titles": ["Data Analyst"]})[0].label == (
         "Data Analyst"
     )
     assert tracks_for(FakeRepo(), "u1", {"target_roles": ["Marketing"]})[0].label == "Marketing"
+    assert tracks_for(FakeRepo(), "u1", {"target_role_title": "Data Analyst"})[0].label == "Your search"
 
 
 def test_a_user_with_no_target_at_all_still_gets_a_named_track():

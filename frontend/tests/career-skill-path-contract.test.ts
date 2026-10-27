@@ -10,6 +10,7 @@ import {
   sortAnchorCards,
   sortStoryCards,
   storyBands,
+  targetAsk,
   type BandSkillMap,
   type CareerSkillPath,
   type SkillPathCard,
@@ -235,4 +236,31 @@ test("practice home is the skill-path story; the climb opens only for a session"
   assert.match(practice, /inSession && \(/)
   assert.match(practice, /<UpskillingView/)
   assert.match(practice, /!inSession && path\.data/)
+})
+
+// ── a direction is a role and a level (Shivam, 2026-10-27) ──────────────────
+
+test("a role with no level is asked the level, nothing else", () => {
+  assert.equal(targetAsk(path({ needs_target: true, missing: "level" })), "level")
+})
+
+test("no role runs the whole Direction journey", () => {
+  assert.equal(targetAsk(path({ needs_target: true, missing: "role" })), "direction")
+  // A payload from before `missing` existed still gets the journey.
+  assert.equal(targetAsk(path({ needs_target: true })), "direction")
+})
+
+test("a set target asks nothing", () => {
+  assert.equal(targetAsk(path({ needs_target: false, missing: null })), null)
+  assert.equal(targetAsk(undefined), null)
+})
+
+test("the gate renders the level ask, and it saves through the level door", () => {
+  const gate = read("components/career-path/requires-career-target.tsx")
+  assert.match(gate, /targetAsk\(/)
+  assert.match(gate, /<LevelAsk\b/)
+  const ask = read("components/career-path/level-ask.tsx")
+  assert.match(ask, /onboarding\.saveLevel\(/)
+  assert.match(ask, /<LevelStep\b/)
+  assert.doesNotMatch(ask, /<RoleStep\b|<BandStep\b/, "the role is not asked again")
 })

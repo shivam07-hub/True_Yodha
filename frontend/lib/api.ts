@@ -428,6 +428,10 @@ export interface Direction {
   /** What a search can honestly promise. `skills_only` must be SAID on the
    *  surface — the run matched on skills, not on their role. */
   scope_mode: "targeted" | "skills_only" | "none"
+  /** One of the six bands, or null — legacy `any` is not a level. */
+  level?: Exclude<TargetSeniority, "any"> | null
+  /** What a direction still needs: the role, the level, or nothing. */
+  missing?: "role" | "level" | null
 }
 
 export interface UserProfile {
@@ -1118,6 +1122,11 @@ export const onboarding = {
   saveTarget: (token: string, body: OnboardingTarget) => request<void>("/onboarding/target", {
     method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(body),
   }),
+  /** The level alone, for a role already chosen. `any` is not a level. */
+  saveLevel: (token: string, body: { seniority: Exclude<TargetSeniority, "any">; years_experience?: number }) =>
+    request<void>("/onboarding/target/level", {
+      method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(body),
+    }),
   resetTarget: (token: string) => request<void>("/onboarding/target", {
     method: "DELETE", headers: { Authorization: `Bearer ${token}` },
   }),

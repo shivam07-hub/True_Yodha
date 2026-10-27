@@ -55,18 +55,19 @@ def test_for_ranking_without_client_carries_no_facts():
 
 # ── preflight gap-fill ───────────────────────────────────────────────────────
 
-def test_preflight_role_titles_prefer_titles_then_single_then_clusters():
+def test_preflight_role_titles_prefer_titles_then_clusters():
     titles = TargetingBrief(
         profile={"target_role_titles": ["TAM"], "target_role_title": "Old", "target_roles": ["X"]},
         facts=[],
     ).preflight()
     assert titles["role_titles"] == ["TAM"]
 
+    # `target_role_title` is a synced copy, never a source: the families answer.
     single = TargetingBrief(
         profile={"target_role_titles": [], "target_role_title": "Account Manager", "target_roles": ["X"]},
         facts=[],
     ).preflight()
-    assert single["role_titles"] == ["Account Manager"]
+    assert single["role_titles"] == ["X"]
 
     clusters = TargetingBrief(profile={"target_roles": ["Software Development"]}, facts=[]).preflight()
     assert clusters["role_titles"] == ["Software Development"]
@@ -115,8 +116,9 @@ def test_preflight_carries_every_stored_location():
     assert pf["locations"] == ["Gurugram", "Remote"]
 
 
-def test_preflight_locations_fall_back_to_the_legacy_scalar():
-    pf = TargetingBrief(profile={"target_location": "Mumbai"}, facts=[]).preflight()
+def test_preflight_locations_are_the_list_only():
+    assert TargetingBrief(profile={"target_location": "Mumbai"}, facts=[]).preflight()["locations"] == []
+    pf = TargetingBrief(profile={"target_locations": ["Mumbai"]}, facts=[]).preflight()
     assert pf["locations"] == ["Mumbai"]
 
 

@@ -34,6 +34,7 @@ from app.services.job_eligibility import (
 )
 from app.services.location_normalizer import normalize_location
 from app.services.scoring import _PROFICIENCY_TITLES
+from app.services import direction
 
 _log = logging.getLogger("app.repositories.jobs")
 
@@ -2124,20 +2125,12 @@ class JobsRepository:
     def user_target_location_countries(self, user_id: str) -> list[str]:
         result = (
             self._db.table("user_profiles")
-            .select("target_location_countries, target_location_country")
+            .select("target_location_countries")
             .eq("id", user_id)
             .maybe_single()
             .execute()
         )
-        data = (result.data if result else None) or {}
-        countries = [
-            str(value).strip()
-            for value in (data.get("target_location_countries") or [])
-            if str(value).strip()
-        ]
-        if not countries and data.get("target_location_country"):
-            countries = [str(data["target_location_country"]).strip()]
-        return list(dict.fromkeys(countries))
+        return direction.countries((result.data if result else None) or {})
 
     # ── user skills / demand ───────────────────────────────────────────────────
 

@@ -14,7 +14,9 @@ from app.services.career_skill_path_cards import (
     qualified_demand,
 )
 from app.services import finlatics_match
+from app.services import direction
 from app.services.career_target import current_snapshot
+from app.services.direction import Missing
 from app.services.concurrent_reads import run_concurrently
 from app.services.github_learning_repos import project_learning_repos
 from app.services.job_eligibility import adjacent_source_bands
@@ -24,14 +26,18 @@ from app.services.xp_policy import UPSKILLING_SET_SIZE
 def assemble(db: Client, user_id: str) -> dict[str, Any]:
     snapshot = current_snapshot(db, user_id)
     if not snapshot:
+        target_flow, missing = _target_flow(db, user_id)
         return {
             "needs_target": True,
+            # What to ask: the whole Direction journey, or — for a role already
+            # chosen — the level alone (CONTEXT → Targeting Brief).
+            "missing": missing,
             "snapshot": None,
             "lower": None,
             "anchor": None,
             "higher": None,
             "next_action": next_action([], needs_target=True),
-            "target_flow": _target_flow(db, user_id),
+            "target_flow": target_flow,
             "learning_repos": [],
             "training": [],
         }
@@ -73,6 +79,7 @@ def assemble(db: Client, user_id: str) -> dict[str, Any]:
     _fulfill_ready(db, user_id, requests, anchor_cards)
     return {
         "needs_target": False,
+        "missing": None,
         "snapshot": snapshot_out,
         "lower": maps.get("lower"),
         "anchor": maps.get("anchor"),
@@ -211,7 +218,7 @@ def _market_reader(db: Client, family: str, band: str) -> Callable[[], list[dict
     return read
 
 
-def _target_flow(db: Client, user_id: str) -> dict[str, Any] | None:
+def _target_flow(db: Client, user_id: str) -> tuple[dict[str, Any] | None, Missing | None]:
     from app.repositories.cv import CVVersionsRepository
     from app.repositories.users import UsersRepository
     from app.services import onboarding_service
@@ -225,12 +232,12 @@ def _target_flow(db: Client, user_id: str) -> dict[str, Any] | None:
         },
         label="career.target_flow",
     )
+    profile = reads["profile"] or {}
+    missing = direction.of(profile).missing
     baseline = reads["baseline"]
     if not baseline:
-        return None
-    return onboarding_service._awaiting_target_payload(
-        db, user_id, reads["profile"] or {}, baseline
-    )
+        return None, missing
+    return onboarding_service._awaiting_target_payload(db, user_id, profile, baseline), missing
 
 def _certs_by_key(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     out: dict[str, dict[str, Any]] = {}

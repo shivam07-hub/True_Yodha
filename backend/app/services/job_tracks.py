@@ -110,10 +110,7 @@ def _profile_track(profile: dict[str, Any] | None) -> Track:
     exception. Falls back only when there is nothing to name it with.
     """
     p = profile or {}
-    titles = normalise_role_titles(p.get("target_role_titles"))
-    if not titles:
-        single = str(p.get("target_role_title") or "").strip()
-        titles = [single] if single else normalise_role_titles(p.get("target_roles"))
+    titles = normalise_role_titles(p.get("target_role_titles")) or normalise_role_titles(p.get("target_roles"))
     return Track(
         id=None,
         label=titles[0] if titles else "Your search",

@@ -181,9 +181,13 @@ def test_persist_matches_dedupes_repeated_job_ids() -> None:
 def _target_profile(**over: Any) -> dict[str, Any]:
     profile = {
         "baseline_version_id": 7,
+        # A profile as the writer leaves it: the lists, and their synced copies.
+        "target_role_titles": ["Product Manager"],
         "target_role_title": "Product Manager",
         "target_seniority": "senior",
+        "target_locations": ["Bengaluru, India"],
         "target_location": "Bengaluru, India",
+        "target_location_countries": ["India"],
         "target_location_country": "India",
     }
     profile.update(over)
@@ -495,13 +499,14 @@ def test_the_prompt_names_every_location_the_user_targets():
     assert preferred_locations({"target_locations": ["Mumbai", "Bengaluru"]}) == "Mumbai, Bengaluru"
 
 
-def test_the_prompt_falls_back_to_the_scalar_then_the_country_then_flexible():
+def test_the_prompt_names_the_places_then_the_countries_then_flexible():
     from app.services.llm_ranker import preferred_locations
 
-    assert preferred_locations({"target_location": "Mumbai"}) == "Mumbai"
+    assert preferred_locations({"target_locations": ["Mumbai", "Pune"]}) == "Mumbai, Pune"
     assert preferred_locations({"target_location_countries": ["India"]}) == "India"
-    assert preferred_locations({"target_location_country": "India"}) == "India"
     assert preferred_locations({}) == "flexible"
+    # The singular columns are synced copies, never read (CONTEXT → Targeting Brief).
+    assert preferred_locations({"target_location": "Mumbai", "target_location_country": "India"}) == "flexible"
 
 
 def test_the_prompt_does_not_repeat_a_city():

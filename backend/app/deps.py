@@ -29,8 +29,6 @@ from supabase import Client
 
 from app.config import settings
 from app.database import get_supabase, get_supabase_admin, get_supabase_for_token
-from app.db_safe import safe_profile_update, safe_read
-from app.services.location_normalizer import derive_location_columns
 from app.services.user_provisioning import ensure_user_provisioned
 
 # auto_error=False so a MISSING Authorization header yields 401 (unauthenticated)
@@ -149,7 +147,6 @@ def _decode_local_jwt(token: str) -> _LocalIdentity:
     return _LocalIdentity(id=user_id, email=claims.get("email"), full_name=full_name)
 
 _provisioned_users: set[str] = set()
-_location_backfilled_users: set[str] = set()
 
 
 class Principal(BaseModel):
@@ -196,7 +193,6 @@ def _auth_user_exists(user_id: str) -> bool:
 def forget_provisioned_user(user_id: str) -> None:
     """Drop request fast-path state when an account is being erased."""
     _provisioned_users.discard(user_id)
-    _location_backfilled_users.discard(user_id)
 
 
 def _ensure_profile_provisioned(user_id: str, email: str | None, full_name: str | None) -> None:
@@ -224,43 +220,6 @@ def _ensure_profile_provisioned(user_id: str, email: str | None, full_name: str 
         ) from exc
 
 
-def _ensure_location_country_backfilled(user_id: str) -> None:
-    if user_id in _location_backfilled_users:
-        return
-    try:
-        admin = get_supabase_admin()
-        data = safe_read(
-            admin.table("user_profiles")
-            .select("target_location, target_location_country, target_locations")
-            .eq("id", user_id)
-            .maybe_single(),
-            default=None,
-            context="location_country_backfill_read",
-        ) or {}
-        # Seed the canonical array (and its synced projections) for any legacy
-        # row that still has only the scalar single set. Migration covers the
-        # bulk; this is the per-request safety net so a profile read always has
-        # target_locations populated. If the array column isn't migrated yet,
-        # safe_read returns {} and safe_profile_update no-ops the new columns —
-        # so we still mark the user done and never retry-storm the log.
-        if data.get("target_location") and not data.get("target_locations"):
-            safe_profile_update(
-                admin.table("user_profiles"),
-                derive_location_columns([data["target_location"]]),
-                match_column="id",
-                match_value=user_id,
-                context="location_country_backfill_write",
-            )
-        _location_backfilled_users.add(user_id)
-    except Exception as exc:
-        _logger.warning(
-            "Location country backfill failed for user %s: %s: %s",
-            user_id,
-            type(exc).__name__,
-            exc,
-        )
-
-
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> CurrentUser:
@@ -283,7 +242,6 @@ async def get_current_user(
         _logger.info("metric auth.local_verify_unavailable reason=%s", exc)
     else:
         _ensure_profile_provisioned(identity.id, identity.email, identity.full_name)
-        _ensure_location_country_backfilled(identity.id)
         return CurrentUser(id=identity.id, email=identity.email, token=token)
 
     # Fallback: remote validation via Supabase Auth (one network round-trip per
@@ -297,7 +255,6 @@ async def get_current_user(
         if isinstance(metadata, dict):
             full_name = metadata.get("full_name") or metadata.get("name")
         _ensure_profile_provisioned(response.user.id, response.user.email, full_name)
-        _ensure_location_country_backfilled(response.user.id)
         return CurrentUser(id=response.user.id, email=response.user.email, token=token)
     except HTTPException:
         raise

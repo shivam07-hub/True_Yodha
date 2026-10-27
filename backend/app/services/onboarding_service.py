@@ -15,7 +15,7 @@ from app.repositories.onboarding import OnboardingRepository
 from app.repositories.role_families import RoleFamiliesRepository
 from app.repositories.scores import ScoresRepository
 from app.repositories.users import UsersRepository
-from app.services import background, scoring
+from app.services import background, direction, scoring
 from app.services.career_target import MAX_TARGET_ROLES, target_locations
 from app.services.concurrent_reads import run_concurrently
 from app.services.experience_years import seniority_from_cv
@@ -310,6 +310,38 @@ def role_title_updates(
     }
 
 
+def _level_patch(seniority: str | None, years_experience: float | None) -> dict[str, Any]:
+    """The Level step's answer as columns. Omitted preserves — a role-only edit
+    must not silently reset the number retrieval matches her against."""
+    patch: dict[str, Any] = {}
+    if seniority is not None:
+        patch["target_seniority"] = seniority
+    if years_experience is not None:
+        # Marked `user` so the next CV parse leaves it alone.
+        patch["years_experience"] = years_experience
+        patch["years_experience_source"] = "user"
+    return patch
+
+
+def save_level(
+    db: Client,
+    user_id: str,
+    *,
+    seniority: str,
+    years_experience: float | None = None,
+) -> None:
+    """A role with no level is asked the level and nothing else (Shivam,
+    2026-10-27). Through `targeting_write.commit`, which mints the snapshot the
+    level was the last missing piece of. CONTEXT → Targeting Brief.
+    """
+    from app.services import targeting_write
+
+    users_repo = UsersRepository(db)
+    if direction.of(users_repo.get_profile(user_id)).missing == "role":
+        raise ValueError("A level is asked only of a role already chosen.")
+    targeting_write.commit(users_repo, user_id, _level_patch(seniority, years_experience))
+
+
 def save_target(
     db: Client,
     user_id: str,
@@ -360,22 +392,13 @@ def save_target(
         "role_family": role_family,
         "role_families": role_families,
     }
-    if seniority is not None:
-        patch["target_seniority"] = seniority
-    if years_experience is not None:
-        # Marked `user` so the next CV parse leaves it alone. Omitted preserves —
-        # a role-only edit must not silently reset the number retrieval matches
-        # her against.
-        patch["years_experience"] = years_experience
-        patch["years_experience_source"] = "user"
+    patch.update(_level_patch(seniority, years_experience))
     chosen_locations: list[str] | None = None
     if location is not None or locations is not None:
         chosen_locations = _normalize_locations(location, locations)
         patch["target_locations"] = chosen_locations
     else:
-        chosen_locations = [
-            str(value).strip() for value in (profile.get("target_locations") or []) if str(value).strip()
-        ] or ([profile["target_location"]] if profile.get("target_location") else [])
+        chosen_locations = direction.locations(profile)
     if avoid is not None:
         patch["deal_breakers"] = _normalize_direction_phrases(avoid)
     if lean is not None:

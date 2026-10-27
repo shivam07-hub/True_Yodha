@@ -42,6 +42,7 @@ fakes) yields no facts — matching never breaks on the memory layer.
 from __future__ import annotations
 
 import logging
+from app.services import direction
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -113,10 +114,7 @@ class TargetingBrief:
         p = self.profile
         prefilled: dict[str, str] = {}
 
-        role_titles = _clean_list(p.get("target_role_titles"))
-        if not role_titles:
-            single = (p.get("target_role_title") or "").strip()
-            role_titles = [single] if single else _clean_list(p.get("target_roles"))
+        role_titles = _clean_list(p.get("target_role_titles")) or _clean_list(p.get("target_roles"))
 
         deal_breakers = _clean_list(p.get("deal_breakers"))
         if not deal_breakers:
@@ -139,10 +137,7 @@ class TargetingBrief:
                 career_goal = goal
                 prefilled["career_goal"] = "memory"
 
-        locations = _clean_list(p.get("target_locations"))
-        if not locations:
-            single = (p.get("target_location") or "").strip()
-            locations = [single] if single else []
+        locations = direction.locations(p)
 
         return {
             "role_titles": role_titles,

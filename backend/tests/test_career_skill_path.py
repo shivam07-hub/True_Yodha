@@ -106,7 +106,7 @@ def test_assemble_gates_without_a_snapshot(monkeypatch) -> None:
     )
     monkeypatch.setattr(
         "app.services.career_skill_path_read._target_flow",
-        lambda _db, _uid: {"kind": "awaiting_target"},
+        lambda _db, _uid: ({"kind": "awaiting_target"}, "role"),
     )
     out = assemble(object(), "u1")
     assert out["needs_target"] is True

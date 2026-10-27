@@ -17,9 +17,13 @@ from app.services.match_credibility import (
 # A profile with the context-hash inputs the gate needs to be able to promote.
 _PROFILE = {
     "baseline_version_id": 7,
+    # As the writer leaves it: the lists, and their synced copies.
+    "target_role_titles": ["Software Engineer"],
     "target_role_title": "Software Engineer",
     "target_seniority": "senior",
+    "target_locations": ["gurugram"],
     "target_location": "gurugram",
+    "target_location_countries": ["india"],
     "target_location_country": "india",
 }
 
@@ -182,7 +186,8 @@ def test_remote_named_alongside_a_city_accepts_a_remote_job():
     assert location_compatible(_multi(target_locations=["Mumbai", "Remote"]), job) is True
 
 
-def test_a_legacy_scalar_only_profile_is_unchanged():
+def test_the_singular_columns_are_never_a_location_scope():
+    """Synced copies of locations[0] and countries[0]; no row held them without
+    the lists (2026-10-27), so they scope nothing on their own."""
     profile = {"target_location": "Mumbai", "target_location_country": "India"}
-    assert location_compatible(profile, {"location_city": "Mumbai", "location_country": "India"})
-    assert not location_compatible(profile, {"location_city": "Pune", "location_country": "India"})
+    assert location_compatible(profile, {"location_city": "Pune", "location_country": "India"})

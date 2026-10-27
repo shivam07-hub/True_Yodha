@@ -18,6 +18,7 @@ rather than on the market.
 from __future__ import annotations
 
 import logging
+from app.services import direction
 from dataclasses import dataclass
 
 from postgrest.exceptions import APIError
@@ -47,18 +48,14 @@ def _cities_for(admin, user_id: str) -> list[str]:
     try:
         row = (
             admin.table("user_profiles")
-            .select("target_locations, target_location")
+            .select("target_locations")
             .eq("id", user_id)
             .maybe_single()
             .execute()
         )
     except APIError:
         return []
-    data = (row.data if row else None) or {}
-    cities = data.get("target_locations") or []
-    if not cities and data.get("target_location"):
-        cities = [data["target_location"]]
-    return [str(c).strip() for c in cities if str(c or "").strip()]
+    return direction.locations((row.data if row else None) or {})
 
 
 def roles_cleared(admin, user_id: str, skill_id: int, *, from_level: int, to_level: int) -> PracticePayoff | None:
