@@ -393,6 +393,20 @@ row.
   future native clients. Canonical applications and feedback events remain the
   source of truth.
 
+## Listing Liveness
+
+**Whether a listing is still up, in three states — `live · uncertain · down` — read from two columns, `jobs.is_active` (lifecycle) and `jobs.listing_confidence` (Listing Confidence).** One definition per layer, and every reader asks it rather than spelling the columns:
+
+- **live** — `is_active IS TRUE AND listing_confidence = 'active'`. The only listings a person is shown or counted: feeds, company pages, public counts, Tier-0 snapshots, and the `jobs` RLS read policy.
+- **down** — `is_active IS FALSE` or `listing_confidence IN ('closed', 'likely_closed')`. Not an entry (Collection Record), not admitted to a ranking.
+- **uncertain** — everything else. New listings land here (`listing_confidence` defaults to `uncertain`) until the verifier confirms them.
+
+**Avoid:** spelling `listing_confidence = 'active'` or `is_active` at a call site; reading a missing column as a state. A row that did not select both columns is a caller bug, never `live` (fail-open) or `down`.
+
+**Not liveness:** "did new rows land?" (`count_new_jobs_since`, the scrape sweep) is an ingestion question and reads `is_active` alone, on purpose.
+
+**Measured 2026-10-27, before the build:** the live rule was spelled in 16 SQL functions, the RLS policy, 12 partial indexes and 6 Python sites; down in 3 Python sites that split on `likely_closed`; `refresh_sector_panel` dropped `is_active`; `listing_trust` failed open on a missing column. Zero rows disagreed — the copies had not yet drifted on data. Built in full anyway (Shivam, 2026-10-27): the next change to "live" must land in one place. Every hot feed read is re-measured (`/read-path-perf`) before its SQL copy is replaced.
+
 ## Company Demand Pulse
 
 The public, per-company hiring index: live role count, weekly inflow, freshness,
@@ -422,6 +436,8 @@ the compare strip as a live jobs query.
   aggregates the raw inputs: live count, weekly inflow, the inflow series.
 
 ## Scoped Skill Demand
+
+**Unreachable — to be deleted (Shivam, 2026-10-27).** No screen has asked for it since `65be8907` (2026-06-22) moved the movers widget to market analytics; nothing passes `location_scoped` and nothing renders `scoped_job_count`. Its count read `is_active` alone, so it also disagreed with Listing Liveness. Removed with the Listing Liveness build, this section with it.
 
 The count of **active jobs in the user's location scope whose skill set includes skill S**. The unit behind the market rail's "Skill-demand movers" — each mover badge is this number, and clicking a mover filters the triage feed by the same skill.
 
