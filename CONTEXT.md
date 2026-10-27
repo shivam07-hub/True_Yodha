@@ -629,6 +629,30 @@ The order for sending one job, locked in ADR-0026. The CV is a reflection of tha
 
 ---
 
+## Application Yes
+
+**The person's own statement that they sent this job's application.** It is `job_applications.applied_at` and nothing else. The north star counts it (DECISIONS APPLY1, amended 2026-10-27). **Stage** (`status`) is a separate question — where the application is now — and never answers whether it was sent.
+
+**Avoid:** reading `status = 'applied'` as "has applied", a stage set (`applied/interviewing/…`) as "has applied", a `core_loop_events` row or a `cv_application_attempts` row as the Yes. Those are the stage, the door log and the frozen CV — each true, none the Yes.
+
+**Rules (Shivam, 2026-10-27)**
+
+- **Sent stays sent.** A Yes survives the stage moving on to `interviewing`, `ghosted`, `rejected` or `offer`.
+- **A sent stage implies the Yes.** Moving a job from `saved` straight to any sent stage writes the Yes at that moment.
+- **Back to `saved` withdraws it.** The person is saying they did not send it: `applied_at` is cleared. The door log and the frozen CV stay as history; a later Yes freezes a fresh CV.
+- **Applied elsewhere counts.** A job added as already applied is a Yes with door `logged`. The judge's 3.5 bar still decides whether it is qualified.
+- **Every Yes names its door** — `logged`, `hosted`, `filing_receipt`, or the tracker surface the answer came from.
+
+**One writer.** One module records a Yes and does everything a first Yes entails: stamp `applied_at`, answer open apply intents, freeze the CV of record, open the judge, write the door. Every door calls it — the tracker and "Did you submit?" (`PUT /jobs/applications/{id}`), the filing receipt, hosted Apply here, a job logged as applied, and a stage move that implies it. The same module withdraws.
+
+**Readers ask one of two questions.** "Has this person sent it?" (north star, golden digest, Collections' `applied` stage) reads the Yes. "Where is it now?" (prep ladder, CV workspace, public profile) reads the stage.
+
+**A Yes the judge never rated is not a verdict.** It is rated when its owner next arrives (forward pass), never by a sweep.
+
+**Not built yet (2026-10-27).** Five paths write the Yes four ways: only the tracker and filing receipt do the full set, hosted Apply here skips the CV, judge and door, a logged job and a `saved → interviewing` drag write no `applied_at`. `loop_reach.py` still counts `status = 'applied'`.
+
+---
+
 ## Reach Target
 
 A person the **user nominated** for outreach (ADR-0018 Path 3). Not a scrape.
