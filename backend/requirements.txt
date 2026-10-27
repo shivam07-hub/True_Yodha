@@ -12,7 +12,7 @@ pydantic[email]==2.7.1
 pydantic-settings==2.2.1
 
 # ── Auth ────────────────────────────────────────────────────────
-supabase==2.4.3                  # Supabase Python client
+supabase==2.16.0                 # Supabase Python client — 2.16+ accepts sb_publishable_/sb_secret_ keys
 PyJWT[crypto]>=2.10.0            # local JWT verify in deps.py (JWKS ES256 + HS256)
 
 # ── CV parsing ──────────────────────────────────────────────────

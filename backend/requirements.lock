@@ -510,7 +510,9 @@ cymem==2.0.13 \
 deprecation==2.1.0 \
     --hash=sha256:72b3bde64e5d778694b0cf68178aed03d15e15477116add3fb773e581f9518ff \
     --hash=sha256:a10811591210e1fb0e768a8c25517cabeabcba6f0bf96564f8ff45189f90b14a
-    # via postgrest
+    # via
+    #   postgrest
+    #   storage3
 distro==1.9.0 \
     --hash=sha256:2fa77c6fd8940f116ee1d6b94a2f90b13b5ea8d019b98bc8bafdcabcdd9bdbed \
     --hash=sha256:7bffd925d65168f85027d8da9af6bddab658135b840670a223589bc0c8ef02b2
@@ -1359,9 +1361,9 @@ pluggy==1.6.0 \
     --hash=sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3 \
     --hash=sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746
     # via pytest
-postgrest==0.16.11 \
-    --hash=sha256:10af51b4c39e288ad7df2db92d6a61fb3c4683131b40561f473e3de116e83fa5 \
-    --hash=sha256:22fb6b817ace1f68aa648fd4ce0f56d2786c9260fa4ed2cb9046191231a682b8
+postgrest==1.1.1 \
+    --hash=sha256:98a6035ee1d14288484bfe36235942c5fb2d26af6d8120dfe3efbe007859251a \
+    --hash=sha256:f3bb3e8c4602775c75c844a31f565f5f3dd584df4d36d683f0b67d01a86be322
     # via supabase
 preshed==3.0.13 \
     --hash=sha256:04d8f13f2986e5d11af5ac51f55ce3106c70c41b483d20ea392e6180bdd0f870 \
@@ -1567,9 +1569,7 @@ pytest-asyncio==0.23.6 \
 python-dateutil==2.9.0.post0 \
     --hash=sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3 \
     --hash=sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427
-    # via
-    #   realtime
-    #   storage3
+    # via storage3
 python-docx==1.1.0 \
     --hash=sha256:5829b722141cf1ab79aedf0c34d9fe9924b29764584c0f2164eb2b02dcdf17c9 \
     --hash=sha256:bac9773278098a1ddc43a52d84e22f5909c4a3080a624530b3ecb3771b07c6cd
@@ -1664,9 +1664,9 @@ razorpay==2.0.1 \
     --hash=sha256:a766b9019e496c995906f75c31900bff8b2709bea251f1771925d742cba53e5b \
     --hash=sha256:e6a60c78203a3e1d3fc428e6fadf15bc67f75bd67217eaf9dc9925c87e98bc7a
     # via -r requirements.txt
-realtime==1.0.6 \
-    --hash=sha256:2be0d8a6305513d423604ee319216108fc20105cb7438922d5c8958c48f40a47 \
-    --hash=sha256:c66918a106d8ef348d1821f2dbf6683d8833825580d95b2fdea9995406b42838
+realtime==2.5.3 \
+    --hash=sha256:0587594f3bc1c84bf007ff625075b86db6528843e03250dc84f4f2808be3d99a \
+    --hash=sha256:eb0994636946eff04c4c7f044f980c8c633c7eb632994f549f61053a474ac970
     # via supabase
 redis==5.0.7 \
     --hash=sha256:0e479e24da960c690be5d9b96d21f7b918a98c0cf49af3b6fafaa0753f93a0db \
@@ -1848,21 +1848,21 @@ starlette==0.37.2 \
     --hash=sha256:6fe59f29268538e5d0d182f2791a479a0c64638e6935d1c6989e63fb2699c6ee \
     --hash=sha256:9af890290133b79fc3db55474ade20f6220a364a0402e0b556e7cd5e1e093823
     # via fastapi
-storage3==0.7.7 \
-    --hash=sha256:9fba680cf761d139ad764f43f0e91c245d1ce1af2cc3afe716652f835f48f83e \
-    --hash=sha256:ed80a2546cd0b5c22e2c30ea71096db6c99268daf2958c603488e7d72efb8426
+storage3==0.12.1 \
+    --hash=sha256:32ea8f5eb2f7185c2114a4f6ae66d577722e32503f0a30b56e7ed5c7f13e6b48 \
+    --hash=sha256:9da77fd4f406b019fdcba201e9916aefbf615ef87f551253ce427d8136459a34
     # via supabase
 strenum==0.4.15 \
     --hash=sha256:878fb5ab705442070e4dd1929bb5e2249511c0bcf2b0eeacf3bcd80875c82eff \
     --hash=sha256:a30cda4af7cc6b5bf52c8055bc4bf4b2b6b14a93b574626da33df53cf7740659
-    # via postgrest
-supabase==2.4.3 \
-    --hash=sha256:31b7cf5577471f473e690e6afb1b2f8ffe881a5a81f2c33a5fa7b07ba0fb9857 \
-    --hash=sha256:ee9a5db8ecc3de20fe8351b0d3bc7667809095322915cea753f83db310494001
+    # via supafunc
+supabase==2.16.0 \
+    --hash=sha256:98f3810158012d4ec0e3083f2e5515f5e10b32bd71e7d458662140e963c1d164 \
+    --hash=sha256:99065caab3d90a56650bf39fbd0e49740995da3738ab28706c61bd7f2401db55
     # via -r requirements.txt
-supafunc==0.4.7 \
-    --hash=sha256:0b63133ff14e3b311fc881c9ff2538d70985df9b700b443efb86940588672905 \
-    --hash=sha256:cd7b79d03d0c66aedfe3e8b2296cafcd0770fea5fc7505c863ae42c667309d27
+supafunc==0.10.2 \
+    --hash=sha256:45e4d500854167c261515c43f7a363320e0a928118182fe8932adefddeddb545 \
+    --hash=sha256:547a2c115b15319c78fc84460f19cb5ea6e72597f7573a3498f4db087787e0fd
     # via supabase
 thinc==8.3.13 \
     --hash=sha256:0355c37e40d1a9fc2a1b8e9c2e294d8586f6baa97bcac6b9002f2dddb4b82ae9 \
@@ -1931,7 +1931,6 @@ typing-extensions==4.16.0 \
     #   pyee
     #   python-docx
     #   realtime
-    #   storage3
 urllib3==2.8.0 \
     --hash=sha256:0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3 \
     --hash=sha256:63bf2ead4c879426ebf22ef2a781eeb4aa3b4ae798a0435506f8687fd5bb9b63

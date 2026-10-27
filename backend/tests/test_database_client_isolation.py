@@ -38,9 +38,8 @@ def _client_factory_settings(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     database.get_supabase_admin.cache_clear()
     database.get_supabase_admin_batch.cache_clear()
     monkeypatch.setattr(database.settings, "supabase_url", "https://test.supabase.co")
-    # supabase-py validates the JWT shape at construction time. These are
-    # deliberately unsigned placeholders, valid only because no test sends a
-    # request.
+    # Legacy-shape keys, deliberately unsigned: valid only because no test
+    # sends a request.
     monkeypatch.setattr(database.settings, "supabase_anon_key", _TEST_ANON_KEY)
     monkeypatch.setattr(database.settings, "supabase_service_key", _TEST_SERVICE_KEY)
 
@@ -48,6 +47,17 @@ def _client_factory_settings(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
     database.get_supabase_admin.cache_clear()
     database.get_supabase_admin_batch.cache_clear()
+
+
+def test_factory_accepts_the_new_api_key_format(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Railway leaked the legacy service_role JWT on 2026-10-21. Revoking it
+    means moving to `sb_secret_…` / `sb_publishable_…` keys, which are not
+    JWTs — and supabase-py 2.4.3 refused any key that was not, so the API
+    would not have booted on them."""
+    monkeypatch.setattr(database.settings, "supabase_anon_key", "sb_publishable_test")
+    monkeypatch.setattr(database.settings, "supabase_service_key", "sb_secret_test")
+    assert database.get_supabase_admin().postgrest.session.headers["apikey"] == "sb_secret_test"
+    assert database.get_supabase().postgrest.session.headers["apikey"] == "sb_publishable_test"
 
 
 def test_each_token_client_is_a_distinct_object() -> None:
