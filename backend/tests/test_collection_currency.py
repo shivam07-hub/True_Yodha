@@ -14,8 +14,8 @@ from app.repositories.cv import get_token_cv_repository
 from app.repositories.jobs import get_token_jobs_repository
 from app.services import onboarding_service
 
-_DIRECTION = {"target_role_title": "Data Analyst", "target_seniority": "mid", "target_location": "Pune"}
-_LEFT = {**_DIRECTION, "target_role_title": "Sales Manager"}
+_DIRECTION = {"target_role_titles": ["Data Analyst"], "target_seniority": "mid", "target_locations": ["Pune"]}
+_LEFT = {**_DIRECTION, "target_role_titles": ["Sales Manager"]}
 
 
 def _match(job_id: str, profile: dict, *, eval_hash: str | None = None) -> dict:

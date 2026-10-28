@@ -6,7 +6,7 @@ from app.repositories.jobs import get_token_jobs_repository
 
 
 # The direction every fake person is aiming at, and the CV it was read against.
-_DIRECTION = {"target_role_title": "Data Engineer", "target_seniority": "mid", "target_location": "Bengaluru"}
+_DIRECTION = {"target_role_titles": ["Data Engineer"], "target_seniority": "mid", "target_locations": ["Bengaluru"]}
 _BASELINE = 7
 
 
@@ -508,7 +508,7 @@ def test_a_pick_from_a_left_direction_leaves_the_band_and_a_stale_one_is_reread(
             "agent_rank": rank, "agent_tier": "strong", "agent_comment": "Fits.",
         }
 
-    left = {**_DIRECTION, "target_role_title": "Sales Manager", "baseline_version_id": _BASELINE}
+    left = {**_DIRECTION, "target_role_titles": ["Sales Manager"], "baseline_version_id": _BASELINE}
     current = _judged(overall_score=4.4, recommendation="Apply")
     evals = {
         "now": current,

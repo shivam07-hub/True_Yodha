@@ -109,9 +109,9 @@ def test_a_card_says_when_its_pay_band_sits_under_the_floor() -> None:
 # ── Verdict Currency (#55 S1): a returning person's list does not vanish ─────
 
 _PROFILE = {
-    "target_role_title": "Data Analyst",
+    "target_role_titles": ["Data Analyst"],
     "target_seniority": "mid",
-    "target_location": "Bengaluru",
+    "target_locations": ["Bengaluru"],
 }
 
 
@@ -170,7 +170,7 @@ def test_a_stale_verdict_is_shown_after_every_current_one() -> None:
 def test_another_direction_s_verdict_is_not_shown() -> None:
     from app.services.matching.published_list import assemble
 
-    _, left_direction = _keys(7, {**_PROFILE, "target_role_title": "Product Manager"})
+    _, left_direction = _keys(7, {**_PROFILE, "target_role_titles": ["Product Manager"]})
     cards, judgment = assemble(_Repo([
         _row("old-direction", 4.6, eval_hash="whatever", direction=left_direction),
     ]), "u1")

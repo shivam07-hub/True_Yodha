@@ -11,7 +11,7 @@ from app.database import get_supabase_admin
 from app.db_safe import safe_profile_update, safe_read
 from app.deps import get_user_db
 from app.services.location_normalizer import derive_location_columns
-from app.services.scoring import _PROFICIENCY_TITLES
+from app.services.scoring import level_name
 
 
 # The values that define "which jobs am I asking Myro for". Order matters inside
@@ -39,14 +39,10 @@ def _direction_value(value: Any) -> Any:
 
 def _sync_location_columns(payload: dict[str, Any]) -> None:
     """In-place: if a write touches location, recompute all four columns from
-    one canonical source (array preferred, else the legacy single string)."""
-    if "target_locations" in payload:
-        source = payload["target_locations"] or []
-    elif "target_location" in payload:
-        single = payload["target_location"]
-        source = [single] if single else []
-    else:
+    the list — the one source; the singular columns are its synced copies."""
+    if "target_locations" not in payload:
         return
+    source = payload["target_locations"] or []
     payload.update(derive_location_columns(list(source)))
 
 
@@ -202,7 +198,7 @@ class UsersRepository:
     def list_user_skill_records(self, user_id: str) -> list[UserSkillRecord]:
         result = (
             self._db.table("user_skills")
-            .select("matched_level, proficiency_title, evidence_text, forge_sessions_count, skills(taxonomy_key, display_name, description)")
+            .select("matched_level, evidence_text, forge_sessions_count, skills(taxonomy_key, display_name, description)")
             .eq("user_id", user_id)
             .execute()
         )
@@ -220,8 +216,7 @@ class UsersRepository:
                     key=key,
                     display_name=skill.get("display_name") or key,
                     level=level,
-                    proficiency_title=row.get("proficiency_title")
-                    or _PROFICIENCY_TITLES.get(level, "Scout"),
+                    proficiency_title=level_name(level),
                     evidence_text=row.get("evidence_text") or None,
                     forge_sessions_count=forge_sessions_count,
                     forged_level_up_available=key in forged_level_up_keys,

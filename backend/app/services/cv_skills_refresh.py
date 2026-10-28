@@ -30,6 +30,7 @@ mirroring the free Rewrite path, not a premium generation).
 """
 from __future__ import annotations
 
+from app.services.scoring import level_name
 import re
 from typing import Any
 
@@ -94,8 +95,7 @@ def _addition_reason(inv: dict[str, Any], is_jd: bool) -> str:
     if is_jd:
         return "This job asks for it"
     if level >= 2:
-        title = (inv.get("proficiency_title") or "").strip()
-        return f"Proven · L{level}" + (f" {title}" if title else "")
+        return f"Proven · L{level} {level_name(level)}"
     if int(inv.get("weighted_demand") or 0) > 0:
         return "In demand for your roles"
     return "On your Myro profile"

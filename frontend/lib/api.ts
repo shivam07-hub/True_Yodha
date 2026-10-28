@@ -441,12 +441,10 @@ export interface UserProfile {
   /** Read this instead of the four raw target fields below. */
   direction?: Direction | null
   target_roles: string[]
-  target_role_title?: string | null
   target_role_titles?: string[]
   target_seniority?: "intern" | "entry" | "mid" | "senior" | "lead" | "executive" | "any" | null
   target_career_band?: CareerBand | null
   explored_career_bands?: CareerBand[]
-  target_location: string | null
   target_locations: string[]
   deal_breakers: string[]
   career_goal: string | null
@@ -482,13 +480,11 @@ export interface ProfileUpdate {
   full_name?: string | null
   linkedin_url?: string | null
   target_roles?: string[] | null
-  target_role_title?: string | null
   /** Human titles — the canonical role write. Backend derives the
    *  `target_roles` cluster union; never send raw clusters alongside. */
   target_role_titles?: string[] | null
   target_seniority?: "intern" | "entry" | "mid" | "senior" | "lead" | "executive" | "any" | null
   explored_career_bands?: CareerBand[] | null
-  target_location?: string | null
   target_locations?: string[] | null
   deal_breakers?: string[] | null
   /** Routed server-side to the authored-preference writer — there is no

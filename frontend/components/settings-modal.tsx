@@ -225,17 +225,14 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
     if (!open) return
     setName(profile?.full_name ?? "")
     setNinjaName(profile?.ninja_name ?? ""); setNinjaError(null); setNinjaSaving(false)
-    setLocations(
-      profile?.target_locations?.filter((l) => l.trim())
-      ?? (profile?.target_location ? [profile.target_location] : [])
-    )
+    setLocations(profile?.target_locations?.filter((l) => l.trim()) ?? [])
     setLinkedin(profile?.linkedin_url ?? "")
     setLocationInput(""); setLocationDropdown(false); setLocationFocused(false)
     setSaveStatus("idle"); setSaveError(null); setRewardNotice(null)
     setBillingStatus("idle"); setBillingMessage(null); pending.current = {}
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
     if (savedTimer.current) clearTimeout(savedTimer.current)
-  }, [open, profile?.full_name, profile?.ninja_name, profile?.target_location, profile?.target_locations, profile?.linkedin_url])
+  }, [open, profile?.full_name, profile?.ninja_name, profile?.target_locations, profile?.linkedin_url])
 
   /** Claim on blur, not on keystroke. Only fires when the name actually changed,
    *  so opening settings and closing it never re-claims what is already theirs. */

@@ -157,19 +157,12 @@ def test_no_role_is_missing_the_role(monkeypatch: pytest.MonkeyPatch) -> None:
 
 # ── the singular columns are synced copies, never a fallback ────────────────
 
-#: Files that read a singular column as the primary value it is (a synced copy
-#: the writer keeps), not as a fallback. The verdict-context hash in
-#: onboarding_service hashes `target_role_title` / `target_location`: changing
-#: what it reads would re-rate every cached verdict. Dropping the columns starts
-#: by moving these.
+#: The writers. They keep the synced copies in step until `main` runs these
+#: reads — production reads them until then (BACKLOG: drop five copies). No
+#: reader is left: the verdict-context hash reads the lists, and moved no key.
 _PRIMARY_READS = {
     "app/services/targeting_write.py",  # the writer
-    "app/repositories/users.py",  # writer input normalisation
     "app/services/forward_pass.py",  # writes the promoted primary back
-    "app/services/onboarding_service.py",  # context hash + the step payload
-    "app/services/persona_signals.py",
-    "app/services/matching/match_freshness.py",
-    "app/services/skill_confirmation.py",
 }
 _SINGULAR = re.compile(
     r"""\.get\(\s*["'](target_location|target_location_country|target_role_title)["']"""

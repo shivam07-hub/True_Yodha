@@ -14,6 +14,7 @@ from app.services import direction, job_importer, job_matcher, job_tracks, llm_r
 from app.services.job_projection import to_application
 from app.services.llm_provider import LLMProvider, get_judgment_provider
 from app.services.matching import candidate_pool, match_freshness, ranking, targeting
+from app.services.scoring import level_name
 from app.services.scoring.aspirations import fetch_aspiration_skills
 
 logger = logging.getLogger(__name__)
@@ -200,7 +201,7 @@ def build_user_skill_demand(repo: JobsRepository, user_id: str) -> list[dict[str
                 "skill": key,
                 "display_name": (skill.get("display_name") or key).strip() or key,
                 "current_level": int(row.get("matched_level") or 0),
-                "proficiency_title": row.get("proficiency_title") or "Scout",
+                "proficiency_title": level_name(row.get("matched_level")),
             }
 
         if not user_skills:

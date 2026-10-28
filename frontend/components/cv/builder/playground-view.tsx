@@ -58,6 +58,7 @@ import { useLoopStepOnce } from "@/lib/hooks/use-loop-step-once"
 import { ApplyCapturePrompt } from "@/components/jobs/apply-capture-prompt"
 import { similarRolesHref } from "@/lib/jobs/similar-roles"
 import { applyRoleMove, remapRoleHiddenIids } from "./cv-pointer-order"
+import { primaryLocation } from "@/lib/career-target"
 
 /** Last-picked export template, shared with the master export surface. */
 function readTemplatePref(): CVTemplate {
@@ -139,7 +140,7 @@ export function PlaygroundView({
   const pdfContact = useMemo<PdfPageContact>(() => ({
     name: cv.contact?.name?.trim() || profile?.full_name?.trim() || "Your name",
     title: cv.contact?.title?.trim() || cv.experience[0]?.role || "",
-    location: cv.contact?.location?.trim() || profile?.target_location || "",
+    location: cv.contact?.location?.trim() || primaryLocation(profile),
     email: cv.contact?.email?.trim() || profile?.email || "",
     phone: cv.contact?.phone?.trim() || "",
     linkedin: cv.contact?.linkedin?.trim() || profile?.linkedin_url || "",

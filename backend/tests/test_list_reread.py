@@ -21,8 +21,8 @@ def _no_unrated_yes_pass(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(_fp, "judge_unrated_yeses", lambda _uid: 0)
 
 NOW = datetime(2026, 10, 13, 12, 0, tzinfo=timezone.utc)
-_DIRECTION = {"target_role_title": "Data Analyst", "target_roles": ["Analytics"],
-              "target_seniority": "mid", "target_location": "Pune"}
+_DIRECTION = {"target_role_titles": ["Data Analyst"], "target_roles": ["Analytics"],
+              "target_seniority": "mid", "target_locations": ["Pune"]}
 
 
 def _row(**keys: Any) -> dict[str, Any]:

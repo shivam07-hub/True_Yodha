@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.services.career_skill_path_cards import demand_kind, next_action, skill_state
+from app.services.career_skill_path_cards import demand_kind, next_action
 from app.services.career_target import is_canonical_direction
 from app.services.job_eligibility import (
     adjacent_source_bands,
@@ -85,12 +85,6 @@ def test_core_and_neighbor_thresholds() -> None:
     assert demand_kind(4, 310) is None
     assert demand_kind(5, 100) == "neighbor"
     assert demand_kind(0, 10) is None
-
-
-def test_on_cv_requires_evidence() -> None:
-    assert skill_state(evidence_text="Shipped SQL at work", on_cv_row=True, assessed_level=0) == "on_cv"
-    assert skill_state(evidence_text="  ", on_cv_row=True, assessed_level=2) == "practised"
-    assert skill_state(evidence_text=None, on_cv_row=False, assessed_level=0) == "not_evidenced"
 
 
 def test_next_action_gates_without_a_target() -> None:

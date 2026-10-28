@@ -21,6 +21,7 @@ contain must never reach the user).
 """
 from __future__ import annotations
 
+from app.services import direction
 import logging
 import re
 from collections import Counter
@@ -294,7 +295,7 @@ def _targets(db: Any, user_id: str) -> str:
 
     row = safe_read(
         db.table("user_profiles")
-        .select("target_role_titles, target_location")
+        .select("target_role_titles, target_locations")
         .eq("id", user_id)
         .maybe_single(),
         default=None,
@@ -306,9 +307,9 @@ def _targets(db: Any, user_id: str) -> str:
     titles = [t for t in (row.get("target_role_titles") or []) if isinstance(t, str) and t.strip()]
     if titles:
         parts.append("roles: " + ", ".join(titles[:5]))
-    location = (row.get("target_location") or "").strip()
-    if location:
-        parts.append(f"location: {location}")
+    places = direction.locations(row)
+    if places:
+        parts.append(f"location: {places[0]}")
     return "; ".join(parts)
 
 

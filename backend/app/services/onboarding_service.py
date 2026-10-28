@@ -59,10 +59,22 @@ def context_key(profile: dict[str, Any]) -> str | None:
         return None
     return target_context_hash(
         int(baseline_id),
-        str(profile.get("target_role_title") or "").strip(),
+        _key_title(profile),
         str(profile.get("target_seniority") or "any").strip().lower(),
-        str(profile.get("target_location") or "").strip(),
+        _key_location(profile),
     )
+
+
+def _key_title(profile: dict[str, Any]) -> str:
+    """The primary title both keys hash — the list's first, which is exactly the
+    synced `target_role_title` on every row (0 of 1,080 differed, 2026-10-27), so
+    reading the list moved no key and re-rated nothing."""
+    return direction.of(profile).primary_title or ""
+
+
+def _key_location(profile: dict[str, Any]) -> str:
+    places = direction.locations(profile)
+    return places[0] if places else ""
 
 
 def eval_context_key(profile: dict[str, Any]) -> str:
@@ -104,9 +116,9 @@ def eval_context_key(profile: dict[str, Any]) -> str:
         [
             PROMPT_VERSION,
             profile.get("baseline_version_id"),
-            str(profile.get("target_role_title") or "").strip().casefold(),
+            _key_title(profile).casefold(),
             str(profile.get("target_seniority") or "any").strip().lower(),
-            str(profile.get("target_location") or "").strip().casefold(),
+            _key_location(profile).casefold(),
             [str(f) for f in (profile.get("known_facts") or [])],
         ],
         separators=(",", ":"),
@@ -578,9 +590,7 @@ async def refresh_target_result(payload: dict[str, Any], allow_retry: bool) -> N
         # running the Career-Ops brain here would spend a real LLM pass to answer
         # a question the user has not asked.
         profile = UsersRepository(db).get_profile(user_id) or {}
-        has_target = bool(
-            profile.get("target_role_title") or profile.get("target_role_titles")
-        )
+        has_target = bool(direction.of(profile).titles)
         if has_target:
             # FAST lane: the user is already on Market after Direction. Match
             # fills the feed in the background — do not invent a waiting room.
@@ -1065,9 +1075,9 @@ def _current_result(
     from app.services.career_target import SOURCE_SENIORITY, is_canonical_direction
 
     target = {
-        "role_title": profile.get("target_role_title") or "",
+        "role_title": _key_title(profile),
         "seniority": profile.get("target_seniority") or "any",
-        "location": profile.get("target_location") or "",
+        "location": _key_location(profile),
     }
     has_target = is_canonical_direction(profile)
     if not baseline:
@@ -1126,11 +1136,7 @@ def _current_result(
         # are both required before Market. If a target was saved without a claim
         # (legacy / race), keep them on Direction until the name is claimed.
         payload = _awaiting_target_payload(db, user_id, profile, baseline)
-        has_partial = bool(
-            profile.get("target_roles")
-            or profile.get("target_role_titles")
-            or profile.get("target_role_title")
-        )
+        has_partial = direction.of(profile).is_set
         if has_partial:
             families_repo = RoleFamiliesRepository(db)
             chosen_keys = [

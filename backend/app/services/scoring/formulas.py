@@ -29,6 +29,13 @@ _PROFICIENCY_TITLES: dict[int, str] = {
     5: "Legend",
 }
 
+
+def level_name(level: int | None) -> str:
+    """The name a person reads for a skill level. Derived here, never read back
+    from storage: `user_skills.proficiency_title` drifted on 16 rows and never
+    once held "Legend" (2026-10-27). Below L1 reads as the first rung."""
+    return _PROFICIENCY_TITLES.get(max(1, int(level or 0)), "Legend")
+
 # ── Seniority band → scoring denominator ──────────────────────────────────────
 # The Mirror Score is band-relative: a candidate is measured against the
 # proficiency their STAGE requires, not against L5 "Legend". Scoring an

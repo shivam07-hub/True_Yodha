@@ -43,6 +43,7 @@ on the door the cohort already walks.
 """
 from __future__ import annotations
 
+from app.services import direction
 from datetime import datetime, timezone
 from typing import Any, Literal
 
@@ -69,10 +70,7 @@ def _parse(value: Any) -> datetime | None:
 
 
 def _has_direction(profile: dict[str, Any]) -> bool:
-    titles = profile.get("target_role_titles")
-    if isinstance(titles, list) and any(str(t).strip() for t in titles):
-        return True
-    return bool(str(profile.get("target_role_title") or "").strip())
+    return bool(direction.of(profile).titles)
 
 
 def state(profile: dict[str, Any], *, now: datetime | None = None) -> Freshness:

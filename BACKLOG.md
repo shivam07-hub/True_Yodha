@@ -449,6 +449,12 @@ Tracker (3) · no problem or not actionable (~25).
   which must hash the same string from the list (0 rows out of sync, so the
   hash does not move); 2) ship, then a week with no reads; 3) drop in one
   migration. Users see nothing. CONTEXT → Skill Level, Targeting Brief.
+  **Step 1 readers: done 2026-10-27 on Develop** (`skill_scores` no longer
+  written). The writers of the other four stay until `main` runs these reads:
+  prod reads the stored copies, and the shared worker (Develop) writes prod
+  users' skills. After the main merge: stop the writers (targeting_write,
+  location_normalizer, the five `_TITLE_WRITERS` + `confirm_cv_skills`), then
+  the week, then the drop.
 
 ## COMPANY OBLIGATIONS — off the working backlog
 

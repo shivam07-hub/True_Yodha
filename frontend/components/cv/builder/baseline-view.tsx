@@ -25,6 +25,7 @@ import {
   formatLibraryDocumentTitle,
   type CVLibraryRow,
 } from "./library-drawer"
+import { primaryLocation } from "@/lib/career-target"
 
 interface BaselineViewProps {
   token: string
@@ -124,7 +125,7 @@ export function BaselineView({
   const contact = useMemo(() => ({
     name: profile?.full_name?.trim() || "Your name",
     title: cv?.experience?.[0]?.role ?? "Add a role headline",
-    location: profile?.target_location ?? "",
+    location: primaryLocation(profile),
     email: profile?.email ?? "",
     phone: "",
     linkedin: profile?.linkedin_url ?? "",

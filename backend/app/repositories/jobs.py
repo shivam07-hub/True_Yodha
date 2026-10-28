@@ -33,7 +33,8 @@ from app.services.job_eligibility import (
     target_seniority_for_profile,
 )
 from app.services.location_normalizer import normalize_location
-from app.services.scoring import _PROFICIENCY_TITLES
+from app.services.scoring import level_name
+from app.services.skill_state import level_of
 from app.services import direction
 
 _log = logging.getLogger("app.repositories.jobs")
@@ -2137,7 +2138,7 @@ class JobsRepository:
     def get_user_skills_with_taxonomy(self, user_id: str) -> list[dict[str, Any]]:
         result = (
             self._db.table("user_skills")
-            .select("matched_level, proficiency_title, skills(taxonomy_key, display_name)")
+            .select("matched_level, skills(taxonomy_key, display_name)")
             .eq("user_id", user_id)
             .execute()
         )
@@ -2167,10 +2168,7 @@ class JobsRepository:
         """
         rows = (
             self._db.table("user_skills")
-            .select(
-                "matched_level, proficiency_title, "
-                "skills(id, taxonomy_key, display_name, practice_mode)"
-            )
+            .select("matched_level, skills(id, taxonomy_key, display_name, practice_mode)")
             .eq("user_id", user_id)
             .execute()
         ).data or []
@@ -2185,50 +2183,40 @@ class JobsRepository:
             .execute()
         ).data or []
 
-        user_skills_by_id: dict[int, dict[str, Any]] = {}
-        for row in rows:
-            skill = row.get("skills") or {}
-            if (skill.get("practice_mode") or "levelled") != "levelled":
-                continue
-            raw_skill_id = skill.get("id")
-            if raw_skill_id is None:
-                continue
-            try:
-                skill_id = int(raw_skill_id)
-            except (TypeError, ValueError):
-                continue
-            taxonomy_key = (skill.get("taxonomy_key") or "").strip()
-            if not taxonomy_key:
-                continue
-            display_name = (skill.get("display_name") or taxonomy_key).strip() or taxonomy_key
-            user_skills_by_id[skill_id] = {
-                "skill": taxonomy_key,
-                "display_name": display_name,
-                "current_level": int(row.get("matched_level") or 0),
-                "proficiency_title": row.get("proficiency_title") or "Scout",
-            }
+        # Each skill's two evidence levels, then ONE answer through `level_of`
+        # (CONTEXT → Skill Level). This was a hand copy of the rule.
+        skills_by_id: dict[int, dict[str, Any]] = {}
+        cv_levels: dict[int, int] = {}
+        proven_levels: dict[int, int] = {}
+        for source, rows_in, column in (
+            (cv_levels, rows, "matched_level"),
+            (proven_levels, assessed_rows, "assessed_level"),
+        ):
+            for row in rows_in:
+                skill = row.get("skills") or {}
+                if (skill.get("practice_mode") or "levelled") != "levelled":
+                    continue
+                try:
+                    skill_id = int(skill.get("id"))
+                    value = int(row.get(column) or 0)
+                except (TypeError, ValueError):
+                    continue
+                if not (skill.get("taxonomy_key") or "").strip():
+                    continue
+                skills_by_id[skill_id] = skill
+                source[skill_id] = value
 
-        for row in assessed_rows:
-            skill = row.get("skills") or {}
-            if (skill.get("practice_mode") or "levelled") != "levelled":
+        user_skills_by_id: dict[int, dict[str, Any]] = {}
+        for skill_id, skill in skills_by_id.items():
+            if skill_id not in cv_levels and proven_levels.get(skill_id, 0) < 1:
                 continue
-            try:
-                skill_id = int(skill.get("id"))
-                assessed_level = int(row.get("assessed_level") or 0)
-            except (TypeError, ValueError):
-                continue
-            taxonomy_key = (skill.get("taxonomy_key") or "").strip()
-            if not taxonomy_key or assessed_level < 1:
-                continue
-            display_name = (skill.get("display_name") or taxonomy_key).strip() or taxonomy_key
-            current = user_skills_by_id.get(skill_id)
-            if current and int(current["current_level"]) >= assessed_level:
-                continue
+            level, _evidence = level_of(cv_levels.get(skill_id), proven_levels.get(skill_id))
+            taxonomy_key = skill["taxonomy_key"].strip()
             user_skills_by_id[skill_id] = {
                 "skill": taxonomy_key,
-                "display_name": display_name,
-                "current_level": assessed_level,
-                "proficiency_title": _PROFICIENCY_TITLES.get(assessed_level, "Scout"),
+                "display_name": (skill.get("display_name") or taxonomy_key).strip() or taxonomy_key,
+                "current_level": level,
+                "proficiency_title": level_name(level),
             }
 
         if not user_skills_by_id:

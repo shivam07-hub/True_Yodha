@@ -71,13 +71,15 @@ def test_no_direction_is_its_own_state():
     assert match_freshness.state(profile, now=NOW) == "no_direction"
 
 
-def test_single_title_column_still_counts_as_a_direction():
+def test_the_singular_title_alone_is_not_a_direction():
+    """`target_role_title` is the synced copy of titles[0], never a source
+    (CONTEXT → Targeting Brief); no row had it without the list."""
     profile = _profile(
         target_role_titles=[],
         target_role_title="Growth Marketing",
         last_match_run_at=None,
     )
-    assert match_freshness.state(profile, now=NOW) == "outstanding"
+    assert match_freshness.state(profile, now=NOW) == "no_direction"
 
 
 def test_naive_timestamps_are_read_as_utc():

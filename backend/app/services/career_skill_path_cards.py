@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any, Literal
 
 from app.services.scoring.demand_rule import target_level
+from app.services.skill_state import Evidence, level_of
 
 SkillState = Literal["on_cv", "practised", "not_evidenced"]
 DemandKind = Literal["core", "neighbor"]
@@ -38,12 +39,15 @@ def required_level(
     )
 
 
-def skill_state(*, evidence_text: str | None, on_cv_row: bool, assessed_level: int) -> SkillState:
-    if on_cv_row and (evidence_text or "").strip():
-        return "on_cv"
-    if assessed_level > 0:
-        return "practised"
-    return "not_evidenced"
+#: The card's wire label for `level_of`'s Evidence. Career Path once decided
+#: this itself — on the CV only with a quoted line, and then the CV level even
+#: when practice proved higher — and disagreed with Role Standing for 16 people
+#: (2026-10-27). The rule is `skill_state.level_of`; this is only its name here.
+_CARD_STATE: dict[Evidence, SkillState] = {
+    "on_cv": "on_cv",
+    "proven": "practised",
+    "none": "not_evidenced",
+}
 
 
 def next_action(cards: list[dict[str, Any]], *, needs_target: bool) -> dict[str, Any] | None:
@@ -105,13 +109,9 @@ def build_band(
         sid = int(skill["id"]) if skill.get("id") else None
         cv_row = user_rows.get(sid) if sid else None
         assessed_level = assessed.get(sid, 0) if sid else 0
-        state = skill_state(
-            evidence_text=(cv_row or {}).get("evidence_text"),
-            on_cv_row=cv_row is not None,
-            assessed_level=assessed_level,
-        )
-        cv_level = int((cv_row or {}).get("matched_level") or 0) if cv_row else None
-        current = cv_level if state == "on_cv" else (assessed_level or None)
+        level, evidence = level_of((cv_row or {}).get("matched_level"), assessed_level)
+        state = _CARD_STATE[evidence]
+        current = level or None
         req = required_level(
             int(row.get("primary_job_count") or 0),
             band_job_count,
