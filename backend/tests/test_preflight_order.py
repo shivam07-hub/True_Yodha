@@ -751,9 +751,10 @@ def test_every_stored_location_is_seeded_not_just_the_scalar():
     assert cities == ["Mumbai", "Bengaluru", "Pune"]
 
 
-def test_a_profile_with_only_the_legacy_scalar_still_seeds():
+def test_the_legacy_scalar_alone_seeds_no_location():
+    """`target_location` is a synced copy, never a source (CONTEXT → Targeting Brief)."""
     confirmed = memory_import.confirmed_from(brief(profile={"target_location": "Mumbai."}))
-    assert [x.text for x in confirmed if x.kind == "location"] == ["Mumbai"]
+    assert [x.text for x in confirmed if x.kind == "location"] == []
 
 
 def test_a_repeated_city_is_seeded_once():

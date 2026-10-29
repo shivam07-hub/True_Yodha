@@ -1,6 +1,7 @@
 import type { CVContact, CVStructured } from "@/lib/api"
 import type { UserProfile } from "@/lib/api"
 import type { PdfPageContact } from "@/components/cv/builder/pdf-page"
+import { primaryLocation } from "@/lib/career-target"
 
 export type MobileCVSection =
   | "contact"
@@ -34,7 +35,7 @@ export function previewContact(cv: CVStructured, profile: UserProfile | null): P
     title: contact.title.trim() || cv.experience[0]?.role || "",
     email: contact.email.trim(),
     phone: contact.phone.trim(),
-    location: contact.location.trim() || profile?.target_location || "",
+    location: contact.location.trim() || primaryLocation(profile),
     linkedin: contact.linkedin.trim() || profile?.linkedin_url || "",
   }
 }

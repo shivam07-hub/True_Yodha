@@ -35,6 +35,7 @@ from supabase import Client
 from app.services import deal_breakers, reader_voice
 from app.services.llm_provider import LLMProvider, LLMProviderError
 from app.services.model_outcome import ModelOutcome
+from app.services import direction
 
 logger = logging.getLogger(__name__)
 
@@ -58,21 +59,8 @@ def preferred_locations(profile: dict[str, Any]) -> str:
     turned two cities into "India". The brain then rewarded the wrong half of
     the search it was told to reward.
     """
-    raw = profile.get("target_locations")
-    values = raw if isinstance(raw, list) else [profile.get("target_location")]
-    seen: list[str] = []
-    for value in values:
-        text = str(value or "").strip()
-        if text and text.casefold() not in {s.casefold() for s in seen}:
-            seen.append(text)
-    if seen:
-        return ", ".join(seen)
-    countries = profile.get("target_location_countries")
-    if isinstance(countries, list):
-        named = [str(c).strip() for c in countries if str(c or "").strip()]
-        if named:
-            return ", ".join(named)
-    return str(profile.get("target_location_country") or "").strip() or "flexible"
+    places = direction.locations(profile) or direction.countries(profile)
+    return ", ".join(places) if places else "flexible"
 
 
 # What the prompt says when the user never told us what they want.

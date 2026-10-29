@@ -70,15 +70,17 @@ def _snapshot(version: dict[str, Any], job: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def record_on_apply(user_id: str, job_id: str) -> None:
-    """Freeze the CV of record when a user marks a job applied.
+def record_on_apply(user_id: str, job_id: str, *, since: str) -> None:
+    """Freeze the CV of record for the Yes stamped at `since` (CONTEXT →
+    Application Yes; `application_yes` is the only caller).
 
     Best-effort and silent. A status change is the user telling us something
     true about their job hunt; failing that write because a CV lookup went wrong
     would be trading the thing they care about for the thing we care about.
 
     Never overwrites. A submission is a historical fact, and a second row for
-    the same job would make the version history claim they applied twice.
+    the same Yes would make the version history claim they applied twice. A Yes
+    after a withdrawal is a new submission: the earlier row stays as history.
     """
     try:
         admin = get_supabase_admin()
@@ -87,6 +89,7 @@ def record_on_apply(user_id: str, job_id: str) -> None:
             .select("id")
             .eq("user_id", user_id)
             .eq("job_id", job_id)
+            .gte("submitted_at", since)
             .limit(1)
             .execute()
             .data

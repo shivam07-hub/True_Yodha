@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from app.services.job_eligibility import stated_range_admits
+from app.services.listing_liveness import is_down
 from app.services.match_credibility import location_compatible
 
 BarredBy = Literal["closed", "location", "level"]
@@ -45,9 +46,10 @@ class Admission:
 def admit(profile: dict[str, Any], job: dict[str, Any]) -> Admission:
     """The first reason this job may not be shown, or none.
 
-    An absent `is_active` is not a closed listing — only an explicit False is.
+    A down listing is barred (CONTEXT → Listing Liveness); a column the read
+    did not select is not a close.
     """
-    if job.get("is_active") is False:
+    if is_down(job):
         return Admission("closed")
     if not location_compatible(profile, job):
         return Admission("location")

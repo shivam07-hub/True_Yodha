@@ -241,3 +241,52 @@ def test_a_name_typed_in_capitals_is_not_shouted_back() -> None:
     digest = Digest(user_id="u1", unfinished=[], new=[golden_digest.Line("j", "Analyst", "Acme", "/cv?jobId=j")], first=True)
     assert golden_digest.render(digest, app_url=APP, name="RAJ KISHORE", unsubscribe_url=None).startswith("Hi Raj,")
     assert golden_digest.render(digest, app_url=APP, name="Asha Rao", unsubscribe_url=None).startswith("Hi Asha,")
+
+
+# ── the production store reads the Yes, not the stage ──────────────────────
+
+
+class _Rows:
+    def __init__(self, rows: list[dict[str, Any]], filters: list[tuple[str, Any]]) -> None:
+        self._rows = rows
+        self._filters = filters
+
+    def __getattr__(self, name: str) -> Any:
+        if name == "not_":
+            self._filters.append(("not", None))
+            return self
+        return lambda *a, **_k: (self._filters.append((name, a)), self)[1]
+
+    def execute(self) -> Any:
+        return type("R", (), {"data": self._rows})()
+
+
+class _ProdDB:
+    def __init__(self, tables: dict[str, list[dict[str, Any]]]) -> None:
+        self._tables = tables
+        self.filters: dict[str, list[tuple[str, Any]]] = {}
+
+    def table(self, name: str) -> _Rows:
+        return _Rows(self._tables.get(name, []), self.filters.setdefault(name, []))
+
+
+class _Jobs:
+    def get_jobs_by_ids(self, job_ids: list[str]) -> list[dict[str, Any]]:
+        return [{"job_id": j, "job_title": "Analyst", "company_name": "Acme",
+                 "is_active": True, "listing_confidence": "active"} for j in job_ids]
+
+
+def test_a_tailored_cv_with_a_yes_is_not_unfinished() -> None:
+    """CONTEXT → Application Yes: "has it been sent?" reads applied_at. A Yes
+    stays sent past interviewing; a withdrawn one (back to Saved) is unfinished."""
+    db = _ProdDB({
+        "cv_versions": [{"job_id": "sent"}, {"job_id": "open"}],
+        # The query asks for applied_at set, so only the Yes comes back.
+        "job_applications": [{"job_id": "sent"}],
+    })
+    store = golden_digest.SupabaseStore(db)
+    store._jobs = _Jobs()
+
+    assert [row["job_id"] for row in store.unfinished("u1")] == ["open"]
+    assert ("is_", ("applied_at", "null")) in db.filters["job_applications"]
+    assert ("not", None) in db.filters["job_applications"]

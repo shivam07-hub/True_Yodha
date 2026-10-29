@@ -4,14 +4,18 @@
  * BriefCard — the day-of brief, the room's ONE paid artifact (grill Q5:
  * 30 coins, charge-on-success, replay free; everything that builds the habit
  * stays free). Grounded on the JD + the user's own stories — never invented
- * company facts (ADR-0016).
+ * company facts (ADR-0016). A brief the POST stopped waiting for is waited on,
+ * never re-run (`lib/run-wait.ts`).
  */
 
 import * as React from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { jobs as jobsApi, type PrepBrief } from "@/lib/api"
+import { serverMessage } from "@/lib/api-error"
 import { Button } from "@/components/ui/button"
+import { useRunWait } from "@/lib/hooks/use-run-wait"
 import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
+import { purchaseWaitVerdict, runOutcomeUnseen } from "@/lib/run-wait"
 import { useXPStore } from "@/store/xpStore"
 
 const BRIEF_COST = 30
@@ -66,15 +70,38 @@ export function BriefCard({ token, jobId }: { token: string; jobId: string }) {
     staleTime: 5 * 60 * 1000,
   })
 
+  const [failed, setFailed] = React.useState<string | null>(null)
+  const waitFailed = React.useCallback(() => setFailed("Couldn’t build the brief right now. Try again."), [])
+  const wait = useRunWait({
+    token, jobId, entry: "prep-brief", action: "prep_brief",
+    read: () => jobsApi.getPrepBrief(token, jobId),
+    verdict: purchaseWaitVerdict,
+    onFailed: waitFailed,
+  })
+  const startWait = wait.start
+  // A run already working when the room opens (a reload, a second tab).
+  const buildingNow = Boolean(state.data?.building)
+  React.useEffect(() => {
+    if (buildingNow && !wait.waiting) startWait()
+  }, [buildingNow, wait.waiting, startWait])
+
   const buy = useMutation({
     mutationFn: () => jobsApi.createPrepBrief(token, jobId),
+    onMutate: () => setFailed(null),
     onSuccess: (res) => {
       if (typeof res.new_coin_balance === "number") {
         applyXpChange({ newBalance: res.new_coin_balance, action: "prep_brief" })
       }
       void state.refetch()
     },
+    onError: (e: Error) => {
+      // A timeout is not a failure: the server may still be writing, and a
+      // Retry then would pay for a second run. Read the brief instead.
+      if (runOutcomeUnseen(e)) startWait()
+      else setFailed(serverMessage(e, "Couldn’t build the brief right now. Try again."))
+    },
   })
+  const writing = buy.isPending || wait.waiting
 
   const brief = state.data?.brief ?? buy.data?.brief ?? null
 
@@ -93,12 +120,12 @@ export function BriefCard({ token, jobId }: { token: string; jobId: string }) {
       <Button
         size="sm"
         disabled={state.isLoading}
-        loading={buy.isPending}
+        loading={writing}
         onClick={() => gate.attempt(() => buy.mutate())}
       >
-        {buy.isPending ? "Writing your brief" : `Get the day-of brief · ${BRIEF_COST}`}
+        {writing ? "Writing your brief" : `Get the day-of brief · ${BRIEF_COST}`}
       </Button>
-      {buy.isError ? <p className="prp-err">Couldn&rsquo;t build the brief right now — nothing was charged. Try again.</p> : null}
+      {failed ? <p className="prp-err">{failed}</p> : null}
     </div>
   )
 }

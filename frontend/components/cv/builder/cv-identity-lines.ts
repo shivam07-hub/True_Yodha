@@ -8,6 +8,7 @@
  */
 import type { CVStructured, UserProfile } from "@/lib/api"
 import type { IdentityLines } from "./cv-identity-card"
+import { primaryLocation } from "@/lib/career-target"
 
 export function identityLines(
   cv: CVStructured,
@@ -20,7 +21,7 @@ export function identityLines(
     meta: [
       c?.email?.trim() || profile?.email?.trim(),
       c?.phone?.trim(),
-      c?.location?.trim() || profile?.target_location?.trim(),
+      c?.location?.trim() || primaryLocation(profile),
       c?.linkedin?.trim() || profile?.linkedin_url?.trim(),
     ].filter((v): v is string => !!v),
   }

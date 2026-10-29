@@ -2724,3 +2724,40 @@ onto a warm key (28–42ms each), so it did not test the cold fill.
   from a snapshot (p50 under 100ms), so it costs a request, not the database.
 - `jobs.companyJobs` in `frontend/lib/api.ts` has no caller on `main` or
   `Develop`.
+
+---
+
+## 31. One live predicate, and the spelling the planner proves (2026-10-27)
+
+Listing Liveness (CONTEXT.md) moved the live rule into `public.listing_is_live(jobs)`
+(LANGUAGE sql, IMMUTABLE, no SET — so it inlines) and `listing_liveness.live_only`
+for PostgREST. What the move turned up about the planner:
+
+- **`is_active IS TRUE` and bare `is_active` do not prove each other.** Postgres
+  17 cannot match a partial index predicate spelled one way from a query spelled
+  the other. Six live indexes said `IS TRUE`, four said `is_active` (one said
+  `= true`, which is the same as bare). Routed through the function,
+  `candidates_for_user`'s band lookup fell from `idx_jobs_candidate_band` to a
+  **seq scan**. Fix: IS TRUE twins built `CONCURRENTLY` first
+  (`20261027120500`), then the callers.
+- **PostgREST `eq.true` reaches the database as `is_active = true`** — it could
+  only ever use the bare-spelled indexes. `live_only` sends `is.true`.
+- **What I nearly reported wrong:** the role-family read measured 3,818ms with
+  `= true` and 254ms with `IS TRUE`. Both were cold. Warm: **16ms vs 10ms**,
+  ~3,200 buffers either way. No speed claim is made for the spelling.
+- **After the swap**, warm, same rows: `candidates_for_user` 9.3–14.7s (was
+  10.2–21.8s — the worker's pool read, heavy before and after; noise, not a
+  win), `candidate_jobs_for_user` ~23ms, `company_open_roles_page` ~1.7ms,
+  `top_companies_at` ~44ms, `roles_met_by_skill_level` ~44ms,
+  `list_role_family_locations` ~1ms, `count_jobs_awaiting_judgment` ~242ms.
+- **RLS:** the policy calls the function and the plan shows the inlined
+  expression (`(is_active IS TRUE AND listing_confidence = 'active') OR …`) — as
+  `authenticated`, the company read used `idx_jobs_live_company_first_seen_v2`,
+  21 buffers, 6.8ms. Trap 5 is unchanged, not worsened.
+
+### Still open
+
+- Drop the bare-spelled `idx_jobs_candidate_band`,
+  `idx_jobs_lower_company_active_jobid`, `idx_jobs_live_company_first_seen` and
+  the duplicate `idx_jobs_feed_active_first_seen` once the `live_only` deploy is
+  live and their `idx_scan` stops moving; rename the `_v2` twins back.

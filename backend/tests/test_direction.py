@@ -52,13 +52,11 @@ def test_no_direction_at_all() -> None:
     assert d.to_dict()["primary_title"] is None
 
 
-def test_the_legacy_singular_is_the_same_fact_not_a_second_one() -> None:
-    d = direction.of({"target_role_title": "Product Manager"})
-    assert d.titles == ("Product Manager",)
-    assert d.is_set
-
-
-def test_the_plural_wins_over_the_legacy_singular() -> None:
+def test_the_legacy_singular_is_a_synced_copy_never_a_source() -> None:
+    """The writer keeps `target_role_title` = titles[0]. On 2026-10-27 no row had
+    the singular without the list, so a fallback read it for nobody (CONTEXT →
+    Targeting Brief)."""
+    assert direction.of({"target_role_title": "Product Manager"}).titles == ()
     d = direction.of({"target_role_titles": ["Data Science"], "target_role_title": "Old Title"})
     assert d.titles == ("Data Science",)
 
@@ -77,7 +75,56 @@ def test_the_wire_shape_answers_every_surface_without_reconstruction() -> None:
     what replaces all of them."""
     assert set(direction.of({}).to_dict()) == {
         "titles", "families", "primary_title", "is_set", "is_runnable", "scope_mode",
+        "level", "missing",
     }
+
+
+# ── a direction is a role and a level (Shivam, 2026-10-27) ──────────────────
+
+def test_a_role_with_a_level_is_complete() -> None:
+    d = direction.of({"target_roles": ["Sales Management"], "target_seniority": "mid"})
+    assert d.level == "mid"
+    assert d.missing is None
+
+
+def test_a_role_without_a_level_is_asked_only_the_level() -> None:
+    """41 people on 2026-10-27, all set before September. They chose the work;
+    sending them back to pick it again is the bug."""
+    for seniority in (None, "", "any"):
+        d = direction.of({"target_roles": ["Sales Management"], "target_seniority": seniority})
+        assert d.level is None
+        assert d.missing == "level"
+        assert d.is_set and d.is_runnable
+
+
+def test_no_role_the_matcher_can_scope_on_asks_for_the_role() -> None:
+    assert direction.of({}).missing == "role"
+    # Titles alone cannot run: there is no corpus family to scope on.
+    assert direction.of({"target_role_titles": ["growth"], "target_seniority": "mid"}).missing == "role"
+
+
+def test_a_level_alias_reads_as_its_band() -> None:
+    assert direction.of({"target_roles": ["Sales Management"], "target_seniority": "junior"}).level == "entry"
+
+
+# ── places: the plural columns, and only those ──────────────────────────────
+
+def test_locations_are_the_list_cleaned() -> None:
+    profile = {"target_locations": [" Mumbai ", "mumbai", "", None, "Pune"]}
+    assert direction.locations(profile) == ["Mumbai", "Pune"]
+
+
+def test_countries_are_the_list_cleaned() -> None:
+    assert direction.countries({"target_location_countries": ["India", " india ", ""]}) == ["India"]
+
+
+def test_the_singular_place_columns_are_never_read() -> None:
+    """Synced copies of locations[0] and countries[0]; seven readers fell back to
+    them and the fallback fired for no row (2026-10-27)."""
+    profile = {"target_location": "Mumbai", "target_location_country": "India"}
+    assert direction.locations(profile) == []
+    assert direction.countries(profile) == []
+    assert direction.locations({"target_locations": None, "target_location": "Mumbai"}) == []
 
 
 # ── the run reads the same answer as the screen ──────────────────────────────

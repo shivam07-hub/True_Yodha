@@ -80,6 +80,9 @@ class SkillPathNextAction(BaseModel):
 
 class CareerSkillPathResponse(BaseModel):
     needs_target: bool
+    #: What a missing target still needs: `role` (the whole Direction journey) or
+    #: `level` (a role already chosen — ask the level alone). None when set.
+    missing: Literal["role", "level"] | None = None
     snapshot: CareerTargetSnapshotOut | None = None
     lower: BandSkillMap | None = None
     anchor: BandSkillMap | None = None

@@ -6,6 +6,7 @@ error leaves the row untouched so they can still write the note by hand.
 
 from __future__ import annotations
 
+from app.services.scoring import level_name
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -72,8 +73,7 @@ def _user_skill_lines(user_id: str) -> list[str]:
         name = (sk.get("display_name") or "").strip()
         if not name:
             continue
-        title = (r.get("proficiency_title") or "").strip()
-        lines.append(f"{name} — {title}" if title else name)
+        lines.append(f"{name} — {level_name(r.get('matched_level'))}")
     return lines
 
 

@@ -206,7 +206,7 @@ class ScoresRepository:
         """
         result = (
             self._db.table("user_skills")
-            .select("matched_level, proficiency_title, source, evidence_text, "
+            .select("matched_level, source, evidence_text, "
                     "forge_sessions_count, total_forge_minutes")
             .eq("user_id", user_id)
             .eq("skill_id", skill_id)

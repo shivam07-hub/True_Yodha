@@ -41,6 +41,8 @@ class _FakeQuery:
     def is_(self, key: str, value: str) -> "_FakeQuery":
         if value == "null":
             self._rows = [row for row in self._rows if row.get(key) is None]
+        if value == "true":
+            self._rows = [row for row in self._rows if row.get(key) is True]
         return self
 
     def gte(self, key: str, value: Any) -> "_FakeQuery":
@@ -559,6 +561,11 @@ class _RecordingQuery:
 
     def eq(self, key: str, value: Any) -> "_RecordingQuery":
         self._rows = [row for row in self._rows if row.get(key) == value]
+        return self
+
+    def is_(self, key: str, value: str) -> "_RecordingQuery":
+        want = {"true": True, "false": False, "null": None}[value]
+        self._rows = [row for row in self._rows if row.get(key) is want]
         return self
 
     def in_(self, key: str, values: list[Any]) -> "_RecordingQuery":

@@ -13,7 +13,7 @@ from supabase import Client
 
 from app.database import get_supabase_admin
 from app.repositories.users import UsersRepository
-from app.services import background
+from app.services import background, direction
 from app.services.job_eligibility import (
     SOURCE_SENIORITY,
     adjacent_source_bands,
@@ -55,38 +55,24 @@ def target_locations(values: Iterable[object]) -> list[str]:
 
 
 def is_canonical_direction(profile: dict[str, Any]) -> bool:
-    """True when the profile can mint a CareerTargetSnapshot."""
-    title = _primary_title(profile)
-    family = _primary_family(profile)
-    seniority = canonical_source_seniority(profile.get("target_seniority"))
-    return bool(title and family and seniority in SOURCE_SENIORITY)
+    """True when the profile can mint a CareerTargetSnapshot: a role and a level
+    (Shivam, 2026-10-27). The title is not a third condition — a picked family's
+    name IS its title (CONTEXT → Targeting Brief)."""
+    return direction.of(profile).missing is None
 
 
 def _primary_title(profile: dict[str, Any]) -> str:
-    titles = profile.get("target_role_titles") or []
-    if isinstance(titles, str):
-        titles = [titles]
-    for value in [*titles, profile.get("target_role_title")]:
-        text = str(value or "").strip()
-        if text:
-            return text
-    return ""
+    d = direction.of(profile)
+    return d.primary_title or (d.families[0] if d.families else "")
 
 
 def _primary_family(profile: dict[str, Any]) -> str:
-    for value in profile.get("target_roles") or []:
-        text = str(value or "").strip()
-        if text:
-            return text
-    return ""
+    families = direction.of(profile).families
+    return families[0] if families else ""
 
 
 def _locations(profile: dict[str, Any]) -> list[str]:
-    raw = profile.get("target_locations")
-    if not isinstance(raw, list):
-        single = str(profile.get("target_location") or "").strip()
-        return [single] if single else []
-    return target_locations(raw)
+    return target_locations(direction.locations(profile))
 
 
 def current_snapshot(db: Client, user_id: str) -> dict[str, Any] | None:

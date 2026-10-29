@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Sequence
 
-from app.services.job_intelligence_policy import is_recommendable_listing
+from app.services.listing_liveness import is_live
 from app.services.matching import (
     admission,
     direction_fit,
@@ -126,7 +126,7 @@ def select_agent_picks(
         ):
             continue
         job = row.get("jobs") or {}
-        if not is_recommendable_listing(job):
+        if not is_live(job):
             continue
         # The line the reader sees. `pick_reason` is written TO them and checked
         # by reader_voice; `summary` is the evaluator writing ABOUT them, which

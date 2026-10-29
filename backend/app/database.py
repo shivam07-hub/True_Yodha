@@ -21,7 +21,6 @@ import time
 from functools import lru_cache
 
 import httpx
-from postgrest.utils import SyncClient as _PostgrestSyncClient
 from supabase import Client, create_client
 from supabase.lib.client_options import ClientOptions
 
@@ -133,7 +132,7 @@ _SHARED_TRANSPORT = _RetryingHTTPTransport(
 
 
 def _force_postgrest_http1(client: Client) -> Client:
-    """postgrest 0.16.x hardcodes ``http2=True`` on its httpx session. A
+    """postgrest hardcodes ``http2=True`` on its httpx session. A
     long-lived (lru_cached) client plus an HTTP/2 keepalive pool throws
     ``httpcore.RemoteProtocolError: Server disconnected`` whenever Supabase
     drops an idle connection and httpx then reuses the now-dead one — a 500
@@ -150,7 +149,7 @@ def _force_postgrest_http1(client: Client) -> Client:
     ``_SHARED_TRANSPORT``.
     """
     old = client.postgrest.session
-    client.postgrest.session = _PostgrestSyncClient(
+    client.postgrest.session = httpx.Client(
         base_url=old.base_url,
         headers=old.headers,
         timeout=old.timeout,

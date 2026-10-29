@@ -15,7 +15,7 @@ from app.repositories.onboarding import OnboardingRepository
 from app.repositories.role_families import RoleFamiliesRepository
 from app.repositories.scores import ScoresRepository
 from app.repositories.users import UsersRepository
-from app.services import background, scoring
+from app.services import background, direction, scoring
 from app.services.career_target import MAX_TARGET_ROLES, target_locations
 from app.services.concurrent_reads import run_concurrently
 from app.services.experience_years import seniority_from_cv
@@ -59,10 +59,22 @@ def context_key(profile: dict[str, Any]) -> str | None:
         return None
     return target_context_hash(
         int(baseline_id),
-        str(profile.get("target_role_title") or "").strip(),
+        _key_title(profile),
         str(profile.get("target_seniority") or "any").strip().lower(),
-        str(profile.get("target_location") or "").strip(),
+        _key_location(profile),
     )
+
+
+def _key_title(profile: dict[str, Any]) -> str:
+    """The primary title both keys hash — the list's first, which is exactly the
+    synced `target_role_title` on every row (0 of 1,080 differed, 2026-10-27), so
+    reading the list moved no key and re-rated nothing."""
+    return direction.of(profile).primary_title or ""
+
+
+def _key_location(profile: dict[str, Any]) -> str:
+    places = direction.locations(profile)
+    return places[0] if places else ""
 
 
 def eval_context_key(profile: dict[str, Any]) -> str:
@@ -104,9 +116,9 @@ def eval_context_key(profile: dict[str, Any]) -> str:
         [
             PROMPT_VERSION,
             profile.get("baseline_version_id"),
-            str(profile.get("target_role_title") or "").strip().casefold(),
+            _key_title(profile).casefold(),
             str(profile.get("target_seniority") or "any").strip().lower(),
-            str(profile.get("target_location") or "").strip().casefold(),
+            _key_location(profile).casefold(),
             [str(f) for f in (profile.get("known_facts") or [])],
         ],
         separators=(",", ":"),
@@ -310,6 +322,38 @@ def role_title_updates(
     }
 
 
+def _level_patch(seniority: str | None, years_experience: float | None) -> dict[str, Any]:
+    """The Level step's answer as columns. Omitted preserves — a role-only edit
+    must not silently reset the number retrieval matches her against."""
+    patch: dict[str, Any] = {}
+    if seniority is not None:
+        patch["target_seniority"] = seniority
+    if years_experience is not None:
+        # Marked `user` so the next CV parse leaves it alone.
+        patch["years_experience"] = years_experience
+        patch["years_experience_source"] = "user"
+    return patch
+
+
+def save_level(
+    db: Client,
+    user_id: str,
+    *,
+    seniority: str,
+    years_experience: float | None = None,
+) -> None:
+    """A role with no level is asked the level and nothing else (Shivam,
+    2026-10-27). Through `targeting_write.commit`, which mints the snapshot the
+    level was the last missing piece of. CONTEXT → Targeting Brief.
+    """
+    from app.services import targeting_write
+
+    users_repo = UsersRepository(db)
+    if direction.of(users_repo.get_profile(user_id)).missing == "role":
+        raise ValueError("A level is asked only of a role already chosen.")
+    targeting_write.commit(users_repo, user_id, _level_patch(seniority, years_experience))
+
+
 def save_target(
     db: Client,
     user_id: str,
@@ -337,8 +381,8 @@ def save_target(
     them. Requires the `target_role_titles` column (migration 20260706).
 
     Locations are plural for the same reason roles are: `target_locations` is
-    already an array end-to-end (`user_target_locations` → `build_location_scope`
-    ORs across cities), so the singular `location` was a narrowing that lived
+    already an array end-to-end (`match_credibility.location_compatible` ORs
+    across cities), so the singular `location` was a narrowing that lived
     only in this write path and the picker above it.
 
     `career_bands` is the Direction journey's first answer, and it travels in this
@@ -360,22 +404,13 @@ def save_target(
         "role_family": role_family,
         "role_families": role_families,
     }
-    if seniority is not None:
-        patch["target_seniority"] = seniority
-    if years_experience is not None:
-        # Marked `user` so the next CV parse leaves it alone. Omitted preserves —
-        # a role-only edit must not silently reset the number retrieval matches
-        # her against.
-        patch["years_experience"] = years_experience
-        patch["years_experience_source"] = "user"
+    patch.update(_level_patch(seniority, years_experience))
     chosen_locations: list[str] | None = None
     if location is not None or locations is not None:
         chosen_locations = _normalize_locations(location, locations)
         patch["target_locations"] = chosen_locations
     else:
-        chosen_locations = [
-            str(value).strip() for value in (profile.get("target_locations") or []) if str(value).strip()
-        ] or ([profile["target_location"]] if profile.get("target_location") else [])
+        chosen_locations = direction.locations(profile)
     if avoid is not None:
         patch["deal_breakers"] = _normalize_direction_phrases(avoid)
     if lean is not None:
@@ -555,9 +590,7 @@ async def refresh_target_result(payload: dict[str, Any], allow_retry: bool) -> N
         # running the Career-Ops brain here would spend a real LLM pass to answer
         # a question the user has not asked.
         profile = UsersRepository(db).get_profile(user_id) or {}
-        has_target = bool(
-            profile.get("target_role_title") or profile.get("target_role_titles")
-        )
+        has_target = bool(direction.of(profile).titles)
         if has_target:
             # FAST lane: the user is already on Market after Direction. Match
             # fills the feed in the background — do not invent a waiting room.
@@ -1042,9 +1075,9 @@ def _current_result(
     from app.services.career_target import SOURCE_SENIORITY, is_canonical_direction
 
     target = {
-        "role_title": profile.get("target_role_title") or "",
+        "role_title": _key_title(profile),
         "seniority": profile.get("target_seniority") or "any",
-        "location": profile.get("target_location") or "",
+        "location": _key_location(profile),
     }
     has_target = is_canonical_direction(profile)
     if not baseline:
@@ -1103,11 +1136,7 @@ def _current_result(
         # are both required before Market. If a target was saved without a claim
         # (legacy / race), keep them on Direction until the name is claimed.
         payload = _awaiting_target_payload(db, user_id, profile, baseline)
-        has_partial = bool(
-            profile.get("target_roles")
-            or profile.get("target_role_titles")
-            or profile.get("target_role_title")
-        )
+        has_partial = direction.of(profile).is_set
         if has_partial:
             families_repo = RoleFamiliesRepository(db)
             chosen_keys = [

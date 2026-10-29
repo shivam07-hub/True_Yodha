@@ -393,6 +393,22 @@ row.
   future native clients. Canonical applications and feedback events remain the
   source of truth.
 
+## Listing Liveness
+
+**Whether a listing is still up, in three states — `live · uncertain · down` — read from two columns, `jobs.is_active` (lifecycle) and `jobs.listing_confidence` (Listing Confidence).** One definition per layer, and every reader asks it rather than spelling the columns:
+
+- **live** — `is_active IS TRUE AND listing_confidence = 'active'`. The only listings a person is shown or counted: feeds, company pages, public counts, Tier-0 snapshots, and the `jobs` RLS read policy.
+- **down** — `is_active IS FALSE` or `listing_confidence IN ('closed', 'likely_closed')`. Not an entry (Collection Record), not admitted to a ranking.
+- **uncertain** — everything else. New listings land here (`listing_confidence` defaults to `uncertain`) until the verifier confirms them.
+
+**Avoid:** spelling `listing_confidence = 'active'` or `is_active` at a call site; reading a missing column as a state. A row that did not select both columns is a caller bug, never `live` (fail-open) or `down`.
+
+**Not liveness:** "did new rows land?" (`count_new_jobs_since`, the scrape sweep) is an ingestion question and reads `is_active` alone, on purpose.
+
+**Where it lives (built 2026-10-27).** Python: `app/services/listing_liveness.py` — `liveness`, `is_live`, `is_down`, and `live_only(query)` for PostgREST reads. SQL: `public.listing_is_live(jobs)`, called by every function that reads the rule and by the `jobs public read` RLS policy. Partial indexes cannot call a whole-row function, so they spell `SQL_PREDICATE` — always `is_active IS TRUE`: Postgres cannot prove that from a bare `is_active` or the reverse, and one mismatched index sent the candidate-pool read to a seq scan. `tests/test_listing_liveness.py` fails the build if Python outside the module, or a migration after `20261027120000`, spells the rule again.
+
+**Measured 2026-10-27, before the build:** the live rule was spelled in 15 SQL functions, the RLS policy, 12 partial indexes and 6 Python sites; down in 3 Python sites that split on `likely_closed`; `refresh_sector_panel` dropped `is_active`; `listing_trust` failed open on a missing column. Zero rows disagreed — the copies had not yet drifted on data. Built in full anyway (Shivam, 2026-10-27): the next change to "live" must land in one place. After the swap every hot read returned the same rows at the same speed (the function inlines; the RLS filter shows the spelled-out expression, not a call).
+
 ## Company Demand Pulse
 
 The public, per-company hiring index: live role count, weekly inflow, freshness,
@@ -420,29 +436,6 @@ the compare strip as a live jobs query.
   success. Stale is stamped by `refreshed_at`, not by a per-request scan.
 - Formula (`compute_pulse`, sparkline) lives in one Python module. SQL only
   aggregates the raw inputs: live count, weekly inflow, the inflow series.
-
-## Scoped Skill Demand
-
-The count of **active jobs in the user's location scope whose skill set includes skill S**. The unit behind the market rail's "Skill-demand movers" — each mover badge is this number, and clicking a mover filters the triage feed by the same skill.
-
-**Why this exists**
-
-A mover badge is a promise: click "↑1190" and you must land on ~1190 roles (the LinkedIn/Inshorts contract — *the number on a chip is what you get*). Before this concept existed, the badge counted one thing (every `job_skills` row for S, globally, active + inactive, all locations) and the click did another (a free-text search of `job_title`/`company_name` for the skill name, which almost never matches) — so "↑1190" routinely landed on an empty feed.
-
-**The single predicate**
-
-`is_active = true AND <location scope> AND S ∈ main_skills`. Defined once, read by both halves of the seam:
-
-- **Count half** — `JobsRepository.scoped_skill_demand_counts(skill_displays, location_prefs)`: one indexed head-count per skill. Powers the rail badge (`UserSkillDemandItem.scoped_job_count`, populated only when `/jobs/my-skills/demand?location_scoped=true`).
-- **Filter half** — the rail's skill chip, applied to the /market list in the browser (`applyViewFilters`). It was `feed_jobs(skill=…)`, a server facet, until the list became finite: narrowing forty cards the client already holds needs no round trip.
-
-Because both read the same predicate, the badge equals the corpus the list was drawn from — but the list is a chosen forty, so a chip's badge can exceed the cards it reveals. That is the honest reading of "this skill is in demand" next to "these are your best matches for it".
-
-**Boundary**
-
-- Distinct from market-wide demand (`job_count_30d` / `weighted_demand` from `build_user_skill_demand`), which is the **unscoped** signal the Skills page, landing chips, Forge, peek, and newsletter read. Scoped Skill Demand never replaces it; it is the location-aware count for the click-through rail only.
-- `location_scoped` is opt-in on the demand endpoint so unscoped callers pay nothing.
-- The skill facet matches the canonical skill name against `main_skills` (the back-compat mirror of `job_skills`), case-sensitive on the array-contains; canonical Lightcast names are stored on both sides, so this aligns.
 
 ## Taxonomy Read-Model
 
@@ -529,6 +522,18 @@ front of an employer. The rule lives in exactly one function,
 Every surface shows ONE level per skill plus its Evidence badge, never two
 numbers. "Cold Calling · L3 proven" is the shape; "L3 proven · L1 on your CV" is
 banned.
+
+**A skill read off the CV is on the CV, quoted line or not (Shivam,
+2026-10-27).** 6,711 of 6,730 CV skills carry an `evidence_text` line; the other
+19 are a parser gap, not missing evidence. The line is shown when there is one.
+Career Path once ran its own rule — on the CV only with a quoted line, and then
+the CV level even when practice proved higher — and disagreed with Role Standing
+for 16 people; it reads `level_of` like every other surface. The level's name
+(Scout … Legend) is derived from the level when it is read, never stored:
+`user_skills.proficiency_title` had drifted on 16 rows and never once held
+"Legend". It, `mirror_scores.skill_scores` (`{}` on all 467 rows, read by
+nothing) and the three singular direction columns are approved to be dropped
+once their readers have moved and a week shows no reads (BACKLOG).
 
 **Role Standing** is where a user stands against the core skills of their target
 roles: `cleared / total`, a COUNT and never a percentage. `total` is the twelve
@@ -626,6 +631,28 @@ The order for sending one job, locked in ADR-0026. The CV is a reflection of tha
 - JD phrasing stays on that job's document. A fact about the person also lands on the master.
 - Apply carries that job's CV onto the company form. The company's first screen can still be their sign-in. Once that session is in the browser, the extension on desktop Chrome walks every screen it can fill, clicks Next, and stops before Submit. The click left is Submit. On a phone there is no extension, so Apply opens the company page and "Did you submit?" stays until the person confirms. That question is the receipt. The company's application-status URL is saved on the application. The extension does not read that page.
 - Then two notes from their own connections export: someone they have written to, then the person whose seat is the motion. They send.
+
+---
+
+## Application Yes
+
+**The person's own statement that they sent this job's application.** It is `job_applications.applied_at` and nothing else. The north star counts it (DECISIONS APPLY1, amended 2026-10-27). **Stage** (`status`) is a separate question — where the application is now — and never answers whether it was sent.
+
+**Avoid:** reading `status = 'applied'` as "has applied", a stage set (`applied/interviewing/…`) as "has applied", a `core_loop_events` row or a `cv_application_attempts` row as the Yes. Those are the stage, the door log and the frozen CV — each true, none the Yes.
+
+**Rules (Shivam, 2026-10-27)**
+
+- **Sent stays sent.** A Yes survives the stage moving on to `interviewing`, `ghosted`, `rejected` or `offer`.
+- **A sent stage implies the Yes.** Moving a job from `saved` straight to any sent stage writes the Yes at that moment.
+- **Back to `saved` withdraws it.** The person is saying they did not send it: `applied_at` is cleared. The door log and the frozen CV stay as history; a later Yes freezes a fresh CV.
+- **Applied elsewhere counts.** A job added as already applied is a Yes with door `logged`. The judge's 3.5 bar still decides whether it is qualified.
+- **Every Yes names its door** — `logged`, `hosted`, `filing_receipt`, or the tracker surface the answer came from.
+
+**One writer: `app/services/application_yes.py`.** It records a Yes and does everything a first Yes entails: stamp `applied_at`, answer open apply intents, freeze the CV of record, open the judge, write the door. `move` is the person setting a stage (`PUT /jobs/applications/{id}` — the tracker and "Did you submit?"); `say_yes` is a door that knows only that it was sent (filing receipt, hosted Apply here, a job logged as applied) and never moves the stage back. The same module withdraws. `SENT_STAGES` lives there and nowhere else.
+
+**Readers ask one of two questions.** "Has this person sent it?" (north star in `loop_reach.py`, golden digest) reads the Yes. "Where is it now?" (prep ladder, CV workspace, public profile, Collections' stage partition) reads the stage. Since 2026-10-27 the one writer keeps a stage past `saved` and a Yes equal on every write; rows written before can differ (13, all Myro's own accounts).
+
+**A Yes the judge never rated is not a verdict.** `forward_pass.judge_unrated_yeses` queues it for the judge when its owner next opens any authed page, once a day, skipping a settled Model Outcome and a deleted listing. Never a sweep. On 2026-10-27: 7 real Yeses, 2 qualified, 4 unrated (1 of them on a deleted listing, which can never be rated).
 
 ---
 
@@ -1063,7 +1090,9 @@ Migration `20260804_target_updated_at.sql` wrote the contract down and `04ef9f3b
 
 The single read for "what Myro knows about what this user wants" — one module (`app/services/matching/targeting.py`) assembles the confirmed `user_profiles` targeting columns AND the `user_memory` fact store (authored + distilled) so no consumer re-assembles its own subset.
 
-**CareerTargetSnapshot is the unit of truth for a direction change** (`career_target_snapshots`, current row = `superseded_at IS NULL`). `targeting_write.commit` is the only writer for role, family, seniority, locations, freshness, and the compatibility projection. The snapshot row itself is written by one database function, `record_career_target` (service role only, one transaction: supersede + insert, no-op when the current row already names the direction), called from `career_target.record_from_profile(user_id, profile)`, which holds its own service-role client — owners may read snapshots, no user token may write them. Score, skill path, and personalized matches read `GET /career-skill-path` (or a narrow projection of it). `user_profiles.target_roles` remains the matcher scoping key until every consumer reads the snapshot. Legacy `any` seniority is compatibility data only — never coerced to `entry`. Job-card seniority is Firecrawl `jobs.seniority_level` only.
+**The profile holds the current direction; the snapshot is its history** (decided 2026-10-27, replacing "the snapshot is the unit of truth… until every consumer reads the snapshot" — no consumer had moved, and every match ran on the profile). `targeting_write.commit` is the only writer for role, family, seniority, locations, freshness, and the `career_target_snapshots` row (current = `superseded_at IS NULL`). The snapshot row is written by one database function, `record_career_target` (service role only, one transaction: supersede + insert, no-op when the current row already names the direction), called from `career_target.record_from_profile(user_id, profile)`, which holds its own service-role client — owners may read snapshots, no user token may write them. Readers ask `services/direction.py` (roles) and one location reader, never the columns; the singular `target_location`, `target_location_country` and `target_role_title` are synced copies the writer keeps, no reader falls back to them, and they are approved to be dropped once their primary readers move (Shivam, 2026-10-27; BACKLOG). Legacy `any` seniority is compatibility data only — never coerced to `entry`. Job-card seniority is Firecrawl `jobs.seniority_level` only.
+
+**A direction is a role and a level (Shivam, 2026-10-27).** A role with no level (31 with none, 10 with `any` on 2026-10-27, all set before September) still runs matches, and has no snapshot. When that person next opens Career Path they see their role and are asked only the level — never sent back to pick a role they already chose. The answer goes through `commit`, which mints the snapshot. "Has a career target" in `loop_reach.py` therefore counts snapshots: role and level.
 
 **Two constructors, two halves**
 
@@ -1303,7 +1332,7 @@ prepare.
   a save, so every job they went to apply to from Myro is there; the corpus is
   never scanned on a popup open.
 - **Every Yes names its door.** `PUT /jobs/applications/{id}` takes `surface`;
-  the first move to `applied` writes the `applied` core-loop step with it,
+  the first Yes (Application Yes) writes the `applied` core-loop step with it,
   server-side only (a client cannot send that step). The return-to-tab prompt
   beacons `apply_asked` once per click when it actually renders. Together with
   `job_apply_intents` (click, `answered_at`) that is the Apply funnel —

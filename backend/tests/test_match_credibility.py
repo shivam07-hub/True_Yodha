@@ -17,10 +17,11 @@ from app.services.match_credibility import (
 # A profile with the context-hash inputs the gate needs to be able to promote.
 _PROFILE = {
     "baseline_version_id": 7,
-    "target_role_title": "Software Engineer",
+    # The lists — the source. The singular columns are synced copies no reader takes.
+    "target_role_titles": ["Software Engineer"],
     "target_seniority": "senior",
-    "target_location": "gurugram",
-    "target_location_country": "india",
+    "target_locations": ["gurugram"],
+    "target_location_countries": ["india"],
 }
 
 
@@ -102,7 +103,7 @@ def test_seniority_from_missing_source_field_is_unknown() -> None:
 #     exactly ONE had an `is_recommended` row.
 
 def test_f5_missing_role_title_still_scopes_and_still_promotes() -> None:
-    profile = {**_PROFILE, "target_role_title": ""}
+    profile = {**_PROFILE, "target_role_titles": []}
     cred = evaluate_credibility(profile, _job(), 4.2, "Apply")
     assert cred.context_hash is not None, "a blank direction is still a direction"
     assert cred.credible is True
@@ -110,7 +111,7 @@ def test_f5_missing_role_title_still_scopes_and_still_promotes() -> None:
 
 def test_f5_hash_is_stable_for_the_same_blank_direction() -> None:
     """Writer and reader must derive the SAME key, or the lookup finds nothing."""
-    profile = {**_PROFILE, "target_role_title": ""}
+    profile = {**_PROFILE, "target_role_titles": []}
     a = evaluate_credibility(profile, _job(), 4.2, "Apply").context_hash
     b = evaluate_credibility(profile, _job(job_id="j2"), 3.9, "Negotiate").context_hash
     assert a == b
@@ -119,7 +120,7 @@ def test_f5_hash_is_stable_for_the_same_blank_direction() -> None:
 def test_f5_direction_change_still_moves_the_key() -> None:
     base = evaluate_credibility(_PROFILE, _job(), 4.2, "Apply").context_hash
     moved = evaluate_credibility(
-        {**_PROFILE, "target_role_title": "Data Scientist"}, _job(), 4.2, "Apply"
+        {**_PROFILE, "target_role_titles": ["Data Scientist"]}, _job(), 4.2, "Apply"
     ).context_hash
     assert base != moved
 
@@ -182,7 +183,8 @@ def test_remote_named_alongside_a_city_accepts_a_remote_job():
     assert location_compatible(_multi(target_locations=["Mumbai", "Remote"]), job) is True
 
 
-def test_a_legacy_scalar_only_profile_is_unchanged():
+def test_the_singular_columns_are_never_a_location_scope():
+    """Synced copies of locations[0] and countries[0]; no row held them without
+    the lists (2026-10-27), so they scope nothing on their own."""
     profile = {"target_location": "Mumbai", "target_location_country": "India"}
-    assert location_compatible(profile, {"location_city": "Mumbai", "location_country": "India"})
-    assert not location_compatible(profile, {"location_city": "Pune", "location_country": "India"})
+    assert location_compatible(profile, {"location_city": "Pune", "location_country": "India"})

@@ -57,8 +57,10 @@ def test_every_row_carries_its_verification() -> None:
 
 
 def test_the_feed_serves_only_live_roles() -> None:
-    assert '.eq("is_active", True)' in SOURCE
-    assert '.eq("listing_confidence", "active")' in SOURCE
+    # CONTEXT → Listing Liveness: the one PostgREST live filter, and both
+    # columns selected so the trust block can tell live from not.
+    assert "live_only(" in SOURCE
+    assert "is_active, listing_confidence" in SOURCE
 
 
 def test_metering_goes_through_the_rpc_not_a_postgrest_upsert() -> None:

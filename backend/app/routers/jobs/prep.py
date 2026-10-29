@@ -18,8 +18,15 @@ from pydantic import BaseModel
 from app.deps import Principal, get_principal
 from app.repositories.cv import CVVersionsRepository, get_token_cv_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
-from app.security import redact_sensitive_text
-from app.services import jd_coverage, job_history, prep_brief as prep_brief_service, xp_policy, xp_service
+from app.security import ServiceUnavailable, redact_sensitive_text
+from app.services import (
+    jd_coverage,
+    job_history,
+    paid_run,
+    prep_brief as prep_brief_service,
+    xp_policy,
+    xp_service,
+)
 from app.services.llm_provider import LLMProvider, get_blocking_judgment_provider
 from app.services.deepening_keys import DeepeningKey
 
@@ -46,6 +53,9 @@ class PrepBriefResponse(BaseModel):
     brief: PrepBrief | None
     cost: int = xp_policy.PREP_BRIEF_XP_COST
     new_coin_balance: int | None = None
+    #: A run for this brief is working now. A client that stopped waiting on
+    #: the POST reads this until the brief lands or the run ends without one.
+    building: bool = False
 
 
 def _cached_brief(repo: JobsRepository, user_id: str, job_id: str) -> PrepBrief | None:
@@ -65,9 +75,11 @@ def get_prep_brief(
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> PrepBriefResponse:
     """Replay a purchased brief for free. The room reads this to show
-    'view brief' vs 'get · 30 coins' without charging."""
+    'view brief' vs 'get · 30 coins' without charging. `building` is one Redis
+    read: the claim a run holds."""
+    building = paid_run.in_flight(principal.id, job_id, _BRIEF_PROMPT_KEY)
     cached = _cached_brief(repo, principal.id, job_id)
-    return PrepBriefResponse(purchased=cached is not None, brief=cached)
+    return PrepBriefResponse(purchased=cached is not None, brief=cached, building=building)
 
 
 @router.post("/{job_id}/prep/brief", response_model=PrepBriefResponse)
@@ -84,9 +96,22 @@ async def create_prep_brief(
     The compose runs on the BLOCKING judgment lane (paid-strong first), NOT the
     free-first generic chain: this is a judgment-grade artifact the user paid for
     ([[feedback_no_cheap_models_judgment]]), and the free tiers' 429 storms were
-    returning None → a 503 "couldn't build the brief" on a healthy JD."""
-    user_id = principal.id
+    returning None → a 503 "couldn't build the brief" on a healthy JD.
 
+    One run per (user, job) at a time (`paid_run`): a second POST while one is
+    working gets a 409 and reads the GET instead of paying again."""
+    with paid_run.held(principal.id, job_id, _BRIEF_PROMPT_KEY, "Still writing your brief."):
+        return await _claimed_brief(job_id, principal.id, repo, cv_repo, provider)
+
+
+async def _claimed_brief(
+    job_id: str,
+    user_id: str,
+    repo: JobsRepository,
+    cv_repo: CVVersionsRepository,
+    provider: LLMProvider,
+) -> PrepBriefResponse:
+    # Read under the claim: a run that finished a moment ago has cached its brief.
     cached = _cached_brief(repo, user_id, job_id)
     if cached is not None:
         balance = await xp_service.get_xp_balance(user_id)
@@ -102,40 +127,42 @@ async def create_prep_brief(
     # Preflight funding so we never spend an LLM call the user can't pay for.
     await xp_service.assert_can_spend_xp(user_id, xp_policy.PREP_BRIEF_XP_COST, "prep_brief")
 
-    # Ground on the room's own coverage panel — cached, else computed inline
-    # (and cached for the room) so the brief and the panel can never disagree.
-    hit = jd_coverage.payload_to_result(
-        repo.get_deepening(user_id, job_id, jd_coverage.CACHE_PROMPT_KEY)
-    )
-    if hit is not None:
-        coverage_rows = hit[0].requirements
-    else:
-        # Same blocking-panel lane as the /cv/jd-coverage route — the brief must
-        # never render from a free-tier 429 blank. Stories ∪ CV bullets, like
-        # every other coverage compute site.
-        baseline = cv_repo.latest_baseline(user_id)
-        result = await jd_coverage.assess(
-            user_id, jd_text, get_blocking_judgment_provider(),
-            cv_lines=jd_coverage.evidence_lines((baseline or {}).get("cv_structured") or {}),
+    async def _write() -> dict | None:
+        # Ground on the room's own coverage panel — cached, else computed inline
+        # (and cached for the room) so the brief and the panel can never disagree.
+        hit = jd_coverage.payload_to_result(
+            repo.get_deepening(user_id, job_id, jd_coverage.CACHE_PROMPT_KEY)
         )
-        if result and result.requirements:
-            repo.upsert_deepening(
-                user_id, job_id, jd_coverage.CACHE_PROMPT_KEY,
-                jd_coverage.result_to_payload(result),
+        if hit is not None:
+            coverage_rows = hit[0].requirements
+        else:
+            # Same blocking-panel lane as the /cv/jd-coverage route — the brief
+            # must never render from a free-tier 429 blank. Stories ∪ CV bullets,
+            # like every other coverage compute site.
+            baseline = cv_repo.latest_baseline(user_id)
+            result = await jd_coverage.assess(
+                user_id, jd_text, get_blocking_judgment_provider(),
+                cv_lines=jd_coverage.evidence_lines((baseline or {}).get("cv_structured") or {}),
             )
-        coverage_rows = result.requirements if result else []
+            if result and result.requirements:
+                repo.upsert_deepening(
+                    user_id, job_id, jd_coverage.CACHE_PROMPT_KEY,
+                    jd_coverage.result_to_payload(result),
+                )
+            coverage_rows = result.requirements if result else []
 
-    brief = await prep_brief_service.build_prep_brief(
-        role=role,
-        company=company,
-        jd_text=jd_text,
-        coverage_rows=coverage_rows,
-        provider=provider,
-    )
+        return await prep_brief_service.build_prep_brief(
+            role=role,
+            company=company,
+            jd_text=jd_text,
+            coverage_rows=coverage_rows,
+            provider=provider,
+        )
+
+    brief = await paid_run.bounded(_write(), user_id, job_id, _BRIEF_PROMPT_KEY)
     if brief is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Could not build the brief right now. Try again shortly.",
+        raise ServiceUnavailable(
+            "Couldn't build the brief right now. Try again shortly — you were not charged.",
         )
 
     try:

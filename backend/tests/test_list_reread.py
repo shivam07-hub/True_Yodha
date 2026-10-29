@@ -11,9 +11,18 @@ import pytest
 from app.services import onboarding_service
 from app.services.matching import feed_warm, list_reread
 
+
+@pytest.fixture(autouse=True)
+def _no_unrated_yes_pass(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`on_profile_read` also queues unrated Yeses for the judge — its own file
+    covers it (test_forward_pass_unrated_yes.py). Here it would reach a real DB."""
+    from app.services import forward_pass as _fp
+
+    monkeypatch.setattr(_fp, "judge_unrated_yeses", lambda _uid: 0)
+
 NOW = datetime(2026, 10, 13, 12, 0, tzinfo=timezone.utc)
-_DIRECTION = {"target_role_title": "Data Analyst", "target_roles": ["Analytics"],
-              "target_seniority": "mid", "target_location": "Pune"}
+_DIRECTION = {"target_role_titles": ["Data Analyst"], "target_roles": ["Analytics"],
+              "target_seniority": "mid", "target_locations": ["Pune"]}
 
 
 def _row(**keys: Any) -> dict[str, Any]:

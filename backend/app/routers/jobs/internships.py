@@ -1,13 +1,13 @@
 import uuid
-from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 
 from app.database import get_supabase_admin
 from app.deps import Principal, get_principal, get_principal_optional
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.schemas import ApplicationResponse
 from app.schemas.jobs import HostedInternshipRequest, InternshipsResponse, JobFeedItem
+from app.services import application_yes
 from app.services.internships import (
     UnpaidInternshipError,
     dismissed_job_ids,
@@ -61,6 +61,7 @@ def post_internship(
 @router.post("/internships/{job_id}/apply", response_model=ApplicationResponse)
 def apply_hosted_internship(
     job_id: str,
+    background_tasks: BackgroundTasks,
     principal: Principal = Depends(get_principal),
     db=Depends(get_supabase_admin),
     repo: JobsRepository = Depends(get_token_jobs_repository),
@@ -68,7 +69,6 @@ def apply_hosted_internship(
     card = get_internship(db, job_id)
     if not card or card.get("listing_venue") != "myro":
         raise HTTPException(status_code=404, detail="Hosted internship not found")
-    now = datetime.now(timezone.utc).isoformat()
     repo.record_apply_intent(
         principal.id,
         job_id,
@@ -78,12 +78,12 @@ def apply_hosted_internship(
             "destination_type": "hosted_role",
         },
     )
-    repo.upsert_application(
-        principal.id,
-        job_id,
-        {"status": "applied", "source": "user_discovery", "applied_at": now},
+    # The intern apply page is the submit, so this is the Yes (CONTEXT → Application Yes).
+    application_yes.say_yes(
+        repo, background_tasks,
+        user_id=principal.id, job_id=job_id, door=application_yes.DOOR_HOSTED,
+        fields={"source": "user_discovery"},
     )
-    repo.answer_apply_intents(principal.id, job_id)
     row = repo.get_application_with_job(principal.id, job_id)
     if not row:
         raise HTTPException(status_code=500, detail="Application was not recorded")

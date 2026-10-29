@@ -122,10 +122,10 @@ def test_a_user_with_no_saved_city_is_scoped_to_the_whole_market():
     assert out is not None and out.met_total == 5
 
 
-def test_falls_back_to_the_single_saved_location():
+def test_an_empty_list_is_anywhere_whatever_the_singular_says():
     admin = _Admin([{"newly_met": 1, "met_total": 2, "total_asking": 3}],
                    profile={"target_locations": [], "target_location": "Pune"})
 
     roles_cleared(admin, "u1", 7, from_level=0, to_level=1)
 
-    assert admin.rpc_params["p_cities"] == ["Pune"]
+    assert not admin.rpc_params["p_cities"]

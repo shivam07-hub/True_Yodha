@@ -50,6 +50,10 @@ class _FakeQuery:
         self._in_filters.append((key, values))
         return self
 
+    def is_(self, key: str, value: str) -> "_FakeQuery":
+        self._eq_filters.append((key, {"true": True, "false": False, "null": None}[value]))
+        return self
+
     def gte(self, key: str, value: Any) -> "_FakeQuery":
         self._gte_filters.append((key, value))
         return self

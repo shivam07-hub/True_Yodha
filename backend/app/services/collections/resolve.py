@@ -16,6 +16,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Iterable
 
+from app.services.listing_liveness import is_down, liveness as listing_liveness
 from app.services.job_projection import cv_badge_from_row, to_job_match
 from app.schemas import (
     STAGE_APPLIED,
@@ -27,10 +28,6 @@ from app.schemas import (
     CollectionResponse,
     MatchEval,
 )
-
-#: `jobs.listing_confidence` values that mean the ad is gone. One definition,
-#: shared with the attention sweep's terminal `closed` level.
-LIVENESS_DOWN = frozenset({"closed", "likely_closed"})
 
 #: An apply click older than this with no answer is a question, not a fact. The
 #: user tabbed out to the ATS and never came back to the inline band; the surface
@@ -53,21 +50,6 @@ def _as_datetime(value: Any) -> datetime | None:
     except (TypeError, ValueError):
         return None
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
-
-
-def _liveness(job: dict[str, Any]) -> str:
-    """live | uncertain | down — an ATTRIBUTE of the listing, never a stage.
-
-    `is_active is False` counts as down on its own: 16 prod rows carry
-    `listing_confidence='closed'` with `is_active` still true and the inverse
-    exists too, so reading one column alone disagrees with the other surface.
-    """
-    if job.get("is_active") is False:
-        return "down"
-    confidence = str(job.get("listing_confidence") or "").lower()
-    if confidence in LIVENESS_DOWN:
-        return "down"
-    return "live" if confidence == "active" else "uncertain"
 
 
 def _stage(*, has_application: bool, applied: bool, tailored: bool) -> str:
@@ -150,7 +132,7 @@ def resolve_collection(
         seen.add(job_id)
         source_row = match_row if match_row is not None else _synth_match_row(app_row or {})
         job = source_row.get("jobs") or {}
-        if not job or _liveness(job) == "down":
+        if not job or is_down(job):
             return
         tailored_head = tailored_by_job.get(job_id)
         applied = bool(app_row) and str(app_row.get("status") or "saved") != "saved"
@@ -159,7 +141,7 @@ def resolve_collection(
             applied=applied,
             tailored=tailored_head is not None,
         )
-        liveness = _liveness(job)
+        liveness = listing_liveness(job)
         pending_apply = job_id in pending_intent_job_ids and not applied
         entries.append(
             CollectionEntry(

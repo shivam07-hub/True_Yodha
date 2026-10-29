@@ -39,6 +39,7 @@ from app.services.job_path.llm_polish import _call_ai_polish
 from app.services.cv_role_guard import drop_invented
 from app.services.llm_provider import get_writer_provider
 from app.routers.cv.structured import CVStructuredResponse
+from app.security import ServiceUnavailable
 
 
 def _master_structured(
@@ -528,10 +529,7 @@ async def polish_cv_version(
         provider=get_writer_provider(),
     )
     if not polished_text:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI polish unavailable right now. Please try again in a minute.",
-        )
+        raise ServiceUnavailable("AI polish unavailable right now. Please try again in a minute.")
 
     next_n = cv_repo.next_user_version_number(user_id)
     structured = drop_invented(

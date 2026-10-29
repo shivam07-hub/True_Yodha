@@ -42,16 +42,10 @@ def _inventory_and_freshness(repo: JobsRepository, user_id: str):
 
 @router.get("/my-skills/demand", response_model=UserSkillDemandResponse)
 def get_my_skill_demand(
-    location_scoped: bool = False,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> UserSkillDemandResponse:
-    # location_scoped=true → the market rail wants each mover's badge to promise
-    # the location-scoped feed it links to (Scoped Skill Demand). Default false
-    # keeps the market-wide signal for Forge / practice / peek / landing.
-    items = jobs_workflow.build_user_skill_demand(
-        repo, principal.id, location_scoped=location_scoped
-    )
+    items = jobs_workflow.build_user_skill_demand(repo, principal.id)
     return UserSkillDemandResponse(skills=items, total=len(items))
 
 

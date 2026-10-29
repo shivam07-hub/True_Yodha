@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.services.job_intelligence_policy import (
-    is_recommendable_listing,
-    validate_feedback,
-)
+from app.services.job_intelligence_policy import validate_feedback
+from app.services.listing_liveness import is_live
 
 
 @pytest.mark.parametrize(
@@ -22,7 +20,7 @@ from app.services.job_intelligence_policy import (
 def test_only_explicitly_active_listings_are_recommendable(
     row: dict[str, object], expected: bool
 ) -> None:
-    assert is_recommendable_listing(row) is expected
+    assert is_live(row) is expected
 
 
 def test_apply_transport_positive_signal_is_valid_quality_feedback() -> None:

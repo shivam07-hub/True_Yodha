@@ -37,6 +37,10 @@ class DirectionOut(BaseModel):
     is_runnable: bool = False
     #: What a search can honestly promise: targeted · skills_only · none.
     scope_mode: str = "none"
+    #: One of the six bands, or None — legacy `any` is not a level.
+    level: str | None = None
+    #: What a direction still needs: role · level · None (CONTEXT → Targeting Brief).
+    missing: Literal["role", "level"] | None = None
 
 
 class UserProfileResponse(BaseModel):
@@ -46,12 +50,10 @@ class UserProfileResponse(BaseModel):
     full_name: str | None
     linkedin_url: str | None
     target_roles: list[str]
-    target_role_title: str | None = None
     target_role_titles: list[str] = []
     target_seniority: str | None = None
     target_career_band: CareerBand | None = None
     explored_career_bands: list[CareerBand] = []
-    target_location: str | None
     target_locations: list[str] = []
     deal_breakers: list[str] = []
     career_goal: str | None = None
@@ -91,11 +93,9 @@ class UpdateProfileRequest(BaseModel):
     full_name: str | None = None
     linkedin_url: str | None = None
     target_roles: list[str] | None = None
-    target_role_title: str | None = None
     target_role_titles: list[str] | None = None
     target_seniority: str | None = None
     explored_career_bands: list[CareerBand] | None = None
-    target_location: str | None = None
     target_locations: list[str] | None = None
     deal_breakers: list[str] | None = None
     # The other half of the direction axis. It has no column — leans live as

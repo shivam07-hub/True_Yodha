@@ -21,9 +21,8 @@ from dataclasses import asdict
 from datetime import date
 from typing import Any
 
-from fastapi import HTTPException, status
-
 from app.config import settings
+from app.security import ServiceUnavailable
 from app.services.job_refresh import _pipeline, _xp_charge
 from app.services.job_refresh import _failure
 from app.services.job_refresh.types import (
@@ -408,7 +407,7 @@ async def _refuse_without_runner(user_id: str, xp_charged: int) -> None:
     """Refund (if charged) and raise. Does not write a ticket — nothing started."""
     _log.critical("No active job-refresh worker; refusing rather than inlining")
     await _xp_charge.refund(user_id, xp_charged)
-    raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=SEARCH_UNAVAILABLE)
+    raise ServiceUnavailable(SEARCH_UNAVAILABLE)
 
 
 def _cancel_queued_job(user_id: str, ticket_id: str) -> None:

@@ -14,6 +14,7 @@ from app.repositories.connections import get_token_connections_repository
 from app.repositories.job_filing import get_job_filing_repository
 from app.repositories.jobs import get_token_jobs_repository
 from app.routers.jobs import filing as filing_router
+from app.services import application_yes
 from app.services.apply_filing import FilingFacts
 
 
@@ -161,12 +162,12 @@ def _bind(
 
 def test_a_company_page_receipt_marks_the_job_applied(monkeypatch) -> None:
     recorded: list[str] = []
-    monkeypatch.setattr(filing_router.cv_of_record, "record_on_apply", lambda *_a, **_k: recorded.append("cv"))
-    monkeypatch.setattr(filing_router.on_demand, "open_job_eval", lambda *_a, **_k: recorded.append("eval"))
+    monkeypatch.setattr(application_yes.cv_of_record, "record_on_apply", lambda *_a, **_k: recorded.append("cv"))
+    monkeypatch.setattr(application_yes.on_demand, "open_job_eval", lambda *_a, **_k: recorded.append("eval"))
     monkeypatch.setattr(
-        filing_router.core_loop,
+        application_yes.core_loop,
         "record_step",
-        lambda *_a, **_k: recorded.append("step"),
+        lambda *a, **_k: recorded.append(("step", a[3])),
     )
     repo = _FilingRepo(FilingFacts(listing=_live(), judge_score=4.0, tailored_cv_id=9))
     jobs = _Jobs()
@@ -185,8 +186,9 @@ def test_a_company_page_receipt_marks_the_job_applied(monkeypatch) -> None:
         assert jobs.updates[0]["status"] == "applied"
         assert jobs.answered == ["job-1"]
         assert repo.receipts
+        assert jobs.updates[0]["applied_at"] is not None
         assert "cv" in recorded
-        assert "step" in recorded
+        assert ("step", "filing_receipt") in recorded
     finally:
         app.dependency_overrides.clear()
 

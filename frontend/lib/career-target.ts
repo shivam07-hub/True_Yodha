@@ -14,3 +14,10 @@ export const MAX_TARGET_LOCATIONS = 5
 /** How many kinds of work a person may target. Wide on purpose — retrieval ORs
  *  across them into one ranked list, so the cap only bounds the array. */
 export const MAX_TARGET_ROLES = 20
+
+/** The first place a person is searching, or "". The list is the source;
+ *  `target_location` was its synced copy and is approved to be dropped. */
+export function primaryLocation(profile: { target_locations?: string[] | null } | null | undefined): string {
+  const first = (profile?.target_locations ?? []).find((place) => place.trim())
+  return first ? first.trim() : ""
+}

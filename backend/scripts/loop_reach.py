@@ -47,7 +47,9 @@ STEPS: list[tuple[str, str, str | None, dict[str, Any]]] = [
     ("has job matches", "user_job_matches", "user_id", {}),
     ("collected a role", "job_applications", "user_id", {}),
     ("tailored a CV for a job", "cv_versions", "user_id", {"job_id": "__not_null__"}),
-    ("applied", "job_applications", "user_id", {"status": "applied"}),
+    # The person's own Yes (CONTEXT → Application Yes). Not the stage: a Yes
+    # stays sent when the stage moves on to interviewing (APPLY1, 2026-10-27).
+    ("applied", "job_applications", "user_id", {"applied_at": "__not_null__"}),
     # The Apply step, by fact (2026-10-13 grill). Click → asked → answered →
     # applied-with-a-door. `apply_asked` and `applied` are core_loop_events
     # steps (migration 20261013120000); before that the 0 answers from 21
@@ -161,6 +163,39 @@ def _tailored_qualified_applyouts(db: Any, excluded: frozenset[str]) -> tuple[in
     return len({u for u, _ in hits}), len(hits)
 
 
+def _qualified_yeses(db: Any, excluded: frozenset[str]) -> tuple[int, int, int]:
+    """THE north star: (people, applications) where the person's own Yes is on a
+    job the judge rated >= 3.5 for THEM — plus how many Yeses are not rated yet.
+    An unrated Yes is not a verdict; the forward pass rates it when they return.
+    """
+    yeses = {
+        (str(r["user_id"]), str(r["job_id"]))
+        for r in (
+            db.table("job_applications").select("user_id, job_id")
+            .not_.is_("applied_at", "null").execute().data or []
+        )
+        if str(r.get("user_id")) not in excluded
+    }
+    if not yeses:
+        return 0, 0, 0
+    scores = {
+        (str(r["user_id"]), str(r["job_id"])): r.get("overall_score")
+        for r in (
+            # Both keys narrowed: a shared listing carries every matched user's
+            # row, and an unnarrowed read would meet the 1000-row ceiling.
+            db.table("user_job_matches").select("user_id, job_id, overall_score")
+            .in_("user_id", sorted({user for user, _ in yeses}))
+            .in_("job_id", sorted({job for _, job in yeses})).execute().data or []
+        )
+    }
+    qualified = [
+        pair for pair in yeses
+        if scores.get(pair) is not None and float(scores[pair]) >= QUALIFIED_SCORE
+    ]
+    unrated = sum(1 for pair in yeses if scores.get(pair) is None)
+    return len({user for user, _ in qualified}), len(qualified), unrated
+
+
 def main() -> int:
     from app.database import get_supabase_admin
     from app.services import test_accounts
@@ -198,11 +233,15 @@ def main() -> int:
         print(f"  {label:<22} {n:>6}{pct}")
         prev = n
 
+    people, sent, unrated = _qualified_yeses(db, excluded)
+    print(
+        f"\nNORTH STAR — qualified applications sent (their Yes, on a job rated >= {QUALIFIED_SCORE}):"
+        f"\n  {people} people, {sent} applications ({unrated} Yeses not rated yet)"
+    )
     people, clicks = _tailored_qualified_applyouts(db, excluded)
     print(
         f"\nLEADING NUMBER — Apply clicks with a tailored CV on a job rated >= {QUALIFIED_SCORE}:"
         f"\n  {people} people, {clicks} clicks"
-        f"\n  (north star = their own Yes: 'applied' above)"
     )
 
     print(

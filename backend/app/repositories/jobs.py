@@ -21,7 +21,7 @@ from app.services import job_importer, shared_cache, skill_floor
 from app.services.background import debounce
 from app.services.industry_grouping import normalize_industry_group
 from app.services.job_history import attach_jobs
-from app.services.job_intelligence_policy import is_recommendable_listing
+from app.services.listing_liveness import is_down, is_live, live_only
 from app.services.internships import hosted_fields
 from app.services.listing_time import CARD_COLUMNS, HOSTED_COLUMNS, SEED_COLUMN, day, marker, verdict as listing_time
 from app.services.xp_policy import UPSKILLING_SET_SIZE
@@ -33,8 +33,9 @@ from app.services.job_eligibility import (
     target_seniority_for_profile,
 )
 from app.services.location_normalizer import normalize_location
-from app.services.location_vocab import canonical_city, metro_cities, state_of
-from app.services.scoring import _PROFICIENCY_TITLES
+from app.services.scoring import level_name
+from app.services.skill_state import level_of
+from app.services import direction
 
 _log = logging.getLogger("app.repositories.jobs")
 
@@ -90,10 +91,6 @@ _FEED_TS_STALE = 60 * 60  # serve the last known marker for an hour rather than 
 _USER_SKILL_KEYS_TTL = 5 * 60  # 5 minutes — CV skills change only on edit/re-upload
 _user_skill_keys_cache = shared_cache.SharedTTLMapping(
     "jobs.user_skill_keys", ttl_seconds=_USER_SKILL_KEYS_TTL
-)
-_USER_TARGET_LOCATIONS_TTL = 5 * 60  # 5 minutes — prefs change only via Settings
-_user_target_locations_cache = shared_cache.SharedTTLMapping(
-    "jobs.user_target_locations", ttl_seconds=_USER_TARGET_LOCATIONS_TTL
 )
 
 _COMPANY_SEARCH_RPC = "search_job_companies"
@@ -151,11 +148,6 @@ _JOB_QUERY_GENERIC_WORDS = frozenset(
         "roles",
     }
 )
-
-
-def clear_user_target_locations_cache(user_id: str) -> None:
-    """Invalidate the per-user geo preference cache after a profile write."""
-    _user_target_locations_cache.pop(user_id, None)
 
 
 _GLOBAL_SEARCH_STOPWORDS = frozenset(
@@ -511,92 +503,6 @@ def _matches_location_filters(
     if mode_filter and (mode or "").lower() != mode_filter.lower():
         return False
     return True
-
-
-def _safe_location_token(value: str) -> str | None:
-    """A location value usable inside a PostgREST or() clause.
-
-    or() splits on commas/parens, so any value carrying them is dropped rather
-    than risk a malformed query (mirrors the feed search-term sanitize).
-    """
-    token = (value or "").strip()
-    if not token or "," in token or "(" in token or ")" in token:
-        return None
-    return token
-
-
-def build_location_scope(prefs: list[str] | None) -> tuple[str | None, tuple[str, ...]]:
-    """OR-across-chips location scope for the personal /market feed.
-
-    Each freeform pref label is parsed by normalize_location into a chip. A job
-    matches if it matches ANY chip:
-      - city chip (city resolved): location_city == city OR city ∈ locations[];
-        a metro chip covers its member cities (CEO Q6: Delhi NCR = Delhi,
-        Gurugram, Noida)
-      - a job with no city whose states include the chip city's state (CEO Q2)
-      - a job with no city and no state in the chip's country (CEO Q1)
-      - country-only chip ("India (All)"): location_country == country
-    Plus: whenever a scope is active, null-country remote/hybrid jobs are
-    included (mirrors the match-pipeline include rule). Remote jobs with no
-    city stay out of city chips, as before.
-
-    The same rules as `match_credibility.location_compatible`, so the feed and
-    admission cannot answer "can I see this job" differently.
-
-    Returns (postgrest_or_clause, signature). The clause is None when prefs are
-    empty or yield no usable chip → no scope (show all). The signature is a
-    stable tuple folded into the feed cache keys.
-    """
-    if not prefs:
-        return None, ()
-    terms: list[str] = []
-    sig: list[str] = []
-    seen_city: set[str] = set()
-    seen_state: set[str] = set()
-    seen_country: set[str] = set()
-    no_city_countries: set[str] = set()
-    for label in prefs:
-        chip = normalize_location(label)
-        city = _safe_location_token(chip.location_city or "")
-        country = _safe_location_token(chip.location_country or "")
-        if city:
-            # City chip → precise match (scalar or locations[]). A repeat is a
-            # no-op; it must NOT fall through to a broad country-wide term.
-            members = [
-                _safe_location_token(canonical_city(member) or member)
-                for member in metro_cities(city)
-            ] or [city]
-            for member in members:
-                if member and member.lower() not in seen_city:
-                    seen_city.add(member.lower())
-                    terms.append(f"location_city.eq.{member}")
-                    terms.append(f"locations.cs.{{{member}}}")
-                    sig.append(f"city:{member.lower()}")
-            state = _safe_location_token(state_of(city) or "")
-            if state and state.lower() not in seen_state:
-                seen_state.add(state.lower())
-                terms.append(
-                    f"and(location_city.is.null,location_mode.neq.remote,location_states.cs.{{{state}}})"
-                )
-                sig.append(f"state:{state.lower()}")
-            no_city_country = country or ("India" if state else None)
-            if no_city_country:
-                no_city_countries.add(no_city_country)
-        elif country and country.lower() not in seen_country:
-            seen_country.add(country.lower())
-            terms.append(f"location_country.eq.{country}")
-            sig.append(f"country:{country.lower()}")
-    for country in sorted(no_city_countries):
-        if country.lower() in seen_country:
-            continue  # the country chip already admits every job there
-        terms.append(
-            f"and(location_city.is.null,location_mode.neq.remote,location_states.eq.{{}},location_country.eq.{country})"
-        )
-        sig.append(f"no_city:{country.lower()}")
-    if not terms:
-        return None, ()
-    terms.append("and(location_country.is.null,location_mode.in.(remote,hybrid))")
-    return ",".join(terms), tuple(sig)
 
 
 class MarketAnalyticsCompiler:
@@ -1405,7 +1311,7 @@ class JobsRepository:
         if cached is not None and (now - cached[0]) < _SEARCH_TTL:
             return list(cached[1]["rows"])
         try:
-            query = (
+            query = live_only(
                 self._admin_db
                 .table("jobs")
                 .select(
@@ -1414,8 +1320,6 @@ class JobsRepository:
                     "date_posted, first_seen"
                 )
                 .eq("company_name", company_name)
-                .eq("is_active", True)
-                .eq("listing_confidence", "active")
             )
             if country:
                 query = query.eq("location_country", country)
@@ -1461,7 +1365,7 @@ class JobsRepository:
             kind, value = "industry", _norm_filter(industry)
         else:
             # Canonicalize the freeform city label the same way the feed/movers do
-            # (build_location_scope → normalize_location). The user's saved label
+            # (normalize_location). The user's saved label
             # ("Bangalore") must hit the canonical DB city ("Bengaluru") or this
             # exact-match eq returns 0 and trending silently empties.
             raw_city = _norm_filter(city)
@@ -2012,11 +1916,11 @@ class JobsRepository:
             return []
         job_ids = [r["job_id"] for r in pick_rows]
         job_rows = (
-            self._db.table("jobs")
-            .select(self._AGENT_PICK_JOB_COLUMNS)
-            .in_("job_id", job_ids)
-            .eq("is_active", True)
-            .eq("listing_confidence", "active")
+            live_only(
+                self._db.table("jobs")
+                .select(self._AGENT_PICK_JOB_COLUMNS)
+                .in_("job_id", job_ids)
+            )
             .execute()
             .data
             or []
@@ -2052,7 +1956,7 @@ class JobsRepository:
         payload: list[dict[str, Any]] = []
         for position, row in enumerate(rows, start=1):
             job = row.get("jobs") or row
-            if not is_recommendable_listing(job):
+            if not is_live(job):
                 continue
             job_id = str(row.get("job_id") or job.get("job_id") or "")
             if not job_id:
@@ -2219,55 +2123,22 @@ class JobsRepository:
             if row.get("job_id")
         }
 
-    def user_target_locations(self, user_id: str) -> list[str]:
-        """The user's saved multi-location preference (freeform labels).
-
-        Falls back to the legacy single `target_location` for rows not yet
-        backfilled. Cached per user on a short TTL — every feed page needs it but
-        prefs only change via Settings.
-        """
-        now = time.monotonic()
-        cached = _user_target_locations_cache.get(user_id)
-        if cached is not None and (now - cached[0]) < _USER_TARGET_LOCATIONS_TTL:
-            return cached[1]
-        data = safe_read(
-            self._db.table("user_profiles")
-            .select("target_locations, target_location")
-            .eq("id", user_id)
-            .maybe_single(),
-            default=None,
-            context="user_target_locations",
-        ) or {}
-        locations = [loc for loc in (data.get("target_locations") or []) if loc and loc.strip()]
-        if not locations and data.get("target_location"):
-            locations = [data["target_location"]]
-        _user_target_locations_cache[user_id] = (now, locations)
-        return locations
-
     def user_target_location_countries(self, user_id: str) -> list[str]:
         result = (
             self._db.table("user_profiles")
-            .select("target_location_countries, target_location_country")
+            .select("target_location_countries")
             .eq("id", user_id)
             .maybe_single()
             .execute()
         )
-        data = (result.data if result else None) or {}
-        countries = [
-            str(value).strip()
-            for value in (data.get("target_location_countries") or [])
-            if str(value).strip()
-        ]
-        if not countries and data.get("target_location_country"):
-            countries = [str(data["target_location_country"]).strip()]
-        return list(dict.fromkeys(countries))
+        return direction.countries((result.data if result else None) or {})
 
     # ── user skills / demand ───────────────────────────────────────────────────
 
     def get_user_skills_with_taxonomy(self, user_id: str) -> list[dict[str, Any]]:
         result = (
             self._db.table("user_skills")
-            .select("matched_level, proficiency_title, skills(taxonomy_key, display_name)")
+            .select("matched_level, skills(taxonomy_key, display_name)")
             .eq("user_id", user_id)
             .execute()
         )
@@ -2297,10 +2168,7 @@ class JobsRepository:
         """
         rows = (
             self._db.table("user_skills")
-            .select(
-                "matched_level, proficiency_title, "
-                "skills(id, taxonomy_key, display_name, practice_mode)"
-            )
+            .select("matched_level, skills(id, taxonomy_key, display_name, practice_mode)")
             .eq("user_id", user_id)
             .execute()
         ).data or []
@@ -2315,50 +2183,40 @@ class JobsRepository:
             .execute()
         ).data or []
 
-        user_skills_by_id: dict[int, dict[str, Any]] = {}
-        for row in rows:
-            skill = row.get("skills") or {}
-            if (skill.get("practice_mode") or "levelled") != "levelled":
-                continue
-            raw_skill_id = skill.get("id")
-            if raw_skill_id is None:
-                continue
-            try:
-                skill_id = int(raw_skill_id)
-            except (TypeError, ValueError):
-                continue
-            taxonomy_key = (skill.get("taxonomy_key") or "").strip()
-            if not taxonomy_key:
-                continue
-            display_name = (skill.get("display_name") or taxonomy_key).strip() or taxonomy_key
-            user_skills_by_id[skill_id] = {
-                "skill": taxonomy_key,
-                "display_name": display_name,
-                "current_level": int(row.get("matched_level") or 0),
-                "proficiency_title": row.get("proficiency_title") or "Scout",
-            }
+        # Each skill's two evidence levels, then ONE answer through `level_of`
+        # (CONTEXT → Skill Level). This was a hand copy of the rule.
+        skills_by_id: dict[int, dict[str, Any]] = {}
+        cv_levels: dict[int, int] = {}
+        proven_levels: dict[int, int] = {}
+        for source, rows_in, column in (
+            (cv_levels, rows, "matched_level"),
+            (proven_levels, assessed_rows, "assessed_level"),
+        ):
+            for row in rows_in:
+                skill = row.get("skills") or {}
+                if (skill.get("practice_mode") or "levelled") != "levelled":
+                    continue
+                try:
+                    skill_id = int(skill.get("id"))
+                    value = int(row.get(column) or 0)
+                except (TypeError, ValueError):
+                    continue
+                if not (skill.get("taxonomy_key") or "").strip():
+                    continue
+                skills_by_id[skill_id] = skill
+                source[skill_id] = value
 
-        for row in assessed_rows:
-            skill = row.get("skills") or {}
-            if (skill.get("practice_mode") or "levelled") != "levelled":
+        user_skills_by_id: dict[int, dict[str, Any]] = {}
+        for skill_id, skill in skills_by_id.items():
+            if skill_id not in cv_levels and proven_levels.get(skill_id, 0) < 1:
                 continue
-            try:
-                skill_id = int(skill.get("id"))
-                assessed_level = int(row.get("assessed_level") or 0)
-            except (TypeError, ValueError):
-                continue
-            taxonomy_key = (skill.get("taxonomy_key") or "").strip()
-            if not taxonomy_key or assessed_level < 1:
-                continue
-            display_name = (skill.get("display_name") or taxonomy_key).strip() or taxonomy_key
-            current = user_skills_by_id.get(skill_id)
-            if current and int(current["current_level"]) >= assessed_level:
-                continue
+            level, _evidence = level_of(cv_levels.get(skill_id), proven_levels.get(skill_id))
+            taxonomy_key = skill["taxonomy_key"].strip()
             user_skills_by_id[skill_id] = {
                 "skill": taxonomy_key,
-                "display_name": display_name,
-                "current_level": assessed_level,
-                "proficiency_title": _PROFICIENCY_TITLES.get(assessed_level, "Scout"),
+                "display_name": (skill.get("display_name") or taxonomy_key).strip() or taxonomy_key,
+                "current_level": level,
+                "proficiency_title": level_name(level),
             }
 
         if not user_skills_by_id:
@@ -2417,42 +2275,6 @@ class JobsRepository:
             weighted_demand[skill_id] += 2 if row.get("is_primary") else 1
             job_count[skill_id] += 1
         return job_count, weighted_demand
-
-    def scoped_skill_demand_counts(
-        self, skill_displays: list[str], *, location_prefs: list[str] | None = None
-    ) -> dict[str, int]:
-        """Scoped Skill Demand — active jobs per skill in the user's location scope.
-
-        The COUNT half of the seam, mirroring feed_jobs' skill facet exactly:
-        `is_active = true AND <location scope> AND skill ∈ main_skills`. Because
-        both read the same predicate, the market rail's mover badge equals the
-        feed it links to (modulo the draining-queue triage drop, same honesty
-        contract as any feed available_total).
-
-        One indexed head-count per skill (no rows fetched). Callers pass only the
-        handful of skills the rail will show, and cache the result.
-        """
-        scope_clause, _ = build_location_scope(location_prefs or [])
-        out: dict[str, int] = {}
-        for display in skill_displays:
-            name = (display or "").strip()
-            if not name:
-                continue
-            try:
-                query = (
-                    self._admin_db.table("jobs")
-                    .select("job_id", count="exact")
-                    .eq("is_active", True)
-                    .contains("main_skills", [name])
-                    .limit(1)
-                )
-                if scope_clause is not None:
-                    query = query.or_(scope_clause)
-                result = query.execute()
-                out[name] = result.count or 0
-            except APIError:
-                out[name] = 0
-        return out
 
     def get_all_jobs_skills(self) -> list[dict[str, Any]]:
         """Returns job skills from the FK-enforced job_skills join table."""
@@ -2582,10 +2404,7 @@ class JobsRepository:
             .in_("role_family", families)
         )
         if require_fresh:
-            query = (
-                query.eq("is_active", True)
-                .eq("listing_confidence", "active")
-            )
+            query = live_only(query)
         rows = (
             query.order("last_verified_live_at", desc=True).limit(limit).execute()
         ).data or []
@@ -2680,10 +2499,11 @@ class JobsRepository:
         if not job_ids:
             return []
         return safe_read(
-            self._db.table("jobs")
-            .select("job_id, job_title, company_name, location, job_description, apply_url")
-            .in_("job_id", job_ids)
-            .eq("is_active", True),
+            live_only(
+                self._db.table("jobs")
+                .select("job_id, job_title, company_name, location, job_description, apply_url")
+                .in_("job_id", job_ids)
+            ),
             default=[],
             context="listings_for_link",
         ) or []
@@ -3053,7 +2873,7 @@ class JobsRepository:
                 continue
             seen.add(job_id)
             job = row.get("jobs") or {}
-            if not is_recommendable_listing(job):
+            if not is_live(job):
                 continue
             _hydrate_location_fields(job)
             stack.append(row)
@@ -3267,7 +3087,7 @@ class JobsRepository:
             job = row.get("jobs") or {}
             # Same recommendability gate as the durable stack — a delisted or
             # junk listing must not become someone's first saved role.
-            if not is_recommendable_listing(job):
+            if not is_live(job):
                 continue
             seen.add(job_id)
             _hydrate_location_fields(job)
@@ -3593,12 +3413,11 @@ class JobsRepository:
             table="user_job_matches",
             columns=(
                 "job_id, overall_score, recommendation, baseline_version_id, "
-                "eval_context_hash, target_context_hash, jobs(is_active)"
+                "eval_context_hash, target_context_hash, jobs(is_active, listing_confidence)"
             ),
             query_builder=lambda q: q.eq("user_id", user_id).gte("overall_score", floor).order("id"),
         )
-        # Only an explicit False is a closed listing (`admission.admit`).
-        return [row for row in rows if (row.get("jobs") or {}).get("is_active") is not False]
+        return [row for row in rows if not is_down(row.get("jobs") or {})]
 
     def get_latest_baseline_id(self, user_id: str) -> int | None:
         result = (

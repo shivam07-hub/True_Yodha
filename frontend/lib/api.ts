@@ -428,6 +428,10 @@ export interface Direction {
   /** What a search can honestly promise. `skills_only` must be SAID on the
    *  surface — the run matched on skills, not on their role. */
   scope_mode: "targeted" | "skills_only" | "none"
+  /** One of the six bands, or null — legacy `any` is not a level. */
+  level?: Exclude<TargetSeniority, "any"> | null
+  /** What a direction still needs: the role, the level, or nothing. */
+  missing?: "role" | "level" | null
 }
 
 export interface UserProfile {
@@ -437,12 +441,10 @@ export interface UserProfile {
   /** Read this instead of the four raw target fields below. */
   direction?: Direction | null
   target_roles: string[]
-  target_role_title?: string | null
   target_role_titles?: string[]
   target_seniority?: "intern" | "entry" | "mid" | "senior" | "lead" | "executive" | "any" | null
   target_career_band?: CareerBand | null
   explored_career_bands?: CareerBand[]
-  target_location: string | null
   target_locations: string[]
   deal_breakers: string[]
   career_goal: string | null
@@ -478,13 +480,11 @@ export interface ProfileUpdate {
   full_name?: string | null
   linkedin_url?: string | null
   target_roles?: string[] | null
-  target_role_title?: string | null
   /** Human titles — the canonical role write. Backend derives the
    *  `target_roles` cluster union; never send raw clusters alongside. */
   target_role_titles?: string[] | null
   target_seniority?: "intern" | "entry" | "mid" | "senior" | "lead" | "executive" | "any" | null
   explored_career_bands?: CareerBand[] | null
-  target_location?: string | null
   target_locations?: string[] | null
   deal_breakers?: string[] | null
   /** Routed server-side to the authored-preference writer — there is no
@@ -1118,6 +1118,11 @@ export const onboarding = {
   saveTarget: (token: string, body: OnboardingTarget) => request<void>("/onboarding/target", {
     method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(body),
   }),
+  /** The level alone, for a role already chosen. `any` is not a level. */
+  saveLevel: (token: string, body: { seniority: Exclude<TargetSeniority, "any">; years_experience?: number }) =>
+    request<void>("/onboarding/target/level", {
+      method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(body),
+    }),
   resetTarget: (token: string) => request<void>("/onboarding/target", {
     method: "DELETE", headers: { Authorization: `Bearer ${token}` },
   }),
@@ -1785,7 +1790,7 @@ export interface WeaveGetResponse {
   /** The summary / skills-line card has had its Keep or Take. */
   extras_decided?: boolean
   extras_accepted?: boolean
-  /** A run for this job is working now (`lib/cv/weave-wait.ts`). */
+  /** A run for this job is working now (`lib/run-wait.ts`). */
   weaving?: boolean
 }
 
@@ -4228,6 +4233,8 @@ export interface ReachPackResponse {
   pack: ReachPack | null
   cost: number
   new_coin_balance: number | null
+  /** A run for this pack is working now (`lib/run-wait.ts`). */
+  building?: boolean
 }
 
 /** ADR-0018 Path 3 — a person the user nominated, not a scrape. */
@@ -4275,6 +4282,8 @@ export interface PrepBriefResponse {
   brief: PrepBrief | null
   cost: number
   new_coin_balance: number | null
+  /** A run for this brief is working now (`lib/run-wait.ts`). */
+  building?: boolean
 }
 
 export interface UserSkillDemandItem {
@@ -4287,9 +4296,6 @@ export interface UserSkillDemandItem {
   job_count_30d: number
   weighted_demand: number
   demand_band?: DemandBand
-  /** Active jobs needing this skill in the user's location scope. Present only
-   *  on location-scoped demand reads (the market rail); null otherwise. */
-  scoped_job_count?: number | null
 }
 
 export type DemandBand = "very_high" | "high" | "moderate" | "low" | "none"
@@ -4621,13 +4627,10 @@ export const jobs = {
     request<HiddenJobItem[]>("/jobs/feed/hidden", {
       headers: { Authorization: `Bearer ${token}` },
     }),
-  mySkillDemand: (token: string, opts?: { locationScoped?: boolean }) =>
-    request<UserSkillDemandResponse>(
-      `/jobs/my-skills/demand${opts?.locationScoped ? "?location_scoped=true" : ""}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      },
-    ),
+  mySkillDemand: (token: string) =>
+    request<UserSkillDemandResponse>("/jobs/my-skills/demand", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   matches: (token: string) =>
     request<JobMatchesResponse>("/jobs/matches", {
       headers: { Authorization: `Bearer ${token}` },
@@ -4871,11 +4874,14 @@ export const jobs = {
     request<ReachPackResponse>(`/jobs/${encodeURIComponent(jobId)}/reach/pack`, {
       headers: { Authorization: `Bearer ${token}` },
     }),
-  /** Generate the 50-coin outreach pack (charge-on-success; replay free). */
+  /** Generate the 50-coin outreach pack (charge-on-success; replay free).
+   *  An LLM call, so it waits as long as the model does: on the 15s default the
+   *  card said it failed while the server delivered, charged and cached. */
   createReachPack: (token: string, jobId: string) =>
     request<ReachPackResponse>(`/jobs/${encodeURIComponent(jobId)}/reach/pack`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
+      timeoutMs: LLM_REQUEST_TIMEOUT_MS,
     }),
   listReachTargets: (token: string, opts?: { jobId?: string | null; due?: boolean }) => {
     const q = new URLSearchParams()
@@ -4912,11 +4918,14 @@ export const jobs = {
     request<PrepBriefResponse>(`/jobs/${encodeURIComponent(jobId)}/prep/brief`, {
       headers: { Authorization: `Bearer ${token}` },
     }),
-  /** Generate the 30-coin day-of brief (charge-on-success; replay free). */
+  /** Generate the 30-coin day-of brief (charge-on-success; replay free).
+   *  Up to two LLM calls — the room's coverage panel on a cache miss, then the
+   *  brief — so it gets the LLM ceiling, like /cv/jd-coverage alone does. */
   createPrepBrief: (token: string, jobId: string) =>
     request<PrepBriefResponse>(`/jobs/${encodeURIComponent(jobId)}/prep/brief`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
+      timeoutMs: LLM_REQUEST_TIMEOUT_MS,
     }),
   /** How many own-connections the user has uploaded (warm-intro source). */
   connectionsStatus: (token: string) =>

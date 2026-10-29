@@ -1,7 +1,7 @@
 """Targeting is plural on both axes — roles AND locations.
 
-`target_locations` has been an array end-to-end for a while (the feed's
-`build_location_scope` ORs across cities), but `save_target` accepted a single
+`target_locations` has been an array end-to-end for a while (admission ORs
+across cities), but `save_target` accepted a single
 `location` and overwrote the array with a one-element list, so the picker could
 only ever express one city. These cover the widened write path and the one
 distinction that is easy to get wrong: `[]` (Anywhere) vs omitted (leave alone).

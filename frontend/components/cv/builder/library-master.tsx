@@ -6,6 +6,7 @@ import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { CVExportView, TemplatePicker } from "./cv-export-view"
 import { AppliedVersionsPanel } from "./applied-versions"
 import { DEFAULT_TEMPLATE, isCVTemplate, type CVTemplate } from "@/lib/cv/templates"
+import { primaryLocation } from "@/lib/career-target"
 
 const TEMPLATE_STORAGE_KEY = "myro-cv-template-v1"
 
@@ -33,7 +34,7 @@ function masterContact(cv: CVStructured | null, profile: UserProfile | null) {
   return {
     name: contact?.name?.trim() || masterDisplayName(profile),
     title: contact?.title?.trim() || cv?.experience[0]?.role || profile?.direction?.primary_title || "",
-    location: contact?.location?.trim() || profile?.target_location || "",
+    location: contact?.location?.trim() || primaryLocation(profile),
     email: contact?.email?.trim() || "",
     phone: contact?.phone?.trim() || "",
     linkedin: contact?.linkedin?.trim() || profile?.linkedin_url || "",

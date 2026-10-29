@@ -22,9 +22,9 @@ from app.services.onboarding_service import (
 
 _PROFILE = {
     "baseline_version_id": 7,
-    "target_role_title": "Software Engineer",
+    "target_role_titles": ["Software Engineer"],
     "target_seniority": "senior",
-    "target_location": "gurugram",
+    "target_locations": ["gurugram"],
 }
 
 
@@ -38,7 +38,7 @@ def test_memory_moves_the_eval_key_but_not_the_direction_key() -> None:
 
 
 def test_a_direction_change_moves_both_keys() -> None:
-    moved = {**_PROFILE, "target_role_title": "Data Scientist"}
+    moved = {**_PROFILE, "target_role_titles": ["Data Scientist"]}
     assert context_key(moved) != context_key(_PROFILE)
     assert eval_context_key(moved) != eval_context_key(_PROFILE)
 
@@ -125,7 +125,7 @@ def test_the_prompt_version_is_part_of_what_the_brain_was_told(monkeypatch) -> N
     a row rated under the old prompt could never be revisited — the v2 direction
     rule would apply to new jobs only, forever.
     """
-    profile = {"baseline_version_id": 7, "target_role_title": "Sales Manager"}
+    profile = {"baseline_version_id": 7, "target_role_titles": ["Sales Manager"]}
     before = eval_context_key(profile)
 
     import app.services.llm_ranker as ranker

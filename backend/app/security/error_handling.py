@@ -10,7 +10,7 @@ from uuid import uuid4
 
 import httpx
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from postgrest.exceptions import APIError
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -106,7 +106,7 @@ def _contains_internal_detail(value: Any) -> bool:
     return False
 
 
-class ServiceUnavailable(StarletteHTTPException):
+class ServiceUnavailable(HTTPException):
     """A 503 whose detail was written for the person reading it.
 
     The boundary blanks every 5xx detail, because a 5xx usually carries an
@@ -114,6 +114,9 @@ class ServiceUnavailable(StarletteHTTPException):
     blank: the copy is authored and says what to do next. A weave that found
     nothing to deliver told the person "Something went wrong" instead of "you
     were not charged" (U4 phone run, 2026-10-22).
+
+    A FastAPI `HTTPException`, so it replaces one where it is raised and every
+    `except HTTPException` around that call still catches it.
     """
 
     def __init__(self, detail: str, *, headers: Mapping[str, str] | None = None) -> None:

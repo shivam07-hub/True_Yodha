@@ -22,6 +22,7 @@ import { displayCompany } from "@/components/cv/builder/keyword-utils"
 import "../cv-fonts.css"
 import "../cv-sheet.css"
 import "../cv-builder.css"
+import { primaryLocation } from "@/lib/career-target"
 
 function CVExportPage() {
   const router = useRouter()
@@ -62,7 +63,7 @@ function CVExportPage() {
   const contact = useMemo(() => ({
     name: cvData?.contact?.name?.trim() || profile?.full_name?.trim() || "Your name",
     title: cvData?.contact?.title?.trim() || cvData?.experience[0]?.role || "",
-    location: cvData?.contact?.location?.trim() || profile?.target_location || "",
+    location: cvData?.contact?.location?.trim() || primaryLocation(profile),
     email: cvData?.contact?.email?.trim() || "",
     phone: cvData?.contact?.phone?.trim() || "",
     linkedin: cvData?.contact?.linkedin?.trim() || profile?.linkedin_url || "",

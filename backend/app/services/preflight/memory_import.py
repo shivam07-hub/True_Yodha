@@ -20,6 +20,7 @@ from typing import Any
 from app.services.matching.targeting import MemoryFact, TargetingBrief
 from app.services.preflight.lines import OrderLine
 from app.services.preflight.spec import SLOT_ARITY, SLOT_KINDS
+from app.services import direction
 
 logger = logging.getLogger(__name__)
 
@@ -282,9 +283,7 @@ def confirmed_from(brief: TargetingBrief) -> list[OrderLine]:
     # what `/preflight/run` writes back, so seeding one city for a user who has
     # three silently narrowed their own targeting the first time they opened the
     # modal — a delete disguised as a read.
-    stored = profile.get("target_locations")
-    if not isinstance(stored, list) or not stored:
-        stored = [profile.get("target_location")]
+    stored = direction.locations(profile)
     seen: set[str] = set()
     for raw in stored:
         location = str(raw or "").strip().rstrip(".")

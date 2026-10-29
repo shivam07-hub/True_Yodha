@@ -11,7 +11,7 @@ from supabase import Client
 from app.repositories.cv import CVVersionsRepository
 from app.repositories.scores import ScoresRepository
 from app.repositories.users import UsersRepository
-from app.services import onboarding_service, scoring
+from app.services import direction, onboarding_service, scoring
 from app.services.experience_years import seniority_from_cv
 
 
@@ -73,7 +73,7 @@ def _reviewed_rows(
             "skill_id": int(row["skill_id"]),
             "taxonomy_key": str(row.get("taxonomy_key") or ""),
             "matched_level": int(row["matched_level"]),
-            "proficiency_title": str(row["proficiency_title"]),
+            "proficiency_title": scoring.level_name(row["matched_level"]),
             "source": "cv",
             "evidence_text": str(row.get("evidence_text") or ""),
         }
@@ -88,7 +88,7 @@ def _reviewed_rows(
                 "skill_id": skill_id,
                 "taxonomy_key": str(item.get("taxonomy_key") or ""),
                 "matched_level": 1,
-                "proficiency_title": "Scout",
+                "proficiency_title": scoring.level_name(1),
                 "source": "user_override",
                 "evidence_text": item["evidence_text"],
             }
@@ -151,9 +151,7 @@ def confirm_baseline_skills(
 
     users_repo = UsersRepository(db)
     profile = users_repo.get_profile(user_id) or {}
-    has_target = bool(
-        profile.get("target_role_title") or profile.get("target_role_titles")
-    )
+    has_target = bool(direction.of(profile).titles)
     # The band is written BEFORE the score is asked for, because it is an input to
     # it: `total_score` is a function of the confirmed skills and the seniority
     # band alone (the chosen role family and cities move the GAP list, never the

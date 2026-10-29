@@ -120,7 +120,7 @@ Jobs come from the scraper repo (Shivam's); this repo only reads them.
 | Locked decisions + data model | [DECISIONS.md](DECISIONS.md) |
 | Servers, domains, env, DNS, deploy order | [INFRA.md](INFRA.md) |
 | Open work, in loop order | [BACKLOG.md](BACKLOG.md) |
-| **Which newsletter to push next** | [NEWSLETTER_QUEUE.md](NEWSLETTER_QUEUE.md) |
+| **Which newsletter to push next · what goes out when** | [NEWSLETTER_QUEUE.md](NEWSLETTER_QUEUE.md) · [MARKETING_SCHEDULE.md](MARKETING_SCHEDULE.md) |
 | **Specs Cursor builds from** | `ARCHITECTURE_*.md` at the root — RETURN_LOOP #55 · PAYMENTS #56 · FRONT_DOOR #57 · CV_TIER_A #58 · GOLDEN_DIGEST #59 · SKILL_EVIDENCE #60 · LISTING_TIME · CONTRACTS_BY_TYPE |
 | **Prep = one ladder, four steps** | [UNIFIED_PREP_V2.md](UNIFIED_PREP_V2.md) |
 | Vibecoded tells, ruled against our code | [ANTI_SLOP.md](ANTI_SLOP.md) |
@@ -152,7 +152,7 @@ Order is the loop map — broken steps first, nearest the north star first (Shiv
 | 1 | Find the job | Scraper landing daily since 2026-10-15 (dark 10-01→10-14). #55 closed: a return shows the list and re-reads it. |
 | 2 | Apply | 2 real Apply clicks since 2026-09-22 (last 10-16), 0 answered. Built work is on `main` (#342); measure click → "Did you submit?" → application. |
 | 3 | Repeat | Golden-list digest (#59): email only to `golden_list_since`. Blocked until the preview is approved. |
-| 4 | Front door | #57 on `main` 2026-10-17: after skills, paste · extension · jobs that fit. Desktop QA 2026-10-19; FD2 on `Develop`: door to Download in 5 clicks (Mentor opens itself on a never-tailored job). Phone QA owed. |
+| 4 | Front door | #57 on `main`: after skills, paste · extension · jobs that fit. Door to Download in 5 clicks (FD1–FD4) on `main` 2026-10-22; U4 passed desktop 10-19 and 375px 10-22. Real phone owed (Shivam). |
 | 5 | Tailor + download | #58 S1–S4 built (blank certs, fabricated-role guard, unknown sections kept, measured page fill). Still open: add role. |
 | 6 | Pay | #56 Apply Pack — [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md), Cursor. |
 

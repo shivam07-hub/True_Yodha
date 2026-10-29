@@ -121,7 +121,7 @@ def career_bands_for_profile(profile: dict[str, Any]) -> list[CareerBand | str]:
     if isinstance(titles, str):
         titles = [titles]
     bands: list[CareerBand | str] = []
-    for title in [*titles, profile.get("target_role_title")]:
+    for title in titles:
         if not isinstance(title, str) or not title.strip() or title.strip() in families:
             continue
         band = career_band_for_job({"job_title": title})

@@ -15,6 +15,7 @@ from app.repositories.jobs import (
     get_public_jobs_repository,
     get_token_jobs_repository,
 )
+from app.security import ServiceUnavailable
 from app.services.listing_time import SEED_COLUMN, day
 from app.services.matching import feed_warm, published_list
 from app.services.matching.filter_spec import FilterSpec
@@ -77,10 +78,7 @@ def search_companies(
     try:
         return repo.search_companies(q, limit=limit)
     except CompanySearchUnavailable as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Company search is temporarily unavailable.",
-        ) from exc
+        raise ServiceUnavailable("Company search is temporarily unavailable.") from exc
 
 
 def _family_totals(analytics: dict[str, Any], family: str) -> tuple[int, int]:

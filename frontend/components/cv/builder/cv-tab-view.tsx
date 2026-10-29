@@ -22,6 +22,7 @@ import { FinishTailoringLane } from "./finish-tailoring-lane"
 import { ProvenanceRail } from "./provenance-rail"
 import { displayCompany } from "./keyword-utils"
 import { buildPointerIndex, matchedTerms } from "@/lib/cv/provenance"
+import { primaryLocation } from "@/lib/career-target"
 
 interface CvTabViewProps {
   token: string
@@ -40,7 +41,7 @@ function contactFrom(cv: CVStructured | null, profile: UserProfile | null) {
   return {
     name: contact?.name?.trim() || profile?.full_name?.trim() || "Your Name",
     title: contact?.title?.trim() || cv?.experience[0]?.role || profile?.direction?.primary_title || "",
-    location: contact?.location?.trim() || profile?.target_location || "",
+    location: contact?.location?.trim() || primaryLocation(profile),
     email: contact?.email?.trim() || "",
     phone: contact?.phone?.trim() || "",
     linkedin: contact?.linkedin?.trim() || profile?.linkedin_url || "",

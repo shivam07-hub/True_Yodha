@@ -23,7 +23,7 @@ from app.schemas import (
     MatchEval,
     JobUrlExtractRequest,
 )
-from app.services import core_loop, cv_of_record, job_link_reader, job_liveness, jobs_workflow, xp_service
+from app.services import application_yes, job_link_reader, job_liveness, jobs_workflow, xp_service
 from app.services.collections import PENDING_INTENT_AFTER, PENDING_INTENT_FOR
 from app.services.job_extract_backstop import backfill_fields, is_valid_company, is_valid_role
 from app.services.cv_parser import extract_raw_text
@@ -270,12 +270,22 @@ async def import_job(
         )
         if body.listing_job_id else None
     ) or jobs_workflow.save_imported_job(repo, principal.id, body)
-    # A job saved anywhere gets the Matching Brain's verdict (CONTEXT → rank_one:
-    # "opened/saved anywhere"). Only the /market drawer used to ask, so a job
-    # saved with the extension or pasted was never judged — and an application
-    # to an unjudged job can never count as qualified. Claim + enqueue only,
-    # after the response: the save never waits on a model.
-    background_tasks.add_task(on_demand.open_job_eval, repo, principal.id, str(saved["job_id"]))
+    job_id = str(saved["job_id"])
+    if saved.get("status") in application_yes.SENT_STAGES:
+        # Applied elsewhere and logged here is still their Yes (CONTEXT →
+        # Application Yes). Its first Yes opens the judge with everything else.
+        yes = application_yes.say_yes(
+            repo, background_tasks,
+            user_id=principal.id, job_id=job_id, door=application_yes.DOOR_LOGGED,
+        )
+        saved["applied_at"] = yes.applied_at
+    else:
+        # A job saved anywhere gets the Matching Brain's verdict (CONTEXT →
+        # rank_one: "opened/saved anywhere"). Only the /market drawer used to
+        # ask, so a job saved with the extension or pasted was never judged —
+        # and an application to an unjudged job can never count as qualified.
+        # Claim + enqueue only, after the response: the save never waits on a model.
+        background_tasks.add_task(on_demand.open_job_eval, repo, principal.id, job_id)
 
     # +XP for tracking a job. Idempotent per application id (reward_xp scans the
     # ledger), so a retried save never double-credits. A reward failure must not
@@ -339,53 +349,32 @@ def update_application(
 
     now = datetime.now(timezone.utc).isoformat()
     user_id = principal.id
-    existing = repo.get_application_with_job(user_id, job_id) or {}
-    prior_status = existing.get("status")
 
-    updates: dict = {"status": body.status}
+    fields: dict = {}
     if body.notes is not None:
-        updates["notes"] = body.notes
+        fields["notes"] = body.notes
     if body.company_response is not None:
-        updates["company_response"] = body.company_response
-    if body.status == "applied":
-        updates["applied_at"] = now
+        fields["company_response"] = body.company_response
     if body.status in {"interviewing", "rejected", "offer"}:
-        updates["response_at"] = now
+        fields["response_at"] = now
     if body.status == "offer":
-        updates["offer_received_at"] = now
+        fields["offer_received_at"] = now
     if body.status in {"ghosted", "rejected"}:
-        updates["closed_at"] = now
+        fields["closed_at"] = now
     if body.followed_up:
-        updates["followed_up_at"] = now
+        fields["followed_up_at"] = now
 
-    # Q7: bump the stale-clock signal whenever status actually changes.
-    # Notes/followed_up edits do NOT reset the clock so they can't mask company silence.
-    if body.status != prior_status:
-        updates["last_stage_changed_at"] = now
+    # The stage, the Yes it implies, and everything a first Yes entails —
+    # CONTEXT → Application Yes. The surface is the door the answer came through.
+    moved = application_yes.move(
+        repo, background_tasks,
+        user_id=user_id, job_id=job_id, stage=body.status, door=body.surface, fields=fields,
+    )
 
     # Q6: first-ever offer per user — set first_offer_at once on the user profile.
     is_first_offer = False
-    if body.status == "offer" and prior_status != "offer":
+    if body.status == "offer" and moved.prior_status != "offer":
         is_first_offer = repo.mark_first_offer_if_unset(user_id, now)
-
-    repo.upsert_application(user_id, job_id, updates)
-    # Any move past saved answers "did you submit?" for this job.
-    if body.status != "saved":
-        repo.answer_apply_intents(user_id, job_id)
-
-    # Freeze the CV of record on the FIRST move into `applied`. The tracker is
-    # how people actually mark an application, and until now it remembered
-    # nothing — 67 users had moved a job past `saved` and 3 had an attempt on
-    # record. Marking a job applied is the user's explicit statement that they
-    # did it, which is the same bar the builder's Apply button uses.
-    if body.status == "applied" and prior_status != "applied":
-        cv_of_record.record_on_apply(user_id, job_id)
-        # Forward pass for jobs saved before a save queued the judge: the first
-        # "applied" is the latest door to make this application judgeable.
-        # A stored verdict makes it a no-op; never waits on a model.
-        background_tasks.add_task(on_demand.open_job_eval, repo, user_id, job_id)
-        # The north star's door count: which surface the Yes came through.
-        background_tasks.add_task(core_loop.record_step, user_id, job_id, "applied", body.surface)
 
     data = repo.get_application_with_job(user_id, job_id)
     if not data:

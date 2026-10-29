@@ -540,6 +540,18 @@ def _seed_coverage(jobs_repo):
     )
 
 
+#: A role the weave rewrote — what makes a weave cost its price (FD5).
+_REWORKED_ROLE = {"role_index": 0, "role": "BD Manager", "company": "Capgemini", "changed": True,
+                  "guarded": False, "edit_kind": "rewrite", "why": "", "bullets": [{"text": "Reworded."}],
+                  "dropped_lines": []}
+
+
+def _reworked_proposal(**overrides):
+    return {"fingerprint": cv_weave.source_fingerprint(CV), "summary": "S", "skills_line": None,
+            "roles": [_REWORKED_ROLE], "changed_roles": 1, "requirements_total": 2, "asks_unproven": 1,
+            **overrides}
+
+
 def test_router_weave_charges_on_delivery_and_caches(monkeypatch):
     from app.main import app
 
@@ -550,8 +562,7 @@ def test_router_weave_charges_on_delivery_and_caches(monkeypatch):
     from app.routers.cv import weave as weave_router
 
     async def _weave(**kwargs):
-        return {"fingerprint": cv_weave.source_fingerprint(CV), "summary": "S", "skills_line": None,
-                "roles": [], "changed_roles": 1, "requirements_total": 2, "asks_unproven": 1}
+        return _reworked_proposal()
 
     async def _material(_u, _reqs, cap=12):
         return []
@@ -562,7 +573,7 @@ def test_router_weave_charges_on_delivery_and_caches(monkeypatch):
         r = client.post("/cv/weave", json={"job_id": "j1"})
         assert r.status_code == 200, r.text
         body = r.json()
-        assert body["cached"] is False and body["new_coin_balance"] == 950
+        assert body["cached"] is False and body["new_coin_balance"] == 950 and body["cost"] == 50
         assert charges and charges[0][0] == 50 and charges[0][1] == "cv_weave"
         assert cv_weave.CACHE_PROMPT_KEY in jobs_repo.deepenings
         got = client.get("/cv/weave/j1")
@@ -1302,8 +1313,7 @@ def _held_weave(monkeypatch):
     async def _weave(**kwargs):
         entered.set()
         await finish.wait()
-        return {"fingerprint": cv_weave.source_fingerprint(CV), "summary": "S", "skills_line": None,
-                "roles": [], "changed_roles": 1, "requirements_total": 2, "asks_unproven": 1}
+        return _reworked_proposal()
 
     async def _material(_u, _reqs, cap=12):
         return []
@@ -1353,7 +1363,7 @@ def test_a_second_weave_while_the_first_works_never_runs_or_charges(monkeypatch)
         second, retry_refresh, during, done, after, replay = _run(_scenario())
         for refused in (second, retry_refresh):
             assert refused.status_code == 409, refused.text
-            assert refused.json()["detail"]["code"] == "weave_in_flight"
+            assert refused.json()["detail"]["code"] == "run_in_flight"
         assert during == {**during, "purchased": False, "weaving": True}
         assert done.status_code == 200 and done.json()["cached"] is False
         assert after["purchased"] is True and after["weaving"] is False
@@ -1389,11 +1399,11 @@ def test_a_weave_that_outruns_its_bound_charges_nothing_and_frees_the_claim(monk
     ladder cannot finish after its claim expired and race a successor."""
     from app.config import settings
     from app.main import app
-    from app.services import cv_weave_run
+    from app.services import paid_run
 
     monkeypatch.setattr(settings, "redis_url", "")
-    monkeypatch.setattr(cv_weave_run, "RUN_SECONDS", 0.05)
-    assert cv_weave_run.CLAIM_SECONDS > 240
+    monkeypatch.setattr(paid_run, "RUN_SECONDS", 0.05)
+    assert paid_run.CLAIM_SECONDS > 240
     jobs_repo, cv_repo, charges = _JobsRepo(), _CVRepo(), []
     _seed_coverage(jobs_repo)
     client = _client(monkeypatch, jobs_repo, cv_repo, charges)
@@ -1404,5 +1414,48 @@ def test_a_weave_that_outruns_its_bound_charges_nothing_and_frees_the_claim(monk
         assert r.json()["detail"].endswith("you were not charged.")
         assert charges == []
         assert client.get("/cv/weave/j1").json()["weaving"] is False
+    finally:
+        app.dependency_overrides.clear()
+
+
+# ── a weave costs its price only when it reworks a role (FD5, 2026-10-22) ─────
+
+def test_reworks_experience_reads_each_roles_edit_kind():
+    def roles(*kinds):
+        return {"roles": [{**_REWORKED_ROLE, "edit_kind": k} for k in kinds]}
+
+    assert cv_weave.reworks_experience(roles("rewrite")) is True
+    assert cv_weave.reworks_experience(roles("none", "trim")) is True
+    assert cv_weave.reworks_experience(roles("none", "none")) is False
+    assert cv_weave.reworks_experience({"roles": []}) is False
+
+
+def test_a_weave_that_reworks_no_role_is_free(monkeypatch):
+    """One person paid 50 for a draft whose only change was the summary line
+    (2026-10-19). A draft that reworks no role is delivered, cached and free."""
+    from app.config import settings
+    from app.main import app
+    from app.routers.cv import weave as weave_router
+
+    monkeypatch.setattr(settings, "redis_url", "")
+    jobs_repo, cv_repo, charges = _JobsRepo(), _CVRepo(), []
+    _seed_coverage(jobs_repo)
+    client = _client(monkeypatch, jobs_repo, cv_repo, charges)
+    untouched = {**_REWORKED_ROLE, "changed": False, "edit_kind": "none"}
+
+    async def _weave(**kwargs):
+        return _reworked_proposal(roles=[untouched], changed_roles=0)
+
+    async def _material(_u, _reqs, cap=12):
+        return []
+
+    monkeypatch.setattr(weave_router.cv_weave, "weave", _weave)
+    monkeypatch.setattr(weave_router.cv_weave_interview, "gather_story_material", _material)
+    try:
+        r = client.post("/cv/weave", json={"job_id": "j1"})
+        assert r.status_code == 200, r.text
+        assert r.json()["cost"] == 0 and r.json()["new_coin_balance"] == 950
+        assert charges == []
+        assert cv_weave.CACHE_PROMPT_KEY in jobs_repo.deepenings
     finally:
         app.dependency_overrides.clear()

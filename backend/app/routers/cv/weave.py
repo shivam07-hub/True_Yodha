@@ -2,13 +2,14 @@
 
   POST /cv/weave/interview   the option-driven interview over unproven asks (free)
   POST /cv/weave/answer      bank a gap answer as a story; ONE thin-answer probe (free)
-  POST /cv/weave             run the weave — 50 coins, charged on delivery only
+  POST /cv/weave             run the weave — up to 50 coins, charged on delivery only
   GET  /cv/weave/{job_id}    replay a purchased proposal (free)
   POST /cv/weave/apply       write accepted roles as the job-tailored version (free)
 
-Money: the weave run is the only charged step (L6) — flat 50, preflight-funded,
-charged after a deliverable proposal exists, unique ledger ref per run so an
-explicit re-weave charges again while a cached replay never does.
+Money: the weave run is the only charged step (L6) — 50, preflight-funded,
+charged after a deliverable proposal exists and only when it reworks at least
+one role (FD5, 2026-10-22); unique ledger ref per run so an explicit re-weave
+charges again while a cached replay never does.
 
 The proposal caches in job_deepenings (reach-pack/prep-brief contract). Apply
 verifies the proposal's source fingerprint against the paper it was written
@@ -16,7 +17,6 @@ against — the Job Document when one exists, otherwise the master.
 """
 from __future__ import annotations
 
-import asyncio
 import logging
 import uuid
 from collections.abc import Collection
@@ -43,10 +43,10 @@ from app.services import (
     cv_weave,
     cv_weave_cache,
     cv_weave_interview,
-    cv_weave_run,
     jd_brief,
     jd_coverage,
     job_history,
+    paid_run,
     xp_policy,
     xp_service,
 )
@@ -381,7 +381,7 @@ def get_weave(
     since the draft — the surface offers a re-run instead of a doomed apply.
     Keep/Take progress rides `accepted_roles` / `decided_roles` so a landed
     line survives abort. `weaving` is one Redis read: the claim a run holds."""
-    weaving = cv_weave_run.in_flight(user.id, job_id)
+    weaving = paid_run.in_flight(user.id, job_id, cv_weave.CACHE_PROMPT_KEY)
     hit = _load_cache(jobs_repo, user.id, job_id)
     if hit is None:
         return WeaveGetResponse(purchased=False, weaving=weaving)
@@ -410,9 +410,10 @@ async def run_weave(
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
 ) -> WeaveRunResponse:
     """The weave. 50 coins per run, charged only after a deliverable proposal
-    exists; a cached proposal replays free unless `refresh` explicitly re-runs.
+    exists and only when it reworks a role (`cv_weave.reworks_experience`); a
+    cached proposal replays free unless `refresh` explicitly re-runs.
 
-    One run per (user, job) at a time (`cv_weave_run`): a second POST while one
+    One run per (user, job) at a time (`paid_run`): a second POST while one
     is working gets a 409 and reads the cache through the GET instead of paying
     again."""
     job = _job_or_404(jobs_repo, user.id, body.job_id)
@@ -422,19 +423,12 @@ async def run_weave(
     cv_structured = _paper_structured(cv_repo, user.id, body.job_id, baseline)
     current_fp = cv_weave.source_fingerprint(cv_structured)
 
-    token = cv_weave_run.claim(user.id, body.job_id)
-    if token is None:
-        logger.info("metric cv_weave.run_in_flight user=%s job=%s", user.id, body.job_id)
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            {"code": cv_weave_run.IN_FLIGHT_CODE, "message": "Mentor is still drafting this one."},
-        )
-    try:
+    with paid_run.held(
+        user.id, body.job_id, cv_weave.CACHE_PROMPT_KEY, "Mentor is still drafting this one.",
+    ):
         return await _claimed_run(
             body, background_tasks, user, job, cv_structured, current_fp, jobs_repo,
         )
-    finally:
-        cv_weave_run.release(user.id, body.job_id, token)
 
 
 async def _claimed_run(
@@ -467,53 +461,56 @@ async def _claimed_run(
         {"requirement": a.requirement.strip(), "text": a.text.strip()}
         for a in body.answers if a.text.strip()
     ]
-    # Bounded so the run can never outlive its claim (cv_weave_run.CLAIM_SECONDS).
-    try:
-        async with asyncio.timeout(cv_weave_run.RUN_SECONDS):
-            rows = await _coverage_rows(user.id, body.job_id, jd_text, jobs_repo, cv_structured)
-            brief = await _job_brief(user.id, body.job_id, jd_text, jobs_repo)
-            stories = await cv_weave_interview.gather_story_material(
-                user.id, [r.requirement for r in rows] or [job.get("job_title") or ""],
-            )
-            proposal = await cv_weave.weave(
-                job_title=job.get("job_title") or "",
-                company=job.get("company_name") or "",
-                jd_text=jd_text,
-                coverage_items=rows,
-                cv_structured=cv_structured,
-                stories=stories,
-                answers=answers,
-                brief=brief,
-            )
-    except TimeoutError:
-        logger.warning("metric cv_weave.run_timeout user=%s job=%s", user.id, body.job_id)
-        proposal = None
+
+    async def _draft() -> dict | None:
+        rows = await _coverage_rows(user.id, body.job_id, jd_text, jobs_repo, cv_structured)
+        brief = await _job_brief(user.id, body.job_id, jd_text, jobs_repo)
+        stories = await cv_weave_interview.gather_story_material(
+            user.id, [r.requirement for r in rows] or [job.get("job_title") or ""],
+        )
+        return await cv_weave.weave(
+            job_title=job.get("job_title") or "",
+            company=job.get("company_name") or "",
+            jd_text=jd_text,
+            coverage_items=rows,
+            cv_structured=cv_structured,
+            stories=stories,
+            answers=answers,
+            brief=brief,
+        )
+
+    proposal = await paid_run.bounded(_draft(), user.id, body.job_id, cv_weave.CACHE_PROMPT_KEY)
     if proposal is None:
         raise ServiceUnavailable(
             "Couldn't draft your tailored CV right now. Try again shortly — you were not charged.",
         )
 
-    try:
-        new_balance = await xp_service.charge_or_raise(
-            user.id,
-            xp_policy.CV_WEAVE_XP_COST,
-            "cv_weave",
-            floor=xp_policy.CV_WEAVE_XP_FLOOR,
-            ref_table="job_deepenings",
-            ref_id=f"{body.job_id}:{cv_weave.CACHE_PROMPT_KEY}:{uuid.uuid4().hex[:8]}",
-        )
-    except xp_service.InsufficientXPError as exc:
-        raise HTTPException(
-            status.HTTP_402_PAYMENT_REQUIRED,
-            f"{redact_sensitive_text(exc)} Earn coins by practising a skill, or unlock this later.",
-        ) from exc
+    cost = xp_policy.CV_WEAVE_XP_COST if cv_weave.reworks_experience(proposal) else 0
+    if cost:
+        try:
+            new_balance = await xp_service.charge_or_raise(
+                user.id,
+                cost,
+                "cv_weave",
+                floor=xp_policy.CV_WEAVE_XP_FLOOR,
+                ref_table="job_deepenings",
+                ref_id=f"{body.job_id}:{cv_weave.CACHE_PROMPT_KEY}:{uuid.uuid4().hex[:8]}",
+            )
+        except xp_service.InsufficientXPError as exc:
+            raise HTTPException(
+                status.HTTP_402_PAYMENT_REQUIRED,
+                f"{redact_sensitive_text(exc)} Earn coins by practising a skill, or unlock this later.",
+            ) from exc
+    else:
+        logger.info("metric cv_weave.free_no_role_reworked user=%s job=%s", user.id, body.job_id)
+        new_balance = await xp_service.get_xp_balance(user.id)
 
     proposal["computed_at"] = datetime.now(timezone.utc).isoformat()
     jobs_repo.upsert_deepening(
         user.id, body.job_id, cv_weave.CACHE_PROMPT_KEY, cv_weave_cache.dump(proposal),
     )
     background_tasks.add_task(core_loop.record_step, user.id, body.job_id, "weave_ran", "mentor")
-    return WeaveRunResponse(proposal=WeaveProposal(**proposal), new_coin_balance=new_balance)
+    return WeaveRunResponse(proposal=WeaveProposal(**proposal), cost=cost, new_coin_balance=new_balance)
 
 
 def _review_complete(proposal: WeaveProposal, decided: Collection[int], extras_decided: bool) -> bool:

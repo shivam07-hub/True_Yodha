@@ -14,6 +14,7 @@ from app.services import direction, job_importer, job_matcher, job_tracks, llm_r
 from app.services.job_projection import to_application
 from app.services.llm_provider import LLMProvider, get_judgment_provider
 from app.services.matching import candidate_pool, match_freshness, ranking, targeting
+from app.services.scoring import level_name
 from app.services.scoring.aspirations import fetch_aspiration_skills
 
 logger = logging.getLogger(__name__)
@@ -42,9 +43,7 @@ def _match_pool_nonempty(repo: JobsRepository, user_id: str) -> bool:
     if not keys:
         return False
     profile = targeting.for_ranking(repo, user_id).ranking_profile()
-    countries = profile.get("target_location_countries") or []
-    if not countries and profile.get("target_location_country"):
-        countries = [profile["target_location_country"]]
+    countries = direction.countries(profile)
     ids = repo.get_candidate_job_ids_for_skills(keys, target_location_countries=countries)
     return bool(ids)
 
@@ -185,12 +184,7 @@ class MatchComputeOutcome:
         return self.kind == "needs_onboarding"
 
 
-def build_user_skill_demand(
-    repo: JobsRepository,
-    user_id: str,
-    *,
-    location_scoped: bool = False,
-) -> list[dict[str, Any]]:
+def build_user_skill_demand(repo: JobsRepository, user_id: str) -> list[dict[str, Any]]:
     if hasattr(repo, "get_user_skill_demand_snapshot"):
         items = list(repo.get_user_skill_demand_snapshot(user_id))
     else:
@@ -207,7 +201,7 @@ def build_user_skill_demand(
                 "skill": key,
                 "display_name": (skill.get("display_name") or key).strip() or key,
                 "current_level": int(row.get("matched_level") or 0),
-                "proficiency_title": row.get("proficiency_title") or "Scout",
+                "proficiency_title": level_name(row.get("matched_level")),
             }
 
         if not user_skills:
@@ -307,34 +301,6 @@ def build_user_skill_demand(
         )
     )
 
-    # Scoped Skill Demand (rail only). job_count_30d stays the market-wide signal
-    # the Skills page / landing / Forge / peek read; the market rail instead links
-    # each mover into the location-scoped triage feed, so its badge must promise
-    # what that feed lands on. Compute the scoped count only for the handful the
-    # rail can show (the global-demand leaders), via the same predicate the feed
-    # facet uses — see JobsRepository.scoped_skill_demand_counts. Opt-in so the
-    # other (unscoped) callers pay nothing.
-    if location_scoped and hasattr(repo, "scoped_skill_demand_counts"):
-        candidates = enriched_items[:8]
-        location_prefs: list[str] = []
-        if hasattr(repo, "user_target_locations"):
-            location_prefs = repo.user_target_locations(user_id) or []
-        scoped = repo.scoped_skill_demand_counts(
-            [str(item["display_name"]) for item in candidates],
-            location_prefs=location_prefs,
-        )
-        for item in enriched_items:
-            item["scoped_job_count"] = scoped.get(str(item["display_name"]))
-        # Re-rank the scoped leaders to the front by what's actually hiring in
-        # scope; unscoped items (scoped_job_count is None) keep global order below.
-        enriched_items.sort(
-            key=lambda item: (
-                -(item.get("scoped_job_count") or 0),
-                -item["weighted_demand"],
-                str(item["display_name"]).lower(),
-            )
-        )
-
     return enriched_items
 
 
@@ -430,9 +396,7 @@ async def compute_job_matches(
     run_eval_ctx = onboarding_service.eval_context_key(profile)
     run_direction = direction.of(profile)
     target_roles_count = len(run_direction.families)
-    target_countries = profile.get("target_location_countries") or []
-    if not target_countries and profile.get("target_location_country"):
-        target_countries = [profile["target_location_country"]]
+    target_countries = direction.countries(profile)
     candidate_jobs = repo.candidate_jobs_for_skills(
         list(user_skill_map.keys()),
         target_location_countries=target_countries,

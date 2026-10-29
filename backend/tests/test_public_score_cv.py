@@ -77,9 +77,24 @@ def test_score_cv_is_unavailable_when_turnstile_is_enabled_without_secret(
 
     assert res.status_code == 503
     assert res.json() == {
-        "detail": "Something went wrong. Please try again.",
+        "detail": "Verification is temporarily unavailable.",
         "correlation_id": res.headers["x-correlation-id"],
     }
+
+
+def test_score_cv_provider_failure_says_the_analysis_is_busy(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The anon door's own words reach the page, not the boundary's generic 5xx."""
+    _wire_engine(monkeypatch, raw_text="A" * 400, skills=[])
+
+    async def _failed_parse(_text: str, provider=None) -> dict:
+        return {"skills_detected": [], "cv_structured": None, "raw_text": _text, "provider_failed": True}
+
+    monkeypatch.setattr(public_router.cv_parser, "parse_cv_text", _failed_parse)
+
+    res = TestClient(app).post("/public/score-cv", files=_pdf_upload())
+
+    assert res.status_code == 503
+    assert res.json()["detail"] == "Our CV analysis service is busy right now. Try again in a moment."
 
 
 def test_score_cv_works_in_production_when_turnstile_is_disabled(

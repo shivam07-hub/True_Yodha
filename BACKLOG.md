@@ -64,7 +64,10 @@ The capture is on `main` (`3ff55125` "Did you submit?"; `a624c2e1` Apply after
 download). QA check **A1** below: Apply opens the company's own posting.
 
 **Apply funnel, measured by door (2026-10-13, DECISIONS APPLY1/APPLY2).**
-Extension 0.2.3 is live (Page Entry + "I applied"); 0.2.4 names its door.
+Extension 0.2.5 is live on the store since 2026-10-20 (seen 10-22): Page Entry,
+"I applied", and the form fill — after the web Yes ("Approve this CV for
+filing") it fills the company form, attaches the tailored CV, stops on Submit,
+and **Save the confirmation** writes `applied` with door `filing_receipt`.
 `loop_reach.py` reads clicked → asked → answered → applied per door, plus the
 leading number (tailored apply-outs on ≥3.5 jobs). **2026-10-13 → 10-19, real
 accounts: 1 person, 2 clicks, 2 asked, 0 answered.**
@@ -152,40 +155,41 @@ and Paste → review → playground works. Found on the way:
 
 T1 findings from the same run are under §5.
 
-**U4 phone run, 2026-10-22** (375px, QA account reset with
-`python -m scripts.qa_front_door reset <email> --to skills --apply`, local
-Develop backend; Qualcomm and Mindtickle links). Door → Download is **5 taps and
-a paste**: Paste a job → paste → Tailor a CV for this → Weave now · 50 → Take
-all / Take this → Download CV. Corpus reads in 0.17–0.67s. Fixed on the way:
-the review column shrank to 254px (`a63371b0`) · Mentor rendered under the
-phone's bars — no close button, Take all under the nav (`0e5f82cd`) · Take
-all's version missed the paper until a reload, desktop too (`0e5f82cd`) · a
-proving line rewritten into a new one printed twice (`09a51daa`) · weave
-failures logged nothing (`09a51daa`). Open:
+**U4 phone run, 2026-10-22:** passes at 375px — door → Download in 5 taps and a
+paste. Its five fixes are on `main` (ARCHIVE 2026-10-22). Open:
 
-- **FD4 · the weave outlives its client — built on `Develop` (`dd629e10`).** Server
+- **FD4 · the weave outlives its client — on `main` (`dd629e10`).** Server
   74.5s, client 60s: "Request timed out." while the server delivered and
   charged 50, and a Retry before it finished paid for a second run. Measured
   on `coin_ledger`: **12 of 23 weave charges ever came within 3 min of another
-  on the same job**; one real person paid **11 × 50 in 42s** on 2026-10-21 —
-  `main`'s client puts the last question back on screen mid-run, so each
-  "Skip & weave · 50" started another run (client half fixed on `Develop` in
-  `8c372968`, not on `main`). Now: one run per (user, job) holds a Redis
-  claim (`cv_weave_run`); a second POST gets 409 `weave_in_flight` and the
-  GET reports `weaving`; the work is bounded at 240s, under the 300s claim. A
-  timed-out POST reads the GET until the proposal lands or the run stops
-  (`lib/cv/weave-wait.ts`). The 503's "you were not charged" reaches the screen
-  (`ServiceUnavailable`). **Prod still double-charges until `main` carries
-  both commits — core-loop fix, merge at once.** Shivam: refund the 500
-  welcome coins of `2ec5bfb0…` (10 duplicate charges, job `1019397362`)?
-  After the merge: `metric cv_weave.run_in_flight` and same-job charges
-  inside 3 min should read 0. Other routers' authored 503s are still blanked
-  by the boundary (reach, prep, polish…) — not converted here.
-- **FD5 · a paid weave that changes almost nothing.** Mindtickle BDR on the
-  QA's sales CV: 4 of 5 roles and the summary failed the guard
-  (`metric cv_weave.role_guard_failed`); the first run 503'd after 44.5s, the
-  second charged 50 to turn a comma into a semicolon. Read the guard metrics
-  on Develop before changing the guard.
+  on the same job**; one real person paid **10 × 50 in 42s** on 2026-10-21 —
+  `main`'s client put the last question back on screen mid-run, so each
+  "Skip & weave · 50" started another run (client half `8c372968`). Now: one
+  run per (user, job) holds a Redis claim; a second POST gets 409 and the GET
+  reports `weaving`; the work is bounded at 240s, under the 300s claim. A
+  timed-out POST reads the GET until the proposal lands or the run stops. Both
+  commits on `main` via #344; closes when one real weave hits the claim. On
+  `Develop` the claim is `paid_run` (409 `run_in_flight`, client
+  `lib/run-wait.ts`), shared with the outreach pack and the day-of brief, which
+  carried the same race (GET `building`; 0 real buyers of either 2026-10-22).
+  **Refunded 2026-10-22 (REFUND1):** the 9 duplicates of `2ec5bfb0…` (450, ledger rows
+  1671–1679, bell row "450 coins returned · Your Cargill draft is waiting.").
+  Check scheduled 2026-10-29 (local task `fd4-weave-ledger-check`): same-job
+  charges inside 3 min must read 0. Railway (30d retained): the only prod
+  weave runs are that burst — 10 POSTs, 37–60s each, none past the client's
+  60s; the 74.5s run was a local backend. Authored 503s pass the boundary
+  (`ServiceUnavailable`); still blanked: onboarding first-role save, account
+  setup, engagement sale.
+- **FD5 · a paid weave that changes almost nothing — price half on `Develop`
+  (`2153c9a1`, DECISIONS WEAVE1).** One real person paid 50 for a
+  summary-only draft (2026-10-19); the guard refused 4 of 5 roles on the QA's
+  last three runs. A weave now costs 50 only when it rewrites or trims a role;
+  buttons read "Weave now · up to 50". Forward only — no refund for the
+  10-19 draft. **Open: the guard itself.** Railway read 2026-10-22: no
+  `role_guard_failed` lines yet (on `main` since 10:15 UTC, no real weave
+  since). Cached proposals: real people 3 of 5 roles refused, QA 4 of 5. The
+  metric names the role, not the rule that refused it (number lost, foreign
+  number, substance lost) — log the rule before loosening anything.
 - **FD6 · the summary names the seat twice.** "GTM Business Development
   Manager at Capgemini… Currently serving as GTM Business Development
   Manager, …" — `names_seat` checks only the employer, so a summary that names
@@ -236,6 +240,15 @@ Chain", QA account):
   penalty, clamped at 0 (`match-score.ts`). With honest coverage the QA job reads
   33 before the penalty. Re-read the header after the merge before deciding
   whether the penalty belongs in the same number.
+- **Two numbers called "match" for one job (found 2026-10-23, making the
+  launch videos).** The card's ring is the Match Verdict `match_score` ("82
+  Strong" — CONTEXT.md calls it the ONE fit number). The editor header
+  ("/100 · Match", `playground-header.tsx`) and the apply window ("match for
+  this job", `apply-modal.tsx`) show `matchScore` instead — coverage minus the
+  content penalty (`use-playground-model.ts:121`). A person reads one "match"
+  on the card and a different one at the moment they apply. **Shivam:** rename
+  the CV number (what it measures is how well this CV proves the job) or make
+  both read the verdict. Decide with the penalty question above.
 - **Summary — FIXED `5ad8f6cc`.** The weave replaced the person's summary with
   "GTM Business Development Manager, Capgemini, Insights & Data (GCC Growth). ▪
   Own the full B2B sales cycle…". Two causes: the seat check matched the whole
@@ -351,7 +364,7 @@ Agent-owned. A scheduled check reads R3/R4 on 10-19.
 
 ## AUTHED QA CHECKLIST — the CV machine (from the beta ledger, 2026-09-30)
 
-Agent-owned, never run. **U4 first** — it is #57's acceptance. A check that fails
+Agent-owned. U4, #57's acceptance, passed 2026-10-22 (ARCHIVE). A check that fails
 becomes a fresh item with evidence; one that passes is struck. Report ids point
 into `docs/beta-testing/closure-ledger/beta-feedback-closure-ledger.jsonl` (git).
 Phone checks: `npm run qa:mobile` logs in, walks 20 surfaces × 2 themes at 375px
@@ -368,12 +381,6 @@ and asserts contrast, squeeze, reach, theme and tap size (credentials in
   apart, stack skills (HTML, CSS, JS, MySQL) detected. — 36 46 72 100 105 133
 - **U3 · Onboarding on a phone.** The primary-role step waits for your choice;
   every seniority option is tappable. — 96 143
-- **U4 · After upload, the next step is obvious.** Acceptance for the front door
-  (grill D6: "Which job do you want?"). *The single biggest theme, 17 reports* —
-  19 21 27 34 39 41 58 59 79 85 87 89 92 102 106 107 136. **Desktop run
-  2026-10-19: the door is obvious; the path behind it is not** — see §4 (fix
-  `2cc7b264`, FD1–FD3). **Phone run 2026-10-22: passes at 375px after four
-  fixes** — see §4 (FD4 on `Develop`, FD5–FD7 open). Rerun: `scripts/qa_front_door.py`.
 - **T1 · Paste a JD → the CV actually changes toward it.** Bullets rewritten
   against the JD's terms, not generic "add numbers" tips. — 31 66 90 148
 - **T2 · Tailoring never swaps in a life you did not live.** Acceptance for the
@@ -422,7 +429,32 @@ Tracker (3) · no problem or not actionable (~25).
 
 ## AGENT CHORES — approved, small
 
-- Run the authed QA checklist, U4 first.
+- Run the authed QA checklist.
+- **Listing Liveness index swap — BLOCKED on the `main` merge of `e2e232d0`
+  (owner: Shivam merges; then an agent).** Prod runs `main`, whose PostgREST
+  reads still send `is_active = true` and use the bare-spelled
+  `idx_jobs_candidate_band`, `idx_jobs_lower_company_active_jobid`,
+  `idx_jobs_live_company_first_seen` and `idx_jobs_feed_active_first_seen`
+  (a duplicate of `idx_jobs_live_first_seen_job_id`). After the merge: watch
+  their `idx_scan` stop moving (baseline 18:23 UTC 10-27: 458 / 23,346 / 2,154 /
+  1,337), `DROP INDEX CONCURRENTLY` the four, rename the three `_v2` twins back.
+  `ARCHITECTURE_READ_PATH.md` §31.
+- **Drop five stored copies — APPROVED (Shivam, 2026-10-27), in this order.**
+  `mirror_scores.skill_scores` (`{}` on all 467 rows, read by nothing),
+  `user_skills.proficiency_title` (derive from the level; 16 rows drifted),
+  `user_profiles.target_location`, `target_location_country`,
+  `target_role_title` (synced copies). 1) Move every reader and writer off them
+  — the singular direction columns still have primary readers listed in
+  `test_direction_level.py::_PRIMARY_READS`, incl. the verdict-context hash,
+  which must hash the same string from the list (0 rows out of sync, so the
+  hash does not move); 2) ship, then a week with no reads; 3) drop in one
+  migration. Users see nothing. CONTEXT → Skill Level, Targeting Brief.
+  **Step 1 readers: done 2026-10-27 on Develop** (`skill_scores` no longer
+  written). The writers of the other four stay until `main` runs these reads:
+  prod reads the stored copies, and the shared worker (Develop) writes prod
+  users' skills. After the main merge: stop the writers (targeting_write,
+  location_normalizer, the five `_TITLE_WRITERS` + `confirm_cv_skills`), then
+  the week, then the drop.
 
 ## COMPANY OBLIGATIONS — off the working backlog
 

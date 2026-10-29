@@ -1,6 +1,6 @@
 /**
  * FD2 (2026-10-20): door to Download in five clicks. The Mentor modal's part:
- * "Weave now · 50" on every question, "Take all" on a fresh review, and no
+ * "Weave now · up to 50" on every question, "Take all" on a fresh review, and no
  * "Every line is decided" screen — the modal closes when the last write lands.
  */
 import assert from "node:assert/strict"
@@ -13,13 +13,13 @@ import { interviewActions } from "../lib/cv/interview-actions"
 import type { WeaveStep } from "../lib/cv/weave-steps"
 
 test("a question before the last offers to weave now, at its price", () => {
-  assert.deepEqual(interviewActions(0, 5, 50), { skipLabel: "Skip", weaveNowLabel: "Weave now · 50" })
-  assert.deepEqual(interviewActions(3, 5, 50), { skipLabel: "Skip", weaveNowLabel: "Weave now · 50" })
+  assert.deepEqual(interviewActions(0, 5, 50), { skipLabel: "Skip", weaveNowLabel: "Weave now · up to 50" })
+  assert.deepEqual(interviewActions(3, 5, 50), { skipLabel: "Skip", weaveNowLabel: "Weave now · up to 50" })
 })
 
 test("the last question keeps one button that skips and weaves", () => {
-  assert.deepEqual(interviewActions(4, 5, 50), { skipLabel: "Skip & weave · 50", weaveNowLabel: null })
-  assert.deepEqual(interviewActions(0, 1, 50), { skipLabel: "Skip & weave · 50", weaveNowLabel: null })
+  assert.deepEqual(interviewActions(4, 5, 50), { skipLabel: "Skip & weave · up to 50", weaveNowLabel: null })
+  assert.deepEqual(interviewActions(0, 1, 50), { skipLabel: "Skip & weave · up to 50", weaveNowLabel: null })
 })
 
 const noop = () => {}

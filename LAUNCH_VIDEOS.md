@@ -3,6 +3,8 @@
 `/myro-brag` (local skill) runs the upstream `/brag-slim` from `repos/brag/`
 (pinned in [repos/README.md](repos/README.md)) under the rules below. Where the
 two disagree, this file wins. Output is files only; posting is Shivam's.
+Weekly slots: [MARKETING_SCHEDULE.md](MARKETING_SCHEDULE.md). What is planned and posted:
+the Distribution Tracker at `/admin/growth`.
 
 ## What to film — the loop, nearest the north star first
 
@@ -13,6 +15,10 @@ two disagree, this file wins. Output is files only; posting is Shivam's.
    `frontend/components/cv/download-cv-button.tsx`.
 2. **The extension.** Save a job from any page → tailored CV. `Chrome_extension/`.
 3. **Myrology.** The second product line, judged on its own — `frontend/app/myrology/`.
+
+Filmed: the loop, the extension fill, match + apply (`brag-output*/`). Next, both
+on `main` 2026-10-22: door to Download in 5 clicks (FD2, `8c372968`) and the
+judge reading your /market list (List Reading, `3e4ccc57`).
 
 The Myro Score and the gap read are what the machine knows about you, not the
 product. They can appear in a shot; they are never the headline.
@@ -41,7 +47,8 @@ product. They can appear in a shot; they are never the headline.
 - No prices until checkout is live (#56 is spec only).
 - Film only what a user can do today. An extension feature counts once the
   Chrome Web Store listing carries the version that has it — on `main` is not
-  enough (2026-10-20: store 0.2.3, form fill is 0.2.5).
+  enough (form fill was on `main` in 0.2.5 while the store read 0.2.3; its
+  video waited for the store).
 
 ## Voice and look
 

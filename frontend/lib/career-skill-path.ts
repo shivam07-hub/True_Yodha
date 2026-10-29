@@ -91,6 +91,9 @@ export function groupLearningRepos(
 
 export interface CareerSkillPath {
   needs_target: boolean
+  /** What a missing target still needs: `role` (the whole Direction journey) or
+   *  `level` (the work is chosen — ask the level alone). Null when set. */
+  missing?: "role" | "level" | null
   snapshot: CareerTargetSnapshot | null
   lower: BandSkillMap | null
   anchor: BandSkillMap | null
@@ -139,6 +142,16 @@ export function sortAnchorCards(cards: readonly SkillPathCard[]): SkillPathCard[
 }
 
 /** A path the user can act on now: practise, or add a certificate to the CV. */
+/** What the target gate asks, or null when there is a target.
+ *
+ *  A direction is a role and a level (Shivam, 2026-10-27). Someone who chose the
+ *  work and never a level is asked the level and nothing else — sending them
+ *  back through the Field and Work steps is asking them to choose again. */
+export function targetAsk(path: Pick<CareerSkillPath, "needs_target" | "missing"> | null | undefined): "level" | "direction" | null {
+  if (!path?.needs_target) return null
+  return path.missing === "level" ? "level" : "direction"
+}
+
 export function isLivePath(card: SkillPathCard): boolean {
   if (card.certificate_status === "issued" && card.verification_id) return true
   if (card.ladder_complete && card.next_practice_level) return true

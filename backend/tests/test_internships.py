@@ -103,3 +103,63 @@ def test_without_dismissed_drops_skipped_interns() -> None:
     cards = [{"job_id": "keep"}, {"job_id": "gone"}]
     assert without_dismissed(cards, {"gone"}) == [{"job_id": "keep"}]
     assert without_dismissed(cards, set()) == cards
+
+
+# ── Apply here is a Yes (CONTEXT → Application Yes) ─────────────────────────
+
+
+class _HostedRepo:
+    def __init__(self) -> None:
+        self.row: dict | None = None
+        self.intents: list[dict] = []
+
+    def record_apply_intent(self, _uid: str, _job_id: str, intent: dict) -> None:
+        self.intents.append(intent)
+
+    def get_application_with_job(self, _uid: str, job_id: str) -> dict | None:
+        if self.row is None:
+            return None
+        return {
+            "id": 1, "job_id": job_id, "created_at": "2026-10-27T00:00:00+00:00",
+            "jobs": {"job_title": "Growth Intern", "company_name": "Myro"}, **self.row,
+        }
+
+    def upsert_application(self, _uid: str, _job_id: str, updates: dict) -> None:
+        self.row = {**(self.row or {}), **updates}
+
+    def answer_apply_intents(self, _uid: str, _job_id: str) -> None:
+        pass
+
+
+def test_apply_here_is_a_yes_through_the_hosted_door(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The intern apply page is the submit. It used to stamp the date and skip the
+    CV, the judge and the door, so a hosted application never named its door."""
+    from fastapi.testclient import TestClient
+
+    from app.database import get_supabase_admin
+    from app.deps import Principal, get_principal
+    from app.main import app
+    from app.repositories.jobs import get_token_jobs_repository
+    from app.routers.jobs import internships as router
+    from app.services import application_yes
+
+    repo = _HostedRepo()
+    seen: list = []
+    monkeypatch.setattr(router, "get_internship", lambda _db, _jid: {"listing_venue": "myro"})
+    monkeypatch.setattr(application_yes.cv_of_record, "record_on_apply", lambda *_a, **_k: seen.append("cv"))
+    monkeypatch.setattr(application_yes.on_demand, "open_job_eval", lambda *_a: seen.append("judge"))
+    monkeypatch.setattr(application_yes.core_loop, "record_step", lambda *a: seen.append(a))
+    app.dependency_overrides[get_principal] = lambda: Principal(id="u1", email=None)
+    app.dependency_overrides[get_supabase_admin] = lambda: object()
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    try:
+        with TestClient(app) as client:
+            res = client.post("/jobs/internships/myro_1/apply")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert res.status_code == 200
+    assert res.json()["status"] == "applied"
+    assert res.json()["applied_at"] is not None
+    assert repo.intents[0]["destination_type"] == "hosted_role"
+    assert seen == ["cv", "judge", ("u1", "myro_1", "applied", "hosted")]

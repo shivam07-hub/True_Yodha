@@ -99,7 +99,7 @@ def test_caps_at_max_picks() -> None:
     assert len(picks) == agent_picks.MAX_PICKS
 
 
-_PROFILE = {"target_role_title": "Data Analyst", "target_seniority": "mid", "target_location": "Pune"}
+_PROFILE = {"target_role_titles": ["Data Analyst"], "target_seniority": "mid", "target_locations": ["Pune"]}
 
 
 def _judged_for(row: dict[str, Any], profile: dict[str, Any] = _PROFILE) -> dict[str, Any]:
@@ -159,7 +159,7 @@ def test_regenerate_empty_stack_clears_band() -> None:
 def test_regenerate_never_picks_a_verdict_judged_for_another_direction() -> None:
     """#55 S2: `foreign` leaves Picks. A stale verdict (same direction, older
     rules) still can be one; the read marks it re-reading."""
-    left = {**_PROFILE, "target_role_title": "Sales Manager"}
+    left = {**_PROFILE, "target_role_titles": ["Sales Manager"]}
     stale = {**_judged_for(_row("stale", score=4.4)), "eval_context_hash": "an-older-prompt"}
     repo = _FakeRepo([], judged=False)
     repo._stack = [_judged_for(_row("left", score=4.8), left), stale, _judged_for(_row("now", score=4.2))]

@@ -40,6 +40,8 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Literal, Mapping
 
+from app.services.listing_liveness import is_down
+
 State = Literal["confirmed_open", "unconfirmed", "closed"]
 
 #: How long a genuine confirmation still means the listing is open. Past it
@@ -121,7 +123,7 @@ def verdict(row: Mapping[str, Any], *, now: datetime) -> ListingTime:
     confirmed_at = checked_at if _found_live(row, checked_at) else None
 
     moment = _as_utc(now)
-    if _is_closed(row):
+    if is_down(row):
         state: State = "closed"
     elif (
         confirmed_at is not None
@@ -132,13 +134,6 @@ def verdict(row: Mapping[str, Any], *, now: datetime) -> ListingTime:
     else:
         state = "unconfirmed"
     return ListingTime(state, received_at, confirmed_at, discovered_on, checked_at)
-
-
-def _is_closed(row: Mapping[str, Any]) -> bool:
-    """A close the verifier wrote. A missing flag is not a close."""
-    if row.get("is_active") is False:
-        return True
-    return row.get("listing_confidence") == "closed"
 
 
 def _found_live(row: Mapping[str, Any], checked_at: datetime | None) -> bool:

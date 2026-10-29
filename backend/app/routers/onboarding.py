@@ -20,6 +20,7 @@ from app.services.skill_confirmation import confirm_baseline_skills
 router = APIRouter(prefix="/onboarding", tags=["onboarding"])
 
 Seniority = Literal["intern", "entry", "mid", "senior", "lead", "executive", "any"]
+SourceSeniority = Literal["intern", "entry", "mid", "senior", "lead", "executive"]
 ActivationKind = Literal["tailor_credible_job", "review_score_gap", "save_credible_job"]
 MilestoneKind = Literal["score_gap_reviewed", "credible_job_saved", "tailored_cv_created"]
 
@@ -177,6 +178,32 @@ def save_target(
         )
         if body.finish_onboarding:
             onboarding_service.complete_onboarding_after_direction(db, principal.id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+
+
+class LevelRequest(BaseModel):
+    """The level, for a role already chosen. `any` is not a level."""
+    seniority: SourceSeniority
+    years_experience: float | None = Field(default=None, ge=0, le=60)
+
+
+@router.put("/target/level", status_code=status.HTTP_204_NO_CONTENT)
+def save_level(
+    body: LevelRequest,
+    principal: Principal = Depends(get_principal),
+) -> None:
+    """A role with no level is asked only the level (CONTEXT → Targeting Brief)."""
+    try:
+        onboarding_service.save_level(
+            get_supabase_admin(),
+            principal.id,
+            seniority=body.seniority,
+            years_experience=body.years_experience,
+        )
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

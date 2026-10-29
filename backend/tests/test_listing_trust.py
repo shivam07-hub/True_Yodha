@@ -22,9 +22,12 @@ def _row(**kw):
 
 
 def _found_live(at, **kw):
-    """The verifier's live verdict: one instant on all three columns."""
+    """The verifier's live verdict: one instant on all three columns, on a row
+    the lifecycle still calls live (CONTEXT → Listing Liveness)."""
     return _row(
         **{
+            "is_active": True,
+            "listing_confidence": "active",
             "last_verified_live_at": at,
             "last_conclusive_verification_at": at,
             "reactivated_at": at,
