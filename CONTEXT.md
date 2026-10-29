@@ -409,6 +409,34 @@ row.
 
 **Measured 2026-10-27, before the build:** the live rule was spelled in 15 SQL functions, the RLS policy, 12 partial indexes and 6 Python sites; down in 3 Python sites that split on `likely_closed`; `refresh_sector_panel` dropped `is_active`; `listing_trust` failed open on a missing column. Zero rows disagreed — the copies had not yet drifted on data. Built in full anyway (Shivam, 2026-10-27): the next change to "live" must land in one place. After the swap every hot read returned the same rows at the same speed (the function inlines; the RLS filter shows the spelled-out expression, not a call).
 
+## Company Identity
+
+Which company a job, a follow or a scraper run belongs to. `public.company_key(name)`
+— lowercased FIRST, then everything outside `a-z0-9` dropped — is the company;
+`companies.id` is minted from it by `resolve_company_entity`, which the scraper
+calls on every run. Spellings that differ only by case, spacing or punctuation are
+one company (Shivam, 2026-10-29). Anything else ("Deloitte India (BrassRing)" and
+"Deloitte India") joins only through an explicit `company_aliases` row, never a
+looser key: a wrong merge closes real listings, a missed one only splits a page.
+
+- `company_alias_key(name)` (case + spacing) keys an alias row; `company_key(name)`
+  keys the company. Both are spelled once, in SQL. Python asks `company_for_name`,
+  which reads and never mints. `tests/test_company_identity.py` fails the build if
+  either fold is spelled again.
+- The scraper fetches a company's jobs by `company_id` and closes what a complete
+  run did not see. A wrong id is a wrong close, not a wrong label.
+- Read surfaces (directory, pulse, Company CV Thread, the Following-only filter)
+  still compare names. They agree with the key on every company today (278 names,
+  0 punctuation variants); moving them onto the key is in BACKLOG.
+
+**Measured and fixed 2026-10-29.** The resolver stripped before it lowercased
+("OpenAI" → `pen`, Meta and Zeta → `eta`), so 4 ids held 10 employers. KPMG
+India's run closed EY India's 71 and BDO India's 32 listings, Zeta's closed
+Meta's 36, and DBS Bank and ANZ Bank closed each other daily (301 of DBS Bank's
+558 reopened in 30 days). `20261029120000_company_key.sql` re-keyed every company
+and split the six misfiled aliases; 1,098 jobs and 49 runs followed their name.
+Follows stayed on the name they show. The scraper's next run reopens what it sees.
+
 ## Company Demand Pulse
 
 The public, per-company hiring index: live role count, weekly inflow, freshness,

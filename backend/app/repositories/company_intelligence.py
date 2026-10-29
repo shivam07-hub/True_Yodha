@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from fastapi import Depends
@@ -60,22 +59,12 @@ class CompanyIntelligenceRepository:
         }
 
     def _resolve(self, company_name: str) -> dict[str, Any] | None:
-        canonical_key = re.sub(r"[^a-z0-9]+", "", company_name.strip().lower())
-        rows = self.db.table("companies").select(
-            "id,canonical_name,slug"
-        ).eq("canonical_key", canonical_key).limit(1).execute().data or []
-        if rows:
-            return rows[0]
-        alias_key = re.sub(r"\s+", " ", company_name.strip().lower())
-        aliases = self.db.table("company_aliases").select("company_id").eq(
-            "alias_key", alias_key
-        ).limit(1).execute().data or []
-        if not aliases:
-            return None
-        companies = self.db.table("companies").select(
-            "id,canonical_name,slug"
-        ).eq("id", aliases[0]["company_id"]).limit(1).execute().data or []
-        return companies[0] if companies else None
+        # The company a name means is decided in SQL (`company_key`), the same
+        # rule the scraper's resolver mints ids with (CONTEXT → Company Identity).
+        rows = self.db.rpc(
+            "company_for_name", {"p_company_name": company_name}
+        ).execute().data or []
+        return rows[0] if rows else None
 
     def _source_run_completed_at(self, source_run_id: str | None) -> Any:
         if source_run_id is None:
