@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-10-30 — Listing Liveness index swap closed
+
+Four bare-spelled `jobs` indexes dropped and the `_v2` twins renamed back after three idle days (`20261030120000`). ARCHITECTURE_READ_PATH §31.
+
 ## 2026-10-23 — One distribution stream: /admin/growth
 
 Retired the May growth-agent calendar and playbooks (`Myro Newsletter/growth-agent/`, `0d28fcd5`) and the LinkedIn outbox publisher (15-minute workflow, `scripts/linkedin-*`, its npm scripts and runbook), which only ever saw an empty outbox in CI because the outbox files were never tracked; posts are planned and marked in `/admin/growth`, the rhythm is `MARKETING_SCHEDULE.md`. Full text: `git show aa0f889b:"Myro Newsletter/growth-agent/content-calendar.md"`.

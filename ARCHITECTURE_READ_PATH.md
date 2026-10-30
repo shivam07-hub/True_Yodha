@@ -2755,9 +2755,12 @@ for PostgREST. What the move turned up about the planner:
   `authenticated`, the company read used `idx_jobs_live_company_first_seen_v2`,
   21 buffers, 6.8ms. Trap 5 is unchanged, not worsened.
 
-### Still open
+### Closed 2026-10-30
 
-- Drop the bare-spelled `idx_jobs_candidate_band`,
-  `idx_jobs_lower_company_active_jobid`, `idx_jobs_live_company_first_seen` and
-  the duplicate `idx_jobs_feed_active_first_seen` once the `live_only` deploy is
-  live and their `idx_scan` stops moving; rename the `_v2` twins back.
+The bare-spelled `idx_jobs_candidate_band`, `idx_jobs_lower_company_active_jobid`,
+`idx_jobs_live_company_first_seen` and the duplicate
+`idx_jobs_feed_active_first_seen` were dropped once their `idx_scan` had not moved
+for three days (458 / 23,346 / 2,154 / 1,337, last used 10-27 18:13), and the
+`_v2` twins took their names (`20261030120000_live_indexes_swap.sql`). The four
+read shapes kept their plans at 21–54 buffers. `idx_jobs_ingested_at_active` stays
+bare: it answers ingestion, not liveness.
