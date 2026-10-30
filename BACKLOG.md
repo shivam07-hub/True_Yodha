@@ -444,6 +444,11 @@ Tracker (3) · no problem or not actionable (~25).
 ## AGENT CHORES — approved, small
 
 - Run the authed QA checklist.
+- **Removing a skill on the CV page fails with a 500 — not fixed (found 2026-10-30).**
+  `skill_correction.set_skill_included` writes `cv_skill_overrides` with the user's
+  token; `authenticated` has had SELECT only since `20260619b`, and the path shipped
+  07-31. 0 of 41 override rows came through it, so it has never worked. The rail
+  shows an error and the skill stays. Attempts were not recorded.
 - **Drop five stored copies — APPROVED (Shivam, 2026-10-27). BLOCKED on the next
   `main` merge (owner: Shivam merges; then an agent).** `mirror_scores.skill_scores`,
   `user_skills.proficiency_title`, `user_profiles.target_location`,
