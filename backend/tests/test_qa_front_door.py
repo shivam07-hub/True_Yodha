@@ -16,7 +16,7 @@ def test_a_reset_to_skills_reopens_the_skill_check_and_the_door():
         ("user_onboarding_state", {"user_id": "u1"}, {"completed_at": None, "credible_job_saved_at": None}),
         ("user_profiles", {"id": "u1"}, {
             "onboarding_complete": False,
-            "target_role_title": None, "target_role_titles": [], "target_roles": [],
+            "target_role_titles": [], "target_roles": [],
         }),
         ("cv_versions", {"id": 502}, {"skills_confirmed_at": None}),
     ]

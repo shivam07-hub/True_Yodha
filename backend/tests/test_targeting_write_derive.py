@@ -23,7 +23,6 @@ def test_derive_preserves_stored_target_roles_when_caller_omits_family() -> None
     before = {
         "target_roles": ["product_management"],
         "target_role_titles": ["Product Manager"],
-        "target_role_title": "Product Manager",
     }
     out = targeting_write.derive(patch, before)
     assert out["target_roles"] == ["product_management"], (
@@ -32,7 +31,6 @@ def test_derive_preserves_stored_target_roles_when_caller_omits_family() -> None
         "has nothing (invariant 5)."
     )
     assert out["target_role_titles"] == ["Product Manager", "Product Lead"]
-    assert out["target_role_title"] == "Product Manager"
 
 
 def test_derive_writes_supplied_family_when_caller_provides_one() -> None:
@@ -72,11 +70,11 @@ def test_derive_writes_empty_family_when_caller_explicitly_says_none() -> None:
 
 def test_derive_leaves_target_roles_alone_when_no_titles_supplied() -> None:
     # A patch that doesn't touch titles must not touch role_family either.
-    patch = {"target_location": "Bengaluru"}
+    patch = {"target_seniority": "mid"}
     before = {"target_roles": ["product_management"]}
     out = targeting_write.derive(patch, before)
     assert "target_roles" not in out
-    assert out["target_location"] == "Bengaluru"
+    assert out["target_seniority"] == "mid"
 
 
 def test_derive_drops_a_raw_target_roles_supplied_alongside_titles() -> None:

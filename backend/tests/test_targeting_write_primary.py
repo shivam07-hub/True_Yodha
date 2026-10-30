@@ -69,7 +69,7 @@ def test_commit_will_not_store_a_bucket_as_the_primary(monkeypatch) -> None:
             "role_families": ["Scripting Languages", "Software Development"],
         },
     )
-    assert repo.updates["target_role_title"] == "Software Development"
+    assert repo.updates["target_role_titles"][0] == "Software Development"
     assert repo.updates["target_role_titles"][0] == "Software Development"
     assert repo.updates["target_roles"][0] == "Software Development"
     assert "Scripting Languages" in repo.updates["target_role_titles"]

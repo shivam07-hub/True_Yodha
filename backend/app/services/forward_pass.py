@@ -578,7 +578,6 @@ def _promote_catch_all_primary(user_id: str, profile: dict[str, Any]) -> bool:
         catch = {name for name in [*titles, *families] if _looks_like_bucket(name)}
         promoted_titles = demote_catch_all_primary(titles, catch)
         profile["target_role_titles"] = promoted_titles
-        profile["target_role_title"] = promoted_titles[0]
         if families:
             profile["target_roles"] = demote_catch_all_primary(families, catch)
         logger.info("metric forward_pass.primary_promoted user=%s", user_id)

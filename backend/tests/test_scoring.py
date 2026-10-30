@@ -8,7 +8,6 @@ import pytest
 
 from app.services.scoring import (
     _DAYS_PER_STEP,
-    _PROFICIENCY_TITLES,
     _RANK_TIERS,
     _SIGNAL_LEVEL_MAP,
     DEFAULT_TARGET_LEVEL,
@@ -20,6 +19,7 @@ from app.services.scoring import (
     compute_mirror_score,
     compute_rank_tier,
     infer_level_from_signals,
+    level_name,
     project_total_with_skill_bump,
     target_level_for_seniority,
 )
@@ -519,11 +519,11 @@ class TestSignalTypes:
 
 class TestProficiencyTitles:
     def test_all_five_levels_named(self) -> None:
-        assert _PROFICIENCY_TITLES[1] == "Scout"
-        assert _PROFICIENCY_TITLES[2] == "Trailblazer"
-        assert _PROFICIENCY_TITLES[3] == "Excavator"
-        assert _PROFICIENCY_TITLES[4] == "Cartographer"
-        assert _PROFICIENCY_TITLES[5] == "Legend"
+        assert level_name(1) == "Scout"
+        assert level_name(2) == "Trailblazer"
+        assert level_name(3) == "Excavator"
+        assert level_name(4) == "Cartographer"
+        assert level_name(5) == "Legend"
 
     def test_days_table_covers_all_steps(self) -> None:
         for step in [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5)]:
@@ -597,4 +597,4 @@ def test_candidate_levels_match_published_levels():
     level_map = build_skill_level_map(signals)
     # impact = 3, and 1100 XP clears the depth boost → 4.
     assert level_map["Django"] == 4
-    assert _PROFICIENCY_TITLES[level_map["Django"]] == "Cartographer"
+    assert level_name(level_map["Django"]) == "Cartographer"

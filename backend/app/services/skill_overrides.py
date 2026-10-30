@@ -81,7 +81,6 @@ def apply_skill_overrides(
                 "skill_id": int(item["skill_id"]),
                 "taxonomy_key": key_by_id.get(int(item["skill_id"]), ""),
                 "matched_level": 1,
-                "proficiency_title": "Scout",
                 "source": "user_override",
                 "evidence_text": item["evidence_text"],
                 "last_updated": now,

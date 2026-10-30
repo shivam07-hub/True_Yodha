@@ -444,31 +444,15 @@ Tracker (3) · no problem or not actionable (~25).
 ## AGENT CHORES — approved, small
 
 - Run the authed QA checklist.
-- **Listing Liveness index swap — DUE: `main` took `e2e232d0` in #345
-  (2026-10-29).** Until then prod ran `main`, whose PostgREST
-  reads still send `is_active = true` and use the bare-spelled
-  `idx_jobs_candidate_band`, `idx_jobs_lower_company_active_jobid`,
-  `idx_jobs_live_company_first_seen` and `idx_jobs_feed_active_first_seen`
-  (a duplicate of `idx_jobs_live_first_seen_job_id`). After the merge: watch
-  their `idx_scan` stop moving (baseline 18:23 UTC 10-27: 458 / 23,346 / 2,154 /
-  1,337), `DROP INDEX CONCURRENTLY` the four, rename the three `_v2` twins back.
-  `ARCHITECTURE_READ_PATH.md` §31.
-- **Drop five stored copies — APPROVED (Shivam, 2026-10-27), in this order.**
-  `mirror_scores.skill_scores` (`{}` on all 467 rows, read by nothing),
-  `user_skills.proficiency_title` (derive from the level; 16 rows drifted),
-  `user_profiles.target_location`, `target_location_country`,
-  `target_role_title` (synced copies). 1) Move every reader and writer off them
-  — the singular direction columns still have primary readers listed in
-  `test_direction_level.py::_PRIMARY_READS`, incl. the verdict-context hash,
-  which must hash the same string from the list (0 rows out of sync, so the
-  hash does not move); 2) ship, then a week with no reads; 3) drop in one
-  migration. Users see nothing. CONTEXT → Skill Level, Targeting Brief.
-  **Step 1 readers: done 2026-10-27 on Develop** (`skill_scores` no longer
-  written). The writers of the other four stay until `main` runs these reads:
-  prod reads the stored copies, and the shared worker (Develop) writes prod
-  users' skills. `main` took these reads in #345 (2026-10-29), so the next step
-  is due: stop the writers (targeting_write, location_normalizer, the five
-  `_TITLE_WRITERS` + `confirm_cv_skills`), then the week, then the drop.
+- **Drop five stored copies — APPROVED (Shivam, 2026-10-27). BLOCKED on the next
+  `main` merge (owner: Shivam merges; then an agent).** `mirror_scores.skill_scores`,
+  `user_skills.proficiency_title`, `user_profiles.target_location`,
+  `target_location_country`, `target_role_title`. Readers left in #345; writers and
+  select lists left `Develop` 2026-10-30. **Do not drop before `main` has that
+  commit:** prod's code still selects and writes these columns, so a drop breaks
+  prod reads and every direction save. After the merge: a week, check nothing
+  names them (`pg_stat_statements`), then one migration. Users see nothing.
+  CONTEXT → Skill Level, Targeting Brief.
 - **Company names on read surfaces onto `company_key`** (CONTEXT → Company
   Identity). The directory, pulse, Company CV Thread and the Following-only
   filter still compare names folded for case and spacing; the resolver's key

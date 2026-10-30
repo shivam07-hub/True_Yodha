@@ -573,8 +573,8 @@ for 16 people; it reads `level_of` like every other surface. The level's name
 (Scout … Legend) is derived from the level when it is read, never stored:
 `user_skills.proficiency_title` had drifted on 16 rows and never once held
 "Legend". It, `mirror_scores.skill_scores` (`{}` on all 467 rows, read by
-nothing) and the three singular direction columns are approved to be dropped
-once their readers have moved and a week shows no reads (BACKLOG).
+nothing) and the three singular direction columns are neither read nor written,
+and are approved to be dropped (BACKLOG).
 
 **Role Standing** is where a user stands against the core skills of their target
 roles: `cleared / total`, a COUNT and never a percentage. `total` is the twelve
@@ -1131,7 +1131,7 @@ Migration `20260804_target_updated_at.sql` wrote the contract down and `04ef9f3b
 
 The single read for "what Myro knows about what this user wants" — one module (`app/services/matching/targeting.py`) assembles the confirmed `user_profiles` targeting columns AND the `user_memory` fact store (authored + distilled) so no consumer re-assembles its own subset.
 
-**The profile holds the current direction; the snapshot is its history** (decided 2026-10-27, replacing "the snapshot is the unit of truth… until every consumer reads the snapshot" — no consumer had moved, and every match ran on the profile). `targeting_write.commit` is the only writer for role, family, seniority, locations, freshness, and the `career_target_snapshots` row (current = `superseded_at IS NULL`). The snapshot row is written by one database function, `record_career_target` (service role only, one transaction: supersede + insert, no-op when the current row already names the direction), called from `career_target.record_from_profile(user_id, profile)`, which holds its own service-role client — owners may read snapshots, no user token may write them. Readers ask `services/direction.py` (roles) and one location reader, never the columns; the singular `target_location`, `target_location_country` and `target_role_title` are synced copies the writer keeps, no reader falls back to them, and they are approved to be dropped once their primary readers move (Shivam, 2026-10-27; BACKLOG). Legacy `any` seniority is compatibility data only — never coerced to `entry`. Job-card seniority is Firecrawl `jobs.seniority_level` only.
+**The profile holds the current direction; the snapshot is its history** (decided 2026-10-27, replacing "the snapshot is the unit of truth… until every consumer reads the snapshot" — no consumer had moved, and every match ran on the profile). `targeting_write.commit` is the only writer for role, family, seniority, locations, freshness, and the `career_target_snapshots` row (current = `superseded_at IS NULL`). The snapshot row is written by one database function, `record_career_target` (service role only, one transaction: supersede + insert, no-op when the current row already names the direction), called from `career_target.record_from_profile(user_id, profile)`, which holds its own service-role client — owners may read snapshots, no user token may write them. Readers ask `services/direction.py` (roles) and one location reader, never the columns; the singular `target_location`, `target_location_country` and `target_role_title` are neither read nor written and are approved to be dropped (Shivam, 2026-10-27; BACKLOG). Legacy `any` seniority is compatibility data only — never coerced to `entry`. Job-card seniority is Firecrawl `jobs.seniority_level` only.
 
 **A direction is a role and a level (Shivam, 2026-10-27).** A role with no level (31 with none, 10 with `any` on 2026-10-27, all set before September) still runs matches, and has no snapshot. When that person next opens Career Path they see their role and are asked only the level — never sent back to pick a role they already chose. The answer goes through `commit`, which mints the snapshot. "Has a career target" in `loop_reach.py` therefore counts snapshots: role and level.
 
@@ -1716,9 +1716,9 @@ The JD a user is already working — distinct from a live marketplace row. Feed 
 ## Target Location
 
 **One axis, plural end to end, and it is plural at every hop or it is broken at
-one.** `user_profiles.target_locations[]` is the store; `target_location` is a
-derived scalar kept for legacy readers (a CV contact line shows one city, and
-that is the only place the scalar is the right answer). `MAX_TARGET_LOCATIONS`
+one.** `user_profiles.target_locations[]` is the store; a CV contact line shows one
+city, the list's first (`primaryLocation`), and that is the only place one
+location is the right answer. `MAX_TARGET_LOCATIONS`
 (5) is the cap, enforced once in `targeting_write` and read by everything that
 needs it — never written down a second time.
 

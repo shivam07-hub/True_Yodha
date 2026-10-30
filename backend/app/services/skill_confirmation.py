@@ -73,7 +73,6 @@ def _reviewed_rows(
             "skill_id": int(row["skill_id"]),
             "taxonomy_key": str(row.get("taxonomy_key") or ""),
             "matched_level": int(row["matched_level"]),
-            "proficiency_title": scoring.level_name(row["matched_level"]),
             "source": "cv",
             "evidence_text": str(row.get("evidence_text") or ""),
         }
@@ -88,7 +87,6 @@ def _reviewed_rows(
                 "skill_id": skill_id,
                 "taxonomy_key": str(item.get("taxonomy_key") or ""),
                 "matched_level": 1,
-                "proficiency_title": scoring.level_name(1),
                 "source": "user_override",
                 "evidence_text": item["evidence_text"],
             }

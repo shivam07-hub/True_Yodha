@@ -17,11 +17,9 @@ from app.services.scoring import level_name
 # The values that define "which jobs am I asking Myro for". Order matters inside
 # the lists — titles[0] is the primary role — so they compare as sequences.
 _DIRECTION_KEYS = (
-    "target_role_title",
     "target_role_titles",
     "target_roles",
     "target_seniority",
-    "target_location",
     "target_locations",
 )
 

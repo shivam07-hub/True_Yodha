@@ -31,9 +31,8 @@ overwritten, even a junk one — the user edits it in the modal):
 - lean           ← `preference` facts (no column; the fact store IS the answer)
 - career_goal    ← `aspiration` facts
 - superpower     ← no clean kind; column-only (stays manual)
-- role titles    ← `target_role_titles` (source of record), falling back to the
-  legacy single `target_role_title`, then to raw `target_roles` (pre-Phase-0
-  rows where clusters were the only store)
+- role titles    ← `target_role_titles` (source of record), falling back to raw
+  `target_roles` (pre-Phase-0 rows where clusters were the only store)
 
 Memory reads are fail-soft by construction: `UserMemoryRepository.list_active`
 already degrades to `[]` via safe_read, and a repo without a real client (test

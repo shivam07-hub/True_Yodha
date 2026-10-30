@@ -134,15 +134,6 @@ def test_the_score_never_writes_skill_scores() -> None:
 
 # ── nothing reads the stored level name ─────────────────────────────────────
 
-#: Writers keep the column in step until `main` runs these derived reads — the
-#: shared worker writes production users' skills (BACKLOG: drop five copies).
-_TITLE_WRITERS = {
-    "app/services/skill_overrides.py",
-    "app/services/skill_correction.py",
-    "app/services/onboarding_service.py",
-    "app/services/skill_confirmation.py",
-    "app/services/scoring/orchestrator.py",
-}
 _TITLE_READ = re.compile(
     r"""\.get\(\s*["']proficiency_title["']\)|\[["']proficiency_title["']\]|select\([^)]*proficiency_title"""
 )
@@ -153,8 +144,6 @@ def test_no_reader_takes_the_stored_level_name() -> None:
     offenders = []
     for path in (backend / "app").rglob("*.py"):
         rel = str(path.relative_to(backend))
-        if rel in _TITLE_WRITERS:
-            continue
         text = path.read_text()
         for hit in _TITLE_READ.finditer(text):
             offenders.append(f"{rel}:{text.count(chr(10), 0, hit.start()) + 1}")

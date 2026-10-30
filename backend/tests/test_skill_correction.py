@@ -66,7 +66,6 @@ class _ScoresRepo:
         self.rows = rows if rows is not None else {
             7: {
                 "matched_level": 1,
-                "proficiency_title": "Scout",
                 "source": "cv",
                 "evidence_text": "Fitness & Strength Training",
                 "forge_sessions_count": 9,
@@ -74,7 +73,6 @@ class _ScoresRepo:
             },
             8: {
                 "matched_level": 3,
-                "proficiency_title": "Excavator",
                 "source": "cv",
                 "evidence_text": "Edited 20+ advertisement videos",
                 "forge_sessions_count": 0,
@@ -149,7 +147,6 @@ def test_restore_rebuilds_level_and_receipt_from_the_cv(wired) -> None:
 
     restored = scores_repo.rows[8]
     assert restored["matched_level"] == 3, "impact signal → L3, same as the publish path"
-    assert restored["proficiency_title"] == "Excavator"
     assert restored["evidence_text"] == "Edited 20+ advertisement videos"
 
 

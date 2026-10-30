@@ -72,7 +72,6 @@ def _candidate_from_baseline(baseline: dict[str, Any], taxonomy_key: str) -> dic
     level = scoring.build_skill_level_map(signals)[taxonomy_key]
     return {
         "matched_level": level,
-        "proficiency_title": scoring._PROFICIENCY_TITLES.get(level, "Scout"),
         "evidence_text": scoring.best_evidence_by_key(signals).get(taxonomy_key, ""),
     }
 

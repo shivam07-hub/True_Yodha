@@ -43,7 +43,7 @@ def test_families_are_plural_and_deduped() -> None:
     assert updates["target_roles"] == ["Data Science", "Cloud"]
     assert updates["target_role_titles"] == ["Data Engineer", "Solution Architect"]
     # Primary stays titles[0] — the score label and every back-compat read.
-    assert updates["target_role_title"] == "Data Engineer"
+    assert updates["target_role_titles"][0] == "Data Engineer"
 
 
 def test_singular_family_still_works() -> None:

@@ -9,8 +9,6 @@ CONTEXT.md → Targeting Brief.
 """
 from __future__ import annotations
 
-import re
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -19,8 +17,6 @@ from fastapi.testclient import TestClient
 from app.deps import Principal, get_principal
 from app.main import app
 from app.services import career_skill_path_read, career_target, onboarding_service
-
-ROOT = Path(__file__).resolve().parents[2]
 
 
 # ── the snapshot: a picked family's name is its title ───────────────────────
@@ -153,31 +149,3 @@ def test_a_role_without_a_level_is_missing_the_level(monkeypatch: pytest.MonkeyP
 
 def test_no_role_is_missing_the_role(monkeypatch: pytest.MonkeyPatch) -> None:
     assert _assemble(monkeypatch, {})["missing"] == "role"
-
-
-# ── the singular columns are synced copies, never a fallback ────────────────
-
-#: The writers. They keep the synced copies in step until `main` runs these
-#: reads — production reads them until then (BACKLOG: drop five copies). No
-#: reader is left: the verdict-context hash reads the lists, and moved no key.
-_PRIMARY_READS = {
-    "app/services/targeting_write.py",  # the writer
-    "app/services/forward_pass.py",  # writes the promoted primary back
-}
-_SINGULAR = re.compile(
-    r"""\.get\(\s*["'](target_location|target_location_country|target_role_title)["']"""
-    r"""|\[["'](target_location|target_location_country|target_role_title)["']\]"""
-)
-
-
-def test_no_reader_falls_back_to_a_singular_column() -> None:
-    offenders = []
-    backend = ROOT / "backend"
-    for path in (backend / "app").rglob("*.py"):
-        rel = str(path.relative_to(backend))
-        if rel in _PRIMARY_READS:
-            continue
-        text = path.read_text()
-        for hit in _SINGULAR.finditer(text):
-            offenders.append(f"{rel}:{text.count(chr(10), 0, hit.start()) + 1}")
-    assert offenders == [], "read direction.locations/countries/of(): " + ", ".join(offenders)

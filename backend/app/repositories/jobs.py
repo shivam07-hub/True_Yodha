@@ -2521,7 +2521,7 @@ class JobsRepository:
 
         data = safe_read(
             self._db.table("user_profiles")
-            .select("target_roles,target_role_titles,target_role_title")
+            .select("target_roles,target_role_titles")
             .eq("id", user_id)
             .maybe_single(),
             default=None,
@@ -2539,7 +2539,7 @@ class JobsRepository:
         data = safe_read(
             self._db.table("user_profiles")
             .select(
-                "target_role_titles,target_role_title,target_roles,target_seniority,"
+                "target_role_titles,target_roles,target_seniority,"
                 "target_career_band,explored_career_bands"
             )
             .eq("id", user_id)
@@ -2573,7 +2573,7 @@ class JobsRepository:
         """
         rows = safe_read(
             self._db.table("user_profiles")
-            .select("target_updated_at,last_match_run_at,target_role_title,target_role_titles")
+            .select("target_updated_at,last_match_run_at,target_role_titles")
             .eq("id", user_id)
             .limit(1),
             default=[],
@@ -3346,9 +3346,9 @@ class JobsRepository:
         data = safe_read(
             self._db.table("user_profiles")
             .select(
-                "target_roles, target_location, target_location_country, "
+                "target_roles, "
                 "target_locations, target_location_countries, "
-                "target_role_title, target_role_titles, target_seniority, "
+                "target_role_titles, target_seniority, "
                 "target_career_band, explored_career_bands, "
                 "years_experience, "
                 "deal_breakers, career_goal, superpower"
@@ -3372,9 +3372,8 @@ class JobsRepository:
         rows = safe_read(
             self._db.table("user_profiles")
             .select(
-                "target_role_title,target_role_titles,target_roles,target_seniority,"
-                "target_location,target_locations,target_location_country,"
-                "target_location_countries,years_experience"
+                "target_role_titles,target_roles,target_seniority,"
+                "target_locations,target_location_countries,years_experience"
             )
             .eq("id", user_id)
             .limit(1),

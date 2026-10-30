@@ -205,7 +205,6 @@ def test_a_bucket_primary_is_promoted_on_the_next_visit(monkeypatch) -> None:
     profile = {
         "target_role_titles": ["Scripting Languages", "Software Development"],
         "target_roles": ["Scripting Languages", "Software Development"],
-        "target_role_title": "Scripting Languages",
     }
     saved: list[dict[str, Any]] = []
     monkeypatch.setattr(forward_pass.debounce, "claim", lambda *_a, **_k: True)
@@ -222,7 +221,7 @@ def test_a_bucket_primary_is_promoted_on_the_next_visit(monkeypatch) -> None:
         "role_titles": ["Scripting Languages", "Software Development"],
         "role_families": ["Scripting Languages", "Software Development"],
     }]
-    assert profile["target_role_title"] == "Software Development"
+    assert profile["target_role_titles"][0] == "Software Development"
     assert profile["target_role_titles"][0] == "Software Development"
     assert profile["target_roles"][0] == "Software Development"
 
