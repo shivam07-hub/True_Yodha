@@ -426,12 +426,23 @@ Tracker (3) · no problem or not actionable (~25).
 - Yours or real? `kslk37143`, `zoom8cloud`, `abibi9167`, `p9212530`, `yaya007500`
   — named ones get `is_test_account`.
 - #56 §7: Razorpay webhook events, the live key on Vercel, reviewer name + email.
+- **Scraper, company skills (your repo).** Company skill demand is now a daily
+  snapshot in the database (`refresh_company_skill_demand`, 2026-10-29). The
+  scraper's `write_company_skill_facts` path (runs only without `--source-only`)
+  would be a second writer of `company_skill_profiles`; production never takes
+  it. Remove it, then `refresh_company_skill_profiles` and
+  `company_skill_run_facts` (26,996 July rows) can be dropped — destructive, your call.
+- **Scraper, jobs with no `company_id`.** 1,464 rows (60 live; Amazon 26) come
+  from an import path that does not go through `trusted_job_lifecycle`, so the
+  same employer is split between an id and none, and those rows are never closed
+  by a complete run. Which import writes them? Not filled on our side: that would
+  put another source's listings inside a trusted run's close step.
 
 ## AGENT CHORES — approved, small
 
 - Run the authed QA checklist.
-- **Listing Liveness index swap — BLOCKED on the `main` merge of `e2e232d0`
-  (owner: Shivam merges; then an agent).** Prod runs `main`, whose PostgREST
+- **Listing Liveness index swap — DUE: `main` took `e2e232d0` in #345
+  (2026-10-29).** Until then prod ran `main`, whose PostgREST
   reads still send `is_active = true` and use the bare-spelled
   `idx_jobs_candidate_band`, `idx_jobs_lower_company_active_jobid`,
   `idx_jobs_live_company_first_seen` and `idx_jobs_feed_active_first_seen`
@@ -452,9 +463,15 @@ Tracker (3) · no problem or not actionable (~25).
   **Step 1 readers: done 2026-10-27 on Develop** (`skill_scores` no longer
   written). The writers of the other four stay until `main` runs these reads:
   prod reads the stored copies, and the shared worker (Develop) writes prod
-  users' skills. After the main merge: stop the writers (targeting_write,
-  location_normalizer, the five `_TITLE_WRITERS` + `confirm_cv_skills`), then
-  the week, then the drop.
+  users' skills. `main` took these reads in #345 (2026-10-29), so the next step
+  is due: stop the writers (targeting_write, location_normalizer, the five
+  `_TITLE_WRITERS` + `confirm_cv_skills`), then the week, then the drop.
+- **Company names on read surfaces onto `company_key`** (CONTEXT → Company
+  Identity). The directory, pulse, Company CV Thread and the Following-only
+  filter still compare names folded for case and spacing; the resolver's key
+  also ignores punctuation. 0 of 278 names disagree today, so nobody sees a
+  difference yet. When it is built: pulse and directory keys move with
+  `company_pulse.sort_key_for` in one release, since prod reads the snapshot keys.
 
 ## COMPANY OBLIGATIONS — off the working backlog
 

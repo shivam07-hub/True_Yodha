@@ -437,6 +437,19 @@ Meta's 36, and DBS Bank and ANZ Bank closed each other daily (301 of DBS Bank's
 and split the six misfiled aliases; 1,098 jobs and 49 runs followed their name.
 Follows stayed on the name they show. The scraper's next run reopens what it sees.
 
+## Company Skill Demand
+
+"What skills is X hiring for?" on a company page. `company_skill_profiles` is a
+Tier-0 snapshot: `refresh_company_skill_demand` counts live jobs and the skills
+our worker extracted, per company and skill, daily on the snapshot lease, so the
+snapshot dead-man watches it. Trend is this observation against the last (±25%
+and ±2); a skill no live job asks for goes dormant at 0. The page's "Through" date
+is the company's latest complete scrape. A company with no live roles shows no
+panel, not zeros.
+
+The scraper does not write this. Production imports run `--source-only`, so a run
+has no skills yet — which is why the rows sat at 2026-07-11 until 2026-10-29.
+
 ## Company Demand Pulse
 
 The public, per-company hiring index: live role count, weekly inflow, freshness,
