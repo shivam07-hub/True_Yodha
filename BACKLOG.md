@@ -399,8 +399,11 @@ Tracker (3) · no problem or not actionable (~25).
 
 ## SHIVAM
 
-- **Scraper: landing again since 2026-10-15** (2–3k rows a day, 04–05 UTC; was
-  no feed 10-01 → 10-14). Still yours: Axis Bank = 14,259 live rows (~18%,
+- **Scraper: not landing daily.** `job_source_runs` shows 10-14 → 10-20 and
+  10-26 → 10-27, nothing on 10-21 → 10-25, nothing since 10-27 (checked 10-30);
+  was no feed 10-01 → 10-14. Company repairs of 10-29 wait on the next run: Meta,
+  EY India, BDO India and ANZ Bank reopen when it sees them.
+  Still yours: Axis Bank = 14,259 live rows (~18%,
   747 titles) — dedupe at the source.
 - The prod deploy guard (above).
 - **#59 golden digest go-live**: prod carries the first-email rule (`0aafb324`).

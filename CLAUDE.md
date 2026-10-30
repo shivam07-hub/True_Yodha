@@ -149,7 +149,7 @@ Order is the loop map — broken steps first, nearest the north star first (Shiv
 
 | # | Step | Now |
 |---|---|---|
-| 1 | Find the job | Scraper landing daily since 2026-10-15 (dark 10-01→10-14). #55 closed: a return shows the list and re-reads it. |
+| 1 | Find the job | Scraper not daily: runs 10-14→10-20 and 10-26→10-27, none since (checked 10-30). #55 closed: a return shows the list and re-reads it. |
 | 2 | Apply | 2 real Apply clicks since 2026-09-22 (last 10-16), 0 answered. Built work is on `main` (#342); measure click → "Did you submit?" → application. |
 | 3 | Repeat | Golden-list digest (#59): email only to `golden_list_since`. Blocked until the preview is approved. |
 | 4 | Front door | #57 on `main`: after skills, paste · extension · jobs that fit. Door to Download in 5 clicks (FD1–FD4) on `main` 2026-10-22; U4 passed desktop 10-19 and 375px 10-22. Real phone owed (Shivam). |
