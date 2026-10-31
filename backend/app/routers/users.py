@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.concurrency import run_in_threadpool
 from supabase import Client
 
+from app.database import get_supabase_admin
 from app.deps import Principal, get_principal, get_user_db
 from app.services.concurrent_reads import run_concurrently
 from app.repositories.users import UsersRepository, get_token_users_repository
@@ -160,7 +161,6 @@ def get_my_skills(
 async def correct_my_skill(
     payload: SkillCorrectionRequest,
     principal: Principal = Depends(get_principal),
-    db: Client = Depends(get_user_db),
 ) -> SkillCorrectionResponse:
     """Drop a wrongly-extracted skill, or restore one previously dropped.
 
@@ -168,6 +168,9 @@ async def correct_my_skill(
     a bad extraction spotted in month three should not need a CV re-upload
     (backlog #6). Recomputes the score in-band so the caller can show the new
     number rather than promising it will update later.
+
+    On the admin client, like the onboarding override routes: `authenticated` may
+    only read `cv_skill_overrides`, and every query here is scoped to `principal.id`.
     """
     key = payload.skill_key.strip()
     if not key:
@@ -177,7 +180,7 @@ async def correct_my_skill(
         )
     score = await run_in_threadpool(
         skill_correction.set_skill_included,
-        db,
+        get_supabase_admin(),
         principal.id,
         key,
         payload.included,

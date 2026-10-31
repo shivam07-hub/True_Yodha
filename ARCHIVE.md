@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-10-31 — Removing a skill on the CV page works
+
+`POST /users/me/skills/correction` wrote `cv_skill_overrides` on the user's token, but `authenticated` has only read it since `20260619b`, so every removal since 07-31 failed on its first write (0 of 41 override rows came through it). Now on the admin client like the onboarding override routes. The repo fakes hid it; a route test now pins the client.
+
 ## 2026-10-30 — Listing Liveness index swap closed
 
 Four bare-spelled `jobs` indexes dropped and the `_v2` twins renamed back after three idle days (`20261030120000`). ARCHITECTURE_READ_PATH §31.

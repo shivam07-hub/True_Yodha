@@ -192,3 +192,39 @@ def test_excluding_twice_is_idempotent(wired) -> None:
     assert 7 not in scores_repo.rows
     assert cv_repo.overrides[7]["action"] == "exclude"
     assert len(recomputed) == 2
+
+
+# ── the route can actually write ────────────────────────────────────────────
+
+def test_the_route_writes_with_a_client_that_may_write(monkeypatch) -> None:
+    """`authenticated` has read `cv_skill_overrides` only since 20260619b. The route
+    shipped on the user's token, so every removal failed on its first write: 0 of 41
+    override rows ever came through it (2026-10-30). The fakes above replace the
+    repos, so only a test of the client the route passes can see this."""
+    from fastapi.testclient import TestClient
+
+    from app.deps import Principal, get_principal, get_user_db
+    from app.main import app
+    from app.routers import users as router
+
+    admin, user_token = object(), object()
+    seen: list[tuple[Any, ...]] = []
+    monkeypatch.setattr(router, "get_supabase_admin", lambda: admin)
+    monkeypatch.setattr(
+        router.skill_correction,
+        "set_skill_included",
+        lambda *args: seen.append(args) or {"total_score": 31.0, "skills_assessed": 4},
+    )
+    app.dependency_overrides[get_principal] = lambda: Principal(id="u1", email=None)
+    app.dependency_overrides[get_user_db] = lambda: user_token
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/users/me/skills/correction",
+                json={"skill_key": " FitNesse ", "included": False},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert seen == [(admin, "u1", "FitNesse", False)]
