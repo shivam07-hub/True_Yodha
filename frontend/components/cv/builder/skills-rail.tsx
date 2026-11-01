@@ -21,11 +21,12 @@ interface SkillsRailProps {
   addingProven: boolean
   provenStatus: string | null
   allSkills: UserSkillItem[]
+  removedSkills: UserSkillItem[]
   focusSkill?: string | null
   scoreDomain?: string | null
   fromScoreMap?: boolean
-  /** Called after a correction lands so the caller can refetch score + skills. */
-  onSkillsChanged?: () => void
+  /** Called after a correction lands. Resolves once the skills have refetched. */
+  onSkillsChanged?: () => void | Promise<void>
 }
 
 export function SkillsRail({
@@ -36,46 +37,29 @@ export function SkillsRail({
   addingProven,
   provenStatus,
   allSkills,
+  removedSkills,
   focusSkill,
   scoreDomain,
   fromScoreMap,
   onSkillsChanged,
 }: SkillsRailProps) {
-  // Removed skills are held as whole rows, not just keys. In edit mode the
-  // removal really deletes the row, so the next refetch drops it from
-  // `allSkills` — without the captured copy the chip would vanish instead of
-  // showing as restorable, and an undo the user cannot see is not an undo.
-  const [removedItems, setRemovedItems] = useState<Map<string, UserSkillItem>>(new Map())
   const [pending, setPending] = useState<Set<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
 
-  const skills = allSkills
-  const removed = useMemo(() => new Set(removedItems.keys()), [removedItems])
-
-  function drop(item: UserSkillItem) {
-    setRemovedItems((current) => new Map(current).set(item.key, item))
-  }
-
-  function undrop(key: string) {
-    setRemovedItems((current) => {
-      const next = new Map(current)
-      next.delete(key)
-      return next
-    })
-  }
+  // A live row wins: a ruling can outlast its skill coming back.
+  const restorable = useMemo(() => {
+    const held = new Set(allSkills.map((skill) => skill.key))
+    return removedSkills.filter((skill) => !held.has(skill.key))
+  }, [allSkills, removedSkills])
+  const removed = useMemo(() => new Set(restorable.map((skill) => skill.key)), [restorable])
+  const rendered = useMemo(() => [...allSkills, ...restorable], [allSkills, restorable])
 
   async function toggleRemoved(key: string) {
     setError(null)
-    const item = skills.find((skill) => skill.key === key) ?? removedItems.get(key)
-    if (!item) return
-    const isRestoring = removed.has(key)
-
     setPending((current) => new Set(current).add(key))
     try {
-      await users.correctSkill(token, key, isRestoring)
-      if (isRestoring) undrop(key)
-      else drop(item)
-      onSkillsChanged?.()
+      await users.correctSkill(token, key, removed.has(key))
+      await onSkillsChanged?.()
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "That change could not be saved.")
     } finally {
@@ -86,14 +70,6 @@ export function SkillsRail({
       })
     }
   }
-
-  const rendered = useMemo(() => {
-    const byKey = new Map(skills.map((skill) => [skill.key, skill]))
-    for (const [key, item] of Array.from(removedItems.entries())) {
-      if (!byKey.has(key)) byKey.set(key, item)
-    }
-    return Array.from(byKey.values())
-  }, [skills, removedItems])
 
   return (
     <div className="cvb-v2-railpane">

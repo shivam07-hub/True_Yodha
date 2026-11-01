@@ -7,7 +7,11 @@ from supabase import Client
 from app.database import get_supabase_admin
 from app.deps import Principal, get_principal, get_user_db
 from app.services.concurrent_reads import run_concurrently
-from app.repositories.users import UsersRepository, get_token_users_repository
+from app.repositories.users import (
+    UserSkillRecord,
+    UsersRepository,
+    get_token_users_repository,
+)
 from app.schemas import (
     AccountDeletionResponse,
     FollowCompanyRequest,
@@ -23,6 +27,7 @@ from app.schemas import (
     UpdateProfileRequest,
     UpdateProfileResponse,
     UserProfileResponse,
+    UserSkillItem,
     UserSkillsByDomainResponse,
 )
 from app.services import followed_companies
@@ -155,6 +160,15 @@ def get_my_skills(
             group[key].sort(key=lambda x: x["level"], reverse=True)
 
     return UserSkillsByDomainResponse(by_domain=by_domain, by_cluster=by_cluster)
+
+
+@router.get("/me/skills/removed", response_model=list[UserSkillItem])
+def get_my_removed_skills(
+    principal: Principal = Depends(get_principal),
+    db: Client = Depends(get_user_db),
+) -> list[UserSkillRecord]:
+    """The skills this user took off, each with what Restore would bring back."""
+    return skill_correction.removed_skills(db, principal.id)
 
 
 @router.post("/me/skills/correction", response_model=SkillCorrectionResponse)

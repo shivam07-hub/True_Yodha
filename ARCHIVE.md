@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-11-01 — A removed skill stays restorable
+
+The rail held removed skills in page state, so a reload lost the only Restore. New `GET /users/me/skills/removed` reads the rulings; the rail renders from it. Removal now stashes the level: 531 live rows across 79 users were not on their latest CV, and Restore refused them. A restore the evidence gate drops now keeps the ruling and says so.
+
 ## 2026-10-31 — Removing a skill on the CV page works
 
 `POST /users/me/skills/correction` wrote `cv_skill_overrides` on the user's token, but `authenticated` has only read it since `20260619b`, so every removal since 07-31 failed on its first write (0 of 41 override rows came through it). Now on the admin client like the onboarding override routes. The repo fakes hid it; a route test now pins the client.

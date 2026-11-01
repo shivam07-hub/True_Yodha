@@ -745,6 +745,11 @@ export const users = {
     request<UserSkillsByDomain>("/users/me/skills", {
       headers: { Authorization: `Bearer ${token}` },
     }),
+  // The skills this user took off, each as Restore would bring it back.
+  removedSkills: (token: string) =>
+    request<UserSkillItem[]>("/users/me/skills/removed", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   // Drop a wrongly-extracted skill, or restore one. Recomputes the score, so the
   // response carries the new number rather than promising a later refresh.
   correctSkill: (token: string, skillKey: string, included: boolean) =>
