@@ -35,6 +35,8 @@ allows more. Add slots only once these hold for a month.
 - **Newsletter:** angle, chart and heading agreed with Shivam before drafting.
   When the issue ships, delete its NEWSLETTER_QUEUE row and add its posts to the
   tracker. Its copy lives in `scripts/newsletter-carousel-specs/issue-NNN-distribution.md`.
+- **Ghost Index rates:** issue 023's posts quote them, and the index recomputes.
+  Re-read the figures against `/ghost-index` before those posts go out.
 - **Launch video:** someone listens to the soundtrack first. Nobody had listened
   to any of the three as of 2026-10-22. An extension video waits for the store
   version. Its copy lives beside it in `brag-output*/linkedin.txt` and `instagram.txt`.

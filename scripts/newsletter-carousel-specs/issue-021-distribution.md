@@ -4,7 +4,7 @@ Link: https://www.himyro.com/newsletter/2026-09-finance-city-map-india
 
 Heading: 22% of India's finance openings sit in Mumbai, and 32 companies hold all of them.
 
-No carousel and no OG image were built for this issue, so it has no Instagram post.
+No carousel was built for this issue, so it has no Instagram post. Its share image is `issue-021-og.png`.
 Every number below is quoted from the published issue.
 
 ## X
