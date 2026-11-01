@@ -48,9 +48,9 @@ def context_key(profile: dict[str, Any]) -> str | None:
     happened to carry an untrimmed or capitalised value. A key with two producers
     is a bug waiting for the first row that tells them apart.
 
-    Returns None only when there is no baseline to scope to — the queries that use
-    this key (`get_matches_for_context`, `get_current_credible_match`) filter on
-    `baseline_version_id` too, so a keyless row is unreadable by them either way.
+    Returns None only when there is no baseline to scope to —
+    `get_current_credible_match`, which uses this key, filters on
+    `baseline_version_id` too, so a keyless row is unreadable by it either way.
     A blank direction still gets a key: absence of a title is a direction we can
     name, not a reason to withhold the name.
     """
@@ -786,9 +786,7 @@ def get_result(
     """
     result = _current_result(db, user_id, profile=profile, baseline=baseline)
     furthest = int(result.get("journey_step") or 0) or (
-        2 if result.get("kind") in (
-            "onboarding_complete", "first_role_saved", "full_result_ready",
-        ) else 0
+        2 if result.get("kind") in ("onboarding_complete", "first_role_saved") else 0
     )
     result["furthest_step"] = furthest
 

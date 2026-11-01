@@ -327,17 +327,6 @@ def accept_first_job(
     )
 
 
-@router.post("/first-role")
-def commit_first_role(
-    body: FirstRoleRequest,
-    principal: Principal = Depends(get_principal),
-    jobs_repo: JobsRepository = Depends(get_token_jobs_repository),
-) -> dict[str, str]:
-    return onboarding_first_role.commit_first_role(
-        get_supabase_admin(), jobs_repo, principal.id, body.job_id
-    )
-
-
 @router.post("/checklist/dismiss", status_code=status.HTTP_204_NO_CONTENT)
 def dismiss_checklist(principal: Principal = Depends(get_principal)) -> None:
     OnboardingRepository(get_supabase_admin()).dismiss_checklist(principal.id)

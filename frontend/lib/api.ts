@@ -1005,12 +1005,6 @@ export interface FirstSuccessChecklist {
   items: Array<{ id: string; label: string; href: string; done: boolean }>
 }
 
-export interface FirstRoleReceipt {
-  status: "saved"
-  job_id: string
-  tailor_href: string
-}
-
 export interface OnboardingProofSkill {
   taxonomy_key: string
   name: string
@@ -1075,32 +1069,6 @@ export type OnboardingResult = OnboardingReach & (
       /** Claimed public identity. Required before Direction can complete. */
       ninja: { ninja_name: string; claimed: boolean }
       journey_step?: 1 | 2
-    }
-  | {
-      kind: "full_result_ready"
-      baseline_version_id: number
-      target_context_hash: string
-      target: OnboardingTarget
-      skills: OnboardingProofSkill[]
-      score: { total_score: number; domain_scores: Record<string, number>; domain_skill_counts?: Record<string, number>; gap_skills: GapSkill[]; skills_assessed: number; band?: string; band_percentile?: number | null; top_percent?: number | null }
-      score_factors: Array<{ kind: "gap" | "strength"; label: string; detail: string }>
-      /** Scoped to THIS direction, server-authored. Never the durable match
-       *  stack — that answers "every job Myro matched you to", which after a
-       *  direction change is not the shortlist the save will accept. */
-      shortlist: JobMatch[]
-      /** `provisional` = the shortlist is triaged and choosable, but the deep
-       *  eval is still running, so its scores will sharpen in place. */
-      /** `stale_direction`: a run finished, but for a different direction than the
-       *  one on screen — the user has matches, none computed for this target. Not
-       *  auto-enqueued; the surface asks for a Myro Ops Search. */
-      shortlist_status: "ready" | "provisional" | "computing" | "stalled" | "empty" | "stale_direction"
-      /** `sharpeners` = the optional Career-Ops inputs this user has not set.
-       *  Reported, never gap-filled — a receipt must not present a suggestion
-       *  as something the run used. */
-      career_ops: { sharpeners: string[] }
-      credible_match: (JobMatch & { jobs?: { job_title?: string; company_name?: string } }) | null
-      primary_action: { kind: string; label: string; href: string }
-      secondary_action: { kind: string; label: string; href: string }
     }
 )
 
@@ -1195,9 +1163,6 @@ export const onboarding = {
     company: string
     tailor_href: string
   }>("/onboarding/first-job", {
-    method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ job_id: jobId }),
-  }),
-  commitFirstRole: (token: string, jobId: string) => request<FirstRoleReceipt>("/onboarding/first-role", {
     method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ job_id: jobId }),
   }),
   dismissChecklist: (token: string) => request<void>("/onboarding/checklist/dismiss", {

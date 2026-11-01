@@ -181,41 +181,18 @@ def test_skill_confirmation_without_target_advances_to_direction(monkeypatch) ->
     assert response.json() == {"status": "confirmed", "next": "target", "total_score": 46.0}
 
 
-def test_first_role_returns_durable_tailoring_receipt(monkeypatch) -> None:
-    monkeypatch.setattr(
-        onboarding.onboarding_first_role,
-        "commit_first_role",
-        lambda _db, _jobs_repo, user_id, job_id: {
-            "status": "saved",
-            "job_id": job_id,
-            "tailor_href": f"/cv?jobId={job_id}",
-        },
-        raising=False,
-    )
-    try:
-        with _client(monkeypatch, _StateRepo()) as client:
-            response = client.post("/onboarding/first-role", json={"job_id": "job-7"})
-    finally:
-        app.dependency_overrides.clear()
-
-    assert response.status_code == 200
-    assert response.json() == {
-        "status": "saved",
-        "job_id": "job-7",
-        "tailor_href": "/cv?jobId=job-7",
-    }
-
-
 def test_the_writes_nothing_called_are_gone(monkeypatch) -> None:
     try:
         with _client(monkeypatch, _StateRepo()) as client:
             activate = client.post("/onboarding/activate", json={"activation_kind": "review_score_gap"})
             milestone = client.post("/onboarding/milestones/tailored_cv_created")
+            first_role = client.post("/onboarding/first-role", json={"job_id": "job-7"})
     finally:
         app.dependency_overrides.clear()
 
     assert activate.status_code == 404
     assert milestone.status_code == 404
+    assert first_role.status_code == 404
 
 
 def test_target_context_changes_with_seniority() -> None:

@@ -80,11 +80,6 @@ export default function OnboardingResultPage() {
     }
     if (result.data?.kind === "first_role_saved") {
       router.replace(result.data.tailor_href)
-      return
-    }
-    // Legacy shortlist step — Direction is the last onboarding page now.
-    if (result.data?.kind === "full_result_ready") {
-      router.replace("/market")
     }
   }, [result.data, router])
 

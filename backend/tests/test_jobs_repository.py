@@ -248,7 +248,7 @@ def test_every_card_select_carries_the_card_columns() -> None:
     unconfirmed — the verdict cannot see a check the select left behind."""
     user_db = _SelectHistoryDB({"user_job_matches": [], "user_dismissed_job_cards": []})
     repo = JobsRepository(user_db, _FakeDB())  # type: ignore[arg-type]
-    repo.get_matches_for_context("user-1", 1, "ctx")
+    repo.get_user_match_stack("user-1")
     selects = [
         JobsRepository._FEED_COLUMNS,
         JobsRepository._AGENT_PICK_JOB_COLUMNS,

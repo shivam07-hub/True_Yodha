@@ -8,7 +8,7 @@
 
 ## 2026-11-01 — One rule for finished onboarding
 
-"Finished" had five rules. Now `journey_finished` is one: `completed_at` plus a whole direction or a job they chose. Someone who finished on a job gets the role picker from "Pick a role", then Market; it used to land on `/cv`. The checklist and the Market tip read the direction, and the Job Tracks gate reads the tailored CV, which lets in the 8 people the stamp refused. Stopped writing `onboarding_complete`, deleted `/onboarding/activate` and `/onboarding/milestones/{milestone}`. Ten columns drop after the next `main` merge (BACKLOG).
+"Finished" had five rules. Now `journey_finished` is one: `completed_at` plus a whole direction or a job they chose. Someone who finished on a job gets the role picker from "Pick a role", then Market; it used to land on `/cv`. The checklist and the Market tip read the direction, and the Job Tracks gate reads the tailored CV, which lets in the 8 people the stamp refused. Stopped writing `onboarding_complete`, deleted `/onboarding/activate` and `/onboarding/milestones/{milestone}`. Ten columns drop after the next `main` merge (BACKLOG). `/onboarding/first-role` went too: it needed a `full_result_ready` result nothing sends any more, and its source was last written 2026-08-13. Its 8 rows stay receipts.
 
 ## 2026-11-01 — A removed skill stays restorable
 
