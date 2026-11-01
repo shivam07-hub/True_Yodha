@@ -1,0 +1,35 @@
+{
+  "issue": 17,
+  "out": "Myro Newsletter/Issue 017 - carousel",
+  "og_out": "frontend/public/newsletter/issue-017-og.png",
+  "foot": "Entry-level share by career band, 27 July 2026 · himyro.com",
+  "og": {
+    "series": "HIRING HEATMAP",
+    "h1": "Only 8% of India's open jobs will hire a fresher",
+    "bars": [
+      [
+        "Business & Ops",
+        13.9,
+        "13.9%"
+      ],
+      [
+        "Research",
+        12.8,
+        "12.8%"
+      ],
+      [
+        "Design",
+        3.4,
+        "3.4%"
+      ],
+      [
+        "Engineering",
+        3.3,
+        "3.3%"
+      ]
+    ],
+    "max": 16,
+    "foot": "Entry-level share by career band, 27 July 2026 · himyro.com"
+  },
+  "slides": []
+}

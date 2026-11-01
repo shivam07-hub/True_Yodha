@@ -164,7 +164,6 @@ export default async function NewsletterIndexPage({
             // index rail omits them — the article rail still carries its own.
             clusters={[]}
             listTitle={activeStage ? "Other issues" : "From the archive"}
-            campaign="index"
           />
         </div>
       )}

@@ -10,11 +10,6 @@ interface PostAuthDestinationInput {
    */
   pendingExtensionConnect: string | null
   /**
-   * The visitor arrived from a skills-led newsletter issue via `?intent=prep`
-   * (Exception 3). A marker, never a URL — the destination below is hardcoded.
-   */
-  hasPendingPrepIntent: boolean
-  /**
    * This sign-in is finishing a partner consent (the connect screen's Google
    * button, or the link the person asked to be emailed). The account usually
    * already exists. Landing is still /onboarding: that page sends a finished
@@ -41,7 +36,6 @@ export function postAuthDestination({
   hasPendingAnonCv,
   hasPendingJobSave,
   pendingExtensionConnect,
-  hasPendingPrepIntent,
   completingPartnerLink,
 }: PostAuthDestinationInput): string {
   // Exception 0: the extension is mid-handshake and blocked on a session. It
@@ -57,12 +51,6 @@ export function postAuthDestination({
   // saved worklist so it's the first thing they see. Carried intent overrides
   // onboarding, exactly as the anon-CV claim does.
   if (hasPendingJobSave) return "/collections"
-  // Exception 3: the visitor came from a newsletter issue that ended in the
-  // skills a city's employers ask for. Land them on Preparation so the issue's
-  // last line and the product's first screen are the same thing. Like the two
-  // above it this outranks onboarding: the carried intent is the reason they
-  // signed up, and onboarding is still reachable afterwards.
-  if (hasPendingPrepIntent) return "/preparations"
   // Partner consent just closed. The account often already exists and has
   // never uploaded; /onboarding is the one rule that keeps them on the upload
   // and sends a finished journey on to /market. Checked before firstSignup

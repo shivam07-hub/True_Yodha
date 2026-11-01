@@ -1,0 +1,40 @@
+{
+  "issue": 21,
+  "out": "Myro Newsletter/Issue 021 - carousel",
+  "og_out": "frontend/public/newsletter/issue-021-og.png",
+  "foot": "Share of India's finance openings by metro, 9 September 2026 · himyro.com",
+  "og": {
+    "series": "HIRING HEATMAP",
+    "h1": "22% of India's Finance Openings Sit in Mumbai, and 32 Companies Hold All of Them.",
+    "bars": [
+      [
+        "Bengaluru",
+        24.8,
+        "24.8%"
+      ],
+      [
+        "Mumbai",
+        21.9,
+        "21.9%"
+      ],
+      [
+        "Delhi NCR",
+        17.9,
+        "17.9%"
+      ],
+      [
+        "Hyderabad",
+        11.1,
+        "11.1%"
+      ],
+      [
+        "Pune",
+        6.6,
+        "6.6%"
+      ]
+    ],
+    "max": 30,
+    "foot": "Share of India's finance openings by metro, 9 September 2026 · himyro.com"
+  },
+  "slides": []
+}

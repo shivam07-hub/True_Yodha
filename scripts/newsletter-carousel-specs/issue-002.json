@@ -1,0 +1,40 @@
+{
+  "issue": 2,
+  "out": "Myro Newsletter/Issue 002 - carousel",
+  "og_out": "frontend/public/newsletter/issue-002-hero.png",
+  "foot": "Active India jobs by city, April 2026 · himyro.com",
+  "og": {
+    "series": "HIRING HEATMAP",
+    "h1": "Hiring Map May 2026: 5 Surprises in 30,000+ India Jobs",
+    "bars": [
+      [
+        "Bengaluru",
+        1400,
+        "1,400"
+      ],
+      [
+        "Pune",
+        768,
+        "768"
+      ],
+      [
+        "Hyderabad",
+        396,
+        "396"
+      ],
+      [
+        "Noida",
+        250,
+        "250"
+      ],
+      [
+        "Chennai",
+        226,
+        "226"
+      ]
+    ],
+    "max": 1500,
+    "foot": "Active India jobs by city, April 2026 · himyro.com"
+  },
+  "slides": []
+}

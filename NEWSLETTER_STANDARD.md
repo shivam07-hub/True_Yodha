@@ -21,7 +21,7 @@ Carousel: `scripts/build-newsletter-carousel.py` + a spec in
    named**. The skills are the payload, not a garnish.
 5. **Methodology.** What the field actually is, what was filtered, what the
    limits are.
-6. **Footer CTA into Preparation.** One only.
+6. **No CTA in the body.** The template renders the one CTA after the FAQ.
 
 ## What the gold version changed (Issue 019, Shivam's edit, 2026-08-26)
 
@@ -51,8 +51,8 @@ standard. The differences, in order of how much they matter:
    frontmatter, so schema.org still carries the caveats without the article
    stopping to defend itself.
 8. **The CTA says what Myro does**, then links. "We track the official career
-   pages of MNCs and what skills they hire for" earns the click; "practise your
-   skills" alone does not.
+   pages of MNCs and what skills they hire for" earns the click. Decided again
+   2026-10-23: `IssueCta` carries it, so one edit changes every issue.
 
 Deliberately absent from the gold version: career-stage blocks (Early / Mid /
 Senior). `myro-newsletter Skills/page-anatomy.md` calls them load-bearing. They
@@ -82,7 +82,7 @@ that sits above them, which inverts the hierarchy. This is the visual half of
 ## Rules that are not negotiable
 
 - **Skills are the driver.** Every lane ends in skills a real posting named this
-  month. That column is why the reader clicks through to Preparation.
+  month. That column is what a reader tailors a CV against.
 - **We do not predict.** We report what companies are hiring for, where, and
   which skills they asked for. No forecasting, no "the market is shifting".
 - **First-person plural.** The newsletter is Myro speaking: "we read", "we
@@ -124,13 +124,19 @@ dataset methodology.
 
 ## The CTA lane
 
-The footer CTA links to
-`https://www.himyro.com/signup?intent=prep&ref=newsletter-0XX`.
+One CTA per issue: "Tailor your CV to jobs like these" (Shivam, 2026-10-23). The
+Myro Score is what the machine knows about you, and the tailored CV is the
+product, so no issue sells the Score.
 
-`?intent=prep` is a carried-intent marker (`frontend/lib/prep-intent-stash.ts`);
-`postAuthDestination` reads it and lands the reader on `/preparations` instead of
-the default surface. A marker, never a URL — the 2026-07-11 rule that login ends
-on a known surface still holds, and `next` stays deleted.
+`components/newsletter/issue-cta.tsx` renders it from the template. Issue bodies
+carry no signup link and no `<NewsletterCTA>`; `newsletter-cta-routing.test.ts`
+holds that. It links to
+`/signup?utm_source=newsletter&utm_medium=article&utm_campaign=issue-0XX`. A first
+signup lands on `/onboarding`, the front door into the loop, so no carried intent
+is needed. A signed-in reader goes to `/market`.
+
+Substack has no template, so `scripts/newsletter_substack/convert.py` appends the
+same CTA with `utm_source=substack`.
 
 ## Before shipping
 

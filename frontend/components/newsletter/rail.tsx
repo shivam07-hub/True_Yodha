@@ -14,7 +14,6 @@
  */
 
 import Link from "next/link"
-import { ScoreCta } from "./score-cta"
 import { publicStats } from "@/lib/api"
 import { LANDING_FLOORS, displayCount } from "@/lib/public-stats-display"
 import { formatDate, formatCount } from "@/lib/format"
@@ -168,18 +167,6 @@ export function ClusterPanel({ clusters }: { clusters: RailCluster[] }) {
   )
 }
 
-/* ── Score CTA ─────────────────────────────────────────────────────────── */
-
-function ScorePanel({ campaign }: { campaign: string }) {
-  return (
-    <section className={styles.ctaPanel}>
-      <p className={styles.kicker}>Your turn</p>
-      <h2 className={styles.panelTitle}>See where your CV stands</h2>
-      <ScoreCta campaign={campaign} linkClassName={styles.ctaLink} bodyClassName={styles.panelBody} />
-    </section>
-  )
-}
-
 /* ── The rail ──────────────────────────────────────────────────────────── */
 
 /**
@@ -192,14 +179,11 @@ export async function NewsletterRail({
   issues,
   clusters,
   listTitle,
-  campaign,
 }: {
   /** Issues to list in the rail. Already filtered by the caller. */
   issues: Issue[]
   clusters: RailCluster[]
   listTitle: string
-  /** utm_campaign for the score CTA — the issue slug, or "index". */
-  campaign: string
 }) {
   const proof = await loadProof()
 
@@ -209,7 +193,6 @@ export async function NewsletterRail({
       {proof && <ProofPanel proof={proof} />}
       {issues.length > 0 && <IssueListPanel issues={issues} title={listTitle} />}
       {clusters.length > 1 && <ClusterPanel clusters={clusters} />}
-      <ScorePanel campaign={campaign} />
     </aside>
   )
 }

@@ -44,14 +44,6 @@ from newsletter_substack.publish import (  # noqa: E402
 FIXTURE = Path(__file__).parent / "fixtures" / "synthetic-hiring-note.mdx"
 REPO = Path(__file__).resolve().parents[2]
 MCP_SERVER = _SCRIPTS / "newsletter-substack-mcp.py"
-CHARTLESS = {
-    "2026-05-hiring-map-5-surprises",
-    "2026-06-loop-engineering-skill",
-    "2026-06-services-supermajority-india",
-    "2026-07-devops-to-loop-engineering",
-    "2026-07-entry-level-jobs-india",
-    "2026-09-finance-city-map-india",
-}
 NODE_TYPES = {
     "doc",
     "paragraph",
@@ -173,8 +165,7 @@ def test_synced_issues_are_contiguous_from_one() -> None:
     assert numbers == list(range(1, numbers[-1] + 1))
     assert numbers[-1] >= 24
     assert all("023" not in spec.slug for spec in specs)
-    missing = {spec.slug for spec in specs if spec.chart_path is None}
-    assert missing == CHARTLESS
+    assert [spec.slug for spec in specs if spec.chart_path is None] == []
     for spec in specs:
         assert _types(spec.document) <= NODE_TYPES
         for text in text_nodes(spec.document):
@@ -182,12 +173,16 @@ def test_synced_issues_are_contiguous_from_one() -> None:
             assert "|" not in text, (spec.slug, text)
             assert not text.lstrip().startswith("#"), spec.slug
         assert spec.canonical_url == f"https://www.himyro.com/newsletter/{spec.slug}"
-        if spec.chart_path is None:
-            assert "captionedImage" not in _types(spec.document)
-        else:
-            assert spec.chart_path.suffix == ".png"
-            assert spec.chart_path.is_file()
-            assert "captionedImage" in _types(spec.document)
+        assert spec.chart_path.suffix == ".png"
+        assert spec.chart_path.is_file()
+        assert "captionedImage" in _types(spec.document)
+        closing = spec.document["content"][-1]
+        assert text_nodes(closing)[-1] == "Tailor my CV", spec.slug
+        link = closing["content"][-1]["marks"][0]["attrs"]["href"]
+        assert link == (
+            "https://www.himyro.com/signup?utm_source=substack&utm_medium=email"
+            f"&utm_campaign=issue-{spec.issue_number:03d}"
+        )
 
 
 def test_mimi_host_is_refused_before_any_request() -> None:
