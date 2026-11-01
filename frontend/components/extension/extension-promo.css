@@ -1,0 +1,101 @@
+.ext-promo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.ext-promo,
+.ext-scene,
+.ext-pop,
+.ext-pop-btn {
+  box-sizing: border-box;
+}
+
+/* The job page sits behind the popup. Bars stand in for a listing so the
+   picture stays a picture of the action, not a made-up company. */
+.ext-scene {
+  position: relative;
+  width: 100%;
+  height: 148px;
+  overflow: hidden;
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius);
+  background: var(--tm-bg);
+}
+
+.ext-page {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px 14px;
+}
+
+.ext-kicker,
+.ext-meta {
+  font-size: var(--tm-fs-caption);
+  line-height: 1.2;
+  color: var(--tm-text-muted);
+}
+
+.ext-role {
+  font-size: var(--tm-fs-body);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--tm-text);
+}
+
+.ext-bar {
+  display: block;
+  height: 6px;
+  width: calc(100% - 150px);
+  margin-top: 4px;
+  border-radius: var(--tm-radius-sm);
+  background: var(--tm-surface-3);
+}
+
+.ext-bar--short { width: calc(100% - 210px); margin-top: 0; }
+
+.ext-pop {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 132px;
+  padding: 8px;
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius);
+  background: var(--tm-surface);
+  box-shadow: var(--tm-shadow-2);
+}
+
+.ext-pop-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tm-text);
+}
+
+.ext-pop-brand,
+.ext-pop-title {
+  display: block;
+  font-size: var(--tm-fs-caption);
+  line-height: 1.2;
+}
+
+.ext-pop-brand { color: var(--tm-text-muted); }
+.ext-pop-title { font-weight: 600; }
+
+.ext-pop-btn {
+  display: block;
+  padding: 4px 8px;
+  border-radius: var(--tm-button-radius);
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
+  font-size: var(--tm-fs-caption);
+  font-weight: 600;
+  text-align: center;
+}

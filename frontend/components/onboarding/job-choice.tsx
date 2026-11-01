@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 
+import { ExtensionPromo } from "@/components/extension/extension-promo"
 import { Button } from "@/components/ui/button"
 import { pastedLink } from "@/lib/job-import/pasted-link"
 import { emitLoopStep, jobs, onboarding } from "@/lib/api"
@@ -182,16 +183,19 @@ export function JobChoice({ token, onFit }: { token: string; onFit: () => void }
       )}
 
       {mode === "extension" && (
-        <p className="tm-job-choice-wait">
-          Save a job in the extension. This page continues when it arrives.
-          {" "}
-          <button type="button" className="tm-job-choice-instead" onClick={() => {
-            setMode("paste")
-            emitLoopStep(token, "door_paste", DOOR_JOB, "onboarding")
-          }}>
-            Paste a job instead
-          </button>
-        </p>
+        <>
+          <ExtensionPromo pictureOnly />
+          <p className="tm-job-choice-wait">
+            Save a job in the extension. This page continues when it arrives.
+            {" "}
+            <button type="button" className="tm-job-choice-instead" onClick={() => {
+              setMode("paste")
+              emitLoopStep(token, "door_paste", DOOR_JOB, "onboarding")
+            }}>
+              Paste a job instead
+            </button>
+          </p>
+        </>
       )}
       {error && <p role="alert">{error}</p>}
     </section>
