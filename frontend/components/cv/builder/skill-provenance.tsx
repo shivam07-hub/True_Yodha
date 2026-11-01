@@ -95,11 +95,12 @@ export function SkillProvenance({
     }
     return TIER_ORDER.map((tier) => ({
       tier,
-      count: buckets[tier].length,
+      // A removed chip stays on its tier to be restored, but it no longer counts.
+      count: buckets[tier].filter((skill) => !removed?.has(skill.key)).length,
       // Only a real receipt earns a quote. The no-proof tier has nothing to quote.
       points: groupByEvidence(buckets[tier], tier !== "none"),
-    })).filter((group) => group.count > 0)
-  }, [allSkills, skillsLine])
+    })).filter((group) => group.points.length > 0)
+  }, [allSkills, skillsLine, removed])
 
   if (allSkills.length === 0) {
     return <p className="cvb-prov-empty">Upload a CV to see where your skills come from.</p>
@@ -112,7 +113,7 @@ export function SkillProvenance({
       <div className="cvb-prov-label">Where each skill comes from</div>
 
       <p className="cvb-prov-tally">
-        {tiers.map((group, index) => (
+        {tiers.filter((group) => group.count > 0).map((group, index) => (
           <span key={group.tier} className={`cvb-prov-tally-part is-${group.tier}`}>
             {index > 0 && <span aria-hidden="true"> · </span>}
             <b>{group.count}</b> {group.tier === "none" ? "no proof" : group.tier}

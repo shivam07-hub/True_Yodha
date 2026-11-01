@@ -89,6 +89,11 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
     () => Object.values(skillsQuery.data?.by_domain ?? {}).flat(),
     [skillsQuery.data],
   )
+  const removedSkillsQuery = useQuery({
+    queryKey: dataKeys.removedSkills(),
+    queryFn: () => users.removedSkills(token),
+    staleTime: 5 * 60 * 1000,
+  })
 
   const draft = autosave.draft ?? cv
   const { dismissed, dismiss } = useDismissedFixes("master")
@@ -269,12 +274,13 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
           addingProven={addingProven}
           provenStatus={provenStatus}
           allSkills={allSkills}
+          removedSkills={removedSkillsQuery.data ?? []}
           focusSkill={scoreSkill ?? requestedProvenSkill}
           scoreDomain={scoreDomain}
           fromScoreMap={fromScoreMap}
-          onSkillsChanged={() => {
-            void skillsQuery.refetch()
+          onSkillsChanged={async () => {
             void scoreQuery.refetch()
+            await Promise.all([skillsQuery.refetch(), removedSkillsQuery.refetch()])
           }}
         />
       }

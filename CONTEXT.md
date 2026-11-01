@@ -409,6 +409,47 @@ row.
 
 **Measured 2026-10-27, before the build:** the live rule was spelled in 15 SQL functions, the RLS policy, 12 partial indexes and 6 Python sites; down in 3 Python sites that split on `likely_closed`; `refresh_sector_panel` dropped `is_active`; `listing_trust` failed open on a missing column. Zero rows disagreed — the copies had not yet drifted on data. Built in full anyway (Shivam, 2026-10-27): the next change to "live" must land in one place. After the swap every hot read returned the same rows at the same speed (the function inlines; the RLS filter shows the spelled-out expression, not a call).
 
+## Company Identity
+
+Which company a job, a follow or a scraper run belongs to. `public.company_key(name)`
+— lowercased FIRST, then everything outside `a-z0-9` dropped — is the company;
+`companies.id` is minted from it by `resolve_company_entity`, which the scraper
+calls on every run. Spellings that differ only by case, spacing or punctuation are
+one company (Shivam, 2026-10-29). Anything else ("Deloitte India (BrassRing)" and
+"Deloitte India") joins only through an explicit `company_aliases` row, never a
+looser key: a wrong merge closes real listings, a missed one only splits a page.
+
+- `company_alias_key(name)` (case + spacing) keys an alias row; `company_key(name)`
+  keys the company. Both are spelled once, in SQL. Python asks `company_for_name`,
+  which reads and never mints. `tests/test_company_identity.py` fails the build if
+  either fold is spelled again.
+- The scraper fetches a company's jobs by `company_id` and closes what a complete
+  run did not see. A wrong id is a wrong close, not a wrong label.
+- Read surfaces (directory, pulse, Company CV Thread, the Following-only filter)
+  still compare names. They agree with the key on every company today (278 names,
+  0 punctuation variants); moving them onto the key is in BACKLOG.
+
+**Measured and fixed 2026-10-29.** The resolver stripped before it lowercased
+("OpenAI" → `pen`, Meta and Zeta → `eta`), so 4 ids held 10 employers. KPMG
+India's run closed EY India's 71 and BDO India's 32 listings, Zeta's closed
+Meta's 36, and DBS Bank and ANZ Bank closed each other daily (301 of DBS Bank's
+558 reopened in 30 days). `20261029120000_company_key.sql` re-keyed every company
+and split the six misfiled aliases; 1,098 jobs and 49 runs followed their name.
+Follows stayed on the name they show. The scraper's next run reopens what it sees.
+
+## Company Skill Demand
+
+"What skills is X hiring for?" on a company page. `company_skill_profiles` is a
+Tier-0 snapshot: `refresh_company_skill_demand` counts live jobs and the skills
+our worker extracted, per company and skill, daily on the snapshot lease, so the
+snapshot dead-man watches it. Trend is this observation against the last (±25%
+and ±2); a skill no live job asks for goes dormant at 0. The page's "Through" date
+is the company's latest complete scrape. A company with no live roles shows no
+panel, not zeros.
+
+The scraper does not write this. Production imports run `--source-only`, so a run
+has no skills yet — which is why the rows sat at 2026-07-11 until 2026-10-29.
+
 ## Company Demand Pulse
 
 The public, per-company hiring index: live role count, weekly inflow, freshness,
@@ -532,8 +573,8 @@ for 16 people; it reads `level_of` like every other surface. The level's name
 (Scout … Legend) is derived from the level when it is read, never stored:
 `user_skills.proficiency_title` had drifted on 16 rows and never once held
 "Legend". It, `mirror_scores.skill_scores` (`{}` on all 467 rows, read by
-nothing) and the three singular direction columns are approved to be dropped
-once their readers have moved and a week shows no reads (BACKLOG).
+nothing) and the three singular direction columns are neither read nor written,
+and are approved to be dropped (BACKLOG).
 
 **Role Standing** is where a user stands against the core skills of their target
 roles: `cleared / total`, a COUNT and never a percentage. `total` is the twelve
@@ -1090,7 +1131,7 @@ Migration `20260804_target_updated_at.sql` wrote the contract down and `04ef9f3b
 
 The single read for "what Myro knows about what this user wants" — one module (`app/services/matching/targeting.py`) assembles the confirmed `user_profiles` targeting columns AND the `user_memory` fact store (authored + distilled) so no consumer re-assembles its own subset.
 
-**The profile holds the current direction; the snapshot is its history** (decided 2026-10-27, replacing "the snapshot is the unit of truth… until every consumer reads the snapshot" — no consumer had moved, and every match ran on the profile). `targeting_write.commit` is the only writer for role, family, seniority, locations, freshness, and the `career_target_snapshots` row (current = `superseded_at IS NULL`). The snapshot row is written by one database function, `record_career_target` (service role only, one transaction: supersede + insert, no-op when the current row already names the direction), called from `career_target.record_from_profile(user_id, profile)`, which holds its own service-role client — owners may read snapshots, no user token may write them. Readers ask `services/direction.py` (roles) and one location reader, never the columns; the singular `target_location`, `target_location_country` and `target_role_title` are synced copies the writer keeps, no reader falls back to them, and they are approved to be dropped once their primary readers move (Shivam, 2026-10-27; BACKLOG). Legacy `any` seniority is compatibility data only — never coerced to `entry`. Job-card seniority is Firecrawl `jobs.seniority_level` only.
+**The profile holds the current direction; the snapshot is its history** (decided 2026-10-27, replacing "the snapshot is the unit of truth… until every consumer reads the snapshot" — no consumer had moved, and every match ran on the profile). `targeting_write.commit` is the only writer for role, family, seniority, locations, freshness, and the `career_target_snapshots` row (current = `superseded_at IS NULL`). The snapshot row is written by one database function, `record_career_target` (service role only, one transaction: supersede + insert, no-op when the current row already names the direction), called from `career_target.record_from_profile(user_id, profile)`, which holds its own service-role client — owners may read snapshots, no user token may write them. Readers ask `services/direction.py` (roles) and one location reader, never the columns; the singular `target_location`, `target_location_country` and `target_role_title` are neither read nor written and are approved to be dropped (Shivam, 2026-10-27; BACKLOG). Legacy `any` seniority is compatibility data only — never coerced to `entry`. Job-card seniority is Firecrawl `jobs.seniority_level` only.
 
 **A direction is a role and a level (Shivam, 2026-10-27).** A role with no level (31 with none, 10 with `any` on 2026-10-27, all set before September) still runs matches, and has no snapshot. When that person next opens Career Path they see their role and are asked only the level — never sent back to pick a role they already chose. The answer goes through `commit`, which mints the snapshot. "Has a career target" in `loop_reach.py` therefore counts snapshots: role and level.
 
@@ -1675,9 +1716,9 @@ The JD a user is already working — distinct from a live marketplace row. Feed 
 ## Target Location
 
 **One axis, plural end to end, and it is plural at every hop or it is broken at
-one.** `user_profiles.target_locations[]` is the store; `target_location` is a
-derived scalar kept for legacy readers (a CV contact line shows one city, and
-that is the only place the scalar is the right answer). `MAX_TARGET_LOCATIONS`
+one.** `user_profiles.target_locations[]` is the store; a CV contact line shows one
+city, the list's first (`primaryLocation`), and that is the only place one
+location is the right answer. `MAX_TARGET_LOCATIONS`
 (5) is the cap, enforced once in `targeting_write` and read by everything that
 needs it — never written down a second time.
 

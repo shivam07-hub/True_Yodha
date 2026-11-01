@@ -143,8 +143,8 @@ def of(profile: dict[str, Any] | None) -> Direction:
     profile, so the one answer costs nothing to add and a second endpoint would
     have cost a round trip on nine surfaces.
 
-    `target_role_title` is never read: it is the synced copy of titles[0] the
-    writer keeps, and no row has had it without the list (2026-10-27).
+    titles[0] is the primary. The stored `target_role_title` copy is neither read
+    nor written; its column goes in BACKLOG's drop.
     """
     profile = profile or {}
     level = canonical_source_seniority(profile.get("target_seniority"))
@@ -166,8 +166,8 @@ def _places(value: Any) -> list[str]:
 def locations(profile: dict[str, Any] | None) -> list[str]:
     """The places this person is searching, as they named them.
 
-    `target_locations` only. `target_location` is the synced copy of the first;
-    seven readers fell back to it and the fallback fired for no row (2026-10-27).
+    `target_locations` only. The stored `target_location` copy is neither read nor
+    written; seven readers once fell back to it, and it fired for no row.
     """
     return _places((profile or {}).get("target_locations"))
 

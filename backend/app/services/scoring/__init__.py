@@ -17,7 +17,6 @@ from app.services.scoring.aspirations import (
 )
 from app.services.scoring.formulas import (
     _DAYS_PER_STEP,
-    _PROFICIENCY_TITLES,
     level_name,
     _SIGNAL_LEVEL_MAP,
     DEFAULT_TARGET_LEVEL,
@@ -49,7 +48,6 @@ from app.services.scoring.orchestrator import (
 
 __all__ = [
     "_DAYS_PER_STEP",
-    "_PROFICIENCY_TITLES",
     "level_name",
     "_RANK_TIERS",
     "_SIGNAL_LEVEL_MAP",

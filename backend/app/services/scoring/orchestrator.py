@@ -22,7 +22,6 @@ from app.services.job_eligibility import target_seniority_for_profile
 from app.services.scoring.aspirations import fetch_role_family_market
 from app.services.scoring.percentile import percentile_rank
 from app.services.scoring.formulas import (
-    _PROFICIENCY_TITLES,
     DEFAULT_TARGET_LEVEL,
     SCORE_FORMULA_VERSION,
     _build_cluster_maps,
@@ -378,7 +377,6 @@ def _build_user_skill_rows(
             "skill_id":          skill_id,
             "taxonomy_key":      key,
             "matched_level":     level,
-            "proficiency_title": _PROFICIENCY_TITLES.get(level, "Scout"),
             "source":            "cv",
             "evidence_text":     evidence_map.get(key, ""),
             "last_updated":      now,

@@ -10,6 +10,8 @@ export const dataKeys = {
   scores: () => ["scores"] as const,
   scoreMap: (token: string | null | undefined) => ["score-map-bootstrap", token ?? ""] as const,
   userSkills: () => ["user-skills"] as const,
+  /** Under `userSkills`, so whatever refreshes a user's skills refreshes these. */
+  removedSkills: () => ["user-skills", "removed"] as const,
   practiceSaves: () => ["practice-saves"] as const,
   skillUpvotes: () => ["skill-upvotes"] as const,
   jobs: () => ["jobs"] as const,

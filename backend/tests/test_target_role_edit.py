@@ -1,7 +1,7 @@
 """Editable target role at point-of-use (issue #145).
 
 Decision A: a role edit routes through the canonical `save_target`, which moves
-`target_role_title` + derived `target_roles` clusters in lockstep and enqueues a
+`target_role_titles` + derived `target_roles` clusters in lockstep and enqueues a
 score recompute + re-match. A point-of-use "edit role" supplies only the new
 role title and must PRESERVE the user's existing seniority + location.
 """
@@ -31,7 +31,7 @@ class _FakeUsersRepo:
         # user never asked for.
         changed = any(
             updates.get(key) != self._profile.get(key)
-            for key in ("target_role_title", "target_roles", "target_seniority", "target_locations")
+            for key in ("target_role_titles", "target_roles", "target_seniority", "target_locations")
             if key in updates
         )
         self.updates = updates
@@ -61,7 +61,7 @@ class _FakeBackground:
 def wired(monkeypatch):
     users = _FakeUsersRepo(
         {
-            "target_role_title": "Data Analyst",
+            "target_role_titles": ["Data Analyst"],
             "target_roles": ["Data Analysis"],
             "target_seniority": "senior",
             "target_locations": ["Bengaluru, India"],
@@ -81,7 +81,7 @@ def test_role_only_edit_preserves_seniority_and_location(wired) -> None:
     onboarding_service.save_target(object(), "u1", role_title="Product Manager")
 
     # role title + re-derived clusters move in lockstep
-    assert users.updates["target_role_title"] == "Product Manager"
+    assert users.updates["target_role_titles"][0] == "Product Manager"
     assert users.updates["target_roles"] == ["Data Analysis"]
     assert users.updates["target_career_band"] == "business_product_operations"
     # omitted fields stay on the stored profile; the patch does not rewrite them
@@ -121,7 +121,7 @@ def test_explicit_fields_still_override(wired) -> None:
         object(), "u1", role_title="Data Scientist", seniority="entry", location="Remote, India"
     )
 
-    assert users.updates["target_role_title"] == "Data Scientist"
+    assert users.updates["target_role_titles"][0] == "Data Scientist"
     assert users.updates["target_roles"] == ["Data Analysis"]
     assert users.updates["target_career_band"] == "engineering_data"
     assert users.updates["target_seniority"] == "entry"
@@ -141,7 +141,7 @@ def test_multi_role_titles_project_to_union_clusters_and_primary(wired) -> None:
     # human titles are the source-of-record: de-duped (case/space-insensitive), capped
     assert users.updates["target_role_titles"] == ["Product Manager", "Data Scientist"]
     # primary = titles[0] (back-compat + score label)
-    assert users.updates["target_role_title"] == "Product Manager"
+    assert users.updates["target_role_titles"][0] == "Product Manager"
     # matcher read model = union of clusters across all titles, order-preserved, de-duped
     assert users.updates["target_roles"] == ["Data Analysis"]
     assert users.updates["target_career_band"] == "business_product_operations"
@@ -197,7 +197,7 @@ def test_corpus_family_is_written_with_the_selected_real_title(wired) -> None:
         object(), "u1", role_title="Software Engineer", role_family="Software Development"
     )
 
-    assert users.updates["target_role_title"] == "Software Engineer"
+    assert users.updates["target_role_titles"][0] == "Software Engineer"
     assert users.updates["target_roles"] == ["Software Development"]
 
 

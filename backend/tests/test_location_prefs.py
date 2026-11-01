@@ -1,7 +1,7 @@
 """Multi-location preference logic (fixed-from-settings geo scope).
 
 Pure-function coverage for the two seams that drive the feature:
-- derive_location_columns: canonical array → the four synced profile columns.
+- derive_location_columns: canonical array → the two profile columns.
 - _matches_location_filters: scalar + locations[] (firecrawl #6) city matching.
 """
 from __future__ import annotations
@@ -15,21 +15,18 @@ from app.services.location_normalizer import derive_location_columns
 def test_derive_columns_single_city():
     cols = derive_location_columns(["Bangalore"])
     assert cols["target_locations"] == ["Bangalore"]
-    assert cols["target_location"] == "Bangalore"
-    assert cols["target_location_country"] == "India"
     assert cols["target_location_countries"] == ["India"]
 
 
 def test_derive_columns_multi_dedupes_countries():
     cols = derive_location_columns(["Bangalore", "Mumbai"])
     assert cols["target_locations"] == ["Bangalore", "Mumbai"]
-    # Both Indian cities → one deduped country, element-0 projection stays first.
+    # Both Indian cities → one deduped country.
     assert cols["target_location_countries"] == ["India"]
-    assert cols["target_location"] == "Bangalore"
 
 
 def test_derive_columns_blank_and_empty():
-    assert derive_location_columns([])["target_location"] is None
+    assert derive_location_columns([]) == {"target_locations": [], "target_location_countries": []}
     cols = derive_location_columns(["  ", "Bangalore"])
     assert cols["target_locations"] == ["Bangalore"]
 

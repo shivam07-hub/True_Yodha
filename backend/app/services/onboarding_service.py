@@ -66,9 +66,9 @@ def context_key(profile: dict[str, Any]) -> str | None:
 
 
 def _key_title(profile: dict[str, Any]) -> str:
-    """The primary title both keys hash — the list's first, which is exactly the
-    synced `target_role_title` on every row (0 of 1,080 differed, 2026-10-27), so
-    reading the list moved no key and re-rated nothing."""
+    """The primary title both keys hash — the list's first. It was the stored
+    `target_role_title` on every row (0 of 1,080 differed, 2026-10-27), so reading
+    the list moved no key and re-rated nothing."""
     return direction.of(profile).primary_title or ""
 
 
@@ -314,9 +314,8 @@ def role_title_updates(
     """
     titles = _normalize_role_titles(None, role_titles)
     if not titles:
-        return {"target_role_title": None, "target_role_titles": [], "target_roles": []}
+        return {"target_role_titles": [], "target_roles": []}
     return {
-        "target_role_title": titles[0],
         "target_role_titles": titles,
         "target_roles": _normalize_families(role_family, role_families),
     }
@@ -375,8 +374,8 @@ def save_target(
     The user targets up to `MAX_TARGET_ROLES` human role titles (chips). Those titles are the
     source-of-record (`target_role_titles`); `target_roles` (taxonomy clusters,
     the matcher scoping key) is the DERIVED union from the selected family, and
-    `target_role_title` stays the PRIMARY = titles[0] for back-compat + the score
-    label. A point-of-use edit may supply either `role_title` or `role_titles`.
+    titles[0] is the PRIMARY. A point-of-use edit may supply either `role_title`
+    or `role_titles`.
     Omitted `seniority`/`location` are preserved so a role-only edit never wipes
     them. Requires the `target_role_titles` column (migration 20260706).
 
@@ -637,7 +636,7 @@ def _candidate_skills(
             "taxonomy_key": key,
             "name": display_names.get(key, key),
             "level": level,
-            "proficiency_title": scoring._PROFICIENCY_TITLES.get(level, "Scout"),
+            "proficiency_title": scoring.level_name(level),
             "evidence": evidence_map.get(key, ""),
         }
         for key, level in level_map.items()

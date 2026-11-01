@@ -399,8 +399,11 @@ Tracker (3) · no problem or not actionable (~25).
 
 ## SHIVAM
 
-- **Scraper: landing again since 2026-10-15** (2–3k rows a day, 04–05 UTC; was
-  no feed 10-01 → 10-14). Still yours: Axis Bank = 14,259 live rows (~18%,
+- **Scraper: not landing daily.** `job_source_runs` shows 10-14 → 10-20 and
+  10-26 → 10-27, nothing on 10-21 → 10-25, nothing since 10-27 (checked 10-30);
+  was no feed 10-01 → 10-14. Company repairs of 10-29 wait on the next run: Meta,
+  EY India, BDO India and ANZ Bank reopen when it sees them.
+  Still yours: Axis Bank = 14,259 live rows (~18%,
   747 titles) — dedupe at the source.
 - The prod deploy guard (above).
 - **#59 golden digest go-live**: prod carries the first-email rule (`0aafb324`).
@@ -426,35 +429,36 @@ Tracker (3) · no problem or not actionable (~25).
 - Yours or real? `kslk37143`, `zoom8cloud`, `abibi9167`, `p9212530`, `yaya007500`
   — named ones get `is_test_account`.
 - #56 §7: Razorpay webhook events, the live key on Vercel, reviewer name + email.
+- **Scraper, company skills (your repo).** Company skill demand is now a daily
+  snapshot in the database (`refresh_company_skill_demand`, 2026-10-29). The
+  scraper's `write_company_skill_facts` path (runs only without `--source-only`)
+  would be a second writer of `company_skill_profiles`; production never takes
+  it. Remove it, then `refresh_company_skill_profiles` and
+  `company_skill_run_facts` (26,996 July rows) can be dropped — destructive, your call.
+- **Scraper, jobs with no `company_id`.** 1,464 rows (60 live; Amazon 26) come
+  from an import path that does not go through `trusted_job_lifecycle`, so the
+  same employer is split between an id and none, and those rows are never closed
+  by a complete run. Which import writes them? Not filled on our side: that would
+  put another source's listings inside a trusted run's close step.
 
 ## AGENT CHORES — approved, small
 
 - Run the authed QA checklist.
-- **Listing Liveness index swap — BLOCKED on the `main` merge of `e2e232d0`
-  (owner: Shivam merges; then an agent).** Prod runs `main`, whose PostgREST
-  reads still send `is_active = true` and use the bare-spelled
-  `idx_jobs_candidate_band`, `idx_jobs_lower_company_active_jobid`,
-  `idx_jobs_live_company_first_seen` and `idx_jobs_feed_active_first_seen`
-  (a duplicate of `idx_jobs_live_first_seen_job_id`). After the merge: watch
-  their `idx_scan` stop moving (baseline 18:23 UTC 10-27: 458 / 23,346 / 2,154 /
-  1,337), `DROP INDEX CONCURRENTLY` the four, rename the three `_v2` twins back.
-  `ARCHITECTURE_READ_PATH.md` §31.
-- **Drop five stored copies — APPROVED (Shivam, 2026-10-27), in this order.**
-  `mirror_scores.skill_scores` (`{}` on all 467 rows, read by nothing),
-  `user_skills.proficiency_title` (derive from the level; 16 rows drifted),
-  `user_profiles.target_location`, `target_location_country`,
-  `target_role_title` (synced copies). 1) Move every reader and writer off them
-  — the singular direction columns still have primary readers listed in
-  `test_direction_level.py::_PRIMARY_READS`, incl. the verdict-context hash,
-  which must hash the same string from the list (0 rows out of sync, so the
-  hash does not move); 2) ship, then a week with no reads; 3) drop in one
-  migration. Users see nothing. CONTEXT → Skill Level, Targeting Brief.
-  **Step 1 readers: done 2026-10-27 on Develop** (`skill_scores` no longer
-  written). The writers of the other four stay until `main` runs these reads:
-  prod reads the stored copies, and the shared worker (Develop) writes prod
-  users' skills. After the main merge: stop the writers (targeting_write,
-  location_normalizer, the five `_TITLE_WRITERS` + `confirm_cv_skills`), then
-  the week, then the drop.
+- **Drop five stored copies — APPROVED (Shivam, 2026-10-27). BLOCKED on the next
+  `main` merge (owner: Shivam merges; then an agent).** `mirror_scores.skill_scores`,
+  `user_skills.proficiency_title`, `user_profiles.target_location`,
+  `target_location_country`, `target_role_title`. Readers left in #345; writers and
+  select lists left `Develop` 2026-10-30. **Do not drop before `main` has that
+  commit:** prod's code still selects and writes these columns, so a drop breaks
+  prod reads and every direction save. After the merge: a week, check nothing
+  names them (`pg_stat_statements`), then one migration. Users see nothing.
+  CONTEXT → Skill Level, Targeting Brief.
+- **Company names on read surfaces onto `company_key`** (CONTEXT → Company
+  Identity). The directory, pulse, Company CV Thread and the Following-only
+  filter still compare names folded for case and spacing; the resolver's key
+  also ignores punctuation. 0 of 278 names disagree today, so nobody sees a
+  difference yet. When it is built: pulse and directory keys move with
+  `company_pulse.sort_key_for` in one release, since prod reads the snapshot keys.
 
 ## COMPANY OBLIGATIONS — off the working backlog
 

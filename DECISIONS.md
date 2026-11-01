@@ -107,7 +107,7 @@ disagree, code wins and this line gets fixed in the same commit.
 ## DB SCHEMA (key tables)
 
 - `user_profiles`: `coin_balance INTEGER`, `welcome_coins_granted BOOLEAN`, `linkedin_coins_granted BOOLEAN` — **the `xp_*` columns are DROPPED** (contract migration `20260622_coins_rename_contract`, verified live 2026-08-04). Mutate only via `charge_coins` / `refund_coins` / `reward_coins`; ledger is `coin_ledger`. Never write `xp_balance`.
-- `user_profiles`: `target_locations TEXT[]`, `target_location_countries TEXT[]` (multi-location targeting, live) + legacy scalars `target_location` / `target_location_country`
+- `user_profiles`: `target_locations TEXT[]`, `target_location_countries TEXT[]` (multi-location targeting, live) + legacy scalars `target_location` / `target_location_country` (unread and unwritten, approved to drop)
 - `daily_logs`: `cart_skills JSONB NOT NULL DEFAULT '[]'`
 - `forge_sessions`: legacy table, still readable, but **timed forge XP earning is retired** — nothing writes new earn rows.
 - `user_skills`: `forge_sessions_count INTEGER NOT NULL DEFAULT 0` — display counter only; real practice progression lives in `skill_assessed_level` (Upskilling quiz clears).

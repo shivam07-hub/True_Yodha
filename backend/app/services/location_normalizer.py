@@ -203,12 +203,11 @@ def normalize_location(value: Any) -> NormalizedLocation:
 
 
 def derive_location_columns(locations: list[str]) -> dict[str, Any]:
-    """Canonical multi-location preference → the four synced profile columns.
+    """Canonical multi-location preference → the two profile columns.
 
-    `target_locations` (the freeform labels) is canonical. `target_location` and
-    `target_location_country` are element-0 projections kept for legacy readers;
+    `target_locations` (the freeform labels) is canonical;
     `target_location_countries` is the deduped country set for the country-only
-    match pipeline. One derivation point so the four never drift.
+    match pipeline. One derivation point so the two never drift.
     """
     cleaned = [loc.strip() for loc in locations if loc and loc.strip()]
     countries: list[str] = []
@@ -219,6 +218,4 @@ def derive_location_columns(locations: list[str]) -> dict[str, Any]:
     return {
         "target_locations": cleaned,
         "target_location_countries": countries,
-        "target_location": cleaned[0] if cleaned else None,
-        "target_location_country": countries[0] if countries else None,
     }

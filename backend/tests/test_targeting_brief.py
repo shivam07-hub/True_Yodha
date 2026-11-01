@@ -144,7 +144,7 @@ def test_system_prompt_includes_memory_block_only_when_facts_present():
 
 def test_role_title_updates_derives_cluster_union():
     updates = onboarding_service.role_title_updates(["Sales Lead"], role_family="Sales and Marketing")
-    assert updates["target_role_title"] == "Sales Lead"
+    assert updates["target_role_titles"][0] == "Sales Lead"
     assert updates["target_role_titles"] == ["Sales Lead"]
     assert updates["target_roles"] == ["Sales and Marketing"]
 
@@ -154,9 +154,8 @@ def test_role_title_updates_unmatched_title_contributes_itself():
     assert updates["target_roles"] == []
 
 
-def test_role_title_updates_empty_clears_all_three():
+def test_role_title_updates_empty_clears_both():
     assert onboarding_service.role_title_updates([]) == {
-        "target_role_title": None,
         "target_role_titles": [],
         "target_roles": [],
     }

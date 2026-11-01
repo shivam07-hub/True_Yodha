@@ -601,6 +601,33 @@ class CVVersionsRepository:
         rows = result.data or []
         return rows[0] if rows else None
 
+    def list_skill_exclusions(self, user_id: str) -> list[dict[str, Any]]:
+        """Every skill this user ruled out, on any baseline, with its catalog entry."""
+        result = (
+            self._db.table("cv_skill_overrides")
+            .select(
+                "baseline_version_id, evidence_text, source_location, "
+                "skills(taxonomy_key, display_name, description)"
+            )
+            .eq("user_id", user_id)
+            .eq("action", "exclude")
+            .execute()
+        )
+        return result.data or []
+
+    def baseline_skill_signals(self, user_id: str) -> dict[str, Any] | None:
+        """The latest baseline's id and skill signals, without its document."""
+        result = (
+            self._db.table("cv_versions")
+            .select("id, skills_detected")
+            .eq("user_id", user_id)
+            .eq("kind", "baseline_upload")
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        return result.data[0] if result.data else None
+
     def upsert_skill_override(
         self,
         user_id: str,

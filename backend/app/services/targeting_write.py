@@ -69,7 +69,6 @@ def derive(updates: dict[str, Any], before: dict[str, Any]) -> dict[str, Any]:
         families = updates.pop("role_families", None)
         supplied = family is not None or families is not None
         updates.pop("target_roles", None)
-        updates.pop("target_role_title", None)
         derived = onboarding_service.role_title_updates(
             titles, role_family=family, role_families=families
         )
@@ -217,7 +216,6 @@ def _scope_direction(users_repo: UsersRepository, updates: dict[str, Any]) -> No
     if updates.get("target_role_titles"):
         promoted = demote_catch_all_primary(updates["target_role_titles"], catch_alls)
         updates["target_role_titles"] = promoted
-        updates["target_role_title"] = promoted[0]
 
 
 def commit(users_repo: UsersRepository, user_id: str, patch: dict[str, Any]) -> TargetCommit:

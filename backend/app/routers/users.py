@@ -4,9 +4,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.concurrency import run_in_threadpool
 from supabase import Client
 
+from app.database import get_supabase_admin
 from app.deps import Principal, get_principal, get_user_db
 from app.services.concurrent_reads import run_concurrently
-from app.repositories.users import UsersRepository, get_token_users_repository
+from app.repositories.users import (
+    UserSkillRecord,
+    UsersRepository,
+    get_token_users_repository,
+)
 from app.schemas import (
     AccountDeletionResponse,
     FollowCompanyRequest,
@@ -22,6 +27,7 @@ from app.schemas import (
     UpdateProfileRequest,
     UpdateProfileResponse,
     UserProfileResponse,
+    UserSkillItem,
     UserSkillsByDomainResponse,
 )
 from app.services import followed_companies
@@ -156,11 +162,19 @@ def get_my_skills(
     return UserSkillsByDomainResponse(by_domain=by_domain, by_cluster=by_cluster)
 
 
+@router.get("/me/skills/removed", response_model=list[UserSkillItem])
+def get_my_removed_skills(
+    principal: Principal = Depends(get_principal),
+    db: Client = Depends(get_user_db),
+) -> list[UserSkillRecord]:
+    """The skills this user took off, each with what Restore would bring back."""
+    return skill_correction.removed_skills(db, principal.id)
+
+
 @router.post("/me/skills/correction", response_model=SkillCorrectionResponse)
 async def correct_my_skill(
     payload: SkillCorrectionRequest,
     principal: Principal = Depends(get_principal),
-    db: Client = Depends(get_user_db),
 ) -> SkillCorrectionResponse:
     """Drop a wrongly-extracted skill, or restore one previously dropped.
 
@@ -168,6 +182,9 @@ async def correct_my_skill(
     a bad extraction spotted in month three should not need a CV re-upload
     (backlog #6). Recomputes the score in-band so the caller can show the new
     number rather than promising it will update later.
+
+    On the admin client, like the onboarding override routes: `authenticated` may
+    only read `cv_skill_overrides`, and every query here is scoped to `principal.id`.
     """
     key = payload.skill_key.strip()
     if not key:
@@ -177,7 +194,7 @@ async def correct_my_skill(
         )
     score = await run_in_threadpool(
         skill_correction.set_skill_included,
-        db,
+        get_supabase_admin(),
         principal.id,
         key,
         payload.included,
