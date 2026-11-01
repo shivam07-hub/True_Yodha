@@ -25,7 +25,7 @@ type Props = {
   lean: string[]
   avoid: string[]
   /** Halves that are Myro's reading rather than the user's own answer. */
-  proposed: Array<"avoid" | "lean">
+  proposed: Array<"lean">
   onChange: (next: { lean: string[]; avoid: string[] }) => void
 }
 
@@ -94,10 +94,9 @@ function PhraseList({
 }
 
 export function DirectionChoice({ lean, avoid, proposed, onChange }: Props) {
-  // Said once, for the section, when either half is Myro's reading. Saying it
-  // per list put the same sentence on screen twice — two lines each on a phone —
-  // to make one point the user only needs made once.
-  const anyProposed = proposed.length > 0 && (lean.length > 0 || avoid.length > 0)
+  // Said once, for the section. "Drawn to" is the only half Myro can read for
+  // them: "Not for you" hides jobs, so it starts with their own words alone.
+  const anyProposed = proposed.length > 0 && lean.length > 0
   return (
     <section className="mt-7" aria-labelledby="target-direction">
       <p id="target-direction" className="text-sm font-medium text-[var(--tm-text)]">

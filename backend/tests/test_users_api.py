@@ -121,6 +121,8 @@ def test_get_me_carries_no_stored_finished_flag() -> None:
 
     assert response.status_code == 200
     assert "onboarding_complete" not in response.json()
+    assert "career_goal" not in response.json()
+    assert "superpower" not in response.json()
 
 
 def test_get_me_reports_has_cv_when_baseline_exists() -> None:

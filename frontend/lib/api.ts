@@ -447,8 +447,6 @@ export interface UserProfile {
   explored_career_bands?: CareerBand[]
   target_locations: string[]
   deal_breakers: string[]
-  career_goal: string | null
-  superpower: string | null
   cv_url: string | null
   ninja_name: string | null
   has_cv: boolean
@@ -489,8 +487,6 @@ export interface ProfileUpdate {
   /** Routed server-side to the authored-preference writer — there is no
    *  `lean` column to set. Sending `[]` clears; omitting preserves. */
   lean?: string[] | null
-  career_goal?: string | null
-  superpower?: string | null
   myrology_interested?: boolean
   accent_pref?: "signal" | "forge"
   /** The whole map; the server normalises it. `{}` resets every heading. */
@@ -921,7 +917,7 @@ export interface OnboardingDirection {
   avoid: string[]
   lean: string[]
   /** Halves gap-filled from Myro's reading rather than confirmed by the user. */
-  proposed: Array<"avoid" | "lean">
+  proposed: Array<"lean">
 }
 
 /** Where the user stands on the skills their target roles actually ask for.
@@ -1062,9 +1058,9 @@ export type OnboardingResult = OnboardingReach & (
       }
       /** The four bands with their counts, best fit first. */
       bands: CareerBandOption[]
-      /** What Myro believes you're drawn to and away from. `proposed` names the
-       *  halves that are Myro's reading of your CV rather than your own answer —
-       *  the step says so, so a guess is never shown as a decision. */
+      /** What you're drawn to and away from. `avoid` is always your own words.
+       *  `proposed` says when `lean` is Myro's reading of your CV instead — the
+       *  step says so, so a guess is never shown as a decision. */
       direction: OnboardingDirection
       /** Claimed public identity. Required before Direction can complete. */
       ninja: { ninja_name: string; claimed: boolean }

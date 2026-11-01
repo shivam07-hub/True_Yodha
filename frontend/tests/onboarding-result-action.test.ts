@@ -49,6 +49,13 @@ test("the client calls no onboarding write that was removed", () => {
   assert.doesNotMatch(api, /tailored_cv_created_at|score_gap_reviewed_at|activation_kind/)
 })
 
+test("Not for you never opens with a guess", () => {
+  const api = read("lib/api.ts")
+
+  assert.match(api, /proposed: Array<"lean">/)
+  assert.doesNotMatch(read("components/onboarding/direction-choice.tsx"), /"avoid" \| "lean"/)
+})
+
 test("a failed result fetch stops loading and offers a retry", () => {
   const page = read("app/onboarding/result/page.tsx")
 

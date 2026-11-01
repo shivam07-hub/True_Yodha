@@ -451,14 +451,16 @@ Tracker (3) · no problem or not actionable (~25).
   select lists reached `main` in #346 on 2026-11-01. From 2026-11-08: check nothing
   names them (`pg_stat_statements`), then one migration. Users see nothing.
   CONTEXT → Skill Level, Targeting Brief.
-- **Drop ten onboarding columns — APPROVED (Shivam, 2026-11-01). BLOCKED on the next
-  `main` merge (owner: Shivam merges; then an agent).** `user_profiles.onboarding_complete`;
+- **Drop twelve onboarding columns — APPROVED (Shivam, 2026-11-01, 11-02). BLOCKED on
+  the next `main` merge (owner: Shivam merges; then an agent).** `user_profiles.onboarding_complete`,
+  `career_goal`, `superpower`;
   `user_onboarding_state.status`, `current_stage`, `result_seen_at`,
   `score_gap_reviewed_at`, `activated_at`, `activation_kind`, `preview_payload`,
   `description_text`, `tailored_cv_created_at`; index
   `idx_user_onboarding_state_status`. Readers and writers left `Develop` 2026-11-01.
-  **Do not drop before `main` has that commit:** prod still reads the flag for
-  `/users/me` and writes it and `tailored_cv_created_at`. After the merge: a week,
+  **Do not drop before `main` has that commit:** prod still reads the flag,
+  `career_goal` and `superpower`, and writes the flag and `tailored_cv_created_at`.
+  After the merge: a week,
   check nothing names them (`pg_stat_statements`), then one migration.
   `test_onboarding_columns_stopped.py` goes with it. CONTEXT → Journey Position.
 - **Company names on read surfaces onto `company_key`** (CONTEXT → Company

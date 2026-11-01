@@ -310,13 +310,10 @@ def apply_diff(db: Client, user_id: str, diff: dict[str, Any]) -> dict[str, Any]
         mem.add(user_id, kind="salary", text=diff["salary"], source="distilled")
         changed["salary"] = diff["salary"]
 
-    # The three pre-flight inputs. Applied HERE too, not just in the modal's draft:
-    # the concierge can now propose them on either surface, and a field that a
-    # reply proposes but an apply silently drops is the half-behaviour this
-    # codebase keeps paying for. `constraint` / `aspiration` are the kinds
-    # `matching/targeting.py` already maps back onto deal_breakers / career_goal,
-    # so this writes into the shape the Targeting Brief reads — it does not invent
-    # a fourth store.
+    # Applied HERE too, not just in the modal's draft: the concierge can propose
+    # these on either surface, and a field that a reply proposes but an apply
+    # silently drops is the half-behaviour this codebase keeps paying for. They land
+    # as facts, which the brain reads as `known_facts`. Nothing here writes a column.
     for text in diff.get("deal_breakers") or []:
         mem.add(user_id, kind="constraint", text=text, source="distilled")
     if diff.get("deal_breakers"):
@@ -325,8 +322,7 @@ def apply_diff(db: Client, user_id: str, diff: dict[str, Any]) -> dict[str, Any]
         mem.add(user_id, kind="aspiration", text=diff["career_goal"], source="distilled")
         changed["career_goal"] = diff["career_goal"]
     if diff.get("superpower"):
-        # No clean memory kind (targeting.py: "superpower — column-only, stays
-        # manual"), so it rides as a note rather than being dropped on the floor.
+        # No memory kind of its own, so it rides as a note.
         mem.add(user_id, kind="note", text=f"Superpower: {diff['superpower']}", source="distilled")
         changed["superpower"] = diff["superpower"]
 

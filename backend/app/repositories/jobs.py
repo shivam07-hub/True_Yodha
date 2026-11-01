@@ -3286,7 +3286,7 @@ class JobsRepository:
                 "target_role_titles, target_seniority, "
                 "target_career_band, explored_career_bands, "
                 "years_experience, "
-                "deal_breakers, career_goal, superpower"
+                "deal_breakers"
             )
             .eq("id", user_id)
             .maybe_single(),

@@ -103,17 +103,18 @@ def test_confirmed_answers_win_over_myros_reading() -> None:
     assert answer["proposed"] == []
 
 
-def test_an_empty_half_is_gap_filled_and_named_as_a_reading() -> None:
+def test_only_drawn_to_is_gap_filled_and_it_is_named_as_a_reading() -> None:
     db = _MemoryDB([
         {"id": "1", "kind": "preference", "text": "consultative work", "source": "distilled"},
         {"id": "3", "kind": "constraint", "text": "avoids large corporations", "source": "distilled"},
     ])
     answer = _direction_answer(db, "u1", {})
     assert answer["lean"] == ["consultative work"]
-    assert answer["avoid"] == ["avoids large corporations"]
-    # Both halves are Myro's reading — the step has to say so, or a guess is
-    # presented as a decision the user already made.
-    assert sorted(answer["proposed"]) == ["avoid", "lean"]
+    # "Not for you" hides jobs, so it is never Myro's reading.
+    assert answer["avoid"] == []
+    # The step has to say so, or a guess is presented as a decision the user
+    # already made.
+    assert answer["proposed"] == ["lean"]
 
 
 def test_a_memory_outage_does_not_block_the_step() -> None:

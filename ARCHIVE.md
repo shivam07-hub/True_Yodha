@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-11-02 — "Not for you" holds only a person's own words
+
+The role picker filled "Not for you" with Myro's guesses by kind, and Continue saved them as won't-takes, which hide a job. Proven on the QA account: "Open to roles located in Gurugram" landed on its list. 0 real people had one saved; 2 were one visit away. The box now starts with `deal_breakers` alone, and a guess that reads as a liking is offered in "Drawn to", using the Order's own sentence reader (`normalise.read_as`). The candidate to fold six stores into `user_memory` was dropped: the stores are different things, and the mentor's locks 3 and 5 keep typed targeting apart from memory. Retired `career_goal` and `superpower` (no writer, 1 real person each), dropped `private_notes` (no code, 1 row), deleted `TargetingBrief.preflight()` and `OpsReceipt`.
+
 ## 2026-11-01 — One rule for finished onboarding
 
 "Finished" had five rules. Now `journey_finished` is one: `completed_at` plus a whole direction or a job they chose. Someone who finished on a job gets the role picker from "Pick a role", then Market; it used to land on `/cv`. The checklist and the Market tip read the direction, and the Job Tracks gate reads the tailored CV, which lets in the 8 people the stamp refused. Stopped writing `onboarding_complete`, deleted `/onboarding/activate` and `/onboarding/milestones/{milestone}`. Ten columns drop after the next `main` merge (BACKLOG). `/onboarding/first-role` went too: it needed a `full_result_ready` result nothing sends any more, and its source was last written 2026-08-13. Its 8 rows stay receipts.

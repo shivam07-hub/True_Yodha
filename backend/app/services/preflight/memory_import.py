@@ -180,10 +180,7 @@ def guesses_from(brief: TargetingBrief) -> list[OrderLine]:
 
     profile: dict[str, Any] = brief.profile
 
-    # career_goal and superpower are not slots. Importing them asked a question
-    # whose answer wrote the column — including NULL, when the stored answer was
-    # "No". The columns stay; intent chat still records a volunteered one.
-    # An aspiration fact still reaches the brain as known_facts.
+    # A goal is not a slot. An aspiration fact reaches the brain as known_facts.
 
     # One surface per statement. The distiller sometimes files the same note as
     # work_mode and preference — that asked twice across Won't take and Drawn to.

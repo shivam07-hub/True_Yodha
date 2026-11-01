@@ -102,20 +102,24 @@ def overlap(left: str, right: str) -> float:
 def refile(line: OrderLine) -> tuple[LineKind, str | None]:
     """What this statement IS, and the note to show if that differs from how it
     was filed. Never changes the text — only which slot runs it."""
-    text = line.text
+    return read_as(line.kind, line.text)
+
+
+def read_as(kind: LineKind, text: str) -> tuple[LineKind, str | None]:
+    """`refile` for a sentence that is not on an Order: the role picker's guesses."""
     negative = bool(_NEGATIVE.search(text))
 
     if _NON_FILTER.search(text):
         return "fact", "kept on your profile — no job is filtered on this"
-    if line.kind in ("wont_take", "lean") and _PAY.search(text):
+    if kind in ("wont_take", "lean") and _PAY.search(text):
         return "pay_floor", "read as your pay floor"
-    if line.kind == "wont_take" and not negative and _LOCATION.search(text):
+    if kind == "wont_take" and not negative and _LOCATION.search(text):
         return "location", "read as where you'll work, not an exclusion"
-    if line.kind == "wont_take" and not negative and _POSITIVE.search(text):
+    if kind == "wont_take" and not negative and _POSITIVE.search(text):
         return "lean", "this tilts the ranking — it doesn't exclude anything"
-    if line.kind == "lean" and negative and not _PAY.search(text):
+    if kind == "lean" and negative and not _PAY.search(text):
         return "wont_take", "read as a hard no"
-    return line.kind, None
+    return kind, None
 
 
 #: Slots where a line Myro REFILED steps aside for one the user filed there

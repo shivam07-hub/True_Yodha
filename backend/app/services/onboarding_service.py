@@ -168,6 +168,9 @@ def _normalize_role_titles(
 _DIRECTION_PHRASE_CAP = 6
 _DIRECTION_PHRASE_MAX_CHARS = 120
 _LEAN_KIND = "preference"
+#: Kinds the distiller files a limit under. The kind does not say which way the
+#: sentence points, so these are read before they are offered.
+_LIMIT_KINDS = ("constraint", "work_mode")
 
 
 def _normalize_direction_phrases(values: list[str]) -> list[str]:
@@ -230,21 +233,24 @@ def _direction_answer(db: Client, user_id: str, profile: dict[str, Any]) -> dict
     """What Myro currently believes the user is drawn to and away from, plus where
     each half came from.
 
-    Confirmed answers win: the `deal_breakers` column and authored `preference`
-    facts are the user's own words and are returned as-is. Only when a half is
-    empty is it gap-filled from Myro's own reading — the same fill-empty-only rule
-    the pre-flight already uses — and `proposed` names that half so the step can
-    say "read from your CV" instead of presenting a guess as a decision.
+    "Not for you" is the `deal_breakers` column and nothing else. Continue saves
+    that box as a won't-take, and a job that breaks one is on no surface, so Myro's
+    reading never goes in it. Those guesses still reach the judge as `known_facts`,
+    and the Pre-flight Order still asks them as questions.
+
+    "Drawn to" is their authored `preference` facts. When they have none it is
+    gap-filled from Myro's reading, and `proposed` says so the step can read "from
+    your CV" instead of presenting a guess as a decision.
     """
     from app.repositories.user_memory import UserMemoryRepository
-    from app.services.matching.targeting import _DEAL_BREAKER_KINDS
+    from app.services.preflight import normalise
 
     proposed: list[str] = []
     avoid = [str(v).strip() for v in (profile.get("deal_breakers") or []) if str(v).strip()]
     lean: list[str] = []
     try:
         rows = UserMemoryRepository(db).list_active(
-            user_id, kinds=[_LEAN_KIND, *_DEAL_BREAKER_KINDS]
+            user_id, kinds=[_LEAN_KIND, *_LIMIT_KINDS]
         )
     except Exception:  # noqa: BLE001 — a memory outage must not block the step
         rows = []
@@ -256,22 +262,13 @@ def _direction_answer(db: Client, user_id: str, profile: dict[str, Any]) -> dict
     lean = [text for text in authored_leans if text]
     if not lean:
         lean = [
-            text for text in (
-                (r.get("text") or "").strip() for r in rows
-                if r.get("kind") == _LEAN_KIND
-            ) if text
+            text for kind, text in (
+                (r.get("kind"), (r.get("text") or "").strip()) for r in rows
+            )
+            if text and (kind == _LEAN_KIND or normalise.read_as("wont_take", text)[0] == "lean")
         ][:_DIRECTION_PHRASE_CAP]
         if lean:
             proposed.append("lean")
-    if not avoid:
-        avoid = [
-            text for text in (
-                (r.get("text") or "").strip() for r in rows
-                if r.get("kind") in _DEAL_BREAKER_KINDS
-            ) if text
-        ][:_DIRECTION_PHRASE_CAP]
-        if avoid:
-            proposed.append("avoid")
     return {"avoid": avoid, "lean": lean, "proposed": proposed}
 
 
