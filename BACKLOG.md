@@ -418,6 +418,13 @@ Tracker (3) · no problem or not actionable (~25).
 
 ## SHIVAM
 
+- **Brand, agreed 2026-11-02; all need your login.**
+  1. Merge `main` before Tue 3 Nov, 10:30, so issue 25's readers land on the
+     tailor CTA (`e0048c83`) and not the Score.
+  2. Change the Instagram and LinkedIn profile text: [INSTAGRAM_PROFILE.md](INSTAGRAM_PROFILE.md).
+  3. Mark LinkedIn issues 020, 022 and the loop video posted in `/admin/growth`,
+     with their links. They are live, and the rows still say unposted.
+  4. Listen to the Fill video's soundtrack before Thu 5 Nov.
 - **Railway breach of 2026-10-21: rotate. OpenRouter and Supabase confirmed not
   replaced (checked 11-02); assume the rest are not either.** Railway leaked env
   vars. The stolen `OpenRouter_Production_key` bought ~$0.55 of Claude on 10-21,
