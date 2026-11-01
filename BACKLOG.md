@@ -418,6 +418,43 @@ Tracker (3) · no problem or not actionable (~25).
 
 ## SHIVAM
 
+- **Railway breach of 2026-10-21: rotate. OpenRouter and Supabase confirmed not
+  replaced (checked 11-02); assume the rest are not either.** Railway leaked env
+  vars. The stolen `OpenRouter_Production_key` bought ~$0.55 of Claude on 10-21,
+  which nothing of ours calls; OpenRouter disabled it 10-22. Supabase logs
+  10-20 → 10-27 show no outside use of the service key. Each step: mint new →
+  set everywhere → revoke old. Worst first:
+  1. **OpenRouter — users feel this one now.** New key with a credit limit on
+     `mirror-backend-prod`, `mirror-backend-dev`, `True_Yodha`; top up ($8.26
+     left); limit the laptop key too. Embeddings have no fallback: all 238
+     `career_stories` since 10-22 (24 people) have none, so tailoring runs
+     weaker with no Notice. `reservoir_ingest_sweep` heals them once the key
+     works; no backfill.
+  2. **Supabase.** New `sb_secret_…` / `sb_publishable_…` for
+     `SUPABASE_SERVICE_KEY` and `SUPABASE_ANON_KEY` on those three services, the
+     scraper, Vercel's `NEXT_PUBLIC_SUPABASE_ANON_KEY` and the laptop. Only then
+     turn off the legacy keys and JWT secret (`SUPABASE_JWT_SECRET`). All
+     services accept the new format (`18cdf722`, on `main`).
+  3. **Razorpay.** `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`. The new
+     `RAZORPAY_KEY_ID` must reach Vercel prod's `NEXT_PUBLIC_RAZORPAY_KEY_ID` in
+     the same step or checkout breaks. Check refunds since 10-21.
+  4. **Email.** `SENDGRID_API_KEY`, `RESEND_API_KEY`. Check send logs 10-21/22:
+     a thief could mail users as himyro.com.
+  5. **Other AI keys.** `GROQ_API_KEY`, `GOOGLE_API_KEY`, and `OPENAI_API_KEY` /
+     `ANTHROPIC_API_KEY` if set. Check usage 10-21/22.
+  6. **Scraper project.** `CLOUDFLARE_API_TOKEN`, `FIRECRAWL_API_KEY`,
+     `FIRECRAWL_CLOUD_API_KEY`. Check Cloudflare's audit log.
+  7. **Our own tokens.** `SCRAPE_WEBHOOK_TOKEN` (backend and scraper together),
+     `MYROLOGY_ADMIN_TOKEN`, `JOB_SWITCH_ADMIN_TOKEN`,
+     `MYRO_ANALYTICS_REFRESH_SECRET`; `TURNSTILE_SECRET` in Cloudflare.
+  8. **Redis.** `REDIS_URL`; low risk, reachable only inside Railway.
+
+  Also check: OpenRouter Activity for 10-21 by key (any key but the prod one
+  leaked elsewhere) · GitHub security log, apps and deploy keys on
+  `shivam07-hub/True_Yodha` · Railway members, API tokens, 2FA.
+
+  This list comes from code and local `.env` files; Railway's own variable list
+  was never read. `railway login` lets an agent read the names and complete it.
 - **Scraper: not landing daily.** `job_source_runs` shows 10-14 → 10-20 and
   10-26 → 10-27, nothing on 10-21 → 10-25, nothing since 10-27 (checked 10-30);
   was no feed 10-01 → 10-14. Company repairs of 10-29 wait on the next run: Meta,
