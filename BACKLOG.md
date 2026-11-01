@@ -75,6 +75,15 @@ accounts: 1 person, 2 clicks, 2 asked, 0 answered.**
 asked > 0 and answered ≈ 0 → the prompt is ignored. Redesign from that, in Myro
 (no email — APPLY2).
 
+**Form fill has never run for anyone (measured 2026-11-02).** 0 rows in
+`job_filing_authorizations`, test accounts included, and `/filing/answers` refuses
+without one. The store lists 3 users. Through the real gate: 24 people tailored
+29 jobs, 6 of those jobs are gone, 13 judged ≥3.5, 1 passes today, and its drawer
+(the only place the Yes lives) was never opened. Of the 13: 9 closed, 5 carry a
+side-role overlap, 2 unconfirmed. `career_profile` has no real row, so form fill
+would leave pay and notice blank, but that is not the constraint: do not build the
+ask until a filing Yes exists.
+
 ---
 
 ## 3 · REPEAT
