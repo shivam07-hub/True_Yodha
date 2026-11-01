@@ -144,12 +144,11 @@ and Paste → review → playground works. Found on the way:
   ~2s; a pasted Genpact link saved as `JR10022480` with no `ext_` row. **After
   the merge:** read the `source=` split on prod for two weeks.
 - **A link from a job board does not read (measured 2026-11-02).** 11 real links, 0
-  read: LinkedIn 5, Indeed 3, Naukri 3 (live that day). Mostly "That link returned
-  an error", once a blank review, once 44s then "parser is busy". 4 links to jobs
-  Myro holds read in ~1s. "Type it in" is the only way past, and with Role or
-  Description empty its button does nothing, with no message (read in code, not
-  clicked). Same reader as /market's "Paste a job". FD1's owed `source=` read:
-  prod logged 0 reads 10-30 to 11-01. **The door is not leaking:** 22 saw it, 21
+  read: LinkedIn 5, Indeed 3, Naukri 3 (live that day). 4 links to jobs Myro holds
+  read in ~1s. So a board link now says so at once and opens one box for the
+  description; Myro reads the role and company from it (`source=board` counts
+  arrivals). FD1's owed `source=` read: prod logged 0 reads 10-30 to 11-01. **The
+  door is not leaking:** 22 saw it, 21
   took Jobs that fit, 18 finished. 6 people tried Paste or the extension for
   3-16s, 5 of them went on to Jobs that fit; logs show no read for the 2 paste
   clicks they cover (10-30, 11-01).
@@ -421,7 +420,8 @@ Tracker (3) · no problem or not actionable (~25).
 - **Brand, agreed 2026-11-02; all need your login.**
   1. Merge `main` before Tue 3 Nov, 10:30, so issue 25's readers land on the
      tailor CTA (`e0048c83`) and not the Score.
-  2. Change the Instagram and LinkedIn profile text: [INSTAGRAM_PROFILE.md](INSTAGRAM_PROFILE.md).
+  2. Change the Instagram and LinkedIn profile text, and upload the LinkedIn cover
+     image: [INSTAGRAM_PROFILE.md](INSTAGRAM_PROFILE.md).
   3. Mark LinkedIn issues 020, 022 and the loop video posted in `/admin/growth`,
      with their links. They are live, and the rows still say unposted.
   4. Listen to the Fill video's soundtrack before Thu 5 Nov.

@@ -33,6 +33,7 @@ says "Career Intelligence Platform" and leads with CV scoring.
 | Tagline | Pick the job you want. Myro tailors your CV to it. You apply on the company's own page. |
 | Industry | Software Development |
 | Type | Privately Held |
+| Cover image | `frontend/public/brand/linkedin-cover.png` (2256×382, twice LinkedIn's 1128×191). The text starts 40% in, clear of the logo. |
 
 About:
 
