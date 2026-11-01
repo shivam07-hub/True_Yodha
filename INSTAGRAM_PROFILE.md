@@ -25,8 +25,8 @@ Weekly: what India's MNC openings ask for.
 
 ## Posted so far
 
-Read from the public grid on 2026-11-02, newest first. The Distribution Tracker
-has no Instagram post marked done, so the grid is the record until it does.
+Read from the public grid on 2026-11-02, newest first. The top three are marked
+done in the Distribution Tracker with their live links and captions as posted.
 
 | Date | Post |
 |---|---|
