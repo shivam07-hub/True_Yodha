@@ -17,7 +17,7 @@ its next posts: [INSTAGRAM_PROFILE.md](INSTAGRAM_PROFILE.md).
 | Day | IST | What | Where |
 |---|---|---|---|
 | Tue | 10:00 | Newsletter issue goes live | himyro.com/newsletter |
-| Tue | 10:30 | That issue's post and thread | LinkedIn company page · X |
+| Tue | 10:30 | That issue's post | LinkedIn company page |
 | Wed | 19:00 | That issue's carousel | Instagram |
 | Thu | 10:00 | Launch video | LinkedIn, Shivam's profile |
 | Sat | 10:00 | Same video as a reel | Instagram |
@@ -26,6 +26,9 @@ Newsletter posts go on the company page because their kits speak as "we". Launch
 videos go on Shivam's profile, so the same post never sits on both within 7 days
 (brand-guidelines `surfaces/linkedin.md`). Instagram goes on Saturday morning
 because the brand guide names weekend mornings as the student segment's best window.
+
+X is off the schedule (Shivam, 2026-11-02): 1 post, 0 followers, and every thread
+is posted by hand. Revisit once LinkedIn and Instagram hold for a month.
 
 This is the floor: two LinkedIn, two Instagram, one issue a week. The brand guide
 allows more. Add slots only once these hold for a month.
