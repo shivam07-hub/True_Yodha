@@ -142,6 +142,7 @@ export default async function IssuePage({ params }: Props) {
         sameAs: [
           "https://x.com/himyro",
           "https://www.linkedin.com/company/himyro-career-intelligence",
+          "https://www.instagram.com/myrojobs/",
         ],
       },
       ...(absoluteOgImage && { image: absoluteOgImage }),

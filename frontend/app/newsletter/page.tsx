@@ -81,6 +81,7 @@ export default async function NewsletterIndexPage({
       sameAs: [
         "https://x.com/himyro",
         "https://www.linkedin.com/company/himyro-career-intelligence",
+        "https://www.instagram.com/myrojobs/",
       ],
     },
     mainEntity: {
