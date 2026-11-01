@@ -226,7 +226,7 @@ function IntelPageInner() {
         header={
           <>
             {token && j0Settled ? <MatchesRefreshBanner token={token} /> : null}
-            <MarketTailorCoach enabled={!!profileData?.onboarding_complete} />
+            <MarketTailorCoach enabled={profileData?.direction?.is_set ?? false} />
           </>
         }
         railHead={

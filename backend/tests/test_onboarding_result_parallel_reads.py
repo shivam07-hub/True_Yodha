@@ -91,9 +91,6 @@ def test_direction_complete_lands_on_market_without_shortlist_wait(
         def latest_baseline(self, _user_id: str) -> dict[str, Any]:
             return baseline
 
-        def update_cv_profile(self, user_id: str, _payload: dict[str, Any]) -> None:
-            completed.append(f"cv:{user_id}")
-
     monkeypatch.setattr(onboarding_service, "OnboardingRepository", lambda _db: _Onboarding())
     monkeypatch.setattr(onboarding_service, "UsersRepository", lambda _db: _Users())
     monkeypatch.setattr(onboarding_service, "CVVersionsRepository", lambda _db: _CV())
@@ -102,7 +99,7 @@ def test_direction_complete_lands_on_market_without_shortlist_wait(
 
     assert result["kind"] == "onboarding_complete"
     assert result["redirect_to"] == "/market"
-    assert completed == ["cv:u1", "state:u1"]
+    assert completed == ["state:u1"]
 
 
 def test_a_caller_who_holds_the_profile_and_baseline_does_not_read_them(
@@ -131,9 +128,6 @@ def test_a_caller_who_holds_the_profile_and_baseline_does_not_read_them(
     class _CV:
         def latest_baseline(self, _user_id: str) -> dict[str, Any]:
             raise AssertionError("baseline was already in hand")
-
-        def update_cv_profile(self, _user_id: str, _payload: dict[str, Any]) -> None:
-            return None
 
     monkeypatch.setattr(onboarding_service, "OnboardingRepository", lambda _db: _Onboarding())
     monkeypatch.setattr(onboarding_service, "UsersRepository", lambda _db: _Users())

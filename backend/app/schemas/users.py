@@ -59,7 +59,6 @@ class UserProfileResponse(BaseModel):
     career_goal: str | None = None
     superpower: str | None = None
     cv_url: str | None
-    onboarding_complete: bool
     ninja_name: str | None = None
     has_cv: bool = False
     #: Whether the latest baseline CV has had its skills confirmed. Drives which

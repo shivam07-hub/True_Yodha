@@ -120,34 +120,28 @@ def _tracks(n: int) -> list[Track]:
 def test_a_second_search_is_earned_by_finishing_the_first():
     """Until someone has felt the loop close, "open another search" is a
     setting. After, it is the obvious next move."""
-    allowed, why = can_open_another(_tracks(1), {})
+    allowed, why = can_open_another(_tracks(1), has_tailored_cv=False)
     assert allowed is False
     assert why == "Tailor a CV for a job in this search first."
 
 
 def test_a_tailored_cv_opens_the_second_search():
-    allowed, why = can_open_another(_tracks(1), {"tailored_cv_created_at": "2026-08-28T00:00:00Z"})
+    allowed, why = can_open_another(_tracks(1), has_tailored_cv=True)
     assert allowed is True
     assert why is None
 
 
 def test_the_cap_counts_the_profile_track():
     """Three searches total, not three on top of the one everyone has."""
-    allowed, why = can_open_another(
-        _tracks(MAX_TRACKS), {"tailored_cv_created_at": "2026-08-28T00:00:00Z"}
-    )
+    allowed, why = can_open_another(_tracks(MAX_TRACKS), has_tailored_cv=True)
     assert allowed is False
     assert str(MAX_TRACKS) in why
 
 
 def test_the_reason_is_a_next_step_never_the_word_locked():
-    for state in ({}, {"tailored_cv_created_at": "x"}):
-        _, why = can_open_another(_tracks(MAX_TRACKS), state)
+    for tailored in (False, True):
+        _, why = can_open_another(_tracks(MAX_TRACKS), has_tailored_cv=tailored)
         assert why and "lock" not in why.lower()
-
-
-def test_a_missing_onboarding_row_does_not_open_the_gate():
-    assert can_open_another(_tracks(1), None)[0] is False
 
 
 # ── positions ────────────────────────────────────────────────────────────────
@@ -225,79 +219,37 @@ def test_two_tracks_cost_barely_more_deep_evals_than_one_search_does():
     assert 2 * jobs_workflow.TRACK_DEEP <= jobs_workflow.MATCH_TRIAGE_KEEP + 2
 
 
-# ── the gate's input has to actually be written ──────────────────────────────
+# ── the gate reads the fact ──────────────────────────────────────────────────
 
 
-class _FakeOnboardingRepo:
-    """Records milestone writes the way the real one does: first-write-wins."""
+class _CVRows:
+    def __init__(self, rows: list[dict[str, Any]]) -> None:
+        self.data = rows
+        self.calls: list[tuple[str, tuple[Any, ...]]] = []
 
-    def __init__(self, state: dict | None = None) -> None:
-        self.state = state or {}
-        self.writes: list[str] = []
+    def table(self, name: str) -> "_CVRows":
+        self.calls.append(("table", (name,)))
+        return self
 
-    def get_state(self, user_id):  # noqa: ANN001, ARG002
-        return self.state
+    def __getattr__(self, name: str):
+        def record(*args: Any) -> "_CVRows":
+            self.calls.append((name, args))
+            return self
+        return record
 
-    def patch_state(self, user_id, patch):  # noqa: ANN001, ARG002
-        self.state.update(patch)
-        self.writes.append(next(iter(patch)))
-
-
-def test_mark_milestone_once_does_not_move_a_timestamp_that_exists():
-    """`tailored_cv_created_at` answers "when did they FIRST close the loop".
-    Overwriting it on every tailor makes "have they ever" and "did they just"
-    the same question, and the Job Tracks gate reads the first one."""
-    from app.repositories.onboarding import OnboardingRepository
-
-    repo = OnboardingRepository.__new__(OnboardingRepository)
-    fake = _FakeOnboardingRepo({"tailored_cv_created_at": "2026-01-01T00:00:00Z"})
-    repo.get_state = fake.get_state  # type: ignore[method-assign]
-    repo.patch_state = fake.patch_state  # type: ignore[method-assign]
-
-    assert repo.mark_milestone_once("u1", "tailored_cv_created") is False
-    assert fake.writes == []
-    assert fake.state["tailored_cv_created_at"] == "2026-01-01T00:00:00Z"
+    def execute(self) -> "_CVRows":
+        return self
 
 
-def test_mark_milestone_once_stamps_a_first_time():
-    from app.repositories.onboarding import OnboardingRepository
+def test_the_gate_reads_the_tailored_cv_itself():
+    """Not a stamp beside it. The stamp started after the fact did, and 8 of the
+    24 people holding a tailored CV were refused for having no stamp."""
+    from app.repositories.cv import CVVersionsRepository
 
-    repo = OnboardingRepository.__new__(OnboardingRepository)
-    fake = _FakeOnboardingRepo({})
-    repo.get_state = fake.get_state  # type: ignore[method-assign]
-    repo.patch_state = fake.patch_state  # type: ignore[method-assign]
+    found = _CVRows([{"id": 9}])
+    assert CVVersionsRepository(found).has_tailored("u1") is True
+    assert ("table", ("cv_versions",)) in found.calls
+    assert ("eq", ("user_id", "u1")) in found.calls
+    assert ("neq", ("kind", "baseline_upload")) in found.calls
 
-    assert repo.mark_milestone_once("u1", "tailored_cv_created") is True
-    assert fake.writes == ["tailored_cv_created_at"]
-
-
-def test_the_tailored_milestone_is_stamped_at_the_one_seam_every_version_passes():
-    """It died once already because it had one writer and no callers: 0 of 141
-    users carried it while 11 of them held 66 tailored `cv_versions` rows, so
-    `can_open_another` refused everybody and Job Tracks was unreachable.
-
-    `create()` is the seam. A right-layer stamp any of eighteen call sites can
-    forget is worth less than a wrong-layer one none of them can.
-    """
-    from pathlib import Path
-
-    src = (Path(__file__).resolve().parents[1] / "app/repositories/cv.py").read_text()
-    body = src[src.index("def create(") : src.index("def _reject_redaction_tokens")]
-    assert 'if spec.kind != "baseline_upload":' in body
-    assert "self._note_tailored(user_id)" in body
-    # Fail-soft: bookkeeping must never cost the user their CV.
-    note = src[src.index("def _note_tailored") :]
-    assert "mark_milestone_once" in note
-    assert "except Exception" in note
-
-
-def test_the_gate_reads_the_milestone_the_seam_writes():
-    """One name, both ends. A stamp that writes a field the gate does not read
-    is the same outage wearing a different column."""
-    from pathlib import Path
-
-    root = Path(__file__).resolve().parents[1]
-    gate = (root / "app/services/job_tracks.py").read_text()
-    fields = (root / "app/repositories/onboarding.py").read_text()
-    assert '"tailored_cv_created_at"' in gate
-    assert '"tailored_cv_created": "tailored_cv_created_at"' in fields
+    assert CVVersionsRepository(_CVRows([])).has_tailored("u1") is False

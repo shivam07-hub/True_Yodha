@@ -15,28 +15,12 @@ _STATE_FIELDS = {
     "entry_mode",
     "upload_job_id",
     "accepted_file_metadata",
-    "description_text",
-    "preview_payload",
     "generator_step",
     "generator_answers",
     "generated_draft",
-    "result_seen_at",
     "completed_at",
-    "activated_at",
-    "activation_kind",
     "checklist_dismissed_at",
-    "score_gap_reviewed_at",
     "credible_job_saved_at",
-    "tailored_cv_created_at",
-}
-
-
-#: milestone name -> the column that records when it first happened. One table,
-#: so both `mark_milestone` and `mark_milestone_once` name the same columns.
-_MILESTONE_FIELDS: dict[str, str] = {
-    "score_gap_reviewed": "score_gap_reviewed_at",
-    "credible_job_saved": "credible_job_saved_at",
-    "tailored_cv_created": "tailored_cv_created_at",
 }
 
 
@@ -91,61 +75,18 @@ class OnboardingRepository:
         self.patch_state(user_id, {"generated_draft": draft})
 
     def mark_completed(self, user_id: str) -> None:
-        # `result_seen_at` is NOT stamped here. It used to be, with the identical
-        # timestamp as `completed_at`, which made the first-success checklist row
-        # "Review your top roles" a tautology — it could only ever tick at the same
-        # instant as everything else. It is stamped when the result actually
-        # renders (`onboarding_service.get_result`).
         self.patch_state(
             user_id,
             {
                 "completed_at": _now(),
-                "description_text": None,
-                "preview_payload": None,
                 "accepted_file_metadata": {},
                 "generator_answers": {},
                 "generated_draft": None,
             },
         )
 
-    def mark_activated(self, user_id: str, activation_kind: str) -> None:
-        payload = {
-            "activated_at": _now(),
-            "activation_kind": activation_kind,
-            "updated_at": _now(),
-        }
-        (
-            self._db.table("user_onboarding_state")
-            .update(payload)
-            .eq("user_id", user_id)
-            .is_("activated_at", "null")
-            .execute()
-        )
-
-    def mark_milestone_once(self, user_id: str, milestone: str) -> bool:
-        """Stamp a milestone only if it has never been stamped. Returns whether
-        this call was the one that set it.
-
-        `mark_milestone` overwrites, which is right for a thing that can happen
-        again and wrong for a FIRST. `tailored_cv_created_at` is read as "when
-        did this user first close the loop" — the Job Tracks gate — and a user
-        who tailors weekly would otherwise carry a timestamp that is always
-        today, making "have they ever" and "did they just" the same question.
-        """
-        state = self.get_state(user_id) or {}
-        field = _MILESTONE_FIELDS.get(milestone)
-        if field is None:
-            raise ValueError(f"Unsupported onboarding milestone: {milestone}")
-        if state.get(field):
-            return False
-        self.patch_state(user_id, {field: _now()})
-        return True
-
-    def mark_milestone(self, user_id: str, milestone: str) -> None:
-        field = _MILESTONE_FIELDS.get(milestone)
-        if field is None:
-            raise ValueError(f"Unsupported onboarding milestone: {milestone}")
-        self.patch_state(user_id, {field: _now()})
+    def mark_job_saved(self, user_id: str) -> None:
+        self.patch_state(user_id, {"credible_job_saved_at": _now()})
 
     def dismiss_checklist(self, user_id: str) -> None:
         self.patch_state(user_id, {"checklist_dismissed_at": _now()})

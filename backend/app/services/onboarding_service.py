@@ -452,7 +452,7 @@ def complete_onboarding_after_direction(db: Client, user_id: str) -> None:
         return
     if not profile.get("ninja_name_claimed_at"):
         raise ValueError("Claim your Myro name before continuing.")
-    mark_completed(db, user_id)
+    OnboardingRepository(db).mark_completed(user_id)
 
 
 def reset_target(db: Client, user_id: str) -> None:
@@ -826,7 +826,22 @@ def _parallel(db: Client, reads: dict[str, Any]) -> dict[str, Any]:
     return run_concurrently(reads, label="onboarding.result")
 
 
-JourneyPosition = str  # "experience" | "result" | "completed"
+JourneyPosition = str  # "experience" | "result" | "direction" | "completed"
+
+
+def journey_finished(state: dict[str, Any], profile: dict[str, Any]) -> bool:
+    """Has this person finished onboarding? The entry redirect and the result page
+    both ask here, so the door and the room cannot disagree.
+
+    `completed_at` alone is not the answer: 27 people carry it from a leaky window
+    with no whole direction, and they still have the step to take. It takes a whole
+    direction, or a job they chose at the door.
+    """
+    from app.services.career_target import is_canonical_direction
+
+    return bool(state.get("completed_at")) and (
+        is_canonical_direction(profile) or bool(state.get("credible_job_saved_at"))
+    )
 
 
 def journey_position(db: Client, user_id: str) -> dict[str, Any]:
@@ -841,9 +856,11 @@ def journey_position(db: Client, user_id: str) -> dict[str, Any]:
     the stage back to `experience` without clearing the baseline, so the two models
     disagreed and the stored one won for precisely one screen.
 
-    Three positions, because that is what the callers actually ask:
+    Four positions, because that is what the callers actually ask:
       - ``experience`` — nothing started; show the upload door.
       - ``result``     — work is in flight or done; the journey screen owns them.
+      - ``direction``  — finished on a job they chose, no direction yet; open the
+                         role picker.
       - ``completed``  — finished; they belong in the product, not the funnel.
     """
     from app.services.career_target import is_canonical_direction
@@ -866,15 +883,13 @@ def journey_position(db: Client, user_id: str) -> dict[str, Any]:
             user_id, exc.__class__.__name__,
         )
     started = bool(facts["baseline"] or state.get("upload_job_id"))
-    # `completed_at` is a flag; a direction is the fact. `_current_result` already
-    # refuses to trust the flag alone — it falls through to Direction when the
-    # profile cannot mint a target. This function is the ENTRY redirect and used
-    # the flag by itself, so it bounced those users to /market before the result
-    # endpoint could offer them the step. One rule, both callers, or the door and
-    # the room disagree.
-    finished = bool(state.get("completed_at")) and is_canonical_direction(facts["profile"] or {})
+    profile = facts["profile"] or {}
+    # A job finishes the journey with no direction. Their plain result is a tailor
+    # receipt, so `/onboarding` has to name the step: every "Pick a role" link in
+    # the product comes through this door.
     position = (
-        "completed" if finished
+        ("completed" if is_canonical_direction(profile) else "direction")
+        if journey_finished(state, profile)
         else "result" if started
         else "experience"
     )
@@ -888,10 +903,6 @@ def journey_position(db: Client, user_id: str) -> dict[str, Any]:
         "upload_job_id": state.get("upload_job_id"),
         "accepted_file_metadata": state.get("accepted_file_metadata") or {},
         "checklist_dismissed_at": state.get("checklist_dismissed_at"),
-        "score_gap_reviewed_at": state.get("score_gap_reviewed_at"),
-        "credible_job_saved_at": state.get("credible_job_saved_at"),
-        "tailored_cv_created_at": state.get("tailored_cv_created_at"),
-        "activation_kind": state.get("activation_kind"),
     }
 
 
@@ -1040,10 +1051,11 @@ def _current_result(
     if baseline is None:
         baseline = facts["baseline"]
 
-    from app.services.career_target import is_canonical_direction as _is_canonical
+    from app.services.career_target import SOURCE_SENIORITY, is_canonical_direction
 
-    # Completed onboarding lands on Market. A legacy first-role save still has a
-    # tailor receipt; everyone else who finished Direction goes to /market.
+    # Finished lands on Market. Someone who finished on a job with no direction gets
+    # their tailor receipt instead. A whole direction wins over that receipt: the
+    # role picker saves and goes to Market, and a reload must not send them to /cv.
     #
     # BUT completion is not taken on trust. 111 users carry `completed_at` with
     # no canonical direction — they came through a window where the gate was
@@ -1054,24 +1066,19 @@ def _current_result(
     # cohort at 9%.
     #
     # A flag is not the fact. Fall through and let them finish Direction.
-    if state.get("completed_at"):
-        # A saved first role is evidence of a finished journey in its own right —
-        # the receipt stands regardless of what the profile looks like now.
-        if state.get("credible_job_saved_at"):
-            from app.services.onboarding_first_role import saved_first_role
-
-            saved = saved_first_role(JobsRepository(db), user_id)
-            if saved:
-                return {"kind": "first_role_saved", **saved}
-        if _is_canonical(profile):
+    if journey_finished(state, profile):
+        if is_canonical_direction(profile):
             return {
                 "kind": "onboarding_complete",
                 "redirect_to": "/market",
                 "journey_step": 2,
             }
-        # Completed, no receipt, no direction — fall through to Direction.
+        from app.services.onboarding_first_role import saved_first_role
 
-    from app.services.career_target import SOURCE_SENIORITY, is_canonical_direction
+        saved = saved_first_role(JobsRepository(db), user_id)
+        if saved:
+            return {"kind": "first_role_saved", **saved}
+        # They removed the job and never chose a direction — fall through to Direction.
 
     target = {
         "role_title": _key_title(profile),
@@ -1160,7 +1167,7 @@ def _current_result(
 
     # Target + claimed ninja, but completed_at missing — heal and send to Market.
     # Do not wait on score or shortlist: that was the old step-3 poll storm.
-    mark_completed(db, user_id)
+    OnboardingRepository(db).mark_completed(user_id)
     return {
         "kind": "onboarding_complete",
         "redirect_to": "/market",
@@ -1168,26 +1175,18 @@ def _current_result(
     }
 
 
-def mark_completed(db: Client, user_id: str) -> None:
-    CVVersionsRepository(db).update_cv_profile(user_id, {"onboarding_complete": True})
-    OnboardingRepository(db).mark_completed(user_id)
-
-
-def mark_activated(db: Client, user_id: str, activation_kind: str) -> None:
-    OnboardingRepository(db).mark_activated(user_id, activation_kind)
-
-
 def build_first_success_checklist(
     state: dict[str, Any],
     *,
     skills_confirmed: bool,
+    direction_set: bool,
     tailored_cv_exists: bool,
     tracked_application_exists: bool,
 ) -> dict[str, Any]:
     """Pure projection over persisted journey facts; no click-local completion."""
     items = [
         {"id": "confirm_skills", "label": "Confirm your CV skills", "href": "/onboarding/result", "done": skills_confirmed},
-        {"id": "set_direction", "label": "Choose your direction", "href": "/onboarding/result", "done": bool(state.get("completed_at"))},
+        {"id": "set_direction", "label": "Choose your direction", "href": "/onboarding", "done": direction_set},
         {"id": "tailor_cv", "label": "Tailor one CV", "href": "/cv", "done": tailored_cv_exists},
         {"id": "track_application", "label": "Track one application", "href": "/tracker", "done": tracked_application_exists},
     ]
@@ -1199,30 +1198,26 @@ def build_first_success_checklist(
 
 
 def get_first_success_checklist(db: Client, user_id: str) -> dict[str, Any]:
-    state = OnboardingRepository(db).get_state(user_id) or {}
-    baseline = CVVersionsRepository(db).latest_baseline(user_id)
-    tailored = (
-        db.table("cv_versions")
-        .select("id")
-        .eq("user_id", user_id)
-        .neq("kind", "baseline_upload")
-        .limit(1)
-        .execute()
-        .data
-        or []
-    )
-    tracked = (
-        db.table("job_applications")
-        .select("id")
-        .eq("user_id", user_id)
-        .limit(1)
-        .execute()
-        .data
-        or []
-    )
+    facts = _parallel(db, {
+        "state": lambda: OnboardingRepository(db).get_state(user_id),
+        "profile": lambda: UsersRepository(db).get_profile(user_id),
+        "baseline": lambda: CVVersionsRepository(db).latest_baseline(user_id),
+        "tailored": lambda: CVVersionsRepository(db).has_tailored(user_id),
+        "tracked": lambda: (
+            db.table("job_applications")
+            .select("id")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        ),
+    })
+    baseline = facts["baseline"]
     return build_first_success_checklist(
-        state,
+        facts["state"] or {},
         skills_confirmed=bool(baseline and baseline.get("skills_confirmed_at")),
-        tailored_cv_exists=bool(tailored),
-        tracked_application_exists=bool(tracked),
+        direction_set=direction.of(facts["profile"] or {}).is_set,
+        tailored_cv_exists=facts["tailored"],
+        tracked_application_exists=bool(facts["tracked"]),
     )

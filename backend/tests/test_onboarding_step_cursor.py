@@ -106,6 +106,17 @@ def test_stepping_back_to_two_restores_the_saved_direction(at_furthest) -> None:
     assert result["ninja"] == _NINJA
 
 
+def test_someone_who_finished_on_a_job_can_open_the_role_picker(at_furthest, monkeypatch) -> None:
+    """`/onboarding` sends them here. Without a step they get their tailor receipt."""
+    monkeypatch.setattr(
+        onboarding_service,
+        "_current_result",
+        lambda _db, _uid, **_k: {"kind": "first_role_saved", "tailor_href": "/cv?jobId=job-7"},
+    )
+    assert onboarding_service.get_result(object(), "u1", step=2)["kind"] == "awaiting_target"
+    assert onboarding_service.get_result(object(), "u1")["kind"] == "first_role_saved"
+
+
 def test_a_chosen_family_leads_the_list_and_is_never_duplicated(at_furthest) -> None:
     families = onboarding_service.get_result(object(), "u1", step=2)["families"]
     assert families == [_FAMILY]

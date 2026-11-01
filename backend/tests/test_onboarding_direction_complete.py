@@ -49,9 +49,6 @@ def test_complete_marks_when_ninja_claimed(monkeypatch: pytest.MonkeyPatch) -> N
         def latest_baseline(self, _user_id: str) -> dict[str, Any]:
             return {"id": 1, "skills_confirmed_at": "2026-08-15T00:00:00+00:00"}
 
-        def update_cv_profile(self, user_id: str, _payload: dict[str, Any]) -> None:
-            done.append(f"cv:{user_id}")
-
     class _Users:
         def get_profile(self, _user_id: str) -> dict[str, Any]:
             return {
@@ -67,7 +64,7 @@ def test_complete_marks_when_ninja_claimed(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr(onboarding_service, "UsersRepository", lambda _db: _Users())
 
     onboarding_service.complete_onboarding_after_direction(object(), "u1")
-    assert done == ["cv:u1", "u1"]
+    assert done == ["u1"]
 
 
 def test_already_complete_is_a_no_op(monkeypatch: pytest.MonkeyPatch) -> None:

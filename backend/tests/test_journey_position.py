@@ -109,6 +109,43 @@ def test_completed_without_a_direction_is_not_finished(monkeypatch) -> None:
     ) == "result"
 
 
+def test_a_job_they_chose_finishes_the_journey_and_still_owes_the_direction(monkeypatch) -> None:
+    """The job door finishes onboarding with no direction. Plain /onboarding/result
+    is their tailor receipt, so "Pick a role" needs its own answer here or it lands
+    on /cv and the picker is never reached.
+    """
+    assert _position(
+        monkeypatch,
+        state={
+            "completed_at": "2026-10-22T00:00:00+00:00",
+            "credible_job_saved_at": "2026-10-22T00:00:00+00:00",
+        },
+        baseline={"id": 7},
+        profile={"target_roles": [], "target_role_titles": []},
+    ) == "direction"
+
+
+def test_a_job_and_a_direction_is_simply_finished(monkeypatch) -> None:
+    assert _position(
+        monkeypatch,
+        state={
+            "completed_at": "2026-10-22T00:00:00+00:00",
+            "credible_job_saved_at": "2026-10-22T00:00:00+00:00",
+        },
+        baseline={"id": 7},
+        profile=DIRECTED,
+    ) == "completed"
+
+
+def test_a_job_saved_without_finishing_is_still_on_the_journey(monkeypatch) -> None:
+    assert _position(
+        monkeypatch,
+        state={"credible_job_saved_at": "2026-10-22T00:00:00+00:00"},
+        baseline={"id": 7},
+        profile={},
+    ) == "result"
+
+
 def test_a_missing_profile_row_is_not_read_as_finished(monkeypatch) -> None:
     assert _position(
         monkeypatch,
@@ -142,6 +179,11 @@ def test_the_facts_a_resuming_screen_needs_ride_along(monkeypatch) -> None:
     # The stored copy is not shipped either — a client cannot start trusting it again.
     assert "status" not in result
     assert "current_stage" not in result
+    # Nothing reads these from here.
+    for field in (
+        "score_gap_reviewed_at", "credible_job_saved_at", "tailored_cv_created_at", "activation_kind",
+    ):
+        assert field not in result
 
 
 def test_a_file_billed_as_text_is_returned_as_an_upload(monkeypatch) -> None:

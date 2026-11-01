@@ -877,23 +877,14 @@ Exists because `compute_job_matches` persisted once, at the end, and the run is 
 - **It reads final by saying NOTHING, not by saying "Checking fit…".** `verdictLabel` returns `null` for `checking`, so no surface can print a word for a verdict that does not exist. The old string was a loading state, and Job Tracks made the state permanent: a run keeps `TRACK_QUOTA` (20) rows per search and deep-evaluates `TRACK_DEEP` (8), so twelve rows in twenty are unread until someone opens one. The market card had side-stepped this by falling back to the overlap view; the mobile row rendered the word, so one surface claimed a check was in progress while the feed's own divider above it said "Not read yet". Returning null makes the rule the compiler's, not a convention each caller has to remember.
 - **A read row outranks an unread one, whatever the overlap says.** `match_score` is the brain's `overall_score / 5 * 100` after the brain runs and RAW `overlap_score` before it — one field, two scales. `_rank_feed_rows` therefore sorts on `(which search, has an eval, match_score)`; without the middle term an unevaluated row with 82% overlap floated over one the brain read and scored 3.5/5, which is the "82% shouts but it's a bad match" defect the brain spine exists to fix, reappearing in the ordering. The term tests PRESENCE of an eval, never its value — grade and `overall_score` may not enter a sort key.
 - **The feed groups by search before it ranks.** Cross-search ranking answers a question nobody asked: a consulting job and a marketing job were never competing for one slot, so interleaving them by score is what would make "Best fit" a lie for someone running two searches. For the 83% with one search every `track_id` is NULL, the first term is constant, and the sort is what it was before tracks existed.
-- **The gate's input is stamped at the WRITE, not by a caller.** `can_open_another`
-  reads `user_onboarding_state.tailored_cv_created_at`, and for the whole of Job
-  Tracks' life nothing wrote it: the only writer was
-  `POST /onboarding/milestones/{milestone}`, which had zero callers on either
-  side. NULL for all 141 users with onboarding state while 11 held 66 tailored
-  `cv_versions` rows — so every `POST /tracks` 409'd, the mentor's second-search
-  proposal could never fire, and the grouped feed could never render. Three
-  shipped slices, unreachable, silently. It is now stamped inside
-  `CVVersionsRepository.create()` for any `kind != "baseline_upload"` — which
-  `_validate_kind_job_id` already guarantees means "carries a job_id", i.e.
-  tailored for a job. A repository touching another domain's table is the wrong
-  layer and it is the deliberate trade: a right-layer stamp that any of eighteen
-  call sites can forget is worth less than a wrong-layer one none of them can.
-  First-write-wins (`mark_milestone_once`), admin client (the table's RLS is
-  select-only, so a user cannot write their own milestone), and fail-soft —
-  bookkeeping never costs someone their CV.
-- **The boundaries are drawn from the order, never re-derived.** `lib/jobs/track-sections.ts` reads a search boundary and the read/unread tier out of the order the server gave it, and marks each with the divider the feed already had — the one that separates the ranked picks from the browse tail, and exists so "the verdicts stopping reads as intentional, not a glitch". A client that regrouped would be a second ordering, and the last time this surface had two of those they disagreed. A single-track user gets no divider at all.
+- **The gate reads the tailored CV itself.** `can_open_another` takes
+  `has_tailored_cv`, answered by `CVVersionsRepository.has_tailored` from
+  `cv_versions`: any `kind != "baseline_upload"`, which `_validate_kind_job_id`
+  guarantees carries a job. It used to read a stamp, `tailored_cv_created_at`,
+  and a stamp beside the fact failed twice. For Job Tracks' first life nothing
+  wrote it, so every `POST /tracks` 409'd and three shipped slices were silently
+  unreachable. Stamped at the write, it still began later than the fact: 8 of the
+  24 people holding a tailored CV stayed refused (2026-11-01).
 
 ## Verdict Currency
 
@@ -901,16 +892,17 @@ Whether a person may see a stored verdict, and how: `current` (this CV, this dir
 
 ## Journey Position
 
-Where a user is in onboarding — **derived, never stored**. `experience` (nothing started) · `result` (work in flight or done) · `completed` (finished; they belong in the product, not the funnel). One read: `onboarding_service.journey_position`, surfaced by `GET /onboarding/state`.
+Where a user is in onboarding — **derived, never stored**. `experience` (nothing started) · `result` (work in flight or done) · `direction` (finished on a job they chose, no direction yet) · `completed` (finished; they belong in the product, not the funnel). One read: `onboarding_service.journey_position`, surfaced by `GET /onboarding/state`.
 
 There used to be two answers. `user_onboarding_state.status` and `.current_stage` were a stored copy written in **thirteen** places and read for a decision in **two**, while `_current_result` derived the same position from the journey's own facts — baseline → `skills_confirmed_at` → target → score → shortlist — and it was the derivation that decided what actually rendered.
 
 **Invariants**
-- **`patch_state` REJECTS `status` and `current_stage`.** The copy is not merely unused; the write seam refuses it, so a future caller reaching for the old shape gets a loud error instead of a second answer.
-- The facts that are NOT derivable stay columns and earn their place: `upload_job_id` (a job with no baseline yet), generator working state, `entry_mode` (ADR-0006 L7 cohort), `completed_at`, activation + milestone stamps, `checklist_dismissed_at`.
+- **One rule for finished: `journey_finished`.** `completed_at` plus a whole direction or a job they chose at the door. The redirect and the result page both call it. `completed_at` alone is an event, not the fact: 27 people carry it from a leaky window with no whole direction.
+- **`/onboarding` is the door for "Pick a role".** Someone who finished on a job is `direction`, and the door opens `/onboarding/result?step=2`; plain `/onboarding/result` is their tailor receipt. A whole direction beats the receipt, so a picker save lands on Market and stays there.
+- **`patch_state` REJECTS `status`, `current_stage` and every column nothing reads.** The copy is not merely unused; the write seam refuses it, so a future caller reaching for the old shape gets a loud error instead of a second answer.
+- The facts that are NOT derivable stay columns and earn their place: `upload_job_id` (a job with no baseline yet), generator working state, `entry_mode` (ADR-0006 L7 cohort), `completed_at`, `credible_job_saved_at`, `checklist_dismissed_at`.
 - **Client-only "which screen am I on" is client state**, not server state — the guided generator opens from a URL param. Persisting screen intent is how the second model grew.
 - A user with **no row at all** falls out of the same derivation; there is no separate default shape to keep in sync.
-- `result_seen_at` is stamped when the result RENDERS. It used to be written by `mark_completed` with the identical timestamp as `completed_at`, which made the first-success checklist row it drives a tautology.
 - ⚠️ The stored copy already lied before it was removed: `start_over` reset the stage to `experience` without clearing baseline/skills/target, and the stored answer won for exactly one screen — which is why nobody noticed.
 
 ## Upload Progress Stream

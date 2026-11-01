@@ -450,7 +450,6 @@ export interface UserProfile {
   career_goal: string | null
   superpower: string | null
   cv_url: string | null
-  onboarding_complete: boolean
   ninja_name: string | null
   has_cv: boolean
   /** Latest baseline CV has had its skills confirmed. Decides which step the
@@ -868,7 +867,7 @@ export const notifications = {
 /** Where the user is, DERIVED server-side from the journey's own facts — never a
  *  stored column. `experience` = nothing started · `result` = work in flight or
  *  done · `completed` = finished, belongs in the product. */
-export type JourneyPosition = "experience" | "result" | "completed"
+export type JourneyPosition = "experience" | "result" | "direction" | "completed"
 export type TargetSeniority = "intern" | "entry" | "mid" | "senior" | "lead" | "executive" | "any"
 
 export interface OnboardingState {
@@ -881,10 +880,6 @@ export interface OnboardingState {
   generator_answers: Record<string, Record<string, unknown>>
   generated_draft?: string | null
   checklist_dismissed_at?: string | null
-  score_gap_reviewed_at?: string | null
-  credible_job_saved_at?: string | null
-  tailored_cv_created_at?: string | null
-  activation_kind?: "tailor_credible_job" | "review_score_gap" | "save_credible_job" | null
 }
 
 export interface OnboardingTarget {
@@ -1205,15 +1200,6 @@ export const onboarding = {
   commitFirstRole: (token: string, jobId: string) => request<FirstRoleReceipt>("/onboarding/first-role", {
     method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ job_id: jobId }),
   }),
-  activate: (token: string, activationKind: "tailor_credible_job" | "review_score_gap" | "save_credible_job") =>
-    request<void>("/onboarding/activate", {
-      method: "POST", headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ activation_kind: activationKind }),
-    }),
-  markMilestone: (token: string, milestone: "score_gap_reviewed" | "credible_job_saved" | "tailored_cv_created") =>
-    request<void>(`/onboarding/milestones/${milestone}`, {
-      method: "POST", headers: { Authorization: `Bearer ${token}` },
-    }),
   dismissChecklist: (token: string) => request<void>("/onboarding/checklist/dismiss", {
     method: "POST", headers: { Authorization: `Bearer ${token}` },
   }),

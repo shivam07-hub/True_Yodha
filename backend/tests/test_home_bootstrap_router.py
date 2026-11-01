@@ -47,7 +47,6 @@ _PROFILE = {
     "target_roles": [],
     "target_location": None,
     "cv_url": None,
-    "onboarding_complete": True,
     "created_at": datetime.now(timezone.utc),
     "last_active_at": datetime.now(timezone.utc),
     "has_cv": True,

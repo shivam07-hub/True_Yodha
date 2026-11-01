@@ -98,8 +98,7 @@ def commit_first_role(
             detail="The role was not saved. Try again.",
         )
 
-    OnboardingRepository(db).mark_milestone(user_id, "credible_job_saved")
-    onboarding_service.mark_completed(db, user_id)
+    _finish(db, user_id)
     return {
         "status": "saved",
         "job_id": job_id,
@@ -155,5 +154,6 @@ def accept_first_job(
 
 
 def _finish(db: Client, user_id: str) -> None:
-    OnboardingRepository(db).mark_milestone(user_id, "credible_job_saved")
-    onboarding_service.mark_completed(db, user_id)
+    repo = OnboardingRepository(db)
+    repo.mark_job_saved(user_id)
+    repo.mark_completed(user_id)

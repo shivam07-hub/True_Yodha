@@ -31,7 +31,9 @@ export default function OnboardingResultPage() {
   const [generatorOpen, setGeneratorOpen] = useState(
     () => searchParams.get("guide") === "1",
   )
-  const [viewStep, setViewStep] = useState<number | null>(null)
+  const [viewStep, setViewStep] = useState<number | null>(
+    () => searchParams.get("step") === "2" ? 2 : null,
+  )
   const [fitting, setFitting] = useState(false)
   const [streamedPhase, setStreamedPhase] = useState<string | null>(null)
 

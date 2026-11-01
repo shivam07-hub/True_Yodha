@@ -141,7 +141,6 @@ class _DB:
 def _repo(rows: dict[int, dict[str, Any]]) -> tuple[CVVersionsRepository, _DB]:
     db = _DB(rows)
     repo = CVVersionsRepository(db)  # type: ignore[arg-type]
-    repo._note_tailored = lambda _user_id: None  # type: ignore[method-assign]
     return repo, db
 
 

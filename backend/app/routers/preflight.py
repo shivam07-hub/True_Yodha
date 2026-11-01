@@ -22,9 +22,9 @@ from pydantic import BaseModel, Field
 
 from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
+from app.repositories.cv import CVVersionsRepository
 from app.repositories.job_tracks import JobTracksRepository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
-from app.repositories.onboarding import OnboardingRepository
 from app.repositories.users import UsersRepository, get_token_users_repository
 from app.services import job_tracks, mentor, mentor_learn, new_inventory, targeting_write
 from app.services.job_refresh import JobRefresh
@@ -483,7 +483,7 @@ def _can_open_track(user_id: str) -> bool:
         profile = UsersRepository(db).get_profile(user_id) or {}
         existing = job_tracks.tracks_for(tracks_repo, user_id, profile)
         allowed, _reason = job_tracks.can_open_another(
-            existing, OnboardingRepository(db).get_state(user_id)
+            existing, has_tailored_cv=CVVersionsRepository(db).has_tailored(user_id)
         )
         return allowed
     except Exception:  # noqa: BLE001 - a gate that cannot be read is a shut gate

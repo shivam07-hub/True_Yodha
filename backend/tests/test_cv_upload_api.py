@@ -288,14 +288,10 @@ class _AdminFakeRepo:
     """Stand-in for both CVVersionsRepository and ScoresRepository in the background path."""
     def __init__(self) -> None:
         self.client = object()
-        self.profile_updates: list = []
         self.created: list = []
 
     def find_by_content_hash(self, *_a, **_k):
         return None
-
-    def update_cv_profile(self, _user_id, payload):
-        self.profile_updates.append(payload)
 
     def create(self, _user_id, spec):
         self.created.append(spec)
@@ -357,7 +353,6 @@ def test_background_run_marks_done_on_success(monkeypatch) -> None:
             },
         }
     ]
-    assert repo.profile_updates == []
     assert repo.created and repo.created[0].kind == "baseline_upload"
     # The layout is NOT written here — it is the larger LLM call and nothing on
     # the screen behind this wait reads it. See test_cv_layout_never_blocks_upload.

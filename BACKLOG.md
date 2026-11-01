@@ -444,15 +444,23 @@ Tracker (3) · no problem or not actionable (~25).
 ## AGENT CHORES — approved, small
 
 - Run the authed QA checklist.
-- **Drop five stored copies — APPROVED (Shivam, 2026-10-27). BLOCKED on the next
-  `main` merge (owner: Shivam merges; then an agent).** `mirror_scores.skill_scores`,
+- **Drop five stored copies — APPROVED (Shivam, 2026-10-27). Earliest 2026-11-08
+  (owner: an agent).** `mirror_scores.skill_scores`,
   `user_skills.proficiency_title`, `user_profiles.target_location`,
   `target_location_country`, `target_role_title`. Readers left in #345; writers and
-  select lists left `Develop` 2026-10-30. **Do not drop before `main` has that
-  commit:** prod's code still selects and writes these columns, so a drop breaks
-  prod reads and every direction save. After the merge: a week, check nothing
+  select lists reached `main` in #346 on 2026-11-01. From 2026-11-08: check nothing
   names them (`pg_stat_statements`), then one migration. Users see nothing.
   CONTEXT → Skill Level, Targeting Brief.
+- **Drop ten onboarding columns — APPROVED (Shivam, 2026-11-01). BLOCKED on the next
+  `main` merge (owner: Shivam merges; then an agent).** `user_profiles.onboarding_complete`;
+  `user_onboarding_state.status`, `current_stage`, `result_seen_at`,
+  `score_gap_reviewed_at`, `activated_at`, `activation_kind`, `preview_payload`,
+  `description_text`, `tailored_cv_created_at`; index
+  `idx_user_onboarding_state_status`. Readers and writers left `Develop` 2026-11-01.
+  **Do not drop before `main` has that commit:** prod still reads the flag for
+  `/users/me` and writes it and `tailored_cv_created_at`. After the merge: a week,
+  check nothing names them (`pg_stat_statements`), then one migration.
+  `test_onboarding_columns_stopped.py` goes with it. CONTEXT → Journey Position.
 - **Company names on read surfaces onto `company_key`** (CONTEXT → Company
   Identity). The directory, pulse, Company CV Thread and the Following-only
   filter still compare names folded for case and spacing; the resolver's key

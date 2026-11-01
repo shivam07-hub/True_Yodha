@@ -16,7 +16,6 @@ class _StateRepo:
         self.patches: list[dict] = []
         self.answers: list[tuple[int, dict]] = []
         self.drafts: list[str] = []
-        self.milestones: list[str] = []
         self.checklist_dismissed = False
 
     def get_state(self, _user_id):
@@ -30,9 +29,6 @@ class _StateRepo:
 
     def save_generated_draft(self, _user_id, draft):
         self.drafts.append(draft)
-
-    def mark_milestone(self, _user_id, milestone):
-        self.milestones.append(milestone)
 
     def dismiss_checklist(self, _user_id):
         self.checklist_dismissed = True
@@ -208,6 +204,18 @@ def test_first_role_returns_durable_tailoring_receipt(monkeypatch) -> None:
         "job_id": "job-7",
         "tailor_href": "/cv?jobId=job-7",
     }
+
+
+def test_the_writes_nothing_called_are_gone(monkeypatch) -> None:
+    try:
+        with _client(monkeypatch, _StateRepo()) as client:
+            activate = client.post("/onboarding/activate", json={"activation_kind": "review_score_gap"})
+            milestone = client.post("/onboarding/milestones/tailored_cv_created")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert activate.status_code == 404
+    assert milestone.status_code == 404
 
 
 def test_target_context_changes_with_seniority() -> None:

@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-11-01 — One rule for finished onboarding
+
+"Finished" had five rules. Now `journey_finished` is one: `completed_at` plus a whole direction or a job they chose. Someone who finished on a job gets the role picker from "Pick a role", then Market; it used to land on `/cv`. The checklist and the Market tip read the direction, and the Job Tracks gate reads the tailored CV, which lets in the 8 people the stamp refused. Stopped writing `onboarding_complete`, deleted `/onboarding/activate` and `/onboarding/milestones/{milestone}`. Ten columns drop after the next `main` merge (BACKLOG).
+
 ## 2026-11-01 — A removed skill stays restorable
 
 The rail held removed skills in page state, so a reload lost the only Restore. New `GET /users/me/skills/removed` reads the rulings; the rail renders from it. Removal now stashes the level: 531 live rows across 79 users were not on their latest CV, and Restore refused them. A restore the evidence gate drops now keeps the ruling and says so.
