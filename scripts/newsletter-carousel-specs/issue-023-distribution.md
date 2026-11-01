@@ -26,13 +26,14 @@ The World Economic Forum's Future of Jobs survey, January 2025, names Big Data S
 
 ## Instagram caption
 
-Citibank: 2.6 days to pull a closed role. AB InBev: 69.6% of closed roles still on the careers page.
+Two lines, 110 characters at most (brand-guidelines `surfaces/instagram.md`).
 
-Ten employers. Their own hiring systems. Through 24 September 2026.
+If the job is still open, tailor the CV and apply on their page.
+Full issue: himyro.com/newsletter
 
-Tailor the CV when the role is still open. Submit it on their page.
+First comment: #jobsearch #ghostjobs #jobsindia #himyro
 
-SQL 57 · regulatory compliance 55 · Java 49 · Python 40, on the four cleaner pages.
+Bio link while this is the newest post: https://www.himyro.com/newsletter/2026-10-open-role-apply-on-their-page?utm_source=instagram&utm_medium=social&utm_campaign=issue-023
 
 ## Demo storyboard
 

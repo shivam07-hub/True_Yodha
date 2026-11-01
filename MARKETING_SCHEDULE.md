@@ -10,7 +10,7 @@ URL. This file only says when things go out and what each must pass first.
 
 Which issue is next: [NEWSLETTER_QUEUE.md](NEWSLETTER_QUEUE.md). What a launch
 video may show: [LAUNCH_VIDEOS.md](LAUNCH_VIDEOS.md). The Instagram profile and
-its first posts: [INSTAGRAM_PROFILE.md](INSTAGRAM_PROFILE.md).
+its next posts: [INSTAGRAM_PROFILE.md](INSTAGRAM_PROFILE.md).
 
 ## The week
 

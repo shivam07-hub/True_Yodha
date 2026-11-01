@@ -1,27 +1,21 @@
-# Instagram — @himyro
+# Instagram — @myrojobs
 
-Set 2026-10-23. Shivam posts; agents write copy and never post. What is planned
-and posted lives in the Distribution Tracker
-([himyro.com/admin/growth](https://www.himyro.com/admin/growth)). This file says
-what the profile shows and which posts go up first. The weekly slots are in
-[MARKETING_SCHEDULE.md](MARKETING_SCHEDULE.md); caption rules are in
+Set 2026-10-23, corrected 2026-11-02: the account is
+[@myrojobs](https://www.instagram.com/myrojobs/). @himyro is a different, empty
+private account. Shivam posts; agents write copy and never post. The weekly slots
+are in [MARKETING_SCHEDULE.md](MARKETING_SCHEDULE.md); caption rules are in
 brand-guidelines `surfaces/instagram.md`.
 
 ## The profile
 
-Seen 2026-10-23: @himyro is private, with the default photo, no name, no bio and
-0 followers. A private account shows no posts to anyone who does not follow it.
+Seen 2026-11-02 on the public page: public, the Myro ring as the photo, 53
+followers. Three fields still describe an older Myro.
 
-| Field | Set it to |
-|---|---|
-| Account type | Professional, then Business. Professional accounts are public, which fixes the line above. |
-| Category | Software |
-| Name | `Myro · CV for the job you want` (30 of 30 characters; Instagram search reads this field) |
-| Username | `himyro`, the same handle as x.com/himyro |
-| Bio | The block below (130 of 150 characters) |
-| Link | One link. Default: `https://www.himyro.com/?utm_source=instagram&utm_medium=social&utm_campaign=ig-profile`. While a post is the newest, swap in that post's bio link from its kit or tracker row. |
-| Photo | `frontend/public/brand/icon-512-maskable.png`, as it is. The app icon, dark to the edge, so the ring sits inside Instagram's circle crop. |
-| Contact button, highlights | Leave off until there is an inbox someone answers and stories worth keeping. |
+| Field | Today | Change to |
+|---|---|---|
+| Name | HiMyro Career Intelligence | `Myro · CV for the job you want` (30 of 30 characters; Instagram search reads this field) |
+| Bio | An AI-based Career Intelligence Service that tracks jobs from top MNC websites for you | The block below (130 of 150 characters) |
+| Links | Three: himyro.com/newsletter with no UTM, titled "Offical web page of Himyro"; myrojobs.com, which redirects to himyro.com; the LinkedIn page | One: the newest post's bio link, from its kit |
 
 ```
 Pick the job you want. Myro tailors your CV to it.
@@ -29,35 +23,40 @@ You apply on the company's own page.
 Weekly: what India's MNC openings ask for.
 ```
 
-## First posts
+## Posted so far
 
-Posts 1–3 go up the same day, oldest first, so issue 025 lands top-left. With 0
-followers, three at once fills nobody's feed. Upload slides in file order,
-`slide-01` first. The caption goes in the caption box; the hashtags go in the
-first comment.
+Read from the public grid on 2026-11-02, newest first. The Distribution Tracker
+has no Instagram post marked done, so the grid is the record until it does.
+
+| Date | Post |
+|---|---|
+| 23 Oct | [Loop reel](https://www.instagram.com/myrojobs/reel/De2Grhax5BJ/) |
+| 25 Sep | [Issue 022 carousel](https://www.instagram.com/myrojobs/p/DdtOUlPI5Bn/) |
+| 17 Sep | [Issue 020 carousel](https://www.instagram.com/myrojobs/p/DdYjws7kf86/) |
+| 1 Sep and earlier | Nine more back to 20 Jul in the logged-out view, which stops at 12 posts; not matched to issues |
+
+## Next
+
+Upload slides in file order, `slide-01` first. The caption goes in the caption
+box and the hashtags in the first comment. Then set the bio link to that post's.
 
 | # | When (IST) | Post | Files | Copy |
 |---|---|---|---|---|
-| 1 | Fri 23 Oct | Issue 022 carousel, 8 slides | `Myro Newsletter/Issue 022 - carousel/` | `scripts/newsletter-carousel-specs/issue-022-distribution.md` |
-| 2 | Fri 23 Oct | Issue 024 carousel, 7 slides | `Myro Newsletter/Issue 024 - carousel/` | `scripts/newsletter-carousel-specs/issue-024-distribution.md` |
-| 3 | Fri 23 Oct | Issue 025 carousel, 8 slides | `Myro Newsletter/Issue 025 - carousel/` | `scripts/newsletter-carousel-specs/issue-025-distribution.md` |
-| 4 | Sat 24 Oct, 10:00 | Loop reel, 22 s | `brag-output/brag.mp4`, cover `brag-output/brag.jpg` | `brag-output/instagram.txt` |
-| 5 | Wed 28 Oct, 19:00 | Issue 026 carousel | Rendered when issue 26 ships (NEWSLETTER_QUEUE row 1) | Its kit |
-| 6 | Sat 31 Oct, 10:00 | Fill reel, 22 s | `brag-output-2026-10-20-155052/brag.mp4` | Its `instagram.txt` |
-| 7 | Sat 7 Nov, 10:00 | Match reel, 22 s | `brag-output-2026-10-20-134012/brag.mp4` | Its `instagram.txt` |
+| 1 | Wed 4 Nov, 19:00 | Issue 025 carousel, 8 slides | `Myro Newsletter/Issue 025 - carousel/` | `scripts/newsletter-carousel-specs/issue-025-distribution.md` |
+| 2 | Sat 7 Nov, 10:00 | Fill reel, 22 s (was planned for 31 Oct) | `brag-output-2026-10-20-155052/brag.mp4` | Its `instagram.txt` |
+| 3 | Wed 11 Nov, 19:00 | Issue 024 carousel, 7 slides | `Myro Newsletter/Issue 024 - carousel/` | `scripts/newsletter-carousel-specs/issue-024-distribution.md` |
+| 4 | Sat 14 Nov, 10:00 | Match reel, 22 s | `brag-output-2026-10-20-134012/brag.mp4` | Its `instagram.txt` |
+| 5 | Wed 18 Nov, 19:00 | Issue 023 carousel, 7 slides | `Myro Newsletter/Issue 023 - carousel/` | `scripts/newsletter-carousel-specs/issue-023-distribution.md` |
 
-After post 3, the bio link is issue 025's. After each later post, it is that post's.
+A new issue takes the next Wednesday ahead of this list. Issue 26 is held until
+EY is back in the live set (NEWSLETTER_QUEUE). Issue 25's figures are dated
+20 October, before EY dropped out on 27 October, so the hold does not touch it.
 
-Left out of the first posts: issue 020, whose data is from September and whose
-tracker caption carries nine hashtags; and issue 023, which opens on the same
-AB InBev 69.6% as issue 022.
+Left out: issue 021, which has no Instagram caption, no tracker row and an empty
+slide folder.
 
 ## Before each post
 
 - **Reels:** someone listens to the soundtrack first (MARKETING_SCHEDULE gate).
-- **Carousel length:** issues 022 and 025 have 8 slides and 024 has 7. The brand
-  guide's carousel line says 6. Instagram takes up to 20.
-
-Checked 2026-10-23: every slide is 2160×2700 (4:5). The profile grid's 3:4
-thumbnail trims about 3% off each side, inside the slides' 7.5% margin. The loop
-reel's cover text sits inside its 3:4 crop.
+- **Carousel length:** these run 7 and 8 slides. The brand guide's carousel line
+  says 6. Instagram takes up to 20.
