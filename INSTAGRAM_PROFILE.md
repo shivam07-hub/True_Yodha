@@ -23,6 +23,27 @@ You apply on the company's own page.
 Weekly: what India's MNC openings ask for.
 ```
 
+## LinkedIn company page
+
+Agreed 2026-11-02. Shivam changes it; the page name stays. Today's text still
+says "Career Intelligence Platform" and leads with CV scoring.
+
+| Field | Change to |
+|---|---|
+| Tagline | Pick the job you want. Myro tailors your CV to it. You apply on the company's own page. |
+| Industry | Software Development |
+| Type | Privately Held |
+
+About:
+
+```
+Myro is a CV-building machine for applying to the jobs you want.
+
+Upload your CV and pick a job: paste it, save it with the Chrome extension, or choose from the list Myro reads from 260+ MNC career pages. Myro tailors your CV to that one job. You download it and apply on the company's own page, yourself. Then you prepare until the call comes.
+
+Every week we publish what India's MNC openings ask for, read from the employers' own career pages.
+```
+
 ## Posted so far
 
 Read from the public grid on 2026-11-02, newest first. The top three are marked
