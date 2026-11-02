@@ -297,34 +297,32 @@ def get_feed_updated_at(db: Client) -> str | None:
     There is exactly ONE answer to this for the whole platform — it describes
     the corpus, not the caller — so it is Tier 0 by the read contract
     (ARCHITECTURE_READ_PATH.md §2) and belongs in the shared cache, not in a
-    per-process dict that every replica fills separately. Kept here rather than
-    in a snapshot table because the value already IS a single indexed read; what
-    it needed was one cached answer across replicas, which S3's primitive gives.
+    per-process dict that every replica fills separately.
 
-    Never raises: a missing receipt costs a "last updated" line, never the
-    response. `stale_seconds` means a DB blip during a refresh serves the last
-    known instant for an hour instead of dropping it — strictly better than the
-    per-process version, which lost the value entirely on a cold replica.
+    The read is `newest_job_receipt` (migration 20261102121500). Asked as a
+    PostgREST sort on `jobs`, the caller's row policy cannot use the
+    ingested_at index — the same plan that made the new-inventory count 8s
+    and a 503. A missing function or a failed read costs the line, never
+    the response.
     """
-    def _compute() -> str | None:
-        result = (
-            db.table("jobs")
-            .select("ingested_at")
-            .not_.is_("ingested_at", "null")
-            .order("ingested_at", desc=True)
-            .limit(1)
-            .execute()
-        )
-        rows = result.data or []
-        if not rows:
+    def newest_receipt() -> str | None:
+        result = db.rpc("newest_job_receipt", {}).execute()
+        value = result.data
+        if isinstance(value, list):
+            value = value[0] if value else None
+            if isinstance(value, dict):
+                value = next(iter(value.values()), None)
+        if not value:
             return None
-        received = listing_time(rows[0], now=datetime.now(timezone.utc)).received_at
+        received = listing_time(
+            {"ingested_at": value}, now=datetime.now(timezone.utc)
+        ).received_at
         return None if received is None else received.date().isoformat()
 
     try:
         return shared_cache.get_or_compute(
             "jobs.feed_updated_at",
-            _compute,
+            newest_receipt,
             ttl_seconds=_FEED_TS_TTL,
             stale_seconds=_FEED_TS_STALE,
         )
