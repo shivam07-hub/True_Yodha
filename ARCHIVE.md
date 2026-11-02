@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-11-02 — `job_versions` stays
+
+0 rows and nothing in this repo reads it, but the scraper's manual `--deactivate-missing` writes to it after it has marked jobs inactive, so a drop would leave that flag failing halfway. 40 kB, not worth the PR (Shivam, 2026-11-02). Search `myro-job-scraper` too before calling any table or column unused.
+
 ## 2026-11-02 — Parked: moving work-queue claims off `jobs`
 
 Architecture candidate #8. Claims are not the churn: a scrape rewrites every row (75,231 on 11-02, about 1.5M over 20 run days), the verifier about 0.9M, and the `job_skills` trigger up to 2.6M fires. Enrichment columns are the scraper repo's, and the verifier's wasted writes stopped in `9d4ad00d`. `jobs` shows 1.4% dead rows and no user-visible cost, so moving the leases would change little.
