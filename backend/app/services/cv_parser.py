@@ -108,16 +108,26 @@ def _extract_text_pdf(file_bytes: bytes) -> str:
 
 
 def _extract_text_docx(file_bytes: bytes) -> str:
-    """Extract text from DOCX bytes using python-docx. Walks paragraphs + tables."""
+    """Extract text from DOCX bytes using python-docx. Walks paragraphs + tables.
+
+    A file that is not a Word package is empty text. Callers already treat
+    empty text as unreadable. PackageNotFoundError is a ValueError, and
+    letting it out of an upload turned two finishes into a 500.
+    """
+    import zipfile
+
     from docx import Document  # lazy import
 
-    doc = Document(io.BytesIO(file_bytes))
-    parts: list[str] = [p.text for p in doc.paragraphs if p.text.strip()]
-    for table in doc.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                if cell.text.strip():
-                    parts.append(cell.text.strip())
+    try:
+        doc = Document(io.BytesIO(file_bytes))
+        parts: list[str] = [p.text for p in doc.paragraphs if p.text.strip()]
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    if cell.text.strip():
+                        parts.append(cell.text.strip())
+    except (ValueError, zipfile.BadZipFile):
+        return ""
     return "\n".join(parts).strip()
 
 
