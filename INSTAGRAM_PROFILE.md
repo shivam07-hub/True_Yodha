@@ -59,8 +59,13 @@ done in the Distribution Tracker with their live links and captions as posted.
 
 ## Next
 
-Upload slides in file order, `slide-01` first. The caption goes in the caption
-box and the hashtags in the first comment. Then set the bio link to that post's.
+Post carousels from the Instagram app. Add slides in file order, `slide-01`
+first. On the caption screen, tap Single caption and choose Multiple captions, then
+paste each slide's text from `captions.txt` in the slide folder. Hashtags go in the
+first comment. Then set the bio link to that post's.
+
+Issue 025 is built this way. Issues 024 and 023 still have one caption and no
+issue link on their slides.
 
 | # | When (IST) | Post | Files | Copy |
 |---|---|---|---|---|

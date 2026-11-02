@@ -22,6 +22,9 @@ Spec shape:
               {"kind": "cards", "kicker": "...",
                "cards": [["Early · 0-3 yrs", "..."], ...]},
               {"kind": "cta", "h1": "...", "sub": "...", "pill": "himyro.com →"}]}
+
+Any slide may add "link": "Full issue: himyro.com/newsletter". It renders under
+the slide's content at a size a phone can read; the foot line cannot do that job.
 """
 import base64, json, pathlib, sys, html
 
@@ -120,6 +123,7 @@ td.hi { color:var(--mint); } td.lo { color:var(--muted); }
 .lead { font-size:96px; line-height:1; font-weight:680; letter-spacing:-.04em;
   color:var(--mint); font-variant-numeric:tabular-nums; margin-bottom:34px; }
 .note { font-size:29px; color:var(--muted); line-height:1.45; margin-top:34px; }
+.golink { font-size:34px; line-height:1.3; font-weight:540; color:var(--fg); margin-top:44px; }
 """ % (_font("GeistVF.woff"), _font("GeistMonoVF.woff"), w, h)
 
 
@@ -184,6 +188,10 @@ def slide_body(s):
     raise ValueError(f"unknown slide kind: {k}")
 
 
+def link_html(s):
+    return f'<div class="golink">{html.escape(s["link"])}</div>' if s.get("link") else ""
+
+
 def main(spec_path):
     from playwright.sync_api import sync_playwright
     spec = json.loads(pathlib.Path(spec_path).read_text())
@@ -197,7 +205,7 @@ def main(spec_path):
                 f'<div>{i:02d} / {n:02d}</div></div>')
 
     pages = "".join(
-        f'<div class="slide" id="s{i+1}">{rail(i+1)}<div class="body">{slide_body(s)}</div>'
+        f'<div class="slide" id="s{i+1}">{rail(i+1)}<div class="body">{slide_body(s)}{link_html(s)}</div>'
         f'<div class="foot">{html.escape(s.get("foot", spec["foot"]))}</div></div>'
         for i, s in enumerate(slides))
     doc = f'<!doctype html><meta charset="utf-8"><style>{css(W,H)}</style>{pages}'

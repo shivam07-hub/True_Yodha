@@ -53,5 +53,8 @@ allows more. Add slots only once these hold for a month.
   post carries the carousel, the OG image or the video. The company page is
   posted from `linkedin.com/company/118214305/admin/` (the `himyro` slug
   redirected to an unavailable page when checked on 2026-06-02).
-- **Instagram:** the caption is two lines, 110 characters at most. Three to five
-  hashtags go in the first comment. The bio holds one link: the newest post's.
+- **Instagram:** a carousel goes out from the app with Multiple Captions: each
+  slide's caption is the matching newsletter section, cut to what that slide
+  shows. Its first and last slides carry `Full issue: himyro.com/newsletter` on
+  the image. A reel keeps one caption of two lines. Three to five hashtags go in
+  the first comment. The bio holds one link: the newest post's.
