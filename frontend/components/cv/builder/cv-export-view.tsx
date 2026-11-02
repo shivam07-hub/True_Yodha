@@ -18,7 +18,7 @@
  */
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { cv as cvApi, jobs as jobsApi, type ApplicationResponse, type CVStructured, type UserProfile } from "@/lib/api"
@@ -45,6 +45,16 @@ import { CV_TEMPLATES, DEFAULT_TEMPLATE, isCVTemplate, type CVTemplate } from "@
 import { MobileCVExportLayout } from "@/components/cv/mobile/mobile-cv-export-layout"
 
 type ExportContext = "tailored" | "master" | "onboarding"
+
+/** The two downloads this sheet can produce. The entry page renders them;
+ *  the handlers stay here so they read the paper the person is looking at. */
+export interface SheetExportActions {
+  downloadPdf: () => void
+  downloadDocx: () => void
+  pdfBusy: boolean
+  docxBusy: boolean
+  docxError: string | null
+}
 
 const TEMPLATE_STORAGE_KEY = "myro-cv-template-v1"
 
@@ -93,6 +103,10 @@ interface CVExportViewProps {
    *  is suppressed. */
   onTemplateChange?: (t: CVTemplate) => void
   hidePicker?: boolean
+  /** Entry page: paper, plus an optional command bar (Edit, Download).
+   *  Template and the audit stay in the editor. */
+  paperOnly?: boolean
+  command?: (actions: SheetExportActions) => ReactNode
 }
 
 function slug(s: string | null | undefined): string {
@@ -109,7 +123,7 @@ export function CVExportView({
   company, jobTitle, jobId, matchScore = 0, appliedAt = null,
   onBack, backLabel = "Back", mobile = false, onFixContact, onAtsFix,
   onBulletClick, selectedBulletId = null, skin: skinOverride,
-  onTemplateChange, hidePicker = false,
+  onTemplateChange, hidePicker = false, paperOnly = false, command,
 }: CVExportViewProps) {
   const isTailored = context === "tailored"
   const skin: "fullpage" | "inline" = skinOverride ?? (isTailored ? "fullpage" : "inline")
@@ -378,6 +392,21 @@ export function CVExportView({
         onDownloadDocx={handleDownloadDocx}
         onBack={onBack}
       />
+    )
+  }
+
+  if (skin === "inline" && paperOnly) {
+    return (
+      <div className="cvb-export-inline">
+        {command?.({
+          downloadPdf: () => { void handleDownloadPdf() },
+          downloadDocx: () => { void handleDownloadDocx() },
+          pdfBusy,
+          docxBusy,
+          docxError,
+        })}
+        <div className="cvb-export-inline-stage">{page}</div>
+      </div>
     )
   }
 

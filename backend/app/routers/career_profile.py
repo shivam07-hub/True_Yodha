@@ -4,8 +4,8 @@ fact-layer, plus the prose write-through to user_memory.
 GET returns the stored profile (+ updated_at). PATCH merges supplied keys
 (absent keys untouched; explicit null clears a key), then rebuilds the
 user_memory prose mirror and embeds the new rows off the response path so
-persona/recall stay current. The Myro extension reads GET to background-cache
-the profile for ATS auto-fill (P2).
+persona/recall stay current. The extension's form fill reads the same store
+through `/jobs/{id}/filing/answers`.
 """
 from __future__ import annotations
 

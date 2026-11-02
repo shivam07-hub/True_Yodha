@@ -6,12 +6,11 @@ import { MDXRemote } from "next-mdx-remote/rsc"
 import remarkGfm from "remark-gfm"
 import { getAllIssues, getIssueBySlug, getRelatedIssues, getSpokesOf } from "@/lib/newsletter"
 import { NewsletterRail, buildClusters } from "@/components/newsletter/rail"
-import { NewsletterCTA } from "@/components/newsletter/issue-cta"
+import { IssueCta } from "@/components/newsletter/issue-cta"
 import { NewsletterFAQ } from "@/components/newsletter/newsletter-faq"
 import { formatDate } from "@/lib/format"
 import { HowToLadder } from "@/components/newsletter/howto-ladder"
 import { DatasetDownload } from "@/components/newsletter/dataset-download"
-import { HowMyroWorks } from "@/components/newsletter/how-myro-works"
 import { ChartEmbed } from "@/components/newsletter/chart-embed"
 import { ReadingProgress } from "@/components/newsletter/reading-progress"
 import { ShareButton } from "@/components/newsletter/share-button"
@@ -93,7 +92,7 @@ function ProseTable(props: ComponentPropsWithoutRef<"table">) {
 
 const mdxComponents = {
   table: ProseTable,
-  NewsletterCTA, ChartEmbed,
+  ChartEmbed,
   TldrCard, StatCards, DataTable,
   LocationChart, SkillsList, CareerCards,
   EmailSubscribe, MethodologyBlock,
@@ -143,6 +142,7 @@ export default async function IssuePage({ params }: Props) {
         sameAs: [
           "https://x.com/himyro",
           "https://www.linkedin.com/company/himyro-career-intelligence",
+          "https://www.instagram.com/myrojobs/",
         ],
       },
       ...(absoluteOgImage && { image: absoluteOgImage }),
@@ -259,7 +259,7 @@ export default async function IssuePage({ params }: Props) {
           <StatCards cards={issue.keyStats.map((s, i) => ({ ...s, accent: i === 0 }))} />
         ) : null}
 
-        {/* ── VALUE ZONE — editorial only, no product pitch (see HowMyroWorks below the divider) ── */}
+        {/* ── VALUE ZONE — editorial only, no product pitch (see IssueCta at the end) ── */}
         {/* MDX content */}
         <div className="mdx-prose newsletter-prose">
           <MDXRemote source={issue.content} options={mdxOptions} components={mdxComponents} />
@@ -303,24 +303,10 @@ export default async function IssuePage({ params }: Props) {
         {/* FAQ (FAQPage source) */}
         {issue.faqs?.length ? <NewsletterFAQ items={issue.faqs} /> : null}
 
-        {/* ── CTA DIVIDER — end of value zone, start of product ── */}
-        <div className="nl-callout" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 16, marginTop: 56 }}>
-          <p className="nl-callout-title" style={{ margin: 0 }}>
-            Upload a CV to check your Myro Score
-          </p>
-          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-            <Link
-              href={`/cv-preview?utm_source=newsletter&utm_campaign=${encodeURIComponent(issue.slug)}`}
-              className="nl-pill"
-            >
-              Get my free Myro Score →
-            </Link>
-            <ShareButton url={canonicalUrl} title={issue.title} />
-          </div>
-        </div>
-
-        {/* ── BELOW THE LINE — product explainer, the only place Myro pitches ── */}
-        <HowMyroWorks />
+        {/* ── THE ONE CTA — end of value zone, the only place an issue pitches Myro ── */}
+        <IssueCta campaign={`issue-${issueNum}`} issueSlug={issue.slug}>
+          <ShareButton url={canonicalUrl} title={issue.title} />
+        </IssueCta>
 
         </article>
         </div>
@@ -329,7 +315,6 @@ export default async function IssuePage({ params }: Props) {
           issues={moreIssues}
           clusters={clusters}
           listTitle="More issues"
-          campaign={issue.slug}
         />
        </div>
       </div>

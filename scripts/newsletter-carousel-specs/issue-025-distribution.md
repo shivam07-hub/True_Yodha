@@ -28,12 +28,47 @@ If you came for risk analytics, 45 titles say analytics, 2.4% of the lane. Insid
 
 If you are starting out, 9.6% of the lane is entry level, at 0.7 years. Axis posts 39 of those openings and EY 35.
 
-## Instagram caption
+## Instagram captions, one per slide
 
-Two lines, 110 characters at most (brand-guidelines `surfaces/instagram.md`).
+Post from the Instagram app. On the caption screen, tap Single caption and choose
+Multiple captions. Each caption is that slide's newsletter section, cut to what
+the slide shows. Slides 1 and 8 carry the issue link on the image.
 
-EY, Deloitte and KPMG post half of India's risk and compliance openings.
-Full issue: himyro.com/newsletter
+Slide 1:
+
+If you want risk work in India, apply to the Big Four. EY, Deloitte and KPMG post half the openings, and they ask for regulation, audit and a CA.
+
+If you came for risk analytics, go to the banks with Python and statistics. That seat is real and it is small: 45 titles.
+
+Slide 2:
+
+EY posts 575 risk and compliance openings, 30.8% of the lane on its own. Deloitte posts 242 (13.0%) and KPMG 126 (6.7%). Together the three hold 943 openings, 50.5% of everything we read.
+
+Slide 3:
+
+Our agents read 260+ MNC career pages and checked close to 46,500 live openings in India on 20 October 2026. 1,868 of them were risk and compliance roles. This is what those postings ask for, split by who posts them.
+
+Slide 4:
+
+More than half of EY's openings, 305, sit in one practice, Business Consulting Risk. Forensics (56), Assurance (51) and Tax (43) follow. Deloitte's risk lane is security work: 79.3% of its postings name cyber or information security.
+
+Slide 5:
+
+The Big Four ask for a CA more than anyone else in this lane: 25.9% of their postings, and 34.8% of EY's. If you cleared CA and want to work on regulation, this is the door that opens widest.
+
+Slide 6:
+
+Axis is hiring for transaction monitoring and credit desks. Bank risk jobs sit in Mumbai: 52.8% of them, and 73.2% of Axis's. The regulator is a local train away.
+
+Slide 7:
+
+The usual advice for risk analytics is SQL, Python, SAS and Basel. Python appears in 11.0% of all risk postings, and SAS and Basel in 2.8% each. Inside the 45 analytics titles, Python is in 51.1% and SAS in 33.3%.
+
+Slide 8:
+
+180 openings are entry level. Axis posts 39 of them and EY 35. If you are starting out, a bank is the shorter door.
+
+Tailor your CV to jobs like these. Link in bio.
 
 First comment: #jobsearch #riskmanagement #bigfour #himyro
 

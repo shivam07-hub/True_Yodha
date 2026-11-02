@@ -83,6 +83,22 @@ def test_the_stored_journey_position_cannot_come_back() -> None:
             OnboardingRepository(db).patch_state("u1", {field: "result"})
 
 
+def test_the_columns_nothing_reads_cannot_be_written() -> None:
+    db = MagicMock()
+
+    for field in (
+        "activated_at",
+        "activation_kind",
+        "description_text",
+        "preview_payload",
+        "result_seen_at",
+        "score_gap_reviewed_at",
+        "tailored_cv_created_at",
+    ):
+        with pytest.raises(ValueError, match="Unsupported onboarding state fields"):
+            OnboardingRepository(db).patch_state("u1", {field: "x"})
+
+
 def test_save_generator_answer_merges_existing_answers() -> None:
     query = _query(
         {
@@ -116,28 +132,20 @@ def test_mark_completed_clears_redundant_working_content() -> None:
 
     payload = query.upsert.call_args.args[0]
     assert payload["completed_at"]
-    assert payload["description_text"] is None
     assert payload["generated_draft"] is None
     assert payload["generator_answers"] == {}
     # `status` is derived now, not stored — writing it would raise.
     assert "status" not in payload
-    # `result_seen_at` is stamped when the result RENDERS. Writing it here gave it
-    # the same timestamp as `completed_at`, so the checklist row it drives could
-    # only ever tick at the same instant as everything else.
-    assert "result_seen_at" not in payload
 
 
-def test_mark_activated_records_only_first_action() -> None:
+def test_mark_job_saved_stamps_the_first_job() -> None:
     query = _query()
     db = MagicMock()
     db.table.return_value = query
 
-    OnboardingRepository(db).mark_activated("u1", "save_credible_job")
+    OnboardingRepository(db).mark_job_saved("u1")
 
-    query.update.assert_called_once()
-    query.eq.assert_called_once_with("user_id", "u1")
-    query.is_.assert_called_once_with("activated_at", "null")
-    assert query.update.call_args.args[0]["activation_kind"] == "save_credible_job"
+    assert query.upsert.call_args.args[0]["credible_job_saved_at"]
 
 
 def test_replace_skill_overrides_is_baseline_scoped() -> None:

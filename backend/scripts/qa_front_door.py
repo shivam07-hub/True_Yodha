@@ -48,10 +48,7 @@ def reset_writes(
         ("user_onboarding_state", {"user_id": user_id},
          {"completed_at": None, "credible_job_saved_at": None}),
         # …and only for someone with no direction yet.
-        ("user_profiles", {"id": user_id}, {
-            "onboarding_complete": False,
-            "target_role_titles": [], "target_roles": [],
-        }),
+        ("user_profiles", {"id": user_id}, {"target_role_titles": [], "target_roles": []}),
     ]
     if to == "skills":
         if not baseline:
@@ -65,7 +62,7 @@ def reset_writes(
 def _facts(db: Any, email: str) -> tuple[dict[str, Any], dict[str, Any] | None, dict[str, Any] | None]:
     rows = (
         db.table("user_profiles")
-        .select("id, email, is_test_account, onboarding_complete, target_role_titles")
+        .select("id, email, is_test_account, target_role_titles")
         .eq("email", email.strip().lower())
         .execute()
     ).data or []

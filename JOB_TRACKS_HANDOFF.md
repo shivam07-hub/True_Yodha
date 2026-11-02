@@ -11,7 +11,8 @@ users with onboarding state while 11 of them held 66 tailored `cv_versions`
 rows, so `can_open_another` refused everybody: `POST /tracks` 409'd for every
 user alive, the mentor's track proposal could never fire, and the grouped feed
 could never render. **Slices 1, 2 and 3a were all unreachable in production and
-nothing said so.** Fixed by stamping it in `CVVersionsRepository.create()` —
+nothing said so.** (Since 2026-11-01 the gate reads `cv_versions` itself.) Fixed
+then by stamping it in `CVVersionsRepository.create()` —
 the one seam every version passes through, chosen precisely because a stamp any
 of eighteen call sites can forget is how it died the first time. No backfill:
 the 11 flip their gate on their next tailor.
@@ -99,8 +100,8 @@ DELETE /tracks/{id}         -> archive; position frees up
 `position: 1`, labelled with the user's first role word (or `"Your search"`
 when they have none).
 
-`can_open` is `false` until the user's first search has produced a tailored CV
-(`tailored_cv_created_at`). `blocked_reason` is the next step, in words —
+`can_open` is `false` until the user has a tailored CV in `cv_versions`
+(`CVVersionsRepository.has_tailored`). `blocked_reason` is the next step, in words —
 `"Tailor a CV for a job in this search first."` **Render the reason. Never
 render a padlock, "Pro", "coming soon", or the word "locked".** There is a test
 asserting the string never contains "lock"; do not make the UI say what the API

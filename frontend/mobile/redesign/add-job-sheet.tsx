@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react"
 import { EXTENSION_WEBSTORE_URL } from "@/lib/extension"
-import { useJobImport } from "@/lib/job-import/use-job-import"
+import { reviewGap, useJobImport } from "@/lib/job-import/use-job-import"
 import { BottomSheet } from "./bottom-sheet"
 
 /**
@@ -46,6 +46,7 @@ export function AddJobSheet({ open, onClose, token, onAdded, snack, closeSnack, 
 
   const busy = state.step === "extracting" || state.step === "importing"
   const draft = state.step === "review" || state.step === "importing" ? state : null
+  const gap = draft ? reviewGap(draft) : null
 
   return (
     <BottomSheet open={open} onClose={dismiss} label="Add job">
@@ -53,7 +54,31 @@ export function AddJobSheet({ open, onClose, token, onAdded, snack, closeSnack, 
         <div style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 600, letterSpacing: "-0.02em", marginTop: 4 }}>Add a job</div>
         <div style={{ fontSize: "var(--tm-fs-caption)", color: "var(--mm-faint)", marginTop: 2 }}>Anything you add lands in Collections, ready to tailor.</div>
 
-        {!draft ? (
+        {state.step === "pasting" ? (
+          <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+            {state.reason ? (
+              <p style={{ margin: 0, fontSize: "var(--tm-fs-caption)", color: "var(--tm-danger)" }}>{state.reason}</p>
+            ) : null}
+            <textarea
+              value={state.text}
+              onChange={(e) => importJob.updatePaste(e.target.value)}
+              placeholder="Paste the job description"
+              aria-label="Job description"
+              rows={6}
+              style={{ ...inputStyle, height: "auto", padding: "10px 12px", resize: "vertical", lineHeight: 1.45 }}
+            />
+            <button
+              type="button"
+              onClick={() => void importJob.submitText()}
+              disabled={!state.text.trim()}
+              className="mm-press"
+              style={{ ...btnStyle, opacity: state.text.trim() ? 1 : 0.6 }}
+            >
+              Read it
+            </button>
+            <button type="button" onClick={importJob.reset} style={linkButton}>Back</button>
+          </div>
+        ) : !draft ? (
           <>
             <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
               <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Paste a job link…" aria-label="Job posting link" style={inputStyle} />
@@ -94,12 +119,12 @@ export function AddJobSheet({ open, onClose, token, onAdded, snack, closeSnack, 
             <button
               type="button"
               onClick={() => void save()}
-              disabled={busy || !draft.role.trim() || !draft.jd.trim()}
+              disabled={busy || gap !== null}
               aria-busy={busy || undefined}
               className="mm-press"
-              style={{ ...btnStyle, opacity: !draft.role.trim() || !draft.jd.trim() ? 0.6 : 1 }}
+              style={{ ...btnStyle, opacity: gap ? 0.6 : 1 }}
             >
-              {state.step === "importing" ? "Adding…" : "Add to Collections"}
+              {gap ?? (state.step === "importing" ? "Adding…" : "Add to Collections")}
             </button>
           </div>
         )}

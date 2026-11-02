@@ -115,16 +115,10 @@ def _stated(value: Any) -> str | None:
 
 
 def career_goal_of(profile: dict[str, Any]) -> str | None:
-    """The goal the brain can actually see, or nothing.
-
-    The column wins. When it is empty, an `aspiration` fact already riding in
-    `known_facts` counts — that is the memory fallback, and it is the only
-    reason a goal reaches the prompt for anyone beyond the two filled columns.
-    A missing goal is omitted, never rendered as "not specified".
+    """The goal the brain can actually see, or nothing: an `aspiration` fact
+    riding in `known_facts`. A missing goal is omitted, never rendered as "not
+    specified".
     """
-    column = _stated(profile.get("career_goal"))
-    if column:
-        return column
     for fact in profile.get("known_facts") or []:
         text = str(fact).strip()
         prefix, _, body = text.partition(":")
@@ -133,11 +127,6 @@ def career_goal_of(profile: dict[str, Any]) -> str | None:
             if stated:
                 return stated
     return None
-
-
-def superpower_of(profile: dict[str, Any]) -> str | None:
-    """Column only. There is no memory kind for this, and a blank is not a power."""
-    return _stated(profile.get("superpower"))
 
 
 def gate_growth_fit(profile: dict[str, Any], parsed: dict[str, Any]) -> dict[str, Any]:
@@ -194,7 +183,6 @@ def candidate_brief(profile: dict[str, Any], cv_markdown: str) -> str:
         or "none stated"
     )
     career_goal = career_goal_of(profile)
-    superpower = superpower_of(profile)
     cv_block = (cv_markdown or "").strip()[:4000] or "No CV on file — infer from the skill profile."
     identity = [
         f"- Target roles: {roles}",
@@ -202,8 +190,6 @@ def candidate_brief(profile: dict[str, Any], cv_markdown: str) -> str:
     ]
     if career_goal:
         identity.append(f"- Career goal: {career_goal}")
-    if superpower:
-        identity.append(f"- Superpower: {superpower}")
     identity.append(f"- Won't take: {wont_take}")
     if stated.pay_floor_lpa is not None:
         identity.append(f"- Pay floor: ₹{stated.pay_floor_lpa:g} LPA")
@@ -231,7 +217,6 @@ def build_system_prompt(profile: dict[str, Any], cv_markdown: str) -> str:
     rewards and penalties come from the candidate's own target_roles and location.
     """
     career_goal = career_goal_of(profile)
-    superpower = superpower_of(profile)
     if career_goal:
         growth_axis = (
             f"- growth_fit: will this move the candidate toward this career goal: {career_goal}?"
@@ -244,12 +229,9 @@ def build_system_prompt(profile: dict[str, Any], cv_markdown: str) -> str:
         )
         growth_rule = "- growth_fit MUST be null. Do not invent a trajectory and do not score one."
         growth_schema = '"growth_fit": null,'
-    if superpower:
-        angle_rule = f"- Frame application_angle around this superpower: {superpower}."
-    else:
-        angle_rule = (
-            "- Frame application_angle from the CV. There is no stated superpower; do not invent one."
-        )
+    angle_rule = (
+        "- Frame application_angle from the CV. There is no stated superpower; do not invent one."
+    )
 
     return f"""You are Career Ops, an elite AI career advisor. You evaluate a job posting against ONE specific candidate with brutal honesty and strategic insight. No flattery, no score inflation.
 

@@ -39,6 +39,9 @@ export default function OnboardingPage() {
     // redirect wearing a screen. Re-running the analysis lives with the CV, not
     // on a door they were only passing through.
     if (data?.position === "completed") { router.replace("/market"); return }
+    // Finished on a job, no direction: this door is how every "Pick a role" link
+    // reaches the picker. Plain /onboarding/result is their tailor receipt.
+    if (data?.position === "direction") { router.replace("/onboarding/result?step=2"); return }
     if (data?.position === "result") router.replace("/onboarding/result")
   }, [router, state.data, state.isFetchedAfterMount])
 
@@ -83,9 +86,9 @@ export default function OnboardingPage() {
     }
   }
 
-  // A completed user is redirected above and never renders this page, so there is
+  // A finished user is redirected above and never renders this page, so there is
   // no "already done" branch to hold here.
-  if (!ready || state.isLoading || profile.isLoading || state.data?.position === "completed") return null
+  if (!ready || state.isLoading || profile.isLoading || state.data?.position === "completed" || state.data?.position === "direction") return null
 
   return (
     <main className="min-h-dvh bg-[var(--tm-bg)] text-[var(--tm-text)]">

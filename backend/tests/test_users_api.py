@@ -21,7 +21,6 @@ def _profile_row(**overrides: Any) -> dict[str, Any]:
         "target_roles": ["Data Analyst"],
         "target_location": None,
         "cv_url": None,
-        "onboarding_complete": True,
         "created_at": now,
         "last_active_at": now,
     }
@@ -106,6 +105,24 @@ def test_get_me_reads_through_token_repository() -> None:
     assert response.json()["cv_readiness"] == "missing"
     assert response.json()["cv_upload_job_id"] is None
     assert response.json()["cv_upload_error_code"] is None
+
+
+def test_get_me_carries_no_stored_finished_flag() -> None:
+    """Finished is derived (`journey_position`). The flag disagreed with the
+    journey for 138 people."""
+    repo = _FakeUsersRepository(profile=_profile_row())
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
+    app.dependency_overrides[users.get_token_users_repository] = lambda: repo
+    try:
+        with TestClient(app) as client:
+            response = client.get("/users/me")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert "onboarding_complete" not in response.json()
+    assert "career_goal" not in response.json()
+    assert "superpower" not in response.json()
 
 
 def test_get_me_reports_has_cv_when_baseline_exists() -> None:

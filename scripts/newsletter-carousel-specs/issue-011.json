@@ -1,0 +1,40 @@
+{
+  "issue": 11,
+  "out": "Myro Newsletter/Issue 011 - carousel",
+  "og_out": "frontend/public/newsletter/issue-011-og.png",
+  "foot": "Active India roles by industry, April to June 2026 · himyro.com",
+  "og": {
+    "series": "HIRING HEATMAP",
+    "h1": "India's Hiring Supermajority Isn't Tech in 2026",
+    "bars": [
+      [
+        "BFSI",
+        9941,
+        "9,941"
+      ],
+      [
+        "Consulting",
+        8757,
+        "8,757"
+      ],
+      [
+        "Technology",
+        6318,
+        "6,318"
+      ],
+      [
+        "Diversified",
+        4584,
+        "4,584"
+      ],
+      [
+        "Manufacturing",
+        3150,
+        "3,150"
+      ]
+    ],
+    "max": 11000,
+    "foot": "Active India roles by industry, April to June 2026 · himyro.com"
+  },
+  "slides": []
+}

@@ -16,7 +16,6 @@ from app.main import app
 from app.routers import job_tracks as router_mod
 
 USER = "11111111-1111-1111-1111-111111111111"
-TAILORED = {"tailored_cv_created_at": "2026-08-28T00:00:00Z"}
 
 
 class _Tracks:
@@ -60,7 +59,7 @@ class _Tracks:
 def wired(monkeypatch):
     """Swap the three repositories the router builds from one db handle."""
 
-    def _wire(*, rows=None, profile=None, state=None):
+    def _wire(*, rows=None, profile=None, tailored=False):
         tracks = _Tracks(rows)
         monkeypatch.setattr(
             router_mod,
@@ -68,7 +67,7 @@ def wired(monkeypatch):
             lambda _db: (
                 tracks,
                 type("U", (), {"get_profile": lambda _s, _u: profile or {}})(),
-                type("O", (), {"get_state": lambda _s, _u: state})(),
+                type("C", (), {"has_tailored": lambda _s, _u: tailored})(),
             ),
         )
         app.dependency_overrides[get_principal] = lambda: Principal(id=USER, token="t")
@@ -95,7 +94,7 @@ def test_a_user_with_no_stored_track_still_sees_one_search(wired):
 
 
 def test_the_gate_is_shut_until_the_first_search_produced_a_tailored_cv(wired):
-    wired(profile={"target_role_titles": ["Consulting"]}, state={})
+    wired(profile={"target_role_titles": ["Consulting"]})
     with TestClient(app) as client:
         body = client.get("/tracks").json()
 
@@ -105,7 +104,7 @@ def test_the_gate_is_shut_until_the_first_search_produced_a_tailored_cv(wired):
 
 
 def test_a_tailored_cv_opens_the_gate(wired):
-    wired(profile={"target_role_titles": ["Consulting"]}, state=TAILORED)
+    wired(profile={"target_role_titles": ["Consulting"]}, tailored=True)
     with TestClient(app) as client:
         body = client.get("/tracks").json()
 
@@ -116,7 +115,7 @@ def test_a_tailored_cv_opens_the_gate(wired):
 def test_opening_a_track_before_the_gate_is_refused_server_side(wired):
     """A client that forgets the gate must not be able to hand someone a second
     search before they have finished the first."""
-    tracks = wired(profile={"target_role_titles": ["Consulting"]}, state={})
+    tracks = wired(profile={"target_role_titles": ["Consulting"]})
     with TestClient(app) as client:
         response = client.post("/tracks", json={"label": "Marketing"})
 
@@ -126,7 +125,7 @@ def test_opening_a_track_before_the_gate_is_refused_server_side(wired):
 
 
 def test_an_opened_track_starts_after_the_profile_and_keeps_its_words(wired):
-    tracks = wired(profile={"target_role_titles": ["Consulting"]}, state=TAILORED)
+    tracks = wired(profile={"target_role_titles": ["Consulting"]}, tailored=True)
     with TestClient(app) as client:
         response = client.post(
             "/tracks",
@@ -146,7 +145,7 @@ def test_the_cap_counts_the_profile_track(wired):
         {"id": 7, "label": "Marketing", "role_titles": [], "position": 2},
         {"id": 8, "label": "Product", "role_titles": [], "position": 3},
     ]
-    wired(rows=rows, profile={"target_role_titles": ["Consulting"]}, state=TAILORED)
+    wired(rows=rows, profile={"target_role_titles": ["Consulting"]}, tailored=True)
     with TestClient(app) as client:
         body = client.get("/tracks").json()
         refused = client.post("/tracks", json={"label": "Design"})
@@ -161,7 +160,7 @@ def test_closing_a_track_frees_its_position(wired):
         {"id": 7, "label": "Marketing", "role_titles": [], "position": 2},
         {"id": 8, "label": "Product", "role_titles": [], "position": 3},
     ]
-    tracks = wired(rows=rows, profile={"target_role_titles": ["Consulting"]}, state=TAILORED)
+    tracks = wired(rows=rows, profile={"target_role_titles": ["Consulting"]}, tailored=True)
     with TestClient(app) as client:
         assert client.delete("/tracks/7").status_code == 200
         client.post("/tracks", json={"label": "Design"})
@@ -172,14 +171,14 @@ def test_closing_a_track_frees_its_position(wired):
 
 
 def test_closing_a_track_that_is_not_yours_is_a_404(wired):
-    wired(profile={}, state=TAILORED)
+    wired(profile={}, tailored=True)
     with TestClient(app) as client:
         assert client.delete("/tracks/999").status_code == 404
 
 
 def test_renaming_leaves_untouched_fields_alone(wired):
     rows = [{"id": 7, "label": "Marketing", "role_titles": ["Brand"], "position": 2}]
-    tracks = wired(rows=rows, profile={}, state=TAILORED)
+    tracks = wired(rows=rows, profile={}, tailored=True)
     with TestClient(app) as client:
         assert client.patch("/tracks/7", json={"label": "Growth"}).status_code == 200
 
@@ -187,6 +186,6 @@ def test_renaming_leaves_untouched_fields_alone(wired):
 
 
 def test_renaming_a_track_that_is_not_yours_is_a_404(wired):
-    wired(profile={}, state=TAILORED)
+    wired(profile={}, tailored=True)
     with TestClient(app) as client:
         assert client.patch("/tracks/999", json={"label": "Growth"}).status_code == 404

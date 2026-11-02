@@ -1,0 +1,41 @@
+{
+  "issue": 13,
+  "out": "Myro Newsletter/Issue 013 - carousel",
+  "og_out": "frontend/public/newsletter/issue-013-og.png",
+  "foot": "Active India postings that name each skill, June 2026 · himyro.com",
+  "og": {
+    "series": "CAREER TRAJECTORY",
+    "h1": "From DevOps to Loop Engineering: A Four-Skill Jump",
+    "bars": [
+      [
+        "DevOps",
+        171,
+        "171"
+      ],
+      [
+        "CI/CD",
+        88,
+        "88"
+      ],
+      [
+        "SRE",
+        77,
+        "77"
+      ],
+      [
+        "Agent Monitoring",
+        30,
+        "30"
+      ],
+      [
+        "Observability",
+        25,
+        "25"
+      ]
+    ],
+    "max": 190,
+    "foot": "Active India postings that name each skill, June 2026 · himyro.com",
+    "dim_from": 3
+  },
+  "slides": []
+}

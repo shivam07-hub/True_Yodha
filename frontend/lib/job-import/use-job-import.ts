@@ -13,10 +13,16 @@ import { useXPStore } from "@/store/xpStore"
  * A link that is a listing Myro already holds (`listing_job_id`, FD1) reviews
  * read-only and saves that listing by id — its fields are the listing's, and
  * an edit would not reach it.
+ *
+ * A link or file that cannot be read opens one box for the description straight
+ * away. LinkedIn, Naukri and Indeed refuse a server read, so that is where most
+ * links end (11 real links, 0 read, 2026-11-02). What they paste stays the
+ * description; the read only fills the role and the company.
  */
 
 export type JobImportState =
   | { step: "idle" }
+  | { step: "pasting"; text: string; reason: string | null }
   | { step: "extracting" }
   | { step: "review"; role: string; company: string; jd: string; location: string; listing: boolean }
   | { step: "importing"; role: string; company: string; jd: string; location: string }
@@ -35,6 +41,7 @@ export interface JobExtract {
 export interface JobImportClient {
   extractUrl: (url: string) => Promise<JobExtract>
   extractFile: (file: File) => Promise<JobExtract>
+  extractText: (text: string) => Promise<JobExtract>
   importJob: (body: {
     role_name: string
     company_name: string | null
@@ -64,6 +71,13 @@ function message(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback
 }
 
+/** What the save still waits for, in the button's words. Null once it is whole. */
+export function reviewGap(draft: { role: string; jd: string }): string | null {
+  if (!draft.role.trim()) return "Add the role"
+  if (!draft.jd.trim()) return "Add the description"
+  return null
+}
+
 function reviewOf(draft: Draft): JobImportState {
   return {
     step: "review",
@@ -81,6 +95,8 @@ export interface JobImportController {
   submitLink: (url: string) => Promise<void>
   submitFile: (file: File) => Promise<void>
   pasteInstead: () => void
+  updatePaste: (text: string) => void
+  submitText: () => Promise<void>
   updateReview: (patch: Partial<Pick<Draft, "role" | "company" | "jd" | "location">>) => void
   confirm: (status?: ApplicationStatus) => Promise<{ jobId: string; tailorHref: string } | null>
   retry: () => void
@@ -122,7 +138,7 @@ export function createJobImport(
       openReview()
     } catch (error) {
       if (mine !== ticket) return
-      emit({ step: "failed", reason: message(error, fallback), canPasteInstead: true })
+      emit({ step: "pasting", text: "", reason: message(error, fallback) })
     }
   }
 
@@ -148,6 +164,26 @@ export function createJobImport(
     pasteInstead() {
       if (state.step === "failed" && !state.canPasteInstead) return
       if (state.step !== "idle" && state.step !== "failed") return
+      emit({ step: "pasting", text: "", reason: null })
+    },
+    updatePaste(text) {
+      if (state.step === "pasting") emit({ ...state, text })
+    },
+    async submitText() {
+      if (state.step !== "pasting") return
+      const jd = state.text.trim()
+      if (!jd) return
+      const mine = ++ticket
+      draft = { ...draft, jd, listingJobId: null }
+      emit({ step: "extracting" })
+      try {
+        const parsed = await client.extractText(jd)
+        if (mine !== ticket) return
+        draft = { ...draft, role: parsed.role, company: parsed.company, location: parsed.location }
+      } catch {
+        // Their words are already the description. The review asks for the rest.
+        if (mine !== ticket) return
+      }
       openReview()
     },
     updateReview(patch) {
@@ -215,6 +251,7 @@ export function useJobImport(token: string, sourcePlatform?: string) {
         {
           extractUrl: (url) => jobs.extractUrl(token, url),
           extractFile: (file) => jobs.extractFile(token, file),
+          extractText: (text) => jobs.extractText(token, text),
           importJob: (body) => jobs.importJob(token, body),
         },
         { onBalance: setBalance, sourcePlatform },
@@ -231,6 +268,8 @@ export function useJobImport(token: string, sourcePlatform?: string) {
     submitLink: controller.submitLink,
     submitFile: controller.submitFile,
     pasteInstead: controller.pasteInstead,
+    updatePaste: controller.updatePaste,
+    submitText: controller.submitText,
     updateReview: controller.updateReview,
     confirm: controller.confirm,
     retry: controller.retry,

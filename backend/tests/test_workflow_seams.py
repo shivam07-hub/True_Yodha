@@ -61,14 +61,10 @@ def test_jobs_workflow_uses_scores_repository_for_aspiration_lookup(monkeypatch:
 class _FakeCVRepository:
     def __init__(self) -> None:
         self.client = object()
-        self.updated_profile: dict[str, Any] | None = None
         self.created_spec: Any = None
 
     def find_by_content_hash(self, _user_id: str, _content_hash: str) -> None:
         return None  # always miss — force full pipeline in tests
-
-    def update_cv_profile(self, _user_id: str, payload: dict[str, Any]) -> None:
-        self.updated_profile = payload
 
     def create(self, _user_id: str, spec: Any) -> dict[str, Any]:
         self.created_spec = spec
@@ -131,7 +127,6 @@ def test_cv_intake_terminal_success_is_reviewable_without_scoring(monkeypatch: A
 
     # mark_done takes no score at all now — the terminal intake cannot produce one.
     assert "score" not in done
-    assert repo.updated_profile is None
     assert repo.created_spec is not None
     assert repo.created_spec.kind == "baseline_upload"
     assert repo.created_spec.skills_detected[0]["taxonomy_key"] == "Python"

@@ -1,0 +1,35 @@
+{
+  "issue": 12,
+  "out": "Myro Newsletter/Issue 012 - carousel",
+  "og_out": "frontend/public/newsletter/issue-012-og.png",
+  "foot": "Active India postings that name each skill, June 2026 · himyro.com",
+  "og": {
+    "series": "SKILL OF THE WEEK",
+    "h1": "Loop Engineering: The Skill With Zero Job Titles in 2026",
+    "bars": [
+      [
+        "GenAI Agents",
+        213,
+        "213"
+      ],
+      [
+        "Agentic AI",
+        146,
+        "146"
+      ],
+      [
+        "AI Agents",
+        137,
+        "137"
+      ],
+      [
+        "Agent Monitoring",
+        30,
+        "30"
+      ]
+    ],
+    "max": 240,
+    "foot": "Active India postings that name each skill, June 2026 · himyro.com"
+  },
+  "slides": []
+}

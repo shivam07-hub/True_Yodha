@@ -46,7 +46,9 @@ the user and different characters in the code.
 
 ### One-way memory
 
-Memory is READ by 12 modules. It is WRITTEN by exactly two:
+Memory is READ by 12 modules. It is WRITTEN by exactly two (2026-08-13; six by
+2026-11-02, once the mentor, onboarding, the memory panel and the recruiter card
+joined):
 
 - `memory_distiller` — batch, from CV + stories
 - `intent_chat_service` — the job concierge

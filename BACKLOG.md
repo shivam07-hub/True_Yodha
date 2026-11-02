@@ -57,11 +57,31 @@ invariants; a skill-spread Notice belt. Cursor.
 
 ---
 
+**A full run closes jobs that are still open: Accenture (found 2026-11-02, owner:
+Shivam, scraper repo).** Workday's listing `total` stops at 2,000 while its own
+facets show 34,608 Accenture jobs in India, so the run sees 2,000, reports
+`complete` with coverage 1.00, and `apply_missing` closes everything else on one
+miss. 2,244 closed on 11-02; 12 of 12 sampled were open on Workday that day. Only
+Accenture reaches the cap among 41 Workday sources; other providers not checked.
+Fixed by [myro-job-scraper#10](https://github.com/shivam07-hub/myro-job-scraper/pull/10)
+(`687aebca`, deployed 11-02): such a run records `partial`, publishes what it saw and
+closes nothing. Check after the 11-02 19:30 UTC run: Accenture's `job_source_runs` row
+must read `partial`. Still closed: the 2,244, and 13 false "is gone" notices went to
+7 real people, unread. Reading past 2,000 needs the listing split by facet.
+
 ## 2 · APPLY
 
 The north star is measured here and is near zero: 3 people, 5 applications, ever.
 The capture is on `main` (`3ff55125` "Did you submit?"; `a624c2e1` Apply after
 download). QA check **A1** below: Apply opens the company's own posting.
+
+**Jobs2Web Apply links land on the company homepage (found 2026-11-02, owner
+Shivam: merge).** Stored `/talentcommunity/apply/<id>/` links answer 301 to `/`
+for a person too. 5,412 live rows across 14 employers carry one. Fix:
+[myro-job-scraper#9](https://github.com/shivam07-hub/myro-job-scraper/pull/9)
+stores the job page; the next crawl after merge corrects existing rows. Once no
+live row has that path, delete `_listing_page_url` from
+`job_listing_verifier.py`.
 
 **Apply funnel, measured by door (2026-10-13, DECISIONS APPLY1/APPLY2).**
 Extension 0.2.5 is live on the store since 2026-10-20 (seen 10-22): Page Entry,
@@ -74,6 +94,15 @@ accounts: 1 person, 2 clicks, 2 asked, 0 answered.**
 **Next:** read `apply_asked` ~10-27. Asked ≈ 0 → people never return to the tab;
 asked > 0 and answered ≈ 0 → the prompt is ignored. Redesign from that, in Myro
 (no email — APPLY2).
+
+**Form fill has never run for anyone (measured 2026-11-02).** 0 rows in
+`job_filing_authorizations`, test accounts included, and `/filing/answers` refuses
+without one. The store lists 3 users. Through the real gate: 24 people tailored
+29 jobs, 6 of those jobs are gone, 13 judged ≥3.5, 1 passes today, and its drawer
+(the only place the Yes lives) was never opened. Of the 13: 9 closed, 5 carry a
+side-role overlap, 2 unconfirmed. `career_profile` has no real row, so form fill
+would leave pay and notice blank, but that is not the constraint: do not build the
+ask until a filing Yes exists.
 
 ---
 
@@ -134,6 +163,15 @@ and Paste → review → playground works. Found on the way:
   Axis, Infosys from the corpus in 0.1–0.2s; Accenture from its JobPosting in
   ~2s; a pasted Genpact link saved as `JR10022480` with no `ext_` row. **After
   the merge:** read the `source=` split on prod for two weeks.
+- **A link from a job board does not read (measured 2026-11-02).** 11 real links, 0
+  read: LinkedIn 5, Indeed 3, Naukri 3 (live that day). 4 links to jobs Myro holds
+  read in ~1s. So a board link now says so at once and opens one box for the
+  description; Myro reads the role and company from it (`source=board` counts
+  arrivals). FD1's owed `source=` read: prod logged 0 reads 10-30 to 11-01. **The
+  door is not leaking:** 22 saw it, 21
+  took Jobs that fit, 18 finished. 6 people tried Paste or the extension for
+  3-16s, 5 of them went on to Jobs that fit; logs show no read for the 2 paste
+  clicks they cover (10-30, 11-01).
 - **4,279 live listings carry the scraper's stub description** ("No JD provided
   on the company page…", 133 chars) — 4,468 are under 300 chars, measured
   2026-10-20. A paste never answers with one (`MIN_LISTING_JD_CHARS`), but every
@@ -399,6 +437,51 @@ Tracker (3) · no problem or not actionable (~25).
 
 ## SHIVAM
 
+- **Brand, agreed 2026-11-02; all need your login.**
+  1. Merge `main` before Tue 3 Nov, 10:30, so issue 25's readers land on the
+     tailor CTA (`e0048c83`) and not the Score.
+  2. Change the Instagram and LinkedIn profile text, and upload the LinkedIn cover
+     image: [INSTAGRAM_PROFILE.md](INSTAGRAM_PROFILE.md).
+  3. Mark LinkedIn issues 020, 022 and the loop video posted in `/admin/growth`,
+     with their links. They are live, and the rows still say unposted.
+  4. Listen to the Fill video's soundtrack before Thu 5 Nov.
+- **Railway breach of 2026-10-21: rotate. OpenRouter and Supabase confirmed not
+  replaced (checked 11-02); assume the rest are not either.** Railway leaked env
+  vars. The stolen `OpenRouter_Production_key` bought ~$0.55 of Claude on 10-21,
+  which nothing of ours calls; OpenRouter disabled it 10-22. Supabase logs
+  10-20 → 10-27 show no outside use of the service key. Each step: mint new →
+  set everywhere → revoke old. Worst first:
+  1. **OpenRouter — users feel this one now.** New key with a credit limit on
+     `mirror-backend-prod`, `mirror-backend-dev`, `True_Yodha`; top up ($8.26
+     left); limit the laptop key too. Embeddings have no fallback: all 238
+     `career_stories` since 10-22 (24 people) have none, so tailoring runs
+     weaker with no Notice. `reservoir_ingest_sweep` heals them once the key
+     works; no backfill.
+  2. **Supabase.** New `sb_secret_…` / `sb_publishable_…` for
+     `SUPABASE_SERVICE_KEY` and `SUPABASE_ANON_KEY` on those three services, the
+     scraper, Vercel's `NEXT_PUBLIC_SUPABASE_ANON_KEY` and the laptop. Only then
+     turn off the legacy keys and JWT secret (`SUPABASE_JWT_SECRET`). All
+     services accept the new format (`18cdf722`, on `main`).
+  3. **Razorpay.** `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`. The new
+     `RAZORPAY_KEY_ID` must reach Vercel prod's `NEXT_PUBLIC_RAZORPAY_KEY_ID` in
+     the same step or checkout breaks. Check refunds since 10-21.
+  4. **Email.** `SENDGRID_API_KEY`, `RESEND_API_KEY`. Check send logs 10-21/22:
+     a thief could mail users as himyro.com.
+  5. **Other AI keys.** `GROQ_API_KEY`, `GOOGLE_API_KEY`, and `OPENAI_API_KEY` /
+     `ANTHROPIC_API_KEY` if set. Check usage 10-21/22.
+  6. **Scraper project.** `CLOUDFLARE_API_TOKEN`, `FIRECRAWL_API_KEY`,
+     `FIRECRAWL_CLOUD_API_KEY`. Check Cloudflare's audit log.
+  7. **Our own tokens.** `SCRAPE_WEBHOOK_TOKEN` (backend and scraper together),
+     `MYROLOGY_ADMIN_TOKEN`, `JOB_SWITCH_ADMIN_TOKEN`,
+     `MYRO_ANALYTICS_REFRESH_SECRET`; `TURNSTILE_SECRET` in Cloudflare.
+  8. **Redis.** `REDIS_URL`; low risk, reachable only inside Railway.
+
+  Also check: OpenRouter Activity for 10-21 by key (any key but the prod one
+  leaked elsewhere) · GitHub security log, apps and deploy keys on
+  `shivam07-hub/True_Yodha` · Railway members, API tokens, 2FA.
+
+  This list comes from code and local `.env` files; Railway's own variable list
+  was never read. `railway login` lets an agent read the names and complete it.
 - **Scraper: not landing daily.** `job_source_runs` shows 10-14 → 10-20 and
   10-26 → 10-27, nothing on 10-21 → 10-25, nothing since 10-27 (checked 10-30);
   was no feed 10-01 → 10-14. Company repairs of 10-29 wait on the next run: Meta,
@@ -444,15 +527,25 @@ Tracker (3) · no problem or not actionable (~25).
 ## AGENT CHORES — approved, small
 
 - Run the authed QA checklist.
-- **Drop five stored copies — APPROVED (Shivam, 2026-10-27). BLOCKED on the next
-  `main` merge (owner: Shivam merges; then an agent).** `mirror_scores.skill_scores`,
+- **Drop five stored copies — APPROVED (Shivam, 2026-10-27). Earliest 2026-11-08
+  (owner: an agent).** `mirror_scores.skill_scores`,
   `user_skills.proficiency_title`, `user_profiles.target_location`,
   `target_location_country`, `target_role_title`. Readers left in #345; writers and
-  select lists left `Develop` 2026-10-30. **Do not drop before `main` has that
-  commit:** prod's code still selects and writes these columns, so a drop breaks
-  prod reads and every direction save. After the merge: a week, check nothing
+  select lists reached `main` in #346 on 2026-11-01. From 2026-11-08: check nothing
   names them (`pg_stat_statements`), then one migration. Users see nothing.
   CONTEXT → Skill Level, Targeting Brief.
+- **Drop twelve onboarding columns — APPROVED (Shivam, 2026-11-01, 11-02). BLOCKED on
+  the next `main` merge (owner: Shivam merges; then an agent).** `user_profiles.onboarding_complete`,
+  `career_goal`, `superpower`;
+  `user_onboarding_state.status`, `current_stage`, `result_seen_at`,
+  `score_gap_reviewed_at`, `activated_at`, `activation_kind`, `preview_payload`,
+  `description_text`, `tailored_cv_created_at`; index
+  `idx_user_onboarding_state_status`. Readers and writers left `Develop` 2026-11-01.
+  **Do not drop before `main` has that commit:** prod still reads the flag,
+  `career_goal` and `superpower`, and writes the flag and `tailored_cv_created_at`.
+  After the merge: a week,
+  check nothing names them (`pg_stat_statements`), then one migration.
+  `test_onboarding_columns_stopped.py` goes with it. CONTEXT → Journey Position.
 - **Company names on read surfaces onto `company_key`** (CONTEXT → Company
   Identity). The directory, pulse, Company CV Thread and the Following-only
   filter still compare names folded for case and spacing; the resolver's key

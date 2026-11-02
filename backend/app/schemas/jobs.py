@@ -621,8 +621,13 @@ class JobUrlExtractRequest(BaseModel):
     url: str
 
 
+class JobTextExtractRequest(BaseModel):
+    """A job description the person pasted."""
+    text: str = Field(max_length=30_000)
+
+
 class JobFileExtractResponse(BaseModel):
-    """Fields lifted from an uploaded job posting (PDF / DOCX / image / URL)."""
+    """Fields lifted from a job posting (PDF / DOCX / image / URL / pasted text)."""
     company: str = ""
     role: str = ""
     location: str = ""

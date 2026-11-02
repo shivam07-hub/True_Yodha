@@ -9,15 +9,15 @@ post, with its date, copy and tracked link. Mark a post done there with its live
 URL. This file only says when things go out and what each must pass first.
 
 Which issue is next: [NEWSLETTER_QUEUE.md](NEWSLETTER_QUEUE.md). What a launch
-video may show: [LAUNCH_VIDEOS.md](LAUNCH_VIDEOS.md). The Instagram profile and
-its first posts: [INSTAGRAM_PROFILE.md](INSTAGRAM_PROFILE.md).
+video may show: [LAUNCH_VIDEOS.md](LAUNCH_VIDEOS.md). The Instagram and LinkedIn
+profiles, and Instagram's next posts: [INSTAGRAM_PROFILE.md](INSTAGRAM_PROFILE.md).
 
 ## The week
 
 | Day | IST | What | Where |
 |---|---|---|---|
 | Tue | 10:00 | Newsletter issue goes live | himyro.com/newsletter |
-| Tue | 10:30 | That issue's post and thread | LinkedIn company page · X |
+| Tue | 10:30 | That issue's post | LinkedIn company page |
 | Wed | 19:00 | That issue's carousel | Instagram |
 | Thu | 10:00 | Launch video | LinkedIn, Shivam's profile |
 | Sat | 10:00 | Same video as a reel | Instagram |
@@ -27,6 +27,9 @@ videos go on Shivam's profile, so the same post never sits on both within 7 days
 (brand-guidelines `surfaces/linkedin.md`). Instagram goes on Saturday morning
 because the brand guide names weekend mornings as the student segment's best window.
 
+X is off the schedule (Shivam, 2026-11-02): 1 post, 0 followers, and every thread
+is posted by hand. Revisit once LinkedIn and Instagram hold for a month.
+
 This is the floor: two LinkedIn, two Instagram, one issue a week. The brand guide
 allows more. Add slots only once these hold for a month.
 
@@ -35,6 +38,8 @@ allows more. Add slots only once these hold for a month.
 - **Newsletter:** angle, chart and heading agreed with Shivam before drafting.
   When the issue ships, delete its NEWSLETTER_QUEUE row and add its posts to the
   tracker. Its copy lives in `scripts/newsletter-carousel-specs/issue-NNN-distribution.md`.
+- **Ghost Index rates:** issue 023's posts quote them, and the index recomputes.
+  Re-read the figures against `/ghost-index` before those posts go out.
 - **Launch video:** someone listens to the soundtrack first. Nobody had listened
   to any of the three as of 2026-10-22. An extension video waits for the store
   version. Its copy lives beside it in `brag-output*/linkedin.txt` and `instagram.txt`.
@@ -48,5 +53,8 @@ allows more. Add slots only once these hold for a month.
   post carries the carousel, the OG image or the video. The company page is
   posted from `linkedin.com/company/118214305/admin/` (the `himyro` slug
   redirected to an unavailable page when checked on 2026-06-02).
-- **Instagram:** the caption is two lines, 110 characters at most. Three to five
-  hashtags go in the first comment. The bio holds one link: the newest post's.
+- **Instagram:** a carousel goes out from the app with Multiple Captions: each
+  slide's caption is the matching newsletter section, cut to what that slide
+  shows. Its first and last slides carry `Full issue: himyro.com/newsletter` on
+  the image. A reel keeps one caption of two lines. Three to five hashtags go in
+  the first comment. The bio holds one link: the newest post's.

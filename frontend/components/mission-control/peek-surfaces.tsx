@@ -7,7 +7,7 @@ import { Radar, Building2, ArrowRight } from "lucide-react"
 import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { formatCount } from "@/lib/format"
-import { EXTENSION_WEBSTORE_URL } from "@/lib/extension"
+import { ExtensionPromo } from "@/components/extension/extension-promo"
 import { CompanySignalChip } from "@/components/companies/company-signal"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
 
@@ -67,7 +67,8 @@ function PeekCard({
  *
  * This says something the user cannot get anywhere else: the pool is not a
  * magic feed, it is a crawler plus people, and we only claim a listing is alive
- * if we opened it recently. Numbers carry it — no explanatory sentence. */
+ * if we opened it recently. Numbers carry the pool. The extension picture
+ * carries how a person adds to it. */
 function ProvenanceCard({ token }: { token: string }) {
   const { data } = useQuery({
     queryKey: dataKeys.jobContributions(),
@@ -79,7 +80,8 @@ function ProvenanceCard({ token }: { token: string }) {
   if (!data || data.total === 0) {
     return (
       <PeekCard icon={<Radar size={15} />} title="Where these jobs come from">
-        <p className="mc-peek-empty">Myro is counting the pool — one moment.</p>
+        <p className="mc-peek-empty">Myro is counting the pool. One moment.</p>
+        <ExtensionPromo />
       </PeekCard>
     )
   }
@@ -124,14 +126,7 @@ function ProvenanceCard({ token }: { token: string }) {
         </p>
       ) : null}
 
-      <a
-        className="mc-peek-link tm-control-focus"
-        href={EXTENSION_WEBSTORE_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Add jobs as you browse <ArrowRight size={13} aria-hidden />
-      </a>
+      <ExtensionPromo />
     </PeekCard>
   )
 }

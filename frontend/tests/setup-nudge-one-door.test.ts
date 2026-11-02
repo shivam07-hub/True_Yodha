@@ -23,7 +23,7 @@ const scoreReveal = code("components/cv/cv-score-progress.tsx")
  * `/cv` is the workstation. It takes an upload, scores it, and stops — it has
  * never asked for a target role. `/onboarding` is the only surface that carries
  * a user from no-CV to the feed, and it self-resolves to /market for anyone who
- * does not need it.
+ * does not need it, or to the role picker for someone who finished on a job.
  *
  * Measured 2026-09-01: 234 of 729 users hold a CV with no target. A target
  * roughly triples apply rate (26% with, 9% without). Six components said

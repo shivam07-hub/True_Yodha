@@ -164,13 +164,9 @@ def test_every_imported_guess_carries_a_source():
 
 
 def test_a_stored_goal_is_not_re_asked():
-    """The column is not a slot. Re-asking it is how a career_goal of "No"
-    became a line the run could NULL. An aspiration fact stays in memory and
-    still reaches the brain; it is not turned into a question here."""
-    guesses = memory_import.guesses_from(brief(
-        profile={"career_goal": "No", "superpower": "debugging"},
-        facts=[("aspiration", "lead a platform team")],
-    ))
+    """An aspiration fact stays in memory and still reaches the brain; it is not
+    turned into a question here."""
+    guesses = memory_import.guesses_from(brief(facts=[("aspiration", "lead a platform team")]))
     assert all(g.kind not in ("goal", "strength") for g in guesses)
 
 

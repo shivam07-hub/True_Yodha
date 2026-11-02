@@ -1,8 +1,7 @@
 """Targeting Brief — the single "what Myro knows about what this user wants" read.
 
-The module is the test surface: fact→field gap-fill, the known_facts prompt
-ride, and the shared role-title derivation are tested here once, not through
-each router.
+The module is the test surface: the known_facts prompt ride and the shared
+role-title derivation are tested here once, not through each router.
 """
 from __future__ import annotations
 
@@ -19,7 +18,7 @@ def _fact(kind: str, text: str) -> MemoryFact:
 
 def test_ranking_profile_passes_columns_through_and_adds_known_facts():
     brief = TargetingBrief(
-        profile={"target_roles": ["Data Science"], "career_goal": "lead a team"},
+        profile={"target_roles": ["Data Science"]},
         facts=[_fact("constraint", "no night shifts"), _fact("salary", "floor 18 LPA")],
     )
     prof = brief.ranking_profile()
@@ -51,79 +50,6 @@ def test_for_ranking_without_client_carries_no_facts():
     # `scope_mode` travels on every ranking dict from 2026-09-27 — what the run
     # can honestly promise, beside what it is scoping on.
     assert ranking["scope_mode"] == "targeted"
-
-
-# ── preflight gap-fill ───────────────────────────────────────────────────────
-
-def test_preflight_role_titles_prefer_titles_then_clusters():
-    titles = TargetingBrief(
-        profile={"target_role_titles": ["TAM"], "target_role_title": "Old", "target_roles": ["X"]},
-        facts=[],
-    ).preflight()
-    assert titles["role_titles"] == ["TAM"]
-
-    # `target_role_title` is a synced copy, never a source: the families answer.
-    single = TargetingBrief(
-        profile={"target_role_titles": [], "target_role_title": "Account Manager", "target_roles": ["X"]},
-        facts=[],
-    ).preflight()
-    assert single["role_titles"] == ["X"]
-
-    clusters = TargetingBrief(profile={"target_roles": ["Software Development"]}, facts=[]).preflight()
-    assert clusters["role_titles"] == ["Software Development"]
-
-
-def test_preflight_fills_empty_fields_from_memory_with_provenance():
-    brief = TargetingBrief(
-        profile={"deal_breakers": [], "career_goal": None},
-        facts=[
-            _fact("constraint", "no relocation"),
-            _fact("work_mode", "hybrid only"),
-            _fact("aspiration", "move into platform work"),
-            _fact("note", "irrelevant"),
-        ],
-    )
-    pf = brief.preflight()
-    assert pf["deal_breakers"] == ["no relocation", "hybrid only"]
-    assert pf["career_goal"] == "move into platform work"
-    assert pf["prefilled"] == {"deal_breakers": "memory", "career_goal": "memory"}
-    assert pf["memory_count"] == 4
-
-
-def test_preflight_never_overwrites_user_entered_columns():
-    brief = TargetingBrief(
-        profile={"deal_breakers": ["no travel"], "career_goal": "No", "superpower": "  "},
-        facts=[_fact("constraint", "no relocation"), _fact("aspiration", "lead a team")],
-    )
-    pf = brief.preflight()
-    assert pf["deal_breakers"] == ["no travel"]  # column wins
-    assert pf["career_goal"] == "No"             # junk stays user-owned; edited in the modal
-    assert pf["superpower"] is None              # no memory kind maps → stays manual
-    assert pf["prefilled"] == {}
-
-
-def test_preflight_carries_every_stored_location():
-    """It used to carry `locations[0]`.
-
-    The modal is where a user reviews what Myro will search on, and the kept
-    lines are what Run writes back — so showing one of two cities did not just
-    under-report the search, it staged a silent narrowing of it.
-    """
-    pf = TargetingBrief(
-        profile={"target_location": "", "target_locations": ["Gurugram", "Remote"]},
-        facts=[],
-    ).preflight()
-    assert pf["locations"] == ["Gurugram", "Remote"]
-
-
-def test_preflight_locations_are_the_list_only():
-    assert TargetingBrief(profile={"target_location": "Mumbai"}, facts=[]).preflight()["locations"] == []
-    pf = TargetingBrief(profile={"target_locations": ["Mumbai"]}, facts=[]).preflight()
-    assert pf["locations"] == ["Mumbai"]
-
-
-def test_preflight_locations_are_empty_when_nothing_is_set():
-    assert TargetingBrief(profile={}, facts=[]).preflight()["locations"] == []
 
 
 # ── prompt block ─────────────────────────────────────────────────────────────

@@ -17,7 +17,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import quote
 
 PENDING_CHART_SRC = "pending://chart"
 CANONICAL_ORIGIN = "https://www.himyro.com/newsletter"
@@ -64,6 +63,7 @@ def convert_issue(
     document = _document(
         body,
         canonical=canonical_url(slug),
+        issue_number=issue_number,
         chart_path=chart_path,
         chart_alt=chart_alt,
     )
@@ -96,6 +96,7 @@ def _document(
     body: str,
     *,
     canonical: str,
+    issue_number: int,
     chart_path: Path | None,
     chart_alt: str | None,
 ) -> dict:
@@ -115,6 +116,7 @@ def _document(
         content.append(_render_block(block))
     if chart_path is not None and not placed:
         content.insert(1, _image_node(PENDING_CHART_SRC, chart_alt))
+    content.append(_cta_paragraph(issue_number))
     return {"type": "doc", "content": content}
 
 
@@ -155,8 +157,6 @@ def _render_block(block: _Block) -> dict:
         return _list_node("ordered_list", block.items, ordered=True)
     if isinstance(block, _Rule):
         return {"type": "horizontal_rule"}
-    if isinstance(block, _Cta):
-        return _cta_paragraph(block)
     raise TypeError(f"unrendered block {type(block).__name__}")
 
 
@@ -202,20 +202,19 @@ def _table_list(table: _Table) -> dict:
     return _list_node("bullet_list", items, ordered=False)
 
 
-def _cta_paragraph(cta: _Cta) -> dict:
+def _cta_paragraph(issue_number: int) -> dict:
+    """The site template renders an issue's one CTA; Substack has no template."""
     href = (
-        "https://www.himyro.com/cv-preview?role="
-        + quote(cta.role)
-        + "&utm_source=newsletter&utm_campaign="
-        + quote(cta.issue_slug)
+        "https://www.himyro.com/signup?utm_source=substack&utm_medium=email"
+        f"&utm_campaign=issue-{issue_number:03d}"
     )
     return {
         "type": "paragraph",
         "content": [
-            {"type": "text", "text": f"See how you compare as a {cta.role}. "},
+            {"type": "text", "text": "Pick the job you want, and Myro tailors your CV to it. "},
             {
                 "type": "text",
-                "text": "Get my free Myro Score",
+                "text": "Tailor my CV",
                 "marks": [{"type": "link", "attrs": {"href": href}}],
             },
         ],
@@ -309,17 +308,11 @@ class _ChartEmbed:
 
 
 @dataclass(frozen=True)
-class _Cta:
-    role: str
-    issue_slug: str
-
-
-@dataclass(frozen=True)
 class _Rule:
     pass
 
 
-_Block = _Heading | _Paragraph | _BulletList | _OrderedList | _Table | _ChartEmbed | _Cta | _Rule
+_Block = _Heading | _Paragraph | _BulletList | _OrderedList | _Table | _ChartEmbed | _Rule
 
 
 def _parse_blocks(body: str) -> list[_Block]:
@@ -443,8 +436,4 @@ def _jsx_block(chunk: str) -> _Block:
         if "src" not in attrs or "title" not in attrs:
             raise ValueError(f"ChartEmbed is missing src or title: {chunk}")
         return _ChartEmbed(attrs["src"], attrs["title"])
-    if name == "NewsletterCTA":
-        if "role" not in attrs or "issueSlug" not in attrs:
-            raise ValueError(f"NewsletterCTA is missing role or issueSlug: {chunk}")
-        return _Cta(attrs["role"], attrs["issueSlug"])
     raise ValueError(f"unsupported newsletter component: {name}")

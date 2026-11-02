@@ -6,6 +6,22 @@
 
 ---
 
+## 2026-11-02 — Parked: moving work-queue claims off `jobs`
+
+Architecture candidate #8. Claims are not the churn: a scrape rewrites every row (75,231 on 11-02, about 1.5M over 20 run days), the verifier about 0.9M, and the `job_skills` trigger up to 2.6M fires. Enrichment columns are the scraper repo's, and the verifier's wasted writes stopped in `9d4ad00d`. `jobs` shows 1.4% dead rows and no user-visible cost, so moving the leases would change little.
+
+## 2026-11-02 — A job from a board can be pasted
+
+11 real LinkedIn, Indeed and Naukri links, 0 read: those boards refuse a server read. A board link now says so at once, without a fetch or a model call, and any link or file that cannot be read opens one box for the description. Myro reads the role and company from it, the person's words stay the description, and a failed read keeps their text and asks for the role. This replaces "Type it in" on the door, the Collections dialog and the phone sheet. The door's button did nothing when Role or Description was empty; every surface's button now says what is missing.
+
+## 2026-11-02 — "Not for you" holds only a person's own words
+
+The role picker filled "Not for you" with Myro's guesses by kind, and Continue saved them as won't-takes, which hide a job. Proven on the QA account: "Open to roles located in Gurugram" landed on its list. 0 real people had one saved; 2 were one visit away. The box now starts with `deal_breakers` alone, and a guess that reads as a liking is offered in "Drawn to", using the Order's own sentence reader (`normalise.read_as`). The candidate to fold six stores into `user_memory` was dropped: the stores are different things, and the mentor's locks 3 and 5 keep typed targeting apart from memory. Retired `career_goal` and `superpower` (no writer, 1 real person each), dropped `private_notes` (no code, 1 row), deleted `TargetingBrief.preflight()` and `OpsReceipt`.
+
+## 2026-11-01 — One rule for finished onboarding
+
+"Finished" had five rules. Now `journey_finished` is one: `completed_at` plus a whole direction or a job they chose. Someone who finished on a job gets the role picker from "Pick a role", then Market; it used to land on `/cv`. The checklist and the Market tip read the direction, and the Job Tracks gate reads the tailored CV, which lets in the 8 people the stamp refused. Stopped writing `onboarding_complete`, deleted `/onboarding/activate` and `/onboarding/milestones/{milestone}`. Ten columns drop after the next `main` merge (BACKLOG). `/onboarding/first-role` went too: it needed a `full_result_ready` result nothing sends any more, and its source was last written 2026-08-13. Its 8 rows stay receipts.
+
 ## 2026-11-01 — A removed skill stays restorable
 
 The rail held removed skills in page state, so a reload lost the only Restore. New `GET /users/me/skills/removed` reads the rulings; the rail renders from it. Removal now stashes the level: 531 live rows across 79 users were not on their latest CV, and Restore refused them. A restore the evidence gate drops now keeps the ruling and says so.

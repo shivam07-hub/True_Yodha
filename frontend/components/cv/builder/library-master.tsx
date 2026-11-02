@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react"
 import { DownloadCVButton } from "@/components/cv/download-cv-button"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
-import { CVExportView, TemplatePicker } from "./cv-export-view"
+import { CvCommandBar } from "./cv-command-bar"
+import { CVExportView } from "./cv-export-view"
 import { AppliedVersionsPanel } from "./applied-versions"
 import { DEFAULT_TEMPLATE, isCVTemplate, type CVTemplate } from "@/lib/cv/templates"
 import { primaryLocation } from "@/lib/career-target"
@@ -66,36 +67,23 @@ export function MasterCVPanel({
   // so the promoted projection is exactly what the user sees and exports.
   const masterHidden = useMemo(() => new Set(baseline?.hidden_items ?? []), [baseline?.hidden_items])
 
-  // A failing ATS row (from CVExportView's audit) enters the full-bleed editor
-  // (a page-level view) — the workspace surfaces the actionable content fixes.
-  const handleFix = onEditMaster
-
   return (
-    <section className="tm-lib-master-panel tm-lib-fade-in" aria-label="Main CV preview">
-      <div className="tm-lib-master-panel-head">
-        <div style={{ minWidth: 0 }}>
-          <div className="tm-lib-eyebrow">MAIN CV</div>
-          <div className="tm-lib-master-panel-title">
-            {masterDisplayName(profile)}
-          </div>
-        </div>
-        <div className="tm-lib-master-panel-actions">
-          {/* When a structured CV exists, CVExportView (below) owns download
-              — WYSIWYG PDF + DOCX. Only the text-only fallback keeps a
-              head-level download button. */}
-          {!cv && (
+    <section className="tm-lib-master-panel tm-lib-master-panel--quiet tm-lib-fade-in" aria-label="Main CV preview">
+      {!cv && (
+        <div className="tm-lib-master-panel-head">
+          <div className="tm-lib-master-panel-title">Main CV</div>
+          <div className="tm-lib-master-panel-actions">
             <DownloadCVButton
               token={token}
               baseline={baseline}
               cv={cv}
               fullName={profile?.full_name}
-              className="tm-lib-btn primary sm"
+              className="tm-lib-btn primary"
               label="Download Main CV"
             />
-          )}
-          {cv && <TemplatePicker value={activeTemplate} onChange={pickTemplate} />}
+          </div>
         </div>
-      </div>
+      )}
 
       {showHistory && (
         <div className="tm-lib-master-panel-body" style={{ paddingBottom: 4 }}>
@@ -117,12 +105,14 @@ export function MasterCVPanel({
             context="master"
             versionId={baseline?.id ?? null}
             footerMarkHidden={baseline?.footer_mark_hidden ?? false}
-            onAtsFix={handleFix}
             onBulletClick={onBulletClick}
             selectedBulletId={selectedBulletId}
             template={activeTemplate}
             onTemplateChange={pickTemplate}
-            hidePicker
+            paperOnly
+            command={(actions) => (
+              <CvCommandBar title="Main CV" onEdit={onEditMaster} actions={actions} />
+            )}
           />
         ) : fallbackText ? (
           <pre className="tm-lib-master-panel-text">

@@ -89,8 +89,6 @@ One-line hook — the surprising finding this data reveals.
 
 <ChartEmbed src="/newsletter/charts/dashboard2_industry_domain.html" title="Industry Breakdown" />
 
-<NewsletterCTA role="${role}" issueSlug="${slug}" />
-
 ## What this means for you
 
 **Early-career (0–3 yrs):** One sentence. One concrete action.
@@ -101,15 +99,12 @@ One-line hook — the surprising finding this data reveals.
 
 ## The one move to make this week
 
-One sentence: the single specific action. Then [run it through Myro](/signup) for your personal gap analysis.
+One sentence: the single specific action.
 
 ## Methodology
 
 Data source, date window, scope. Numbers re-pulled before publish.
 
----
-
-*[Get your free Myro Score →](/signup) · Upload your CV in 60 seconds.*
 `
 }
 

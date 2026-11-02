@@ -20,8 +20,8 @@ from pydantic import BaseModel, Field
 from supabase import Client
 
 from app.deps import Principal, get_principal, get_user_db
+from app.repositories.cv import CVVersionsRepository
 from app.repositories.job_tracks import JobTracksRepository
-from app.repositories.onboarding import OnboardingRepository
 from app.repositories.users import UsersRepository
 from app.services import job_tracks
 
@@ -57,16 +57,16 @@ class TrackPatch(BaseModel):
     role_titles: list[str] | None = None
 
 
-def _repos(db: Client) -> tuple[JobTracksRepository, UsersRepository, OnboardingRepository]:
-    return JobTracksRepository(db), UsersRepository(db), OnboardingRepository(db)
+def _repos(db: Client) -> tuple[JobTracksRepository, UsersRepository, CVVersionsRepository]:
+    return JobTracksRepository(db), UsersRepository(db), CVVersionsRepository(db)
 
 
 def _state(db: Client, user_id: str) -> TracksOut:
-    tracks_repo, users_repo, onboarding_repo = _repos(db)
+    tracks_repo, users_repo, cv_repo = _repos(db)
     profile = users_repo.get_profile(user_id) or {}
     tracks = job_tracks.tracks_for(tracks_repo, user_id, profile)
     can_open, reason = job_tracks.can_open_another(
-        tracks, onboarding_repo.get_state(user_id)
+        tracks, has_tailored_cv=cv_repo.has_tailored(user_id)
     )
     return TracksOut(
         tracks=[TrackOut(**track.to_dict()) for track in tracks],
@@ -96,11 +96,11 @@ def open_track(
     request or the caller's permissions — the account is simply not in a state
     where this exists yet, and the reason says what would change that.
     """
-    tracks_repo, users_repo, onboarding_repo = _repos(db)
+    tracks_repo, users_repo, cv_repo = _repos(db)
     profile = users_repo.get_profile(principal.id) or {}
     existing = job_tracks.tracks_for(tracks_repo, principal.id, profile)
     can_open, reason = job_tracks.can_open_another(
-        existing, onboarding_repo.get_state(principal.id)
+        existing, has_tailored_cv=cv_repo.has_tailored(principal.id)
     )
     if not can_open:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=reason)
@@ -126,7 +126,7 @@ def rename_track(
     db: Client = Depends(get_user_db),
 ) -> TracksOut:
     """Change a track's words. Absent fields are untouched, never cleared."""
-    tracks_repo, _users, _onboarding = _repos(db)
+    tracks_repo, _users, _cv = _repos(db)
     patch: dict[str, object] = {}
     if body.label is not None:
         patch["label"] = body.label.strip()
@@ -145,7 +145,7 @@ def close_track(
 ) -> TracksOut:
     """Close a search. Archives it — the matches it found keep pointing at it,
     and its position frees up for a new one."""
-    tracks_repo, _users, _onboarding = _repos(db)
+    tracks_repo, _users, _cv = _repos(db)
     if not tracks_repo.archive(principal.id, track_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such search.")
     return _state(db, principal.id)

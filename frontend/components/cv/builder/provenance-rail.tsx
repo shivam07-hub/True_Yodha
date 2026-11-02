@@ -25,16 +25,22 @@ interface ProvenanceRailProps {
   /** Present only when viewing a per-job tailored copy (context = "tailored"). */
   tailoredFor: { company: string } | null
   matchedTerms: string[]
+  /** The editor for this CV. The empty state is the place that names Edit. */
+  onEdit?: () => void
 }
 
-export function ProvenanceRail({ bulletText, story, role, tailoredFor, matchedTerms }: ProvenanceRailProps) {
+export function ProvenanceRail({ bulletText, story, role, tailoredFor, matchedTerms, onEdit }: ProvenanceRailProps) {
   if (!story) {
     return (
       <aside className="tm-prov-rail" aria-label="The story behind this line">
         <div className="tm-prov-rail-eyebrow">The story behind this line</div>
         <div className="tm-prov-empty">
-          Not yet linked to a story in your reservoir. Edit this line from Stories,
-          or drop more of your past there — Myro links new bullets automatically.
+          <p>This line is not linked to a story yet.</p>
+          {onEdit ? (
+            <button type="button" className="tm-lib-btn tm-prov-edit tm-control-focus" onClick={onEdit}>
+              Edit
+            </button>
+          ) : null}
         </div>
       </aside>
     )

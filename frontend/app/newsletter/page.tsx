@@ -81,6 +81,7 @@ export default async function NewsletterIndexPage({
       sameAs: [
         "https://x.com/himyro",
         "https://www.linkedin.com/company/himyro-career-intelligence",
+        "https://www.instagram.com/myrojobs/",
       ],
     },
     mainEntity: {
@@ -164,7 +165,6 @@ export default async function NewsletterIndexPage({
             // index rail omits them — the article rail still carries its own.
             clusters={[]}
             listTitle={activeStage ? "Other issues" : "From the archive"}
-            campaign="index"
           />
         </div>
       )}

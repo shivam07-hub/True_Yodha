@@ -31,7 +31,9 @@ export default function OnboardingResultPage() {
   const [generatorOpen, setGeneratorOpen] = useState(
     () => searchParams.get("guide") === "1",
   )
-  const [viewStep, setViewStep] = useState<number | null>(null)
+  const [viewStep, setViewStep] = useState<number | null>(
+    () => searchParams.get("step") === "2" ? 2 : null,
+  )
   const [fitting, setFitting] = useState(false)
   const [streamedPhase, setStreamedPhase] = useState<string | null>(null)
 
@@ -78,11 +80,6 @@ export default function OnboardingResultPage() {
     }
     if (result.data?.kind === "first_role_saved") {
       router.replace(result.data.tailor_href)
-      return
-    }
-    // Legacy shortlist step — Direction is the last onboarding page now.
-    if (result.data?.kind === "full_result_ready") {
-      router.replace("/market")
     }
   }, [result.data, router])
 

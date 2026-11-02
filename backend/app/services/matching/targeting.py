@@ -19,20 +19,9 @@ One module assembles the user's targeting from BOTH stores — the confirmed
   each) were materially wrong; the rest belonged to users with no ranking-relevant
   facts, where blind and informed agree. Not backfilled, by decision: the guarantee
   is forward — the next Myro Ops Search returns a standardised verdict.
-- `for_preflight(db, user_id)` → the "Refresh your matches" pre-flight modal.
-  `preflight()` gap-fills empty fields from memory facts (silent prefill into the
-  DRAFT — persistence still happens only on the user's Run/Save action, so the
-  distiller's propose-only lock on profile columns holds).
-
-Field ↔ fact-kind mapping (fill-empty-only; a user-entered column value is never
-overwritten, even a junk one — the user edits it in the modal):
-
-- deal_breakers  ← `constraint` / `work_mode` facts
-- lean           ← `preference` facts (no column; the fact store IS the answer)
-- career_goal    ← `aspiration` facts
-- superpower     ← no clean kind; column-only (stays manual)
-- role titles    ← `target_role_titles` (source of record), falling back to raw
-  `target_roles` (pre-Phase-0 rows where clusters were the only store)
+- `for_preflight(db, user_id)` → the Pre-flight Order. `preflight/memory_import`
+  turns its profile and facts into lines, and a guess persists only on the user's
+  answer, so the distiller's propose-only lock on profile columns holds.
 
 Memory reads are fail-soft by construction: `UserMemoryRepository.list_active`
 already degrades to `[]` via safe_read, and a repo without a real client (test
@@ -41,7 +30,6 @@ fakes) yields no facts — matching never breaks on the memory layer.
 from __future__ import annotations
 
 import logging
-from app.services import direction
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -51,10 +39,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _PROMPT_FACTS_CAP = 8
-_PREFILL_DEAL_BREAKERS_CAP = 4
-_DEAL_BREAKER_KINDS = ("constraint", "work_mode")
-_GOAL_KINDS = ("aspiration",)
-_LEAN_KINDS = ("preference",)
 
 
 @dataclass(frozen=True)
@@ -67,8 +51,6 @@ class MemoryFact:
 class TargetingBrief:
     profile: dict[str, Any]
     facts: list[MemoryFact]
-
-    # ── ranking half ─────────────────────────────────────────────────────────
 
     def direction(self) -> "Direction":
         """What this person is aiming at — the SAME answer `/users/me` renders.
@@ -100,54 +82,6 @@ class TargetingBrief:
         # without the answer travelling beside it.
         prof["scope_mode"] = self.direction().scope_mode
         return prof
-
-    # ── pre-flight half ──────────────────────────────────────────────────────
-
-    def preflight(self) -> dict[str, Any]:
-        """Gap-filled manifest for the pre-flight modal + provenance map.
-
-        `prefilled` names each field whose value came from memory (`"memory"`),
-        so the surface can be honest about what Myro guessed vs what the user
-        confirmed. Fill-empty-only: column values always win.
-        """
-        p = self.profile
-        prefilled: dict[str, str] = {}
-
-        role_titles = _clean_list(p.get("target_role_titles")) or _clean_list(p.get("target_roles"))
-
-        deal_breakers = _clean_list(p.get("deal_breakers"))
-        if not deal_breakers:
-            derived = [f.text for f in self.facts if f.kind in _DEAL_BREAKER_KINDS]
-            if derived:
-                deal_breakers = derived[:_PREFILL_DEAL_BREAKERS_CAP]
-                prefilled["deal_breakers"] = "memory"
-
-        # The other half of the direction axis. Unlike deal-breakers it has no
-        # column: a lean IS a `preference` fact, so there is nothing to gap-fill
-        # from — the store is the answer. It reaches the brain as `known_facts`
-        # either way; surfacing it here is what lets the manifest read as one
-        # sentence instead of listing only the half that happens to have a column.
-        lean = [f.text for f in self.facts if f.kind in _LEAN_KINDS][:_PREFILL_DEAL_BREAKERS_CAP]
-
-        career_goal = (p.get("career_goal") or "").strip()
-        if not career_goal:
-            goal = next((f.text for f in self.facts if f.kind in _GOAL_KINDS), "")
-            if goal:
-                career_goal = goal
-                prefilled["career_goal"] = "memory"
-
-        locations = direction.locations(p)
-
-        return {
-            "role_titles": role_titles,
-            "locations": locations,
-            "deal_breakers": deal_breakers,
-            "lean": lean,
-            "career_goal": career_goal or None,
-            "superpower": (p.get("superpower") or "").strip() or None,
-            "prefilled": prefilled,
-            "memory_count": len(self.facts),
-        }
 
 
 # ── constructors ─────────────────────────────────────────────────────────────
@@ -219,7 +153,3 @@ def _facts(db: Any, user_id: str) -> list[MemoryFact]:
         if text:
             facts.append(MemoryFact(kind=(row.get("kind") or "note").strip(), text=text))
     return facts
-
-
-def _clean_list(value: Any) -> list[str]:
-    return [str(v).strip() for v in (value or []) if str(v).strip()]

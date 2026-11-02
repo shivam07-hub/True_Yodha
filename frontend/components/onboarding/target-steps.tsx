@@ -299,7 +299,7 @@ export function DirectionStep({
 }: {
   lean: string[]
   avoid: string[]
-  proposed: Array<"avoid" | "lean">
+  proposed: Array<"lean">
   onDirection: (next: { lean: string[]; avoid: string[] }) => void
   ninja: string
   ninjaClaimed: boolean

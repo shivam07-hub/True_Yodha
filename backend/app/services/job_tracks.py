@@ -154,13 +154,12 @@ def next_position(existing: list[Track]) -> int:
 
 
 def can_open_another(
-    existing: list[Track], onboarding_state: dict[str, Any] | None
+    existing: list[Track], *, has_tailored_cv: bool
 ) -> tuple[bool, str | None]:
     """May this user open another search? `(allowed, why_not)`.
 
-    The gate is `tailored_cv_created_at`: they have run a match, saved a
-    credible job, and tailored a CV against it — the whole first-track loop.
-    That milestone already exists; a track does not need one of its own.
+    The gate is a tailored CV: they have chosen a job and tailored a CV against
+    it — the whole first-track loop.
 
     The reason string is for the caller to render. It is never "locked" — a
     lock explains nothing, and the honest answer is a next step the user can
@@ -168,6 +167,6 @@ def can_open_another(
     """
     if len(existing) >= MAX_TRACKS:
         return False, f"You can run {MAX_TRACKS} searches at once."
-    if not (onboarding_state or {}).get("tailored_cv_created_at"):
+    if not has_tailored_cv:
         return False, "Tailor a CV for a job in this search first."
     return True, None

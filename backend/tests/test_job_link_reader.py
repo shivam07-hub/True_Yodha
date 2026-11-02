@@ -224,3 +224,54 @@ def test_a_listing_without_a_real_description_is_not_the_answer(monkeypatch):
     fields, source = asyncio.run(reader.read_link(LINK, _Repo([stub]), _Provider()))
     assert source == "jobposting"
     assert fields["listing_job_id"] is None
+
+
+# ── job boards ───────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("link", "board"),
+    [
+        ("https://www.linkedin.com/jobs/view/3581322447/", "LinkedIn"),
+        ("https://in.linkedin.com/jobs/view/sales-manager-at-sunonix-3581322447", "LinkedIn"),
+        ("https://www.naukri.com/job-listings-sales-manager-swiggy-bengaluru-1-to-6-years-311026502433", "Naukri"),
+        ("https://in.indeed.com/viewjob?jk=30fb26ff5a964767", "Indeed"),
+    ],
+)
+def test_a_job_board_is_not_fetched_and_names_itself(monkeypatch, link, board):
+    """11 real board links, 0 read (2026-11-02). A login page reaching the model
+    cost 44s or came back blank, so the door says so at once."""
+    async def _boom(url):
+        raise AssertionError("a job board refuses a server read; do not fetch it")
+
+    monkeypatch.setattr(jfp, "fetch_posting_html", _boom)
+    provider = _Provider()
+    with pytest.raises(JobUrlFetchError, match=board):
+        asyncio.run(reader.read_link(link, _Repo(), provider))
+    assert provider.calls == 0
+
+
+def test_a_host_that_only_contains_a_board_name_is_read(monkeypatch):
+    async def _html(url):
+        return _page(POSTING)
+
+    monkeypatch.setattr(jfp, "fetch_posting_html", _html)
+    _fields, source = asyncio.run(reader.read_link(
+        "https://careers.notlinkedin.com/jobs/42001", _Repo(), _Provider(),
+    ))
+    assert source == "jobposting"
+
+
+def test_a_page_the_model_finds_nothing_on_is_not_a_blank_review(monkeypatch):
+    """A login wall has text. The model answered empty and the door opened a blank
+    form with no word about why."""
+    class _Nothing(_Provider):
+        async def complete(self, messages, max_tokens=None, temperature=None):
+            return json.dumps({"company": "", "role": "", "location": "", "job_description": ""})
+
+    async def _html(url):
+        return "<html><body><p>" + "Sign in to see this page and join your network. " * 3 + "</p></body></html>"
+
+    monkeypatch.setattr(jfp, "fetch_posting_html", _html)
+    with pytest.raises(JobUrlFetchError):
+        asyncio.run(reader.read_link("https://careers.example.com/jobs/42001", _Repo(), _Nothing()))

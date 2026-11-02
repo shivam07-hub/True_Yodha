@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 
+import { ExtensionPromo } from "@/components/extension/extension-promo"
 import { Button } from "@/components/ui/button"
 import { pastedLink } from "@/lib/job-import/pasted-link"
 import { emitLoopStep, jobs, onboarding } from "@/lib/api"
 import { EXTENSION_WEBSTORE_URL } from "@/lib/extension"
-import { useJobImport } from "@/lib/job-import/use-job-import"
+import { reviewGap, useJobImport } from "@/lib/job-import/use-job-import"
 import { newExtensionJob } from "@/lib/onboarding/new-extension-job"
 
 import "./job-choice.css"
@@ -78,6 +79,7 @@ export function JobChoice({ token, onFit }: { token: string; onFit: () => void }
     : null
   // A listing Myro holds reviews read-only: its fields are the listing's.
   const listing = importJob.state.step === "review" && importJob.state.listing
+  const gap = draft ? reviewGap(draft) : null
 
   async function savePaste() {
     const imported = await importJob.confirm()
@@ -143,7 +145,7 @@ export function JobChoice({ token, onFit }: { token: string; onFit: () => void }
               <Button variant="solid" onClick={() => void importJob.submitLink(sourceUrl)}>
                 Fetch
               </Button>
-              <Button variant="outline" onClick={() => importJob.pasteInstead()}>Type it in</Button>
+              <Button variant="outline" onClick={() => importJob.pasteInstead()}>Paste the description</Button>
               <label className="tm-job-choice-file">
                 Upload a file
                 <input
@@ -157,6 +159,28 @@ export function JobChoice({ token, onFit }: { token: string; onFit: () => void }
               </label>
             </div>
           ) : null}
+          {importJob.state.step === "pasting" && (
+            <div className="tm-job-choice-review">
+              {importJob.state.reason && <p role="alert">{importJob.state.reason}</p>}
+              <textarea
+                aria-label="Job description"
+                placeholder="Paste the job description"
+                autoFocus
+                value={importJob.state.text}
+                onChange={(event) => importJob.updatePaste(event.target.value)}
+              />
+              <div className="tm-job-choice-fetch">
+                <Button
+                  variant="solid"
+                  disabled={!importJob.state.text.trim()}
+                  onClick={() => void importJob.submitText()}
+                >
+                  Read it
+                </Button>
+                <Button variant="outline" onClick={importJob.reset}>Back</Button>
+              </div>
+            </div>
+          )}
           {importJob.state.step === "extracting" && <p>Reading the job…</p>}
           {importJob.state.step === "failed" && <p role="alert">{importJob.state.reason}</p>}
           {draft && (
@@ -173,8 +197,12 @@ export function JobChoice({ token, onFit }: { token: string; onFit: () => void }
                 Description
                 <textarea aria-label="Job description" value={draft.jd} readOnly={listing} onChange={(event) => importJob.updateReview({ jd: event.target.value })} />
               </label>
-              <Button variant="solid" disabled={saving || importJob.state.step === "importing"} onClick={() => void savePaste()}>
-                {saving || importJob.state.step === "importing" ? "Saving…" : "Tailor a CV for this"}
+              <Button
+                variant="solid"
+                disabled={saving || importJob.state.step === "importing" || gap !== null}
+                onClick={() => void savePaste()}
+              >
+                {gap ?? (saving || importJob.state.step === "importing" ? "Saving…" : "Tailor a CV for this")}
               </Button>
             </div>
           )}
@@ -182,16 +210,19 @@ export function JobChoice({ token, onFit }: { token: string; onFit: () => void }
       )}
 
       {mode === "extension" && (
-        <p className="tm-job-choice-wait">
-          Save a job in the extension. This page continues when it arrives.
-          {" "}
-          <button type="button" className="tm-job-choice-instead" onClick={() => {
-            setMode("paste")
-            emitLoopStep(token, "door_paste", DOOR_JOB, "onboarding")
-          }}>
-            Paste a job instead
-          </button>
-        </p>
+        <>
+          <ExtensionPromo pictureOnly />
+          <p className="tm-job-choice-wait">
+            Save a job in the extension. This page continues when it arrives.
+            {" "}
+            <button type="button" className="tm-job-choice-instead" onClick={() => {
+              setMode("paste")
+              emitLoopStep(token, "door_paste", DOOR_JOB, "onboarding")
+            }}>
+              Paste a job instead
+            </button>
+          </p>
+        </>
       )}
       {error && <p role="alert">{error}</p>}
     </section>

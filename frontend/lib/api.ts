@@ -447,10 +447,7 @@ export interface UserProfile {
   explored_career_bands?: CareerBand[]
   target_locations: string[]
   deal_breakers: string[]
-  career_goal: string | null
-  superpower: string | null
   cv_url: string | null
-  onboarding_complete: boolean
   ninja_name: string | null
   has_cv: boolean
   /** Latest baseline CV has had its skills confirmed. Decides which step the
@@ -490,8 +487,6 @@ export interface ProfileUpdate {
   /** Routed server-side to the authored-preference writer — there is no
    *  `lean` column to set. Sending `[]` clears; omitting preserves. */
   lean?: string[] | null
-  career_goal?: string | null
-  superpower?: string | null
   myrology_interested?: boolean
   accent_pref?: "signal" | "forge"
   /** The whole map; the server normalises it. `{}` resets every heading. */
@@ -868,7 +863,7 @@ export const notifications = {
 /** Where the user is, DERIVED server-side from the journey's own facts — never a
  *  stored column. `experience` = nothing started · `result` = work in flight or
  *  done · `completed` = finished, belongs in the product. */
-export type JourneyPosition = "experience" | "result" | "completed"
+export type JourneyPosition = "experience" | "result" | "direction" | "completed"
 export type TargetSeniority = "intern" | "entry" | "mid" | "senior" | "lead" | "executive" | "any"
 
 export interface OnboardingState {
@@ -881,10 +876,6 @@ export interface OnboardingState {
   generator_answers: Record<string, Record<string, unknown>>
   generated_draft?: string | null
   checklist_dismissed_at?: string | null
-  score_gap_reviewed_at?: string | null
-  credible_job_saved_at?: string | null
-  tailored_cv_created_at?: string | null
-  activation_kind?: "tailor_credible_job" | "review_score_gap" | "save_credible_job" | null
 }
 
 export interface OnboardingTarget {
@@ -926,7 +917,7 @@ export interface OnboardingDirection {
   avoid: string[]
   lean: string[]
   /** Halves gap-filled from Myro's reading rather than confirmed by the user. */
-  proposed: Array<"avoid" | "lean">
+  proposed: Array<"lean">
 }
 
 /** Where the user stands on the skills their target roles actually ask for.
@@ -1010,12 +1001,6 @@ export interface FirstSuccessChecklist {
   items: Array<{ id: string; label: string; href: string; done: boolean }>
 }
 
-export interface FirstRoleReceipt {
-  status: "saved"
-  job_id: string
-  tailor_href: string
-}
-
 export interface OnboardingProofSkill {
   taxonomy_key: string
   name: string
@@ -1073,39 +1058,13 @@ export type OnboardingResult = OnboardingReach & (
       }
       /** The four bands with their counts, best fit first. */
       bands: CareerBandOption[]
-      /** What Myro believes you're drawn to and away from. `proposed` names the
-       *  halves that are Myro's reading of your CV rather than your own answer —
-       *  the step says so, so a guess is never shown as a decision. */
+      /** What you're drawn to and away from. `avoid` is always your own words.
+       *  `proposed` says when `lean` is Myro's reading of your CV instead — the
+       *  step says so, so a guess is never shown as a decision. */
       direction: OnboardingDirection
       /** Claimed public identity. Required before Direction can complete. */
       ninja: { ninja_name: string; claimed: boolean }
       journey_step?: 1 | 2
-    }
-  | {
-      kind: "full_result_ready"
-      baseline_version_id: number
-      target_context_hash: string
-      target: OnboardingTarget
-      skills: OnboardingProofSkill[]
-      score: { total_score: number; domain_scores: Record<string, number>; domain_skill_counts?: Record<string, number>; gap_skills: GapSkill[]; skills_assessed: number; band?: string; band_percentile?: number | null; top_percent?: number | null }
-      score_factors: Array<{ kind: "gap" | "strength"; label: string; detail: string }>
-      /** Scoped to THIS direction, server-authored. Never the durable match
-       *  stack — that answers "every job Myro matched you to", which after a
-       *  direction change is not the shortlist the save will accept. */
-      shortlist: JobMatch[]
-      /** `provisional` = the shortlist is triaged and choosable, but the deep
-       *  eval is still running, so its scores will sharpen in place. */
-      /** `stale_direction`: a run finished, but for a different direction than the
-       *  one on screen — the user has matches, none computed for this target. Not
-       *  auto-enqueued; the surface asks for a Myro Ops Search. */
-      shortlist_status: "ready" | "provisional" | "computing" | "stalled" | "empty" | "stale_direction"
-      /** `sharpeners` = the optional Career-Ops inputs this user has not set.
-       *  Reported, never gap-filled — a receipt must not present a suggestion
-       *  as something the run used. */
-      career_ops: { sharpeners: string[] }
-      credible_match: (JobMatch & { jobs?: { job_title?: string; company_name?: string } }) | null
-      primary_action: { kind: string; label: string; href: string }
-      secondary_action: { kind: string; label: string; href: string }
     }
 )
 
@@ -1202,18 +1161,6 @@ export const onboarding = {
   }>("/onboarding/first-job", {
     method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ job_id: jobId }),
   }),
-  commitFirstRole: (token: string, jobId: string) => request<FirstRoleReceipt>("/onboarding/first-role", {
-    method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ job_id: jobId }),
-  }),
-  activate: (token: string, activationKind: "tailor_credible_job" | "review_score_gap" | "save_credible_job") =>
-    request<void>("/onboarding/activate", {
-      method: "POST", headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ activation_kind: activationKind }),
-    }),
-  markMilestone: (token: string, milestone: "score_gap_reviewed" | "credible_job_saved" | "tailored_cv_created") =>
-    request<void>(`/onboarding/milestones/${milestone}`, {
-      method: "POST", headers: { Authorization: `Bearer ${token}` },
-    }),
   dismissChecklist: (token: string) => request<void>("/onboarding/checklist/dismiss", {
     method: "POST", headers: { Authorization: `Bearer ${token}` },
   }),
@@ -4855,6 +4802,14 @@ export const jobs = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ url }),
+      timeoutMs: LLM_REQUEST_TIMEOUT_MS,
+    }),
+  // Read a pasted job description into tracker fields. Free, and an LLM call.
+  extractText: (token: string, text: string): Promise<JobFileExtract> =>
+    request<JobFileExtract>("/jobs/import/extract-text", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ text }),
       timeoutMs: LLM_REQUEST_TIMEOUT_MS,
     }),
   skillGap: (token: string, jobId: string) =>

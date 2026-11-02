@@ -56,10 +56,7 @@ class UserProfileResponse(BaseModel):
     explored_career_bands: list[CareerBand] = []
     target_locations: list[str] = []
     deal_breakers: list[str] = []
-    career_goal: str | None = None
-    superpower: str | None = None
     cv_url: str | None
-    onboarding_complete: bool
     ninja_name: str | None = None
     has_cv: bool = False
     #: Whether the latest baseline CV has had its skills confirmed. Drives which
@@ -102,8 +99,6 @@ class UpdateProfileRequest(BaseModel):
     # authored `preference` facts — so this is routed, not written, by the
     # update_profile handler.
     lean: list[str] | None = None
-    career_goal: str | None = None
-    superpower: str | None = None
     myrology_interested: bool | None = None
     accent_pref: Literal["signal", "forge"] | None = None
     #: The WHOLE map, normalised on the way in. `{}` resets every heading.

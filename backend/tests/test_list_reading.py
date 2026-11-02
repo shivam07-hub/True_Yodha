@@ -19,10 +19,8 @@ PROFILE = {
     "target_roles": ["Partner Solution Sales"],
     "target_locations": ["Bangalore"],
     "target_location": "Bangalore",
-    "career_goal": "Lead a cloud partner business in India",
-    "superpower": "Turning partner pipelines into closed revenue",
     "deal_breakers": ["No pure cold-calling roles", "Below 30 LPA"],
-    "known_facts": ["Prefers hybrid work"],
+    "known_facts": ["Prefers hybrid work", "aspiration: Lead a cloud partner business in India"],
     "cv_markdown": "Sales lead at Capgemini. Built a partner pipeline of 20 accounts.",
 }
 

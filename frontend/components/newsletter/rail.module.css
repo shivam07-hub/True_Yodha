@@ -167,34 +167,3 @@
   font-size: var(--tm-fs-caption);
 }
 
-/* ── Score CTA — the one accent action in the rail ──────────────────────── */
-
-.ctaPanel {
-  padding: 20px;
-  border: 1px solid var(--tm-int-border);
-  border-radius: var(--tm-radius-lg);
-  background: var(--tm-int-bg-wash);
-}
-
-.ctaLink {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  min-height: 42px;
-  padding: 0 18px;
-  border-radius: var(--tm-radius);
-  background: var(--tm-interactive);
-  color: var(--tm-interactive-fg);
-  font-size: var(--tm-fs-body);
-  font-weight: 600;
-  text-decoration: none;
-  transition:
-    background var(--tm-dur) var(--tm-ease),
-    box-shadow var(--tm-dur) var(--tm-ease);
-}
-
-.ctaLink:hover {
-  background: var(--tm-interactive-hover);
-  box-shadow: var(--tm-shadow-glow);
-}

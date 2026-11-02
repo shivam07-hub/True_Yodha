@@ -324,6 +324,140 @@
   margin-bottom: 24px;
   overflow: hidden;
 }
+/* Entry: the paper is the object. The command bar is the same width as the
+   sheet (816px) so Edit and Download sit on the document, not in the field. */
+.tm-lib-master-panel--quiet {
+  border: none;
+  background: transparent;
+  border-radius: 0;
+  overflow: visible;
+}
+.tm-lib-master-panel--quiet .tm-lib-master-panel-head {
+  background: transparent;
+  border-bottom: none;
+  padding: 0 0 20px;
+}
+.tm-lib-master-panel--quiet .tm-lib-master-panel-title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--tm-fs-heading);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  white-space: normal;
+}
+.tm-lib-master-panel--quiet .tm-lib-master-panel-body {
+  padding: 0;
+  background: transparent;
+  max-height: none;
+}
+.tm-lib-master-panel--quiet .cvb-export-inline-stage {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+
+/* Command bar — one instrument the width of the paper. Edit grows.
+   Download is the other half and opens PDF / DOCX. The primary glow is
+   suppressed here: it was sized for a small pill, and across a bar it
+   becomes atmosphere. */
+.tm-lib-command {
+  width: 816px;
+  max-width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tm-lib-command-title {
+  margin: 0;
+  color: var(--tm-text);
+  font-size: var(--tm-fs-heading);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+.tm-lib-command-detail {
+  margin: 2px 0 0;
+  color: var(--tm-text-muted);
+  font-size: var(--tm-fs-body);
+  line-height: 1.35;
+}
+.tm-lib-command-bar {
+  display: flex;
+  align-items: stretch;
+}
+.tm-lib-command .tm-lib-btn.primary {
+  flex: 1;
+  justify-content: center;
+  min-height: 48px;
+  border-radius: 6px 0 0 6px;
+  box-shadow: none;
+}
+.tm-lib-command-download {
+  position: relative;
+  display: flex;
+  margin-left: -1px;
+}
+.tm-lib-command-download-trigger {
+  min-height: 48px;
+  min-width: 168px;
+  justify-content: center;
+  border-radius: 0 6px 6px 0;
+  background: var(--tm-surface-2);
+}
+.tm-lib-command-download-trigger:hover {
+  background: var(--tm-surface-3);
+}
+.tm-lib-command-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 6;
+  min-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border);
+  border-radius: 6px;
+  box-shadow: var(--tm-shadow-1);
+}
+.tm-lib-command-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--tm-text);
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-body);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+.tm-lib-command-menu-item:hover {
+  background: var(--tm-surface-2);
+}
+.tm-lib-command-menu-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.tm-lib-command-error {
+  margin: 0;
+  color: var(--tm-danger);
+  font-size: var(--tm-fs-caption);
+  line-height: 1.4;
+}
+@media (max-width: 420px) {
+  .tm-lib-command-bar { flex-direction: column; }
+  .tm-lib-command .tm-lib-btn.primary { border-radius: 6px 6px 0 0; }
+  .tm-lib-command-download { margin-left: 0; margin-top: -1px; }
+  .tm-lib-command-download-trigger { width: 100%; border-radius: 0 0 6px 6px; }
+}
 .tm-lib-master-panel-head {
   display: flex;
   align-items: center;
@@ -990,32 +1124,27 @@
    the Main CV. Accent = --tm-interactive; card lift on hover. */
 /* Vertical rail list (was a horizontal carousel above the sheet). */
 .tm-lib-continue { margin: 0; }
-.tm-lib-continue-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
-.tm-lib-continue-title { font-size: var(--tm-fs-body); font-weight: 600; color: var(--tm-text); letter-spacing: 0.01em; }
-.tm-lib-continue-sub { font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); color: var(--tm-text-faint); }
-.tm-lib-continue-row { display: flex; flex-direction: column; gap: 8px; }
-/* Accent budget: exactly ONE card in this lane leads (`--lead`, the best-next
-   row). Every card previously carried an accent border + accent wash + accent
-   company name + accent CTA — four accent signals × five rows, so nothing read
-   as primary and the lane looked like five equally-urgent alarms. Neutral rows
-   are still fully clickable; the hover border is the affordance. */
+.tm-lib-continue-head { margin-bottom: 8px; }
+.tm-lib-continue-title {
+  font-size: var(--tm-fs-caption); font-weight: 500;
+  color: var(--tm-text-faint); letter-spacing: 0.01em;
+}
+.tm-lib-continue-row { display: flex; flex-direction: column; }
 .tm-lib-continue-card {
   width: 100%; text-align: left; cursor: pointer;
-  display: flex; flex-direction: column; gap: 3px; padding: 11px 13px;
-  border: 1px solid var(--tm-border-soft); border-radius: 12px;
-  background: var(--tm-surface-2); font-family: inherit; transition: all 120ms var(--tm-ease);
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 0 10px 12px;
+  border: none; border-left: 2px solid transparent; border-radius: 0;
+  background: transparent; font-family: inherit;
+  transition: border-color var(--tm-dur-fast) var(--tm-ease);
 }
-.tm-lib-continue-card--lead {
-  border-color: var(--tm-accent-ring);
-  background: var(--tm-accent-wash);
-}
-.tm-lib-continue-card:hover { border-color: var(--tm-interactive); transform: translateY(-1px); }
-/* Company is an IDENTIFIER, not an action — it was accent-coloured while the
-   role (the thing you actually read to recognise the job) sat quieter. */
-.tm-lib-continue-co { font-size: var(--tm-fs-caption); font-weight: 600; color: var(--tm-text-muted); }
-.tm-lib-continue-role { font-size: var(--tm-fs-body); font-weight: 600; color: var(--tm-text); line-height: 1.3; }
-.tm-lib-continue-cta { margin-top: 4px; font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption); color: var(--tm-text-faint); }
-.tm-lib-continue-card--lead .tm-lib-continue-cta { color: var(--tm-interactive); }
+.tm-lib-continue-card.is-current { border-left-color: var(--tm-text); }
+.tm-lib-continue-card:hover .tm-lib-continue-role { color: var(--tm-text); }
+.tm-lib-continue-co { font-size: var(--tm-fs-caption); font-weight: 500; color: var(--tm-text-faint); }
+.tm-lib-continue-role { font-size: var(--tm-fs-body); font-weight: 500; color: var(--tm-text-muted); line-height: 1.35; }
+.tm-lib-continue-card.is-current .tm-lib-continue-role { color: var(--tm-text); }
+.tm-lib-continue-place { font-size: var(--tm-fs-caption); color: var(--tm-text-faint); }
+.cvb-v2-rail .tm-prov-rail { position: static; top: auto; margin-top: 16px; }
 .tm-lib-continue-more {
   display: inline-block; margin-top: 10px;
   font-family: var(--tm-font-mono); font-size: var(--tm-fs-caption);
@@ -1313,13 +1442,22 @@
 .tm-prov-act.quiet:hover { color: var(--tm-text); }
 .tm-prov-foot { font-size: var(--tm-fs-caption); line-height: 1.5; color: var(--tm-text-faint); margin: 12px 2px 0; }
 .tm-prov-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   background: var(--tm-surface);
   border: 1px dashed var(--tm-border-soft);
-  border-radius: 14px;
-  padding: 20px 17px;
+  border-radius: 10px;
+  padding: 16px;
   font-size: var(--tm-fs-caption);
   color: var(--tm-text-faint);
   line-height: 1.5;
+}
+.tm-prov-empty p { margin: 0; }
+.tm-prov-edit {
+  align-self: stretch;
+  justify-content: center;
+  min-height: 40px;
 }
 @media (max-width: 1100px) {
   .tm-prov-rail { position: static; }

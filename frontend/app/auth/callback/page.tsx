@@ -13,7 +13,6 @@ import { signupEvents } from "@/lib/analytics"
 import { getStoredReferral } from "@/lib/referral"
 import { hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
 import { readPendingExtensionConnect } from "@/lib/extension-connect-stash"
-import { hasPendingPrepIntent } from "@/lib/prep-intent-stash"
 import { hasPendingJobSaveClaim } from "@/lib/anon-job-stash"
 import { postAuthDestination } from "@/lib/auth/post-auth-destination"
 import { identityFromUserMetadata, methodFromCallback, rememberAuth } from "@/lib/auth/last-auth"
@@ -175,7 +174,6 @@ function CallbackInner() {
         hasPendingAnonCv: hasPendingAnonCvClaim(),
         hasPendingJobSave: hasPendingJobSaveClaim(),
         pendingExtensionConnect: readPendingExtensionConnect(),
-        hasPendingPrepIntent: hasPendingPrepIntent(),
         // Present on the connect screen's Google return and on the emailed
         // fallback. Both are a consent completion, not a daily return.
         completingPartnerLink: Boolean(searchParams.get("link_partner")),

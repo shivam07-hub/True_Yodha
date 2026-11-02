@@ -48,9 +48,9 @@ def context_key(profile: dict[str, Any]) -> str | None:
     happened to carry an untrimmed or capitalised value. A key with two producers
     is a bug waiting for the first row that tells them apart.
 
-    Returns None only when there is no baseline to scope to — the queries that use
-    this key (`get_matches_for_context`, `get_current_credible_match`) filter on
-    `baseline_version_id` too, so a keyless row is unreadable by them either way.
+    Returns None only when there is no baseline to scope to —
+    `get_current_credible_match`, which uses this key, filters on
+    `baseline_version_id` too, so a keyless row is unreadable by it either way.
     A blank direction still gets a key: absence of a title is a direction we can
     name, not a reason to withhold the name.
     """
@@ -168,6 +168,9 @@ def _normalize_role_titles(
 _DIRECTION_PHRASE_CAP = 6
 _DIRECTION_PHRASE_MAX_CHARS = 120
 _LEAN_KIND = "preference"
+#: Kinds the distiller files a limit under. The kind does not say which way the
+#: sentence points, so these are read before they are offered.
+_LIMIT_KINDS = ("constraint", "work_mode")
 
 
 def _normalize_direction_phrases(values: list[str]) -> list[str]:
@@ -230,21 +233,24 @@ def _direction_answer(db: Client, user_id: str, profile: dict[str, Any]) -> dict
     """What Myro currently believes the user is drawn to and away from, plus where
     each half came from.
 
-    Confirmed answers win: the `deal_breakers` column and authored `preference`
-    facts are the user's own words and are returned as-is. Only when a half is
-    empty is it gap-filled from Myro's own reading — the same fill-empty-only rule
-    the pre-flight already uses — and `proposed` names that half so the step can
-    say "read from your CV" instead of presenting a guess as a decision.
+    "Not for you" is the `deal_breakers` column and nothing else. Continue saves
+    that box as a won't-take, and a job that breaks one is on no surface, so Myro's
+    reading never goes in it. Those guesses still reach the judge as `known_facts`,
+    and the Pre-flight Order still asks them as questions.
+
+    "Drawn to" is their authored `preference` facts. When they have none it is
+    gap-filled from Myro's reading, and `proposed` says so the step can read "from
+    your CV" instead of presenting a guess as a decision.
     """
     from app.repositories.user_memory import UserMemoryRepository
-    from app.services.matching.targeting import _DEAL_BREAKER_KINDS
+    from app.services.preflight import normalise
 
     proposed: list[str] = []
     avoid = [str(v).strip() for v in (profile.get("deal_breakers") or []) if str(v).strip()]
     lean: list[str] = []
     try:
         rows = UserMemoryRepository(db).list_active(
-            user_id, kinds=[_LEAN_KIND, *_DEAL_BREAKER_KINDS]
+            user_id, kinds=[_LEAN_KIND, *_LIMIT_KINDS]
         )
     except Exception:  # noqa: BLE001 — a memory outage must not block the step
         rows = []
@@ -256,22 +262,13 @@ def _direction_answer(db: Client, user_id: str, profile: dict[str, Any]) -> dict
     lean = [text for text in authored_leans if text]
     if not lean:
         lean = [
-            text for text in (
-                (r.get("text") or "").strip() for r in rows
-                if r.get("kind") == _LEAN_KIND
-            ) if text
+            text for kind, text in (
+                (r.get("kind"), (r.get("text") or "").strip()) for r in rows
+            )
+            if text and (kind == _LEAN_KIND or normalise.read_as("wont_take", text)[0] == "lean")
         ][:_DIRECTION_PHRASE_CAP]
         if lean:
             proposed.append("lean")
-    if not avoid:
-        avoid = [
-            text for text in (
-                (r.get("text") or "").strip() for r in rows
-                if r.get("kind") in _DEAL_BREAKER_KINDS
-            ) if text
-        ][:_DIRECTION_PHRASE_CAP]
-        if avoid:
-            proposed.append("avoid")
     return {"avoid": avoid, "lean": lean, "proposed": proposed}
 
 
@@ -452,7 +449,7 @@ def complete_onboarding_after_direction(db: Client, user_id: str) -> None:
         return
     if not profile.get("ninja_name_claimed_at"):
         raise ValueError("Claim your Myro name before continuing.")
-    mark_completed(db, user_id)
+    OnboardingRepository(db).mark_completed(user_id)
 
 
 def reset_target(db: Client, user_id: str) -> None:
@@ -786,9 +783,7 @@ def get_result(
     """
     result = _current_result(db, user_id, profile=profile, baseline=baseline)
     furthest = int(result.get("journey_step") or 0) or (
-        2 if result.get("kind") in (
-            "onboarding_complete", "first_role_saved", "full_result_ready",
-        ) else 0
+        2 if result.get("kind") in ("onboarding_complete", "first_role_saved") else 0
     )
     result["furthest_step"] = furthest
 
@@ -826,7 +821,22 @@ def _parallel(db: Client, reads: dict[str, Any]) -> dict[str, Any]:
     return run_concurrently(reads, label="onboarding.result")
 
 
-JourneyPosition = str  # "experience" | "result" | "completed"
+JourneyPosition = str  # "experience" | "result" | "direction" | "completed"
+
+
+def journey_finished(state: dict[str, Any], profile: dict[str, Any]) -> bool:
+    """Has this person finished onboarding? The entry redirect and the result page
+    both ask here, so the door and the room cannot disagree.
+
+    `completed_at` alone is not the answer: 27 people carry it from a leaky window
+    with no whole direction, and they still have the step to take. It takes a whole
+    direction, or a job they chose at the door.
+    """
+    from app.services.career_target import is_canonical_direction
+
+    return bool(state.get("completed_at")) and (
+        is_canonical_direction(profile) or bool(state.get("credible_job_saved_at"))
+    )
 
 
 def journey_position(db: Client, user_id: str) -> dict[str, Any]:
@@ -841,9 +851,11 @@ def journey_position(db: Client, user_id: str) -> dict[str, Any]:
     the stage back to `experience` without clearing the baseline, so the two models
     disagreed and the stored one won for precisely one screen.
 
-    Three positions, because that is what the callers actually ask:
+    Four positions, because that is what the callers actually ask:
       - ``experience`` — nothing started; show the upload door.
       - ``result``     — work is in flight or done; the journey screen owns them.
+      - ``direction``  — finished on a job they chose, no direction yet; open the
+                         role picker.
       - ``completed``  — finished; they belong in the product, not the funnel.
     """
     from app.services.career_target import is_canonical_direction
@@ -866,15 +878,13 @@ def journey_position(db: Client, user_id: str) -> dict[str, Any]:
             user_id, exc.__class__.__name__,
         )
     started = bool(facts["baseline"] or state.get("upload_job_id"))
-    # `completed_at` is a flag; a direction is the fact. `_current_result` already
-    # refuses to trust the flag alone — it falls through to Direction when the
-    # profile cannot mint a target. This function is the ENTRY redirect and used
-    # the flag by itself, so it bounced those users to /market before the result
-    # endpoint could offer them the step. One rule, both callers, or the door and
-    # the room disagree.
-    finished = bool(state.get("completed_at")) and is_canonical_direction(facts["profile"] or {})
+    profile = facts["profile"] or {}
+    # A job finishes the journey with no direction. Their plain result is a tailor
+    # receipt, so `/onboarding` has to name the step: every "Pick a role" link in
+    # the product comes through this door.
     position = (
-        "completed" if finished
+        ("completed" if is_canonical_direction(profile) else "direction")
+        if journey_finished(state, profile)
         else "result" if started
         else "experience"
     )
@@ -888,10 +898,6 @@ def journey_position(db: Client, user_id: str) -> dict[str, Any]:
         "upload_job_id": state.get("upload_job_id"),
         "accepted_file_metadata": state.get("accepted_file_metadata") or {},
         "checklist_dismissed_at": state.get("checklist_dismissed_at"),
-        "score_gap_reviewed_at": state.get("score_gap_reviewed_at"),
-        "credible_job_saved_at": state.get("credible_job_saved_at"),
-        "tailored_cv_created_at": state.get("tailored_cv_created_at"),
-        "activation_kind": state.get("activation_kind"),
     }
 
 
@@ -1040,10 +1046,11 @@ def _current_result(
     if baseline is None:
         baseline = facts["baseline"]
 
-    from app.services.career_target import is_canonical_direction as _is_canonical
+    from app.services.career_target import SOURCE_SENIORITY, is_canonical_direction
 
-    # Completed onboarding lands on Market. A legacy first-role save still has a
-    # tailor receipt; everyone else who finished Direction goes to /market.
+    # Finished lands on Market. Someone who finished on a job with no direction gets
+    # their tailor receipt instead. A whole direction wins over that receipt: the
+    # role picker saves and goes to Market, and a reload must not send them to /cv.
     #
     # BUT completion is not taken on trust. 111 users carry `completed_at` with
     # no canonical direction — they came through a window where the gate was
@@ -1054,24 +1061,19 @@ def _current_result(
     # cohort at 9%.
     #
     # A flag is not the fact. Fall through and let them finish Direction.
-    if state.get("completed_at"):
-        # A saved first role is evidence of a finished journey in its own right —
-        # the receipt stands regardless of what the profile looks like now.
-        if state.get("credible_job_saved_at"):
-            from app.services.onboarding_first_role import saved_first_role
-
-            saved = saved_first_role(JobsRepository(db), user_id)
-            if saved:
-                return {"kind": "first_role_saved", **saved}
-        if _is_canonical(profile):
+    if journey_finished(state, profile):
+        if is_canonical_direction(profile):
             return {
                 "kind": "onboarding_complete",
                 "redirect_to": "/market",
                 "journey_step": 2,
             }
-        # Completed, no receipt, no direction — fall through to Direction.
+        from app.services.onboarding_first_role import saved_first_role
 
-    from app.services.career_target import SOURCE_SENIORITY, is_canonical_direction
+        saved = saved_first_role(JobsRepository(db), user_id)
+        if saved:
+            return {"kind": "first_role_saved", **saved}
+        # They removed the job and never chose a direction — fall through to Direction.
 
     target = {
         "role_title": _key_title(profile),
@@ -1160,7 +1162,7 @@ def _current_result(
 
     # Target + claimed ninja, but completed_at missing — heal and send to Market.
     # Do not wait on score or shortlist: that was the old step-3 poll storm.
-    mark_completed(db, user_id)
+    OnboardingRepository(db).mark_completed(user_id)
     return {
         "kind": "onboarding_complete",
         "redirect_to": "/market",
@@ -1168,26 +1170,18 @@ def _current_result(
     }
 
 
-def mark_completed(db: Client, user_id: str) -> None:
-    CVVersionsRepository(db).update_cv_profile(user_id, {"onboarding_complete": True})
-    OnboardingRepository(db).mark_completed(user_id)
-
-
-def mark_activated(db: Client, user_id: str, activation_kind: str) -> None:
-    OnboardingRepository(db).mark_activated(user_id, activation_kind)
-
-
 def build_first_success_checklist(
     state: dict[str, Any],
     *,
     skills_confirmed: bool,
+    direction_set: bool,
     tailored_cv_exists: bool,
     tracked_application_exists: bool,
 ) -> dict[str, Any]:
     """Pure projection over persisted journey facts; no click-local completion."""
     items = [
         {"id": "confirm_skills", "label": "Confirm your CV skills", "href": "/onboarding/result", "done": skills_confirmed},
-        {"id": "set_direction", "label": "Choose your direction", "href": "/onboarding/result", "done": bool(state.get("completed_at"))},
+        {"id": "set_direction", "label": "Choose your direction", "href": "/onboarding", "done": direction_set},
         {"id": "tailor_cv", "label": "Tailor one CV", "href": "/cv", "done": tailored_cv_exists},
         {"id": "track_application", "label": "Track one application", "href": "/tracker", "done": tracked_application_exists},
     ]
@@ -1199,30 +1193,26 @@ def build_first_success_checklist(
 
 
 def get_first_success_checklist(db: Client, user_id: str) -> dict[str, Any]:
-    state = OnboardingRepository(db).get_state(user_id) or {}
-    baseline = CVVersionsRepository(db).latest_baseline(user_id)
-    tailored = (
-        db.table("cv_versions")
-        .select("id")
-        .eq("user_id", user_id)
-        .neq("kind", "baseline_upload")
-        .limit(1)
-        .execute()
-        .data
-        or []
-    )
-    tracked = (
-        db.table("job_applications")
-        .select("id")
-        .eq("user_id", user_id)
-        .limit(1)
-        .execute()
-        .data
-        or []
-    )
+    facts = _parallel(db, {
+        "state": lambda: OnboardingRepository(db).get_state(user_id),
+        "profile": lambda: UsersRepository(db).get_profile(user_id),
+        "baseline": lambda: CVVersionsRepository(db).latest_baseline(user_id),
+        "tailored": lambda: CVVersionsRepository(db).has_tailored(user_id),
+        "tracked": lambda: (
+            db.table("job_applications")
+            .select("id")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        ),
+    })
+    baseline = facts["baseline"]
     return build_first_success_checklist(
-        state,
+        facts["state"] or {},
         skills_confirmed=bool(baseline and baseline.get("skills_confirmed_at")),
-        tailored_cv_exists=bool(tailored),
-        tracked_application_exists=bool(tracked),
+        direction_set=direction.of(facts["profile"] or {}).is_set,
+        tailored_cv_exists=facts["tailored"],
+        tracked_application_exists=bool(facts["tracked"]),
     )
