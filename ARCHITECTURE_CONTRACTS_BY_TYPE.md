@@ -1,6 +1,6 @@
 # Two contracts carried by convention, not by type
 
-**Architecture spec. Implementation by Cursor. Written 2026-09-27.**
+**Architecture spec. Written 2026-09-27. Built, closed 2026-11-02 (ARCHIVE).**
 
 Candidates 3 and 8 of the 2026-09-27 architecture review. Candidates 1, 2 and 4
 are one larger piece, specced separately in

@@ -30,11 +30,7 @@ the value.
 
 Specs Cursor builds from, each slice its own commit with six gates green:
 PAYMENTS (#56) · FRONT_DOOR (#57) · CV_TIER_A (#58) · GOLDEN_DIGEST (#59) ·
-SKILL_EVIDENCE (#60) ·
-[ARCHITECTURE_LISTING_TIME.md](ARCHITECTURE_LISTING_TIME.md) (steps 1–2 done:
-de-seed `f7dd4735`, `listing_time.py`; verify 3–6 in code) ·
-[ARCHITECTURE_CONTRACTS_BY_TYPE.md](ARCHITECTURE_CONTRACTS_BY_TYPE.md) (make
-`compute_match_health`'s `freshness` required).
+SKILL_EVIDENCE (#60).
 
 ---
 
@@ -147,10 +143,6 @@ none pasted a job. The all-time upload rate is 45%; this week's is 28%.
 **U4 desktop run, 2026-10-19** (QA account, dev, Amazon BA link): the door renders
 and Paste → review → playground works. Found on the way:
 
-- **Fixed — a pasted link always failed.** `extractUrl` used the 15s default
-  timeout; the server answers in 31–45s, so the door and /market's "Paste a job"
-  said "Request timed out." while the server returned 200 (`2cc7b264`, on `main`
-  10-20).
 - **FD1 · reading a pasted link — FIXED `515fd697`.** The 31–45s was a dead free
   model at the head of the lane (removed `fe62760f`), not the JD rewrite (30/31
   sentences came back verbatim). The real fault: 5 of the 18 biggest hosts gave
@@ -289,13 +281,6 @@ Chain", QA account):
   on the card and a different one at the moment they apply. **Shivam:** rename
   the CV number (what it measures is how well this CV proves the job) or make
   both read the verdict. Decide with the penalty question above.
-- **Summary — FIXED `5ad8f6cc`.** The weave replaced the person's summary with
-  "GTM Business Development Manager, Capgemini, Insights & Data (GCC Growth). ▪
-  Own the full B2B sales cycle…". Two causes: the seat check matched the whole
-  stored company string, so "…at Capgemini" in the summary did not count; and
-  `seat_lead()` glued "role, company." to the first raw bullet. Now a summary
-  that names the employer is left alone, and otherwise the seat is one sentence
-  ("Role at Company.") before the summary's own words — never a bullet.
 - **Copied list markers — FIXED at upload `5ad8f6cc`; offered on the CV page
   `d197a058`.** The parser copied bullets verbatim, so "▪ Built…" was stored and
   the page drew its own mark in front: "• ▪ Built…". Uploads now drop it. The 24
@@ -353,20 +338,13 @@ Locks: the closer runs from pg_cron (02:30 UTC, 06:30 retry) via
 `POST /internal/notice/close`; Notice writes are off the request path; a slow
 query opens only at ≥2,000ms; the Railway death harvest is gone. ADR-0021
 amended. History: ARCHIVE 2026-10-10, `ARCHITECTURE_READ_PATH.md` §23–25.
-Agent-owned. A scheduled check reads R3/R4 on 10-19.
+Agent-owned. R3 needs `railway login`: its logs start ageing out 2026-11-11 (30 days).
 
 - **R3 · Live latency.** Five warm samples / a week of `route.latency` on prod for
   `/jobs/feed-state`, `/jobs/at/{c}`, `/companies/{c}/jobs`, confirm-skills,
   `/partner/v1/sso/session`; record in §23–25. First 34 hours (10-12 08:57Z →
   10-13 19:33Z) are in §23–25. The week runs to 10-19. Pre-merge baseline
   (10-05→10-09): p50 ≤50 · ≤50 · ≤100 · ~3000 · ~1000 ms.
-- **R4 · SSO 500s gone — FAILED 2026-10-16 15:33 UTC, fix on `main`.** One
-  partner SSO 500 (`ad35b339…`): GoTrue's duplicate-email lookup took 4.8s inside
-  a database stall and gotrue re-raised our ReadTimeout as `AuthRetryableError`,
-  which the boundary filed as an auth bug. Now a 503 +
-  `capacity_503:upstream.read_timeout` (`_relabelled_timeout`).
-  Original check: no `AuthRetryableError: Server disconnected`
-  / `CreateRaced` (proofs ride `test_auth_client_http1.py`).
 - **R9 · Drain wall time — measured 2026-10-19: about an hour, and one day lost.**
   Scraper jobs since 10-15, first ingest → last `skill_floor_attempted_at`: 66 ·
   65 · 1,441 · 58 · 61 min (10-15 → 10-19); median wait 37–52 min. The expectation
@@ -382,22 +360,20 @@ Agent-owned. A scheduled check reads R3/R4 on 10-19.
   HOT share and verifier UPDATE volume, against the 2026-10-15 window in
   `ARCHITECTURE_READ_PATH.md` §28 (HOT 4.9%). `claim_verify_targets` was still
   2.3s a call there. Memory: `docs/agent-memory/project_micro_load_unload.md`.
-- **R11 · The digest tells the truth — on `main` 2026-10-20** (the closer runs on
-  prod). Three changes: a failed close
-  refuses the test in `proof_test` (`49654b13`); a belt with no dead sighting for a
-  week clears its failed close (`b3242a86` — `dead_man:job_ingestion` closes at the
-  first run after 2026-10-21 02:30 UTC); a slow read inside a three-site minute is
-  one `slow_200:db_stall` (`971217e0`). **Owed:** read two digests. The
-  ~25 `slow_read` rows opened by past stalls stay until a new proof closes them; a
-  site that keeps opening OUTSIDE a stall is a real query → `/read-path-perf`.
 - **R12 · Public pages — the provenance counts are Tier 0.**
   `ARCHITECTURE_READ_PATH.md` §30. Migration `20261019090000` applied (task
   `public_provenance` on `run_snapshot_sql_refresh` at :35, belt
   `dead_man:snapshot.public_provenance`); refresh 3,177ms once a day, read 0.08ms.
   Code `03f6aa41` on `main` 10-20. **Owed:** `verified_live` queryid `3154336291968442631` stops gaining calls
-  (552 on 10-19 04:25 UTC), the `_count` Notice stops, and
-  `cold_fill_wait_expired key=public_stats` reads 0. Company pages (5.3% of DB
-  time, no CDN on the path) stay as they are.
+  (552 on 10-19 04:25 UTC, 563 on 11-02), the `_count` Notice stops (last seen
+  10-19), and `cold_fill_wait_expired key=public_stats` reads 0. Company pages
+  (5.3% of DB time, no CDN on the path) stay as they are.
+- **R13 · Six reads still slow on their own (digests 11-01 → 11-02).** Opened
+  outside a stall, so each is a real query → `/read-path-perf`: `_compute` 83→88,
+  `_job_demand_counts` 11→14, `fetch_company_jobs_page` 728→730,
+  `list_internships` 10→12, `_company_has_listing` 8→9, `list_top_companies_at`
+  13→14. The `slow_read` rows opened by past stalls stay until a new proof closes
+  them.
 
 ---
 

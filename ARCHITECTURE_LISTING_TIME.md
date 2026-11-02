@@ -1,6 +1,6 @@
 # Listing Time — one module, four questions
 
-**Architecture spec. Implementation by Cursor. Written 2026-09-27.**
+**Architecture spec. Written 2026-09-27. Built, closed 2026-11-02 (ARCHIVE).**
 
 Scope: candidates 1, 2 and 4 of the 2026-09-27 architecture review. They are one
 piece of work. Candidates 3 (match-health call sites) and 8 (duplicated

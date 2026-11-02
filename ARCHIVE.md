@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-11-02 — Six finished items leave the backlog
+
+Checked against code, `notices` and two digests. R4: no SSO 500 since 10-16, `c5014040` on `main`. R11: digests of 11-01 and 11-02 read, stalls fold into `slow_200:db_stall`, `dead_man:job_ingestion` closed; six reads still slow became R13. CONTRACTS_BY_TYPE, both parts: `freshness` required on every caller, `probe.py` holds the belts. LISTING_TIME steps 3–6. The pasted-link timeout (`2cc7b264`). The weave summary (`5ad8f6cc`).
+
 ## 2026-11-02 — `job_versions` stays
 
 0 rows and nothing in this repo reads it, but the scraper's manual `--deactivate-missing` writes to it after it has marked jobs inactive, so a drop would leave that flag failing halfway. 40 kB, not worth the PR (Shivam, 2026-11-02). Search `myro-job-scraper` too before calling any table or column unused.
