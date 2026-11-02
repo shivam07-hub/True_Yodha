@@ -63,9 +63,11 @@ facets show 34,608 Accenture jobs in India, so the run sees 2,000, reports
 `complete` with coverage 1.00, and `apply_missing` closes everything else on one
 miss. 2,244 closed on 11-02; 12 of 12 sampled were open on Workday that day. Only
 Accenture reaches the cap among 41 Workday sources; other providers not checked.
-Fix open: [myro-job-scraper#10](https://github.com/shivam07-hub/myro-job-scraper/pull/10)
-marks such a run `partial`, so it publishes what it saw and closes nothing. After it
-merges, reopen the 2,244. Reading past 2,000 needs the listing split by facet.
+Fixed by [myro-job-scraper#10](https://github.com/shivam07-hub/myro-job-scraper/pull/10)
+(`687aebca`, deployed 11-02): such a run records `partial`, publishes what it saw and
+closes nothing. Check after the 11-02 19:30 UTC run: Accenture's `job_source_runs` row
+must read `partial`. Still closed: the 2,244, and 13 false "is gone" notices went to
+7 real people, unread. Reading past 2,000 needs the listing split by facet.
 
 ## 2 · APPLY
 
