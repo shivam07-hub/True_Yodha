@@ -6,7 +6,8 @@ import re
 import traceback
 from pathlib import Path
 
-from app.notice.types import CloseProof, Sighting
+from app.notice.site import app_relative
+from app.notice.types import NAMED_TIMEOUT_LIMITERS, CloseProof, Sighting
 from app.services.probe import SNAPSHOTS
 
 _TOKEN = re.compile(r"^[A-Za-z0-9_./-]+$")
@@ -29,7 +30,15 @@ def cause_key_for(sighting: Sighting) -> str:
         file, function = app_frame(sighting.exc)
         return f"unhandled_500:{type(sighting.exc).__name__}:{file}:{function}"
     if sighting.cause_class == "capacity_503":
-        return f"capacity_503:{_token(sighting.limiter)}"
+        limiter = _token(sighting.limiter)
+        file = (sighting.site_file or "").strip()
+        function = (sighting.site_function or "").strip()
+        # One caller that did not finish is that caller, the same shape as a
+        # slow read. No caller (the limiter refused the read, or the traceback
+        # was only the transport) stays the unsited key.
+        if limiter in NAMED_TIMEOUT_LIMITERS and file and function:
+            return f"capacity_503:{limiter}:{file}:{function}"
+        return f"capacity_503:{limiter}"
     if sighting.cause_class == "upload_guarantee":
         kind = _token(sighting.break_kind)
         if kind not in _BREAK_KINDS:
@@ -67,7 +76,7 @@ def cause_key_for_proof(proof: CloseProof) -> str:
 def app_frame(exc: BaseException) -> tuple[str, str]:
     frames = traceback.extract_tb(exc.__traceback__) or []
     for frame in reversed(frames):
-        rel = _app_relative(frame.filename)
+        rel = app_relative(frame.filename)
         if rel is not None:
             return rel, frame.name
     if frames:
@@ -82,11 +91,3 @@ def _token(value: str | None) -> str:
         return "unknown"
     return text
 
-
-def _app_relative(filename: str) -> str | None:
-    parts = filename.replace("\\", "/").split("/")
-    try:
-        index = len(parts) - 1 - parts[::-1].index("app")
-    except ValueError:
-        return None
-    return "/".join(parts[index:])

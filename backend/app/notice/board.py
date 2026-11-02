@@ -12,7 +12,7 @@ from app.notice.fingerprint import cause_key_for, cause_key_for_proof
 from app.notice.mailer import Mailer, SilentMailer
 from app.notice.memory import MemoryNoticeStore
 from app.notice.store import NoticeStore
-from app.notice.types import CloseProof, Digest, NoticeRecord, Sighting, Status
+from app.notice.types import NAMED_TIMEOUT_LIMITERS, CloseProof, Digest, NoticeRecord, Sighting, Status
 
 _logger = logging.getLogger("app.notice")
 
@@ -299,6 +299,14 @@ def _proof_that_can_close(
 
 def _opening(sighting: Sighting) -> tuple[Status, str | None]:
     if sighting.cause_class == "capacity_503":
+        # One caller that did not finish is a query to fix, same as a slow read.
+        # A refusal, a stall, or a timeout with no caller is backpressure.
+        if (
+            sighting.limiter in NAMED_TIMEOUT_LIMITERS
+            and sighting.site_file
+            and sighting.site_function
+        ):
+            return "open", None
         return "blocked", _CAPACITY_BLOCKED
     if sighting.cause_class == "slow_200" and sighting.slow_kind in ("capacity_queue", "db_stall"):
         return "blocked", _CAPACITY_BLOCKED

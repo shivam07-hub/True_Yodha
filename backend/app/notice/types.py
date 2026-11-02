@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
+from app.notice.site import asking_site
+
 CauseClass = Literal[
     "unhandled_500",
     "capacity_503",
@@ -14,6 +16,10 @@ CauseClass = Literal[
     "dead_man",
     "slow_200",
 ]
+
+#: A timeout of one query. Named for the caller, and opened. The read-capacity
+#: refusal and a stall across callers stay unsited and blocked.
+NAMED_TIMEOUT_LIMITERS = frozenset({"upstream.read_timeout", "db.statement_timeout"})
 
 Status = Literal["open", "closed", "open-on-prod", "blocked", "failed-close"]
 
@@ -73,6 +79,7 @@ class Sighting:
         correlation_id: str,
         method: str,
         path: str,
+        exc: BaseException | None = None,
     ) -> Sighting:
         return Sighting(
             cause_class="capacity_503",
@@ -80,6 +87,7 @@ class Sighting:
             method=method,
             path=path,
             limiter="upstream.read_timeout",
+            **_caller(exc),
         )
 
     @staticmethod
@@ -88,6 +96,7 @@ class Sighting:
         correlation_id: str,
         method: str,
         path: str,
+        exc: BaseException | None = None,
     ) -> Sighting:
         """Postgres cancelled the query at `statement_timeout` (57014)."""
         return Sighting(
@@ -96,6 +105,17 @@ class Sighting:
             method=method,
             path=path,
             limiter="db.statement_timeout",
+            **_caller(exc),
+        )
+
+    @staticmethod
+    def capacity_stall(*, method: str, path: str) -> Sighting:
+        """Several callers timed out inside one minute. The database, not a query."""
+        return Sighting(
+            cause_class="capacity_503",
+            method=method,
+            path=path,
+            limiter="db_stall",
         )
 
     @staticmethod
@@ -163,6 +183,14 @@ class NoticeRecord:
     closing_commit: str | None
     blocked_reason: str | None
     proof_test: str | None
+
+
+def _caller(exc: BaseException | None) -> dict[str, str]:
+    site = asking_site(exc) if exc is not None else None
+    if site is None:
+        return {}
+    file, function = site
+    return {"site_file": file, "site_function": function}
 
 
 @dataclass(frozen=True)

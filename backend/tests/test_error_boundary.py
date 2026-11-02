@@ -293,7 +293,7 @@ def _statement_timeout():
     })
 
 
-def test_a_statement_timeout_is_a_503_and_a_blocked_capacity_notice() -> None:
+def test_a_statement_timeout_is_a_503_named_for_its_caller() -> None:
     from app.notice import NoticeBook, bind, unbind
 
     book = NoticeBook.testing()
@@ -313,8 +313,11 @@ def test_a_statement_timeout_is_a_503_and_a_blocked_capacity_notice() -> None:
         assert response.headers["retry-after"] == "2"
         assert "57014" not in response.text
         rows = book.snapshot()
-        assert [(r.cause_class, r.status) for r in rows] == [("capacity_503", "blocked")]
-        assert rows[0].cause_key == "capacity_503:db.statement_timeout"
+        assert [(r.cause_class, r.status) for r in rows] == [("capacity_503", "open")]
+        assert rows[0].cause_key == (
+            "capacity_503:db.statement_timeout:test_error_boundary.py:heavy"
+        )
+        assert "/heavy" not in rows[0].cause_key
     finally:
         unbind()
 
@@ -363,7 +366,7 @@ def _auth_error_raised_during(transport_error: Exception) -> Exception:
     raise AssertionError("unreachable")
 
 
-def test_an_auth_call_that_timed_out_is_a_503_and_a_blocked_capacity_notice() -> None:
+def test_an_auth_call_that_timed_out_is_a_503_named_for_its_caller() -> None:
     import httpx
 
     from app.notice import NoticeBook, bind, unbind
@@ -388,8 +391,13 @@ def test_an_auth_call_that_timed_out_is_a_503_and_a_blocked_capacity_notice() ->
         assert response.headers["retry-after"] == "2"
         rows = book.snapshot()
         assert [(r.cause_key, r.status) for r in rows] == [
-            ("capacity_503:upstream.read_timeout", "blocked")
+            (
+                "capacity_503:upstream.read_timeout:"
+                "test_error_boundary.py:_auth_error_raised_during",
+                "open",
+            )
         ]
+        assert "/partner/v1/sso/session" not in rows[0].cause_key
     finally:
         unbind()
 

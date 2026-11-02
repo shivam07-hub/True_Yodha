@@ -8,9 +8,10 @@ routes answered 200 when re-run (0.6–3.2s). A Postgres statement timeout reach
 the app as a plain APIError (57014), so each landed as its own "bug" at
 whichever call site the slow query ran from.
 
-A statement timeout is now a 503 under `capacity_503:db.statement_timeout`
-(blocked, Overload Policy). If one of these call sites fails for any OTHER
-reason it is still an unhandled 500 and reopens its own Notice.
+A statement timeout is a 503 named for the caller that asked
+(`capacity_503:db.statement_timeout:<file>:<function>`), and that cause opens.
+If one of these call sites fails for any OTHER reason it is still an unhandled
+500 and reopens its own Notice.
 """
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
