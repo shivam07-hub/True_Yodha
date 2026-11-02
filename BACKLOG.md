@@ -437,8 +437,8 @@ Tracker (3) · no problem or not actionable (~25).
      weaker with no Notice. `reservoir_ingest_sweep` heals them once the key
      works; no backfill.
   2. **Supabase.** New `sb_secret_…` / `sb_publishable_…` for
-     `SUPABASE_SERVICE_KEY` and `SUPABASE_ANON_KEY` on those three services, the
-     scraper, Vercel's `NEXT_PUBLIC_SUPABASE_ANON_KEY` and the laptop. Only then
+     `SUPABASE_SERVICE_KEY` and `SUPABASE_ANON_KEY` on those three services,
+     `job-listing-verifier`, the scraper's `daily-poll`, Vercel's `NEXT_PUBLIC_SUPABASE_ANON_KEY` and the laptop. Only then
      turn off the legacy keys and JWT secret (`SUPABASE_JWT_SECRET`). All
      services accept the new format (`18cdf722`, on `main`).
   3. **Razorpay.** `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`. The new
@@ -450,7 +450,9 @@ Tracker (3) · no problem or not actionable (~25).
   6. **Our own tokens.** `SCRAPE_WEBHOOK_TOKEN` and
      `MYRO_ANALYTICS_REFRESH_SECRET` (backend and the scraper's `daily-poll`
      together), `MYROLOGY_ADMIN_TOKEN`.
-  7. **Redis.** `REDIS_URL`, `REDIS_PASSWORD`.
+  7. **Redis.** `REDIS_URL`, `REDIS_PASSWORD`; low risk, reachable only inside
+     Railway (no TCP proxy on any service, 11-02). `REDIS_PUBLIC_URL` on
+     `True_Yodha` is a dead leftover: nothing reads it, so remove it.
 
   Also check: OpenRouter Activity for 10-21 by key (any key but the prod one
   leaked elsewhere) · GitHub security log, apps and deploy keys on
