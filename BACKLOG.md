@@ -57,6 +57,15 @@ invariants; a skill-spread Notice belt. Cursor.
 
 ---
 
+**A full run closes jobs that are still open: Accenture (found 2026-11-02, owner:
+Shivam, scraper repo).** Workday's listing `total` stops at 2,000 while its own
+facets show 34,608 Accenture jobs in India, so the run sees 2,000, reports
+`complete` with coverage 1.00, and `apply_missing` closes everything else on one
+miss. 2,244 closed on 11-02; 12 of 12 sampled were open on Workday that day. Only
+Accenture reaches the cap among 41 Workday sources; other providers not checked.
+Smallest fix: a run that hits the provider's ceiling is a partial snapshot, so
+nothing closes. Reading past 2,000 needs the listing split by facet.
+
 ## 2 · APPLY
 
 The north star is measured here and is near zero: 3 people, 5 applications, ever.

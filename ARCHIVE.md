@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-11-02 — Parked: moving work-queue claims off `jobs`
+
+Architecture candidate #8. Claims are not the churn: a scrape rewrites every row (75,231 on 11-02, about 1.5M over 20 run days), the verifier about 0.9M, and the `job_skills` trigger up to 2.6M fires. Enrichment columns are the scraper repo's, and the verifier's wasted writes stopped in `9d4ad00d`. `jobs` shows 1.4% dead rows and no user-visible cost, so moving the leases would change little.
+
 ## 2026-11-02 — A job from a board can be pasted
 
 11 real LinkedIn, Indeed and Naukri links, 0 read: those boards refuse a server read. A board link now says so at once, without a fetch or a model call, and any link or file that cannot be read opens one box for the description. Myro reads the role and company from it, the person's words stay the description, and a failed read keeps their text and asks for the role. This replaces "Type it in" on the door, the Collections dialog and the phone sheet. The door's button did nothing when Role or Description was empty; every surface's button now says what is missing.
