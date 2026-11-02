@@ -24,12 +24,41 @@ On the cleaner four, the live postings name SQL (57), regulatory compliance (55)
 
 The World Economic Forum's Future of Jobs survey, January 2025, names Big Data Specialists, AI and Machine Learning Specialists, and Security Management Specialists as the fastest-growing roles on its India page. That is their expectation for 2030. The application is the posting the career page still serves, a CV tailored to the skills that posting names, and a submit on that page.
 
-## Instagram caption
+## Instagram captions, one per slide
 
-Two lines, 110 characters at most (brand-guidelines `surfaces/instagram.md`).
+Post from the Instagram app. On the caption screen, tap Single caption and choose
+Multiple captions. Each caption is that slide's newsletter section, cut to what
+the slide shows. The first and last slides carry the issue link on the image.
 
-If the job is still open, tailor the CV and apply on their page.
-Full issue: himyro.com/newsletter
+Slide 1:
+
+If you are applying to Citibank or Wells Fargo, tailor the CV and submit it on their careers page. If you are applying to AB InBev or Palo Alto Networks, check the hiring system still has the role before that evening goes into the CV.
+
+Slide 2:
+
+We read ten global employers' India career pages against their own hiring systems, through 24 September 2026. A role counts as closed once the hiring system stops serving it. Four employers sit under 15%. Four sit over 29%.
+
+Slide 3:
+
+Citibank pulls a closed listing in 2.6 days on average. Amazon's closed ads in this cut come down the same day. A posting on these pages, on the day you open it, is a role the hiring system is still serving.
+
+Slide 4:
+
+AB InBev still advertises 69.6% of the roles its hiring system has closed, 23 roles watched. Okta's closed ads stay up 42.4 days. Palo Alto Networks sits at 50.0% of 44.
+
+Slide 5:
+
+Across the live postings at these four, the skills named were SQL (57 mentions), regulatory compliance (55), Java (49), Python (40) and supply chain (12). Write those into the CV you take to their page, then submit there.
+
+Slide 6:
+
+These four name Python (90 mentions), the Okta platform itself (37), artificial intelligence (30), computer science fundamentals (27) and software engineering (23). The skills are real. The ad has to be real on the day you send them.
+
+Slide 7:
+
+The World Economic Forum's survey asks employers what they expect by 2030. On the India page, the fastest-growing role names are Big Data Specialists, AI and Machine Learning Specialists, and Security Management Specialists. The tailored CV follows the posting that is open.
+
+Tailor your CV to jobs like these. Link in bio.
 
 First comment: #jobsearch #ghostjobs #jobsindia #himyro
 

@@ -64,9 +64,6 @@ first. On the caption screen, tap Single caption and choose Multiple captions, t
 paste each slide's text from `captions.txt` in the slide folder. Hashtags go in the
 first comment. Then set the bio link to that post's.
 
-Issue 025 is built this way. Issues 024 and 023 still have one caption and no
-issue link on their slides.
-
 | # | When (IST) | Post | Files | Copy |
 |---|---|---|---|---|
 | 1 | Wed 4 Nov, 19:00 | Issue 025 carousel, 8 slides | `Myro Newsletter/Issue 025 - carousel/` | `scripts/newsletter-carousel-specs/issue-025-distribution.md` |
