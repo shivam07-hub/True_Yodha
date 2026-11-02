@@ -57,17 +57,16 @@ invariants; a skill-spread Notice belt. Cursor.
 
 ---
 
-**A full run closes jobs that are still open: Accenture (found 2026-11-02, owner:
-Shivam, scraper repo).** Workday's listing `total` stops at 2,000 while its own
-facets show 34,608 Accenture jobs in India, so the run sees 2,000, reports
-`complete` with coverage 1.00, and `apply_missing` closes everything else on one
-miss. 2,244 closed on 11-02; 12 of 12 sampled were open on Workday that day. Only
-Accenture reaches the cap among 41 Workday sources; other providers not checked.
-Fixed by [myro-job-scraper#10](https://github.com/shivam07-hub/myro-job-scraper/pull/10)
-(`687aebca`, deployed 11-02): such a run records `partial`, publishes what it saw and
-closes nothing. Check after the 11-02 19:30 UTC run: Accenture's `job_source_runs` row
-must read `partial`. Still closed: the 2,244, and 13 false "is gone" notices went to
-7 real people, unread. Reading past 2,000 needs the listing split by facet.
+**A full run closed jobs that were still open: Accenture (2026-11-02).** Workday's
+listing stops at 2,000 while its facets show 34,608 Accenture jobs in India, so a
+run called the source complete and closed the rest. Fixed by
+[myro-job-scraper#10](https://github.com/shivam07-hub/myro-job-scraper/pull/10)
+(`687aebca`): such a run records `partial` and closes nothing. All 2,244 checked on
+Workday: 2,102 open and reopened, 12 false notices to real people withdrawn; 142
+unproven (126 refused with a 403, 16 with no apply link) left closed. **Check after
+the 11-02 19:30 UTC run:** Accenture's `job_source_runs` row must read `partial`.
+Reading past 2,000 needs the listing split by facet: Shivam's call, it adds JD and
+enrichment cost.
 
 ## 2 · APPLY
 
@@ -534,18 +533,15 @@ Tracker (3) · no problem or not actionable (~25).
   select lists reached `main` in #346 on 2026-11-01. From 2026-11-08: check nothing
   names them (`pg_stat_statements`), then one migration. Users see nothing.
   CONTEXT → Skill Level, Targeting Brief.
-- **Drop twelve onboarding columns — APPROVED (Shivam, 2026-11-01, 11-02). BLOCKED on
-  the next `main` merge (owner: Shivam merges; then an agent).** `user_profiles.onboarding_complete`,
-  `career_goal`, `superpower`;
-  `user_onboarding_state.status`, `current_stage`, `result_seen_at`,
+- **Drop twelve onboarding columns — APPROVED (Shivam, 2026-11-01, 11-02). Earliest
+  2026-11-09 (owner: an agent).** `user_profiles.onboarding_complete`, `career_goal`,
+  `superpower`; `user_onboarding_state.status`, `current_stage`, `result_seen_at`,
   `score_gap_reviewed_at`, `activated_at`, `activation_kind`, `preview_payload`,
   `description_text`, `tailored_cv_created_at`; index
-  `idx_user_onboarding_state_status`. Readers and writers left `Develop` 2026-11-01.
-  **Do not drop before `main` has that commit:** prod still reads the flag,
-  `career_goal` and `superpower`, and writes the flag and `tailored_cv_created_at`.
-  After the merge: a week,
-  check nothing names them (`pg_stat_statements`), then one migration.
-  `test_onboarding_columns_stopped.py` goes with it. CONTEXT → Journey Position.
+  `idx_user_onboarding_state_status`. Readers and writers reached `main` in #347 on
+  2026-11-02. From 2026-11-09: check nothing names them (`pg_stat_statements`), then
+  one migration. `test_onboarding_columns_stopped.py` goes with it. CONTEXT → Journey
+  Position.
 - **Company names on read surfaces onto `company_key`** (CONTEXT → Company
   Identity). The directory, pulse, Company CV Thread and the Following-only
   filter still compare names folded for case and spacing; the resolver's key
