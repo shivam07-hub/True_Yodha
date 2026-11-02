@@ -160,7 +160,7 @@ and Paste → review → playground works. Found on the way:
   read: LinkedIn 5, Indeed 3, Naukri 3 (live that day). 4 links to jobs Myro holds
   read in ~1s. So a board link now says so at once and opens one box for the
   description; Myro reads the role and company from it (`source=board` counts
-  arrivals). FD1's owed `source=` read: prod logged 0 reads 10-30 to 11-01. **The
+  arrivals). FD1's owed `source=` read: prod logged 0 reads 10-26 to 11-02, on 1 import call, so there is nothing to split yet. **The
   door is not leaking:** 22 saw it, 21
   took Jobs that fit, 18 finished. 6 people tried Paste or the extension for
   3-16s, 5 of them went on to Jobs that fit; logs show no read for the 2 paste
@@ -207,7 +207,7 @@ paste. Its five fixes are on `main` (ARCHIVE 2026-10-22). Open:
   **Refunded 2026-10-22 (REFUND1):** the 9 duplicates of `2ec5bfb0…` (450, ledger rows
   1671–1679, bell row "450 coins returned · Your Cargill draft is waiting.").
   Same-job charges inside 3 min must read 0; read 2026-11-02: no weave charged
-  to anyone since 10-22, so that proves nothing yet. Railway (30d retained): the only prod
+  to anyone since 10-22, so that proves nothing yet. Railway, read 10-22: the only prod
   weave runs are that burst — 10 POSTs, 37–60s each, none past the client's
   60s; the 74.5s run was a local backend. Authored 503s pass the boundary
   (`ServiceUnavailable`); still blanked: onboarding first-role save, account
@@ -338,20 +338,23 @@ Locks: the closer runs from pg_cron (02:30 UTC, 06:30 retry) via
 `POST /internal/notice/close`; Notice writes are off the request path; a slow
 query opens only at ≥2,000ms; the Railway death harvest is gone. ADR-0021
 amended. History: ARCHIVE 2026-10-10, `ARCHITECTURE_READ_PATH.md` §23–25.
-Agent-owned. R3 needs `railway login`: its logs start ageing out 2026-11-11 (30 days).
+Agent-owned. Railway keeps deploy logs 7 days (measured 2026-11-02): read inside that.
 
-- **R3 · Live latency.** Five warm samples / a week of `route.latency` on prod for
-  `/jobs/feed-state`, `/jobs/at/{c}`, `/companies/{c}/jobs`, confirm-skills,
-  `/partner/v1/sso/session`; record in §23–25. First 34 hours (10-12 08:57Z →
-  10-13 19:33Z) are in §23–25. The week runs to 10-19. Pre-merge baseline
-  (10-05→10-09): p50 ≤50 · ≤50 · ≤100 · ~3000 · ~1000 ms.
+- **R3 · Live latency — read 2026-11-02: three routes worse than baseline.** The
+  10-12 → 10-19 logs are gone, so `route.latency` 10-26 → 11-02 instead (server
+  time, summed buckets, upper edges, cold and warm together; table in §25). p50
+  then → now: `/jobs/feed-state` ≤50 → ≤500 (n=62), `/companies/{c}/jobs` ≤100 →
+  ≤750 (n=2,693), `/partner/v1/sso/session` ~1000 → ≤3000 (n=21). confirm-skills
+  held at ≤3000 (n=14) and leaves. `/jobs/at/{c}` has 2 samples, still owed. Not
+  on the list and slowest of all: `GET /jobs/feed` p50 ≤3000, p95 over 8s (n=420).
+  **Next:** `/read-path-perf`, `/jobs/feed` first.
 - **R9 · Drain wall time — measured 2026-10-19: about an hour, and one day lost.**
   Scraper jobs since 10-15, first ingest → last `skill_floor_attempted_at`: 66 ·
   65 · 1,441 · 58 · 61 min (10-15 → 10-19); median wait 37–52 min. The expectation
   was minutes. On **10-17** all 3,265 jobs waited ~24h and were attempted at
   10-18 05:04 with the next batch — the day #342 reached `main`; the cause is
-  unverified. **Next:** read the worker log for 10-17 05:00–06:00 UTC, then decide
-  whether an hour is the claim cadence or the work.
+  unverified and that log has aged out. **Next:** read a worker log within a week
+  of a drain, then decide whether an hour is the claim cadence or the work.
 - **R10 · Load off Micro, not a bigger Micro** (2026-10-14). The wait is the
   database, not the app (100 threads, 40 in-flight reads, 100-conn pool already).
   Shipped: `9d4ad00d` (an inert verifier result no longer rewrites the `jobs`
@@ -364,10 +367,11 @@ Agent-owned. R3 needs `railway login`: its logs start ageing out 2026-11-11 (30 
   `ARCHITECTURE_READ_PATH.md` §30. Migration `20261019090000` applied (task
   `public_provenance` on `run_snapshot_sql_refresh` at :35, belt
   `dead_man:snapshot.public_provenance`); refresh 3,177ms once a day, read 0.08ms.
-  Code `03f6aa41` on `main` 10-20. **Owed:** `verified_live` queryid `3154336291968442631` stops gaining calls
-  (552 on 10-19 04:25 UTC, 563 on 11-02), the `_count` Notice stops (last seen
-  10-19), and `cold_fill_wait_expired key=public_stats` reads 0. Company pages
-  (5.3% of DB time, no CDN on the path) stay as they are.
+  Code `03f6aa41` on `main` 10-20. Read 11-02: the `_count` Notice stopped (last
+  seen 10-19) and `cold_fill_wait_expired` reads 0 over 7 days. **Owed:**
+  `verified_live` queryid `3154336291968442631` holds at 563 calls at the next read
+  (552 on 10-19 04:25 UTC). Company pages (5.3% of DB time, no CDN on the path)
+  stay as they are.
 - **R13 · Six reads still slow on their own (digests 11-01 → 11-02).** Opened
   outside a stall, so each is a real query → `/read-path-perf`: `_compute` 83→88,
   `_job_demand_counts` 11→14, `fetch_company_jobs_page` 728→730,
@@ -440,23 +444,22 @@ Tracker (3) · no problem or not actionable (~25).
   3. **Razorpay.** `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`. The new
      `RAZORPAY_KEY_ID` must reach Vercel prod's `NEXT_PUBLIC_RAZORPAY_KEY_ID` in
      the same step or checkout breaks. Check refunds since 10-21.
-  4. **Email.** `SENDGRID_API_KEY`, `RESEND_API_KEY`. Check send logs 10-21/22:
-     a thief could mail users as himyro.com.
-  5. **Other AI keys.** `GROQ_API_KEY`, `GOOGLE_API_KEY`, and `OPENAI_API_KEY` /
-     `ANTHROPIC_API_KEY` if set. Check usage 10-21/22.
-  6. **Scraper project.** `CLOUDFLARE_API_TOKEN`, `FIRECRAWL_API_KEY`,
-     `FIRECRAWL_CLOUD_API_KEY`. Check Cloudflare's audit log.
-  7. **Our own tokens.** `SCRAPE_WEBHOOK_TOKEN` (backend and scraper together),
-     `MYROLOGY_ADMIN_TOKEN`, `JOB_SWITCH_ADMIN_TOKEN`,
-     `MYRO_ANALYTICS_REFRESH_SECRET`; `TURNSTILE_SECRET` in Cloudflare.
-  8. **Redis.** `REDIS_URL`; low risk, reachable only inside Railway.
+  4. **Email.** `RESEND_API_KEY`. Check send logs 10-21/22: a thief could mail
+     users as himyro.com.
+  5. **Other AI keys.** `GROQ_API_KEY`, `GOOGLE_API_KEY`. Check usage 10-21/22.
+  6. **Our own tokens.** `SCRAPE_WEBHOOK_TOKEN` and
+     `MYRO_ANALYTICS_REFRESH_SECRET` (backend and the scraper's `daily-poll`
+     together), `MYROLOGY_ADMIN_TOKEN`.
+  7. **Redis.** `REDIS_URL`, `REDIS_PASSWORD`.
 
   Also check: OpenRouter Activity for 10-21 by key (any key but the prod one
   leaked elsewhere) · GitHub security log, apps and deploy keys on
   `shivam07-hub/True_Yodha` · Railway members, API tokens, 2FA.
 
-  This list comes from code and local `.env` files; Railway's own variable list
-  was never read. `railway login` lets an agent read the names and complete it.
+  Checked against Railway's own variable names 2026-11-02, all four projects. Not
+  on Railway that day, so left out: `SENDGRID_API_KEY`, `OPENAI_API_KEY`,
+  `ANTHROPIC_API_KEY`, `JOB_SWITCH_ADMIN_TOKEN`, `TURNSTILE_SECRET`,
+  `CLOUDFLARE_API_TOKEN`, `FIRECRAWL_API_KEY`, `FIRECRAWL_CLOUD_API_KEY`.
 - **Scraper: not landing daily.** `job_source_runs` shows 10-14 → 10-20, 10-26 →
   10-27 and 11-02, nothing on 10-21 → 10-25 or 10-28 → 11-01 (checked 11-02); was
   no feed 10-01 → 10-14. The 11-02 run after the 10-29 company repairs: Meta, EY
