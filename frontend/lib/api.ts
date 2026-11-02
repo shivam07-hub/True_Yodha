@@ -4804,6 +4804,14 @@ export const jobs = {
       body: JSON.stringify({ url }),
       timeoutMs: LLM_REQUEST_TIMEOUT_MS,
     }),
+  // Read a pasted job description into tracker fields. Free, and an LLM call.
+  extractText: (token: string, text: string): Promise<JobFileExtract> =>
+    request<JobFileExtract>("/jobs/import/extract-text", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ text }),
+      timeoutMs: LLM_REQUEST_TIMEOUT_MS,
+    }),
   skillGap: (token: string, jobId: string) =>
     request<SkillGapResponse>(`/jobs/${jobId}/skill-gap`, {
       headers: { Authorization: `Bearer ${token}` },

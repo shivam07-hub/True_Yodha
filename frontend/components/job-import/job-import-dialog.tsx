@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { APPLICATION_STAGES, type ApplicationStatus } from "@/lib/api"
 import { pastedLink } from "@/lib/job-import/pasted-link"
 import { ExtensionPromo } from "@/components/extension/extension-promo"
-import { useJobImport } from "@/lib/job-import/use-job-import"
+import { reviewGap, useJobImport } from "@/lib/job-import/use-job-import"
 import { STAGE_LABEL, type StageKey } from "@/components/cv/pipeline/useTrackerBoard"
 
 export const ADD_JOB_LABEL = "Add a job"
@@ -46,6 +46,7 @@ export function JobImportDialog({
   const busy = state.step === "extracting" || state.step === "importing"
   const draft = state.step === "review" || state.step === "importing" ? state : null
   const listing = state.step === "review" && state.listing
+  const gap = draft ? reviewGap(draft) : null
 
   return (
     <Dialog open onOpenChange={(next) => { if (!next) onClose() }}>
@@ -61,7 +62,28 @@ export function JobImportDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {!draft ? (
+        {state.step === "pasting" ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {state.reason ? (
+              <p style={{ margin: 0, fontSize: "var(--tm-fs-caption)", color: "var(--tm-danger)" }}>{state.reason}</p>
+            ) : null}
+            <textarea
+              value={state.text}
+              onChange={(e) => importJob.updatePaste(e.target.value)}
+              placeholder="Paste the job description"
+              aria-label="Job description"
+              autoFocus
+              rows={8}
+              style={{ ...fieldStyle, resize: "vertical" }}
+            />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <Button type="button" variant="neutral" size="sm" onClick={importJob.reset}>Back</Button>
+              <Button type="button" variant="solid" size="sm" disabled={!state.text.trim()} onClick={() => void importJob.submitText()}>
+                Read it
+              </Button>
+            </div>
+          </div>
+        ) : !draft ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <ExtensionPromo />
             <div style={{ display: "flex", gap: 8 }}>
@@ -152,10 +174,10 @@ export function JobImportDialog({
                 type="button"
                 variant="solid"
                 size="sm"
-                disabled={busy || !draft.role.trim() || !draft.jd.trim()}
+                disabled={busy || gap !== null}
                 onClick={() => void importJob.confirm(status).then((saved) => { if (saved) onImported(saved.jobId) })}
               >
-                {state.step === "importing" ? "Saving…" : "Save"}
+                {gap ?? (state.step === "importing" ? "Saving…" : "Save")}
               </Button>
             </div>
           </>

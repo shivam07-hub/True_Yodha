@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-11-02 — A job from a board can be pasted
+
+11 real LinkedIn, Indeed and Naukri links, 0 read: those boards refuse a server read. A board link now says so at once, without a fetch or a model call, and any link or file that cannot be read opens one box for the description. Myro reads the role and company from it, the person's words stay the description, and a failed read keeps their text and asks for the role. This replaces "Type it in" on the door, the Collections dialog and the phone sheet. The door's button did nothing when Role or Description was empty; every surface's button now says what is missing.
+
 ## 2026-11-02 — "Not for you" holds only a person's own words
 
 The role picker filled "Not for you" with Myro's guesses by kind, and Continue saved them as won't-takes, which hide a job. Proven on the QA account: "Open to roles located in Gurugram" landed on its list. 0 real people had one saved; 2 were one visit away. The box now starts with `deal_breakers` alone, and a guess that reads as a liking is offered in "Drawn to", using the Order's own sentence reader (`normalise.read_as`). The candidate to fold six stores into `user_memory` was dropped: the stores are different things, and the mentor's locks 3 and 5 keep typed targeting apart from memory. Retired `career_goal` and `superpower` (no writer, 1 real person each), dropped `private_notes` (no code, 1 row), deleted `TargetingBrief.preflight()` and `OpsReceipt`.

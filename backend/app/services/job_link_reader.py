@@ -37,6 +37,12 @@ logger = logging.getLogger("myro.job_link_reader")
 #: More ids than this in one link is not a job link; the lookup stays one query.
 MAX_CANDIDATES = 30
 
+#: Job boards that refuse a server read. 11 real links, 0 read (2026-11-02): an
+#: error page, or a login page that cost a model 44s and came back blank.
+BOARDS = {"linkedin.com": "LinkedIn", "naukri.com": "Naukri", "indeed.com": "Indeed"}
+
+_READ_NOTHING = "Couldn't read a job posting at that link — paste the text instead."
+
 #: A listing's description shorter than this is not one. 4,279 live listings
 #: carry the scraper's "No JD provided on the company page…" stub (133 chars),
 #: measured 2026-10-20; tailoring against it is tailoring against nothing.
@@ -170,6 +176,15 @@ def jobposting_fields(raw_html: str) -> dict[str, str] | None:
     return None
 
 
+def board_of(host: str) -> str | None:
+    """The job board at this host, by domain: `notlinkedin.com` is not LinkedIn."""
+    name = host.split(":")[0]
+    for domain, board in BOARDS.items():
+        if name == domain or name.endswith(f".{domain}"):
+            return board
+    return None
+
+
 # ── the order ─────────────────────────────────────────────────────────────────
 
 async def read_link(url: str, jobs_repo: Any, provider: LLMProvider) -> tuple[dict[str, Any], str]:
@@ -193,6 +208,12 @@ async def read_link(url: str, jobs_repo: Any, provider: LLMProvider) -> tuple[di
     if found:
         return done(found, "corpus")
 
+    board = board_of(host)
+    if board:
+        # A read like any other: the split says how often people arrive with one.
+        done({}, "board")
+        raise jfp.JobUrlFetchError(f"{board} won't let Myro read its pages. Copy the job description here.")
+
     raw_html = await jfp.fetch_posting_html(link)
     posting = jobposting_fields(raw_html)
     if posting:
@@ -200,6 +221,8 @@ async def read_link(url: str, jobs_repo: Any, provider: LLMProvider) -> tuple[di
 
     text = jfp.html_to_text(raw_html)
     if len(text) < jfp.MIN_TEXT_CHARS:
-        raise jfp.JobUrlFetchError("Couldn't read a job posting at that link — paste the text instead.")
+        raise jfp.JobUrlFetchError(_READ_NOTHING)
     parsed = await jfp.extract_job_from_text(text, provider)
+    if not parsed["role"] and not parsed["job_description"]:
+        raise jfp.JobUrlFetchError(_READ_NOTHING)
     return done({**parsed, "listing_job_id": None}, "model")

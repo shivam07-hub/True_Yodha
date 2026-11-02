@@ -21,6 +21,7 @@ from app.schemas import (
     JobImportedDetailsUpdate,
     JobLivenessResponse,
     MatchEval,
+    JobTextExtractRequest,
     JobUrlExtractRequest,
 )
 from app.services import application_yes, job_link_reader, job_liveness, jobs_workflow, xp_service
@@ -247,6 +248,25 @@ async def extract_job_url(
         raise HTTPException(status_code=422, detail="Paste a job posting link first.")
     try:
         parsed, _source = await job_link_reader.read_link(body.url, repo, get_llm_provider())
+    except JobFileParseError as exc:
+        raise HTTPException(status_code=422, detail=redact_sensitive_text(exc)) from exc
+    return JobFileExtractResponse(**parsed)
+
+
+@router.post("/import/extract-text", response_model=JobFileExtractResponse)
+async def extract_job_text(
+    body: JobTextExtractRequest,
+    principal: Principal = Depends(get_principal),
+) -> JobFileExtractResponse:
+    """Read a pasted job description into tracker fields: the way past a link a
+    job board will not let us read. Free, same as extract-file. The reward is
+    granted later, on POST /import (the save).
+    """
+    text = body.text.strip()
+    if len(text) < MIN_TEXT_CHARS:
+        raise HTTPException(status_code=422, detail="Paste the whole job description.")
+    try:
+        parsed = await extract_job_from_text(text, get_llm_provider())
     except JobFileParseError as exc:
         raise HTTPException(status_code=422, detail=redact_sensitive_text(exc)) from exc
     return JobFileExtractResponse(**parsed)
