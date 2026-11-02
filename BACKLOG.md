@@ -63,6 +63,16 @@ The north star is measured here and is near zero: 3 people, 5 applications, ever
 The capture is on `main` (`3ff55125` "Did you submit?"; `a624c2e1` Apply after
 download). QA check **A1** below: Apply opens the company's own posting.
 
+**Jobs2Web Apply links land on the company homepage (found 2026-11-02, owner
+Shivam, scraper repo).** `scraper/providers/sap_jobs2web_html.py` stores the
+`a.dialogApplyBtn` href, `/talentcommunity/apply/<id>/`, which only works from a
+script on the job page: opened directly it answers 301 to `/`, seen in a real
+browser on EY and by curl on four other tenants. 5,832 live-flagged rows across
+14 employers carry it. Store the job page instead, which is `detail_url` in that
+same function. The verifier no longer reads this link (it reads `/job/x/<id>/`).
+**EY is also uncrawled since 10-20:** on 11-02 its board listed 737 postings we
+do not hold live.
+
 **Apply funnel, measured by door (2026-10-13, DECISIONS APPLY1/APPLY2).**
 Extension 0.2.5 is live on the store since 2026-10-20 (seen 10-22): Page Entry,
 "I applied", and the form fill — after the web Yes ("Approve this CV for

@@ -1,3 +1,4 @@
+import httpx
 import pytest
 
 from app.services.job_listing_verifier import (
@@ -5,6 +6,7 @@ from app.services.job_listing_verifier import (
     ats_url_is_addressable,
     classify_listing_response,
     provider_for_url,
+    verify_listing,
 )
 
 # The exact URL shape that produced 1,832 strong-closed Accenture verdicts in the
@@ -326,10 +328,6 @@ async def test_verify_listing_trusts_the_json_probe_over_the_html() -> None:
     The HTML handler here serves the exact shell that fooled the classifier —
     if the probe were skipped, or its answer discarded, this returns seen_live.
     """
-    import httpx
-
-    from app.services.job_listing_verifier import verify_listing
-
     url = (
         "https://adobe.wd5.myworkdayjobs.com/external_experienced"
         "/job/Bangalore/Marketing-Specialist_R169083/apply"
@@ -363,10 +361,6 @@ async def test_verify_listing_trusts_the_json_probe_over_the_html() -> None:
 @pytest.mark.asyncio
 async def test_an_inconclusive_probe_falls_back_to_reading_the_html() -> None:
     """A blocked probe must cost nothing — the check proceeds exactly as before."""
-    import httpx
-
-    from app.services.job_listing_verifier import verify_listing
-
     url = "https://jobs.lever.co/acme/abc-123"
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -393,9 +387,7 @@ async def test_a_board_probe_larger_than_the_html_cap_still_parses() -> None:
     """
     import json as _json
 
-    import httpx
 
-    from app.services.job_listing_verifier import verify_listing
 
     pulled = "9ff0a6ad-9a30-403f-84d0-fb7a0914074b"
     board = {
@@ -423,3 +415,60 @@ async def test_a_board_probe_larger_than_the_html_cap_still_parses() -> None:
 
     assert result.result == "closed"
     assert result.evidence["source"] == "ats_json_probe"
+
+
+_JOBS2WEB_APPLY = "https://careers.ey.com/talentcommunity/apply/1448723233/?locale=en_US"
+_JOBS2WEB_JOB_PAGE = "https://careers.ey.com/job/x/1448723233/?locale=en_US"
+
+
+def _jobs2web_tenant(job_page: str, seen: list[str]) -> httpx.MockTransport:
+    """A tenant as it answers: the apply link bounces home for every posting."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        if request.url.path.startswith("/talentcommunity/apply/"):
+            return httpx.Response(301, headers={"location": "/"})
+        if request.url.path == "/":
+            return httpx.Response(200, text="<html>Careers at EY: search jobs</html>")
+        return httpx.Response(200, text=job_page)
+
+    return httpx.MockTransport(handler)
+
+
+@pytest.mark.asyncio
+async def test_an_open_jobs2web_listing_is_read_on_its_job_page() -> None:
+    """The apply link's bounce home says nothing about any one posting."""
+    seen: list[str] = []
+    page = "<html><h1>EYP-CorpStrat-Senior Manager</h1><a>Apply now</a></html>"
+
+    async with httpx.AsyncClient(transport=_jobs2web_tenant(page, seen)) as client:
+        result = await verify_listing(
+            VerificationTarget("job-1", _JOBS2WEB_APPLY, "EYP-CorpStrat-Senior Manager"),
+            client,
+        )
+
+    assert result.result == "seen_live"
+    assert seen == [_JOBS2WEB_JOB_PAGE]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "notice",
+    [
+        "The Job is no longer available.",  # EY
+        "This job posting is no longer available to apply.",  # Volvo Group
+        "The application period for this role has been closed.",  # adidas
+    ],
+)
+async def test_a_pulled_jobs2web_listing_closes_on_its_job_page(notice: str) -> None:
+    """A pulled posting answers 200 and says so; the status alone cannot tell."""
+    page = f"<html><p><strong>{notice}</strong></p></html>"
+
+    async with httpx.AsyncClient(transport=_jobs2web_tenant(page, [])) as client:
+        result = await verify_listing(
+            VerificationTarget("job-1", _JOBS2WEB_APPLY, "EYP-CorpStrat-Senior Manager"),
+            client,
+        )
+
+    assert result.result == "closed"
+    assert result.strength == "strong"

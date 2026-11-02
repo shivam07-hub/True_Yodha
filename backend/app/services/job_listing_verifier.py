@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit, urlunsplit
 
 import httpx
 
@@ -11,6 +11,7 @@ from app.services import ats_probe
 
 _CLOSED_MARKERS = (
     "job is no longer available",
+    "job posting is no longer available",
     "position is no longer available",
     # Not "position has been filled" / "job has been filled": Godrej's portal
     # says "the job you are trying to apply for has been filled", and neither
@@ -19,6 +20,7 @@ _CLOSED_MARKERS = (
     # filled. Match the clause every phrasing shares.
     "has been filled",
     "no longer accepting applications",
+    "application period for this role has been closed",
     "job not found",
     "vacancy is closed",
 )
@@ -40,6 +42,10 @@ _ATS_HOSTS = {
     "successfactors": ("successfactors.com",),
 }
 _LOCALE_SEGMENT = re.compile(r"^[a-z]{2}(-[a-zA-Z]{2})?$")
+#: SAP Jobs2Web's "Apply now" link. A script on the job page drives it; requested
+#: on its own it answers 301 to the site root for every posting, open or pulled.
+#: Tenants sit on their own domains, so the path is what identifies one.
+_JOBS2WEB_APPLY_PATH = re.compile(r"^/talentcommunity/apply/(\d+)/?$")
 
 
 @dataclass(frozen=True)
@@ -103,6 +109,24 @@ def ats_url_is_addressable(url: str, provider: str | None = None) -> bool:
     """
     check = _ADDRESSABILITY_CHECKS.get(provider or provider_for_url(url))
     return check is None or check(url)
+
+
+def _listing_page_url(apply_url: str) -> str:
+    """The page that says whether this listing is open — usually the apply URL.
+
+    A Jobs2Web job page answers 200 either way and says which in its own words:
+    the title with an apply button, or "The Job is no longer available." It routes
+    on the posting id alone, so any slug reaches it. Reading the apply link
+    instead filed that uniform bounce home as a per-job `redirected`: 2,770 EY
+    listings left the live list, about two in three still on EY's own board. The
+    daily crawl had hidden it by re-activating every row, until EY stopped being
+    crawled after 2026-10-20.
+    """
+    parts = urlsplit(apply_url)
+    posting = _JOBS2WEB_APPLY_PATH.match(parts.path)
+    if posting is None:
+        return apply_url
+    return urlunsplit(parts._replace(path=f"/job/x/{posting[1]}/"))
 
 
 def classify_listing_response(
@@ -207,7 +231,7 @@ async def verify_listing(
             )
     try:
         response = await client.get(
-            target.apply_url,
+            _listing_page_url(target.apply_url),
             follow_redirects=True,
             headers={"User-Agent": "MyroListingVerifier/1.0"},
         )
