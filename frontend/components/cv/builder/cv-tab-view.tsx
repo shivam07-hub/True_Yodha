@@ -1,13 +1,10 @@
 /**
  * CvTabView — the CV tab body ("3 Tailor per job" on the flow ribbon).
  *
- * Default = the Main CV. Picking a "Finish tailoring" card, or Stories'
- * "Tailor for job", switches this tab to that job's real tailored CVVersion
- * (`?tailor=<jobId>`, independent of the page-level `?jobId=` that opens the
- * separate Playground) — same CVExportView engine, so downloads/ATS/apply
- * all work exactly as they do today. Clicking any bullet opens the
- * provenance rail: which story it traces to, and — on a tailored copy —
- * whether it has since been molded for the job.
+ * Default = the Main CV. Picking a row, or Stories' "Tailor for job", shows
+ * that job's tailored CV here (`?tailor=<jobId>`). Edit leaves this page for
+ * the playground (`?jobId=`) or the main editor (`?edit=1`). Those screens
+ * stay separate. Clicking a bullet opens the story it came from.
  */
 "use client"
 
@@ -128,7 +125,13 @@ export function CvTabView({
   return (
     <div className="tm-lib-workspace">
       <aside className="tm-lib-rail" aria-label="Tailoring context">
-        <FinishTailoringLane token={token} onOpenJob={pickTailored} />
+        <FinishTailoringLane
+          token={token}
+          activeJobId={tailorJobId}
+          includeMain
+          onOpenMain={switchToMain}
+          onOpenJob={pickTailored}
+        />
         {showStory && (
           <ProvenanceRail
             bulletText={selectedBulletText ?? ""}
@@ -136,6 +139,7 @@ export function CvTabView({
             role={matched?.role ?? null}
             tailoredFor={tailoredForRail}
             matchedTerms={terms}
+            onEdit={tailorJobId ? () => onOpenJob(tailorJobId) : onEditMaster}
           />
         )}
       </aside>
@@ -160,7 +164,6 @@ export function CvTabView({
               onBulletClick={handleBulletClick}
               selectedBulletId={selectedBulletId}
               onEditInPlayground={onOpenJob}
-              onSwitchToMain={switchToMain}
             />
           ) : (
             <p className="tm-lib-empty-sub" style={{ padding: "24px 4px" }}>

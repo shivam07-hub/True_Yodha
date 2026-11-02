@@ -1,9 +1,9 @@
 "use client"
 
 import type { CVStructured, UserProfile } from "@/lib/api"
+import { CvCommandBar } from "./cv-command-bar"
 import { CVExportView } from "./cv-export-view"
 import type { PdfPageContact } from "./pdf-page"
-import { I, LIcon } from "./library-icons"
 
 interface TailoredCVPanelProps {
   token: string
@@ -22,36 +22,17 @@ interface TailoredCVPanelProps {
   onBulletClick: (id: string, text: string) => void
   selectedBulletId: string | null
   onEditInPlayground: (jobId: string) => void
-  onSwitchToMain: () => void
 }
 
-/** The tailored-CV twin of MasterCVPanel — same `.tm-lib-master-panel` head +
- *  body chrome (so a tailored copy reads as visually consistent with the
- *  Main CV, not a differently-shaped page bolted on), plus the one action a
- *  tailored copy actually needs: hop into the Tailor workspace to edit it. */
+/** The tailored-CV twin of MasterCVPanel — same quiet sheet, same command bar
+ *  (Edit across the paper, Download for PDF and DOCX). Edit opens the tailor. */
 export function TailoredCVPanel({
   token, structured, hidden, contact, profile, versionId, footerMarkHidden,
   company, jobTitle, jobId, matchScore, appliedAt, sectionOrder,
-  onBulletClick, selectedBulletId, onEditInPlayground, onSwitchToMain,
+  onBulletClick, selectedBulletId, onEditInPlayground,
 }: TailoredCVPanelProps) {
   return (
-    <section className="tm-lib-master-panel tm-lib-fade-in" aria-label="Tailored CV preview">
-      <div className="tm-lib-master-panel-head">
-        <div style={{ minWidth: 0 }}>
-          <div className="tm-lib-eyebrow">TAILORED CV</div>
-          <div className="tm-lib-master-panel-title">
-            {jobTitle}{company ? ` · ${company}` : ""}
-          </div>
-        </div>
-        <div className="tm-lib-master-panel-actions">
-          <button type="button" className="tm-lib-btn sm" onClick={onSwitchToMain}>
-            Switch to Main CV
-          </button>
-          <button type="button" className="tm-lib-btn primary sm" onClick={() => onEditInPlayground(jobId)}>
-            <LIcon d={I.edit ?? I.file} size={12}/> Edit in Playground
-          </button>
-        </div>
-      </div>
+    <section className="tm-lib-master-panel tm-lib-master-panel--quiet tm-lib-fade-in" aria-label="Tailored CV preview">
       <div className="tm-lib-master-panel-body">
         <CVExportView
           token={token}
@@ -71,6 +52,15 @@ export function TailoredCVPanel({
           appliedAt={appliedAt}
           onBulletClick={onBulletClick}
           selectedBulletId={selectedBulletId}
+          paperOnly
+          command={(actions) => (
+            <CvCommandBar
+              title={jobTitle || company || "Tailored CV"}
+              detail={jobTitle && company ? company : undefined}
+              onEdit={() => onEditInPlayground(jobId)}
+              actions={actions}
+            />
+          )}
         />
       </div>
     </section>

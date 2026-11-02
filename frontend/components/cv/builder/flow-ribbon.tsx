@@ -3,8 +3,8 @@
  * the three tabs ARE the product story (dump your past -> Myro understands
  * you -> tailor per job), so the nav says that instead of naming components.
  *
- * Trailing slot is caller-owned (`actions`) — the CV tab puts the Main-CV
- * actions (Edit / Version history / Replace) there. No default: step 1
+ * Trailing slot is caller-owned (`actions`). The CV tab keeps Edit on the
+ * paper, so this row stays the three steps. No default: step 1
  * ("Dump your past") already is the add-your-past CTA, so a duplicate link
  * here would just repeat it.
  */

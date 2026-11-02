@@ -42,8 +42,6 @@ export function LibraryView({
 }: LibraryViewProps) {
   const searchParams = useSearchParams()
   const { isDesktop } = useViewport()
-  const [showHistory, setShowHistory] = useState(false)
-  const canEditMaster = !!currentBaseline && !!cv
 
   // `?master=1` (dashboard "Door 2") lands on the CV view; ?view=active and the
   // old ?filter=closed are redirected to /preparations by the page before this
@@ -112,24 +110,11 @@ export function LibraryView({
         <div className="tm-lib-main">
           <FlowRibbon
             view={view}
-            actions={view === "cv" ? (
+            actions={view === "cv" && !cv ? (
               <>
-                {!cv && (
-                  <Link href="/cv?view=stories" className="tm-lib-btn sm">
-                    <LIcon d={I.plus} size={12}/> Add points
-                  </Link>
-                )}
-                <button type="button" className="tm-lib-btn sm" onClick={onEditMaster} disabled={!canEditMaster}>
-                  <LIcon d={I.edit ?? I.file} size={12}/> Edit
-                </button>
-                <button
-                  type="button"
-                  className={`tm-lib-btn sm${showHistory ? " primary" : ""}`}
-                  onClick={() => setShowHistory(v => !v)}
-                  aria-expanded={showHistory}
-                >
-                  <LIcon d={I.pulse} size={12}/> Version history
-                </button>
+                <Link href="/cv?view=stories" className="tm-lib-btn sm">
+                  <LIcon d={I.plus} size={12}/> Add points
+                </Link>
                 <button type="button" className="tm-lib-btn sm" onClick={onReplaceCV}>
                   <LIcon d={I.upload} size={12}/> Replace
                 </button>
@@ -153,7 +138,7 @@ export function LibraryView({
                 profile={profile}
                 onEditMaster={onEditMaster}
                 onOpenJob={onOpenJob}
-                showHistory={showHistory}
+                showHistory={false}
               />
             </div>
           )}
