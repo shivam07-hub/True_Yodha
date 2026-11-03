@@ -15,7 +15,7 @@ followers. Three fields still describe an older Myro.
 |---|---|---|
 | Name | HiMyro Career Intelligence | `Myro · CV for the job you want` (30 of 30 characters; Instagram search reads this field) |
 | Bio | An AI-based Career Intelligence Service that tracks jobs from top MNC websites for you | The block below (130 of 150 characters) |
-| Links | Three: himyro.com/newsletter with no UTM, titled "Offical web page of Himyro"; myrojobs.com, which redirects to himyro.com; the LinkedIn page | One: the newest post's bio link, from its kit |
+| Links | Three: himyro.com/newsletter with no UTM, titled "Offical web page of Himyro"; myrojobs.com, which redirects to himyro.com; the LinkedIn page | One, fixed: `https://www.himyro.com/newsletter?utm_source=instagram&utm_medium=social&utm_campaign=ig-bio`, titled `Myro newsletter`. It never changes. |
 
 ```
 Pick the job you want. Myro tailors your CV to it.
@@ -66,8 +66,16 @@ sorts them `slide-01` first and turns them into JPEGs. Check the caption and the
 first comment, press Publish, then confirm. The row reads queued, then published
 with its live link, or failed with Meta's reason and a fresh try.
 
+Until @myrojobs is connected, post the same carousel at instagram.com in Chrome:
+Create → Post → add the slides in order → set the crop to 4:5 (it opens at 1:1,
+which cuts the slide's top and bottom) → keep Original → paste
+`caption-laptop.txt` from the slide folder → Share. Share to Facebook is on by
+default for this account. Then add the hashtags as the first comment. Issue 25
+went out this way on 2026-11-03.
+
 Bio links change only in the Instagram app. instagram.com's Edit profile says so
-and shows the field read-only (checked 2026-11-03).
+and shows the field read-only (checked 2026-11-03). That is why the bio holds one
+fixed link to the newsletter, where the newest issue sits first.
 
 Instagram's publishing API takes one caption per carousel, so the panel folds the
 per-slide captions into one, in slide order (issue 25: 1,650 of 2,200 characters).
@@ -104,7 +112,7 @@ permissions error, that is the step left, and the row will say so.
 ## Next
 
 Each carousel below is published from the laptop as above. Hashtags go in the
-first comment, and the bio link changes to the post's link.
+first comment. The bio link stays as it is.
 
 | # | When (IST) | Post | Files | Copy |
 |---|---|---|---|---|

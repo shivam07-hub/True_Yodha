@@ -30,9 +30,10 @@ If you are starting out, 9.6% of the lane is entry level, at 0.7 years. Axis pos
 
 ## Instagram captions, one per slide
 
-Post from the Instagram app. On the caption screen, tap Single caption and choose
-Multiple captions. Each caption is that slide's newsletter section, cut to what
-the slide shows. Slides 1 and 8 carry the issue link on the image.
+Each caption is that slide's newsletter section, cut to what the slide shows.
+From the laptop they go out folded into one caption, in slide order
+(`caption-laptop.txt` beside the slides). The phone app can post them per slide
+with Multiple Captions. Slides 1 and 8 carry the issue link on the image.
 
 Slide 1:
 
@@ -71,5 +72,3 @@ Slide 8:
 Tailor your CV to jobs like these. Link in bio.
 
 First comment: #jobsearch #riskmanagement #bigfour #himyro
-
-Bio link while this is the newest post: https://www.himyro.com/newsletter/2026-10-risk-compliance-big-four-india?utm_source=instagram&utm_medium=social&utm_campaign=issue-025

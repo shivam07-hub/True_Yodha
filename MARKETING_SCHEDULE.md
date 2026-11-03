@@ -58,4 +58,5 @@ allows more. Add slots only once these hold for a month.
   sections, one per slide and in slide order, folded into one caption. Its first
   and last slides carry `Full issue: himyro.com/newsletter` on the image. A reel
   keeps one caption of two lines. Three to five hashtags go in the first comment.
-  The bio holds one link: the newest post's.
+  The bio holds one fixed link, `https://www.himyro.com/newsletter?utm_source=instagram&utm_medium=social&utm_campaign=ig-bio`. Links change only in the app, so it
+  never changes: Instagram signups count under `ig-bio`, not per post.
