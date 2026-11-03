@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-11-03 — R12 public pages closed
+
+`verified_live` (queryid `3154336291968442631`) held at 563 calls from 11-02 to 11-03, the `_count` Notice last opened 10-19, and `cold_fill_wait_expired` read 0 over Railway's 7 retained days. The provenance counts are Tier 0 (`03f6aa41`, `20261019090000`).
+
 ## 2026-11-02 — Six finished items leave the backlog
 
 Checked against code, `notices` and two digests. R4: no SSO 500 since 10-16, `c5014040` on `main`. R11: digests of 11-01 and 11-02 read, stalls fold into `slow_200:db_stall`, `dead_man:job_ingestion` closed; six reads still slow became R13. CONTRACTS_BY_TYPE, both parts: `freshness` required on every caller, `probe.py` holds the belts. LISTING_TIME steps 3–6. The pasted-link timeout (`2cc7b264`). The weave summary (`5ad8f6cc`).

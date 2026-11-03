@@ -183,9 +183,14 @@ and Paste → review → playground works. Found on the way:
   `weave_ran` 0, `review_done` 0. All 3 stop at Mentor; cause unread. The
   question is how many answer before "Weave now". Cost of the design: fewer gap
   answers banked.
-- **FD3 · Small:** the playground header reads "Untitled role" until the job
-  loads. On Collections, "Add a job → Save" left the Saved tab at 0 until a
-  reload, and a job the person pasted is labelled "Myro found".
+- **FD3 · Small.** The "Untitled role" header while the job loads is fixed
+  (`359f4124`, on `Develop`). Open: on Collections, "Add a job → Save" left the
+  Saved tab at 0 until a reload. `useManualAdd` already refetches on save and has
+  since 09-02, so the cause is elsewhere; it needs a reproduction on the QA
+  account. And a pasted job reads "Myro found": `resolve.py` labels any job in
+  the match stack `myro`, and `job_applications.source` cannot tell a paste
+  apart (every save writes `user_discovery`), so fixing it means recording the
+  door at save time.
 
 T1 findings from the same run are under §5.
 
@@ -351,13 +356,17 @@ Agent-owned. Railway keeps deploy logs 7 days (measured 2026-11-02): read inside
   held at ≤3000 (n=14) and leaves. `/jobs/at/{c}` has 2 samples, still owed. Not
   on the list and slowest of all: `GET /jobs/feed` p50 ≤3000, p95 over 8s (n=420).
   **Next:** `/read-path-perf`, `/jobs/feed` first.
-- **R9 · Drain wall time — measured 2026-10-19: about an hour, and one day lost.**
-  Scraper jobs since 10-15, first ingest → last `skill_floor_attempted_at`: 66 ·
-  65 · 1,441 · 58 · 61 min (10-15 → 10-19); median wait 37–52 min. The expectation
-  was minutes. On **10-17** all 3,265 jobs waited ~24h and were attempted at
-  10-18 05:04 with the next batch — the day #342 reached `main`; the cause is
-  unverified and that log has aged out. **Next:** read a worker log within a week
-  of a drain, then decide whether an hour is the claim cadence or the work.
+- **R9 · Drain wall time — the hour is the work; the lost days were deploys.
+  Fixed `ff636796`, on `Develop`.** 11-03's drain floored ~19k jobs in about 63
+  min, so an hour is the work, not the claim cadence. The lost days: a deploy
+  SIGTERMs the drain and RQ never retries a job killed that way. On 11-02 nine
+  worker restarts in 3h17m (05:10 → 07:53 UTC) killed the drain for 12,780 jobs;
+  nothing ran in the 9.5 quiet hours after, and they waited for the next scrape,
+  25h. 10-27's 3,554 jobs waited a week, and 10-17 was the same pattern. This is
+  the `dead_man:skill_floor` failed-close. Now each worker boot queues a drain
+  under its Railway deployment id. **Check:** the worker log shows
+  `metric skill_floor.boot_drain_enqueued` after a deploy, and the next scrape's
+  jobs settle within about an hour even on a busy push day.
 - **R10 · Load off Micro, not a bigger Micro** (2026-10-14). The wait is the
   database, not the app (100 threads, 40 in-flight reads, 100-conn pool already).
   Shipped: `9d4ad00d` (an inert verifier result no longer rewrites the `jobs`
@@ -366,15 +375,6 @@ Agent-owned. Railway keeps deploy logs 7 days (measured 2026-11-02): read inside
   HOT share and verifier UPDATE volume, against the 2026-10-15 window in
   `ARCHITECTURE_READ_PATH.md` §28 (HOT 4.9%). `claim_verify_targets` was still
   2.3s a call there. Memory: `docs/agent-memory/project_micro_load_unload.md`.
-- **R12 · Public pages — the provenance counts are Tier 0.**
-  `ARCHITECTURE_READ_PATH.md` §30. Migration `20261019090000` applied (task
-  `public_provenance` on `run_snapshot_sql_refresh` at :35, belt
-  `dead_man:snapshot.public_provenance`); refresh 3,177ms once a day, read 0.08ms.
-  Code `03f6aa41` on `main` 10-20. Read 11-02: the `_count` Notice stopped (last
-  seen 10-19) and `cold_fill_wait_expired` reads 0 over 7 days. **Owed:**
-  `verified_live` queryid `3154336291968442631` holds at 563 calls at the next read
-  (552 on 10-19 04:25 UTC). Company pages (5.3% of DB time, no CDN on the path)
-  stay as they are.
 - **R13 · Six reads still slow on their own (digests 11-01 → 11-02).** Opened
   outside a stall, so each is a real query → `/read-path-perf`: `_compute` 83→88,
   `_job_demand_counts` 11→14, `fetch_company_jobs_page` 728→730,
@@ -435,7 +435,7 @@ Tracker (3) · no problem or not actionable (~25).
   what each one checks are kept off this public repo, in the agent's private
   memory on Shivam's laptop. Ask an agent for the list.
 - **Scraper: not landing daily.** `job_source_runs` shows 10-14 → 10-20, 10-26 →
-  10-27 and 11-02, nothing on 10-21 → 10-25 or 10-28 → 11-01 (checked 11-02); was
+  10-27, 11-02 and 11-03, nothing on 10-21 → 10-25 or 10-28 → 11-01 (checked 11-03); was
   no feed 10-01 → 10-14. The 11-02 run after the 10-29 company repairs: Meta, EY
   India and BDO India read `complete`; ANZ Bank `partial`, 11 of 482 (2.3%, under
   the 50% floor).
