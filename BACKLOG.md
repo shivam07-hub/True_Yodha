@@ -222,13 +222,14 @@ paste. Its five fixes are on `main` (ARCHIVE 2026-10-22). Open:
   10-19 draft. **Open: the guard itself.** Railway read 2026-10-22: no
   `role_guard_failed` lines yet (on `main` since 10:15 UTC, no real weave
   since). Cached proposals: real people 3 of 5 roles refused, QA 4 of 5. The
-  metric names the role, not the rule that refused it (number lost, foreign
-  number, substance lost) — log the rule before loosening anything.
-- **FD6 · the summary names the seat twice.** "GTM Business Development
-  Manager at Capgemini… Currently serving as GTM Business Development
-  Manager, …" — `names_seat` checks only the employer, so a summary that names
-  the role without the company gets `seat_lead` prepended.
-- **FD7 · Small:** the phone step rail shows "1" and "2" with no labels; when
+  metric now names the rule that refused a role: `rule=foreign_number`,
+  `number_lost` or `substance_lost` (`025de18d`, on `Develop`). **Next:** once
+  real weaves run on it, read the `rule=` split before loosening anything.
+- **FD6 · the summary named the seat twice — fixed `228b94c8`, on `Develop`.**
+  `names_seat` counted only the employer, so "Currently serving as GTM Business
+  Development Manager, …" got "… Manager at Capgemini." prepended. It now counts
+  the current role too.
+- **FD7 · Small (now #61 S6):** the phone step rail shows "1" and "2" with no labels; when
   the onboarding state call fails, /onboarding shows "Upload your CV" — a
   person with a CV is invited to upload again.
 
