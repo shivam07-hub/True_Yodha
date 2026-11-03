@@ -416,17 +416,20 @@ def extras_guard_ok(text: str | None, allowed_text: str) -> bool:
     return not gains_foreign_numbers("", body, allowed_text)
 
 
-def role_guard_ok(old_bullets: list[str], entry: dict[str, Any], allowed_text: str) -> bool:
-    """The structural honesty floor, per role. Source = the old lines this entry
-    claims (dropped lines excluded — dropping is allowed, mangling is not)."""
+def role_guard_refusal(old_bullets: list[str], entry: dict[str, Any], allowed_text: str) -> str | None:
+    """The structural honesty floor, per role: the law a rewrite broke, or None
+    when it broke none. Source = the old lines this entry claims (dropped lines
+    excluded — dropping is allowed, mangling is not)."""
     referenced = sorted({i for b in entry["bullets"] for i in b["from"]})
     src = " ".join(old_bullets[i] for i in referenced)
     new = " ".join(b["text"] for b in entry["bullets"])
     if gains_foreign_numbers(src, new, allowed_text):
-        return False
+        return "foreign_number"
     if loses_metrics(src, new):
-        return False
-    return not loses_substance(src, new)
+        return "number_lost"
+    if loses_substance(src, new):
+        return "substance_lost"
+    return None
 
 
 # ── proposal (the renderable, cacheable artifact) ─────────────────────────────
@@ -473,7 +476,8 @@ def build_proposal(
             "dropped_lines": [],
         }
         if entry and b["bullets"]:
-            if role_guard_ok(b["bullets"], entry, allowed_text):
+            refusal = role_guard_refusal(b["bullets"], entry, allowed_text)
+            if refusal is None:
                 kind = edit_kind(b["bullets"], [nb["text"] for nb in entry["bullets"]], entry["dropped"])
                 if kind == "none":
                     # The model handed back this role's own lines, untouched.
@@ -516,7 +520,9 @@ def build_proposal(
                 changed_count += 1
             else:
                 base["guarded"] = True
-                logger.warning("metric cv_weave.role_guard_failed role_index=%d", b["index"])
+                logger.warning(
+                    "metric cv_weave.role_guard_failed role_index=%d rule=%s", b["index"], refusal,
+                )
         roles_out.append(base)
     raw_summary = parsed.get("summary")
     summary = raw_summary.strip() if isinstance(raw_summary, str) and raw_summary.strip() else None

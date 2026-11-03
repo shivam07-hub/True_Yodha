@@ -1,6 +1,7 @@
 """Tailor with Mentor — weave service + interview + router (grill locks 2026-07-16)."""
 import asyncio
 import json
+import logging
 
 from app.services import cv_weave, cv_weave_cache, cv_weave_interview, jd_coverage
 from app.services.cv_weave_interview import StoryMaterial
@@ -113,28 +114,28 @@ def _entry(text, frm, dropped):
             "dropped": dropped, "why": ""}
 
 
-def test_guard_rejects_number_loss():
+def test_guard_names_a_lost_number():
     old = ["Generated over $500K in sales of GCP, AWS, and Azure platforms to clients."]
     entry = _entry("Sold GCP, AWS, and Azure platforms to clients.", [0], [])
-    assert cv_weave.role_guard_ok(old, entry, "") is False
+    assert cv_weave.role_guard_refusal(old, entry, "") == "number_lost"
 
 
-def test_guard_rejects_foreign_number():
+def test_guard_names_a_foreign_number():
     old = ["Connected with clients at Capgemini to understand cloud needs."]
     entry = _entry("Drove $2M in Capgemini client cloud deals.", [0], [])
-    assert cv_weave.role_guard_ok(old, entry, "") is False
+    assert cv_weave.role_guard_refusal(old, entry, "") == "foreign_number"
 
 
 def test_guard_allows_number_from_answer_material():
     old = ["Connected with clients at Capgemini to understand cloud needs."]
     entry = _entry("Drove $2M in Capgemini client cloud deals.", [0], [])
-    assert cv_weave.role_guard_ok(old, entry, "I closed $2M in deals") is True
+    assert cv_weave.role_guard_refusal(old, entry, "I closed $2M in deals") is None
 
 
-def test_guard_rejects_substance_loss():
+def test_guard_names_lost_substance():
     old = ["Delivered pitches for Life Sciences, Energy, and Aerospace clients at Capgemini."]
     entry = _entry("Delivered pitches for key clients at Capgemini.", [0], [])
-    assert cv_weave.role_guard_ok(old, entry, "") is False
+    assert cv_weave.role_guard_refusal(old, entry, "") == "substance_lost"
 
 
 def test_guard_allows_dropping_a_bullet():
@@ -142,7 +143,7 @@ def test_guard_allows_dropping_a_bullet():
     entry = {"bullets": [{"text": "Generated $500K in GCP sales for enterprise clients.",
                           "from": [0], "story_ids": [], "used_answer": False}],
              "dropped": [1], "why": ""}
-    assert cv_weave.role_guard_ok(old, entry, "enterprise clients") is True
+    assert cv_weave.role_guard_refusal(old, entry, "enterprise clients") is None
 
 
 # ── proposal build + compose ───────────────────────────────────────────────────
@@ -172,6 +173,23 @@ def test_build_proposal_guard_fail_falls_back_to_original():
     assert proposal["roles"][0]["changed"] is False
     # The role fell back, and the opening still leads with the current seat.
     assert proposal["summary"] == "BD Manager at Capgemini. Old summary"
+
+
+def test_a_refused_role_logs_the_rule_that_refused_it(caplog):
+    """FD5 (2026-10-22): the metric named the role, not the rule, so nobody could
+    say which law to look at before loosening the guard."""
+    parsed = {
+        "summary": None, "skills_line": None,
+        "roles": [{
+            "role_index": 0, "why": "w",
+            "bullets": [{"text": "Sold cloud platforms to clients.", "from": [0, 1],
+                         "story_ids": [], "used_answer": False}],
+            "dropped": [],
+        }],
+    }
+    with caplog.at_level(logging.WARNING):
+        cv_weave.build_proposal(CV, parsed, [], [], _coverage())
+    assert "metric cv_weave.role_guard_failed role_index=0 rule=number_lost" in caplog.text
 
 
 def test_build_proposal_provenance_and_counts():
