@@ -47,11 +47,12 @@ Every week we publish what India's MNC openings ask for, read from the employers
 
 ## Posted so far
 
-Read from the public grid on 2026-11-02, newest first. The top three are marked
-done in the Distribution Tracker with their live links and captions as posted.
+Newest first. The top four are marked done in the Distribution Tracker with their
+live links and captions as posted.
 
 | Date | Post |
 |---|---|
+| 3 Nov | [Issue 025 carousel](https://www.instagram.com/myrojobs/p/DfSXQmFo_NL/), from the laptop in Chrome, one caption |
 | 23 Oct | [Loop reel](https://www.instagram.com/myrojobs/reel/De2Grhax5BJ/) |
 | 25 Sep | [Issue 022 carousel](https://www.instagram.com/myrojobs/p/DdtOUlPI5Bn/) |
 | 17 Sep | [Issue 020 carousel](https://www.instagram.com/myrojobs/p/DdYjws7kf86/) |
@@ -105,11 +106,10 @@ first comment, and the bio link changes to the post's link.
 
 | # | When (IST) | Post | Files | Copy |
 |---|---|---|---|---|
-| 1 | Wed 4 Nov, 19:00 | Issue 025 carousel, 8 slides | `Myro Newsletter/Issue 025 - carousel/` | `scripts/newsletter-carousel-specs/issue-025-distribution.md` |
-| 2 | Sat 7 Nov, 10:00 | Fill reel, 22 s (was planned for 31 Oct) | `brag-output-2026-10-20-155052/brag.mp4` | Its `instagram.txt` |
-| 3 | Wed 11 Nov, 19:00 | Issue 024 carousel, 7 slides | `Myro Newsletter/Issue 024 - carousel/` | `scripts/newsletter-carousel-specs/issue-024-distribution.md` |
-| 4 | Sat 14 Nov, 10:00 | Match reel, 22 s | `brag-output-2026-10-20-134012/brag.mp4` | Its `instagram.txt` |
-| 5 | Wed 18 Nov, 19:00 | Issue 023 carousel, 7 slides | `Myro Newsletter/Issue 023 - carousel/` | `scripts/newsletter-carousel-specs/issue-023-distribution.md` |
+| 1 | Sat 7 Nov, 10:00 | Fill reel, 22 s (was planned for 31 Oct) | `brag-output-2026-10-20-155052/brag.mp4` | Its `instagram.txt` |
+| 2 | Wed 11 Nov, 19:00 | Issue 024 carousel, 7 slides | `Myro Newsletter/Issue 024 - carousel/` | `scripts/newsletter-carousel-specs/issue-024-distribution.md` |
+| 3 | Sat 14 Nov, 10:00 | Match reel, 22 s | `brag-output-2026-10-20-134012/brag.mp4` | Its `instagram.txt` |
+| 4 | Wed 18 Nov, 19:00 | Issue 023 carousel, 7 slides | `Myro Newsletter/Issue 023 - carousel/` | `scripts/newsletter-carousel-specs/issue-023-distribution.md` |
 
 A new issue takes the next Wednesday ahead of this list. Issue 26 is held until
 EY is back in the live set (NEWSLETTER_QUEUE). Issue 25's figures are dated
