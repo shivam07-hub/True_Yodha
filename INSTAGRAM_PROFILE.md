@@ -64,8 +64,10 @@ Open the post's row in [/admin/growth](https://www.himyro.com/admin/growth) and 
 **Publish to Instagram**. Pick every PNG in the post's slide folder; the panel
 sorts them `slide-01` first and turns them into JPEGs. Check the caption and the
 first comment, press Publish, then confirm. The row reads queued, then published
-with its live link, or failed with Meta's reason and a fresh try. Then set the bio
-link to the row's link.
+with its live link, or failed with Meta's reason and a fresh try.
+
+Bio links change only in the Instagram app. instagram.com's Edit profile says so
+and shows the field read-only (checked 2026-11-03).
 
 Instagram's publishing API takes one caption per carousel, so the panel folds the
 per-slide captions into one, in slide order (issue 25: 1,650 of 2,200 characters).
