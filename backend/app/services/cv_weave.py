@@ -333,16 +333,26 @@ def _current_company(cv_structured: dict | None) -> str:
     return str(experience[0].get("company") or "").strip()
 
 
+def _current_role(cv_structured: dict | None) -> str:
+    experience = (cv_structured or {}).get("experience") or []
+    if not experience:
+        return ""
+    return str(experience[0].get("role") or "").strip()
+
+
 def _employer(company: str) -> str:
     """The employer's own name, without the team or unit a CV appends to it:
     "Capgemini, Insights & Data (GCC Growth)" → "Capgemini"."""
     return re.split(r"[,(|]| - | – ", company, maxsplit=1)[0].strip()
 
 
-def names_seat(text: str, company: str) -> bool:
-    """Does this text already say where the person works now?"""
-    employer = _employer(company)
-    return bool(employer) and employer.casefold() in (text or "").casefold()
+def names_seat(text: str, company: str, role: str) -> bool:
+    """Does this text already say where the person works now — the employer, or
+    the role they hold there? Either one named means a seat lead would repeat it."""
+    said = " ".join((text or "").split()).casefold()
+    employer = _employer(company).casefold()
+    title = " ".join(role.split()).casefold()
+    return bool(employer and employer in said) or bool(title and title in said)
 
 
 def seat_lead(cv_structured: dict | None, summary: str) -> str | None:
@@ -350,10 +360,7 @@ def seat_lead(cv_structured: dict | None, summary: str) -> str | None:
     then the summary's own words. Nothing here is new, and no bullet is lifted
     into it — a role label glued to a raw bullet (with its "▪") is what this
     used to produce."""
-    experience = (cv_structured or {}).get("experience") or []
-    if not experience:
-        return None
-    role = str(experience[0].get("role") or "").strip()
+    role = _current_role(cv_structured)
     if not role:
         return None
     company = _current_company(cv_structured)
@@ -531,7 +538,9 @@ def build_proposal(
         logger.warning("metric cv_weave.extras_guard_failed field=summary")
     company = _current_company(cv_structured)
     existing = str((cv_structured or {}).get("summary") or "")
-    if coverage_items and company and not names_seat(summary or existing, company):
+    if coverage_items and company and not names_seat(
+        summary or existing, company, _current_role(cv_structured),
+    ):
         seated = seat_lead(cv_structured, summary or existing)
         if extras_guard_ok(seated, own_material):
             summary = seated

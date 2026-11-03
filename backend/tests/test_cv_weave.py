@@ -1208,6 +1208,15 @@ def test_a_summary_that_names_the_employer_is_left_alone():
     assert _summary_for(cv) is None
 
 
+def test_a_summary_that_names_the_role_is_not_led_by_it_again():
+    """FD6, the U4 phone run of 2026-10-22: the summary named the role without the
+    company, so the seat was prepended and the role printed twice — "GTM Business
+    Development Manager at Capgemini… Currently serving as GTM Business
+    Development Manager, …"."""
+    cv = _seat_cv("Currently serving as GTM Business Development Manager, leading B2B sales.")
+    assert _summary_for(cv) is None
+
+
 def test_a_summary_that_misses_the_seat_is_led_by_it_as_a_sentence():
     summary = _summary_for(_seat_cv("Six years across B2B SaaS and proptech."))
     assert summary == (
