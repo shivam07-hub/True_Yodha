@@ -26,6 +26,27 @@ def _is_missing_rpc_signature_error(exc: Exception) -> bool:
     return "PGRST202" in message or f"Could not find the function public.{_RPC_NAME}" in message
 
 
+# The unique column a Corpus Read walks. A table not named here walks `id`.
+_CORPUS_KEY = {"jobs": "job_id"}
+
+
+def _top_level_columns(columns: str) -> set[str]:
+    names: set[str] = set()
+    depth = 0
+    token = ""
+    for ch in columns + ",":
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+        if ch == "," and depth == 0:
+            names.add(token.strip())
+            token = ""
+        else:
+            token += ch
+    return names
+
+
 def fetch_all_rows(
     db: Client,
     *,
@@ -34,20 +55,65 @@ def fetch_all_rows(
     query_builder: Callable[[Any], Any] | None = None,
     page_size: int = SUPABASE_PAGE_SIZE,
 ) -> list[dict[str, Any]]:
+    """Every row the filter matches, walked on the table's unique key.
+
+    Each page asks for the rows after the last key seen, so a page is a short
+    index range and no row is read twice. OFFSET paging re-read every earlier
+    row on every page: one pass over jobs read the table about 41 times and
+    drained the Micro disk IO budget (2026-11-03). Without an order it could
+    also skip or repeat rows.
+
+    The walk owns the order: its key is ordered before the caller's builder
+    runs, so a caller's `.order()` only breaks ties on a unique key.
+    """
     if page_size <= 0:
         raise ValueError("page_size must be > 0")
 
+    key = _CORPUS_KEY.get(table, "id")
+    named = _top_level_columns(columns)
+    strip_key = key not in named and "*" not in named
+    selected = f"{key}, {columns}" if strip_key else columns
+
     rows: list[dict[str, Any]] = []
-    start = 0
+    after: Any = None
     while True:
-        query = db.table(table).select(columns)
+        query = db.table(table).select(selected).order(key)
         if query_builder is not None:
             query = query_builder(query)
-        page = query.range(start, start + page_size - 1).execute().data or []
+        if after is not None:
+            query = query.gt(key, after)
+        page = query.limit(page_size).execute().data or []
         rows.extend(page)
         if len(page) < page_size:
-            return rows
-        start += page_size
+            break
+        after = page[-1][key]
+
+    if strip_key:
+        for row in rows:
+            row.pop(key, None)
+    return rows
+
+
+def fetch_bounded_rows(
+    db: Client,
+    *,
+    table: str,
+    columns: str,
+    query_builder: Callable[[Any], Any] | None = None,
+    bound: int = SUPABASE_PAGE_SIZE,
+) -> list[dict[str, Any]]:
+    """One page from a table with no single unique key to walk.
+
+    A full page means the table outgrew the bound. Raise instead of returning
+    the first `bound` rows as if they were all of them.
+    """
+    query = db.table(table).select(columns)
+    if query_builder is not None:
+        query = query_builder(query)
+    rows = query.limit(bound).execute().data or []
+    if len(rows) >= bound:
+        raise RuntimeError(f"{table} returned {len(rows)} rows, at its bound of {bound}")
+    return rows
 
 
 def _adapt_rpc_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:

@@ -32,7 +32,7 @@ import logging
 from dataclasses import dataclass, field
 
 from app.database import get_supabase_admin
-from app.repositories.job_skills_read_model import fetch_all_rows
+from app.repositories.job_skills_read_model import fetch_all_rows, fetch_bounded_rows
 from app.services.llm_provider import LLMProvider, get_judgment_provider
 from app.services.learning_ladder_prompts import (
     GeneratedQuestion,
@@ -113,7 +113,8 @@ def pick_target_skills(limit: int = 10) -> list[TargetSkill]:
     if not eligible:
         return []
 
-    demand_rows = fetch_all_rows(
+    # Keyed by (city, window, skill): no single column to walk, and ~440 rows.
+    demand_rows = fetch_bounded_rows(
         admin,
         table="skill_demand_snapshot",
         columns="skill_id,window_key,roles,companies",

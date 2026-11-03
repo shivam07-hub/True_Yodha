@@ -501,6 +501,15 @@ A headless engine (`createTaxonomy({ fetch })`, the `field-motion.ts` precedent)
 - The demand `band` reuses market-wide demand (`weighted_demand` from `build_user_skill_demand`) — the same unscoped signal the Skills page reads — never a fresh per-page `jobCount`. The build-time generator is a thin adapter that exports that already-computed signal into `priority.json`.
 - Artifacts are forward-only: regenerated on a scraper batch refresh, committed, **not** wired into `prebuild` (no build-time DB coupling).
 
+## Corpus Read
+
+**Every row a filter matches, read through PostgREST one page at a time on the table's unique key.** `fetch_all_rows` (`job_skills_read_model.py`) is the one reader. Each page asks for the rows after the last key seen (`jobs` walks `job_id`, every other table `id`), so a page is a short index range and no row is read twice or missed.
+
+- OFFSET paging is retired. It re-read every earlier row on every page: one market-analytics pass read `jobs` about 41 times and drained the Micro disk IO budget (2026-11-03). With no order it could also skip or repeat rows.
+- The walk owns the order. A caller's `.order()` only breaks ties on a unique key, so callers do not order.
+- A table with no single-column key (`skill_demand_snapshot`) is a bounded read, `fetch_bounded_rows`: one page, and it raises when the page is full instead of returning the first 1,000 as if they were all of them.
+- A Corpus Read is for background work and bounded scopes. A whole-corpus aggregate belongs in the database (a Tier-0 snapshot), not in Python pages.
+
 ## Skill Closeness
 
 **Two skills are close when real jobs ask for them together** — never when a taxonomy files them under the same heading. `skill_closeness` (skill → its 20 closest, with lift, jobs and company count) is a Tier-0 snapshot on the shared lease, task `skill_closeness`, refreshed inside the database (22.7s — never over PostgREST, whose 8s limit it cannot meet). 8,953 bonds on 2026-10-04.

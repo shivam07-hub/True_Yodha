@@ -35,7 +35,17 @@ class _FakeQuery:
         self._rows = [row for row in self._rows if row.get(key) == value]
         return self
 
-    def order(self, *_args: Any, **_kwargs: Any) -> "_FakeQuery":
+    def order(self, key: str, desc: bool = False) -> "_FakeQuery":
+        if all(key in row for row in self._rows):
+            self._rows = sorted(self._rows, key=lambda row: row[key], reverse=desc)
+        return self
+
+    def gt(self, key: str, value: Any) -> "_FakeQuery":
+        self._rows = [row for row in self._rows if row[key] > value]
+        return self
+
+    def limit(self, value: int) -> "_FakeQuery":
+        self._rows = self._rows[:value]
         return self
 
     def is_(self, key: str, value: str) -> "_FakeQuery":
@@ -51,10 +61,6 @@ class _FakeQuery:
 
     def lte(self, key: str, value: Any) -> "_FakeQuery":
         self._rows = [row for row in self._rows if str(row.get(key)) <= str(value)]
-        return self
-
-    def range(self, start: int, end: int) -> "_FakeQuery":
-        self._rows = self._rows[start : end + 1]
         return self
 
     def execute(self) -> "_FakeQuery":

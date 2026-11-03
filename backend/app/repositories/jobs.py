@@ -2799,7 +2799,7 @@ class JobsRepository:
             query = query.eq("user_id", user_id)
             if batch_week is not None:
                 query = query.eq("batch_week", str(batch_week))
-            return query.order("id")
+            return query
 
         # Paged for the same reason as the stack: past 1,000 rows a single read
         # drops the rest, and a run would judge again what it had already judged.
@@ -2833,7 +2833,7 @@ class JobsRepository:
         # Paged. PostgREST answers at most 1,000 rows, and on 2026-10-13 seven
         # people held more — every one of them active that month — so 1,397 of
         # their verdicts were never read and those jobs never reached /market,
-        # Collections or the Picks gate. `id` orders the pages: it is unique, so
+        # Collections or the Picks gate. The walk pages on `id`: it is unique, so
         # no row lands on two pages or on none.
         rows = fetch_all_rows(
             self._db,
@@ -2857,7 +2857,7 @@ class JobsRepository:
                 # on a select this read already makes, so the grade costs no round trip.
                 f"main_skills, {HOSTED_COLUMNS}, {CARD_COLUMNS})"
             ),
-            query_builder=lambda q: q.eq("user_id", user_id).order("id"),
+            query_builder=lambda q: q.eq("user_id", user_id),
         )
         if dismissed is None:
             dismissed = set(self.get_dismissed_job_card_ids(user_id))
@@ -3347,7 +3347,7 @@ class JobsRepository:
                 "job_id, overall_score, recommendation, baseline_version_id, "
                 "eval_context_hash, target_context_hash, jobs(is_active, listing_confidence)"
             ),
-            query_builder=lambda q: q.eq("user_id", user_id).gte("overall_score", floor).order("id"),
+            query_builder=lambda q: q.eq("user_id", user_id).gte("overall_score", floor),
         )
         return [row for row in rows if not is_down(row.get("jobs") or {})]
 

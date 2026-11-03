@@ -67,50 +67,62 @@ class _Result:
 
 
 class _PagedQuery:
-    """PostgREST: a select without .range() silently returns the first 1000."""
+    """PostgREST: at most 1000 rows a request. The walk pages on the key."""
 
-    def __init__(self, rows: list[dict], ranges: list[tuple[int, int]]) -> None:
+    def __init__(self, rows: list[dict], cursors: list[object]) -> None:
         self._rows = rows
-        self._ranges = ranges
-        self._range: tuple[int, int] | None = None
+        self._cursors = cursors
+        self._key: str | None = None
+        self._after: object = None
+        self._limit = 1000
 
     def select(self, _columns: str) -> "_PagedQuery":
         return self
 
-    def order(self, _key: str) -> "_PagedQuery":
+    def order(self, key: str) -> "_PagedQuery":
+        self._key = self._key or key
         return self
 
-    def range(self, start: int, end: int) -> "_PagedQuery":
-        self._range = (start, end)
-        self._ranges.append((start, end))
+    def gt(self, _key: str, value: object) -> "_PagedQuery":
+        self._after = value
+        return self
+
+    def limit(self, value: int) -> "_PagedQuery":
+        self._limit = value
         return self
 
     def execute(self) -> _Result:
-        if self._range is None:
-            return _Result(self._rows[:1000])
-        start, end = self._range
-        return _Result(self._rows[start : end + 1])
+        self._cursors.append(self._after)
+        key = self._key
+        rows = self._rows
+        if key and all(key in row for row in rows):
+            rows = sorted(rows, key=lambda row: row[key])
+        if self._after is not None:
+            rows = [row for row in rows if row[key] > self._after]
+        return _Result(rows[: min(self._limit, 1000)])
 
 
 class _PagingDB:
     def __init__(self, tables: dict[str, list[dict]]) -> None:
         self._tables = tables
-        self.ranges: dict[str, list[tuple[int, int]]] = {name: [] for name in tables}
+        self.cursors: dict[str, list[object]] = {name: [] for name in tables}
 
     def table(self, name: str) -> _PagedQuery:
-        return _PagedQuery(self._tables[name], self.ranges[name])
+        return _PagedQuery(self._tables[name], self.cursors[name])
 
 
 def test_get_all_band_scores_pages_past_the_postgrest_cap() -> None:
-    scores = [{"user_id": f"u{i}", "total_score": float(i)} for i in range(1001)]
-    profiles = [{"id": f"u{i}", "target_seniority": "mid"} for i in range(1001)]
+    scores = [{"id": i, "user_id": f"u{i}", "total_score": float(i)} for i in range(1001)]
+    profiles = [{"id": f"u{i:04d}", "target_seniority": "mid"} for i in range(1001)]
+    for score in scores:
+        score["user_id"] = f"u{score['id']:04d}"
     db = _PagingDB({"mirror_scores": scores, "user_profiles": profiles})
 
     out = ScoresRepository(db).get_all_band_scores()
 
     assert len(out) == 1001
-    assert db.ranges["mirror_scores"] == [(0, 999), (1000, 1999)]
-    assert db.ranges["user_profiles"] == [(0, 999), (1000, 1999)]
+    assert db.cursors["mirror_scores"] == [None, 999]
+    assert db.cursors["user_profiles"] == [None, "u0999"]
     assert out[-1] == ("mid", 1000.0)
 
 

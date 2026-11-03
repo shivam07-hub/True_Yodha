@@ -6,7 +6,6 @@ from unittest.mock import Mock, patch
 
 import app.repositories.job_skills_read_model as job_skills_module
 from app.repositories.job_skills_read_model import (
-    fetch_all_rows,
     fetch_job_skill_rows,
     fetch_job_skill_rows_via_rpc,
 )
@@ -27,7 +26,7 @@ class _FakeQuery:
         self._eq_filters: list[tuple[str, Any]] = []
         self._in_filters: list[tuple[str, list[Any]]] = []
         self._gte_filters: list[tuple[str, Any]] = []
-        self._range: tuple[int, int] | None = None
+        self._gt_filters: list[tuple[str, Any]] = []
         self._limit: int | None = None
         self._order: tuple[str, bool] | None = None
 
@@ -58,13 +57,12 @@ class _FakeQuery:
         self._gte_filters.append((key, value))
         return self
 
-    def limit(self, value: int) -> "_FakeQuery":
-        self._limit = value
+    def gt(self, key: str, value: Any) -> "_FakeQuery":
+        self._gt_filters.append((key, value))
         return self
 
-    def range(self, start: int, end: int) -> "_FakeQuery":
-        self._range = (start, end)
-        self._db.ranges.append((self._table, start, end))
+    def limit(self, value: int) -> "_FakeQuery":
+        self._limit = value
         return self
 
     def execute(self) -> _Result:
@@ -75,18 +73,18 @@ class _FakeQuery:
             rows = [row for row in rows if row.get(key) in values]
         for key, value in self._gte_filters:
             rows = [row for row in rows if row.get(key) is not None and row.get(key) >= value]
+        for key, value in self._gt_filters:
+            rows = [row for row in rows if row.get(key) is not None and row.get(key) > value]
+        self._db.reads.append((self._table, self._gt_filters[0][1] if self._gt_filters else None))
 
         if self._order is not None:
             key, desc = self._order
             rows = sorted(rows, key=lambda r: r.get(key) or 0, reverse=desc)
 
-        if self._range is not None:
-            start, end = self._range
-            rows = rows[start : end + 1]
-        elif self._limit is not None:
+        if self._limit is not None:
             rows = rows[: self._limit]
 
-        return _Result(rows)
+        return _Result([dict(row) for row in rows])
 
 
 class _FakeRpcCall:
@@ -100,7 +98,7 @@ class _FakeRpcCall:
 class _FakeDB:
     def __init__(self, tables: dict[str, list[dict[str, Any]]]) -> None:
         self._tables = tables
-        self.ranges: list[tuple[str, int, int]] = []
+        self.reads: list[tuple[str, Any]] = []
 
     def table(self, name: str) -> _FakeQuery:
         return _FakeQuery(self._tables.get(name, []), table=name, db=self)
@@ -186,42 +184,20 @@ def _fake_candidate_jobs(
     return out
 
 
-def test_fetch_all_rows_paginates_until_short_page() -> None:
-    rows = [{"job_id": f"j{i}"} for i in range(2501)]
-    db = _FakeDB({"jobs": rows})
-
-    result = fetch_all_rows(
-        db,
-        table="jobs",
-        columns="job_id",
-        page_size=1000,
-    )
-
-    assert len(result) == 2501
-    assert db.ranges == [
-        ("jobs", 0, 999),
-        ("jobs", 1000, 1999),
-        ("jobs", 2000, 2999),
-    ]
-
-
 def test_fetch_job_skill_rows_respects_primary_filter_across_pages() -> None:
     rows = [
-        {"job_id": "a", "is_primary": True, "skills": {"taxonomy_key": "python"}},
-        {"job_id": "a", "is_primary": False, "skills": {"taxonomy_key": "excel"}},
-        {"job_id": "b", "is_primary": True, "skills": {"taxonomy_key": "sql"}},
-        {"job_id": "c", "is_primary": False, "skills": {"taxonomy_key": "jira"}},
-        {"job_id": "d", "is_primary": True, "skills": {"taxonomy_key": "aws"}},
+        {"id": 1, "job_id": "a", "is_primary": True, "skills": {"taxonomy_key": "python"}},
+        {"id": 2, "job_id": "a", "is_primary": False, "skills": {"taxonomy_key": "excel"}},
+        {"id": 3, "job_id": "b", "is_primary": True, "skills": {"taxonomy_key": "sql"}},
+        {"id": 4, "job_id": "c", "is_primary": False, "skills": {"taxonomy_key": "jira"}},
+        {"id": 5, "job_id": "d", "is_primary": True, "skills": {"taxonomy_key": "aws"}},
     ]
     db = _FakeDB({"job_skills": rows})
 
     result = fetch_job_skill_rows(db, only_primary=True, page_size=2)
 
     assert [r["job_id"] for r in result] == ["a", "b", "d"]
-    assert db.ranges == [
-        ("job_skills", 0, 1),
-        ("job_skills", 2, 3),
-    ]
+    assert db.reads == [("job_skills", None), ("job_skills", 3)]
 
 
 def test_fetch_job_skill_rows_scoped_to_job_ids() -> None:
@@ -262,8 +238,7 @@ def test_jobs_repository_fetch_analytics_rows_reads_all_pages() -> None:
     by_id = {row["job_id"]: row for row in rows}
     assert by_id["j0"]["company_name"] == "Acme"
     assert by_id["j1"]["company_name"] == "Globex"
-    assert ("jobs", 0, 999) in db.ranges
-    assert ("jobs", 1000, 1999) in db.ranges
+    assert [read for read in db.reads if read[0] == "jobs"] == [("jobs", None), ("jobs", "j548")]
 
 
 def _make_analytics_db() -> "_FakeDB":
@@ -329,13 +304,13 @@ def test_compile_market_analytics_caches_within_ttl() -> None:
     with patch("app.repositories.jobs.time.monotonic", return_value=0.0):
         result1 = repo.compile_market_analytics()
 
-    # Second call within TTL — DB should NOT be hit again (ranges unchanged)
-    ranges_after_first = list(db.ranges)
+    # Second call within TTL — DB should NOT be hit again (reads unchanged)
+    reads_after_first = list(db.reads)
     with patch("app.repositories.jobs.time.monotonic", return_value=1800.0):
         result2 = repo.compile_market_analytics()
 
     assert result1 is result2
-    assert db.ranges == ranges_after_first
+    assert db.reads == reads_after_first
 
 
 def test_compile_market_analytics_invalidates_after_ttl() -> None:
@@ -349,7 +324,7 @@ def test_compile_market_analytics_invalidates_after_ttl() -> None:
     ):
         result1 = repo.compile_market_analytics()
 
-    ranges_after_first = list(db.ranges)
+    reads_after_first = list(db.reads)
     with (
         patch("app.repositories.jobs.time.monotonic", return_value=604801.0),
         patch("app.services.shared_cache.time.time", return_value=604801.0),
@@ -357,7 +332,7 @@ def test_compile_market_analytics_invalidates_after_ttl() -> None:
         result2 = repo.compile_market_analytics()
 
     assert result1 is not result2
-    assert len(db.ranges) > len(ranges_after_first)
+    assert len(db.reads) > len(reads_after_first)
 
 
 def test_compile_market_analytics_keyed_by_role_domain() -> None:
