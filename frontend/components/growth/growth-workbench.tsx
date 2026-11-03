@@ -9,6 +9,7 @@ import type {
   GrowthPublication,
   GrowthPublicationCreate,
 } from "@/lib/api"
+import { GrowthInstagramPublish, type GrowthInstagramHandler } from "./growth-instagram"
 
 export function GrowthMetricInput({
   label,
@@ -45,6 +46,7 @@ export function GrowthWorkbench({
   publication,
   onSave,
   onPublish,
+  onPublishInstagram,
 }: {
   message: GrowthMessage
   asset: GrowthContentAsset | undefined
@@ -54,6 +56,8 @@ export function GrowthWorkbench({
     messageId: string,
     body: GrowthPublicationCreate,
   ) => Promise<void>
+  /** Present only while the backend holds the Instagram token. */
+  onPublishInstagram?: GrowthInstagramHandler
 }) {
   const [draft, setDraft] = useState(message.draft_copy)
   const [finalCopy, setFinalCopy] = useState(
@@ -137,6 +141,13 @@ export function GrowthWorkbench({
         </button>
         <span aria-live="polite">{feedback}</span>
       </div>
+
+      {onPublishInstagram &&
+      message.channel === "instagram" &&
+      message.format === "carousel" &&
+      !publication ? (
+        <GrowthInstagramPublish message={message} onPublish={onPublishInstagram} />
+      ) : null}
 
       <details className="gc-prepared">
         <summary>Prepared baseline</summary>

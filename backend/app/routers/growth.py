@@ -1,8 +1,19 @@
 from __future__ import annotations
 
+import time
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+    status,
+)
 from supabase import Client
 
 from app.config import settings
@@ -13,7 +24,7 @@ from app.repositories.growth import (
     GrowthRepository,
     get_growth_repository,
 )
-from app.services import email_service
+from app.services import email_service, instagram_publisher
 from app.schemas.growth import (
     GrowthAccessRequestBody,
     GrowthAccessRequestResponse,
@@ -56,7 +67,11 @@ def bootstrap(
     operator: GrowthOperator = Depends(get_growth_operator),
     repo: GrowthRepository = Depends(get_growth_repository),
 ) -> dict[str, object]:
-    return {"operator": operator, **repo.list_command_center()}
+    return {
+        "operator": operator,
+        **repo.list_command_center(),
+        "instagram_connected": instagram_publisher.configured_account() is not None,
+    }
 
 
 @router.patch("/messages/{message_id}", response_model=GrowthMessage)
@@ -99,6 +114,88 @@ def mark_published(
         return repo.mark_published(message_id, body, operator.user_id)
     except GrowthRecordNotFoundError as exc:
         raise _not_found() from exc
+
+
+@router.post(
+    "/messages/{message_id}/instagram",
+    response_model=GrowthMessage,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def publish_to_instagram(
+    message_id: str,
+    background_tasks: BackgroundTasks,
+    slides: list[UploadFile] = File(...),
+    caption: str = Form(...),
+    first_comment: str = Form(""),
+    operator: GrowthOperator = Depends(get_growth_operator),
+    repo: GrowthRepository = Depends(get_growth_repository),
+) -> dict[str, Any]:
+    """Post a carousel to Myro's Instagram. Returns at once, as `queued`.
+
+    The row turns `published` with its live link, or `failed` with Meta's reason.
+    """
+    account = instagram_publisher.configured_account()
+    if account is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Instagram is not connected.",
+        )
+    caption = caption.strip()
+    if not caption or len(caption) > instagram_publisher.MAX_CAPTION_CHARS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="The caption must be 1 to 2,200 characters.",
+        )
+    if not 2 <= len(slides) <= instagram_publisher.MAX_CAROUSEL_ITEMS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="A carousel takes 2 to 20 slides.",
+        )
+    images = [
+        slide.file.read(instagram_publisher.MAX_SLIDE_BYTES + 1) for slide in slides
+    ]
+    if any(
+        len(data) > instagram_publisher.MAX_SLIDE_BYTES
+        or not data.startswith(b"\xff\xd8\xff")
+        for data in images
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Each slide must be a JPEG under 8 MB.",
+        )
+    if repo.has_live_publication(message_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This post is already live.",
+        )
+    stale_before = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
+    message = repo.claim_for_instagram(message_id, stale_before)
+    if message is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This post is publishing now, or it is not an Instagram carousel.",
+        )
+    try:
+        urls = repo.store_public_jpegs(
+            instagram_publisher.MEDIA_BUCKET,
+            f"instagram/{message_id}/{int(time.time())}",
+            images,
+        )
+    except Exception:
+        # The claim is released as a recorded failure, and the error still surfaces.
+        repo.fail_message(message_id, "The slides could not be stored for Instagram.")
+        raise
+    background_tasks.add_task(
+        instagram_publisher.run_publish,
+        repo,
+        account,
+        message_id,
+        urls,
+        caption,
+        first_comment,
+        operator.user_id,
+    )
+    return message
 
 
 @router.patch(

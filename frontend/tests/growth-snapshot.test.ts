@@ -64,6 +64,7 @@ const data: GrowthBootstrapResponse = {
   publications: [],
   sweeps: [],
   summary: { assets: 1, campaigns: 0, needs_review: 0, published: 0 },
+  instagram_connected: false,
 }
 
 test("original localStorage override snapshot restores edits and publication evidence", () => {

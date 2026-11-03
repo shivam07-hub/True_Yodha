@@ -5443,6 +5443,8 @@ export interface GrowthBootstrapResponse {
     needs_review: number
     published: number
   }
+  /** True once the backend holds @myrojobs' Instagram token. */
+  instagram_connected: boolean
 }
 
 export interface GrowthMessageUpdate {
@@ -5520,6 +5522,35 @@ export const growth = {
         body: JSON.stringify(body),
       },
     ),
+  /** Multipart (slides) — bypasses request()'s forced JSON header. Returns at
+   *  once with the row queued; bootstrap shows it published or failed. */
+  publishInstagram: async (
+    token: string,
+    messageId: string,
+    slides: Blob[],
+    caption: string,
+    firstComment: string,
+  ): Promise<GrowthMessage> => {
+    const form = new FormData()
+    slides.forEach((slide, index) =>
+      form.append("slides", slide, `${String(index + 1).padStart(2, "0")}.jpg`),
+    )
+    form.append("caption", caption)
+    form.append("first_comment", firstComment)
+    const res = await fetch(
+      `${BASE}/growth/messages/${encodeURIComponent(messageId)}/instagram`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+        body: form,
+      },
+    )
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ detail: res.statusText }))
+      throw new ApiError(extractError(body, res.status), { status: res.status, kind: "http" })
+    }
+    return res.json() as Promise<GrowthMessage>
+  },
   updatePublicationMetrics: (
     token: string,
     publicationId: string,

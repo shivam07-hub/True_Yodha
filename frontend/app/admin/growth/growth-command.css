@@ -97,6 +97,14 @@
 .gc-workbench .gc-final-copy { min-height: 90px; background: #f0fdf4; border-color: #bbf7d0; }
 .gc-workbench input { height: 34px; padding: 0 9px; font-size: var(--tm-fs-caption); }
 .gc-workbench textarea:focus, .gc-workbench input:focus, .gc-filters select:focus, .gc-shell button:focus-visible, .gc-shell a:focus-visible { border-color: var(--gc-blue); outline: 3px solid rgb(37 99 235 / 14%); outline-offset: 1px; }
+.gc-instagram { display: grid; gap: 10px; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; }
+.gc-instagram input[type="text"] { width: 100%; }
+.gc-instagram-slides { margin: 0; padding-left: 20px; color: var(--gc-muted); font-size: var(--tm-fs-caption); }
+.gc-instagram-actions { display: flex; gap: 8px; }
+.gc-instagram-actions button { min-height: 30px; padding: 5px 10px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: var(--gc-muted); font-size: var(--tm-fs-caption); font-weight: 600; cursor: pointer; }
+.gc-instagram-actions .gc-post-button { border-color: var(--gc-blue); background: var(--gc-blue); color: #fff; }
+.gc-instagram-actions button:disabled { opacity: .5; cursor: default; }
+.gc-instagram-error { margin: 0; color: #b91c1c; font-size: var(--tm-fs-caption); }
 .gc-publication-row { display: grid; grid-template-columns: minmax(260px, 1fr) auto auto; align-items: end; gap: 8px; }
 .gc-publication-row .gc-post-button { border-color: var(--gc-blue); background: var(--gc-blue); color: #fff; }
 .gc-publication-row button:disabled { opacity: .5; cursor: default; }

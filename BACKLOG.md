@@ -424,6 +424,10 @@ Tracker (3) · no problem or not actionable (~25).
   2. Mark LinkedIn issues 020, 022 and the loop video posted in `/admin/growth`,
      with their links. They are live, and the rows still say unposted.
   3. Listen to the Fill video's soundtrack before Thu 5 Nov.
+  4. Connect @myrojobs to the tracker's Publish to Instagram: a Meta app, a token,
+     two Railway variables on prod. Six steps in
+     [INSTAGRAM_PROFILE.md](INSTAGRAM_PROFILE.md). The button reaches himyro.com
+     with the next `main` merge.
 - **Key rotation after Railway's 2026-10-21 incident.** The steps, their order and
   what each one checks are kept off this public repo, in the agent's private
   memory on Shivam's laptop. Ask an agent for the list.

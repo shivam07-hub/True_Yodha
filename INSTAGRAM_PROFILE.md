@@ -57,12 +57,51 @@ done in the Distribution Tracker with their live links and captions as posted.
 | 17 Sep | [Issue 020 carousel](https://www.instagram.com/myrojobs/p/DdYjws7kf86/) |
 | 1 Sep and earlier | Nine more back to 20 Jul in the logged-out view, which stops at 12 posts; not matched to issues |
 
+## Publishing, from the laptop
+
+Open the post's row in [/admin/growth](https://www.himyro.com/admin/growth) and use
+**Publish to Instagram**. Pick every PNG in the post's slide folder; the panel
+sorts them `slide-01` first and turns them into JPEGs. Check the caption and the
+first comment, press Publish, then confirm. The row reads queued, then published
+with its live link, or failed with Meta's reason and a fresh try. Then set the bio
+link to the row's link.
+
+Instagram's publishing API takes one caption per carousel, so the panel folds the
+per-slide captions into one, in slide order (issue 25: 1,650 of 2,200 characters).
+The slides carry the issue link on the first and last slide, so nothing depends
+on the caption. Multiple Captions stays an app-only option.
+
+The panel appears once the backend holds the account's token. A second press
+cannot post twice: the row is claimed before anything is sent, and the media id
+Instagram returns is saved before the post is marked live.
+
+### Connecting @myrojobs (Shivam, once; again every 60 days)
+
+On the laptop, signed in to the Facebook account that can manage @myrojobs:
+
+1. [developers.facebook.com/apps](https://developers.facebook.com/apps) → Create
+   App → use case Other → type Business → name it, e.g. "Myro publisher".
+2. In the app, find Instagram and press Set up. Open API setup with
+   Instagram business login.
+3. Add @myrojobs (it must be a professional account, and public), then sign in to
+   Instagram when asked.
+4. Press **Generate token** next to @myrojobs and copy the token. It lasts 60 days.
+   The app needs `instagram_business_basic`, `instagram_business_content_publish`
+   and, for the first comment, `instagram_business_manage_comments`.
+5. Paste it into your browser, after the
+   question mark: `https://graph.instagram.com/v26.0/me?fields=user_id,username&access_token=`.
+   The `user_id` it shows is the account id.
+6. In Railway, on the prod backend service, set `INSTAGRAM_ACCESS_TOKEN` and
+   `INSTAGRAM_USER_ID`. himyro.com's tracker talks to prod, which builds from
+   `main`, so the panel appears there after the next `main` merge.
+
+Meta's page says App Review is needed for "live data". If Publish fails with a
+permissions error, that is the step left, and the row will say so.
+
 ## Next
 
-Post carousels from the Instagram app. Add slides in file order, `slide-01`
-first. On the caption screen, tap Single caption and choose Multiple captions, then
-paste each slide's text from `captions.txt` in the slide folder. Hashtags go in the
-first comment. Then set the bio link to that post's.
+Each carousel below is published from the laptop as above. Hashtags go in the
+first comment, and the bio link changes to the post's link.
 
 | # | When (IST) | Post | Files | Copy |
 |---|---|---|---|---|
