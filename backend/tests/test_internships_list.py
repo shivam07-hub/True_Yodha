@@ -26,6 +26,14 @@ def test_the_role_list_and_the_companies_list_stop_in_the_database() -> None:
     assert "security definer" in sql
     assert "j.role_family = any(p_families)" in sql
     assert "order by j.last_verified_live_at desc nulls last" in sql
+    walk = (
+        Path(__file__).parents[2]
+        / "database/migrations/20261103234500_family_list_walks_its_index.sql"
+    ).read_text()
+    assert "j.role_family = fam" in walk
+    assert "order by j.last_verified_live_at desc" in walk
+    assert "nulls last" not in walk.split("order by j.last_verified_live_at desc", 1)[1].split("\n", 1)[0]
+    assert "exit when found >= v_limit" in walk
     assert "if p_kind = 'city'" in sql
     assert "if p_kind = 'industry'" in sql
     assert "j.location_city = p_value" in sql
