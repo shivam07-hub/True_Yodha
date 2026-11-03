@@ -106,8 +106,8 @@ ask until a filing Yes exists.
 ## 3 · REPEAT
 
 **#59 Golden-list digest (Shivam, 2026-09-30) — [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md).**
-`golden_list_since` is live (`20261007120000`) and batch 1 is stamped — Rishabh
-Guha, Adarsh Mohan, Raj Kishore, Deveshwar Kashyap (Shivam confirmed 2026-10-07).
+`golden_list_since` is live (`20261007120000`) and batch 1 is stamped — four
+people (Shivam confirmed 2026-10-07; names kept off this public repo).
 The golden list IS the instant-seeker list: one column,
 `user_profiles.golden_list_since timestamptz` (empty = not on it). Shivam sends
 names; an agent matches, Shivam confirms, the agent stamps. The digest goes only to
@@ -424,44 +424,9 @@ Tracker (3) · no problem or not actionable (~25).
   2. Mark LinkedIn issues 020, 022 and the loop video posted in `/admin/growth`,
      with their links. They are live, and the rows still say unposted.
   3. Listen to the Fill video's soundtrack before Thu 5 Nov.
-- **Railway breach of 2026-10-21: rotate. OpenRouter and Supabase confirmed not
-  replaced (checked 11-02); assume the rest are not either.** Railway leaked env
-  vars. The stolen `OpenRouter_Production_key` bought ~$0.55 of Claude on 10-21,
-  which nothing of ours calls; OpenRouter disabled it 10-22. Supabase logs
-  10-20 → 10-27 show no outside use of the service key. Each step: mint new →
-  set everywhere → revoke old. Worst first:
-  1. **OpenRouter — users feel this one now.** New key with a credit limit on
-     `mirror-backend-prod`, `mirror-backend-dev`, `True_Yodha`; top up ($8.26
-     left); limit the laptop key too. Embeddings have no fallback: all 238
-     `career_stories` since 10-22 (24 people) have none, so tailoring runs
-     weaker with no Notice. `reservoir_ingest_sweep` heals them once the key
-     works; no backfill.
-  2. **Supabase.** New `sb_secret_…` / `sb_publishable_…` for
-     `SUPABASE_SERVICE_KEY` and `SUPABASE_ANON_KEY` on those three services,
-     `job-listing-verifier`, the scraper's `daily-poll`, Vercel's `NEXT_PUBLIC_SUPABASE_ANON_KEY` and the laptop. Only then
-     turn off the legacy keys and JWT secret (`SUPABASE_JWT_SECRET`). All
-     services accept the new format (`18cdf722`, on `main`).
-  3. **Razorpay.** `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`. The new
-     `RAZORPAY_KEY_ID` must reach Vercel prod's `NEXT_PUBLIC_RAZORPAY_KEY_ID` in
-     the same step or checkout breaks. Check refunds since 10-21.
-  4. **Email.** `RESEND_API_KEY`. Check send logs 10-21/22: a thief could mail
-     users as himyro.com.
-  5. **Other AI keys.** `GROQ_API_KEY`, `GOOGLE_API_KEY`. Check usage 10-21/22.
-  6. **Our own tokens.** `SCRAPE_WEBHOOK_TOKEN` and
-     `MYRO_ANALYTICS_REFRESH_SECRET` (backend and the scraper's `daily-poll`
-     together), `MYROLOGY_ADMIN_TOKEN`.
-  7. **Redis.** `REDIS_URL`, `REDIS_PASSWORD`; low risk, reachable only inside
-     Railway (no TCP proxy on any service, 11-02). `REDIS_PUBLIC_URL` on
-     `True_Yodha` is a dead leftover: nothing reads it, so remove it.
-
-  Also check: OpenRouter Activity for 10-21 by key (any key but the prod one
-  leaked elsewhere) · GitHub security log, apps and deploy keys on
-  `shivam07-hub/True_Yodha` · Railway members, API tokens, 2FA.
-
-  Checked against Railway's own variable names 2026-11-02, all four projects. Not
-  on Railway that day, so left out: `SENDGRID_API_KEY`, `OPENAI_API_KEY`,
-  `ANTHROPIC_API_KEY`, `JOB_SWITCH_ADMIN_TOKEN`, `TURNSTILE_SECRET`,
-  `CLOUDFLARE_API_TOKEN`, `FIRECRAWL_API_KEY`, `FIRECRAWL_CLOUD_API_KEY`.
+- **Key rotation after Railway's 2026-10-21 incident.** The steps, their order and
+  what each one checks are kept off this public repo, in the agent's private
+  memory on Shivam's laptop. Ask an agent for the list.
 - **Scraper: not landing daily.** `job_source_runs` shows 10-14 → 10-20, 10-26 →
   10-27 and 11-02, nothing on 10-21 → 10-25 or 10-28 → 11-01 (checked 11-02); was
   no feed 10-01 → 10-14. The 11-02 run after the 10-29 company repairs: Meta, EY
@@ -475,10 +440,8 @@ Tracker (3) · no problem or not actionable (~25).
   emails, approve; an agent then adds the schedule.
 - Your own phone, 15 minutes on the front door — #57 is on `main` since 10-17.
 - **Finlatics API key rotation — deferred until real misuse** (Shivam,
-  2026-10-14). The live key travelled in plain email (2026-08-10/11). When it is
-  due, order matters — revoking first cuts the SSO door half of signups use:
-  `backend/scripts/partner_admin.py key --slug finlatics --scopes sso,…` → hand it over
-  through a secret channel → Finlatics swaps → `revoke --prefix <old>`.
+  2026-10-14). Why, and the safe order, are in the agent's private memory:
+  revoking first cuts the partner SSO door.
 - Finlatics, optional: one user's SSO failed 2026-10-06 17:56 (`Server
   disconnected`, fixed `c9a0a047`); their auth account `b4203375…` exists with no
   seat, so their next SSO goes through the consent screen (safe, one extra step).
@@ -487,11 +450,11 @@ Tracker (3) · no problem or not actionable (~25).
   2026-10-07: payments are core loop; drop nothing early).
 - GitHub secrets `MYRO_SMOKE_EMAIL` / `_PASSWORD` / `_API_URL` — the phone render
   gate and `qa:mobile` in CI; until they exist the job warns and skips.
-- Send (agent drafts): the 4 users hit by the CV-upload silent failures;
-  `094122@fsm.ac.in`, stuck without a target by the five-city 422 (fixed
-  `f3f0d0be`); after #56 S1+S3, the 5 Myrology opt-ins get the fixed page.
-- Yours or real? `kslk37143`, `zoom8cloud`, `abibi9167`, `p9212530`, `yaya007500`
-  — named ones get `is_test_account`.
+- Send (agent drafts): the 4 users hit by the CV-upload silent failures; one
+  person stuck without a target by the five-city 422 (fixed `f3f0d0be`); after
+  #56 S1+S3, the 5 Myrology opt-ins get the fixed page. Who: private memory.
+- Yours or real? Five unmarked accounts (handles in private memory) — named ones
+  get `is_test_account`.
 - #56 §7: Razorpay webhook events, the live key on Vercel, reviewer name + email.
 - **Scraper, company skills (your repo).** Company skill demand is now a daily
   snapshot in the database (`refresh_company_skill_demand`, 2026-10-29). The
