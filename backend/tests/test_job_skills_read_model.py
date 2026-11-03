@@ -124,6 +124,8 @@ class _FakeDB:
             )
         if name == "candidate_jobs_for_user":
             return _FakeRpcCall(_fake_candidate_jobs(self._tables, params))
+        if name == "live_jobs_for_families":
+            return _FakeRpcCall(_fake_live_families(self._tables, params))
         raise NotImplementedError(name)
 
 
@@ -182,6 +184,31 @@ def _fake_candidate_jobs(
         if len(out) >= limit:
             break
     return out
+
+
+def _fake_live_families(
+    tables: dict[str, list[dict[str, Any]]],
+    params: dict[str, Any],
+) -> list[dict[str, Any]]:
+    families = set(params.get("p_families") or [])
+    countries = [str(c).strip().lower() for c in (params.get("p_countries") or []) if str(c).strip()]
+    limit = int(params.get("p_limit") or 400)
+    rows = [
+        job for job in tables.get("jobs", [])
+        if job.get("role_family") in families
+        and job.get("is_active") is True
+        and job.get("listing_confidence") == "active"
+    ]
+    if countries:
+        kept = []
+        for job in rows:
+            country = (job.get("location_country") or "").strip().lower()
+            mode = (job.get("location_mode") or "").strip().lower()
+            if (country and country in countries) or (not country and mode in ("remote", "hybrid")):
+                kept.append(job)
+        rows = kept
+    rows.sort(key=lambda job: job.get("last_verified_live_at") or "", reverse=True)
+    return [{"job_id": job["job_id"]} for job in rows[:limit] if job.get("job_id")]
 
 
 def test_fetch_job_skill_rows_respects_primary_filter_across_pages() -> None:

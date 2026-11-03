@@ -167,6 +167,49 @@ def _body(sql: str) -> str:
     return sql.split("as $$", 1)[1].split("$$;", 1)[0]
 
 
+def test_the_pool_walks_live_jobs_in_the_named_country() -> None:
+    """After the page-stop, India limit 20 was still cancelled at 8s and
+    limit 1000 returned in 6.9s. The live predicate has to be its own branch
+    so the country index can walk India's open jobs and stop."""
+    sql = (
+        Path(__file__).parents[2]
+        / "database/migrations/20261102233000_candidate_pool_reads_live_india.sql"
+    ).read_text()
+
+    assert "idx_jobs_live_country_jobid" in sql
+    assert "idx_jobs_live_blank_country_jobid" in sql
+    assert "language plpgsql" in sql
+    assert "union all" in sql
+    assert "j.is_active is true" in sql
+    assert "j.listing_confidence = 'active'" in sql
+    assert "lower(btrim(j.location_country)) = any(v_countries)" in sql
+    assert "lower(btrim(j.location_mode)) in ('remote', 'hybrid')" in sql
+    body = sql.split("as $$", 1)[1].split("$$;", 1)[0]
+    assert "not p_require_fresh" not in body
+    assert "j.min_years_experience::integer" in body
+    assert "j.max_years_experience::integer" in body
+
+
+def test_the_pool_stops_at_the_page_instead_of_sorting_every_overlap() -> None:
+    """The ids-first page still died at 8s on a CV with a generic skill, and
+    the first Match Run is still JOB initial_match. A page of live jobs, with
+    the skill check per job, fills the limit and does not sort the corpus."""
+    sql = (
+        Path(__file__).parents[2]
+        / "database/migrations/20261102231000_candidate_pool_stops_at_the_page.sql"
+    ).read_text()
+    body = _body(sql)
+
+    assert body.index("from public.jobs j") < body.index("from public.job_skills js")
+    assert "select distinct" not in body
+    assert "cross join lateral" not in body
+    assert "j.job_id > p_after_job_id" in body
+    assert "j.is_active is true and j.listing_confidence = 'active'" in body
+    assert "lower(btrim(j.location_country)) = any(p_countries)" in body
+    assert "lower(btrim(j.location_mode)) in ('remote', 'hybrid')" in body
+    assert "limit greatest(1, least(coalesce(p_limit, 1000), 1000))" in body
+
+
 def test_the_pool_sorts_ids_before_it_opens_a_job() -> None:
     """A 30-skill CV with two generic skills joined 29,853 skill rows to `jobs`
     one probe at a time, sorted the survivors to disk, and hit the 8s timeout

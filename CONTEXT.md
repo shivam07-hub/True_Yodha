@@ -947,6 +947,26 @@ The one state-derived action that moves a candidate through the active job-searc
 
 ---
 
+## The Loop
+
+The start-to-end path of one person. One job runs it through. The next job starts again at find. The north star counts a Yes the judge rated at least 3.5.
+
+The core, Shivam 2026-11-02: they submit a CV and are recommended the best jobs Myro has read from MNC career pages that they can apply to. That list is the first Match Run. If it does not finish, the loop never starts.
+
+1. **Upload.** No Main CV. Journey Position is `experience`.
+2. **Direction.** Skills are confirmed, then a whole direction or a job saved at the door. `journey_finished`. They leave the funnel.
+3. **Find.** A listing they paste, one saved with the extension, or one from the judged list.
+4. **Tailor.** One document for that job, written only from their profile. They download it.
+5. **Send.** Apply carries that CV onto the company page. On desktop Chrome the extension fills every screen it can and stops before Submit. On a phone, Apply opens the page. A hosted listing is submitted here.
+6. **Yes.** They come back and record that they sent it. That record is `applied_at`. Until then the job is saved, not sent.
+7. **Prep.** A room whose stage is `applied` or `interviewing`. Four steps, in order: evidence, level, rehearsal, brief. Practice for the call. This is the first payment.
+8. **Coaching.** After prep, a person can opt in. ₹599, once. This is `filing_intake`: one resume for the role they name, the company form filled with them, they submit. (Shivam, 2026-11-02.)
+9. **Again.** The next job starts at find. The one they sent stays in Applications.
+
+**The Apply Pack stays the other purchase.** ₹199, once: 500 coins and one Human Check, sold when the coins run out and as "Human check before you apply" on the tailored CV. ADR-0005's "not a coaching service" still holds for a standing coach. The ₹599 is this filing, offered after prep, not that.
+
+---
+
 ## JobRanking
 
 The single facade for "given a candidate pool + a targeting profile, produce ranked jobs". `app/services/matching/ranking.py` combines the matcher's two tuned stages so callers never wire them by hand:
