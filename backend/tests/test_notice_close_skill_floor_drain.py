@@ -14,7 +14,10 @@ the verdict is written only after the skills land. The behaviour is held by
 
 from __future__ import annotations
 
+import inspect
 from pathlib import Path
+
+from app.workers import jobs_compute_worker
 
 NOTICE_CAUSE_KEY = "work_lane:skill_floor_drain:AbandonedJobError"
 NOTICE_CAUSE_KEY = "dead_man:skill_floor"
@@ -44,8 +47,19 @@ def test_an_unsettled_lease_is_served_again_and_its_owner_takes_it_back_at_once(
     claim = _function_body(_LEASE.read_text(), "claim_skill_floor_lease")
 
     assert "skill_floor_claimed_at < now() - interval '15 minutes'" in claim
-    # RQ retries a killed drain within seconds under the same scrape run id.
+    # RQ retries a timed-out drain within seconds under the same scrape run id.
     assert "skill_floor_claimed_by = p_owner" in claim
+
+
+def test_a_worker_boot_restarts_a_drain_a_deploy_killed() -> None:
+    """2026-11-02 → 11-03: deploys killed the drain nine times and RQ never retried
+    it, so 12,780 jobs waited 25 hours for the next scrape. The boot drains."""
+    source = inspect.getsource(jobs_compute_worker.run)
+
+    assert "enqueue_boot_drain(" in source
+    assert source.index("enqueue_boot_drain(") < source.index("worker.work("), (
+        "the drain must be queued before the worker starts taking jobs"
+    )
 
 
 def test_only_settle_writes_the_verdict() -> None:

@@ -32,11 +32,37 @@ def enqueue_drain(run_id: str | None) -> bool:
         # Stage A spends zero model seconds, but each 100-job batch still needs
         # a claim, a resolve, an upsert and a settle. A multi-thousand-job
         # scrape can take longer than the generic 15-minute user-job timeout.
-        # A kill past this is no longer a loss: RQ's retry carries the same
-        # run id, and the lease's owner takes its unsettled batch back at once.
+        # A timeout kill is retried by RQ under the same run id, and the lease's
+        # owner takes its unsettled batch back at once. A deploy kill is not
+        # retried: `enqueue_boot_drain` covers that one.
         job_timeout_seconds=JOB_TIMEOUT_SECONDS,
     )
     logger.info("metric skill_floor.enqueued run_id=%s", run_id or "unknown")
+    return True
+
+
+def enqueue_boot_drain(deployment_id: str) -> bool:
+    """Queue a drain when a worker boots, so a deploy cannot strand Stage A.
+
+    A deploy SIGTERMs the drain in flight, and RQ never retries a job killed
+    that way. On 2026-11-02 nine restarts in 3h17m killed the drain for 12,780
+    new jobs, and nothing drained again until the next scrape landed 25 hours
+    later; 10-27's jobs waited a week. Every deploy is a boot, so the boot
+    restarts the drain. Two drains at once are safe — the lease serves each
+    batch to one of them — and with no work a drain is one empty claim.
+
+    Only a Railway deployment drains: a laptop worker reads the same database.
+    """
+    if not deployment_id:
+        return False
+    background.enqueue(
+        background.LANE_BULK,
+        JOB_TYPE,
+        payload={"run_id": None},
+        correlation_id=f"boot:{deployment_id}",
+        job_timeout_seconds=JOB_TIMEOUT_SECONDS,
+    )
+    logger.warning("metric skill_floor.boot_drain_enqueued deployment=%s", deployment_id)
     return True
 
 
