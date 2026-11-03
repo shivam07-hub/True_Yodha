@@ -22,15 +22,17 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 | 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1–S4 on `main` · next S5 add role |
 | 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor, 3rd | Spec only, no commits · S0 audit |
 | 6 | Pay | **#56** the ₹199 Apply Pack | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Cursor, 4th | Spec only, no commits · S1 settlement |
+| 3 | Repeat | **#61** Myro on Android (TWA), buying hidden, then Play billing | [ARCHITECTURE_APK.md](ARCHITECTURE_APK.md) · Cursor, next | Spec 2026-11-03 · Phase 1 S1–S9; Phase 2 waits on #56 · Shivam: D-U-N-S, new upload key |
 
-**Cursor's order (Shivam, 2026-10-14):** #57 → #58 → #60 → #56. The biggest
-absolute leak first (553 of 1,002 never upload; 511 arrived by partner SSO, 22% of
-them upload), then collected → tailored (26%); #60 once jobs flow again; pay after
-the value.
+**Cursor's order (Shivam, 2026-10-14; #61 added 2026-11-03):** #57 → #58 → #61
+Phase 1 → #60 → #56 → #61 Phase 2. The biggest absolute leak first (553 of 1,002
+never upload; 511 arrived by partner SSO, 22% of them upload), then collected →
+tailored (26%); the app next (Shivam, 2026-11-03: "ready for an APK next"); #60 once
+jobs flow again; pay after the value. #61 S5 is #58 S5's mobile half.
 
 Specs Cursor builds from, each slice its own commit with six gates green:
 PAYMENTS (#56) · FRONT_DOOR (#57) · CV_TIER_A (#58) · GOLDEN_DIGEST (#59) ·
-SKILL_EVIDENCE (#60).
+SKILL_EVIDENCE (#60) · APK (#61).
 
 ---
 
@@ -59,10 +61,10 @@ run called the source complete and closed the rest. Fixed by
 [myro-job-scraper#10](https://github.com/shivam07-hub/myro-job-scraper/pull/10)
 (`687aebca`): such a run records `partial` and closes nothing. All 2,244 checked on
 Workday: 2,102 open and reopened, 12 false notices to real people withdrawn; 142
-unproven (126 refused with a 403, 16 with no apply link) left closed. **Check after
-the 11-02 19:30 UTC run:** Accenture's `job_source_runs` row must read `partial`.
-Reading past 2,000 needs the listing split by facet: Shivam's call, it adds JD and
-enrichment cost.
+unproven (126 refused with a 403, 16 with no apply link) left closed. Proved on the
+next run: Accenture read `partial`, "source listing stopped before its end"
+(2026-11-03 05:04 UTC). Reading past 2,000 needs the listing split by facet:
+Shivam's call, it adds JD and enrichment cost.
 
 ## 2 · APPLY
 
