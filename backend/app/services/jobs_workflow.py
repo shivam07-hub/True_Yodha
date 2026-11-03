@@ -61,7 +61,7 @@ def compute_match_health(
     - ``stale_direction`` — a direction is set and no Match Run has landed for it.
       Checked FIRST, because rows alone cannot see it: `get_user_match_stack` is
       source-blind, so ten rows the /market warmer wrote read exactly like a
-      finished run (Deveshwar Kashyap, 2026-09-19 — her run logged `Job OK` and
+      finished run (Meera Iyer, 2026-09-19 — her run logged `Job OK` and
       wrote nothing, and every surface said `vetted` for 78 days).
     - ``vetted``       — at least one recommended row carries a Career-Ops eval.
     - ``overlap_only`` — matches exist but NONE were LLM-vetted (the brain failed;

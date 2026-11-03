@@ -47,10 +47,10 @@ Current user impact:
 
 Named examples:
 
-- Adarsh currently has 39 durable matches: 15 are older than 21 days, 10 are
+- Kabir currently has 39 durable matches: 15 are older than 21 days, 10 are
   older than 45 days, and one is inactive. Fifteen of his 18 saved jobs are
   outside the trusted window.
-- Namitha’s referenced earlier match output cannot be reconstructed from the
+- Diya’s referenced earlier match output cannot be reconstructed from the
   current `user_job_matches` table. Her one saved job was last seen on April 30.
   This exposes a second gap: Myro does not retain an immutable record of what it
   showed a user at the time of exposure.
@@ -144,7 +144,7 @@ Lifecycle service becomes its only writer.
 
 Add `job_recommendation_exposures(id, user_id, job_id, surface, shown_at,
 confidence_at_show, verified_live_at, feed_version, match_id)` with bounded
-retention and backend-only aggregate access. This makes Namitha-like incidents
+retention and backend-only aggregate access. This makes Diya-like incidents
 reproducible without storing extra CV or identity data.
 
 ## Confidence And Retirement Policy

@@ -35,14 +35,14 @@ narrowed to the people Shivam picks.
 >
 > **Dry run on prod, 2026-10-13: 4 members, 0 emails** — none has tailored a CV,
 > and no Apply-grade verdict was written after they joined (2026-10-06; the
-> scraper has sent nothing since 10-01). Raj Kishore's list holds 23 cards and
-> Deveshwar Kashyap's 3, all judged before he joined. **Decided (Shivam,
+> scraper has sent nothing since 10-01). Vikram Nair's list holds 23 cards and
+> Meera Iyer's 3, all judged before he joined. **Decided (Shivam,
 > 2026-10-14): a member's first digest lists every job on their /market list,
 > best first; every later digest carries only what is new** (§1's "new" now
 > applies from the second email). Built 2026-10-14: later emails also skip any
 > job an earlier digest already offered (read back from the sent bodies), since a
 > card the drain re-reads gets a fresh timestamp but is not news; no cap on how
-> many. Dry run, prod data: Raj 23 jobs, Deveshwar 2, Rishabh and Adarsh nothing.
+> many. Dry run, prod data: Vikram 23 jobs, Meera 2, Arjun and Kabir nothing.
 >
 > **Go-live, in order (Shivam):** (1) `main` carries this — done, #342
 > (2026-10-17); (2) the preview —
@@ -151,7 +151,7 @@ IST)**, `python -m scripts.golden_digest --apply`, with the secrets
 `list` · `match "<name>"` (prints candidates: name, email, signup date, CV,
 tailored, applied — never writes) · `add <user_id>` / `remove <user_id>`
 (write only with `--apply`). Repeatable without hand-written SQL. Seed batch 1 —
-Rishabh Guha, Adarsh Mohan, Raj Kishore, Deveshwar Kashyap — **only after
+Arjun Mehta, Kabir Rao, Vikram Nair, Meera Iyer — **only after
 Shivam confirms the matches**.
 
 ## 7 · Platform sweep

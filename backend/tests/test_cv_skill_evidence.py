@@ -23,7 +23,7 @@ from app.services.llm_provider import LLMCompletion
 
 
 SALESFORCE_CV = """\
-Rupanjana Sharma
+Ananya Sharma
 Bengaluru
 
 EXPERIENCE

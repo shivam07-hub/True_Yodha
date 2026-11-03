@@ -1,6 +1,6 @@
 """The forward pass that finishes a Match Run a Direction save never landed.
 
-Deveshwar Kashyap (2026-09-19): saved a direction, the worker logged `Job OK`
+Meera Iyer (2026-09-19): saved a direction, the worker logged `Job OK`
 twice and wrote nothing, and every surface afterwards read the ten rows the
 /market warmer had written as if a run had happened. 331 profiles hold a
 direction newer than their last run. They are brought forward one at a time,

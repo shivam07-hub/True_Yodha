@@ -19,7 +19,7 @@ class _StubProvider:
 
 
 _CV = {
-    "contact": {"name": "Deveshwar Kashyap"},
+    "contact": {"name": "Meera Iyer"},
     "summary": "Marketing manager scaling digital products.",
     "experience": [
         {

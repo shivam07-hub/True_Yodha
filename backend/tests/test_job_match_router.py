@@ -474,7 +474,7 @@ def test_the_band_names_the_directions_it_stopped_picking() -> None:
 
 def test_retry_accepted_when_the_direction_was_never_searched(monkeypatch) -> None:
     """The row that looks vetted was written by the /market warmer, not by a run
-    for this direction. Deveshwar Kashyap read `vetted` for 78 days on exactly
+    for this direction. Meera Iyer read `vetted` for 78 days on exactly
     this shape — a stack of rows and a `last_match_run_at` older than her target."""
     repo = _FakeJobsRepo(stack=[{"job_id": "j1", "overall_score": 4.5}])
     repo.freshness_profile = {
@@ -539,7 +539,7 @@ def test_a_pick_from_a_left_direction_leaves_the_band_and_a_stale_one_is_reread(
 def test_a_pick_the_list_would_not_admit_leaves_the_band() -> None:
     """A set is cut for the profile at regeneration. A pick in a city the person
     has since stopped looking in is not on their list, so it is not in the band
-    (Rishabh, 2026-10-14)."""
+    (Arjun, 2026-10-14)."""
     pick = {
         "job_id": "chennai", "job_title": "Analyst", "company_name": None, "job_description": None,
         "first_seen": None, "last_seen_at": None, "is_stale": True, "is_active": True,

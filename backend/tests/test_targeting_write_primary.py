@@ -1,7 +1,7 @@
 """A residual bucket cannot be the main role.
 
 `target_role_titles[0]` is the primary — the score label, the career-target
-snapshot, the chip the person sees first. Rupanjana's first pick was
+snapshot, the chip the person sees first. Ananya's first pick was
 "Scripting Languages", a catch-all; 23 of 165 people with a target were in
 the same shape. The write path reorders so a real family sits first. A list
 of only buckets is left alone — there is nothing to promote.

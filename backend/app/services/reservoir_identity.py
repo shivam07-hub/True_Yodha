@@ -80,7 +80,7 @@ def _name_tokens(name: str) -> set[str]:
 
 def names_match(a: str, b: str) -> bool:
     """Same person signal: the two names share at least one substantial token
-    ('Shivam Pathak' ~ 'Shivam Kumar Pathak'; 'Rishabh Guha' ≁ 'Shivam Pathak')."""
+    ('Shivam Pathak' ~ 'Shivam Kumar Pathak'; 'Arjun Mehta' ≁ 'Shivam Pathak')."""
     return bool(_name_tokens(a) & _name_tokens(b))
 
 

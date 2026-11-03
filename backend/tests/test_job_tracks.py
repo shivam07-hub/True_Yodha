@@ -76,7 +76,7 @@ def test_track_one_is_named_by_its_titles_then_its_families():
 
 
 def test_a_user_with_no_target_at_all_still_gets_a_named_track():
-    """Namitha's actual state on 2026-08-28: everything null since May."""
+    """Diya's actual state on 2026-08-28: everything null since May."""
     track = tracks_for(FakeRepo(), "u1", {})[0]
     assert track.is_profile
     assert track.label == "Your search"

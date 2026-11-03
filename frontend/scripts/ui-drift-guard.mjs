@@ -89,7 +89,7 @@ const METRICS = [
     // --tm-text-faint is ~4.3:1 on the dark surface — it FAILS WCAG AA for text.
     // It's the caption tier: fine on <13px micro-labels, but reading/body text
     // (>=13px) set in faint is the "barely visible on dark" bug that keeps
-    // recurring (Deveshwar CV prose, newsletter prose, the Score & Skills
+    // recurring (Meera CV prose, newsletter prose, the Score & Skills
     // standfirst). Decoration (bar fills, hairlines) uses background/border, not
     // `color:`, so keying on a faint TEXT color co-occurring with a >=13px font
     // isolates exactly the failing class without flagging legit small captions.
