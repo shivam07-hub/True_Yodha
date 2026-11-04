@@ -67,6 +67,8 @@ export interface CVPlaygroundState {
   ) => void
   /** A paper write to the job draft is in flight. */
   patchJobCvPending: boolean
+  /** Replace this job's paper with `next`. Does not write the Main CV. */
+  saveJobCv: (next: CVStructured) => Promise<void>
   livePreviewText: string
   isDirty: boolean
   canSave: boolean
@@ -339,6 +341,10 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     [patchJobCvMut],
   )
 
+  const saveJobCv = useCallback(async (next: CVStructured) => {
+    await patchJobCvMut.mutateAsync({ mut: () => next })
+  }, [patchJobCvMut])
+
   const setSectionOrder = useCallback((order: SectionKey[]) => {
     setSectionOrderState(normalizeSectionOrder(order))
   }, [])
@@ -453,6 +459,7 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     setSectionOrder,
     patchJobCv,
     patchJobCvPending: patchJobCvMut.isPending,
+    saveJobCv,
     livePreviewText,
     isDirty,
     canSave,

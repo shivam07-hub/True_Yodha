@@ -153,7 +153,7 @@ Order is the loop map — broken steps first, nearest the north star first (Shiv
 | 2 | Apply | 6 real Apply clicks since 2026-09-22, 3 people (last 11-02), 2 answered, 0 Yes. Built work is on `main` (#342); measure click → "Did you submit?" → application. |
 | 3 | Repeat | Golden-list digest (#59): email only to `golden_list_since`. Blocked until the preview is approved. |
 | 4 | Front door | #57 on `main`: after skills, paste · extension · jobs that fit. Door to Download in 5 clicks (FD1–FD4) on `main` 2026-10-22; U4 passed desktop 10-19 and 375px 10-22. Real phone owed (Shivam). |
-| 5 | Tailor + download | #58 S1–S4 built (blank certs, fabricated-role guard, unknown sections kept, measured page fill). Still open: add role. |
+| 5 | Tailor + download | #58 S1–S5 built (blank certs, fabricated-role guard, unknown sections kept, measured page fill, add role/project; a phone edit of a tailored CV writes that CV). |
 | 6 | Pay | #56 Apply Pack — [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md), Cursor. |
 
 Gates on everything: #16 Pro is done, compute stays Micro (Shivam, 2026-10-14, cost) · prod

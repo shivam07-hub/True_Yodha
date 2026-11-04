@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { MobileBulletList } from "./mobile-bullet-list"
+import { withAddedProject, withAddedRole } from "@/lib/cv/add-entry"
 import { EMPTY_CONTACT, moveItem, type MobileCVSection } from "./mobile-cv-model"
 import { useSectionTitle } from "@/components/cv/section-titles-provider"
 
@@ -104,7 +105,7 @@ export function MobileCVSectionEditor({ token, section, cv, accountEmail, onChan
       <EntryCollection
         label="role"
         count={cv.experience.length}
-        onAdd={() => patch(draft => { draft.experience.push({ role: "", company: "", dates: "", location: "", bullets: [""] }) })}
+        onAdd={() => onChange(withAddedRole(cv))}
       >
         {cv.experience.map((experience, index) => (
           <section className="tm-mcv-entry" key={`${experience.company}-${index}`}>
@@ -138,7 +139,7 @@ export function MobileCVSectionEditor({ token, section, cv, accountEmail, onChan
       <EntryCollection
         label="project"
         count={cv.projects.length}
-        onAdd={() => patch(draft => { draft.projects.push({ name: "", dates: "", bullets: [""] }) })}
+        onAdd={() => onChange(withAddedProject(cv))}
       >
         {cv.projects.map((project, index) => (
           <section className="tm-mcv-entry" key={`${project.name}-${index}`}>

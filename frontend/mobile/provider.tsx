@@ -14,6 +14,9 @@ export type ViewportState = {
   pointer: PointerKind
   reducedMotion: boolean
   isDesktop: boolean
+  /** False until matchMedia has been read, so a first paint does not commit
+   *  to the mobile default and then swap a live editor. */
+  settled: boolean
 }
 
 // Mobile-safe defaults for SSR + first paint — prevents desktop-only extras
@@ -23,6 +26,7 @@ const DEFAULT_STATE: ViewportState = {
   pointer: "coarse",
   reducedMotion: false,
   isDesktop: false,
+  settled: false,
 }
 
 const ViewportContext = createContext<ViewportState>(DEFAULT_STATE)
@@ -43,6 +47,7 @@ export function ViewportProvider({ children }: { children: React.ReactNode }) {
         pointer: ptr,
         reducedMotion: motion.matches,
         isDesktop: mode === "desktop" && ptr === "fine",
+        settled: true,
       })
     }
     sync()

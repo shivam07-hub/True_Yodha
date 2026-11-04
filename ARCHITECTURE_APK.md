@@ -128,6 +128,11 @@ to the open document. Desktop's missing add-role stays in #58 S5 proper.
 **Done when** a test opens a tailored CV in the mobile editor, adds a role, and
 finds the role on that tailored version with the master unchanged.
 
+**Built 2026-11-04**, with #58 S5. `tests/cv-add-role.test.ts`: adding a role
+on a job document calls the job writer and not the master. The phone editor
+(`MobileJobEditor`) autosaves through `useJobDraftAutosave`, and `/cv?jobId=`
+on a phone renders that editor instead of the desktop paper.
+
 ### S6 · Phone onboarding (BACKLOG FD7)
 
 - `components/onboarding/journey-progress.tsx` hides step labels under `sm`, so a
