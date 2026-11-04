@@ -364,9 +364,9 @@ Agent-owned. Railway keeps deploy logs 7 days (measured 2026-11-02): read inside
   nothing ran in the 9.5 quiet hours after, and they waited for the next scrape,
   25h. 10-27's 3,554 jobs waited a week, and 10-17 was the same pattern. This is
   the `dead_man:skill_floor` failed-close. Now each worker boot queues a drain
-  under its Railway deployment id. **Check:** the worker log shows
-  `metric skill_floor.boot_drain_enqueued` after a deploy, and the next scrape's
-  jobs settle within about an hour even on a busy push day.
+  under its Railway deployment id. Live on the worker 2026-11-04 11:53 UTC: both
+  replicas logged `metric skill_floor.boot_drain_enqueued`. **Check:** the next
+  scrape's jobs settle within about an hour, even on a busy push day.
 - **R10 · Load off Micro, not a bigger Micro** (2026-10-14). The wait is the
   database, not the app (100 threads, 40 in-flight reads, 100-conn pool already).
   Shipped: `9d4ad00d` (an inert verifier result no longer rewrites the `jobs`
