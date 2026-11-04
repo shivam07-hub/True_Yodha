@@ -26,9 +26,10 @@ The World Economic Forum's Future of Jobs survey, January 2025, names Big Data S
 
 ## Instagram captions, one per slide
 
-Post from the Instagram app. On the caption screen, tap Single caption and choose
-Multiple captions. Each caption is that slide's newsletter section, cut to what
-the slide shows. The first and last slides carry the issue link on the image.
+Each caption is that slide's newsletter section, cut to what the slide shows.
+From the laptop they go out folded into one caption, in slide order
+(`caption-laptop.txt` beside the slides). The phone app can post them per slide
+with Multiple Captions. The first and last slides carry the issue link on the image.
 
 Slide 1:
 
@@ -61,8 +62,6 @@ The World Economic Forum's survey asks employers what they expect by 2030. On th
 Tailor your CV to jobs like these. Link in bio.
 
 First comment: #jobsearch #ghostjobs #jobsindia #himyro
-
-Bio link while this is the newest post: https://www.himyro.com/newsletter/2026-10-open-role-apply-on-their-page?utm_source=instagram&utm_medium=social&utm_campaign=issue-023
 
 ## Demo storyboard
 

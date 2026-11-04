@@ -192,3 +192,59 @@ def test_asset_and_campaign_upserts_use_stable_legacy_keys() -> None:
 
     assert db.calls[0]["kwargs"]["on_conflict"] == "legacy_key"
     assert db.calls[1]["kwargs"]["on_conflict"] == "legacy_key"
+
+
+class _ClaimDB:
+    """growth_messages update chains; answers with `answers` in call order."""
+
+    def __init__(self, answers: list[list[dict[str, Any]]]) -> None:
+        self.answers = answers
+        self.chains: list[list[tuple[str, Any]]] = []
+
+    def table(self, name: str) -> "_ClaimDB":
+        assert name == "growth_messages"
+        self.chains.append([])
+        return self
+
+    def update(self, payload: Any) -> "_ClaimDB":
+        self.chains[-1].append(("update", payload["status"]))
+        return self
+
+    def eq(self, key: str, value: Any) -> "_ClaimDB":
+        self.chains[-1].append(("eq", (key, value)))
+        return self
+
+    def in_(self, key: str, values: list[str]) -> "_ClaimDB":
+        self.chains[-1].append(("in", (key, tuple(values))))
+        return self
+
+    def lt(self, key: str, value: Any) -> "_ClaimDB":
+        self.chains[-1].append(("lt", (key, value)))
+        return self
+
+    def execute(self) -> _Result:
+        return _Result(self.answers.pop(0))
+
+
+def test_instagram_claim_takes_a_free_carousel_only() -> None:
+    db = _ClaimDB([[{"id": "message-1", "status": "queued"}]])
+
+    row = GrowthRepository(db).claim_for_instagram("message-1", "2026-11-03T00:00:00Z")
+
+    assert row == {"id": "message-1", "status": "queued"}
+    chain = db.chains[0]
+    assert ("update", "queued") in chain
+    assert ("eq", ("channel", "instagram")) in chain
+    assert ("eq", ("format", "carousel")) in chain
+    assert ("in", ("status", ("ready_for_review", "approved", "failed"))) in chain
+    assert len(db.chains) == 1
+
+
+def test_instagram_claim_reclaims_only_a_stale_queue() -> None:
+    db = _ClaimDB([[], []])
+
+    row = GrowthRepository(db).claim_for_instagram("message-1", "2026-11-03T00:00:00Z")
+
+    assert row is None
+    assert ("eq", ("status", "queued")) in db.chains[1]
+    assert ("lt", ("updated_at", "2026-11-03T00:00:00Z")) in db.chains[1]

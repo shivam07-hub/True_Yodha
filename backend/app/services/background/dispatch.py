@@ -253,7 +253,12 @@ def _failure_sighting(job: Any, job_type: str, terminal: str, exc_value: Any) ->
 
     from app.notice import Sighting
 
-    where = {"correlation_id": str(getattr(job, "id", "") or ""), "method": "JOB", "path": job_type}
+    where = {
+        "correlation_id": str(getattr(job, "id", "") or ""),
+        "method": "JOB",
+        "path": job_type,
+        "exc": exc_value if isinstance(exc_value, BaseException) else None,
+    }
     if isinstance(exc_value, httpx.TimeoutException):
         return Sighting.upstream_timeout(**where)
     if isinstance(exc_value, APIError) and getattr(exc_value, "code", None) == "57014":

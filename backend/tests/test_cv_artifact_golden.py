@@ -56,7 +56,7 @@ VISIBLE_CV = {
     "certs": [],
 }
 CONTACT = {
-    "name": "Deveshwar Kashyap",
+    "name": "Meera Iyer",
     "title": "Manager – Subscriber Marketing",
     "location": "Mumbai, India",
     "email": "user@example.com",
@@ -186,7 +186,7 @@ def test_docx_bullets_are_single_paragraphs():
 
 _SHEET_HTML = (
     '<div class="cvb-pdf-page" data-cv-template="classic">'
-    '<h1 class="pdf-name">Deveshwar Kashyap</h1>'
+    '<h1 class="pdf-name">Meera Iyer</h1>'
     '<div class="pdf-contact"><span>Mumbai, India</span><span>user@example.com</span></div>'
     "<h2>Experience</h2>"
     '<div class="pdf-role-head"><div><span class="pdf-role">Manager – Subscriber Marketing</span>'

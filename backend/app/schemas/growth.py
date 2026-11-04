@@ -125,6 +125,7 @@ class GrowthBootstrapResponse(BaseModel):
     publications: list[GrowthPublication]
     sweeps: list[GrowthSeedingSweep]
     summary: GrowthCommandSummary
+    instagram_connected: bool = False
 
 
 class GrowthMessageUpdate(BaseModel):

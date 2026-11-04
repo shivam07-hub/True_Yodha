@@ -113,6 +113,88 @@ class GrowthRepository:
         ).eq("id", message_id).execute()
         return publication
 
+    def has_live_publication(self, message_id: str) -> bool:
+        return bool(
+            _rows(
+                self.db.table("growth_publications")
+                .select("id")
+                .eq("message_id", message_id)
+                .eq("status", "published")
+                .limit(1)
+                .execute()
+            )
+        )
+
+    def claim_for_instagram(
+        self, message_id: str, stale_before: str
+    ) -> dict[str, Any] | None:
+        """Move an Instagram carousel to `queued`, or return None if it is not free.
+
+        Free means not yet out, or failed, or queued so long ago that the run
+        holding it cannot still be alive.
+        """
+        claim = {"status": "queued", "failure_reason": None, "updated_at": _now()}
+
+        def base() -> Any:
+            return (
+                self.db.table("growth_messages")
+                .update(claim)
+                .eq("id", message_id)
+                .eq("channel", "instagram")
+                .eq("format", "carousel")
+            )
+
+        rows = _rows(
+            base().in_("status", ["ready_for_review", "approved", "failed"]).execute()
+        )
+        if not rows:
+            rows = _rows(
+                base().eq("status", "queued").lt("updated_at", stale_before).execute()
+            )
+        return rows[0] if rows else None
+
+    def instagram_media_id(self, message_id: str) -> str | None:
+        rows = _rows(
+            self.db.table("growth_messages")
+            .select("metadata")
+            .eq("id", message_id)
+            .limit(1)
+            .execute()
+        )
+        metadata = (rows[0].get("metadata") if rows else None) or {}
+        media_id = metadata.get("instagram_media_id")
+        return str(media_id) if media_id else None
+
+    def record_instagram_media(self, message_id: str, media_id: str) -> None:
+        rows = _rows(
+            self.db.table("growth_messages")
+            .select("metadata")
+            .eq("id", message_id)
+            .limit(1)
+            .execute()
+        )
+        metadata = dict(_require_row(rows, message_id).get("metadata") or {})
+        metadata["instagram_media_id"] = media_id
+        self.db.table("growth_messages").update(
+            {"metadata": metadata, "updated_at": _now()}
+        ).eq("id", message_id).execute()
+
+    def fail_message(self, message_id: str, reason: str) -> None:
+        self.db.table("growth_messages").update(
+            {"status": "failed", "failure_reason": reason[:2000], "updated_at": _now()}
+        ).eq("id", message_id).execute()
+
+    def store_public_jpegs(
+        self, bucket: str, folder: str, images: list[bytes]
+    ) -> list[str]:
+        store = self.db.storage.from_(bucket)
+        urls = []
+        for index, data in enumerate(images, start=1):
+            path = f"{folder}/{index:02d}.jpg"
+            store.upload(path, data, {"content-type": "image/jpeg", "upsert": "true"})
+            urls.append(store.get_public_url(path).rstrip("?"))
+        return urls
+
     def update_publication_metrics(
         self,
         publication_id: str,

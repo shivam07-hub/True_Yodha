@@ -11,7 +11,9 @@ three in one second. The 10-18 digest listed 31 slow reads to fix and no cause.
 So a slow read waits out its window before it is filed. If, within
 `STALL_WINDOW` either side of it, slow reads came from `STALL_SITES` or more
 different call sites, it is `slow_200:db_stall` — the database, not that
-query. One site hammered many times is still that site: a slow query under
+query. A timeout already named for its caller waits in the same window: three
+sites and it is `capacity_503:db_stall`, one site and it stays that caller.
+One site hammered many times is still that site: a slow query under
 load is the case the slow-read Notice exists for.
 
 Used by the Notice writer thread alone (`wiring._drain`); not thread-safe. A
@@ -40,6 +42,20 @@ def _is_slow_read(sighting: Sighting) -> bool:
     return sighting.cause_class == "slow_200" and sighting.slow_kind == "slow_read"
 
 
+def _is_named_timeout(sighting: Sighting) -> bool:
+    """A timeout already named for one caller. A stall may still take it back."""
+    return (
+        sighting.cause_class == "capacity_503"
+        and bool(sighting.site_file)
+        and bool(sighting.site_function)
+        and sighting.limiter in ("upstream.read_timeout", "db.statement_timeout")
+    )
+
+
+def _holds(sighting: Sighting) -> bool:
+    return _is_slow_read(sighting) or _is_named_timeout(sighting)
+
+
 def _site(sighting: Sighting) -> tuple[str | None, str | None]:
     return sighting.site_file, sighting.site_function
 
@@ -58,7 +74,7 @@ class StallWindow:
     def admit(self, sighting: Sighting, now: datetime) -> tuple[Sighting, ...]:
         """What may be filed now, in arrival order. A slow read waits its window."""
         ready = self.due(now)
-        if not _is_slow_read(sighting):
+        if not _holds(sighting):
             return (*ready, sighting)
         self._held.append(_Held(at=now, sighting=sighting))
         return ready
@@ -87,6 +103,11 @@ class StallWindow:
         }
         if len(sites) < self._sites:
             return held.sighting
+        if _is_named_timeout(held.sighting):
+            return Sighting.capacity_stall(
+                method=held.sighting.method,
+                path=held.sighting.path,
+            )
         return Sighting.slow_200(
             kind="db_stall",
             method=held.sighting.method,

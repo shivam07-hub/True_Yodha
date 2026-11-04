@@ -24,7 +24,7 @@ import { itemId } from "@/lib/cv-compose"
 import { hiddenLineTexts } from "@/lib/cv/hidden-lines"
 import { dataKeys } from "@/lib/domain-data"
 import { matchScore, projectCoverage } from "./match-score"
-import { resolvePlaygroundCompany } from "./keyword-utils"
+import { resolvePlaygroundCompany, resolvePlaygroundTitle } from "./keyword-utils"
 
 export interface PlaygroundModelOpts {
   /** The single CV scan for this render (useCvDiagnosis). The model reads its
@@ -77,7 +77,7 @@ export function usePlaygroundModel(
   const job: Partial<JobPathResponse> = jobPathQuery.data ?? {}
   const application = applicationsQuery.data?.find(a => a.job_id === jobId) ?? null
   const company = resolvePlaygroundCompany(job.company, undefined)
-  const jobTitle = job.job_title ?? "Untitled role"
+  const jobTitle = resolvePlaygroundTitle(job.job_title, jobPathQuery.isLoading)
   const jdText = (application?.job_description ?? "").trim()
   const roles = useMemo(
     () => cv.experience.map((e, i) => ({ index: i, label: `${e.role} · ${e.company}` })),

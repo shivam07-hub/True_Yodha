@@ -141,6 +141,16 @@ class Settings(BaseSettings):
     # endpoint returns 503 (safe before the scraper is wired).
     scrape_webhook_token: str = ""
 
+    # Publish to Instagram from the Distribution Tracker (Instagram API with
+    # Instagram Login). The token is the long-lived one the Meta App Dashboard
+    # generates for @myrojobs: valid 60 days, refreshed by
+    # GET graph.instagram.com/refresh_access_token. The user id is the `user_id`
+    # that GET /me?fields=user_id,username returns. Either empty = the Publish
+    # panel stays hidden and the endpoint returns 503.
+    instagram_user_id: str = ""
+    instagram_access_token: str = ""
+    instagram_graph_version: str = "v26.0"
+
     # Environment / release tier.
     #
     # MYRO_ENV is the EXPLICIT release-tier boundary and the only value that

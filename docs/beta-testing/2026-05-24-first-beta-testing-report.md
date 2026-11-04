@@ -257,7 +257,7 @@ These are user-blocking and must be triaged before any new feature work. Each it
 
 ## A.2 Per-User Reports (Batch 2)
 
-### Palak (palaksingh1386@gmail.com)
+### Palak (user@example.com)
 - Intel tab: 27,832 unfiltered roles overwhelm new users; wants Experience Level, Location, Remote/On-site filters; suggests a 30-second onboarding tutorial for `/intel`.
 - CV jargon overload: "trunk", "branches", "immutable commits", "commit graph" alienate non-technical Gen-Z (CLAT aspirant, law / commerce / arts users). Self-quoted: "Coding wale hi use kar payenge kya?" "Mujhe darr lag raha, kahin CV kharab na ho jaye". Recommendation: Trunk -> Master CV; Branches -> Job-specific CVs; Commit Graph -> Version History.
 - Tracker empty state: "Your tracker is empty" with no context on what a tracker is or why to use it. Wants 10s animated explainer, one-click "Add sample job" demo, and a success story stub.

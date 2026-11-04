@@ -128,6 +128,13 @@ class _SearchFakeDB:
         """
         if name == "top_companies_at":
             return _FakeRpcQuery(self._top_companies_at(params))
+        if name == "newest_job_receipt":
+            stamps = [
+                str(row["ingested_at"])
+                for row in self._tables.get("jobs", [])
+                if row.get("ingested_at")
+            ]
+            return _FakeRpcQuery([max(stamps)] if stamps else [])
         assert name == "search_jobs_global", name
         terms = [t for t in (params.get("p_terms") or []) if t]
         self.search_terms.append(list(terms))

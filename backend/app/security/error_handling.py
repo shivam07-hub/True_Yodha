@@ -214,6 +214,8 @@ async def _read_capacity_exceeded_handler(
 async def _upstream_timeout_handler(
     request: Request,
     _exc: httpx.TimeoutException,
+    *,
+    site_exc: BaseException | None = None,
 ) -> JSONResponse:
     """A Supabase read that outran the PostgREST ceiling is a known, bounded
     failure — not a crash.
@@ -236,6 +238,7 @@ async def _upstream_timeout_handler(
             correlation_id=_correlation_id(request),
             method=request.method,
             path=request.url.path,
+            exc=site_exc or _exc,
         )
     )
     return _response(
@@ -271,6 +274,7 @@ async def _postgrest_error_handler(request: Request, exc: APIError) -> JSONRespo
             correlation_id=_correlation_id(request),
             method=request.method,
             path=request.url.path,
+            exc=exc,
         )
     )
     return _response(
@@ -304,7 +308,7 @@ async def _unhandled_exception_handler(
 ) -> JSONResponse:
     timeout = _relabelled_timeout(_exc)
     if timeout is not None:
-        return await _upstream_timeout_handler(request, timeout)
+        return await _upstream_timeout_handler(request, timeout, site_exc=_exc)
     correlation_id = _correlation_id(request)
     _log.exception(
         "Unhandled request error correlation_id=%s method=%s path=%s",

@@ -64,7 +64,7 @@ def test_unknown_when_no_known_identity() -> None:
 
 def test_unknown_when_doc_has_no_email() -> None:
     # Confident-looking mismatching name but no email evidence → fail open.
-    text = "Rishabh Guha\nSome intro line\n"
+    text = "Arjun Mehta\nSome intro line\n"
     assert ri.classify(text, {"Shivam Pathak"}, {"shivam.mit20@gmail.com"}) == "unknown"
 
 

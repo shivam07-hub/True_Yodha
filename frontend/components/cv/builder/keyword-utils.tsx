@@ -93,6 +93,12 @@ export function resolvePlaygroundCompany(
   return displayCompany(jobCompany) || displayCompany(gapCompany)
 }
 
+/** Nothing while the job loads; "Untitled role" only for a job that has no title. */
+export function resolvePlaygroundTitle(jobTitle: string | null | undefined, loading: boolean): string {
+  if (loading) return ""
+  return jobTitle?.trim() || "Untitled role"
+}
+
 export function formatKeywordChipLabel(label: string): string {
   return label
     .split(/\s+/)

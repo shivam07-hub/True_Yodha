@@ -226,6 +226,34 @@ def test_run_failure_sync_swallows_handler_crash():
 NOTICE_CAUSE_KEY = "work_lane:feed_warm:ReadTimeout"
 
 
+def test_a_raised_timeout_on_a_lane_names_the_caller() -> None:
+    """The job type stays the path. The cause is the function that asked."""
+    import httpx
+
+    from app.notice import NoticeBook, bind, unbind
+
+    def count_jobs_ingested_after() -> None:
+        raise httpx.ReadTimeout("timed out")
+
+    book = NoticeBook.testing()
+    bind(book)
+    try:
+        try:
+            count_jobs_ingested_after()
+        except httpx.ReadTimeout as error:
+            job = _FakeJob(["feed_warm", {"user_id": "u1"}])
+            dispatch.run_failure_sync(job, None, type(error), error, error.__traceback__)
+        rows = book.snapshot()
+        assert [(r.cause_key, r.status) for r in rows] == [(
+            "capacity_503:upstream.read_timeout:"
+            "test_background_dispatch.py:count_jobs_ingested_after",
+            "open",
+        )]
+        assert rows[0].last_path == "feed_warm"
+    finally:
+        unbind()
+
+
 @pytest.mark.parametrize(
     ("exc", "key"),
     [

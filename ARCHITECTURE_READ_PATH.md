@@ -2254,6 +2254,19 @@ refreshed (§26). Read `snapshot_refresh_state` before trusting a Tier-0 table.
 `fetch_company_jobs_page` is failed-close (n=689), last
 `GET /companies/Citibank/jobs` at 2026-10-13 13:40Z.
 
+**Prod `route.latency`, 2026-10-26 18:24Z → 2026-11-02 18:17Z** (BACKLOG R3: server
+time, buckets summed across 7,360 lines, upper edges, cold and warm together).
+Railway keeps deploy logs 7 days, so the 10-12 → 10-19 week can no longer be read.
+
+| Route | n | p50 | p95 | Pre-merge p50 |
+|---|---|---|---|---|
+| `GET /jobs/feed-state` | 62 | ≤500 | ≤1000 | ≤50 |
+| `GET /jobs/at/{company}` | 2 | ≤500 | ≤500 | ≤50 |
+| `GET /companies/{company_name}/jobs` | 2,693 | ≤750 | ≤1500 | ≤100 |
+| `POST .../confirm-skills` | 14 | ≤3000 | ≤5000 | ~3000 |
+| `POST /partner/v1/sso/session` | 21 | ≤3000 | ≤3000 | ~1000 |
+| `GET /jobs/feed` (not on R3's list) | 420 | ≤3000 | over 8000 | not recorded |
+
 ## 26. Three Tier-0 refreshes could not finish where they ran (2026-10-04)
 
 `snapshot_refresh_state`, 2026-10-03: `role_families` last succeeded **09-07**

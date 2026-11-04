@@ -49,6 +49,11 @@ export function GrowthCommand() {
     queryKey: dataKeys.growthCommand(),
     queryFn: () => growth.bootstrap(token!),
     enabled: Boolean(token),
+    // An Instagram publish finishes in the background; watch it land.
+    refetchInterval: (query) =>
+      query.state.data?.messages.some((message) => message.status === "queued")
+        ? 4000
+        : false,
   })
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: dataKeys.growthCommand() })
@@ -218,6 +223,15 @@ export function GrowthCommand() {
               publishMutation.mutateAsync({ id, body }).then(() => undefined)}
             onMetrics={(id, body) =>
               metricsMutation.mutateAsync({ id, body }).then(() => undefined)}
+            onPublishInstagram={
+              data.instagram_connected
+                ? // The panel holds its own Publishing… state for the click.
+                  (id, slides, caption, firstComment) =>
+                    growth
+                      .publishInstagram(token!, id, slides, caption, firstComment)
+                      .then(refresh)
+                : undefined
+            }
           />
         </section>
       ) : null}

@@ -181,7 +181,11 @@ def test_pick_target_skills_ranks_from_live_market_demand():
         patch("app.services.learning_ladder.get_supabase_admin", return_value=object()),
         patch(
             "app.services.learning_ladder.fetch_all_rows",
-            side_effect=[[], eligible_skills, market_demand],
+            side_effect=[[], eligible_skills],
+        ),
+        patch(
+            "app.services.learning_ladder.fetch_bounded_rows",
+            return_value=market_demand,
         ),
     ):
         targets = pick_target_skills(limit=2)

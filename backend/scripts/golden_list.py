@@ -5,7 +5,7 @@ with `--apply`. The list is one column, `user_profiles.golden_list_since`.
 
 Usage:
     python -m scripts.golden_list list
-    python -m scripts.golden_list match "Rishabh Guha"
+    python -m scripts.golden_list match "Arjun Mehta"
     python -m scripts.golden_list add <user_id> --apply
     python -m scripts.golden_list remove <user_id> --apply
 """

@@ -53,8 +53,10 @@ allows more. Add slots only once these hold for a month.
   post carries the carousel, the OG image or the video. The company page is
   posted from `linkedin.com/company/118214305/admin/` (the `himyro` slug
   redirected to an unavailable page when checked on 2026-06-02).
-- **Instagram:** a carousel goes out from the app with Multiple Captions: each
-  slide's caption is the matching newsletter section, cut to what that slide
-  shows. Its first and last slides carry `Full issue: himyro.com/newsletter` on
-  the image. A reel keeps one caption of two lines. Three to five hashtags go in
-  the first comment. The bio holds one link: the newest post's.
+- **Instagram:** a carousel is published from the laptop with Publish to
+  Instagram in the tracker (INSTAGRAM_PROFILE.md). Its caption is the newsletter
+  sections, one per slide and in slide order, folded into one caption. Its first
+  and last slides carry `Full issue: himyro.com/newsletter` on the image. A reel
+  keeps one caption of two lines. Three to five hashtags go in the first comment.
+  The bio holds one fixed link, `https://www.himyro.com/newsletter?utm_source=instagram&utm_medium=social&utm_campaign=ig-bio`. Links change only in the app, so it
+  never changes: Instagram signups count under `ig-bio`, not per post.

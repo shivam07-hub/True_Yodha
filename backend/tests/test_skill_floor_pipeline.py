@@ -50,6 +50,36 @@ def test_enqueue_uses_the_long_running_bulk_lane(monkeypatch) -> None:
     }
 
 
+def test_a_worker_boot_restarts_the_drain_under_its_deployment(monkeypatch) -> None:
+    """2026-11-02: nine restarts in 3h17m killed the drain for 12,780 new jobs, and
+    nothing drained again until the next scrape landed 25 hours later."""
+    captured: dict[str, Any] = {}
+
+    monkeypatch.setattr(
+        skill_floor_pipeline.background,
+        "enqueue",
+        lambda lane, job_type, **kwargs: captured.update(lane=lane, job_type=job_type, **kwargs),
+    )
+
+    assert skill_floor_pipeline.enqueue_boot_drain("dep-1") is True
+    assert captured == {
+        "lane": "bulk",
+        "job_type": "skill_floor_drain",
+        "payload": {"run_id": None},
+        "correlation_id": "boot:dep-1",
+        "job_timeout_seconds": skill_floor_pipeline.JOB_TIMEOUT_SECONDS,
+    }
+
+
+def test_a_worker_with_no_deployment_drains_nothing(monkeypatch) -> None:
+    """A laptop worker reads the same database as prod; it must not start a drain."""
+    calls: list[Any] = []
+    monkeypatch.setattr(skill_floor_pipeline.background, "enqueue", lambda *a, **k: calls.append(a))
+
+    assert skill_floor_pipeline.enqueue_boot_drain("") is False
+    assert calls == []
+
+
 @pytest.mark.asyncio
 async def test_a_finished_drain_does_not_rescan_the_corpus(monkeypatch) -> None:
     """The post-drain gap count 57014'd under ingest load and marked a finished

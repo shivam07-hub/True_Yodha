@@ -79,6 +79,40 @@ def test_capacity_503_opens_blocked() -> None:
     assert "/jobs/feed" not in rows[0].cause_key
 
 
+def test_a_timeout_with_a_caller_opens_named_for_that_caller() -> None:
+    import httpx
+
+    book = NoticeBook.testing()
+
+    def fetch_company_jobs_page() -> None:
+        raise httpx.ReadTimeout("timed out")
+
+    try:
+        fetch_company_jobs_page()
+    except httpx.ReadTimeout as exc:
+        book.observe(
+            Sighting.upstream_timeout(
+                correlation_id="d", method="GET", path="/companies/Bain/jobs", exc=exc
+            )
+        )
+
+    rows = book.snapshot()
+    assert len(rows) == 1
+    assert rows[0].status == "open"
+    assert rows[0].cause_key == (
+        "capacity_503:upstream.read_timeout:test_notice_board.py:fetch_company_jobs_page"
+    )
+    assert "/companies/Bain/jobs" not in rows[0].cause_key
+
+
+def test_a_timeout_stall_stays_blocked() -> None:
+    book = NoticeBook.testing()
+    book.observe(Sighting.capacity_stall(method="GET", path="/jobs/matches"))
+    rows = book.snapshot()
+    assert [(r.cause_key, r.status) for r in rows] == [("capacity_503:db_stall", "blocked")]
+    assert "/jobs/matches" not in rows[0].cause_key
+
+
 def test_timeout_is_a_different_cause_than_read_capacity() -> None:
     book = NoticeBook.testing()
     book.observe(Sighting.read_capacity(correlation_id="c", method="GET", path="/a"))

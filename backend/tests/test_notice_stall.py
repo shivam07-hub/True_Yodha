@@ -72,13 +72,66 @@ def test_slow_reads_an_hour_apart_are_their_own_causes() -> None:
     assert [s.slow_kind for s in filed] == ["slow_read"] * 3
 
 
+def _timeout(file: str, function: str, path: str = "/jobs/matches") -> Sighting:
+    return Sighting(
+        cause_class="capacity_503",
+        limiter="upstream.read_timeout",
+        method="GET",
+        path=path,
+        site_file=file,
+        site_function=function,
+    )
+
+
 def test_every_other_sighting_passes_straight_through() -> None:
     window = StallWindow()
     dead = Sighting.dead_man(belt="skill_floor")
     queued = Sighting.slow_200(kind="capacity_queue", method="GET", path="/x")
+    unnamed = Sighting.upstream_timeout(correlation_id="c", method="GET", path="/jobs/matches")
 
     assert window.admit(dead, _T0) == (dead,)
     assert window.admit(queued, _T0) == (queued,)
+    assert window.admit(unnamed, _T0) == (unnamed,)
+
+
+def test_three_callers_timing_out_inside_one_minute_are_one_stall() -> None:
+    filed = _file_all(
+        StallWindow(),
+        (
+            _timeout("app/repositories/jobs.py", "_compute"),
+            _timeout("app/repositories/jobs.py", "get_candidate_job_ids_for_roles", "/jobs/feed"),
+            _timeout("app/services/internships.py", "list_internships", "/jobs/internships"),
+        ),
+        gap=timedelta(seconds=10),
+    )
+
+    assert [s.limiter for s in filed] == ["db_stall", "db_stall", "db_stall"]
+
+
+def test_one_caller_timing_out_many_times_is_still_that_caller() -> None:
+    hammered = tuple(_timeout("app/repositories/jobs.py", "_compute") for _ in range(4))
+
+    filed = _file_all(StallWindow(), hammered, gap=timedelta(seconds=5))
+
+    assert [s.site_function for s in filed] == ["_compute"] * 4
+
+
+def test_a_timeout_beside_two_slow_reads_is_the_same_stall() -> None:
+    filed = _file_all(
+        StallWindow(),
+        (
+            _LANDING[0],
+            _LANDING[1],
+            _timeout("app/repositories/jobs.py", "_compute", "/jobs/matches"),
+        ),
+        gap=timedelta(seconds=10),
+    )
+
+    assert [(s.cause_class, s.slow_kind, s.limiter) for s in filed] == [
+        ("slow_200", "db_stall", None),
+        ("slow_200", "db_stall", None),
+        ("capacity_503", None, "db_stall"),
+    ]
 
 
 def test_a_stall_is_one_blocked_notice_on_the_board() -> None:

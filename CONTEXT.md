@@ -501,6 +501,15 @@ A headless engine (`createTaxonomy({ fetch })`, the `field-motion.ts` precedent)
 - The demand `band` reuses market-wide demand (`weighted_demand` from `build_user_skill_demand`) — the same unscoped signal the Skills page reads — never a fresh per-page `jobCount`. The build-time generator is a thin adapter that exports that already-computed signal into `priority.json`.
 - Artifacts are forward-only: regenerated on a scraper batch refresh, committed, **not** wired into `prebuild` (no build-time DB coupling).
 
+## Corpus Read
+
+**Every row a filter matches, read through PostgREST one page at a time on the table's unique key.** `fetch_all_rows` (`job_skills_read_model.py`) is the one reader. Each page asks for the rows after the last key seen (`jobs` walks `job_id`, every other table `id`), so a page is a short index range and no row is read twice or missed.
+
+- OFFSET paging is retired. It re-read every earlier row on every page: one market-analytics pass read `jobs` about 41 times and drained the Micro disk IO budget (2026-11-03). With no order it could also skip or repeat rows.
+- The walk owns the order. A caller's `.order()` only breaks ties on a unique key, so callers do not order.
+- A table with no single-column key (`skill_demand_snapshot`) is a bounded read, `fetch_bounded_rows`: one page, and it raises when the page is full instead of returning the first 1,000 as if they were all of them.
+- A Corpus Read is for background work and bounded scopes. A whole-corpus aggregate belongs in the database (a Tier-0 snapshot), not in Python pages.
+
 ## Skill Closeness
 
 **Two skills are close when real jobs ask for them together** — never when a taxonomy files them under the same heading. `skill_closeness` (skill → its 20 closest, with lift, jobs and company count) is a Tier-0 snapshot on the shared lease, task `skill_closeness`, refreshed inside the database (22.7s — never over PostgREST, whose 8s limit it cannot meet). 8,953 bonds on 2026-10-04.
@@ -935,6 +944,26 @@ The one state-derived action that moves a candidate through the active job-searc
 - **An Apply click is at least a save.** It files the job as `saved` when it has no row, so the "did you submit?" question always has a home. Saved never claims a submission; only the person's Yes moves a job to `applied`.
 - `ApplicationResponse.match_score` is projected from the durable `user_job_matches` evaluation on the Applications read, so Next Best Step does not depend on a warmed feed cache to choose the highest-fit role.
 - A confirmed application returns to the remaining saved-role queue when there is no more urgent interview or follow-up. It stays visible in Applications for tracking; it is not silently treated as complete.
+
+---
+
+## The Loop
+
+The start-to-end path of one person. One job runs it through. The next job starts again at find. The north star counts a Yes the judge rated at least 3.5.
+
+The core, Shivam 2026-11-02: they submit a CV and are recommended the best jobs Myro has read from MNC career pages that they can apply to. That list is the first Match Run. If it does not finish, the loop never starts.
+
+1. **Upload.** No Main CV. Journey Position is `experience`.
+2. **Direction.** Skills are confirmed, then a whole direction or a job saved at the door. `journey_finished`. They leave the funnel.
+3. **Find.** A listing they paste, one saved with the extension, or one from the judged list.
+4. **Tailor.** One document for that job, written only from their profile. They download it.
+5. **Send.** Apply carries that CV onto the company page. On desktop Chrome the extension fills every screen it can and stops before Submit. On a phone, Apply opens the page. A hosted listing is submitted here.
+6. **Yes.** They come back and record that they sent it. That record is `applied_at`. Until then the job is saved, not sent.
+7. **Prep.** A room whose stage is `applied` or `interviewing`. Four steps, in order: evidence, level, rehearsal, brief. Practice for the call. This is the first payment.
+8. **Coaching.** After prep, a person can opt in. ₹599, once. This is `filing_intake`: one resume for the role they name, the company form filled with them, they submit. (Shivam, 2026-11-02.)
+9. **Again.** The next job starts at find. The one they sent stays in Applications.
+
+**The Apply Pack stays the other purchase.** ₹199, once: 500 coins and one Human Check, sold when the coins run out and as "Human check before you apply" on the tailored CV. ADR-0005's "not a coaching service" still holds for a standing coach. The ₹599 is this filing, offered after prep, not that.
 
 ---
 
@@ -1654,17 +1683,17 @@ The saturation mailbox is retired (ADR-0021). A Notice is the memory; a daily cl
 
 1. *(retired 2026-10-10)* Process death — the Railway harvest never recorded one: it read only a deployment's CURRENT status, and Railway restarts a crashed process. A dying process shows up as 500s, 503s and dead-men instead.
 2. Unhandled 500.
-3. 503 / upstream timeout (`read_capacity.rejected`, `upstream.read_timeout`).
+3. 503 / upstream timeout. `read_capacity` is one blocked cause: the limiter refused the read. A read timeout or a statement timeout names the caller (`capacity_503:upstream.read_timeout:<file>:<function>`, and the same for `db.statement_timeout`) and opens — one query that did not finish. Three or more callers inside a minute are one `capacity_503:db_stall`, blocked. A timeout whose traceback has no caller stays the unsited limiter key, blocked.
 4. Upload Guarantee break — object in storage, no job / no output.
 5. Work Lane exhaustion — retries spent, user still has no result.
 6. Dead-man — skill-floor, listing verifier, job ingestion, and the Notice closer. Ingestion opens only when `stalled` (168h). `degraded` (behind the 72h aim) neither opens nor closes. A repeat probe refreshes `last_seen_at` and does not increment the count.
 7. Slow 200 — `slow_200:reads_over_budget` (code; the digest mails again when the count changes), `slow_200:slow_read:<file>:<function>` (code; one round trip ≥2,000ms — 500ms until 2026-10-10, which filed the ~300ms per-call floor as 79 causes — named for its caller), or `slow_200:capacity_queue` (`blocked`; no slow trip of its own; mails when the count doubles, and on Monday).
 
-Class 2 closes in Cursor: root-cause fix, five gates, branch from `main`, that Notice’s files only. The closer never writes the patch. A `NOTICE_CAUSE_KEY` test already on `origin/main` is how the next digest marks it `closed`. A harvest proof may close an `open` belt from one healthy sample. It clears `failed-close` only once the belt has gone a week (`RECOVERY_HELD`) without a dead sighting — a recovery that held; a dead-man's `last_seen_at` is when it was last seen dead. Otherwise a recovery that did not hold stays visible until a proof on `main`, and never the proof that already failed: the test named in `proof_test` cannot close its cause twice, because production re-presents every test it ships on every run. A failed close needs a new `test_notice_close_*.py`. Class 3 and slow-200 queue victims open `blocked`. 4–6 record live; the closer harvests belt stalls and recovery.
+Class 2 closes in Cursor: root-cause fix, five gates, branch from `main`, that Notice’s files only. The closer never writes the patch. A `NOTICE_CAUSE_KEY` test already on `origin/main` is how the next digest marks it `closed`. A harvest proof may close an `open` belt from one healthy sample. It clears `failed-close` only once the belt has gone a week (`RECOVERY_HELD`) without a dead sighting — a recovery that held; a dead-man's `last_seen_at` is when it was last seen dead. Otherwise a recovery that did not hold stays visible until a proof on `main`, and never the proof that already failed: the test named in `proof_test` cannot close its cause twice, because production re-presents every test it ships on every run. A failed close needs a new `test_notice_close_*.py`. Class 3 opens `blocked`, except a timeout named for one caller, which opens like a slow read. Slow-200 queue victims open `blocked`. 4–6 record live; the closer harvests belt stalls and recovery.
 
 **Identity**
 
-`cause_key` = class + fingerprint. Unhandled 500 → exception type + file + function. 503 → which limiter / which timeout, not the route. Upload Guarantee → `object_no_job` vs `job_never_claimed`. Work Lane → job type + terminal error class. Dead-man → one key per belt. Slow 200 → over-budget, or the slowest round trip's app frame (file + function), or capacity queue. A slow read waits one minute in the web writer (`notice/stall.py`): if three or more different call sites crossed 2s within a minute of it, it is `slow_200:db_stall` (blocked) — the database stalled for everyone, and naming whichever query was running turned one stall (2026-10-16 05:08) into five Notices. One site slow many times is still that site. The trip is timed inside the read-capacity claim, so waiting for a slot never names a query. The route is evidence, never the identity. Reopen of the same `cause_key` after a closing commit is a **failed close**.
+`cause_key` = class + fingerprint. Unhandled 500 → exception type + file + function. 503 → which limiter, or which timeout plus the caller that asked, not the route. A named timeout waits in the same one-minute window as a slow read, and three callers make it `capacity_503:db_stall`. Upload Guarantee → `object_no_job` vs `job_never_claimed`. Work Lane → job type + terminal error class. Dead-man → one key per belt. Slow 200 → over-budget, or the slowest round trip's app frame (file + function), or capacity queue. A slow read waits one minute in the web writer (`notice/stall.py`): if three or more different call sites crossed 2s within a minute of it, it is `slow_200:db_stall` (blocked) — the database stalled for everyone, and naming whichever query was running turned one stall (2026-10-16 05:08) into five Notices. One site slow many times is still that site. The trip is timed inside the read-capacity claim, so waiting for a slot never names a query. The route is evidence, never the identity. Reopen of the same `cause_key` after a closing commit is a **failed close**.
 
 **Status**
 

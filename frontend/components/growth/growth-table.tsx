@@ -14,6 +14,7 @@ import {
   GrowthWorkbench,
   type GrowthMetricsHandler,
 } from "./growth-workbench"
+import type { GrowthInstagramHandler } from "./growth-instagram"
 
 interface Props {
   messages: GrowthMessage[]
@@ -28,6 +29,7 @@ interface Props {
     body: GrowthPublicationCreate,
   ) => Promise<void>
   onMetrics: GrowthMetricsHandler
+  onPublishInstagram?: GrowthInstagramHandler
 }
 
 function displayStatus(status: string): "draft" | "posted" | "paused" {
@@ -61,6 +63,7 @@ export function GrowthTable({
   onSave,
   onPublish,
   onMetrics,
+  onPublishInstagram,
 }: Props) {
   return (
     <div className="gc-card gc-table-card">
@@ -177,6 +180,7 @@ export function GrowthTable({
                           publication={publication}
                           onSave={onSave}
                           onPublish={onPublish}
+                          onPublishInstagram={onPublishInstagram}
                         />
                       </td>
                     </tr>

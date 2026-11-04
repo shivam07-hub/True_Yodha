@@ -20,7 +20,7 @@ If something here is wrong, fix it in the commit that proves it wrong.
 > how easily they can do it is the entire game. — Shivam, 2026-09-30
 
 **North star: qualified applications sent** (the judge rated the job ≥3.5).
-Today: **3 people, 5 applications, ever.** Myro's own accounts are flagged
+Today: **2 people, 2 applications, ever**, 4 Yeses unrated. Myro's own accounts are flagged
 `is_test_account` and excluded from every count (`services/test_accounts.py`).
 
 **The cut rule.** An item stays open only if it fixes a broken or leaking step of
@@ -121,7 +121,7 @@ Jobs come from the scraper repo (Shivam's); this repo only reads them.
 | Servers, domains, env, DNS, deploy order | [INFRA.md](INFRA.md) |
 | Open work, in loop order | [BACKLOG.md](BACKLOG.md) |
 | **Which newsletter to push next · what goes out when** | [NEWSLETTER_QUEUE.md](NEWSLETTER_QUEUE.md) · [MARKETING_SCHEDULE.md](MARKETING_SCHEDULE.md) |
-| **Specs Cursor builds from** | `ARCHITECTURE_*.md` at the root — RETURN_LOOP #55 · PAYMENTS #56 · FRONT_DOOR #57 · CV_TIER_A #58 · GOLDEN_DIGEST #59 · SKILL_EVIDENCE #60 · LISTING_TIME · CONTRACTS_BY_TYPE |
+| **Specs Cursor builds from** | `ARCHITECTURE_*.md` at the root — RETURN_LOOP #55 · PAYMENTS #56 · FRONT_DOOR #57 · CV_TIER_A #58 · GOLDEN_DIGEST #59 · SKILL_EVIDENCE #60 · APK #61 |
 | **Prep = one ladder, four steps** | [UNIFIED_PREP_V2.md](UNIFIED_PREP_V2.md) |
 | Vibecoded tells, ruled against our code | [ANTI_SLOP.md](ANTI_SLOP.md) |
 | One Myro voice + one memory writer | [MYRO_MENTOR.md](MYRO_MENTOR.md) |
@@ -149,8 +149,8 @@ Order is the loop map — broken steps first, nearest the north star first (Shiv
 
 | # | Step | Now |
 |---|---|---|
-| 1 | Find the job | Scraper not daily: runs 10-14→10-20 and 10-26→10-27, none since (checked 10-30). #55 closed: a return shows the list and re-reads it. |
-| 2 | Apply | 2 real Apply clicks since 2026-09-22 (last 10-16), 0 answered. Built work is on `main` (#342); measure click → "Did you submit?" → application. |
+| 1 | Find the job | Scraper not daily: runs 10-14→10-20, 10-26→10-27, 11-02→11-03 (checked 11-03). #55 closed: a return shows the list and re-reads it. |
+| 2 | Apply | 6 real Apply clicks since 2026-09-22, 3 people (last 11-02), 2 answered, 0 Yes. Built work is on `main` (#342); measure click → "Did you submit?" → application. |
 | 3 | Repeat | Golden-list digest (#59): email only to `golden_list_since`. Blocked until the preview is approved. |
 | 4 | Front door | #57 on `main`: after skills, paste · extension · jobs that fit. Door to Download in 5 clicks (FD1–FD4) on `main` 2026-10-22; U4 passed desktop 10-19 and 375px 10-22. Real phone owed (Shivam). |
 | 5 | Tailor + download | #58 S1–S4 built (blank certs, fabricated-role guard, unknown sections kept, measured page fill). Still open: add role. |

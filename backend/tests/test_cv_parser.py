@@ -579,3 +579,28 @@ async def test_a_mangled_token_is_a_permanent_outcome_not_a_retry(monkeypatch) -
     outcome = await cv_parser.reparse_structured_only(_ECHO_CV)
 
     assert outcome.kind == "malformed"
+
+
+def test_a_docx_that_is_not_a_word_package_is_empty_text() -> None:
+    """python-docx raises ValueError (PackageNotFoundError). That used to
+    escape the upload as a 500. Empty text is the unreadable-file result."""
+    assert cv_parser.extract_raw_text(b"not a word file", "docx") == ""
+    assert cv_parser.extract_raw_text(b"PK\x03\x04not-a-real-package", "docx") == ""
+
+
+def test_a_real_docx_still_yields_its_paragraphs() -> None:
+    import io
+
+    from docx import Document
+
+    doc = Document()
+    doc.add_paragraph("Built the billing service in Python.")
+    buf = io.BytesIO()
+    doc.save(buf)
+
+    assert "billing service" in cv_parser.extract_raw_text(buf.getvalue(), "docx")
+
+
+def test_an_unknown_file_type_is_still_refused() -> None:
+    with pytest.raises(ValueError, match="Unsupported file_type"):
+        cv_parser.extract_raw_text(b"x", "rtf")

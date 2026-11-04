@@ -297,34 +297,32 @@ def get_feed_updated_at(db: Client) -> str | None:
     There is exactly ONE answer to this for the whole platform — it describes
     the corpus, not the caller — so it is Tier 0 by the read contract
     (ARCHITECTURE_READ_PATH.md §2) and belongs in the shared cache, not in a
-    per-process dict that every replica fills separately. Kept here rather than
-    in a snapshot table because the value already IS a single indexed read; what
-    it needed was one cached answer across replicas, which S3's primitive gives.
+    per-process dict that every replica fills separately.
 
-    Never raises: a missing receipt costs a "last updated" line, never the
-    response. `stale_seconds` means a DB blip during a refresh serves the last
-    known instant for an hour instead of dropping it — strictly better than the
-    per-process version, which lost the value entirely on a cold replica.
+    The read is `newest_job_receipt` (migration 20261102121500). Asked as a
+    PostgREST sort on `jobs`, the caller's row policy cannot use the
+    ingested_at index — the same plan that made the new-inventory count 8s
+    and a 503. A missing function or a failed read costs the line, never
+    the response.
     """
-    def _compute() -> str | None:
-        result = (
-            db.table("jobs")
-            .select("ingested_at")
-            .not_.is_("ingested_at", "null")
-            .order("ingested_at", desc=True)
-            .limit(1)
-            .execute()
-        )
-        rows = result.data or []
-        if not rows:
+    def newest_receipt() -> str | None:
+        result = db.rpc("newest_job_receipt", {}).execute()
+        value = result.data
+        if isinstance(value, list):
+            value = value[0] if value else None
+            if isinstance(value, dict):
+                value = next(iter(value.values()), None)
+        if not value:
             return None
-        received = listing_time(rows[0], now=datetime.now(timezone.utc)).received_at
+        received = listing_time(
+            {"ingested_at": value}, now=datetime.now(timezone.utc)
+        ).received_at
         return None if received is None else received.date().isoformat()
 
     try:
         return shared_cache.get_or_compute(
             "jobs.feed_updated_at",
-            _compute,
+            newest_receipt,
             ttl_seconds=_FEED_TS_TTL,
             stale_seconds=_FEED_TS_STALE,
         )
@@ -1382,15 +1380,16 @@ class JobsRepository:
         if cached is not None and (now - cached[0]) < _SEARCH_TTL:
             return list(cached[1]["rows"])
         try:
-            result = self._admin_db.rpc(
-                "top_companies_at",
-                {"p_kind": kind, "p_value": value, "p_limit": scoped_limit, "p_sort": order},
-            ).execute()
+            from app.repositories.live_list import top_companies
+
+            counted = top_companies(
+                self._admin_db, kind=kind, value=value, limit=scoped_limit, sort=order,
+            )
         except APIError:
             return list(cached[1]["rows"]) if cached else []
 
         rows: list[dict[str, Any]] = []
-        for r in result.data or []:
+        for r in counted:
             company = (r.get("company_name") or "").strip()
             if not company:
                 continue
@@ -2280,42 +2279,6 @@ class JobsRepository:
         """Returns job skills from the FK-enforced job_skills join table."""
         return group_job_skill_rows(fetch_job_skill_rows(self._db))
 
-    _LOCATION_FILTER_CHUNK = 200
-
-    def _filter_job_ids_by_location(
-        self,
-        job_ids: list[str],
-        target_location_countries: list[str],
-    ) -> list[str]:
-        """Hard-filter job_ids by target countries (OR across the set).
-
-        Include if location_country is in the target set OR (location_country is
-        NULL AND mode is remote/hybrid). Queries in chunks of 200 to stay within
-        PostgREST URL limits. The skill-overlap selector no longer uses this —
-        `candidate_jobs_for_user` inlines the same rule. The title selector still
-        does, because it is capped and does not go through that RPC.
-        """
-        countries_lower = {c.strip().lower() for c in target_location_countries if c and c.strip()}
-        if not countries_lower:
-            return list(job_ids)
-        result: list[str] = []
-        for i in range(0, len(job_ids), self._LOCATION_FILTER_CHUNK):
-            chunk = job_ids[i:i + self._LOCATION_FILTER_CHUNK]
-            rows = (
-                self._db.table("jobs")
-                .select("job_id, location_country, location_mode")
-                .in_("job_id", chunk)
-                .execute()
-            ).data or []
-            for row in rows:
-                country = (row.get("location_country") or "").strip().lower()
-                mode = (row.get("location_mode") or "").strip().lower()
-                if country and country in countries_lower:
-                    result.append(row["job_id"])
-                elif not country and mode in ("remote", "hybrid"):
-                    result.append(row["job_id"])
-        return result
-
     def candidate_jobs_for_skills(
         self,
         skill_keys: list[str],
@@ -2326,8 +2289,8 @@ class JobsRepository:
         """Eligibility-column rows for skill-overlapping jobs.
 
         One body-encoded RPC. Location and freshness are applied in SQL with
-        the same rules the deleted Python helpers used; `job_is_eligible` still
-        runs in Python over these rows.
+        the same rules the role list uses; `job_is_eligible` still runs in
+        Python over these rows.
         """
         return fetch_candidate_jobs(
             self._db,
@@ -2387,33 +2350,19 @@ class JobsRepository:
         in it, and Banking Services 12 against 2,926.
 
         So it selects on the fact instead: `role_family` is the column the target
-        was resolved from, it is indexed (`idx_jobs_role_family`), and the target
-        list is capped at five, so the scope cannot grow with the data. One
-        equality replaces a trigram OR, a 4x overfetch and a re-filter.
-
-        Verifier eligibility + location gate the same way the skill selector does.
-        Most recently verified first, capped. Returns [] when the user has no
-        resolved family (nothing to select on).
+        was resolved from. `live_jobs_for_families` keeps the live rows, applies
+        the country rule, and stops at the page. Most recently verified first.
+        Returns [] when the user has no resolved family.
         """
-        families = sorted(_target_families(role_families))
-        if not families:
-            return []
-        query = (
-            self._db.table("jobs")
-            .select("job_id, last_verified_live_at")
-            .in_("role_family", families)
+        from app.repositories.live_list import jobs_for_families
+
+        return jobs_for_families(
+            self._db,
+            role_families,
+            countries=target_location_countries,
+            require_fresh=require_fresh,
+            limit=limit,
         )
-        if require_fresh:
-            query = live_only(query)
-        rows = (
-            query.order("last_verified_live_at", desc=True).limit(limit).execute()
-        ).data or []
-        matched_ids = [r["job_id"] for r in rows if r.get("job_id")]
-        if target_location_countries:
-            matched_ids = self._filter_job_ids_by_location(
-                matched_ids, target_location_countries
-            )
-        return matched_ids[:limit]
 
     def filter_job_ids_for_eligibility(
         self,
@@ -2801,7 +2750,7 @@ class JobsRepository:
             query = query.eq("user_id", user_id)
             if batch_week is not None:
                 query = query.eq("batch_week", str(batch_week))
-            return query.order("id")
+            return query
 
         # Paged for the same reason as the stack: past 1,000 rows a single read
         # drops the rest, and a run would judge again what it had already judged.
@@ -2835,7 +2784,7 @@ class JobsRepository:
         # Paged. PostgREST answers at most 1,000 rows, and on 2026-10-13 seven
         # people held more — every one of them active that month — so 1,397 of
         # their verdicts were never read and those jobs never reached /market,
-        # Collections or the Picks gate. `id` orders the pages: it is unique, so
+        # Collections or the Picks gate. The walk pages on `id`: it is unique, so
         # no row lands on two pages or on none.
         rows = fetch_all_rows(
             self._db,
@@ -2859,7 +2808,7 @@ class JobsRepository:
                 # on a select this read already makes, so the grade costs no round trip.
                 f"main_skills, {HOSTED_COLUMNS}, {CARD_COLUMNS})"
             ),
-            query_builder=lambda q: q.eq("user_id", user_id).order("id"),
+            query_builder=lambda q: q.eq("user_id", user_id),
         )
         if dismissed is None:
             dismissed = set(self.get_dismissed_job_card_ids(user_id))
@@ -3349,7 +3298,7 @@ class JobsRepository:
                 "job_id, overall_score, recommendation, baseline_version_id, "
                 "eval_context_hash, target_context_hash, jobs(is_active, listing_confidence)"
             ),
-            query_builder=lambda q: q.eq("user_id", user_id).gte("overall_score", floor).order("id"),
+            query_builder=lambda q: q.eq("user_id", user_id).gte("overall_score", floor),
         )
         return [row for row in rows if not is_down(row.get("jobs") or {})]
 

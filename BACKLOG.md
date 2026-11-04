@@ -16,32 +16,30 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 
 | # | Step | Item | Spec · owner | Next |
 |---|---|---|---|---|
-| 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read `apply_asked` ~10-27; nothing to build before it |
+| 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read 11-02: 6 asked, 2 answered, 0 Yes; too few to redesign from |
 | 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) | Built; `0aafb324` on `main`. **BLOCKED on Shivam**: preview → approve |
 | 4 | Front door | **#57** "Which job do you want?" after upload | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor, 1st | On `main` 2026-10-17 · link paste fixed `2cc7b264`; 5 clicks to Download `8c372968`; links read from the corpus `515fd697` · phone run owed |
 | 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1–S4 on `main` · next S5 add role |
 | 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor, 3rd | Spec only, no commits · S0 audit |
 | 6 | Pay | **#56** the ₹199 Apply Pack | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Cursor, 4th | Spec only, no commits · S1 settlement |
+| 3 | Repeat | **#61** Myro on Android (TWA), buying hidden, then Play billing | [ARCHITECTURE_APK.md](ARCHITECTURE_APK.md) · Cursor, next | Spec 2026-11-03 · Phase 1 S1–S9; Phase 2 waits on #56 · Shivam: D-U-N-S, new upload key |
 
-**Cursor's order (Shivam, 2026-10-14):** #57 → #58 → #60 → #56. The biggest
-absolute leak first (553 of 1,002 never upload; 511 arrived by partner SSO, 22% of
-them upload), then collected → tailored (26%); #60 once jobs flow again; pay after
-the value.
+**Cursor's order (Shivam, 2026-10-14; #61 added 2026-11-03):** #57 → #58 → #61
+Phase 1 → #60 → #56 → #61 Phase 2. The biggest absolute leak first (553 of 1,002
+never upload; 511 arrived by partner SSO, 22% of them upload), then collected →
+tailored (26%); the app next (Shivam, 2026-11-03: "ready for an APK next"); #60 once
+jobs flow again; pay after the value. #61 S5 is #58 S5's mobile half.
 
 Specs Cursor builds from, each slice its own commit with six gates green:
 PAYMENTS (#56) · FRONT_DOOR (#57) · CV_TIER_A (#58) · GOLDEN_DIGEST (#59) ·
-SKILL_EVIDENCE (#60) ·
-[ARCHITECTURE_LISTING_TIME.md](ARCHITECTURE_LISTING_TIME.md) (steps 1–2 done:
-de-seed `f7dd4735`, `listing_time.py`; verify 3–6 in code) ·
-[ARCHITECTURE_CONTRACTS_BY_TYPE.md](ARCHITECTURE_CONTRACTS_BY_TYPE.md) (make
-`compute_match_health`'s `freshness` required).
+SKILL_EVIDENCE (#60) · APK (#61).
 
 ---
 
 ## 1 · FIND THE JOB
 
-**The corpus is the scraper repo's (Shivam).** Landing again since 2026-10-15:
-2–3k rows a day, 04–05 UTC; 54,870 active on 2026-10-18. This repo only reads jobs;
+**The corpus is the scraper repo's (Shivam).** Not landing daily (§SHIVAM); when it
+lands, 2–3k rows, 04–05 UTC. 54,870 active on 2026-10-18. This repo only reads jobs;
 never measure ingestion with `jobs.ingested_at` (an extension save masks a stall).
 
 **#60 Skill evidence — [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md)
@@ -57,21 +55,21 @@ invariants; a skill-spread Notice belt. Cursor.
 
 ---
 
-**A full run closes jobs that are still open: Accenture (found 2026-11-02, owner:
-Shivam, scraper repo).** Workday's listing `total` stops at 2,000 while its own
-facets show 34,608 Accenture jobs in India, so the run sees 2,000, reports
-`complete` with coverage 1.00, and `apply_missing` closes everything else on one
-miss. 2,244 closed on 11-02; 12 of 12 sampled were open on Workday that day. Only
-Accenture reaches the cap among 41 Workday sources; other providers not checked.
-Fixed by [myro-job-scraper#10](https://github.com/shivam07-hub/myro-job-scraper/pull/10)
-(`687aebca`, deployed 11-02): such a run records `partial`, publishes what it saw and
-closes nothing. Check after the 11-02 19:30 UTC run: Accenture's `job_source_runs` row
-must read `partial`. Still closed: the 2,244, and 13 false "is gone" notices went to
-7 real people, unread. Reading past 2,000 needs the listing split by facet.
+**A full run closed jobs that were still open: Accenture (2026-11-02).** Workday's
+listing stops at 2,000 while its facets show 34,608 Accenture jobs in India, so a
+run called the source complete and closed the rest. Fixed by
+[myro-job-scraper#10](https://github.com/shivam07-hub/myro-job-scraper/pull/10)
+(`687aebca`): such a run records `partial` and closes nothing. All 2,244 checked on
+Workday: 2,102 open and reopened, 12 false notices to real people withdrawn; 142
+unproven (126 refused with a 403, 16 with no apply link) left closed. Proved on the
+next run: Accenture read `partial`, "source listing stopped before its end"
+(2026-11-03 05:04 UTC). Reading past 2,000 needs the listing split by facet:
+Shivam's call, it adds JD and enrichment cost.
 
 ## 2 · APPLY
 
-The north star is measured here and is near zero: 3 people, 5 applications, ever.
+The north star is measured here and is near zero: 2 people, 2 applications, ever,
+and 4 Yeses not rated yet (`loop_reach.py`, 2026-11-02).
 The capture is on `main` (`3ff55125` "Did you submit?"; `a624c2e1` Apply after
 download). QA check **A1** below: Apply opens the company's own posting.
 
@@ -91,9 +89,10 @@ and **Save the confirmation** writes `applied` with door `filing_receipt`.
 `loop_reach.py` reads clicked → asked → answered → applied per door, plus the
 leading number (tailored apply-outs on ≥3.5 jobs). **2026-10-13 → 10-19, real
 accounts: 1 person, 2 clicks, 2 asked, 0 answered.**
-**Next:** read `apply_asked` ~10-27. Asked ≈ 0 → people never return to the tab;
-asked > 0 and answered ≈ 0 → the prompt is ignored. Redesign from that, in Myro
-(no email — APPLY2).
+**Read 2026-11-02, since 10-20:** 6 asked (3 people) · 4 clicks, 2 answered (1
+person), 0 Yes. Too few to redesign from. **Next:** read again as clicks grow.
+Asked ≈ 0 → people never return to the tab; asked > 0 and answered ≈ 0 → the
+prompt is ignored. Redesign from that, in Myro (no email — APPLY2).
 
 **Form fill has never run for anyone (measured 2026-11-02).** 0 rows in
 `job_filing_authorizations`, test accounts included, and `/filing/answers` refuses
@@ -109,8 +108,8 @@ ask until a filing Yes exists.
 ## 3 · REPEAT
 
 **#59 Golden-list digest (Shivam, 2026-09-30) — [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md).**
-`golden_list_since` is live (`20261007120000`) and batch 1 is stamped — Rishabh
-Guha, Adarsh Mohan, Raj Kishore, Deveshwar Kashyap (Shivam confirmed 2026-10-07).
+`golden_list_since` is live (`20261007120000`) and batch 1 is stamped — four
+people (Shivam confirmed 2026-10-07; names kept off this public repo).
 The golden list IS the instant-seeker list: one column,
 `user_profiles.golden_list_since timestamptz` (empty = not on it). Shivam sends
 names; an agent matches, Shivam confirms, the agent stamps. The digest goes only to
@@ -146,10 +145,6 @@ none pasted a job. The all-time upload rate is 45%; this week's is 28%.
 **U4 desktop run, 2026-10-19** (QA account, dev, Amazon BA link): the door renders
 and Paste → review → playground works. Found on the way:
 
-- **Fixed — a pasted link always failed.** `extractUrl` used the 15s default
-  timeout; the server answers in 31–45s, so the door and /market's "Paste a job"
-  said "Request timed out." while the server returned 200 (`2cc7b264`, live after
-  the next `main` merge).
 - **FD1 · reading a pasted link — FIXED `515fd697`.** The 31–45s was a dead free
   model at the head of the lane (removed `fe62760f`), not the JD rewrite (30/31
   sentences came back verbatim). The real fault: 5 of the 18 biggest hosts gave
@@ -161,13 +156,13 @@ and Paste → review → playground works. Found on the way:
   listing itself, no `ext_` copy) → **JobPosting** (schema.org on the page) →
   **model**. Verified on real links: Genpact/Workday, Lever, Qualcomm, Amazon,
   Axis, Infosys from the corpus in 0.1–0.2s; Accenture from its JobPosting in
-  ~2s; a pasted Genpact link saved as `JR10022480` with no `ext_` row. **After
-  the merge:** read the `source=` split on prod for two weeks.
+  ~2s; a pasted Genpact link saved as `JR10022480` with no `ext_` row. On `main`
+  10-22; the `source=` read is in the next bullet.
 - **A link from a job board does not read (measured 2026-11-02).** 11 real links, 0
   read: LinkedIn 5, Indeed 3, Naukri 3 (live that day). 4 links to jobs Myro holds
   read in ~1s. So a board link now says so at once and opens one box for the
   description; Myro reads the role and company from it (`source=board` counts
-  arrivals). FD1's owed `source=` read: prod logged 0 reads 10-30 to 11-01. **The
+  arrivals). FD1's owed `source=` read: prod logged 0 reads 10-26 to 11-02, on 1 import call, so there is nothing to split yet. **The
   door is not leaking:** 22 saw it, 21
   took Jobs that fit, 18 finished. 6 people tried Paste or the extension for
   3-16s, 5 of them went on to Jobs that fit; logs show no read for the 2 paste
@@ -183,13 +178,19 @@ and Paste → review → playground works. Found on the way:
   was never tailored opens on Mentor once per job, which is aimed at the 4 of 6
   people who opened the editor and pressed nothing. Verified end to end on a
   local backend: `editor_opened → mentor_opened (auto) → weave_ran → review_done
-  (take_all)`; a reload lands on the paper. **After the merge:** read those four
-  steps per person on `core_loop_events` for two weeks — the question is whether
-  the editor still loses people before Mentor, and how many answer a question
-  before "Weave now". Cost of the design: fewer gap answers banked.
-- **FD3 · Small:** the playground header reads "Untitled role" until the job
-  loads. On Collections, "Add a job → Save" left the Saved tab at 0 until a
-  reload, and a job the person pasted is labelled "Myro found".
+  (take_all)`; a reload lands on the paper. On `main` 10-22. **Read 2026-11-02,
+  real accounts since 10-22:** `editor_opened` 3 people, `mentor_opened` 3,
+  `weave_ran` 0, `review_done` 0. All 3 stop at Mentor; cause unread. The
+  question is how many answer before "Weave now". Cost of the design: fewer gap
+  answers banked.
+- **FD3 · Small.** The "Untitled role" header while the job loads is fixed
+  (`359f4124`, on `Develop`). Open: on Collections, "Add a job → Save" left the
+  Saved tab at 0 until a reload. `useManualAdd` already refetches on save and has
+  since 09-02, so the cause is elsewhere; it needs a reproduction on the QA
+  account. And a pasted job reads "Myro found": `resolve.py` labels any job in
+  the match stack `myro`, and `job_applications.source` cannot tell a paste
+  apart (every save writes `user_discovery`), so fixing it means recording the
+  door at save time.
 
 T1 findings from the same run are under §5.
 
@@ -207,18 +208,18 @@ paste. Its five fixes are on `main` (ARCHIVE 2026-10-22). Open:
   reports `weaving`; the work is bounded at 240s, under the 300s claim. A
   timed-out POST reads the GET until the proposal lands or the run stops. Both
   commits on `main` via #344; closes when one real weave hits the claim. On
-  `Develop` the claim is `paid_run` (409 `run_in_flight`, client
+  `main` the claim is `paid_run` (409 `run_in_flight`, client
   `lib/run-wait.ts`), shared with the outreach pack and the day-of brief, which
   carried the same race (GET `building`; 0 real buyers of either 2026-10-22).
   **Refunded 2026-10-22 (REFUND1):** the 9 duplicates of `2ec5bfb0…` (450, ledger rows
   1671–1679, bell row "450 coins returned · Your Cargill draft is waiting.").
-  Check scheduled 2026-10-29 (local task `fd4-weave-ledger-check`): same-job
-  charges inside 3 min must read 0. Railway (30d retained): the only prod
+  Same-job charges inside 3 min must read 0; read 2026-11-02: no weave charged
+  to anyone since 10-22, so that proves nothing yet. Railway, read 10-22: the only prod
   weave runs are that burst — 10 POSTs, 37–60s each, none past the client's
   60s; the 74.5s run was a local backend. Authored 503s pass the boundary
   (`ServiceUnavailable`); still blanked: onboarding first-role save, account
   setup, engagement sale.
-- **FD5 · a paid weave that changes almost nothing — price half on `Develop`
+- **FD5 · a paid weave that changes almost nothing — price half on `main`
   (`2153c9a1`, DECISIONS WEAVE1).** One real person paid 50 for a
   summary-only draft (2026-10-19); the guard refused 4 of 5 roles on the QA's
   last three runs. A weave now costs 50 only when it rewrites or trims a role;
@@ -226,13 +227,14 @@ paste. Its five fixes are on `main` (ARCHIVE 2026-10-22). Open:
   10-19 draft. **Open: the guard itself.** Railway read 2026-10-22: no
   `role_guard_failed` lines yet (on `main` since 10:15 UTC, no real weave
   since). Cached proposals: real people 3 of 5 roles refused, QA 4 of 5. The
-  metric names the role, not the rule that refused it (number lost, foreign
-  number, substance lost) — log the rule before loosening anything.
-- **FD6 · the summary names the seat twice.** "GTM Business Development
-  Manager at Capgemini… Currently serving as GTM Business Development
-  Manager, …" — `names_seat` checks only the employer, so a summary that names
-  the role without the company gets `seat_lead` prepended.
-- **FD7 · Small:** the phone step rail shows "1" and "2" with no labels; when
+  metric now names the rule that refused a role: `rule=foreign_number`,
+  `number_lost` or `substance_lost` (`025de18d`, on `Develop`). **Next:** once
+  real weaves run on it, read the `rule=` split before loosening anything.
+- **FD6 · the summary named the seat twice — fixed `228b94c8`, on `Develop`.**
+  `names_seat` counted only the employer, so "Currently serving as GTM Business
+  Development Manager, …" got "… Manager at Capgemini." prepended. It now counts
+  the current role too.
+- **FD7 · Small (now #61 S6):** the phone step rail shows "1" and "2" with no labels; when
   the onboarding state call fails, /onboarding shows "Upload your CV" — a
   person with a CV is invited to upload again.
 
@@ -272,11 +274,11 @@ Chain", QA account):
   14, `9c360957` 0 → 8 of 14. A panel now takes 9–45s once (was 31–70s: story
   recall is one batch, not one per requirement); the judge call alone is 4–40s.
   Still lenient at the edges: ESG reporting proved "reports on global real
-  estate portfolio performance". **After the merge:** re-run the method above
-  on fresh panels and read 20 proofs by eye.
+  estate portfolio performance". **Owed, on `main` 10-20:** re-run the method
+  above on fresh panels and read 20 proofs by eye.
 - **Match reads 0 for almost everyone.** `matchScore` = coverage % − content
   penalty, clamped at 0 (`match-score.ts`). With honest coverage the QA job reads
-  33 before the penalty. Re-read the header after the merge before deciding
+  33 before the penalty. Re-read the header on a fresh panel before deciding
   whether the penalty belongs in the same number.
 - **Two numbers called "match" for one job (found 2026-10-23, making the
   launch videos).** The card's ring is the Match Verdict `match_score` ("82
@@ -287,13 +289,6 @@ Chain", QA account):
   on the card and a different one at the moment they apply. **Shivam:** rename
   the CV number (what it measures is how well this CV proves the job) or make
   both read the verdict. Decide with the penalty question above.
-- **Summary — FIXED `5ad8f6cc`.** The weave replaced the person's summary with
-  "GTM Business Development Manager, Capgemini, Insights & Data (GCC Growth). ▪
-  Own the full B2B sales cycle…". Two causes: the seat check matched the whole
-  stored company string, so "…at Capgemini" in the summary did not count; and
-  `seat_lead()` glued "role, company." to the first raw bullet. Now a summary
-  that names the employer is left alone, and otherwise the seat is one sentence
-  ("Role at Company.") before the summary's own words — never a bullet.
 - **Copied list markers — FIXED at upload `5ad8f6cc`; offered on the CV page
   `d197a058`.** The parser copied bullets verbatim, so "▪ Built…" was stored and
   the page drew its own mark in front: "• ▪ Built…". Uploads now drop it. The 24
@@ -351,27 +346,27 @@ Locks: the closer runs from pg_cron (02:30 UTC, 06:30 retry) via
 `POST /internal/notice/close`; Notice writes are off the request path; a slow
 query opens only at ≥2,000ms; the Railway death harvest is gone. ADR-0021
 amended. History: ARCHIVE 2026-10-10, `ARCHITECTURE_READ_PATH.md` §23–25.
-Agent-owned. A scheduled check reads R3/R4 on 10-19.
+Agent-owned. Railway keeps deploy logs 7 days (measured 2026-11-02): read inside that.
 
-- **R3 · Live latency.** Five warm samples / a week of `route.latency` on prod for
-  `/jobs/feed-state`, `/jobs/at/{c}`, `/companies/{c}/jobs`, confirm-skills,
-  `/partner/v1/sso/session`; record in §23–25. First 34 hours (10-12 08:57Z →
-  10-13 19:33Z) are in §23–25. The week runs to 10-19. Pre-merge baseline
-  (10-05→10-09): p50 ≤50 · ≤50 · ≤100 · ~3000 · ~1000 ms.
-- **R4 · SSO 500s gone — FAILED 2026-10-16 15:33 UTC, fixed on Develop.** One
-  partner SSO 500 (`ad35b339…`): GoTrue's duplicate-email lookup took 4.8s inside
-  a database stall and gotrue re-raised our ReadTimeout as `AuthRetryableError`,
-  which the boundary filed as an auth bug. Now a 503 +
-  `capacity_503:upstream.read_timeout` (`_relabelled_timeout`), live after the
-  next `main` merge. Original check: no `AuthRetryableError: Server disconnected`
-  / `CreateRaced` (proofs ride `test_auth_client_http1.py`).
-- **R9 · Drain wall time — measured 2026-10-19: about an hour, and one day lost.**
-  Scraper jobs since 10-15, first ingest → last `skill_floor_attempted_at`: 66 ·
-  65 · 1,441 · 58 · 61 min (10-15 → 10-19); median wait 37–52 min. The expectation
-  was minutes. On **10-17** all 3,265 jobs waited ~24h and were attempted at
-  10-18 05:04 with the next batch — the day #342 reached `main`; the cause is
-  unverified. **Next:** read the worker log for 10-17 05:00–06:00 UTC, then decide
-  whether an hour is the claim cadence or the work.
+- **R3 · Live latency — read 2026-11-02: three routes worse than baseline.** The
+  10-12 → 10-19 logs are gone, so `route.latency` 10-26 → 11-02 instead (server
+  time, summed buckets, upper edges, cold and warm together; table in §25). p50
+  then → now: `/jobs/feed-state` ≤50 → ≤500 (n=62), `/companies/{c}/jobs` ≤100 →
+  ≤750 (n=2,693), `/partner/v1/sso/session` ~1000 → ≤3000 (n=21). confirm-skills
+  held at ≤3000 (n=14) and leaves. `/jobs/at/{c}` has 2 samples, still owed. Not
+  on the list and slowest of all: `GET /jobs/feed` p50 ≤3000, p95 over 8s (n=420).
+  **Next:** `/read-path-perf`, `/jobs/feed` first.
+- **R9 · Drain wall time — the hour is the work; the lost days were deploys.
+  Fixed `ff636796`, on `Develop`.** 11-03's drain floored ~19k jobs in about 63
+  min, so an hour is the work, not the claim cadence. The lost days: a deploy
+  SIGTERMs the drain and RQ never retries a job killed that way. On 11-02 nine
+  worker restarts in 3h17m (05:10 → 07:53 UTC) killed the drain for 12,780 jobs;
+  nothing ran in the 9.5 quiet hours after, and they waited for the next scrape,
+  25h. 10-27's 3,554 jobs waited a week, and 10-17 was the same pattern. This is
+  the `dead_man:skill_floor` failed-close. Now each worker boot queues a drain
+  under its Railway deployment id. Live on the worker 2026-11-04 11:53 UTC: both
+  replicas logged `metric skill_floor.boot_drain_enqueued`. **Check:** the next
+  scrape's jobs settle within about an hour, even on a busy push day.
 - **R10 · Load off Micro, not a bigger Micro** (2026-10-14). The wait is the
   database, not the app (100 threads, 40 in-flight reads, 100-conn pool already).
   Shipped: `9d4ad00d` (an inert verifier result no longer rewrites the `jobs`
@@ -380,23 +375,12 @@ Agent-owned. A scheduled check reads R3/R4 on 10-19.
   HOT share and verifier UPDATE volume, against the 2026-10-15 window in
   `ARCHITECTURE_READ_PATH.md` §28 (HOT 4.9%). `claim_verify_targets` was still
   2.3s a call there. Memory: `docs/agent-memory/project_micro_load_unload.md`.
-- **R11 · The digest tells the truth — built on Develop 2026-10-18, live only after
-  the next `main` merge** (the closer runs on prod). Three changes: a failed close
-  refuses the test in `proof_test` (`49654b13`); a belt with no dead sighting for a
-  week clears its failed close (`b3242a86` — `dead_man:job_ingestion` closes at the
-  first run after 2026-10-21 02:30 UTC); a slow read inside a three-site minute is
-  one `slow_200:db_stall` (`971217e0`). **After the merge:** read two digests. The
-  ~25 `slow_read` rows opened by past stalls stay until a new proof closes them; a
-  site that keeps opening OUTSIDE a stall is a real query → `/read-path-perf`.
-- **R12 · Public pages — the provenance counts are Tier 0.**
-  `ARCHITECTURE_READ_PATH.md` §30. Migration `20261019090000` applied (task
-  `public_provenance` on `run_snapshot_sql_refresh` at :35, belt
-  `dead_man:snapshot.public_provenance`); refresh 3,177ms once a day, read 0.08ms.
-  Code `03f6aa41` on `Develop`, live after the next `main` merge. **After the
-  merge:** `verified_live` queryid `3154336291968442631` stops gaining calls
-  (552 on 10-19 04:25 UTC), the `_count` Notice stops, and
-  `cold_fill_wait_expired key=public_stats` reads 0. Company pages (5.3% of DB
-  time, no CDN on the path) stay as they are.
+- **R13 · Six reads still slow on their own (digests 11-01 → 11-02).** Opened
+  outside a stall, so each is a real query → `/read-path-perf`: `_compute` 83→88,
+  `_job_demand_counts` 11→14, `fetch_company_jobs_page` 728→730,
+  `list_internships` 10→12, `_company_has_listing` 8→9, `list_top_companies_at`
+  13→14. The `slow_read` rows opened by past stalls stay until a new proof closes
+  them.
 
 ---
 
@@ -438,54 +422,23 @@ Tracker (3) · no problem or not actionable (~25).
 ## SHIVAM
 
 - **Brand, agreed 2026-11-02; all need your login.**
-  1. Merge `main` before Tue 3 Nov, 10:30, so issue 25's readers land on the
-     tailor CTA (`e0048c83`) and not the Score.
-  2. Change the Instagram and LinkedIn profile text, and upload the LinkedIn cover
+  1. Change the Instagram and LinkedIn profile text, and upload the LinkedIn cover
      image: [INSTAGRAM_PROFILE.md](INSTAGRAM_PROFILE.md).
-  3. Mark LinkedIn issues 020, 022 and the loop video posted in `/admin/growth`,
+  2. Mark LinkedIn issues 020, 022 and the loop video posted in `/admin/growth`,
      with their links. They are live, and the rows still say unposted.
-  4. Listen to the Fill video's soundtrack before Thu 5 Nov.
-- **Railway breach of 2026-10-21: rotate. OpenRouter and Supabase confirmed not
-  replaced (checked 11-02); assume the rest are not either.** Railway leaked env
-  vars. The stolen `OpenRouter_Production_key` bought ~$0.55 of Claude on 10-21,
-  which nothing of ours calls; OpenRouter disabled it 10-22. Supabase logs
-  10-20 → 10-27 show no outside use of the service key. Each step: mint new →
-  set everywhere → revoke old. Worst first:
-  1. **OpenRouter — users feel this one now.** New key with a credit limit on
-     `mirror-backend-prod`, `mirror-backend-dev`, `True_Yodha`; top up ($8.26
-     left); limit the laptop key too. Embeddings have no fallback: all 238
-     `career_stories` since 10-22 (24 people) have none, so tailoring runs
-     weaker with no Notice. `reservoir_ingest_sweep` heals them once the key
-     works; no backfill.
-  2. **Supabase.** New `sb_secret_…` / `sb_publishable_…` for
-     `SUPABASE_SERVICE_KEY` and `SUPABASE_ANON_KEY` on those three services, the
-     scraper, Vercel's `NEXT_PUBLIC_SUPABASE_ANON_KEY` and the laptop. Only then
-     turn off the legacy keys and JWT secret (`SUPABASE_JWT_SECRET`). All
-     services accept the new format (`18cdf722`, on `main`).
-  3. **Razorpay.** `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`. The new
-     `RAZORPAY_KEY_ID` must reach Vercel prod's `NEXT_PUBLIC_RAZORPAY_KEY_ID` in
-     the same step or checkout breaks. Check refunds since 10-21.
-  4. **Email.** `SENDGRID_API_KEY`, `RESEND_API_KEY`. Check send logs 10-21/22:
-     a thief could mail users as himyro.com.
-  5. **Other AI keys.** `GROQ_API_KEY`, `GOOGLE_API_KEY`, and `OPENAI_API_KEY` /
-     `ANTHROPIC_API_KEY` if set. Check usage 10-21/22.
-  6. **Scraper project.** `CLOUDFLARE_API_TOKEN`, `FIRECRAWL_API_KEY`,
-     `FIRECRAWL_CLOUD_API_KEY`. Check Cloudflare's audit log.
-  7. **Our own tokens.** `SCRAPE_WEBHOOK_TOKEN` (backend and scraper together),
-     `MYROLOGY_ADMIN_TOKEN`, `JOB_SWITCH_ADMIN_TOKEN`,
-     `MYRO_ANALYTICS_REFRESH_SECRET`; `TURNSTILE_SECRET` in Cloudflare.
-  8. **Redis.** `REDIS_URL`; low risk, reachable only inside Railway.
-
-  Also check: OpenRouter Activity for 10-21 by key (any key but the prod one
-  leaked elsewhere) · GitHub security log, apps and deploy keys on
-  `shivam07-hub/True_Yodha` · Railway members, API tokens, 2FA.
-
-  This list comes from code and local `.env` files; Railway's own variable list
-  was never read. `railway login` lets an agent read the names and complete it.
-- **Scraper: not landing daily.** `job_source_runs` shows 10-14 → 10-20 and
-  10-26 → 10-27, nothing on 10-21 → 10-25, nothing since 10-27 (checked 10-30);
-  was no feed 10-01 → 10-14. Company repairs of 10-29 wait on the next run: Meta,
-  EY India, BDO India and ANZ Bank reopen when it sees them.
+  3. Listen to the Fill video's soundtrack before Thu 5 Nov.
+  4. Connect @myrojobs to the tracker's Publish to Instagram: a Meta app, a token,
+     two Railway variables on prod. Six steps in
+     [INSTAGRAM_PROFILE.md](INSTAGRAM_PROFILE.md). The button reaches himyro.com
+     with the next `main` merge.
+- **Key rotation after Railway's 2026-10-21 incident.** The steps, their order and
+  what each one checks are kept off this public repo, in the agent's private
+  memory on Shivam's laptop. Ask an agent for the list.
+- **Scraper: not landing daily.** `job_source_runs` shows 10-14 → 10-20, 10-26 →
+  10-27, 11-02 and 11-03, nothing on 10-21 → 10-25 or 10-28 → 11-01 (checked 11-03); was
+  no feed 10-01 → 10-14. The 11-02 run after the 10-29 company repairs: Meta, EY
+  India and BDO India read `complete`; ANZ Bank `partial`, 11 of 482 (2.3%, under
+  the 50% floor).
   Still yours: Axis Bank = 14,259 live rows (~18%,
   747 titles) — dedupe at the source.
 - The prod deploy guard (above).
@@ -494,10 +447,8 @@ Tracker (3) · no problem or not actionable (~25).
   emails, approve; an agent then adds the schedule.
 - Your own phone, 15 minutes on the front door — #57 is on `main` since 10-17.
 - **Finlatics API key rotation — deferred until real misuse** (Shivam,
-  2026-10-14). The live key travelled in plain email (2026-08-10/11). When it is
-  due, order matters — revoking first cuts the SSO door half of signups use:
-  `backend/scripts/partner_admin.py key --slug finlatics --scopes sso,…` → hand it over
-  through a secret channel → Finlatics swaps → `revoke --prefix <old>`.
+  2026-10-14). Why, and the safe order, are in the agent's private memory:
+  revoking first cuts the partner SSO door.
 - Finlatics, optional: one user's SSO failed 2026-10-06 17:56 (`Server
   disconnected`, fixed `c9a0a047`); their auth account `b4203375…` exists with no
   seat, so their next SSO goes through the consent screen (safe, one extra step).
@@ -506,11 +457,11 @@ Tracker (3) · no problem or not actionable (~25).
   2026-10-07: payments are core loop; drop nothing early).
 - GitHub secrets `MYRO_SMOKE_EMAIL` / `_PASSWORD` / `_API_URL` — the phone render
   gate and `qa:mobile` in CI; until they exist the job warns and skips.
-- Send (agent drafts): the 4 users hit by the CV-upload silent failures;
-  `094122@fsm.ac.in`, stuck without a target by the five-city 422 (fixed
-  `f3f0d0be`); after #56 S1+S3, the 5 Myrology opt-ins get the fixed page.
-- Yours or real? `kslk37143`, `zoom8cloud`, `abibi9167`, `p9212530`, `yaya007500`
-  — named ones get `is_test_account`.
+- Send (agent drafts): the 4 users hit by the CV-upload silent failures; one
+  person stuck without a target by the five-city 422 (fixed `f3f0d0be`); after
+  #56 S1+S3, the 5 Myrology opt-ins get the fixed page. Who: private memory.
+- Yours or real? Five unmarked accounts (handles in private memory) — named ones
+  get `is_test_account`.
 - #56 §7: Razorpay webhook events, the live key on Vercel, reviewer name + email.
 - **Scraper, company skills (your repo).** Company skill demand is now a daily
   snapshot in the database (`refresh_company_skill_demand`, 2026-10-29). The
@@ -534,18 +485,15 @@ Tracker (3) · no problem or not actionable (~25).
   select lists reached `main` in #346 on 2026-11-01. From 2026-11-08: check nothing
   names them (`pg_stat_statements`), then one migration. Users see nothing.
   CONTEXT → Skill Level, Targeting Brief.
-- **Drop twelve onboarding columns — APPROVED (Shivam, 2026-11-01, 11-02). BLOCKED on
-  the next `main` merge (owner: Shivam merges; then an agent).** `user_profiles.onboarding_complete`,
-  `career_goal`, `superpower`;
-  `user_onboarding_state.status`, `current_stage`, `result_seen_at`,
+- **Drop twelve onboarding columns — APPROVED (Shivam, 2026-11-01, 11-02). Earliest
+  2026-11-09 (owner: an agent).** `user_profiles.onboarding_complete`, `career_goal`,
+  `superpower`; `user_onboarding_state.status`, `current_stage`, `result_seen_at`,
   `score_gap_reviewed_at`, `activated_at`, `activation_kind`, `preview_payload`,
   `description_text`, `tailored_cv_created_at`; index
-  `idx_user_onboarding_state_status`. Readers and writers left `Develop` 2026-11-01.
-  **Do not drop before `main` has that commit:** prod still reads the flag,
-  `career_goal` and `superpower`, and writes the flag and `tailored_cv_created_at`.
-  After the merge: a week,
-  check nothing names them (`pg_stat_statements`), then one migration.
-  `test_onboarding_columns_stopped.py` goes with it. CONTEXT → Journey Position.
+  `idx_user_onboarding_state_status`. Readers and writers reached `main` in #347 on
+  2026-11-02. From 2026-11-09: check nothing names them (`pg_stat_statements`), then
+  one migration. `test_onboarding_columns_stopped.py` goes with it. CONTEXT → Journey
+  Position.
 - **Company names on read surfaces onto `company_key`** (CONTEXT → Company
   Identity). The directory, pulse, Company CV Thread and the Following-only
   filter still compare names folded for case and spacing; the resolver's key

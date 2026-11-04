@@ -17,9 +17,10 @@ is worse than no diagnostic.
 from __future__ import annotations
 
 import threading
-import traceback
 from contextvars import ContextVar, Token
 from typing import NamedTuple
+
+from app.notice.site import asking_site
 
 
 class ReadCounter:
@@ -114,11 +115,6 @@ def current_count() -> int:
 # company count 10.5s, the floor count 3.4s — and all of them clear this line.
 SLOW_ROUND_TRIP_MS = 2000.0
 
-# Frames that are the transport, not the caller. The site is the first app frame
-# outside them — the repository or service that asked the question.
-_TRANSPORT_FILES = ("app/database.py", "app/services/read_budget.py", "app/db_safe.py")
-
-
 def record_round_trip(elapsed_ms: float) -> None:
     """Time one PostgREST round trip against the request in flight.
 
@@ -141,13 +137,4 @@ def slowest_round_trip() -> SlowRoundTrip | None:
 
 
 def _caller_site() -> tuple[str, str]:
-    for frame in reversed(traceback.extract_stack()):
-        path = frame.filename.replace("\\", "/")
-        marker = path.rfind("/app/")
-        if marker == -1:
-            continue
-        rel = path[marker + 1:]
-        if rel in _TRANSPORT_FILES:
-            continue
-        return rel, frame.name
-    return "unknown", "unknown"
+    return asking_site(None) or ("unknown", "unknown")

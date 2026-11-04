@@ -6,7 +6,7 @@ import type { CVStructured, CVVersion } from "../lib/api"
 
 const STRUCTURED: CVStructured = {
   contact: {
-    name: "Deveshwar Kashyap",
+    name: "Meera Iyer",
     title: "Manager – Subscriber Marketing",
     location: "",
     email: "user@example.com",
@@ -70,7 +70,7 @@ test("resolveMasterStructured: normalizes missing arrays to renderable defaults"
 
 test("masterContactFromCV: CV contact first, profile name fallback", () => {
   const contact = masterContactFromCV(STRUCTURED, "Profile Name")
-  assert.equal(contact.name, "Deveshwar Kashyap")
+  assert.equal(contact.name, "Meera Iyer")
   const noContact = resolveMasterStructured(fakeBaseline({ summary: "x" }), null)
   assert.ok(noContact)
   assert.equal(masterContactFromCV(noContact, "Profile Name").name, "Profile Name")

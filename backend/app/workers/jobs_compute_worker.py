@@ -12,6 +12,7 @@ backoff ladder) actually fire.
 from __future__ import annotations
 
 import logging
+import os
 import signal
 from types import FrameType
 
@@ -20,7 +21,7 @@ from rq import Connection, Worker
 # Registers every @background.handler in THIS process. The list lives in the
 # registry module, shared with the web process, because this entrypoint used to
 # keep its own copy and silently fell behind it (see registry's docstring).
-from app.services import cv_workflow
+from app.services import cv_workflow, skill_floor_pipeline
 from app.services.background import registry
 from app.services.background.dispatch import LANE_BULK, LANE_FAST
 from app.services.job_refresh._redis_state import get_redis_connection, queue_name
@@ -75,6 +76,8 @@ def run() -> None:
     _log.info(
         "worker boot handlers=%s", ",".join(sorted(registry.registered_job_types()))
     )
+    # A deploy killed whatever Stage A drain was running; this boot restarts it.
+    skill_floor_pipeline.enqueue_boot_drain(os.getenv("RAILWAY_DEPLOYMENT_ID", ""))
     connection = get_redis_connection()
     # Priority order: fast lane (a user is waiting) → bulk → legacy refresh queue
     # (until Job Refresh is ported onto the generalized seam).

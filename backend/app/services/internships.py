@@ -10,16 +10,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+from app.repositories.live_list import internship_rows
 from app.services.listing_liveness import live_only
 from app.services.listing_time import CARD_COLUMNS, HOSTED_COLUMNS, verdict as listing_time
 
 _INTERN_TITLE = re.compile(r"\bintern(?:ship)?\b", re.I)
-_INTERN_OR = (
-    "employment_kind.eq.internship,"
-    "seniority_level.eq.intern,"
-    "listing_venue.eq.myro,"
-    "job_title.ilike.%intern%"
-)
 _SELECT = (
     "job_id, job_title, company_name, job_description, industry, apply_url, "
     "location, location_city, location_country, location_mode, locations, "
@@ -168,12 +163,7 @@ def without_dismissed(
 
 
 def list_internships(db: Any, *, venue: str | None = None, limit: int = 60) -> list[dict[str, Any]]:
-    query = live_only(db.table("jobs").select(_SELECT)).limit(limit)
-    if venue == "myro":
-        query = query.eq("listing_venue", "myro")
-    else:
-        query = query.or_(_INTERN_OR)
-    rows = query.order("first_seen", desc=True).execute().data or []
+    rows = internship_rows(db, venue=venue, limit=limit)
     now = datetime.now(timezone.utc)
     return [intern_card(row, now=now) for row in rows if is_intern_job(row) or (row.get("listing_venue") == "myro")]
 

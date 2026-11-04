@@ -61,7 +61,7 @@ def test_a_recently_opened_listing_is_checked():
 
 
 def test_an_old_check_goes_stale_rather_than_staying_verified():
-    """Namitha's audit: ~3 in 10 listings die within a fortnight. A check with
+    """Diya's audit: ~3 in 10 listings die within a fortnight. A check with
     no age is not a claim."""
     row = _found_live((NOW - timedelta(days=20)).isoformat())
 

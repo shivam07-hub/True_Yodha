@@ -333,16 +333,26 @@ def _current_company(cv_structured: dict | None) -> str:
     return str(experience[0].get("company") or "").strip()
 
 
+def _current_role(cv_structured: dict | None) -> str:
+    experience = (cv_structured or {}).get("experience") or []
+    if not experience:
+        return ""
+    return str(experience[0].get("role") or "").strip()
+
+
 def _employer(company: str) -> str:
     """The employer's own name, without the team or unit a CV appends to it:
     "Capgemini, Insights & Data (GCC Growth)" → "Capgemini"."""
     return re.split(r"[,(|]| - | – ", company, maxsplit=1)[0].strip()
 
 
-def names_seat(text: str, company: str) -> bool:
-    """Does this text already say where the person works now?"""
-    employer = _employer(company)
-    return bool(employer) and employer.casefold() in (text or "").casefold()
+def names_seat(text: str, company: str, role: str) -> bool:
+    """Does this text already say where the person works now — the employer, or
+    the role they hold there? Either one named means a seat lead would repeat it."""
+    said = " ".join((text or "").split()).casefold()
+    employer = _employer(company).casefold()
+    title = " ".join(role.split()).casefold()
+    return bool(employer and employer in said) or bool(title and title in said)
 
 
 def seat_lead(cv_structured: dict | None, summary: str) -> str | None:
@@ -350,10 +360,7 @@ def seat_lead(cv_structured: dict | None, summary: str) -> str | None:
     then the summary's own words. Nothing here is new, and no bullet is lifted
     into it — a role label glued to a raw bullet (with its "▪") is what this
     used to produce."""
-    experience = (cv_structured or {}).get("experience") or []
-    if not experience:
-        return None
-    role = str(experience[0].get("role") or "").strip()
+    role = _current_role(cv_structured)
     if not role:
         return None
     company = _current_company(cv_structured)
@@ -416,17 +423,20 @@ def extras_guard_ok(text: str | None, allowed_text: str) -> bool:
     return not gains_foreign_numbers("", body, allowed_text)
 
 
-def role_guard_ok(old_bullets: list[str], entry: dict[str, Any], allowed_text: str) -> bool:
-    """The structural honesty floor, per role. Source = the old lines this entry
-    claims (dropped lines excluded — dropping is allowed, mangling is not)."""
+def role_guard_refusal(old_bullets: list[str], entry: dict[str, Any], allowed_text: str) -> str | None:
+    """The structural honesty floor, per role: the law a rewrite broke, or None
+    when it broke none. Source = the old lines this entry claims (dropped lines
+    excluded — dropping is allowed, mangling is not)."""
     referenced = sorted({i for b in entry["bullets"] for i in b["from"]})
     src = " ".join(old_bullets[i] for i in referenced)
     new = " ".join(b["text"] for b in entry["bullets"])
     if gains_foreign_numbers(src, new, allowed_text):
-        return False
+        return "foreign_number"
     if loses_metrics(src, new):
-        return False
-    return not loses_substance(src, new)
+        return "number_lost"
+    if loses_substance(src, new):
+        return "substance_lost"
+    return None
 
 
 # ── proposal (the renderable, cacheable artifact) ─────────────────────────────
@@ -473,7 +483,8 @@ def build_proposal(
             "dropped_lines": [],
         }
         if entry and b["bullets"]:
-            if role_guard_ok(b["bullets"], entry, allowed_text):
+            refusal = role_guard_refusal(b["bullets"], entry, allowed_text)
+            if refusal is None:
                 kind = edit_kind(b["bullets"], [nb["text"] for nb in entry["bullets"]], entry["dropped"])
                 if kind == "none":
                     # The model handed back this role's own lines, untouched.
@@ -516,7 +527,9 @@ def build_proposal(
                 changed_count += 1
             else:
                 base["guarded"] = True
-                logger.warning("metric cv_weave.role_guard_failed role_index=%d", b["index"])
+                logger.warning(
+                    "metric cv_weave.role_guard_failed role_index=%d rule=%s", b["index"], refusal,
+                )
         roles_out.append(base)
     raw_summary = parsed.get("summary")
     summary = raw_summary.strip() if isinstance(raw_summary, str) and raw_summary.strip() else None
@@ -525,7 +538,9 @@ def build_proposal(
         logger.warning("metric cv_weave.extras_guard_failed field=summary")
     company = _current_company(cv_structured)
     existing = str((cv_structured or {}).get("summary") or "")
-    if coverage_items and company and not names_seat(summary or existing, company):
+    if coverage_items and company and not names_seat(
+        summary or existing, company, _current_role(cv_structured),
+    ):
         seated = seat_lead(cv_structured, summary or existing)
         if extras_guard_ok(seated, own_material):
             summary = seated

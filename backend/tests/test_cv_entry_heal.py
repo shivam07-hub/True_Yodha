@@ -45,8 +45,8 @@ def test_a_file_source_charges_as_a_file_even_on_the_text_route() -> None:
 
 
 def test_file_tagged_as_text_needs_a_filename_and_the_paste_source() -> None:
-    assert file_tagged_as_text("text_describe", {"name": "Rupanjana.pdf"}) is True
-    assert file_tagged_as_text("pdf_upload", {"name": "Rupanjana.pdf"}) is False
+    assert file_tagged_as_text("text_describe", {"name": "Ananya.pdf"}) is True
+    assert file_tagged_as_text("pdf_upload", {"name": "Ananya.pdf"}) is False
     assert file_tagged_as_text("text_describe", {}) is False
     assert file_tagged_as_text("text_describe", {"name": "  "}) is False
 

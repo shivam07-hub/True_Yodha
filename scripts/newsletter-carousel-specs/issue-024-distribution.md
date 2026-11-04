@@ -30,9 +30,10 @@ These employers ask for sales (1,721), banking (1,258), lead generation (1,206),
 
 ## Instagram captions, one per slide
 
-Post from the Instagram app. On the caption screen, tap Single caption and choose
-Multiple captions. Each caption is that slide's newsletter section, cut to what
-the slide shows. The first and last slides carry the issue link on the image.
+Each caption is that slide's newsletter section, cut to what the slide shows.
+From the laptop they go out folded into one caption, in slide order
+(`caption-laptop.txt` beside the slides). The phone app can post them per slide
+with Multiple Captions. The first and last slides carry the issue link on the image.
 
 Slide 1:
 
@@ -67,5 +68,3 @@ Sales leads by a wide margin, at 54.8% of openings. Banking follows at 40.1%, le
 Tailor your CV to jobs like these. Link in bio.
 
 First comment: #jobsearch #bankingjobs #freshers #himyro
-
-Bio link while this is the newest post: https://www.himyro.com/newsletter/2026-10-branch-banking-two-banks?utm_source=instagram&utm_medium=social&utm_campaign=issue-024

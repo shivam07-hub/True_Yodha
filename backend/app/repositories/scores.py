@@ -503,13 +503,11 @@ class ScoresRepository:
             self._db,
             table="mirror_scores",
             columns="user_id, total_score, domain_scores, domain_skill_counts",
-            query_builder=lambda q: q.order("user_id"),
         )
         profiles = fetch_all_rows(
             self._db,
             table="user_profiles",
             columns="id, target_seniority, is_test_account",
-            query_builder=lambda q: q.order("id"),
         )
         # Myro's own accounts are not peers. Dropped by id rather than filtered
         # in the read, because a profile missing from this map is ALSO a user
