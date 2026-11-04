@@ -180,8 +180,7 @@ def test_the_pool_walks_live_jobs_in_the_named_country() -> None:
     assert "idx_jobs_live_blank_country_jobid" in sql
     assert "language plpgsql" in sql
     assert "union all" in sql
-    assert "j.is_active is true" in sql
-    assert "j.listing_confidence = 'active'" in sql
+    assert "where public.listing_is_live(j)" in sql
     assert "lower(btrim(j.location_country)) = any(v_countries)" in sql
     assert "lower(btrim(j.location_mode)) in ('remote', 'hybrid')" in sql
     body = sql.split("as $$", 1)[1].split("$$;", 1)[0]
@@ -204,7 +203,7 @@ def test_the_pool_stops_at_the_page_instead_of_sorting_every_overlap() -> None:
     assert "select distinct" not in body
     assert "cross join lateral" not in body
     assert "j.job_id > p_after_job_id" in body
-    assert "j.is_active is true and j.listing_confidence = 'active'" in body
+    assert "or public.listing_is_live(j)" in body
     assert "lower(btrim(j.location_country)) = any(p_countries)" in body
     assert "lower(btrim(j.location_mode)) in ('remote', 'hybrid')" in body
     assert "limit greatest(1, least(coalesce(p_limit, 1000), 1000))" in body

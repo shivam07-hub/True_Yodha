@@ -29,8 +29,7 @@ set search_path = ''
 as $$
   select j.job_id
     from public.jobs j
-   where j.is_active is true
-     and j.listing_confidence = 'active'
+   where public.listing_is_live(j)
      and j.role_family = any(p_families)
      and (
        p_countries is null
@@ -74,8 +73,7 @@ begin
                nullif(btrim(j.location_country), '') as location_country,
                nullif(greatest(coalesce(j.last_seen, 0), coalesce(j.first_seen, 0)), 0) as seen
           from public.jobs j
-         where j.is_active is true
-           and j.listing_confidence = 'active'
+         where public.listing_is_live(j)
            and j.location_city = p_value
            and nullif(btrim(j.company_name), '') is not null
     ), grouped as (
@@ -102,8 +100,7 @@ begin
                nullif(btrim(j.location_country), '') as location_country,
                nullif(greatest(coalesce(j.last_seen, 0), coalesce(j.first_seen, 0)), 0) as seen
           from public.jobs j
-         where j.is_active is true
-           and j.listing_confidence = 'active'
+         where public.listing_is_live(j)
            and j.industry_group = p_value
            and nullif(btrim(j.company_name), '') is not null
     ), grouped as (

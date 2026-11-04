@@ -10,7 +10,7 @@
 -- fills 1,000 rows and does not read the rest of the corpus.
 --
 -- Same signature, same return columns, same cursor (`p_after_job_id` on
--- job_id). Reverse: re-apply 20260928100000.
+-- job_id). Reverse: re-apply the definition in 20261027121000.
 
 create or replace function public.candidate_jobs_for_user(
     p_skill_keys text[],
@@ -43,7 +43,7 @@ as $$
    where (p_after_job_id is null or j.job_id > p_after_job_id)
      and (
        not p_require_fresh
-       or (j.is_active is true and j.listing_confidence = 'active')
+       or public.listing_is_live(j)
      )
      and (
        p_countries is null

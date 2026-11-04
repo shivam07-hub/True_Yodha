@@ -39,8 +39,7 @@ begin
     for rec in
       select j.job_id, j.last_verified_live_at, j.location_country, j.location_mode
         from public.jobs j
-       where j.is_active is true
-         and j.listing_confidence = 'active'
+       where public.listing_is_live(j)
          and j.role_family = fam
        order by j.last_verified_live_at desc
     loop

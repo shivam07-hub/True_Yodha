@@ -38,8 +38,7 @@ begin
           select j.job_id, j.job_title, j.role_domain, j.career_band,
                  j.seniority_level, j.min_years_experience::integer, j.max_years_experience::integer
             from public.jobs j
-           where j.is_active is true
-             and j.listing_confidence = 'active'
+           where public.listing_is_live(j)
              and (p_after_job_id is null or j.job_id > p_after_job_id)
              and lower(btrim(j.location_country)) = any(v_countries)
              and exists (
@@ -59,8 +58,7 @@ begin
           select j.job_id, j.job_title, j.role_domain, j.career_band,
                  j.seniority_level, j.min_years_experience::integer, j.max_years_experience::integer
             from public.jobs j
-           where j.is_active is true
-             and j.listing_confidence = 'active'
+           where public.listing_is_live(j)
              and (p_after_job_id is null or j.job_id > p_after_job_id)
              and (j.location_country is null or btrim(j.location_country) = '')
              and lower(btrim(j.location_mode)) in ('remote', 'hybrid')
@@ -87,8 +85,7 @@ begin
     select j.job_id, j.job_title, j.role_domain, j.career_band,
            j.seniority_level, j.min_years_experience::integer, j.max_years_experience::integer
       from public.jobs j
-     where j.is_active is true
-       and j.listing_confidence = 'active'
+     where public.listing_is_live(j)
        and (p_after_job_id is null or j.job_id > p_after_job_id)
        and exists (
          select 1
