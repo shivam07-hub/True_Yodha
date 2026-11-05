@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-11-04 — #58 S5 add a role or project, and #61 S5 the phone writes the open CV
+
+Desktop paper can add a role and a project (`4b9be63d` on `Develop`). On a job the add goes through `patchBoth`, so the entry is on that document and on the master. On a phone, `/cv?jobId=` opens the mobile editor and the save is that job's draft, not the Main CV.
+
 ## 2026-11-03 — R12 public pages closed
 
 `verified_live` (queryid `3154336291968442631`) held at 563 calls from 11-02 to 11-03, the `_count` Notice last opened 10-19, and `cold_fill_wait_expired` read 0 over Railway's 7 retained days. The provenance counts are Tier 0 (`03f6aa41`, `20261019090000`).

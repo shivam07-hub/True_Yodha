@@ -82,6 +82,10 @@ both writing to the master. On a job document the phone edits go through the
 job-draft endpoint (`routers/cv/versions.py:380`), never the master autosave.
 This is also what makes fix B livable.
 
+**Built 2026-11-04.** `4b9be63d`. Desktop Add role and Add project. On a job,
+`patchBoth` writes the job document and the master. On a phone, `/cv?jobId=`
+saves through `useJobDraftAutosave`.
+
 ### E · #49 — the page meter is measured, and never blocks a download
 
 `frontend/lib/cv/page-fill.ts:23-25` estimates fill as 98 characters × 50 lines

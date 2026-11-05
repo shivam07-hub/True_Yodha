@@ -119,19 +119,14 @@ first painted screen.
 
 ### S5 · Phone edits land on the CV that is open
 
-This is #58 S5's mobile half, and it blocks the APK. On a phone,
-`components/cv/builder/library-view.tsx` takes the `if (!isDesktop)` branch, and
-`mobile-cv-sections.tsx` writes through `useMasterAutosave`. So editing a
-**tailored** CV on a phone changes the **master** instead. Phone edits must write
-to the open document. Desktop's missing add-role stays in #58 S5 proper.
+**Closed 2026-11-04** with #58 S5 (`4b9be63d`). It was the APK blocker: the phone
+editor wrote every CV through `useMasterAutosave`, so a tailored CV changed the
+master. `/cv?jobId=` now opens the mobile editor, and that editor saves through
+`useJobDraftAutosave`. The Main CV still uses `useMasterAutosave`.
 
 **Done when** a test opens a tailored CV in the mobile editor, adds a role, and
-finds the role on that tailored version with the master unchanged.
-
-**Built 2026-11-04**, with #58 S5. `tests/cv-add-role.test.ts`: adding a role
-on a job document calls the job writer and not the master. The phone editor
-(`MobileJobEditor`) autosaves through `useJobDraftAutosave`, and `/cv?jobId=`
-on a phone renders that editor instead of the desktop paper.
+finds the role on that tailored version with the master unchanged. Met by
+`frontend/tests/cv-add-role.test.ts`.
 
 ### S6 · Phone onboarding (BACKLOG FD7)
 
