@@ -5,6 +5,7 @@
  */
 
 import { getAnonSessionId } from "@/lib/anon-cv-stash"
+import { appShell } from "@/lib/platform/app-shell"
 import {
   acquireRefreshLock,
   clearSessionTokens,
@@ -2494,7 +2495,7 @@ export function emitLoopStep(
   fetch(`${BASE}${CORE_LOOP_TELEMETRY_PATH}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ step, job_id: jobId, surface: surface ?? null }),
+    body: JSON.stringify({ step, job_id: jobId, surface: surface ?? null, shell: appShell() }),
     keepalive: true,
   }).catch(() => {})
 }

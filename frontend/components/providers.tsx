@@ -8,11 +8,13 @@ import { AttributionCapture } from "@/components/attribution-capture"
 import { ServiceWorkerRegister } from "@/components/pwa/sw-register"
 import { CVUploadLifecycleRoot } from "@/components/cv/cv-upload-lifecycle-observer"
 import { LightFieldDriver } from "@/components/theme/light-field-driver"
+import { useIsAndroidApp } from "@/lib/platform/use-android-app"
 
 function Inner({ children }: { children: React.ReactNode }) {
   return (
     <ViewportProvider>
       <AttributionCapture />
+      <AppShellCapture />
       <ServiceWorkerRegister />
       <CVUploadLifecycleRoot />
       <LightFieldDriver />
@@ -22,6 +24,11 @@ function Inner({ children }: { children: React.ReactNode }) {
       <SignupModal />
     </ViewportProvider>
   )
+}
+
+function AppShellCapture() {
+  useIsAndroidApp()
+  return null
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {

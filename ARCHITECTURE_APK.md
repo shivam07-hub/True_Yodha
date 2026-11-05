@@ -54,8 +54,10 @@ Google. Each slice is its own commit on `Develop`, six gates green, plus
 
 ### S1 · One signal: "am I inside the app?"
 
-`frontend/lib/platform/app-shell.ts` exports `isAndroidApp(): boolean` and a
-`useIsAndroidApp()` hook. Nothing else may sniff the user agent or the referrer.
+`frontend/lib/platform/app-shell.ts` exports `isAndroidApp(): boolean`.
+`useIsAndroidApp()` lives in `use-android-app.ts`: the reader is imported by
+`lib/api.ts`, and server routes import that file, so the hook cannot sit in
+the same module. Nothing else may sniff the user agent or the referrer.
 
 - **Signals:** the TWA start URL carries `?shell=android` (S9 sets it), or
   `document.referrer` starts with `android-app://com.himyro.app`, which Android
@@ -70,7 +72,14 @@ Google. Each slice is its own commit on `Develop`, six gates green, plus
 
 **Done when** unit tests show the query signal and the referrer signal each read
 `true`, a plain browser tab reads `false`, and a reload inside the same session
-still reads `true`.
+still reads `true`. Met by `frontend/tests/app-shell.test.ts`.
+
+**Built 2026-11-05.** `frontend/lib/platform/app-shell.ts` is the only reader of
+the referrer. Beacons send `shell` (`web` | `android`) on
+`POST /v1/telemetry/loop-step`, and `loop_reach.py` counts "in the Android app".
+The column is `database/migrations/20261105193000_core_loop_shell.sql`. Apply it,
+then `NOTIFY pgrst`, before the code that writes `shell` is pushed: until the
+column exists every loop-step insert fails.
 
 ### S2 · No buying anywhere in the app
 

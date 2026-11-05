@@ -58,6 +58,9 @@ STEPS: list[tuple[str, str, str | None, dict[str, Any]]] = [
     ("was asked 'did you apply?'", "core_loop_events", "user_id", {"step": "apply_asked"}),
     ("answered 'did you apply?'", "job_apply_intents", "user_id", {"answered_at": "__not_null__"}),
     ("applied, door recorded", "core_loop_events", "user_id", {"step": "applied"}),
+    # People who took a loop step inside the Android app (migration
+    # 20261105193000). A server step with no client shell is not counted here.
+    ("in the Android app", "core_loop_events", "user_id", {"shell": "android"}),
     # Retention. `last_active_at` is copied from Supabase's session refreshes
     # once a day (migration 20261003100000) — before that it only ever held the
     # signup time. Rows, like "signed up", so the test-account filter applies.

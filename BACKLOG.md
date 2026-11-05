@@ -22,7 +22,7 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 | 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1–S4 on `main` · S5 closed 2026-11-04 (`4b9be63d`, on `Develop`) · open: the two match numbers |
 | 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor, 3rd | Spec only, no commits · S0 audit |
 | 6 | Pay | **#56** the ₹199 Apply Pack | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Cursor, 4th | Spec only, no commits · S1 settlement |
-| 3 | Repeat | **#61** Myro on Android (TWA), buying hidden, then Play billing | [ARCHITECTURE_APK.md](ARCHITECTURE_APK.md) · Cursor, next | S5 closed with #58 S5 (`4b9be63d`) · next Phase 1 S1 · Phase 2 waits on #56 · Shivam: D-U-N-S, new upload key |
+| 3 | Repeat | **#61** Myro on Android (TWA), buying hidden, then Play billing | [ARCHITECTURE_APK.md](ARCHITECTURE_APK.md) · Cursor, next | S5 closed (`4b9be63d`). S1 coded 2026-11-05; migration `20261105193000` not applied, so the writer is not pushed. Next after that: S2. Phase 2 waits on #56. Shivam: D-U-N-S, new upload key |
 
 **Cursor's order (Shivam, 2026-10-14; #61 added 2026-11-03):** #57 → #58 → #61
 Phase 1 → #60 → #56 → #61 Phase 2. The biggest absolute leak first (553 of 1,002
