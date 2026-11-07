@@ -99,6 +99,13 @@ does not read `isAndroidApp`, so a sixth sale surface cannot appear unguarded. I
 emulation at 375px, no ₹ price and no Razorpay script appear on any authed surface
 with `?shell=android`.
 
+**Built 2026-11-07.** One Sale module (`frontend/lib/sale.ts`) is the only place
+that loads Razorpay or creates an order. Inside the app `saleMayOpen` is false,
+so the checkout does not start. `/filing`, `/job-switch-plan`,
+`/preparations/audit` and `/myrology` paint nothing and go to Jobs. The offer
+lines (the coin pack, the ₹199 scene, the ₹599 filing link) are absent. A
+salary on a job card stays. Met by `frontend/tests/sale-seam.test.ts`.
+
 ### S3 · Myrology is absent from the app
 
 Hide every link to it in the app:

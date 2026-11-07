@@ -7,6 +7,7 @@ import { Compass, ArrowRight, CheckCircle2 } from "lucide-react"
 import { jobSwitchPlan, type JobSwitchPlan } from "@/lib/api"
 import { captureAttribution } from "@/lib/attribution"
 import { startEngagementCheckout } from "@/lib/engagement-checkout"
+import { SalePage } from "@/components/sale-gate"
 import { getAccessToken } from "@/lib/session"
 import { formatDate } from "@/lib/format"
 import "./job-switch-plan.css"
@@ -215,8 +216,10 @@ function JobSwitchPlanPage() {
 
 export default function JobSwitchPlanRoute() {
   return (
-    <Suspense fallback={<div className="jsp-wrap"><div className="jsp-skeleton" style={{ marginTop: 24 }} /></div>}>
-      <JobSwitchPlanPage />
-    </Suspense>
+    <SalePage>
+      <Suspense fallback={<div className="jsp-wrap"><div className="jsp-skeleton" style={{ marginTop: 24 }} /></div>}>
+        <JobSwitchPlanPage />
+      </Suspense>
+    </SalePage>
   )
 }

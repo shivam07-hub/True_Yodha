@@ -8,6 +8,7 @@
 import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import { jobSwitchPlan } from "@/lib/api"
+import { SaleOffer } from "@/components/sale-gate"
 
 export function PlanLine({ token }: { token: string }) {
   const planQ = useQuery({
@@ -23,12 +24,14 @@ export function PlanLine({ token }: { token: string }) {
 
   if (!plan) {
     return (
+      <SaleOffer>
       <span className="prp-plan">
         <Link className="tm-link" href="/job-switch-plan">
           Keep a person on this scene
         </Link>
         <span className="prp-plan-price">₹199 / month</span>
       </span>
+      </SaleOffer>
     )
   }
 

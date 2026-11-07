@@ -3,6 +3,7 @@
 import { useAuth } from "@/lib/hooks/use-auth"
 import { AuditRoom } from "@/components/preparations/audit-room"
 import { PrepSkeleton } from "@/components/preparations/prep-skeleton"
+import { SalePage } from "@/components/sale-gate"
 import "@/components/preparations/preparations.css"
 
 /**
@@ -16,8 +17,10 @@ export default function AuditPage() {
   const { token, ready } = useAuth()
   if (!ready) return <PrepSkeleton />
   return (
-    <div className="tm-intel-page prp-workspace-page">
-      <AuditRoom token={token ?? ""} />
-    </div>
+    <SalePage>
+      <div className="tm-intel-page prp-workspace-page">
+        <AuditRoom token={token ?? ""} />
+      </div>
+    </SalePage>
   )
 }

@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-11-07 — #61 S2 a Sale does not open inside the Android app
+
+One module, `openSale`, loads Razorpay and creates the order. Inside the app it does neither. `/filing`, `/job-switch-plan`, `/preparations/audit` and `/myrology` go to Jobs. A salary on a job card stays. Coin balance still spends.
+
 ## 2026-11-04 — #58 S5 add a role or project, and #61 S5 the phone writes the open CV
 
 Desktop paper can add a role and a project (`4b9be63d` on `Develop`). On a job the add goes through `patchBoth`, so the entry is on that document and on the master. On a phone, `/cv?jobId=` opens the mobile editor and the save is that job's draft, not the Main CV.

@@ -5,6 +5,7 @@ import Link from "next/link"
 import { type ReactNode, useRef } from "react"
 import { jobs, type JobFilingNote } from "@/lib/api"
 import { filingHoldLine, filingLine } from "@/lib/jobs/filing"
+import { SaleOffer } from "@/components/sale-gate"
 
 /**
  * The Yes to file this tailored CV. A yes is stored only when the role is
@@ -63,11 +64,13 @@ export function FilingApproval({ token, jobId }: { token: string; jobId: string 
   return (
     <div style={stackStyle}>
       {body}
+      <SaleOffer>
       <p style={noteStyle}>
         <Link href="/filing" style={linkStyle}>
           The ₹599 filing process
         </Link>
       </p>
+      </SaleOffer>
     </div>
   )
 }
