@@ -9,7 +9,7 @@ function v(partial: Partial<CVVersion>): CVVersion {
 }
 
 test("the CV tailored for this job is the one that goes", () => {
-  const tailored = v({ id: 2, kind: "tailored", job_id: "myro_1", title: "Product CV", created_at: "2026-10-01T00:00:00Z" })
+  const tailored = v({ id: 2, kind: "polished", job_id: "myro_1", title: "Product CV", created_at: "2026-10-01T00:00:00Z" })
   const newer = v({ id: 3, created_at: "2026-11-05T00:00:00Z" })
   assert.equal(cvOfRecordFor("myro_1", [newer, tailored])?.id, 2)
 })
