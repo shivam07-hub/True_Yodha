@@ -3708,6 +3708,9 @@ export interface CollectionEntry {
   pending_apply: boolean
   saved_at: string | null
   applied_at: string | null
+  /** The company's answer on an internship hosted on Myro. Beside his own
+   *  record — never his stage, never his Yes. */
+  employer_status?: EmployerStatus | null
   /** Does this entry still ask something — the landing rule's input. */
   needs_user: boolean
 }

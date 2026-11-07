@@ -2,10 +2,11 @@
 
 import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
-import { jobs, type EmployerStatus, type HostedPost } from "@/lib/api"
+import { jobs, type HostedPost } from "@/lib/api"
 import { FeedCard } from "@/components/jobs/feed-card"
 import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
 import { formatDate } from "@/lib/format"
+import { EMPLOYER_STATUS_WORD } from "@/lib/jobs/employer-status"
 import { ReachCount } from "./reach-count"
 import { applicantsKey } from "./keys"
 import "./internships.css"
@@ -14,12 +15,6 @@ const STATE_LABEL: Record<NonNullable<HostedPost["hosted_review"]>, string> = {
   pending: "In review",
   cleared: "Live",
   refused: "Not cleared",
-}
-
-export const EMPLOYER_LABEL: Record<EmployerStatus, string> = {
-  seen: "Seen",
-  shortlisted: "Shortlisted",
-  passed: "Passed",
 }
 
 function Applicants({ token, post }: { token: string; post: HostedPost }) {
@@ -38,7 +33,7 @@ function Applicants({ token, post }: { token: string; post: HostedPost }) {
             <span className="intern-applicant-name">{a.name}</span>
             <span className="intern-applicant-meta">
               {formatDate(a.applied_at, "short")}
-              {a.employer_status ? ` · ${EMPLOYER_LABEL[a.employer_status]}` : ""}
+              {a.employer_status ? ` · ${EMPLOYER_STATUS_WORD[a.employer_status]}` : ""}
             </span>
           </Link>
         </li>

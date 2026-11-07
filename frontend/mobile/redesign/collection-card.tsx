@@ -4,6 +4,7 @@ import Link from "next/link"
 import type { CollectionEntry, JobPulse } from "@/lib/api"
 import { POSTING_CLOSED_CHIP } from "@/lib/jobs/detail-model"
 import { ORIGIN_LABEL, heroFor } from "@/lib/collections/model"
+import { EMPLOYER_STATUS_WORD } from "@/lib/jobs/employer-status"
 import { companyHref } from "@/components/companies/company-link"
 import type { MobileJobRow } from "./job-model"
 
@@ -109,7 +110,11 @@ export function CollectionCard({
   const statusChip = entry.stage === "closed"
     ? "Closed"
     : entry.stage === "applied"
-      ? (entry.status && entry.status !== "applied" ? STATUS_WORD[entry.status] ?? "Applied" : "Applied")
+      ? [
+          entry.status && entry.status !== "applied" ? STATUS_WORD[entry.status] ?? "Applied" : "Applied",
+          // The company's answer, beside his own stage — never instead of it.
+          entry.employer_status ? EMPLOYER_STATUS_WORD[entry.employer_status] : null,
+        ].filter(Boolean).join(" · ")
       : ORIGIN_LABEL[entry.origin]
 
   return (

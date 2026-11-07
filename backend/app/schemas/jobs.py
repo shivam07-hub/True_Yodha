@@ -436,6 +436,9 @@ class ApplicationResponse(BaseModel):
     closed_at: datetime | None = None
     offer_received_at: datetime | None = None
     notes: str | None
+    #: The company's answer on an internship hosted on Myro, written by the
+    #: person who posted it. Beside his own record; never his stage or Yes.
+    employer_status: Literal["seen", "shortlisted", "passed"] | None = None
     created_at: datetime
     last_stage_changed_at: datetime | None = None  # Q7 — stale-clock signal
     # Persisted Career Ops fit for this tracked role. The global Next action uses
@@ -1114,6 +1117,9 @@ class CollectionEntry(BaseModel):
     pending_apply: bool = False
     saved_at: datetime | None = None
     applied_at: datetime | None = None
+    #: The company's answer on an internship hosted on Myro (seen, shortlisted,
+    #: passed). Sits beside his own record: never his stage, never his Yes.
+    employer_status: Literal["seen", "shortlisted", "passed"] | None = None
     #: Does this entry still ask something of the user — the landing rule's input.
     needs_user: bool = False
 

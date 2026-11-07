@@ -7,7 +7,7 @@ import { ApiError } from "@/lib/api-error"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { formatDate } from "@/lib/format"
 import { PdfPage } from "@/components/cv/builder/pdf-page"
-import { EMPLOYER_LABEL } from "./recruiter-home"
+import { EMPLOYER_STATUS_WORD } from "@/lib/jobs/employer-status"
 import { MY_INTERNSHIPS_KEY, applicantKey, applicantsKey } from "./keys"
 import "@/app/(authed)/cv/cv-sheet.css"
 import "@/app/(authed)/cv/cv-builder.css"
@@ -55,7 +55,7 @@ export function ApplicantView({ jobId, applicationId }: { jobId: string; applica
     <main className="intern-page">
       <p className="intern-kicker">
         <Link href="/recruiters">Your internship</Link>
-        {a.employer_status ? ` · ${EMPLOYER_LABEL[a.employer_status]}` : ""}
+        {a.employer_status ? ` · ${EMPLOYER_STATUS_WORD[a.employer_status]}` : ""}
       </p>
       <h1 className="intern-title">{a.name}</h1>
       <p className="intern-lead">
