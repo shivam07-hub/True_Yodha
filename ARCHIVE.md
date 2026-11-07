@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-11-07 — #61 S3 Myrology is absent inside the Android app
+
+The nav, the phone profile, the account menu, the CV canvas, Settings, and the footer omit the Myrology door. The web registry still lists it. `/myrology` already goes to Jobs.
+
 ## 2026-11-07 — #61 S2 a Sale does not open inside the Android app
 
 One module, `openSale`, loads Razorpay and creates the order. Inside the app it does neither. `/filing`, `/job-switch-plan`, `/preparations/audit` and `/myrology` go to Jobs. A salary on a job card stays. Coin balance still spends.

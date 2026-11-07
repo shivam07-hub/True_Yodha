@@ -121,6 +121,12 @@ Hide every link to it in the app:
 **Done when** `qa:mobile` with the app signal finds no Myrology link, and the web
 is unchanged.
 
+**Built 2026-11-07.** The nav cluster, the phone profile list, the account menu,
+the CV canvas, Settings, and the public footer each ask `useIsAndroidApp` and
+omit the Myrology door. The registry in `site-routes.ts` still lists it, so the
+web footer and the sitemap are unchanged. `/myrology` still goes to Jobs from
+S2. Met by `frontend/tests/myrology-absent.test.ts`.
+
 ### S4 · First open, logged out: create an account
 
 Inside the app, the auth gate sends a person without a session to `/signup`,

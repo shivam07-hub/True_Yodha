@@ -17,6 +17,7 @@ import { MyrologyOptInPrompt } from "@/components/myrology-optin-prompt"
 import { ThemeControl } from "@/components/ui/theme-control"
 import { Button } from "@/components/ui/button"
 import { AccountLegalLinks } from "@/components/shell/account-legal-links"
+import { useIsAndroidApp } from "@/lib/platform/use-android-app"
 import { FeedbackHub, openFeedbackHub, type FeedbackCategory } from "@/components/feedback"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -85,6 +86,7 @@ export function AuthedTopStrip({ model, mountFeedbackHub = false }: AuthedTopStr
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("Account")
   const [myroPromptOpen, setMyroPromptOpen] = useState(false)
   const [signOutConfirm, setSignOutConfirm] = useState(false)
+  const inApp = useIsAndroidApp()
   const fullName = profile?.full_name ?? null
 
   useEffect(() => {
@@ -165,7 +167,7 @@ export function AuthedTopStrip({ model, mountFeedbackHub = false }: AuthedTopStr
                         <span style={{ fontSize: "var(--tm-fs-body)", color: "var(--tm-interactive-rest)" }}>{a.label}</span>
                       </button>
                       {/* Myrology sits in the old "Suggest an idea" slot (after Report a bug). */}
-                      {a.id === "bug" && (
+                      {a.id === "bug" && !inApp && (
                         <button
                           onClick={() => {
                             setMenuOpen(false)

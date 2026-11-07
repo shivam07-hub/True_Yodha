@@ -24,6 +24,7 @@ import { catalogFromAnalytics, suggestLocations } from "@/lib/location-catalog"
 import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 import { openSale } from "@/lib/sale"
 import { SaleOffer } from "@/components/sale-gate"
+import { useIsAndroidApp } from "@/lib/platform/use-android-app"
 import { AccountDeletionPanel } from "@/components/settings/account-deletion-panel"
 import { useXPStore } from "@/store/xpStore"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -188,6 +189,7 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
   const [activeTab, setActiveTab] = useState<Tab>(initialTab)
   const { interested: myrologyInterested, setInterested: setMyrologyInterested } = useMyrologyInterest()
   const [myroPromptOpen, setMyroPromptOpen] = useState(false)
+  const inApp = useIsAndroidApp()
 
   // Account tab state
   const [name, setName] = useState("")
@@ -501,7 +503,7 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
 
   return (
     <>
-    <MyrologyOptInPrompt open={myroPromptOpen} onClose={() => setMyroPromptOpen(false)} />
+    {inApp ? null : <MyrologyOptInPrompt open={myroPromptOpen} onClose={() => setMyroPromptOpen(false)} />}
     <Dialog open={open} onOpenChange={(next) => { if (!next) flushAndClose() }}>
       <DialogContent
         showCloseButton={false}
@@ -694,7 +696,8 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
                   )}
                 </div>
 
-                {/* Myrology — free interest opt-in (separate from the paid unlock). */}
+                {inApp ? null : (
+                <>
                 <div style={SECTION_HEADER}>Cosmic</div>
                 <div style={{ ...ROW_STYLE, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                   <div style={{ paddingRight: 16 }}>
@@ -724,6 +727,8 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
                     }} />
                   </button>
                 </div>
+                </>
+                )}
 
                 {/* Appearance — applies instantly, independent of Save. */}
                 <div style={SECTION_HEADER}>Appearance</div>
