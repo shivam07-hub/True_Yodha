@@ -15,7 +15,7 @@ import { signupEvents } from "@/lib/analytics"
 import { hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
 import { readPendingExtensionConnect } from "@/lib/extension-connect-stash"
 import { hasPendingJobSaveClaim } from "@/lib/anon-job-stash"
-import { hasPendingInternshipPostClaim } from "@/lib/internship-post-stash"
+import { hasRecruiterReturn } from "@/lib/internship-post-stash"
 import { postAuthDestination } from "@/lib/auth/post-auth-destination"
 import {
   forgetDeviceAuth,
@@ -152,7 +152,7 @@ export function LoginForm({ surface, showSignupLink = true, initialEmail }: Prop
         firstSignup: false,
         hasPendingAnonCv: hasPendingAnonCvClaim(),
         hasPendingJobSave: hasPendingJobSaveClaim(),
-        hasPendingInternshipPost: hasPendingInternshipPostClaim(),
+        recruiterReturning: hasRecruiterReturn(),
         pendingExtensionConnect: readPendingExtensionConnect(),
         completingPartnerLink: false,
       }))

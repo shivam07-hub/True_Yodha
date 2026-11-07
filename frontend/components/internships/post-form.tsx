@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { jobs, type HostedInternshipInput, type JobFeedItem } from "@/lib/api"
+import { useQueryClient } from "@tanstack/react-query"
+import { jobs, type HostedInternshipInput } from "@/lib/api"
 import { ApiError } from "@/lib/api-error"
-import { useAuth } from "@/lib/hooks/use-auth"
-import { FeedCard } from "@/components/jobs/feed-card"
-import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
+import { useSession } from "@/lib/hooks/use-auth"
 import { ReachCount, type ReachInput } from "./reach-count"
+import { MY_INTERNSHIPS_KEY } from "./keys"
 
 function splitSkills(raw: string): string[] {
   return raw.split(",").map((s) => s.trim()).filter(Boolean)
@@ -24,17 +24,21 @@ import { stashPendingInternshipPost, takePendingInternshipPost } from "@/lib/int
 import "./internships.css"
 
 export function InternshipPostForm() {
-  const { token } = useAuth()
+  // Passive: she writes the post before she has an account. useAuth would
+  // send a logged-out visitor to /login before she saw the form.
+  const { token } = useSession()
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
-  const [posted, setPosted] = useState<JobFeedItem | null>(null)
+  const queryClient = useQueryClient()
   const [reach, setReach] = useState<ReachInput>({ city: "", remote: false, skills: [] })
 
   async function post(authToken: string, body: HostedInternshipInput) {
     setPending(true)
     try {
-      setPosted(await jobs.postInternship(authToken, body))
+      await jobs.postInternship(authToken, body)
+      // The door now has a post to show: her home replaces the form.
+      await queryClient.invalidateQueries({ queryKey: MY_INTERNSHIPS_KEY })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not post this internship")
     } finally {
@@ -76,26 +80,6 @@ export function InternshipPostForm() {
       return
     }
     await post(token, body)
-  }
-
-  if (posted) {
-    return (
-      <main className="intern-page">
-        <p className="intern-kicker">In review</p>
-        <h1 className="intern-title">{posted.job_title}</h1>
-        <p className="intern-lead">
-          Seekers see this under Apply here once Myro checks it, within a day. We email you when it is live.
-        </p>
-        <ReachCount
-          input={{
-            city: posted.location ?? "",
-            remote: posted.location_mode === "remote",
-            skills: posted.skills ?? [],
-          }}
-        />
-        <FeedCard data={feedDataFromFeedItem(posted, { hasCv: false })} variant="row" />
-      </main>
-    )
   }
 
   return (

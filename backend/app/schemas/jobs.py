@@ -776,6 +776,39 @@ class InternshipReach(BaseModel):
     active_30d: int
 
 
+class HostedPost(JobFeedItem):
+    applicant_count: int = 0
+
+
+class HostedPostsResponse(BaseModel):
+    jobs: list[HostedPost]
+
+
+EmployerStatus = Literal["seen", "shortlisted", "passed"]
+
+
+class HostedApplicant(BaseModel):
+    application_id: int
+    name: str
+    applied_at: str
+    employer_status: EmployerStatus | None = None
+
+
+class HostedApplicantsResponse(BaseModel):
+    applicants: list[HostedApplicant]
+
+
+class HostedApplicantView(HostedApplicant):
+    #: The CV he had on Myro when he applied, frozen then (cv_of_record).
+    cv: dict[str, Any] | None = None
+    score: float | None = None
+    skills: list[str] = []
+
+
+class EmployerDecision(BaseModel):
+    status: Literal["shortlisted", "passed"]
+
+
 class HostedReviewItem(JobFeedItem):
     poster_id: str | None = None
 

@@ -3949,6 +3949,26 @@ export interface JobFeedItem {
   hosted_review?: "pending" | "cleared" | "refused" | null
 }
 
+export type EmployerStatus = "seen" | "shortlisted" | "passed"
+
+export interface HostedPost extends JobFeedItem {
+  applicant_count: number
+}
+
+export interface HostedApplicant {
+  application_id: number
+  name: string
+  applied_at: string
+  employer_status: EmployerStatus | null
+}
+
+export interface HostedApplicantView extends HostedApplicant {
+  /** The CV he had on Myro when he applied, frozen then. */
+  cv: AppliedVersion["cv_snapshot"] | null
+  score: number | null
+  skills: string[]
+}
+
 /** One card in the "Myro Agent Picks" band — a feed card plus the Career-Ops
  *  brain's rank + why-it-fits note (the curated editorial layer above the
  *  algorithm feed). GET /jobs/agent-picks. */
@@ -4405,6 +4425,26 @@ export const jobs = {
     if (input.city.trim()) params.set("city", input.city.trim())
     return request<{ matched: number; active_30d: number }>(`/jobs/internships/reach?${params.toString()}`)
   },
+  /** The recruiter's own internships, any review state, with applicant counts. */
+  myInternships: (token: string) =>
+    request<{ jobs: HostedPost[] }>("/jobs/internships/mine", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  internshipApplicants: (token: string, jobId: string) =>
+    request<{ applicants: HostedApplicant[] }>(`/jobs/internships/${encodeURIComponent(jobId)}/applicants`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** Opening an applicant marks him seen. */
+  internshipApplicant: (token: string, jobId: string, applicationId: number) =>
+    request<HostedApplicantView>(
+      `/jobs/internships/${encodeURIComponent(jobId)}/applicants/${applicationId}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+  decideApplicant: (token: string, jobId: string, applicationId: number, status: "shortlisted" | "passed") =>
+    request<HostedApplicantView>(
+      `/jobs/internships/${encodeURIComponent(jobId)}/applicants/${applicationId}`,
+      { method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ status }) },
+    ),
   postInternship: (token: string, body: HostedInternshipInput) =>
     request<JobFeedItem>("/jobs/internships", {
       method: "POST",

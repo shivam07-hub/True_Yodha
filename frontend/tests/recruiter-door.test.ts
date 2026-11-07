@@ -13,11 +13,30 @@ function exists(path: string): boolean {
   return existsSync(join(frontendRoot, path))
 }
 
-test("the recruiter door is the post form, not a pitch", () => {
-  const door = read("app/recruiters/page.tsx")
+test("the recruiter door is the post form, then her home — not a pitch", () => {
+  const page = read("app/recruiters/page.tsx")
+  const door = read("components/internships/recruiter-door.tsx")
+  assert.match(page, /RecruiterDoor/)
   assert.match(door, /InternshipPostForm/)
-  assert.doesNotMatch(door, /mailto:/, "the door never asks her to email the founder")
-  assert.doesNotMatch(door, /boardRows|shortlist preview/i, "no sample candidates on the door")
+  assert.match(door, /RecruiterHome/)
+  for (const text of [page, door]) {
+    assert.doesNotMatch(text, /mailto:/, "the door never asks her to email the founder")
+    assert.doesNotMatch(text, /boardRows|shortlist preview/i, "no sample candidates on the door")
+  }
+})
+
+test("recruiter pages never mount the seeker strip", () => {
+  for (const file of ["app/recruiters/page.tsx", "app/recruiters/[jobId]/applicants/[applicationId]/page.tsx"]) {
+    const text = read(file)
+    assert.match(text, /RecruiterTopBar/, file)
+    assert.doesNotMatch(text, /PublicTopNav|AuthedTopStrip/, file)
+  }
+})
+
+test("the post form never sends a logged-out recruiter away before she writes", () => {
+  // useAuth redirects a logged-out visitor to /login on mount; she writes the
+  // post first and signs in at Post (lib/internship-post-stash).
+  assert.doesNotMatch(read("components/internships/post-form.tsx"), /useAuth\(/)
 })
 
 test("the mock B2B previews stay parked until a real user exists", () => {

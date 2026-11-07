@@ -25,7 +25,7 @@ _SELECT = (
     "role_family, seniority_level, min_years_experience, max_years_experience, "
     f"main_skills, {HOSTED_COLUMNS}, {CARD_COLUMNS}"
 )
-_HOSTED_SELECT = f"{_SELECT}, hosted_review, hosted_reviewed_at, created_by_user_id"
+HOSTED_SELECT = f"{_SELECT}, hosted_review, hosted_reviewed_at, created_by_user_id"
 REVIEW_DECISIONS = {"clear": "cleared", "refuse": "refused"}
 
 
@@ -204,7 +204,7 @@ def pending_reviews(db: Any, limit: int = 50) -> list[dict[str, Any]]:
     """Hosted posts waiting for a person at Myro, oldest first."""
     rows = (
         db.table("jobs")
-        .select(_HOSTED_SELECT)
+        .select(HOSTED_SELECT)
         .eq("hosted_review", "pending")
         .order("first_seen")
         .limit(limit)

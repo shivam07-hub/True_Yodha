@@ -7,7 +7,12 @@ from app.deps import Principal, get_principal, get_principal_optional
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.schemas import ApplicationResponse
 from app.schemas.jobs import (
+    EmployerDecision,
+    HostedApplicantsResponse,
+    HostedApplicantView,
     HostedInternshipRequest,
+    HostedPost,
+    HostedPostsResponse,
     HostedReviewDecision,
     HostedReviewItem,
     HostedReviewQueue,
@@ -19,6 +24,7 @@ from app.security.admin_auth import require_admin
 from app.security.anon_rate_limit import enforce_anon_rate
 from app.security.auth_rate_limit import client_ip_from_scope
 from app.services import application_yes
+from app.services import hosted_applicants
 from app.services.hosted_review_mail import alert_reviewer, tell_poster_live
 from app.services.internship_reach import reach
 from app.services.internships import (
@@ -48,6 +54,58 @@ def get_internships(
     if principal:
         cards = without_dismissed(cards, dismissed_job_ids(db, principal.id))
     return InternshipsResponse(jobs=[JobFeedItem(**card) for card in cards])
+
+
+# Declared before /internships/{job_id} so "mine" is not read as a job id.
+@router.get("/internships/mine", response_model=HostedPostsResponse)
+def get_my_posts(
+    principal: Principal = Depends(get_principal),
+    db=Depends(get_supabase_admin),
+) -> HostedPostsResponse:
+    """The recruiter's home: her internships in any review state, with how many applied."""
+    return HostedPostsResponse(jobs=[HostedPost(**p) for p in hosted_applicants.my_posts(db, principal.id)])
+
+
+@router.get("/internships/{job_id}/applicants", response_model=HostedApplicantsResponse)
+def get_applicants(
+    job_id: str,
+    principal: Principal = Depends(get_principal),
+    db=Depends(get_supabase_admin),
+) -> HostedApplicantsResponse:
+    try:
+        rows = hosted_applicants.applicants(db, principal.id, job_id)
+    except hosted_applicants.NotYourPost as exc:
+        raise HTTPException(status_code=404, detail="Internship not found") from exc
+    return HostedApplicantsResponse(applicants=rows)
+
+
+@router.get("/internships/{job_id}/applicants/{application_id}", response_model=HostedApplicantView)
+def get_applicant(
+    job_id: str,
+    application_id: int,
+    principal: Principal = Depends(get_principal),
+    db=Depends(get_supabase_admin),
+) -> HostedApplicantView:
+    """One applicant: the CV he sent, his Myro Score, his skills. Opening marks him seen."""
+    try:
+        return HostedApplicantView(**hosted_applicants.open_applicant(db, principal.id, job_id, application_id))
+    except hosted_applicants.NotYourPost as exc:
+        raise HTTPException(status_code=404, detail="Applicant not found") from exc
+
+
+@router.put("/internships/{job_id}/applicants/{application_id}", response_model=HostedApplicantView)
+def decide_applicant(
+    job_id: str,
+    application_id: int,
+    body: EmployerDecision,
+    principal: Principal = Depends(get_principal),
+    db=Depends(get_supabase_admin),
+) -> HostedApplicantView:
+    try:
+        hosted_applicants.decide(db, principal.id, job_id, application_id, body.status)
+        return HostedApplicantView(**hosted_applicants.open_applicant(db, principal.id, job_id, application_id))
+    except hosted_applicants.NotYourPost as exc:
+        raise HTTPException(status_code=404, detail="Applicant not found") from exc
 
 
 # Declared before /internships/{job_id} so "reach" is not read as a job id.

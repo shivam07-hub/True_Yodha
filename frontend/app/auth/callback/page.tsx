@@ -14,7 +14,7 @@ import { getStoredReferral } from "@/lib/referral"
 import { hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
 import { readPendingExtensionConnect } from "@/lib/extension-connect-stash"
 import { hasPendingJobSaveClaim } from "@/lib/anon-job-stash"
-import { hasPendingInternshipPostClaim } from "@/lib/internship-post-stash"
+import { hasRecruiterReturn } from "@/lib/internship-post-stash"
 import { postAuthDestination } from "@/lib/auth/post-auth-destination"
 import { identityFromUserMetadata, methodFromCallback, rememberAuth } from "@/lib/auth/last-auth"
 import { AUTH_METHOD_PARAM } from "@/lib/auth/callback-url"
@@ -174,7 +174,7 @@ function CallbackInner() {
         firstSignup: firstSignup === "1",
         hasPendingAnonCv: hasPendingAnonCvClaim(),
         hasPendingJobSave: hasPendingJobSaveClaim(),
-        hasPendingInternshipPost: hasPendingInternshipPostClaim(),
+        recruiterReturning: hasRecruiterReturn(),
         pendingExtensionConnect: readPendingExtensionConnect(),
         // Present on the connect screen's Google return and on the emailed
         // fallback. Both are a consent completion, not a daily return.
