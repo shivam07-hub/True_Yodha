@@ -111,8 +111,10 @@ function JobSwitchPlanPage() {
 
   const live = plan?.window_open !== false
   const pending = plan?.reviews.find((r) => r.status !== "delivered")
+  const pitch = plan === undefined ? "pending" : plan === null
 
   return (
+    <SalePage pitch={pitch}>
     <div className="jsp-wrap">
       <span className="jsp-kicker">Personalised Engagement</span>
 
@@ -211,15 +213,14 @@ function JobSwitchPlanPage() {
         </>
       )}
     </div>
+    </SalePage>
   )
 }
 
 export default function JobSwitchPlanRoute() {
   return (
-    <SalePage>
-      <Suspense fallback={<div className="jsp-wrap"><div className="jsp-skeleton" style={{ marginTop: 24 }} /></div>}>
-        <JobSwitchPlanPage />
-      </Suspense>
-    </SalePage>
+    <Suspense fallback={<div className="jsp-wrap"><div className="jsp-skeleton" style={{ marginTop: 24 }} /></div>}>
+      <JobSwitchPlanPage />
+    </Suspense>
   )
 }

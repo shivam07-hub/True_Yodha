@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { billing, filingIntake } from "@/lib/api"
 import { openSale } from "@/lib/sale"
-import { SalePage } from "@/components/sale-gate"
+import { SaleOffer } from "@/components/sale-gate"
 import { getAccessToken } from "@/lib/session"
 import "./filing.css"
 
@@ -138,13 +138,14 @@ export default function FilingIntakePage() {
   const saved = intake.data?.saved === true
 
   return (
-    <SalePage>
     <main className="fi-wrap">
       <p className="fi-kicker">Filing</p>
       <h1 className="fi-title">One role. The company page. You submit.</h1>
       <p className="fi-sub">
         Myro writes one resume for the role you name and fills the company form with you.
-        The fee is ₹599, once. The ₹199 Apply Pack stays the pack for coins and a human check.
+        <SaleOffer>
+          {" "}The fee is ₹599, once. The ₹199 Apply Pack stays the pack for coins and a human check.
+        </SaleOffer>
       </p>
 
       <section className="fi-card">
@@ -205,6 +206,7 @@ export default function FilingIntakePage() {
               Save
             </button>
             {paid ? null : (
+              <SaleOffer>
               <button
                 type="button"
                 className="fi-pay"
@@ -213,11 +215,11 @@ export default function FilingIntakePage() {
               >
                 Pay ₹599
               </button>
+              </SaleOffer>
             )}
           </div>
         </form>
       </section>
     </main>
-    </SalePage>
   )
 }

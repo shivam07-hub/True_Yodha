@@ -1,12 +1,13 @@
 "use client"
 
+import { type ReactNode } from "react"
 import "./myrology.css"
 import "./myrology-offer.css"
 import "./myrology-lenses.css"
 import { BrandParticles } from "@/components/brand/brand-particles"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
-import { MyrologyProvider } from "./checkout"
+import { MyrologyProvider, useMyrology } from "./checkout"
 import { SalePage } from "@/components/sale-gate"
 import { OfferingSection } from "./offering-section"
 import { LiveIndexPanel } from "./live-index-panel"
@@ -57,7 +58,6 @@ export default function MyrologyPage() {
   // it. A visitor who is sold by the hero should not have to scroll past two
   // explanation blocks to find the price.
   return (
-    <SalePage>
     <div className="myrology-root">
       <div className="m-bg">
         <BrandParticles density={0.9} accent="#B084FF" />
@@ -66,6 +66,7 @@ export default function MyrologyPage() {
       <PublicTopNav showSignIn />
 
       <MyrologyProvider>
+      <MyrologyBody>
       <main className="m-main">
         <section className="my-hero my-hero--split">
           <div>
@@ -150,9 +151,16 @@ export default function MyrologyPage() {
         </section>
 
       </main>
+      </MyrologyBody>
       </MyrologyProvider>
       <PublicFooter />
     </div>
-    </SalePage>
   )
+}
+
+function MyrologyBody({ children }: { children: ReactNode }) {
+  const { phase } = useMyrology()
+  const owned = phase === "intake" || phase === "pay" || phase === "booking"
+  const pitch = phase === "loading" ? "pending" : !owned
+  return <SalePage pitch={pitch}>{children}</SalePage>
 }

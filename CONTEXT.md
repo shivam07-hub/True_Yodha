@@ -735,7 +735,7 @@ not a Reach Target. Contract: [OFFERING.md](OFFERING.md).
 
 A charge Myro collects: the coin pack, the filing fee, the Engagement Scene, the workflow audit, Myrology. A salary on a job is not a Sale.
 
-`openSale` is the only module that starts one. Inside the Android app it does not load a checkout and does not create an order. On the web it is the checkout those products already had. A route whose job is a Sale is not offered there, and opening it goes to Jobs.
+`openSale` is the only module that starts one. Inside the Android app it does not load a checkout and does not create an order. On the web the page is there at once. Inside the app a pitch goes to Jobs and paints no price; something the person already paid for stays, without the price.
 
 ---
 

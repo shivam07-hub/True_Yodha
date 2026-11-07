@@ -17,6 +17,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { billing, workflowAudit, type AuditIntake, type WorkflowAudit } from "@/lib/api"
 import { formatDate } from "@/lib/format"
 import { openSale } from "@/lib/sale"
+import { SalePage } from "@/components/sale-gate"
 import { AuditIntakeForm } from "./audit-intake-form"
 import "./audit-room.css"
 import { Button } from "@/components/ui/button"
@@ -89,22 +90,25 @@ export function AuditRoom({ token }: { token: string }) {
 
   const audit = mineQ.data?.audit ?? null
   const avail = availQ.data
+  const pitch = mineQ.isLoading ? "pending" : audit ? false : true
 
   if (mineQ.isLoading) {
     return <p className="awr-quiet">Loading.</p>
   }
 
-  if (!audit) return <Offer avail={avail} onBuy={buy} error={payError} />
-  if (audit.status === "awaiting_submission") {
-    return (
-      <AuditIntakeForm
-        pending={submitM.isPending}
-        error={submitM.error instanceof Error ? submitM.error.message : null}
-        onSubmit={(intake) => submitM.mutate(intake)}
-      />
-    )
-  }
-  return <Booked audit={audit} />
+  return (
+    <SalePage pitch={pitch}>
+      {!audit ? <Offer avail={avail} onBuy={buy} error={payError} /> : audit.status === "awaiting_submission" ? (
+        <AuditIntakeForm
+          pending={submitM.isPending}
+          error={submitM.error instanceof Error ? submitM.error.message : null}
+          onSubmit={(intake) => submitM.mutate(intake)}
+        />
+      ) : (
+        <Booked audit={audit} />
+      )}
+    </SalePage>
+  )
 }
 
 function Offer({
