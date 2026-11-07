@@ -302,7 +302,7 @@ function InternLaneEmpty({ lane }: { lane: FeedLane }) {
   return (
     <p className="tm-feed-summary" style={{ marginTop: 18 }}>
       {lane === "hosted" ? (
-        <>No Apply here listings yet. <Link href="/internships/post">Post a paid internship</Link>.</>
+        <>No Apply here listings yet.</>
       ) : (
         <>No live internships. <Link href="/internships">Open internships</Link>.</>
       )}

@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { jobs, type HostedInternshipInput } from "@/lib/api"
 import { ApiError } from "@/lib/api-error"
@@ -17,7 +16,7 @@ export function InternshipPostForm() {
   async function onSubmit(form: FormData) {
     setError(null)
     if (!token) {
-      router.push("/login?next=/internships/post")
+      router.push("/login?next=/recruiters")
       return
     }
     const low = Number(form.get("stipend_low_inr") || 0)
@@ -52,10 +51,7 @@ export function InternshipPostForm() {
     <main className="intern-page">
       <p className="intern-kicker">Hosted on Myro</p>
       <h1 className="intern-title">Post a paid internship</h1>
-      <p className="intern-lead">
-        Students apply here. Unpaid listings are refused. Full-time hiring teams can still
-        {" "}<Link href="/recruiters/workspace">preview the recruiter workspace</Link>.
-      </p>
+      <p className="intern-lead">Students apply here, with the CV they already have on Myro.</p>
       <form className="intern-form" onSubmit={(e) => { e.preventDefault(); void onSubmit(new FormData(e.currentTarget)) }}>
         <label>Company
           <input name="company_name" required minLength={2} autoComplete="organization" />

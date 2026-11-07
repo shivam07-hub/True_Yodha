@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-11-07 — The recruiter door is the post form; the mock B2B previews are parked
+
+`/recruiters` renders the paid-internship post form. `/internships/post` and `/recruiters/workspace` forward to it, `/referrals/*` forwards to `/`. Parked: the referral partner door and both workspace previews. They showed invented candidates with match scores, their only live button emailed the founder, and no referrer or full-time hiring team uses Myro. A real referral loop most likely starts with seekers who already work at the company a seeker wants (their CV names the employer). Count those pairs before building it. Seeker pages no longer ask a seeker to post an internship.
+
 ## 2026-11-07 — #61 S7 the phone editor offers the copied-mark fix
 
 The section list shows the same ats · layout row as the desktop Fixes queue. Fix all strips the copied marks on the open CV. A clean CV has no row.

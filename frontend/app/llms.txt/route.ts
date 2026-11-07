@@ -55,9 +55,7 @@ export function GET() {
       case "/institutions":
         return "Placement data and CV scoring for colleges and training institutes."
       case "/recruiters":
-        return "Verified candidate pipelines for recruiters and staffing teams."
-      case "/referrals":
-        return "Myro's referral partner program."
+        return "Post one paid internship; students apply with the CV they already have on Myro."
       case "/myrology":
         return "A lighter, narrative read on a person's career direction."
       case "/docs#faq":
