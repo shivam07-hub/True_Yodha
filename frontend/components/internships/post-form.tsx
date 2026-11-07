@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { jobs, type HostedInternshipInput } from "@/lib/api"
 import { ApiError } from "@/lib/api-error"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { stashPendingInternshipPost, takePendingInternshipPost } from "@/lib/internship-post-stash"
 import "./internships.css"
 
 export function InternshipPostForm() {
@@ -13,12 +14,29 @@ export function InternshipPostForm() {
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
+  async function post(authToken: string, body: HostedInternshipInput) {
+    setPending(true)
+    try {
+      await jobs.postInternship(authToken, body)
+      router.push("/internships")
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not post this internship")
+    } finally {
+      setPending(false)
+    }
+  }
+
+  // She pressed Post before she had an account. Sign-in brought her back here
+  // (postAuthDestination); the post goes out once, as written.
+  useEffect(() => {
+    if (!token) return
+    const carried = takePendingInternshipPost()
+    if (carried) void post(token, carried)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when the token lands; take() clears, so it posts once
+  }, [token])
+
   async function onSubmit(form: FormData) {
     setError(null)
-    if (!token) {
-      router.push("/login?next=/recruiters")
-      return
-    }
     const low = Number(form.get("stipend_low_inr") || 0)
     if (low <= 0) {
       setError("Paid internships only")
@@ -36,15 +54,12 @@ export function InternshipPostForm() {
       job_description: String(form.get("job_description") || "").trim(),
       skills: String(form.get("skills") || "").split(",").map((s) => s.trim()).filter(Boolean),
     }
-    setPending(true)
-    try {
-      await jobs.postInternship(token, body)
-      router.push("/internships")
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not post this internship")
-    } finally {
-      setPending(false)
+    if (!token) {
+      stashPendingInternshipPost(body)
+      router.push("/login")
+      return
     }
+    await post(token, body)
   }
 
   return (

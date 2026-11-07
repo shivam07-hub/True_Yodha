@@ -2,6 +2,7 @@
 
 import { hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
 import { hasPendingJobSaveClaim } from "@/lib/anon-job-stash"
+import { hasPendingInternshipPostClaim } from "@/lib/internship-post-stash"
 import { readPendingExtensionConnect } from "@/lib/extension-connect-stash"
 import {
   DashboardSkeleton,
@@ -20,5 +21,6 @@ export function PostAuthHandoffSkeleton() {
   // The claim lands on /cv?upload=1 — the library door, not the workstation.
   if (hasPendingAnonCvClaim()) return <CVBaselineSkeleton />
   if (hasPendingJobSaveClaim()) return <DashboardSkeleton />
+  if (hasPendingInternshipPostClaim()) return <GenericPageSkeleton />
   return <MarketSkeleton />
 }

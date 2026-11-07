@@ -7,6 +7,7 @@ const base = {
   firstSignup: false,
   hasPendingAnonCv: false,
   hasPendingJobSave: false,
+  hasPendingInternshipPost: false,
   pendingExtensionConnect: null,
   completingPartnerLink: false,
 }
@@ -98,9 +99,18 @@ test("the destination is decided by carried intent alone", () => {
     "completingPartnerLink",
     "firstSignup",
     "hasPendingAnonCv",
+    "hasPendingInternshipPost",
     "hasPendingJobSave",
     "pendingExtensionConnect",
   ])
   const src = postAuthDestination.toString()
   for (const key of accepted) assert.ok(src.includes(key), `${key} is accepted but never read`)
+})
+
+test("a recruiter's carried post lands on the recruiter door, never the CV stepper", () => {
+  assert.equal(postAuthDestination({ ...base, hasPendingInternshipPost: true }), "/recruiters")
+  assert.equal(
+    postAuthDestination({ ...base, firstSignup: true, hasPendingInternshipPost: true }),
+    "/recruiters",
+  )
 })
