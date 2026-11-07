@@ -135,3 +135,11 @@
   color: var(--tm-text);
   margin: 8px 0 0;
 }
+.intern-review-text {
+  margin: 0;
+  white-space: pre-wrap;
+  color: var(--tm-text);
+  font-size: var(--tm-fs-body);
+  line-height: 1.5;
+}
+.intern-poster { margin: 0; color: var(--tm-text); font-size: var(--tm-fs-body); overflow-wrap: anywhere; }

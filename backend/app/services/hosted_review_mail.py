@@ -20,6 +20,15 @@ def _label(card: dict[str, Any]) -> str:
     return f"{card.get('job_title') or 'Internship'} at {card.get('company_name') or 'a company'}"
 
 
+def poster_email(db: Any, poster_id: str | None) -> str:
+    """The account email of whoever posted — the reviewer's best clue that the
+    company is real (a work domain that matches the company name)."""
+    if not poster_id:
+        return ""
+    user = db.auth.admin.get_user_by_id(str(poster_id)).user
+    return getattr(user, "email", None) or ""
+
+
 def alert_reviewer(card: dict[str, Any]) -> bool:
     """A new post is waiting. Sent to the ops inbox the Notice digest uses."""
     stipend = card.get("stipend_low_inr")
@@ -28,8 +37,7 @@ def alert_reviewer(card: dict[str, Any]) -> bool:
         f"Stipend: INR {stipend}/month · {card.get('duration_months')} months · "
         f"{card.get('location') or card.get('location_mode') or 'no city'}\n\n"
         f"{(card.get('job_description') or '').strip()[:600]}\n\n"
-        f"Clear or refuse: POST /jobs/internships/{card.get('job_id')}/review "
-        '{"decision": "clear" | "refuse"} with X-Myro-Admin-Token.'
+        f"Clear or refuse it: {settings.public_app_url}/admin/internships"
     )
     return send_email(
         to=settings.ops_alert_email,
@@ -44,8 +52,7 @@ def tell_poster_live(db: Any, card: dict[str, Any]) -> bool:
     if not poster_id:
         logger.warning("metric hosted_review.live_mail_skipped reason=no_poster job_id=%s", card.get("job_id"))
         return False
-    user = db.auth.admin.get_user_by_id(str(poster_id)).user
-    email = getattr(user, "email", None) or ""
+    email = poster_email(db, str(poster_id))
     text = (
         f"{_label(card)} is live on Myro. Seekers see it under Apply here and apply "
         "with the CV they already have on Myro.\n\n"

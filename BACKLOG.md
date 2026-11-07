@@ -99,11 +99,9 @@ prompt is ignored. Redesign from that, in Myro (no email — APPLY2).
 how many people on Myro it reaches as she types, then her internship and who
 applied. Each applicant's view is the CV frozen at his Yes, his Myro Score and
 skills, with Shortlist / Pass beside his own record. A post is held
-(`hosted_review=pending`) until Myro clears it; each new post emails
-`OPS_ALERT_EMAIL`. **Blocked (owner Shivam):** the clear step is token-only
-(`POST /jobs/internships/{id}/review`, `X-Myro-Admin-Token`), the token is unset
-on both backends (it answers 503), and there is no screen for it. Until both are
-fixed, a post waits forever. 0 hosted posts exist (checked 2026-11-08).
+(`hosted_review=pending`) until Myro clears it at `/admin/internships` (owner
+operators in `growth_operators`, linked from `/admin/growth`); each new post
+emails `OPS_ALERT_EMAIL` with that link. 0 hosted posts exist (checked 2026-11-08).
 
 **Form fill has never run for anyone (measured 2026-11-02).** 0 rows in
 `job_filing_authorizations`, test accounts included, and `/filing/answers` refuses
@@ -433,8 +431,8 @@ Tracker (3) · no problem or not actionable (~25).
      [INSTAGRAM_PROFILE.md](INSTAGRAM_PROFILE.md). The button reaches himyro.com
      with the next `main` merge.
 - **Set `JOB_SWITCH_ADMIN_TOKEN` on mirror-backend-dev and mirror-backend-prod.**
-  It is the reviewer token for clearing a held internship (and the ₹99 plan and
-  audit queues). It is unset on both (checked 2026-11-08), so those endpoints answer 503.
+  It is the reviewer token for the ₹99 plan and AI audit queues. It is unset on
+  both (checked 2026-11-08), so those endpoints answer 503.
 - **Key rotation after Railway's 2026-10-21 incident.** The steps, their order and
   what each one checks are kept off this public repo, in the agent's private
   memory on Shivam's laptop. Ask an agent for the list.

@@ -814,6 +814,8 @@ class EmployerDecision(BaseModel):
 
 class HostedReviewItem(JobFeedItem):
     poster_id: str | None = None
+    #: Whoever posted it — the reviewer's clue that the company is real.
+    poster_email: str | None = None
 
 
 class HostedReviewQueue(BaseModel):

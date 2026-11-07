@@ -20,12 +20,13 @@ from app.schemas.jobs import (
     InternshipsResponse,
     JobFeedItem,
 )
-from app.security.admin_auth import require_admin
+from app.routers.growth import get_growth_operator
+from app.schemas.growth import GrowthOperator
 from app.security.anon_rate_limit import enforce_anon_rate
 from app.security.auth_rate_limit import client_ip_from_scope
 from app.services import application_yes
 from app.services import hosted_applicants
-from app.services.hosted_review_mail import alert_reviewer, tell_poster_live
+from app.services.hosted_review_mail import alert_reviewer, poster_email, tell_poster_live
 from app.services.internship_reach import reach
 from app.services.internships import (
     UnpaidInternshipError,
@@ -124,21 +125,35 @@ def get_reach(
     return InternshipReach(**reach(db, city=city, remote=remote, skills=names))
 
 
+def require_reviewer(operator: GrowthOperator = Depends(get_growth_operator)) -> GrowthOperator:
+    """Clearing a post is the check that keeps a fake internship from a seeker:
+    a signed-in Myro operator with the owner role — the same account access
+    /admin/growth uses, no shared token."""
+    if operator.role != "owner":
+        raise HTTPException(status_code=403, detail="Only the owner clears internships.")
+    return operator
+
+
 # Declared before /internships/{job_id} so "review" is not read as a job id.
 @router.get(
     "/internships/review",
     response_model=HostedReviewQueue,
-    dependencies=[Depends(require_admin)],
+    dependencies=[Depends(require_reviewer)],
 )
 def get_review_queue(db=Depends(get_supabase_admin)) -> HostedReviewQueue:
-    """Posts held for a person at Myro. Token-guarded (X-Myro-Admin-Token)."""
-    return HostedReviewQueue(jobs=[HostedReviewItem(**card) for card in pending_reviews(db)])
+    """Posts held for a person at Myro, oldest first, with who posted each."""
+    return HostedReviewQueue(
+        jobs=[
+            HostedReviewItem(**card, poster_email=poster_email(db, card.get("poster_id")) or None)
+            for card in pending_reviews(db)
+        ]
+    )
 
 
 @router.post(
     "/internships/{job_id}/review",
     response_model=HostedReviewItem,
-    dependencies=[Depends(require_admin)],
+    dependencies=[Depends(require_reviewer)],
 )
 def decide_review(
     job_id: str,

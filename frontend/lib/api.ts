@@ -3958,6 +3958,12 @@ export interface HostedPost extends JobFeedItem {
   applicant_count: number
 }
 
+export interface HostedReviewItem extends JobFeedItem {
+  poster_id: string | null
+  /** Whoever posted it — the reviewer's clue that the company is real. */
+  poster_email: string | null
+}
+
 export interface HostedApplicant {
   application_id: number
   name: string
@@ -4448,6 +4454,17 @@ export const jobs = {
       `/jobs/internships/${encodeURIComponent(jobId)}/applicants/${applicationId}`,
       { method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ status }) },
     ),
+  /** Held posts waiting for Myro's check. Owner operators only. */
+  reviewQueue: (token: string) =>
+    request<{ jobs: HostedReviewItem[] }>("/jobs/internships/review", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  reviewInternship: (token: string, jobId: string, decision: "clear" | "refuse") =>
+    request<HostedReviewItem>(`/jobs/internships/${encodeURIComponent(jobId)}/review`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ decision }),
+    }),
   postInternship: (token: string, body: HostedInternshipInput) =>
     request<JobFeedItem>("/jobs/internships", {
       method: "POST",
