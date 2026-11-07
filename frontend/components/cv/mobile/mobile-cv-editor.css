@@ -64,6 +64,26 @@
 
 .tm-mcv-loading { margin: auto; color: var(--tm-text-muted); }
 .tm-mcv-section-list { display: flex; flex-direction: column; }
+.tm-mcv-marker-fix {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--tm-border-soft);
+}
+.tm-mcv-marker-fix p { margin: 0; min-width: 0; flex: 1; }
+.tm-mcv-marker-fix strong {
+  display: block;
+  font-size: var(--tm-fs-heading);
+  font-weight: 600;
+  line-height: 1.3;
+}
+.tm-mcv-marker-fix small {
+  display: block;
+  margin-top: 3px;
+  color: var(--tm-text-muted);
+  font-size: var(--tm-fs-body);
+}
 .tm-mcv-section-list > button {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr) auto;

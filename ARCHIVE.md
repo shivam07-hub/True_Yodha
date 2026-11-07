@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-11-07 — #61 S7 the phone editor offers the copied-mark fix
+
+The section list shows the same ats · layout row as the desktop Fixes queue. Fix all strips the copied marks on the open CV. A clean CV has no row.
+
 ## 2026-11-07 — #61 S6 phone onboarding shows its steps, and a failed read retries
 
 The rail shows "Your CV" and "Your job" on a phone. A failed onboarding read shows a retry instead of the upload.

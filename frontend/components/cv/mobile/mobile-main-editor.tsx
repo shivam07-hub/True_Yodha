@@ -3,8 +3,10 @@
 import { useEffect, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import type { CVStructured, UserProfile } from "@/lib/api"
+import { runAtsChecks } from "@/components/cv/builder/ats-checks"
 import { Icon, type IconName } from "@/components/cv/builder/icons"
 import { Button } from "@/components/ui/button"
+import { stripCopiedMarkers } from "@/lib/cv/list-markers"
 import { jobDraftKey, type SaveStatus } from "@/lib/cv-autosave"
 import { useJobDraftAutosave } from "@/lib/hooks/use-job-draft-autosave"
 import { useMasterAutosave } from "@/lib/hooks/use-master-autosave"
@@ -155,6 +157,9 @@ function MobileEditorFrame({
   if (!paper) return null
 
   const cv = withContact(paper)
+  const copiedMarks = runAtsChecks(cv, profile, "cv.pdf").find(
+    (check) => check.apply === stripCopiedMarkers && !check.pass,
+  )
   const labelOf = (item: (typeof SECTIONS)[number]) => {
     const heading = HEADING_KEY[item.key]
     return heading ? title(heading) : item.label
@@ -203,6 +208,17 @@ function MobileEditorFrame({
           />
         ) : (
           <nav className="tm-mcv-section-list" aria-label="CV sections">
+            {copiedMarks?.apply ? (
+              <div className="tm-mcv-marker-fix">
+                <p>
+                  <strong>{copiedMarks.detail}</strong>
+                  <small>ats · layout</small>
+                </p>
+                <Button type="button" size="lg" onClick={() => update(copiedMarks.apply!(cv))}>
+                  Fix all
+                </Button>
+              </div>
+            ) : null}
             {SECTIONS.map(item => {
               const missingPhone = item.key === "contact" && !cv.contact?.phone.trim()
               return (

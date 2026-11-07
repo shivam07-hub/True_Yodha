@@ -179,6 +179,12 @@ The copied-list-marker cleanup (`d197a058`) is offered only in the desktop
 editor's Fixes queue, so a phone-only person is never offered it. Offer the same
 row on the phone.
 
+**Built 2026-11-07.** The phone editor's section list shows the same weak
+ats · layout row ("N bullets print a second mark") and Fix all. Fix all runs
+`stripCopiedMarkers` through the open document's save. A clean CV shows no row.
+Met by `frontend/tests/list-markers.test.ts`. At 375px the row was 48px tall;
+Fix all removed it. The save was intercepted and did not reach the server.
+
 ### S8 · A web link for deleting an account
 
 Play requires a web page where people can ask for deletion without the app. Add
