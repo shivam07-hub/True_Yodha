@@ -7,6 +7,19 @@ import { ApiError } from "@/lib/api-error"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { FeedCard } from "@/components/jobs/feed-card"
 import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
+import { ReachCount, type ReachInput } from "./reach-count"
+
+function splitSkills(raw: string): string[] {
+  return raw.split(",").map((s) => s.trim()).filter(Boolean)
+}
+
+function reachFromForm(form: FormData): ReachInput {
+  return {
+    city: String(form.get("location") || ""),
+    remote: form.get("location_mode") === "remote",
+    skills: splitSkills(String(form.get("skills") || "")),
+  }
+}
 import { stashPendingInternshipPost, takePendingInternshipPost } from "@/lib/internship-post-stash"
 import "./internships.css"
 
@@ -16,6 +29,7 @@ export function InternshipPostForm() {
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [posted, setPosted] = useState<JobFeedItem | null>(null)
+  const [reach, setReach] = useState<ReachInput>({ city: "", remote: false, skills: [] })
 
   async function post(authToken: string, body: HostedInternshipInput) {
     setPending(true)
@@ -54,7 +68,7 @@ export function InternshipPostForm() {
       location: String(form.get("location") || "").trim() || null,
       location_mode: (String(form.get("location_mode") || "onsite") as HostedInternshipInput["location_mode"]),
       job_description: String(form.get("job_description") || "").trim(),
-      skills: String(form.get("skills") || "").split(",").map((s) => s.trim()).filter(Boolean),
+      skills: splitSkills(String(form.get("skills") || "")),
     }
     if (!token) {
       stashPendingInternshipPost(body)
@@ -72,6 +86,13 @@ export function InternshipPostForm() {
         <p className="intern-lead">
           Seekers see this under Apply here once Myro checks it, within a day. We email you when it is live.
         </p>
+        <ReachCount
+          input={{
+            city: posted.location ?? "",
+            remote: posted.location_mode === "remote",
+            skills: posted.skills ?? [],
+          }}
+        />
         <FeedCard data={feedDataFromFeedItem(posted, { hasCv: false })} variant="row" />
       </main>
     )
@@ -82,7 +103,11 @@ export function InternshipPostForm() {
       <p className="intern-kicker">Hosted on Myro</p>
       <h1 className="intern-title">Post a paid internship</h1>
       <p className="intern-lead">Students apply here, with the CV they already have on Myro.</p>
-      <form className="intern-form" onSubmit={(e) => { e.preventDefault(); void onSubmit(new FormData(e.currentTarget)) }}>
+      <form
+        className="intern-form"
+        onChange={(e) => setReach(reachFromForm(new FormData(e.currentTarget)))}
+        onSubmit={(e) => { e.preventDefault(); void onSubmit(new FormData(e.currentTarget)) }}
+      >
         <label>Company
           <input name="company_name" required minLength={2} autoComplete="organization" />
         </label>
@@ -121,6 +146,7 @@ export function InternshipPostForm() {
         <label>Skills (comma separated)
           <input name="skills" placeholder="SQL, Figma" />
         </label>
+        <ReachCount input={reach} />
         {error ? <p className="intern-error">{error}</p> : null}
         <button type="submit" className="intern-submit" disabled={pending}>
           {pending ? "Posting" : "Post internship"}

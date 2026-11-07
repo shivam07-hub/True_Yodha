@@ -4399,6 +4399,12 @@ export const jobs = {
   },
   internship: (jobId: string) =>
     request<JobFeedItem>(`/jobs/internships/${encodeURIComponent(jobId)}`),
+  /** How many people on Myro a post reaches. Public: she has no account yet. */
+  internshipReach: (input: { city: string; remote: boolean; skills: string[] }) => {
+    const params = new URLSearchParams({ remote: String(input.remote), skills: input.skills.join(",") })
+    if (input.city.trim()) params.set("city", input.city.trim())
+    return request<{ matched: number; active_30d: number }>(`/jobs/internships/reach?${params.toString()}`)
+  },
   postInternship: (token: string, body: HostedInternshipInput) =>
     request<JobFeedItem>("/jobs/internships", {
       method: "POST",

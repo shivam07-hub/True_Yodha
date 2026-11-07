@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 
 from app.database import get_supabase_admin
 from app.deps import Principal, get_principal, get_principal_optional
@@ -11,12 +11,16 @@ from app.schemas.jobs import (
     HostedReviewDecision,
     HostedReviewItem,
     HostedReviewQueue,
+    InternshipReach,
     InternshipsResponse,
     JobFeedItem,
 )
 from app.security.admin_auth import require_admin
+from app.security.anon_rate_limit import enforce_anon_rate
+from app.security.auth_rate_limit import client_ip_from_scope
 from app.services import application_yes
 from app.services.hosted_review_mail import alert_reviewer, tell_poster_live
+from app.services.internship_reach import reach
 from app.services.internships import (
     UnpaidInternshipError,
     dismissed_job_ids,
@@ -44,6 +48,22 @@ def get_internships(
     if principal:
         cards = without_dismissed(cards, dismissed_job_ids(db, principal.id))
     return InternshipsResponse(jobs=[JobFeedItem(**card) for card in cards])
+
+
+# Declared before /internships/{job_id} so "reach" is not read as a job id.
+@router.get("/internships/reach", response_model=InternshipReach)
+def get_reach(
+    request: Request,
+    city: str | None = Query(default=None, max_length=80),
+    remote: bool = Query(default=False),
+    skills: str = Query(default="", max_length=600),
+    db=Depends(get_supabase_admin),
+) -> InternshipReach:
+    """How many people on Myro a post reaches, while she writes it. Public —
+    she has no account yet — so per-IP limited; two counts, never people."""
+    enforce_anon_rate("intern_reach", client_ip_from_scope(request.scope))
+    names = [s for s in skills.split(",") if s.strip()]
+    return InternshipReach(**reach(db, city=city, remote=remote, skills=names))
 
 
 # Declared before /internships/{job_id} so "review" is not read as a job id.

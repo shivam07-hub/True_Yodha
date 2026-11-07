@@ -771,6 +771,11 @@ class InternshipsResponse(BaseModel):
     jobs: list[JobFeedItem]
 
 
+class InternshipReach(BaseModel):
+    matched: int
+    active_30d: int
+
+
 class HostedReviewItem(JobFeedItem):
     poster_id: str | None = None
 

@@ -78,3 +78,10 @@
 }
 .intern-error { color: var(--tm-warning-text, var(--tm-warning)); font-size: var(--tm-fs-caption); }
 .intern-empty { color: var(--tm-text-muted); }
+.intern-reach {
+  margin: 0;
+  font-size: var(--tm-fs-body);
+  color: var(--tm-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.intern-reach strong { color: var(--tm-text); font-weight: 600; }

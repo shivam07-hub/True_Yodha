@@ -30,6 +30,9 @@ MAX_PER_WINDOW = {
     # asking us to send mail is not, so it is held much tighter.
     "partner_connect_context": 30,
     "partner_connect_email": 3,
+    # The recruiter's live match count. Debounced as she types, two numbers
+    # back, no rows — generous, but a ceiling on someone sweeping cities.
+    "intern_reach": 120,
 }
 
 # Short burst windows on top of the hourly ceiling. The hourly limit alone let a
@@ -49,6 +52,7 @@ MESSAGES = {
     "export": "You've downloaded a few CVs already. Sign up to save and keep working.",
     "partner_connect_context": "Too many attempts. Wait a moment and reload.",
     "partner_connect_email": "We've already sent a link. Check your inbox, including spam.",
+    "intern_reach": "Too many lookups. Wait a moment.",
 }
 
 _hits: dict[tuple[str, str], deque[float]] = {}
