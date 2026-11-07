@@ -88,6 +88,8 @@ class CoreLoopStepPayload(BaseModel):
     ]
     job_id: str = Field(min_length=1, max_length=200)
     surface: str | None = Field(default=None, max_length=40)
+    #: web or android. Old clients omit it; those rows are the browser.
+    shell: Literal["web", "android"] = "web"
 
 
 #: What a client may send — tied to `CoreLoopStep` in lib/api.ts.
@@ -135,7 +137,9 @@ def _write(table: str, row: dict) -> bool:
 
 
 def _persist_loop_step(payload: CoreLoopStepPayload, user_id: str) -> None:
-    core_loop.record_step(user_id, payload.job_id, payload.step, payload.surface)
+    core_loop.record_step(
+        user_id, payload.job_id, payload.step, payload.surface, payload.shell,
+    )
 
 
 @router.post("/loop-step", status_code=202)

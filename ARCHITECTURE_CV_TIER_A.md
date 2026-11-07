@@ -12,7 +12,8 @@ CEO grill (D7, Shivam, 2026-09-30).** UI slices go through `/frontend-design`.
 > the PDF is cut from. A job document's experience must match a master
 > `(company, role)` and may not widen its dates. A master rewrite appends
 > sections the seven keys cannot hold. The page meter measures the A4 export
-> box and never gates a download. S5 still open.
+> box and never gates a download. S5 built 2026-11-04: desktop Add role /
+> Add project, and a phone edit of a tailored CV writes that CV.
 
 ---
 
@@ -81,6 +82,10 @@ both writing to the master. On a job document the phone edits go through the
 job-draft endpoint (`routers/cv/versions.py:380`), never the master autosave.
 This is also what makes fix B livable.
 
+**Built 2026-11-04.** `4b9be63d`. Desktop Add role and Add project. On a job,
+`patchBoth` writes the job document and the master. On a phone, `/cv?jobId=`
+saves through `useJobDraftAutosave`.
+
 ### E · #49 — the page meter is measured, and never blocks a download
 
 `frontend/lib/cv/page-fill.ts:23-25` estimates fill as 98 characters × 50 lines
@@ -119,7 +124,7 @@ is gone.
 | S2 | B · fabricated-role guard | **Built 2026-10-14.** Invented pair refused at the seam; weave and polish drop it and log; a role on the master passes. |
 | S3 | C · keep unknown sections | **Built 2026-10-15.** The five measured headings survive a master rewrite, once, in their original order. |
 | S4 | E · measured page fill | **Built 2026-10-15.** A CV at 97% of the A4 export box downloads. A real second page shows "2 pages" and still downloads. |
-| S5 | D · add role/project; phone routing | Add a role on desktop → it appears on the job doc; a phone edit on a job doc leaves the master untouched |
+| S5 | D · add role/project; phone routing | **Built 2026-11-04.** Desktop Add role / Add project go through `onPatch`. On a job that is `patchBoth`, so the role is on the job document and the master. On a phone, `?jobId=` opens the mobile editor and `writeOpenDocument("job")` does not call the master save. |
 
 ## 5 · How we will know it worked
 

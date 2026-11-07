@@ -10,10 +10,17 @@ import type { CVStructured } from "@/lib/api"
 export type SaveStatus = "idle" | "saving" | "saved" | "error"
 
 const DRAFT_KEY_PREFIX = "myro-cv-master-draft-v1:"
+const JOB_DRAFT_KEY_PREFIX = "myro-cv-job-draft-v1:"
 
 /** localStorage key for a user's in-flight master draft (refresh recovery). */
 export function masterDraftKey(userKey: string): string {
   return `${DRAFT_KEY_PREFIX}${userKey}`
+}
+
+/** Session key for an in-flight edit of one job's CV. Separate from the master
+ *  key so a tailored draft cannot hydrate the Main CV after a reload. */
+export function jobDraftKey(userKey: string, jobId: string): string {
+  return `${JOB_DRAFT_KEY_PREFIX}${userKey}:${jobId}`
 }
 
 /** Stable, field-order-insensitive comparison of two structured CVs. */

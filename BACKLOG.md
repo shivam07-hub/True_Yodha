@@ -19,16 +19,16 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 | 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read 11-02: 6 asked, 2 answered, 0 Yes; too few to redesign from |
 | 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) | Built; `0aafb324` on `main`. **BLOCKED on Shivam**: preview → approve |
 | 4 | Front door | **#57** "Which job do you want?" after upload | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor, 1st | On `main` 2026-10-17 · link paste fixed `2cc7b264`; 5 clicks to Download `8c372968`; links read from the corpus `515fd697` · phone run owed |
-| 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1–S4 on `main` · next S5 add role |
+| 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1–S4 on `main` · S5 closed 2026-11-04 (`4b9be63d`, on `Develop`) · open: the two match numbers |
 | 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor, 3rd | Spec only, no commits · S0 audit |
 | 6 | Pay | **#56** the ₹199 Apply Pack | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Cursor, 4th | Spec only, no commits · S1 settlement |
-| 3 | Repeat | **#61** Myro on Android (TWA), buying hidden, then Play billing | [ARCHITECTURE_APK.md](ARCHITECTURE_APK.md) · Cursor, next | Spec 2026-11-03 · Phase 1 S1–S9; Phase 2 waits on #56 · Shivam: D-U-N-S, new upload key |
+| 3 | Repeat | **#61** Myro on Android (TWA), buying hidden, then Play billing | [ARCHITECTURE_APK.md](ARCHITECTURE_APK.md) · Cursor, next | S5 closed (`4b9be63d`). S1 on `Develop` (`b5fc6def`); `shell` applied 2026-11-07. Next: S2. Phase 2 waits on #56. Shivam: D-U-N-S, new upload key |
 
 **Cursor's order (Shivam, 2026-10-14; #61 added 2026-11-03):** #57 → #58 → #61
 Phase 1 → #60 → #56 → #61 Phase 2. The biggest absolute leak first (553 of 1,002
 never upload; 511 arrived by partner SSO, 22% of them upload), then collected →
 tailored (26%); the app next (Shivam, 2026-11-03: "ready for an APK next"); #60 once
-jobs flow again; pay after the value. #61 S5 is #58 S5's mobile half.
+jobs flow again; pay after the value. #61 S5 shipped with #58 S5 (`4b9be63d`). S1 is on `Develop` (`b5fc6def`); the next open slice is S2. #60, #56, and #61 Phase 2 were not started.
 
 Specs Cursor builds from, each slice its own commit with six gates green:
 PAYMENTS (#56) · FRONT_DOOR (#57) · CV_TIER_A (#58) · GOLDEN_DIGEST (#59) ·
@@ -245,16 +245,8 @@ paste. Its five fixes are on `main` (ARCHIVE 2026-10-22). Open:
 On `main`: S1 a blank certification is not a section (`240062eb`) · S2 a tailored
 CV cannot invent a role (`7956792a`) · S3 a master rewrite keeps sections the
 schema cannot name (`041d2cc3`) · S4 the page meter measures the export and never
-refuses a download (`332bec91`).
-
-**Open — S5 add a role or project (#50).** Desktop cannot add a project or a
-role; mobile can. `ProjectsBody` returns `null` when `cv.projects.length === 0`
-(`cv-paper-sections.tsx`), and `EmptySection` is wired to summary and skills
-only. Desktop has `onAddBullet` and `onReorderRoles` but no add-role, delete-role
-or move-between-sections; mobile has all three (`mobile-cv-sections.tsx`), gated
-at `library-view.tsx` `if (!isDesktop)`. Mobile writes through
-`useMasterAutosave` to the **master**, so the one surface that can add a section
-edits the wrong document for a tailored CV.
+refuses a download (`332bec91`). S5 (add a role or project, and the phone writes
+the open CV) is closed — ARCHIVE 2026-11-04, `4b9be63d` on `Develop`.
 
 **T1 findings, U4 run 2026-10-19** (Amazon "Business Analyst, Support, Supply
 Chain", QA account):

@@ -54,8 +54,10 @@ Google. Each slice is its own commit on `Develop`, six gates green, plus
 
 ### S1 · One signal: "am I inside the app?"
 
-`frontend/lib/platform/app-shell.ts` exports `isAndroidApp(): boolean` and a
-`useIsAndroidApp()` hook. Nothing else may sniff the user agent or the referrer.
+`frontend/lib/platform/app-shell.ts` exports `isAndroidApp(): boolean`.
+`useIsAndroidApp()` lives in `use-android-app.ts`: the reader is imported by
+`lib/api.ts`, and server routes import that file, so the hook cannot sit in
+the same module. Nothing else may sniff the user agent or the referrer.
 
 - **Signals:** the TWA start URL carries `?shell=android` (S9 sets it), or
   `document.referrer` starts with `android-app://com.himyro.app`, which Android
@@ -70,7 +72,14 @@ Google. Each slice is its own commit on `Develop`, six gates green, plus
 
 **Done when** unit tests show the query signal and the referrer signal each read
 `true`, a plain browser tab reads `false`, and a reload inside the same session
-still reads `true`.
+still reads `true`. Met by `frontend/tests/app-shell.test.ts`.
+
+**Built 2026-11-05.** `frontend/lib/platform/app-shell.ts` is the only reader of
+the referrer. Beacons send `shell` (`web` | `android`) on
+`POST /v1/telemetry/loop-step`, and `loop_reach.py` counts "in the Android app".
+The column is `database/migrations/20261105193000_core_loop_shell.sql`, applied
+2026-11-07. A read of `core_loop_events.shell` returns 200. The writer is
+`b5fc6def` on `Develop`.
 
 ### S2 · No buying anywhere in the app
 
@@ -119,14 +128,14 @@ first painted screen.
 
 ### S5 · Phone edits land on the CV that is open
 
-This is #58 S5's mobile half, and it blocks the APK. On a phone,
-`components/cv/builder/library-view.tsx` takes the `if (!isDesktop)` branch, and
-`mobile-cv-sections.tsx` writes through `useMasterAutosave`. So editing a
-**tailored** CV on a phone changes the **master** instead. Phone edits must write
-to the open document. Desktop's missing add-role stays in #58 S5 proper.
+**Closed 2026-11-04** with #58 S5 (`4b9be63d`). It was the APK blocker: the phone
+editor wrote every CV through `useMasterAutosave`, so a tailored CV changed the
+master. `/cv?jobId=` now opens the mobile editor, and that editor saves through
+`useJobDraftAutosave`. The Main CV still uses `useMasterAutosave`.
 
 **Done when** a test opens a tailored CV in the mobile editor, adds a role, and
-finds the role on that tailored version with the master unchanged.
+finds the role on that tailored version with the master unchanged. Met by
+`frontend/tests/cv-add-role.test.ts`.
 
 ### S6 · Phone onboarding (BACKLOG FD7)
 

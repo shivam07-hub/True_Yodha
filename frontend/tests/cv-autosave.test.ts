@@ -2,6 +2,7 @@ import { test } from "node:test"
 import assert from "node:assert/strict"
 import {
   cvStructuredEqual,
+  jobDraftKey,
   masterDraftKey,
   parsePersistedDraft,
   pickInitialDraft,
@@ -49,6 +50,13 @@ test("pickInitialDraft falls back to persisted when no server", () => {
 test("masterDraftKey is user-scoped", () => {
   assert.equal(masterDraftKey("u1"), "myro-cv-master-draft-v1:u1")
   assert.notEqual(masterDraftKey("u1"), masterDraftKey("u2"))
+})
+
+test("a job draft key cannot hydrate the Main CV", () => {
+  const master = masterDraftKey("u1")
+  const job = jobDraftKey("u1", "acme-1")
+  assert.equal(job.startsWith(master), false)
+  assert.notEqual(job, jobDraftKey("u1", "acme-2"))
 })
 
 test("parsePersistedDraft tolerates corruption", () => {
