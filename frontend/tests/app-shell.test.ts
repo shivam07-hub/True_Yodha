@@ -66,7 +66,7 @@ test("without a browser the shell is web", () => {
   assert.equal(isAndroidApp(), false)
 })
 
-test("only the shell module reads the Android referrer", () => {
+test("only the shell module and the before-paint script read the Android referrer", () => {
   const shell = readFileSync(new URL("../lib/platform/app-shell.ts", import.meta.url), "utf8")
   assert.match(shell, /android-app:\/\/com\.himyro\.app/)
   assert.match(shell, /sessionStorage/)
@@ -83,5 +83,8 @@ test("only the shell module reads the Android referrer", () => {
     }
   }
   for (const dir of ["app", "components", "lib", "mobile"]) walk(join(root, dir))
-  assert.deepEqual(hits.map(path => path.slice(root.length)), ["lib/platform/app-shell.ts"])
+  assert.deepEqual(hits.map(path => path.slice(root.length)).sort(), [
+    "lib/platform/app-shell.ts",
+    "lib/platform/cold-open.ts",
+  ])
 })

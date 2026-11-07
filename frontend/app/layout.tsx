@@ -4,6 +4,7 @@ import { headers } from "next/headers"
 import Script from "next/script"
 import { Providers } from "@/components/providers"
 import { RoutePerfProbe } from "@/components/loading/route-loading"
+import { COLD_OPEN_SCRIPT } from "@/lib/platform/cold-open"
 import "./globals.css"
 // Progressive-nav chrome (Myro wordmark, journey tabs/counts, live dot). Disjoint
 // from globals.css's topbar rules — loaded globally here because the shared
@@ -114,6 +115,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <body className="font-sans antialiased">
+        {/* Blocking, on purpose. next/script beforeInteractive only queues
+            work for the Next runtime, which is after this body has parsed.
+            A logged-out app open of /market must leave before the jobs
+            skeleton below is parsed. */}
+        <script
+          id="myro-cold-open"
+          nonce={nonce}
+          dangerouslySetInnerHTML={{ __html: COLD_OPEN_SCRIPT }}
+        />
         <Script id="myro-surface-init" strategy="beforeInteractive" nonce={nonce}>
           {SURFACE_INIT}
         </Script>

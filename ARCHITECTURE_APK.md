@@ -139,6 +139,14 @@ web is unchanged.
 **Done when** a cold open logged out with `?shell=android` shows `/signup` as its
 first painted screen.
 
+**Built 2026-11-07.** `loginRedirectTarget` sends the app to `/signup` and the
+web to `/login`. A blocking script in the root layout leaves `/market` for
+`/signup?shell=android` before the jobs skeleton is parsed when there is no
+session. A stored access or refresh token stays on Jobs. Met by
+`frontend/tests/cold-open.test.ts`. At 375px a logged-out `?shell=android` open
+painted "Start your CV hub" and the jobs skeleton was never inserted; the same
+open without the signal painted "Welcome back".
+
 ### S5 · Phone edits land on the CV that is open
 
 **Closed 2026-11-04** with #58 S5 (`4b9be63d`). It was the APK blocker: the phone

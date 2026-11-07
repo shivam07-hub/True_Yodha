@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-11-07 — #61 S4 a logged-out Android open paints account creation
+
+`/market?shell=android` with no session leaves for `/signup` before the jobs skeleton is parsed. The web still opens on `/login`. A session still opens on Jobs.
+
 ## 2026-11-07 — #61 S3 Myrology is absent inside the Android app
 
 The nav, the phone profile, the account menu, the CV canvas, Settings, and the footer omit the Myrology door. The web registry still lists it. `/myrology` already goes to Jobs.

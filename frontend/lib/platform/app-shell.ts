@@ -1,9 +1,11 @@
 /**
  * Am I inside the Android app?
  *
- * Two signals, and nothing else may read them: the TWA opens on
- * `?shell=android`, and Android sets `document.referrer` to
- * `android-app://com.himyro.app` when the app follows a link.
+ * Two signals: the TWA opens on `?shell=android`, and Android sets
+ * `document.referrer` to `android-app://com.himyro.app` when the app follows
+ * a link. The before-paint script in `cold-open.ts` is the other reader, so a
+ * logged-out Jobs open can leave before this module loads. It must agree with
+ * `referrerIsAndroidApp`.
  *
  * Remembered in sessionStorage only. A TWA shares the phone's longer-lived
  * storage and its cookies with Chrome, so a flag kept past this tab would
@@ -12,8 +14,8 @@
  * The React hook lives in `use-android-app.ts`. This module is imported by
  * `lib/api.ts`, which server routes import, so it cannot pull in a client hook.
  */
-const SHELL_KEY = "myro-app-shell"
-const ANDROID_REFERRER = "android-app://com.himyro.app"
+export const SHELL_KEY = "myro-app-shell"
+export const ANDROID_APP_REFERRER = "android-app://com.himyro.app"
 
 export type AppShell = "web" | "android"
 
@@ -23,8 +25,8 @@ interface StorageLike {
 }
 
 export function referrerIsAndroidApp(referrer: string): boolean {
-  if (!referrer.startsWith(ANDROID_REFERRER)) return false
-  const next = referrer.charAt(ANDROID_REFERRER.length)
+  if (!referrer.startsWith(ANDROID_APP_REFERRER)) return false
+  const next = referrer.charAt(ANDROID_APP_REFERRER.length)
   return next === "" || next === "/" || next === "?" || next === "#"
 }
 
