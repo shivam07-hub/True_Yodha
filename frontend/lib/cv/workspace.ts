@@ -25,6 +25,20 @@ export function latestCVVersionForJob(jobId: string, versions: CVVersion[]): CVV
   return matches.sort((a, b) => b.user_version_number - a.user_version_number)[0]
 }
 
+/**
+ * The CV an application freezes when the person says they sent it — the same
+ * pick as the backend's `cv_of_record._pick_version`: a version tailored for
+ * this job, else the newest CV they have. `latestCVVersionForJob` is the first
+ * half alone (null when nothing is tailored); this never leaves them guessing
+ * which CV went.
+ */
+export function cvOfRecordFor(jobId: string, versions: CVVersion[]): CVVersion | null {
+  const tailored = latestCVVersionForJob(jobId, versions)
+  if (tailored) return tailored
+  if (versions.length === 0) return null
+  return [...versions].sort((a, b) => (b.created_at > a.created_at ? 1 : b.created_at < a.created_at ? -1 : b.id - a.id))[0]
+}
+
 export function buildCVWorkspaceStats(
   versions: CVVersion[],
   applications: ApplicationResponse[],
