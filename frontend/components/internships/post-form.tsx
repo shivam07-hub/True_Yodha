@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { jobs, type HostedInternshipInput } from "@/lib/api"
+import { jobs, type HostedInternshipInput, type JobFeedItem } from "@/lib/api"
 import { ApiError } from "@/lib/api-error"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { FeedCard } from "@/components/jobs/feed-card"
+import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
 import { stashPendingInternshipPost, takePendingInternshipPost } from "@/lib/internship-post-stash"
 import "./internships.css"
 
@@ -13,12 +15,12 @@ export function InternshipPostForm() {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [posted, setPosted] = useState<JobFeedItem | null>(null)
 
   async function post(authToken: string, body: HostedInternshipInput) {
     setPending(true)
     try {
-      await jobs.postInternship(authToken, body)
-      router.push("/internships")
+      setPosted(await jobs.postInternship(authToken, body))
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not post this internship")
     } finally {
@@ -60,6 +62,19 @@ export function InternshipPostForm() {
       return
     }
     await post(token, body)
+  }
+
+  if (posted) {
+    return (
+      <main className="intern-page">
+        <p className="intern-kicker">In review</p>
+        <h1 className="intern-title">{posted.job_title}</h1>
+        <p className="intern-lead">
+          Seekers see this under Apply here once Myro checks it, within a day. We email you when it is live.
+        </p>
+        <FeedCard data={feedDataFromFeedItem(posted, { hasCv: false })} variant="row" />
+      </main>
+    )
   }
 
   return (

@@ -9,6 +9,7 @@ from app.services.internships import (
     intern_card,
     is_intern_job,
     require_paid,
+    review_hosted,
     without_dismissed,
 )
 
@@ -59,6 +60,89 @@ def test_hosted_row_is_a_paid_myro_internship() -> None:
     assert row["listing_confidence"] == "active"
     assert row["job_id"].startswith("myro_")
     assert row["created_by_user_id"] == "user-1"
+
+
+def test_a_new_post_is_held_until_myro_clears_it() -> None:
+    """Every live read filters is_active; a held post must fail that filter."""
+    row = hosted_job_row(
+        "user-1",
+        {
+            "company_name": "Campus Co",
+            "job_title": "Product intern",
+            "stipend_low_inr": 8000,
+            "duration_months": 3,
+            "job_description": "Work with the product team on live listings.",
+        },
+        now=NOW,
+    )
+    assert row["is_active"] is False
+    assert row["hosted_review"] == "pending"
+
+
+class _Rows:
+    """The one PostgREST update chain review_hosted walks."""
+
+    def __init__(self, stored: dict) -> None:
+        self.stored = stored
+        self.patch: dict = {}
+        self.filters: dict = {}
+
+    def table(self, name: str) -> "_Rows":
+        assert name == "jobs"
+        return self
+
+    def update(self, patch: dict) -> "_Rows":
+        self.patch = patch
+        return self
+
+    def eq(self, column: str, value: object) -> "_Rows":
+        self.filters[column] = value
+        return self
+
+    def execute(self) -> "_Rows":
+        matches = all(self.stored.get(k) == v for k, v in self.filters.items())
+        if matches:
+            self.stored.update(self.patch)
+        self.data = [dict(self.stored)] if matches else []
+        return self
+
+
+def _held() -> dict:
+    return {
+        "job_id": "myro_1",
+        "job_title": "Product intern",
+        "company_name": "Campus Co",
+        "listing_venue": "myro",
+        "employment_kind": "internship",
+        "listing_confidence": "active",
+        "is_active": False,
+        "hosted_review": "pending",
+        "stipend_low_inr": 8000,
+        "created_by_user_id": "user-1",
+    }
+
+
+def test_clearing_a_held_post_makes_it_live() -> None:
+    db = _Rows(_held())
+    card = review_hosted(db, "myro_1", "clear")
+    assert card is not None
+    assert db.stored["is_active"] is True
+    assert card["hosted_review"] == "cleared"
+    assert card["poster_id"] == "user-1"
+
+
+def test_refusing_a_held_post_keeps_it_from_seekers() -> None:
+    db = _Rows(_held())
+    card = review_hosted(db, "myro_1", "refuse")
+    assert card is not None
+    assert db.stored["is_active"] is False
+    assert card["hosted_review"] == "refused"
+
+
+def test_a_decided_post_does_not_move_again() -> None:
+    db = _Rows({**_held(), "hosted_review": "refused"})
+    assert review_hosted(db, "myro_1", "clear") is None
+    assert db.stored["is_active"] is False
 
 
 def test_intern_detection_from_title_and_band() -> None:

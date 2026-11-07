@@ -2,6 +2,10 @@
 
 Career-page internships still apply on the company portal. Hosted internships
 (`listing_venue=myro`) apply in-app. Unpaid hosted listings are refused.
+
+A hosted post is held (`hosted_review=pending`, `is_active` false) until a
+person at Myro clears it, so a fake internship never reaches a seeker. Every
+live read already leaves an inactive row out; clearing is the one flip.
 """
 from __future__ import annotations
 
@@ -21,6 +25,8 @@ _SELECT = (
     "role_family, seniority_level, min_years_experience, max_years_experience, "
     f"main_skills, {HOSTED_COLUMNS}, {CARD_COLUMNS}"
 )
+_HOSTED_SELECT = f"{_SELECT}, hosted_review, hosted_reviewed_at, created_by_user_id"
+REVIEW_DECISIONS = {"clear": "cleared", "refuse": "refused"}
 
 
 class UnpaidInternshipError(ValueError):
@@ -92,7 +98,9 @@ def hosted_job_row(user_id: str, body: dict[str, Any], *, now: datetime) -> dict
         "duration_months": months,
         "ppo": bool(body.get("ppo")),
         "listing_confidence": "active",
-        "is_active": True,
+        # Held until a person at Myro clears it (review_hosted).
+        "is_active": False,
+        "hosted_review": "pending",
         "last_verified_live_at": stamp,
         "last_conclusive_verification_at": stamp,
         "apply_url": None,
@@ -110,6 +118,7 @@ def hosted_fields(job: dict[str, Any]) -> dict[str, Any]:
         "stipend_high_inr": job.get("stipend_high_inr"),
         "duration_months": job.get("duration_months"),
         "ppo": job.get("ppo"),
+        "hosted_review": job.get("hosted_review"),
     }
 
 
@@ -189,3 +198,42 @@ def insert_hosted(db: Any, user_id: str, body: dict[str, Any]) -> dict[str, Any]
     inserted = db.table("jobs").insert(row).execute().data or []
     saved = inserted[0] if inserted else row
     return intern_card(saved, now=datetime.now(timezone.utc))
+
+
+def pending_reviews(db: Any, limit: int = 50) -> list[dict[str, Any]]:
+    """Hosted posts waiting for a person at Myro, oldest first."""
+    rows = (
+        db.table("jobs")
+        .select(_HOSTED_SELECT)
+        .eq("hosted_review", "pending")
+        .order("first_seen")
+        .limit(limit)
+        .execute()
+        .data
+        or []
+    )
+    now = datetime.now(timezone.utc)
+    return [{**intern_card(row, now=now), "poster_id": row.get("created_by_user_id")} for row in rows]
+
+
+def review_hosted(db: Any, job_id: str, decision: str) -> dict[str, Any] | None:
+    """Clear or refuse a held post. Only a pending post moves; returns None
+    when there is no pending post with this id (already decided, or not hosted)."""
+    state = REVIEW_DECISIONS[decision]
+    now = datetime.now(timezone.utc)
+    patch: dict[str, Any] = {"hosted_review": state, "hosted_reviewed_at": now.isoformat()}
+    if state == "cleared":
+        patch |= {"is_active": True, "last_verified_live_at": now.isoformat()}
+    rows = (
+        db.table("jobs")
+        .update(patch)
+        .eq("job_id", job_id)
+        .eq("listing_venue", "myro")
+        .eq("hosted_review", "pending")
+        .execute()
+        .data
+        or []
+    )
+    if not rows:
+        return None
+    return {**intern_card(rows[0], now=now), "poster_id": rows[0].get("created_by_user_id")}

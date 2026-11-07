@@ -3945,6 +3945,8 @@ export interface JobFeedItem {
   stipend_high_inr?: number | null
   duration_months?: number | null
   ppo?: boolean | null
+  /** A post hosted on Myro: held until a person at Myro clears it. */
+  hosted_review?: "pending" | "cleared" | "refused" | null
 }
 
 /** One card in the "Myro Agent Picks" band — a feed card plus the Career-Ops

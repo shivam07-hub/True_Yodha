@@ -740,6 +740,9 @@ class JobFeedItem(BaseModel):
     stipend_high_inr: int | None = None
     duration_months: int | None = None
     ppo: bool | None = None
+    #: A post hosted on Myro: held (pending) until a person at Myro clears it.
+    #: None on every scraped listing.
+    hosted_review: Literal["pending", "cleared", "refused"] | None = None
     #: Why this job is on the list. The three facts retrieval decided it on, so a
     #: card can say what it was chosen for — a list of forty that cannot say why
     #: is indistinguishable from forty that were not chosen.
@@ -766,6 +769,18 @@ class HostedInternshipRequest(BaseModel):
 
 class InternshipsResponse(BaseModel):
     jobs: list[JobFeedItem]
+
+
+class HostedReviewItem(JobFeedItem):
+    poster_id: str | None = None
+
+
+class HostedReviewQueue(BaseModel):
+    jobs: list[HostedReviewItem]
+
+
+class HostedReviewDecision(BaseModel):
+    decision: Literal["clear", "refuse"]
 
 
 class MarketJudgment(BaseModel):
