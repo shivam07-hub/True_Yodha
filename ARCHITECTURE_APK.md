@@ -167,6 +167,12 @@ finds the role on that tailored version with the master unchanged. Met by
 
 **Done when** both show correctly at 375px, with the failed call simulated.
 
+**Built 2026-11-07.** The rail shows "Your CV" and "Your job" at every width.
+A failed `/onboarding/state` read shows "Couldn't load your next step" and
+Try again, and does not open the upload. Met by
+`frontend/tests/onboarding-phone.test.ts`. At 375px both labels were on screen
+(16px tall) while the failed call was up; Try again then opened the upload.
+
 ### S7 · Phone Fixes queue (cut first if S1–S6 run long)
 
 The copied-list-marker cleanup (`d197a058`) is offered only in the desktop

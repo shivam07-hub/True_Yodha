@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { MyroLogo } from "@/components/myro-logo"
+import { Button } from "@/components/ui/button"
 import { ExperienceStep } from "@/components/onboarding/experience-step"
 import { JourneyProgress } from "@/components/onboarding/journey-progress"
 import {
@@ -28,7 +29,9 @@ export default function OnboardingPage() {
   // confirmed on the result screen, so any in-flight stage (target/result/
   // generator) resumes there — there is no blocking target step on this page.
   useEffect(() => {
-    if (resolved.current || !state.isFetchedAfterMount) return
+    // A failed read is not "no CV yet". Leaving it unlocked means Try again can
+    // still send a finished journey on, instead of locking them on the upload.
+    if (resolved.current || !state.isFetchedAfterMount || state.isError) return
     resolved.current = true
     const data = state.data
     // One derived answer to "where should this user be". This used to read two
@@ -43,7 +46,7 @@ export default function OnboardingPage() {
     // reaches the picker. Plain /onboarding/result is their tailor receipt.
     if (data?.position === "direction") { router.replace("/onboarding/result?step=2"); return }
     if (data?.position === "result") router.replace("/onboarding/result")
-  }, [router, state.data, state.isFetchedAfterMount])
+  }, [router, state.data, state.isError, state.isFetchedAfterMount])
 
   async function handleUpload(file: File) {
     if (!token) return
@@ -101,6 +104,13 @@ export default function OnboardingPage() {
         {/* Same rail, same component, same labels as /onboarding/result. */}
         <JourneyProgress current={1} />
         <div className="flex flex-1 items-center justify-center py-8">
+          {state.isError ? (
+            <section className="w-full max-w-lg text-center" aria-labelledby="onboarding-load-error">
+              <h1 id="onboarding-load-error" className="text-balance text-2xl font-semibold text-[var(--tm-text)]">Couldn&apos;t load your next step</h1>
+              <p className="mt-3 text-pretty text-sm leading-6 text-[var(--tm-text-muted)]">Your progress is saved. Reconnect to continue from the same place.</p>
+              <Button size="lg" className="mt-6" onClick={() => void state.refetch()}>Try again</Button>
+            </section>
+          ) : (
           <ExperienceStep
             busy={busy}
             error={error}
@@ -115,6 +125,7 @@ export default function OnboardingPage() {
             // server state is what grew a second answer to where the user is.
             onGuideMe={() => router.push("/onboarding/result?guide=1")}
           />
+          )}
         </div>
       </div>
     </main>

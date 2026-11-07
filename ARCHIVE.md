@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-11-07 — #61 S6 phone onboarding shows its steps, and a failed read retries
+
+The rail shows "Your CV" and "Your job" on a phone. A failed onboarding read shows a retry instead of the upload.
+
 ## 2026-11-07 — #61 S4 a logged-out Android open paints account creation
 
 `/market?shell=android` with no session leaves for `/signup` before the jobs skeleton is parsed. The web still opens on `/login`. A session still opens on Jobs.

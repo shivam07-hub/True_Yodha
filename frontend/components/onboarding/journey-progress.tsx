@@ -50,10 +50,7 @@ export function JourneyProgress({ current, furthest = 0, onSelect }: Props) {
             </span>
           )
           const text = (
-            <>
-              <span className={cn("hidden text-pretty sm:block", active && "text-[var(--tm-text)]")}>{label}</span>
-              <span className="sr-only sm:hidden">{label}</span>
-            </>
+            <span className={cn("min-w-0 text-pretty", active && "text-[var(--tm-text)]")}>{label}</span>
           )
           return (
             <li
