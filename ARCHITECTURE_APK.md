@@ -77,9 +77,9 @@ still reads `true`. Met by `frontend/tests/app-shell.test.ts`.
 **Built 2026-11-05.** `frontend/lib/platform/app-shell.ts` is the only reader of
 the referrer. Beacons send `shell` (`web` | `android`) on
 `POST /v1/telemetry/loop-step`, and `loop_reach.py` counts "in the Android app".
-The column is `database/migrations/20261105193000_core_loop_shell.sql`. Apply it,
-then `NOTIFY pgrst`, before the code that writes `shell` is pushed: until the
-column exists every loop-step insert fails.
+The column is `database/migrations/20261105193000_core_loop_shell.sql`, applied
+2026-11-07. A read of `core_loop_events.shell` returns 200. The writer is
+`b5fc6def` on `Develop`.
 
 ### S2 · No buying anywhere in the app
 
