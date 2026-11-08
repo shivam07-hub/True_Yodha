@@ -143,3 +143,6 @@
   line-height: 1.5;
 }
 .intern-poster { margin: 0; color: var(--tm-text); font-size: var(--tm-fs-body); overflow-wrap: anywhere; }
+.intern-band { display: flex; flex-direction: column; gap: 10px; margin: 14px 0 6px; }
+.intern-band .intern-kicker { margin: 0; }
+.intern-band-apply { display: inline-flex; align-items: center; text-decoration: none; }

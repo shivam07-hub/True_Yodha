@@ -57,6 +57,13 @@ export const FEED_LANES: ReadonlyArray<readonly [FeedLane, string]> = [
   ["hosted", "Apply here"],
 ] as const
 
+/** Apply here only appears when at least one is live — an empty tab tells him
+ *  the app has nothing, every visit. Kept while he is on it, so he is never
+ *  stranded on a lane with no chip. */
+export function visibleLanes(current: FeedLane, hostedLive: boolean): ReadonlyArray<readonly [FeedLane, string]> {
+  return FEED_LANES.filter(([lane]) => lane !== "hosted" || hostedLive || current === "hosted")
+}
+
 /** The work-mode segmented control. "Any" is the null state, not a value. */
 export const WORK_MODES: ReadonlyArray<readonly [LocationMode | null, string]> = [
   [null, "Any"],

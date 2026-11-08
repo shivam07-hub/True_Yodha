@@ -17,6 +17,7 @@ from app.schemas.jobs import (
     HostedReviewItem,
     HostedReviewQueue,
     InternshipReach,
+    InternshipsForYou,
     InternshipsResponse,
     JobFeedItem,
 )
@@ -33,6 +34,7 @@ from app.services.internships import (
     dismissed_job_ids,
     get_internship,
     insert_hosted,
+    internships_for,
     list_internships,
     pending_reviews,
     review_hosted,
@@ -55,6 +57,16 @@ def get_internships(
     if principal:
         cards = without_dismissed(cards, dismissed_job_ids(db, principal.id))
     return InternshipsResponse(jobs=[JobFeedItem(**card) for card in cards])
+
+
+# Declared before /internships/{job_id} so "for-you" is not read as a job id.
+@router.get("/internships/for-you", response_model=InternshipsForYou)
+def get_internships_for_you(
+    principal: Principal = Depends(get_principal),
+    db=Depends(get_supabase_admin),
+) -> InternshipsForYou:
+    """Paid internships he can apply to on Myro, that fit him. One read."""
+    return InternshipsForYou(**internships_for(db, principal.id))
 
 
 # Declared before /internships/{job_id} so "mine" is not read as a job id.

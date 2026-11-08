@@ -247,3 +247,45 @@ def test_apply_here_is_a_yes_through_the_hosted_door(monkeypatch: pytest.MonkeyP
     assert res.json()["applied_at"] is not None
     assert repo.intents[0]["destination_type"] == "hosted_role"
     assert seen == ["cv", "judge", ("u1", "myro_1", "applied", "hosted")]
+
+
+class _ForYouRpc:
+    def __init__(self, out: dict) -> None:
+        self.out = out
+        self.calls: list = []
+
+    def rpc(self, name: str, params: dict) -> "_ForYouRpc":
+        self.calls.append((name, params))
+        return self
+
+    def execute(self) -> "_ForYouRpc":
+        self.data = self.out
+        return self
+
+
+def test_internships_for_him_carry_the_skills_he_has() -> None:
+    from app.services.internships import internships_for
+
+    db = _ForYouRpc({
+        "total": 3,
+        "jobs": [{
+            "job_id": "myro_1", "job_title": "Product intern", "company_name": "Campus Co",
+            "listing_venue": "myro", "employment_kind": "internship", "is_active": True,
+            "listing_confidence": "active", "first_seen": 20261108, "main_skills": ["SQL", "Figma"],
+            "matched_skills": ["SQL"], "stipend_low_inr": 8000,
+        }],
+    })
+    out = internships_for(db, "u1")
+    assert db.calls == [("hosted_internships_for", {"p_user_id": "u1"})]
+    assert out["total"] == 3
+    card = out["jobs"][0]
+    assert card["listing_venue"] == "myro"
+    assert card["matched_skills"] == ["SQL"] and card["matched_skill_count"] == 1
+    assert card["first_seen"] == "2026-11-08"
+    JobFeedItem(**card)
+
+
+def test_no_live_internships_is_an_empty_band_not_an_error() -> None:
+    from app.services.internships import internships_for
+
+    assert internships_for(_ForYouRpc({}), "u1") == {"total": 0, "jobs": []}

@@ -101,7 +101,10 @@ applied. Each applicant's view is the CV frozen at his Yes, his Myro Score and
 skills, with Shortlist / Pass beside his own record. A post is held
 (`hosted_review=pending`) until Myro clears it at `/admin/internships` (owner
 operators in `growth_operators`, linked from `/admin/growth`); each new post
-emails `OPS_ALERT_EMAIL` with that link. 0 hosted posts exist (checked 2026-11-08).
+emails `OPS_ALERT_EMAIL` with that link. A cleared post reaches the seekers it fits
+in a band above their judged Jobs list (`private.hosted_fit`: intern/entry target,
+city, a listed skill — the same rule as her count); the Apply here chip only
+appears while one is live. 0 hosted posts exist (checked 2026-11-08).
 
 **Form fill has never run for anyone (measured 2026-11-02).** 0 rows in
 `job_filing_authorizations`, test accounts included, and `/filing/answers` refuses

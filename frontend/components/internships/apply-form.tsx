@@ -14,6 +14,7 @@ import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
 import { applyLinkAttrs, resolveApplyTarget } from "@/lib/jobs/apply-transport"
 import { listingVenueOf } from "@/lib/jobs/card-logistics"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { HOSTED_FOR_YOU_KEY } from "./hosted-band"
 import "./internships.css"
 
 export function InternshipApplyForm({ jobId }: { jobId: string }) {
@@ -58,6 +59,8 @@ export function InternshipApplyForm({ jobId }: { jobId: string }) {
       const application = await jobs.applyInternship(token, jobId)
       setSentAt(application.applied_at ?? new Date().toISOString())
       void queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
+      // He applied: it leaves the band on Jobs (hosted_internships_for skips collected jobs).
+      void queryClient.invalidateQueries({ queryKey: HOSTED_FOR_YOU_KEY })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not submit")
     } finally {

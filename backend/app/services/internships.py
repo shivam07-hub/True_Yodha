@@ -237,3 +237,21 @@ def review_hosted(db: Any, job_id: str, decision: str) -> dict[str, Any] | None:
     if not rows:
         return None
     return {**intern_card(rows[0], now=now), "poster_id": rows[0].get("created_by_user_id")}
+
+
+def internships_for(db: Any, user_id: str) -> dict[str, Any]:
+    """The paid internships hosted on Myro that this person fits, for the band
+    above their judged Jobs list, plus how many are live in all.
+
+    Fit is `private.hosted_fit`, the same definition behind the recruiter's
+    "N people on Myro match", so the two cannot disagree. These are not judged
+    jobs: the list below stays judge-only (`/jobs/feed`), which is why they are
+    a band and not rows in it.
+    """
+    out = db.rpc("hosted_internships_for", {"p_user_id": user_id}).execute().data or {}
+    now = datetime.now(timezone.utc)
+    cards = []
+    for row in out.get("jobs") or []:
+        matched = [str(s) for s in (row.get("matched_skills") or []) if s]
+        cards.append({**intern_card(row, now=now), "matched_skills": matched, "matched_skill_count": len(matched)})
+    return {"total": int(out.get("total") or 0), "jobs": cards}

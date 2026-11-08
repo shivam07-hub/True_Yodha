@@ -1,6 +1,6 @@
 "use client"
 
-import { type FeedFilters, FEED_LANES, WORK_MODES, activeFilterCount } from "./feed-types"
+import { type FeedFilters, WORK_MODES, activeFilterCount, visibleLanes } from "./feed-types"
 
 // The sheet itself lives in ./filters-sheet — one component shared by the
 // desktop drawer and the mobile bottom sheet.
@@ -36,10 +36,20 @@ export function FeedControls({
 
 // ── removable filter chips (live in the summary line) ─────────────────────────
 
-export function LaneChips({ filters, onChange }: { filters: FeedFilters; onChange: (f: FeedFilters) => void }) {
+export function LaneChips({
+  filters,
+  onChange,
+  showHosted = true,
+}: {
+  filters: FeedFilters
+  onChange: (f: FeedFilters) => void
+  /** Whether any Apply here listing is live (`visibleLanes`). */
+  showHosted?: boolean
+}) {
+  const lanes = visibleLanes(filters.lane, showHosted)
   return (
     <div className="tm-feed-lanes" role="tablist" aria-label="Jobs or internships">
-      {FEED_LANES.map(([lane, label]) => {
+      {lanes.map(([lane, label]) => {
         const active = filters.lane === lane
         return (
           <button

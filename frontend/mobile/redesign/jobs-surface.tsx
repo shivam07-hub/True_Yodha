@@ -9,6 +9,7 @@ import type { CareerBand } from "@/lib/api"
 import { activeFilterCount, applyViewFilters, type FeedFilters } from "@/components/market/feed-types"
 import { FiltersSheet } from "@/components/market/filters-sheet"
 import { LaneChips } from "@/components/market/feed-filters"
+import { HostedBand, useHostedForYou } from "@/components/internships/hosted-band"
 import { useJobFeed } from "@/components/market/use-job-feed"
 import { useTracks } from "@/lib/hooks/use-tracks"
 import { trackDividers, unreadBoundary } from "@/lib/jobs/track-sections"
@@ -87,6 +88,7 @@ export function JobsSurface({
     useJobFeed({ token, filters, q: searchQ, skill: null, scope })
   // The WORDS for each search. One search — 83% of users — draws nothing.
   const { tracks } = useTracks(token)
+  const hosted = useHostedForYou(token)
   // Over the VISIBLE ranked head: a filter that hides three cards must move the
   // boundaries with them, not point at whatever now sits at that index.
   const visibleRanked = useMemo(
@@ -252,7 +254,7 @@ export function JobsSurface({
           </div>
         )}
         <div style={{ marginTop: 10 }}>
-          <LaneChips filters={filters} onChange={onFiltersChange} />
+          <LaneChips filters={filters} onChange={onFiltersChange} showHosted={hosted.total > 0} />
         </div>
       </div>
 
@@ -266,6 +268,9 @@ export function JobsSurface({
         {!internLane && !loading && !isRefreshing ? <NewInventoryStrip token={token} quiet={visibleJobs.length === 0} /> : null}
         {/* Curated Agent Picks — default view only (hidden while searching, filtering
             or viewing hidden jobs). Renders nothing when the user has no picks. */}
+        {!internLane && !loading && !eyeOn && !searchQ && filterCount === 0 && !(judgment?.reading && visibleJobs.length === 0) ? (
+          <HostedBand token={token} />
+        ) : null}
         {!internLane && !loading && !eyeOn && !searchQ && filterCount === 0 && !(judgment?.reading && visibleJobs.length === 0) ? (
           <MobileAgentPicks token={token} context="feed" onSave={job => doSave(job)} onSkip={job => doSkip(job)} />
         ) : null}

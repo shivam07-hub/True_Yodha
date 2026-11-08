@@ -774,6 +774,14 @@ class InternshipsResponse(BaseModel):
     jobs: list[JobFeedItem]
 
 
+class InternshipsForYou(BaseModel):
+    #: Live paid internships hosted on Myro, all of them — the Apply here
+    #: filter only appears when this is above zero.
+    total: int
+    #: The ones this person fits (private.hosted_fit), newest first, at most 5.
+    jobs: list[JobFeedItem]
+
+
 class InternshipReach(BaseModel):
     matched: int
     active_30d: int

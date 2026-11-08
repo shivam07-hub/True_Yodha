@@ -4434,6 +4434,11 @@ export const jobs = {
     if (input.city.trim()) params.set("city", input.city.trim())
     return request<{ matched: number; active_30d: number }>(`/jobs/internships/reach?${params.toString()}`)
   },
+  /** Paid internships hosted on Myro that fit him, plus how many are live in all. */
+  internshipsForYou: (token: string) =>
+    request<{ total: number; jobs: JobFeedItem[] }>("/jobs/internships/for-you", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   /** The recruiter's own internships, any review state, with applicant counts. */
   myInternships: (token: string) =>
     request<{ jobs: HostedPost[] }>("/jobs/internships/mine", {
