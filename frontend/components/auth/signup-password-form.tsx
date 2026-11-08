@@ -11,6 +11,7 @@ import { signupEvents } from "@/lib/analytics"
 import { hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
 import { readPendingExtensionConnect } from "@/lib/extension-connect-stash"
 import { hasPendingJobSaveClaim } from "@/lib/anon-job-stash"
+import { hasAccountDeletionReturn } from "@/lib/account-deletion-return"
 import { hasRecruiterReturn } from "@/lib/internship-post-stash"
 import { postAuthDestination } from "@/lib/auth/post-auth-destination"
 import { rememberAuth } from "@/lib/auth/last-auth"
@@ -77,6 +78,7 @@ export function SignupPasswordForm({
         hasPendingAnonCv: hasPendingAnonCvClaim(),
         hasPendingJobSave: hasPendingJobSaveClaim(),
         recruiterReturning: hasRecruiterReturn(),
+        accountDeletionReturn: hasAccountDeletionReturn(),
         pendingExtensionConnect: readPendingExtensionConnect(),
         completingPartnerLink: false,
       }))

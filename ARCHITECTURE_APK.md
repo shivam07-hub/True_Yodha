@@ -196,6 +196,14 @@ a public `/account/delete` page:
 
 Link it from `/privacy`, and add it to `site-routes.ts` so `check:reach` passes.
 
+**Built 2026-11-08.** `/account/delete` says what is deleted and how, and opens
+the existing deletion panel once there is a session. Signed out, it goes to
+sign-in and the carried return brings them back. Linked from Privacy and the
+legal footer. Met by `frontend/tests/account-delete.test.ts` and
+`frontend/tests/post-auth-destination.test.ts`. At 375px a signed-out open
+landed on "Welcome back" and, after sign-in, on the deletion page. The erase
+control was not pressed.
+
 ### S9 · The wrapper
 
 - `android-twa/twa-manifest.json`: `startUrl` → `/market?shell=android`, the new

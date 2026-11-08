@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-11-08 — #61 S8 a public page deletes an account
+
+`/account/delete` says what is deleted and how. Signed in, it opens the existing panel. Signed out, sign-in comes back to the page. Linked from Privacy.
+
 ## 2026-11-07 — The recruiter door is the post form; the mock B2B previews are parked
 
 `/recruiters` renders the paid-internship post form. `/internships/post` and `/recruiters/workspace` forward to it, `/referrals/*` forwards to `/`. Parked: the referral partner door and both workspace previews. They showed invented candidates with match scores, their only live button emailed the founder, and no referrer or full-time hiring team uses Myro. A real referral loop most likely starts with seekers who already work at the company a seeker wants (their CV names the employer). Count those pairs before building it. Seeker pages no longer ask a seeker to post an internship.

@@ -65,6 +65,7 @@ export const SITE_ROUTES: SiteRoute[] = [
   // ── Legal ────────────────────────────────────────────────────────────────
   { path: "/privacy", label: "Privacy Policy", footer: "Legal", sitemap: { changeFrequency: "yearly", priority: 0.4 }, route: true },
   { path: "/terms", label: "Terms of Use", footer: "Legal", sitemap: { changeFrequency: "yearly", priority: 0.3 }, route: true },
+  { path: "/account/delete", label: "Delete account", footer: "Legal", sitemap: { changeFrequency: "yearly", priority: 0.3 }, route: true },
 
   // ── Public, but not a footer-column item (lives in the footer's trust strip) ─
   { path: "/security", label: "Security", sitemap: { changeFrequency: "yearly", priority: 0.4 }, route: true },
