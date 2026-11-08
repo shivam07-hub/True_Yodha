@@ -2781,8 +2781,11 @@ bare: it answers ingestion, not liveness.
 ## 32. Paid internships on Jobs, and two wrong guesses (2026-11-08)
 
 `GET /jobs/internships/for-you` is one RPC, `hosted_internships_for(user)`: the
-live, cleared internships hosted on Myro that this person fits, plus how many are
-live in all. It is a band above the judged list, not rows in `/jobs/feed` (that
+live, cleared internships hosted on Myro, plus how many are live in all. Since
+2026-11-08 it returns every one (ceiling 20, a payload guard), ordered by
+`hosted_fit` then skill overlap then newest. Ordering costs one `hosted_fit` per
+live internship, **~1ms each warm** (20 stand-in rows: ~15ms), so this read grows
+with the number live: re-measure when it passes ~50. It is a band above the judged list, not rows in `/jobs/feed` (that
 list stays judge-only), so `/jobs/feed` gained no read. The live scan uses
 `listing_is_live(j)` and walks `jobs_internships_live_idx` (1 buffer, 0.3ms).
 Measured warm: **~2.4ms** per call (first ~10ms), with 0 hosted rows live.

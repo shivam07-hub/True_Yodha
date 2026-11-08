@@ -10,9 +10,10 @@ import "./internships.css"
 export const HOSTED_FOR_YOU_KEY = ["internships-for-you"] as const
 
 /**
- * Paid internships hosted on Myro that fit him (private.hosted_fit — the same
- * rule behind the recruiter's "N people on Myro match"), and how many are live
- * in all. One read, shared by the band and the lane chips.
+ * Every live paid internship hosted on Myro, the ones he fits first
+ * (private.hosted_fit — the rule behind the recruiter's "N people on Myro
+ * match"), and how many are live in all. One read, shared by the band and the
+ * lane chips. A card leaves once he applies or skips it.
  */
 export function useHostedForYou(token: string | null | undefined) {
   const q = useQuery({
@@ -26,13 +27,13 @@ export function useHostedForYou(token: string | null | undefined) {
 
 /**
  * The band above his judged Jobs list. Not rows in it: that list is judge-only
- * (`/jobs/feed`, score ≥ 3.5), and these were matched by city, level and skill,
- * not judged. Where his attention already is, without bending what the list means.
+ * (`/jobs/feed`, score ≥ 3.5), and these are posts on Myro, not judged. Where
+ * his attention already is, without bending what the list means.
  */
 export function HostedBand({ token }: { token: string }) {
-  const { jobs: fits } = useHostedForYou(token)
+  const { jobs: shown } = useHostedForYou(token)
   const qc = useQueryClient()
-  if (fits.length === 0) return null
+  if (shown.length === 0) return null
 
   const skip = (job: JobFeedItem) => {
     qc.setQueryData<{ total: number; jobs: JobFeedItem[] }>(HOSTED_FOR_YOU_KEY, (prev) =>
@@ -44,7 +45,7 @@ export function HostedBand({ token }: { token: string }) {
   return (
     <section className="intern-band" aria-label="Paid internships">
       <p className="intern-kicker">Paid internships</p>
-      {fits.map((job) => {
+      {shown.map((job) => {
         const target = resolveApplyTarget({
           job_id: job.job_id,
           source_url: job.source_url,

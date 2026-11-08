@@ -240,11 +240,13 @@ def review_hosted(db: Any, job_id: str, decision: str) -> dict[str, Any] | None:
 
 
 def internships_for(db: Any, user_id: str) -> dict[str, Any]:
-    """The paid internships hosted on Myro that this person fits, for the band
-    above their judged Jobs list, plus how many are live in all.
+    """Every live paid internship hosted on Myro, for the band above their
+    judged Jobs list, plus how many are live in all. A card leaves when they
+    apply or skip it, not when they only save it.
 
-    Fit is `private.hosted_fit`, the same definition behind the recruiter's
-    "N people on Myro match", so the two cannot disagree. These are not judged
+    Fit orders the band rather than filtering it: the ones they fit by
+    `private.hosted_fit` (the definition behind the recruiter's "N people on
+    Myro match") first, then skill overlap, then newest. These are not judged
     jobs: the list below stays judge-only (`/jobs/feed`), which is why they are
     a band and not rows in it.
     """
