@@ -17,7 +17,6 @@ Thanks for taking the time to contribute. This repository is the codebase behind
 cd backend
 python3.11 -m venv .venv   # the Python in backend/Dockerfile (or: conda create -p .venv python=3.11)
 .venv/bin/pip install --require-hashes -r requirements.lock
-.venv/bin/python -m spacy download en_core_web_sm
 .venv/bin/uvicorn app.main:app --reload
 ```
 
