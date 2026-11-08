@@ -116,6 +116,24 @@ const nextConfig = {
         destination: "/tokens",
         permanent: true,
       },
+      // The recruiter door became the post form (2026-11-07). The referral and
+      // workspace previews showed invented candidates with no product behind
+      // them; they are parked in ARCHIVE until a real referrer exists.
+      {
+        source: "/internships/post",
+        destination: "/recruiters",
+        permanent: true,
+      },
+      {
+        source: "/recruiters/workspace",
+        destination: "/recruiters",
+        permanent: true,
+      },
+      {
+        source: "/referrals/:path*",
+        destination: "/",
+        permanent: false,
+      },
     ];
   },
 };

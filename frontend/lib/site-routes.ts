@@ -44,10 +44,8 @@ export const SITE_ROUTES: SiteRoute[] = [
   { path: "/intel", label: "Live Job Data", footer: "Product", nav: { id: "intel", treatment: "live" }, sitemap: { changeFrequency: "daily", priority: 0.8 }, route: true },
   { path: "/companies", label: "Companies", footer: "Product", sitemap: { changeFrequency: "daily", priority: 0.7 }, route: true },
   { path: "/institutions", label: "For Colleges", footer: "Product", nav: { id: "institutions", treatment: "grad" }, sitemap: { changeFrequency: "monthly", priority: 0.7 }, route: true },
-  { path: "/recruiters", label: "For Recruiters", footer: "Product", sitemap: { changeFrequency: "monthly", priority: 0.7 }, route: true },
+  { path: "/recruiters", label: "Hire an intern", footer: "Product", sitemap: { changeFrequency: "monthly", priority: 0.7 }, route: true },
   { path: "/internships", label: "Internships", footer: "Product", sitemap: { changeFrequency: "daily", priority: 0.7 }, route: true },
-  { path: "/internships/post", label: "Post a paid internship", sitemap: { changeFrequency: "monthly", priority: 0.5 }, route: true },
-  { path: "/referrals", label: "Referral Partners", footer: "Product", sitemap: { changeFrequency: "monthly", priority: 0.6 }, route: true },
   { path: "/myrology", label: "Myrology", footer: "Product", sitemap: { changeFrequency: "monthly", priority: 0.6 }, route: true },
 
   // ── Learn ────────────────────────────────────────────────────────────────
@@ -67,6 +65,7 @@ export const SITE_ROUTES: SiteRoute[] = [
   // ── Legal ────────────────────────────────────────────────────────────────
   { path: "/privacy", label: "Privacy Policy", footer: "Legal", sitemap: { changeFrequency: "yearly", priority: 0.4 }, route: true },
   { path: "/terms", label: "Terms of Use", footer: "Legal", sitemap: { changeFrequency: "yearly", priority: 0.3 }, route: true },
+  { path: "/account/delete", label: "Delete account", footer: "Legal", sitemap: { changeFrequency: "yearly", priority: 0.3 }, route: true },
 
   // ── Public, but not a footer-column item (lives in the footer's trust strip) ─
   { path: "/security", label: "Security", sitemap: { changeFrequency: "yearly", priority: 0.4 }, route: true },

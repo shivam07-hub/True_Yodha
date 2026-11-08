@@ -16,6 +16,7 @@ import { VirtualFeed } from "@/components/jobs/virtual-feed"
 import { JobCard } from "./job-card"
 import { MobileFeed } from "./mobile-feed"
 import { FeedControls, FilterChips, LaneChips } from "./feed-filters"
+import { HostedBand, useHostedForYou } from "@/components/internships/hosted-band"
 import { useGlobalJobSearch } from "@/lib/hooks/use-global-job-search"
 import Link from "next/link"
 import { EmptyHandoff, FeedSkeleton, ListEnd, LocationScopePill } from "./jobs-tab-helpers"
@@ -108,10 +109,11 @@ export function MarketJobsColumn({
   const readingEmpty = !internLane && !loading && Boolean(judgment?.reading) && visibleJobs.length === 0
   const corpus = useGlobalJobSearch(searchOpen ? searchInput : "", { minLength: 2, limit: 8 })
   const showCorpus = searchOpen && q.trim().length >= 2 && visibleJobs.length === 0 && corpus.hits.length > 0
+  const hosted = useHostedForYou(token)
 
   return (
     <>
-      <LaneChips filters={filters} onChange={onChangeFilters} />
+      <LaneChips filters={filters} onChange={onChangeFilters} showHosted={hosted.total > 0} />
       <div className="tm-feed-bar">
         {searchOpen ? (
           <>
@@ -157,6 +159,10 @@ export function MarketJobsColumn({
         <PasteJobEntry token={token} />
         <SetupNudge token={token} style={{ marginTop: 0, flex: 1 }} />
       </div>
+
+      {!readingEmpty && !q && !skillFacet && !filters.roleFamily && filters.lane === "jobs" ? (
+        <HostedBand token={token} />
+      ) : null}
 
       {!readingEmpty && !q && !skillFacet && !filters.roleFamily && filters.lane === "jobs" ? (
         <AgentPicksBand token={token} hasCv={hasCv} context="feed" onSave={onSave} onSkip={onSkip} openTailor={j => openTailor(j, "agent_pick")} />
@@ -302,7 +308,7 @@ function InternLaneEmpty({ lane }: { lane: FeedLane }) {
   return (
     <p className="tm-feed-summary" style={{ marginTop: 18 }}>
       {lane === "hosted" ? (
-        <>No Apply here listings yet. <Link href="/internships/post">Post a paid internship</Link>.</>
+        <>No Apply here listings yet.</>
       ) : (
         <>No live internships. <Link href="/internships">Open internships</Link>.</>
       )}

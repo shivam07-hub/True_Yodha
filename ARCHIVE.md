@@ -6,6 +6,38 @@
 
 ---
 
+## 2026-11-08 — #61 S8 a public page deletes an account
+
+`/account/delete` says what is deleted and how. Signed in, it opens the existing panel. Signed out, sign-in comes back to the page. Linked from Privacy.
+
+## 2026-11-07 — The recruiter door is the post form; the mock B2B previews are parked
+
+`/recruiters` renders the paid-internship post form. `/internships/post` and `/recruiters/workspace` forward to it, `/referrals/*` forwards to `/`. Parked: the referral partner door and both workspace previews. They showed invented candidates with match scores, their only live button emailed the founder, and no referrer or full-time hiring team uses Myro. A real referral loop most likely starts with seekers who already work at the company a seeker wants (their CV names the employer). Count those pairs before building it. Seeker pages no longer ask a seeker to post an internship.
+
+## 2026-11-07 — #61 S7 the phone editor offers the copied-mark fix
+
+The section list shows the same ats · layout row as the desktop Fixes queue. Fix all strips the copied marks on the open CV. A clean CV has no row.
+
+## 2026-11-07 — #61 S6 phone onboarding shows its steps, and a failed read retries
+
+The rail shows "Your CV" and "Your job" on a phone. A failed onboarding read shows a retry instead of the upload.
+
+## 2026-11-07 — #61 S4 a logged-out Android open paints account creation
+
+`/market?shell=android` with no session leaves for `/signup` before the jobs skeleton is parsed. The web still opens on `/login`. A session still opens on Jobs.
+
+## 2026-11-07 — #61 S3 Myrology is absent inside the Android app
+
+The nav, the phone profile, the account menu, the CV canvas, Settings, and the footer omit the Myrology door. The web registry still lists it. `/myrology` already goes to Jobs.
+
+## 2026-11-07 — #61 S2 a Sale does not open inside the Android app
+
+One module, `openSale`, loads Razorpay and creates the order. Inside the app it does neither. `/filing`, `/job-switch-plan`, `/preparations/audit` and `/myrology` go to Jobs. A salary on a job card stays. Coin balance still spends.
+
+## 2026-11-04 — #58 S5 add a role or project, and #61 S5 the phone writes the open CV
+
+Desktop paper can add a role and a project (`4b9be63d` on `Develop`). On a job the add goes through `patchBoth`, so the entry is on that document and on the master. On a phone, `/cv?jobId=` opens the mobile editor and the save is that job's draft, not the Main CV.
+
 ## 2026-11-03 — R12 public pages closed
 
 `verified_live` (queryid `3154336291968442631`) held at 563 calls from 11-02 to 11-03, the `_count` Notice last opened 10-19, and `cold_fill_wait_expired` read 0 over Railway's 7 retained days. The provenance counts are Tier 0 (`03f6aa41`, `20261019090000`).

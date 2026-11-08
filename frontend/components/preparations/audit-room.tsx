@@ -16,7 +16,8 @@ import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { billing, workflowAudit, type AuditIntake, type WorkflowAudit } from "@/lib/api"
 import { formatDate } from "@/lib/format"
-import { loadRazorpay } from "@/lib/razorpay"
+import { openSale } from "@/lib/sale"
+import { SalePage } from "@/components/sale-gate"
 import { AuditIntakeForm } from "./audit-intake-form"
 import "./audit-room.css"
 import { Button } from "@/components/ui/button"
@@ -54,28 +55,31 @@ export function AuditRoom({ token }: { token: string }) {
   const buy = async () => {
     setPayError(null)
     try {
-      const Razorpay = await loadRazorpay<RazorpayConstructor>()
-      if (!Razorpay) {
-        setPayError("Payments could not load. Check your connection and try again.")
-        return
-      }
-      const order = await billing.createOrder(token, "ai_workflow_audit")
-      new Razorpay({
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: order.amount,
-        currency: order.currency,
-        order_id: order.order_id,
-        name: "Myro",
-        description: "AI Workflow Audit",
-        handler: async (response: Record<string, string>) => {
-          await billing.verifyPayment(token, {
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_signature: response.razorpay_signature,
-          })
-          qc.invalidateQueries({ queryKey: ["workflow-audit"] })
+      const result = await openSale<RazorpayConstructor>({
+        token,
+        product: "ai_workflow_audit",
+        open: ({ Razorpay, order }) => {
+          new Razorpay({
+            key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+            amount: order.amount,
+            currency: order.currency,
+            order_id: order.order_id,
+            name: "Myro",
+            description: "AI Workflow Audit",
+            handler: async (response: Record<string, string>) => {
+              await billing.verifyPayment(token, {
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+              })
+              qc.invalidateQueries({ queryKey: ["workflow-audit"] })
+            },
+          }).open()
         },
-      }).open()
+      })
+      if (result === "unavailable") {
+        setPayError("Payments could not load. Check your connection and try again.")
+      }
     } catch {
       // A full queue answers 409 between render and click. Say the true thing
       // rather than a generic failure.
@@ -86,22 +90,25 @@ export function AuditRoom({ token }: { token: string }) {
 
   const audit = mineQ.data?.audit ?? null
   const avail = availQ.data
+  const pitch = mineQ.isLoading ? "pending" : audit ? false : true
 
   if (mineQ.isLoading) {
     return <p className="awr-quiet">Loading.</p>
   }
 
-  if (!audit) return <Offer avail={avail} onBuy={buy} error={payError} />
-  if (audit.status === "awaiting_submission") {
-    return (
-      <AuditIntakeForm
-        pending={submitM.isPending}
-        error={submitM.error instanceof Error ? submitM.error.message : null}
-        onSubmit={(intake) => submitM.mutate(intake)}
-      />
-    )
-  }
-  return <Booked audit={audit} />
+  return (
+    <SalePage pitch={pitch}>
+      {!audit ? <Offer avail={avail} onBuy={buy} error={payError} /> : audit.status === "awaiting_submission" ? (
+        <AuditIntakeForm
+          pending={submitM.isPending}
+          error={submitM.error instanceof Error ? submitM.error.message : null}
+          onSubmit={(intake) => submitM.mutate(intake)}
+        />
+      ) : (
+        <Booked audit={audit} />
+      )}
+    </SalePage>
+  )
 }
 
 function Offer({

@@ -16,6 +16,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { ORIGIN_LABEL, heroFor } from "@/lib/collections/model"
+import { EMPLOYER_STATUS_WORD } from "@/lib/jobs/employer-status"
 import type { CollectionEntry, JobPulse } from "@/lib/api"
 
 /* ── ONE row, staged chrome (CONTEXT.md → Collection Record) ──────────────────
@@ -111,6 +112,10 @@ export function CollectionRow({
             <span className="db-sourcechip">{ORIGIN_LABEL[entry.origin]}</span>
             {entry.stage === "applied" && entry.status && entry.status !== "applied" ? (
               <span className="db-statuschip">{STATUS_WORD[entry.status] ?? entry.status}</span>
+            ) : null}
+            {/* The company's answer, beside his own stage — never instead of it. */}
+            {entry.employer_status ? (
+              <span className="db-statuschip">{EMPLOYER_STATUS_WORD[entry.employer_status]}</span>
             ) : null}
             {/* Grade is NOT here. It is a second "how good" beside the ring —
                 the same collision the Jobs face locked out. It lives in Why. */}

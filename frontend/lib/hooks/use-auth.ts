@@ -11,6 +11,7 @@ import {
   setSessionTokens,
   subscribeToSessionChanges,
 } from "@/lib/session"
+import { appShell, type AppShell } from "@/lib/platform/app-shell"
 import { queryClient } from "@/lib/query-client"
 import { createClient } from "@/lib/supabase"
 
@@ -20,12 +21,12 @@ const BASE =
   ""
 
 /**
- * A session-expiry bounce lands on /login, full stop. The old `?next=` hop was
- * discarded by postAuthDestination for its whole life — see that module. Post-auth
- * landing is decided by carried intent only.
+ * Where a person with no session goes. The web opens on sign-in. Inside the
+ * Android app the first screen is account creation; /signup already links to
+ * Sign in. Post-auth landing is decided by carried intent only.
  */
-function loginRedirectTarget(): string {
-  return "/login"
+export function loginRedirectTarget(shell: AppShell = appShell()): string {
+  return shell === "android" ? "/signup?shell=android" : "/login"
 }
 
 /**

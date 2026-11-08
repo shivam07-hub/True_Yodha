@@ -19,6 +19,7 @@ import { timeAgo } from "@/lib/cv/version-format"
 import { MobileDocumentPreview } from "./mobile-document-preview"
 import { MobileMainEditor } from "./mobile-main-editor"
 import { MobileCVHistory } from "./mobile-cv-history"
+import type { OpenJobCv } from "@/lib/cv/open-document"
 import { previewContact, type MobileCVSection, withContact } from "./mobile-cv-model"
 
 interface Props {
@@ -28,6 +29,9 @@ interface Props {
   profile: UserProfile | null
   onOpenJob: (jobId: string) => void
   onReplaceCV: () => void
+  /** The tailored CV open on this phone. Edits and export use it, not the Main CV. */
+  openJob?: OpenJobCv | null
+  onCloseJob?: () => void
 }
 
 export function MobileCVHub({
@@ -37,6 +41,8 @@ export function MobileCVHub({
   profile,
   onOpenJob,
   onReplaceCV,
+  openJob = null,
+  onCloseJob,
 }: Props) {
   const cv = withContact(rawCv)
   const [mode, setMode] = useState<"hub" | "edit" | "export">("hub")
@@ -53,11 +59,13 @@ export function MobileCVHub({
   if (mode === "edit") {
     return (
       <MobileMainEditor
+        key={openJob?.jobId ?? "master"}
         token={token}
         profile={profile}
         cv={cv}
         initialSection={editorSection}
         onClose={() => setMode("hub")}
+        job={openJob ? { jobId: openJob.jobId, save: openJob.save } : undefined}
       />
     )
   }
@@ -67,12 +75,16 @@ export function MobileCVHub({
       <CVExportView
         token={token}
         cv={cv}
-        hidden={new Set(currentBaseline?.hidden_items ?? [])}
+        hidden={new Set(openJob ? openJob.hiddenItems : (currentBaseline?.hidden_items ?? []))}
         contact={contact}
         profile={profile}
-        context="master"
-        versionId={currentBaseline?.id ?? null}
-        footerMarkHidden={currentBaseline?.footer_mark_hidden ?? true}
+        context={openJob ? "tailored" : "master"}
+        versionId={openJob ? (openJob.versionBelongsToJob ? openJob.versionId : null) : (currentBaseline?.id ?? null)}
+        footerMarkHidden={openJob ? openJob.footerMarkHidden : (currentBaseline?.footer_mark_hidden ?? true)}
+        sectionOrder={openJob?.sectionOrder}
+        company={openJob?.company}
+        jobTitle={openJob?.title}
+        jobId={openJob?.jobId}
         mobile
         onBack={() => setMode("hub")}
         onFixContact={() => openEditor("contact")}
@@ -83,29 +95,43 @@ export function MobileCVHub({
   return (
     <div className="tm-mcv-hub">
       <header className="tm-mcv-hub-head">
+        {openJob && onCloseJob ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-md"
+            className="min-h-[44px] min-w-[44px]"
+            aria-label="Back to your CVs"
+            onClick={onCloseJob}
+          >
+            <Icon name="chevron-right" size={22} style={{ transform: "rotate(180deg)" }} />
+          </Button>
+        ) : null}
         <div>
-          <h1>My CV</h1>
+          <h1>{openJob ? (openJob.company || openJob.title || "CV") : "My CV"}</h1>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-md"
-          className="min-h-[44px] min-w-[44px]"
-          aria-label="More CV actions"
-          onClick={() => setMoreOpen(true)}
-        >
-          <Icon name="settings" />
-        </Button>
+        {openJob ? null : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-md"
+            className="min-h-[44px] min-w-[44px]"
+            aria-label="More CV actions"
+            onClick={() => setMoreOpen(true)}
+          >
+            <Icon name="settings" />
+          </Button>
+        )}
       </header>
 
-      <ForwardPassPanel token={token} />
+      {openJob ? null : <ForwardPassPanel token={token} />}
 
       <FinishTailoringLane token={token} onOpenJob={onOpenJob} />
 
       <section className="tm-mcv-main" aria-labelledby="tm-mcv-main-title">
         <header>
-          <h2 id="tm-mcv-main-title"><Icon name="file" size={18} /> Main CV</h2>
-          {currentBaseline && <span>Updated {timeAgo(currentBaseline.created_at)}</span>}
+          <h2 id="tm-mcv-main-title"><Icon name="file" size={18} /> {openJob ? (openJob.title || "CV") : "Main CV"}</h2>
+          {openJob ? null : currentBaseline && <span>Updated {timeAgo(currentBaseline.created_at)}</span>}
         </header>
         <button type="button" className="tm-mcv-preview-button" onClick={() => setMode("export")} aria-label="Open Main CV preview and export">
           <MobileDocumentPreview cv={cv} contact={contact} />

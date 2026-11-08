@@ -436,6 +436,9 @@ class ApplicationResponse(BaseModel):
     closed_at: datetime | None = None
     offer_received_at: datetime | None = None
     notes: str | None
+    #: The company's answer on an internship hosted on Myro, written by the
+    #: person who posted it. Beside his own record; never his stage or Yes.
+    employer_status: Literal["seen", "shortlisted", "passed"] | None = None
     created_at: datetime
     last_stage_changed_at: datetime | None = None  # Q7 — stale-clock signal
     # Persisted Career Ops fit for this tracked role. The global Next action uses
@@ -740,6 +743,9 @@ class JobFeedItem(BaseModel):
     stipend_high_inr: int | None = None
     duration_months: int | None = None
     ppo: bool | None = None
+    #: A post hosted on Myro: held (pending) until a person at Myro clears it.
+    #: None on every scraped listing.
+    hosted_review: Literal["pending", "cleared", "refused"] | None = None
     #: Why this job is on the list. The three facts retrieval decided it on, so a
     #: card can say what it was chosen for — a list of forty that cannot say why
     #: is indistinguishable from forty that were not chosen.
@@ -766,6 +772,66 @@ class HostedInternshipRequest(BaseModel):
 
 class InternshipsResponse(BaseModel):
     jobs: list[JobFeedItem]
+
+
+class InternshipsForYou(BaseModel):
+    #: Live paid internships hosted on Myro, all of them — the Apply here
+    #: filter only appears when this is above zero.
+    total: int
+    #: The ones this person fits (private.hosted_fit), newest first, at most 5.
+    jobs: list[JobFeedItem]
+
+
+class InternshipReach(BaseModel):
+    matched: int
+    active_30d: int
+
+
+class HostedPost(JobFeedItem):
+    applicant_count: int = 0
+
+
+class HostedPostsResponse(BaseModel):
+    jobs: list[HostedPost]
+
+
+EmployerStatus = Literal["seen", "shortlisted", "passed"]
+
+
+class HostedApplicant(BaseModel):
+    application_id: int
+    name: str
+    applied_at: str
+    employer_status: EmployerStatus | None = None
+
+
+class HostedApplicantsResponse(BaseModel):
+    applicants: list[HostedApplicant]
+
+
+class HostedApplicantView(HostedApplicant):
+    #: The CV he had on Myro when he applied, frozen then (cv_of_record).
+    cv: dict[str, Any] | None = None
+    score: float | None = None
+    skills: list[str] = []
+
+
+class EmployerDecision(BaseModel):
+    status: Literal["shortlisted", "passed"]
+
+
+class HostedReviewItem(JobFeedItem):
+    poster_id: str | None = None
+    #: Whoever posted it — the reviewer's clue that the company is real.
+    poster_email: str | None = None
+
+
+class HostedReviewQueue(BaseModel):
+    jobs: list[HostedReviewItem]
+
+
+class HostedReviewDecision(BaseModel):
+    decision: Literal["clear", "refuse"]
 
 
 class MarketJudgment(BaseModel):
@@ -1061,6 +1127,9 @@ class CollectionEntry(BaseModel):
     pending_apply: bool = False
     saved_at: datetime | None = None
     applied_at: datetime | None = None
+    #: The company's answer on an internship hosted on Myro (seen, shortlisted,
+    #: passed). Sits beside his own record: never his stage, never his Yes.
+    employer_status: Literal["seen", "shortlisted", "passed"] | None = None
     #: Does this entry still ask something of the user — the landing rule's input.
     needs_user: bool = False
 

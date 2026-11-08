@@ -3,8 +3,12 @@
 import { useEffect, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import type { CVStructured, UserProfile } from "@/lib/api"
+import { runAtsChecks } from "@/components/cv/builder/ats-checks"
 import { Icon, type IconName } from "@/components/cv/builder/icons"
 import { Button } from "@/components/ui/button"
+import { stripCopiedMarkers } from "@/lib/cv/list-markers"
+import { jobDraftKey, type SaveStatus } from "@/lib/cv-autosave"
+import { useJobDraftAutosave } from "@/lib/hooks/use-job-draft-autosave"
 import { useMasterAutosave } from "@/lib/hooks/use-master-autosave"
 import { MobileCVSectionEditor } from "./mobile-cv-sections"
 import { useSectionTitle } from "@/components/cv/section-titles-provider"
@@ -45,37 +49,107 @@ interface MobileMainEditorProps {
   onClose: () => void
   initialSection?: MobileCVSection | null
   cv: CVStructured
+  /** Set when the open CV is a job document. Edits then save there, not on the Main CV. */
+  job?: { jobId: string; save: (cv: CVStructured) => Promise<void> }
 }
 
-export function MobileMainEditor({ token, profile, onClose, initialSection = null, cv: seed }: MobileMainEditorProps) {
-  const { draft, status, recomputePending, update, saveNow } = useMasterAutosave({
+export function MobileMainEditor(props: MobileMainEditorProps) {
+  if (props.job) return <MobileJobEditor {...props} job={props.job} />
+  return <MobileMasterEditor {...props} />
+}
+
+function userKeyOf(profile: UserProfile | null): string {
+  return profile?.ninja_name?.trim() || profile?.email?.trim() || "anon"
+}
+
+function MobileJobEditor({ token, profile, onClose, initialSection = null, cv: seed, job }: MobileMainEditorProps & { job: { jobId: string; save: (cv: CVStructured) => Promise<void> } }) {
+  const autosave = useJobDraftAutosave({
+    enabled: true,
+    seed,
+    draftKey: jobDraftKey(userKeyOf(profile), job.jobId),
+    save: job.save,
+  })
+  return (
+    <MobileEditorFrame
+      token={token}
+      profile={profile}
+      onClose={onClose}
+      initialSection={initialSection}
+      seed={seed}
+      heading="Edit CV"
+      sectionStorageKey={`${SESSION_SECTION_KEY}:${job.jobId}`}
+      draft={autosave.draft}
+      status={autosave.status}
+      recomputePending={false}
+      update={autosave.update}
+      saveNow={() => { void autosave.saveNow() }}
+    />
+  )
+}
+
+function MobileMasterEditor({ token, profile, onClose, initialSection = null, cv: seed }: MobileMainEditorProps) {
+  const autosave = useMasterAutosave({
     token,
     enabled: true,
-    userKey: profile?.ninja_name?.trim() || profile?.email?.trim() || "anon",
+    userKey: userKeyOf(profile),
     seed,
   })
+  return (
+    <MobileEditorFrame
+      token={token}
+      profile={profile}
+      onClose={onClose}
+      initialSection={initialSection}
+      seed={seed}
+      heading="Edit Main CV"
+      draft={autosave.draft}
+      status={autosave.status}
+      recomputePending={autosave.recomputePending}
+      update={autosave.update}
+      saveNow={autosave.saveNow}
+    />
+  )
+}
+
+function MobileEditorFrame({
+  token, profile, onClose, initialSection = null, seed, heading, sectionStorageKey = SESSION_SECTION_KEY,
+  draft, status, recomputePending, update, saveNow,
+}: {
+  token: string
+  profile: UserProfile | null
+  onClose: () => void
+  initialSection?: MobileCVSection | null
+  seed: CVStructured
+  heading: string
+  sectionStorageKey?: string
+  draft: CVStructured | null
+  status: SaveStatus
+  recomputePending: boolean
+  update: (cv: CVStructured) => void
+  saveNow: () => void
+}) {
   const [section, setSection] = useState<MobileCVSection | null>(initialSection)
   const [preview, setPreview] = useState(false)
   const title = useSectionTitle()
 
   useEffect(() => {
     try {
-      const stored = sessionStorage.getItem(SESSION_SECTION_KEY)
+      const stored = sessionStorage.getItem(sectionStorageKey)
       if (!initialSection && SECTIONS.some(item => item.key === stored)) setSection(stored as MobileCVSection)
     } catch { /* blocked */ }
-  }, [initialSection])
+  }, [initialSection, sectionStorageKey])
 
   function openSection(next: MobileCVSection | null) {
     setSection(next)
     try {
-      if (next) sessionStorage.setItem(SESSION_SECTION_KEY, next)
-      else sessionStorage.removeItem(SESSION_SECTION_KEY)
+      if (next) sessionStorage.setItem(sectionStorageKey, next)
+      else sessionStorage.removeItem(sectionStorageKey)
     } catch { /* blocked */ }
   }
 
   function finish() {
     saveNow()
-    try { sessionStorage.removeItem(SESSION_SECTION_KEY) } catch { /* blocked */ }
+    try { sessionStorage.removeItem(sectionStorageKey) } catch { /* blocked */ }
     onClose()
   }
 
@@ -83,12 +157,15 @@ export function MobileMainEditor({ token, profile, onClose, initialSection = nul
   if (!paper) return null
 
   const cv = withContact(paper)
+  const copiedMarks = runAtsChecks(cv, profile, "cv.pdf").find(
+    (check) => check.apply === stripCopiedMarkers && !check.pass,
+  )
   const labelOf = (item: (typeof SECTIONS)[number]) => {
     const heading = HEADING_KEY[item.key]
     return heading ? title(heading) : item.label
   }
   const active = SECTIONS.find(item => item.key === section)
-  const activeLabel = active ? labelOf(active) : "Edit Main CV"
+  const activeLabel = active ? labelOf(active) : heading
   const saveLabel = status === "error"
     ? "Couldn’t save"
     : status === "saving"
@@ -131,6 +208,17 @@ export function MobileMainEditor({ token, profile, onClose, initialSection = nul
           />
         ) : (
           <nav className="tm-mcv-section-list" aria-label="CV sections">
+            {copiedMarks?.apply ? (
+              <div className="tm-mcv-marker-fix">
+                <p>
+                  <strong>{copiedMarks.detail}</strong>
+                  <small>ats · layout</small>
+                </p>
+                <Button type="button" size="lg" onClick={() => update(copiedMarks.apply!(cv))}>
+                  Fix all
+                </Button>
+              </div>
+            ) : null}
             {SECTIONS.map(item => {
               const missingPhone = item.key === "contact" && !cv.contact?.phone.trim()
               return (

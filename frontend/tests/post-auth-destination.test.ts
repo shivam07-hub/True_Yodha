@@ -7,6 +7,8 @@ const base = {
   firstSignup: false,
   hasPendingAnonCv: false,
   hasPendingJobSave: false,
+  recruiterReturning: false,
+  accountDeletionReturn: false,
   pendingExtensionConnect: null,
   completingPartnerLink: false,
 }
@@ -95,12 +97,38 @@ test("the destination is decided by carried intent alone", () => {
   // Any new input here must be READ below, not merely accepted.
   const accepted = Object.keys(base).sort()
   assert.deepEqual(accepted, [
+    "accountDeletionReturn",
     "completingPartnerLink",
     "firstSignup",
     "hasPendingAnonCv",
     "hasPendingJobSave",
     "pendingExtensionConnect",
+    "recruiterReturning",
   ])
   const src = postAuthDestination.toString()
   for (const key of accepted) assert.ok(src.includes(key), `${key} is accepted but never read`)
+})
+
+test("a signed-out account deletion comes back to that page", () => {
+  assert.equal(postAuthDestination({ ...base, accountDeletionReturn: true }), "/account/delete")
+  assert.equal(
+    postAuthDestination({ ...base, accountDeletionReturn: true, firstSignup: true }),
+    "/account/delete",
+  )
+  assert.equal(
+    postAuthDestination({
+      ...base,
+      accountDeletionReturn: true,
+      pendingExtensionConnect: EXT,
+    }),
+    `/extension/connect?redirect_uri=${encodeURIComponent(EXT)}`,
+  )
+})
+
+test("a recruiter's carried post lands on the recruiter door, never the CV stepper", () => {
+  assert.equal(postAuthDestination({ ...base, recruiterReturning: true }), "/recruiters")
+  assert.equal(
+    postAuthDestination({ ...base, firstSignup: true, recruiterReturning: true }),
+    "/recruiters",
+  )
 })

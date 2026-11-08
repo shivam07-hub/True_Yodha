@@ -3,6 +3,8 @@
 import Link from "next/link"
 import { MyroLogo } from "@/components/myro-logo"
 import { footerColumns } from "@/lib/site-routes"
+import { useIsAndroidApp } from "@/lib/platform/use-android-app"
+import { isSalePath } from "@/lib/sale"
 import "./public-footer.css"
 
 // Brand glyphs inlined (lucide has no reliable X/GitHub brand marks). 24×24 viewBox.
@@ -40,6 +42,11 @@ const GITHUB_URL = "https://github.com/shivam07-hub/True_Yodha"
 // standalone <IntelCommons> section into the footer so the page ends in one
 // band, not two grid-twin blocks.
 export function PublicFooter({ commons = false }: { commons?: boolean } = {}) {
+  const inApp = useIsAndroidApp()
+  const columns = FOOTER_COLS.map((col) => ({
+    ...col,
+    links: inApp ? col.links.filter((link) => !isSalePath(link.href)) : col.links,
+  }))
   return (
     <footer className="pub-footer">
       <div className="pub-footer-inner">
@@ -70,7 +77,7 @@ export function PublicFooter({ commons = false }: { commons?: boolean } = {}) {
           </div>
         </div>
 
-        {FOOTER_COLS.map((col) => (
+        {columns.map((col) => (
           <div key={col.title} className="pub-footer-col">
             <div className="pub-footer-col-title">{col.title}</div>
             <ul className="pub-footer-links">

@@ -51,8 +51,32 @@ def test_a_step_lands_one_row_for_the_person_and_job(monkeypatch) -> None:
     assert res.status_code == 202
     ((table, row),) = chain.inserted
     assert table == "core_loop_events"
-    assert (row["user_id"], row["job_id"], row["step"], row["surface"]) == (
-        "u-1", "J1", "card_tailor", "market")
+    assert (row["user_id"], row["job_id"], row["step"], row["surface"], row["shell"]) == (
+        "u-1", "J1", "card_tailor", "market", "web")
+
+
+def test_an_android_step_records_the_shell(monkeypatch) -> None:
+    client, chain = _client(monkeypatch)
+    try:
+        res = client.post("/v1/telemetry/loop-step", json={
+            "step": "editor_opened", "job_id": "J1", "surface": "cv", "shell": "android",
+        })
+    finally:
+        app.dependency_overrides.clear()
+    assert res.status_code == 202
+    assert chain.inserted[0][1]["shell"] == "android"
+
+
+def test_a_shell_outside_the_vocabulary_is_refused(monkeypatch) -> None:
+    client, chain = _client(monkeypatch)
+    try:
+        res = client.post("/v1/telemetry/loop-step", json={
+            "step": "editor_opened", "job_id": "J1", "shell": "ios",
+        })
+    finally:
+        app.dependency_overrides.clear()
+    assert res.status_code == 422
+    assert chain.inserted == []
 
 
 def test_the_prompt_rendering_is_a_beacon_step(monkeypatch) -> None:

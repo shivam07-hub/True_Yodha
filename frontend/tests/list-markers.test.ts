@@ -58,6 +58,15 @@ test("a CV with copied marks gets one weak ats · layout row that fixes all of t
   assert.ok(row.brief.example)
 })
 
+test("the phone editor offers the same Fix all row", () => {
+  const editor = readFileSync(new URL("../components/cv/mobile/mobile-main-editor.tsx", import.meta.url), "utf8")
+  assert.match(editor, /check\.apply === stripCopiedMarkers && !check\.pass/)
+  assert.match(editor, /copiedMarks\.detail/)
+  assert.match(editor, /ats · layout/)
+  assert.match(editor, />\s*Fix all\s*</)
+  assert.match(editor, /update\(copiedMarks\.apply!\(cv\)\)/)
+})
+
 test("a clean CV is not offered the row", () => {
   const clean = cv(["Built a pipeline"])
   clean.projects = []

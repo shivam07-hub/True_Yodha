@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
 import { NAV, muted, tocLink, accentNum, Section, Li, Ul, Sub, P } from "./privacy-components"
@@ -190,7 +191,7 @@ export default function PrivacyPage() {
             </Section>
 
             <Section id="your-rights" n="06" title="Your Rights">
-              <P>Under India&rsquo;s Digital Personal Data Protection Act, 2023, you have the right to <strong>access</strong> your personal data, <strong>correct</strong> inaccuracies, <strong>request erasure</strong> of your data, <strong>withdraw consent</strong> you have previously given, <strong>nominate</strong> another person to exercise your rights in the event of death or incapacity, and <strong>export</strong> your data. Withdrawing consent is as easy as giving it — you can delete your account or revoke data processing at any time from Settings, or by emailing <a href="mailto:grievance@himyro.com" style={{ color: "var(--tm-interactive)" }}>grievance@himyro.com</a>. Withdrawing consent does not affect processing already carried out, and may mean we can no longer provide some or all of the Service.</P>
+              <P>Under India&rsquo;s Digital Personal Data Protection Act, 2023, you have the right to <strong>access</strong> your personal data, <strong>correct</strong> inaccuracies, <strong>request erasure</strong> of your data, <strong>withdraw consent</strong> you have previously given, <strong>nominate</strong> another person to exercise your rights in the event of death or incapacity, and <strong>export</strong> your data. Withdrawing consent is as easy as giving it — you can delete your account or revoke data processing at any time from Settings, from the <Link href="/account/delete" style={{ color: "var(--tm-interactive)" }}>account deletion page</Link>, or by emailing <a href="mailto:grievance@himyro.com" style={{ color: "var(--tm-interactive)" }}>grievance@himyro.com</a>. Withdrawing consent does not affect processing already carried out, and may mean we can no longer provide some or all of the Service.</P>
               <P>To raise a concern or complaint about how we handle your data, see our Grievance Redressal section below.</P>
             </Section>
 

@@ -7,6 +7,7 @@ import { Compass, ArrowRight, CheckCircle2 } from "lucide-react"
 import { jobSwitchPlan, type JobSwitchPlan } from "@/lib/api"
 import { captureAttribution } from "@/lib/attribution"
 import { startEngagementCheckout } from "@/lib/engagement-checkout"
+import { SalePage } from "@/components/sale-gate"
 import { getAccessToken } from "@/lib/session"
 import { formatDate } from "@/lib/format"
 import "./job-switch-plan.css"
@@ -110,8 +111,10 @@ function JobSwitchPlanPage() {
 
   const live = plan?.window_open !== false
   const pending = plan?.reviews.find((r) => r.status !== "delivered")
+  const pitch = plan === undefined ? "pending" : plan === null
 
   return (
+    <SalePage pitch={pitch}>
     <div className="jsp-wrap">
       <span className="jsp-kicker">Personalised Engagement</span>
 
@@ -210,6 +213,7 @@ function JobSwitchPlanPage() {
         </>
       )}
     </div>
+    </SalePage>
   )
 }
 

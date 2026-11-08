@@ -2,6 +2,8 @@
 
 import { hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
 import { hasPendingJobSaveClaim } from "@/lib/anon-job-stash"
+import { hasAccountDeletionReturn } from "@/lib/account-deletion-return"
+import { hasRecruiterReturn } from "@/lib/internship-post-stash"
 import { readPendingExtensionConnect } from "@/lib/extension-connect-stash"
 import {
   DashboardSkeleton,
@@ -20,5 +22,7 @@ export function PostAuthHandoffSkeleton() {
   // The claim lands on /cv?upload=1 — the library door, not the workstation.
   if (hasPendingAnonCvClaim()) return <CVBaselineSkeleton />
   if (hasPendingJobSaveClaim()) return <DashboardSkeleton />
+  if (hasRecruiterReturn()) return <GenericPageSkeleton />
+  if (hasAccountDeletionReturn()) return <GenericPageSkeleton />
   return <MarketSkeleton />
 }

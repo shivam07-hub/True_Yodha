@@ -27,9 +27,6 @@ export function InternshipsSurface() {
         Hosted listings use Apply here. Career-page listings open the company portal.
       </p>
       <div className="intern-actions">
-        <Link href="/internships/post" className="intern-submit" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", textDecoration: "none", padding: "0 16px" }}>
-          Post a paid internship
-        </Link>
         <Link href="/market?lane=internships" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, padding: "0 14px", border: "1px solid var(--tm-border-soft)", color: "var(--tm-text)", textDecoration: "none" }}>
           Open in Jobs
         </Link>
@@ -37,7 +34,7 @@ export function InternshipsSurface() {
       {isLoading ? <p className="intern-empty">Loading internships</p> : null}
       {isError ? <p className="intern-error">Could not load internships</p> : null}
       {!isLoading && listings.length === 0 ? (
-        <p className="intern-empty">No live internships yet. Post one, or keep the Jobs lane for MNC roles.</p>
+        <p className="intern-empty">No live internships yet.</p>
       ) : (
         <div className="intern-list">
           {listings.map((job) => {

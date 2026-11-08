@@ -5,6 +5,7 @@
  */
 
 import { getAnonSessionId } from "@/lib/anon-cv-stash"
+import { appShell } from "@/lib/platform/app-shell"
 import {
   acquireRefreshLock,
   clearSessionTokens,
@@ -2494,7 +2495,7 @@ export function emitLoopStep(
   fetch(`${BASE}${CORE_LOOP_TELEMETRY_PATH}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ step, job_id: jobId, surface: surface ?? null }),
+    body: JSON.stringify({ step, job_id: jobId, surface: surface ?? null, shell: appShell() }),
     keepalive: true,
   }).catch(() => {})
 }
@@ -3707,6 +3708,9 @@ export interface CollectionEntry {
   pending_apply: boolean
   saved_at: string | null
   applied_at: string | null
+  /** The company's answer on an internship hosted on Myro. Beside his own
+   *  record — never his stage, never his Yes. */
+  employer_status?: EmployerStatus | null
   /** Does this entry still ask something — the landing rule's input. */
   needs_user: boolean
 }
@@ -3944,6 +3948,34 @@ export interface JobFeedItem {
   stipend_high_inr?: number | null
   duration_months?: number | null
   ppo?: boolean | null
+  /** A post hosted on Myro: held until a person at Myro clears it. */
+  hosted_review?: "pending" | "cleared" | "refused" | null
+}
+
+export type EmployerStatus = "seen" | "shortlisted" | "passed"
+
+export interface HostedPost extends JobFeedItem {
+  applicant_count: number
+}
+
+export interface HostedReviewItem extends JobFeedItem {
+  poster_id: string | null
+  /** Whoever posted it — the reviewer's clue that the company is real. */
+  poster_email: string | null
+}
+
+export interface HostedApplicant {
+  application_id: number
+  name: string
+  applied_at: string
+  employer_status: EmployerStatus | null
+}
+
+export interface HostedApplicantView extends HostedApplicant {
+  /** The CV he had on Myro when he applied, frozen then. */
+  cv: AppliedVersion["cv_snapshot"] | null
+  score: number | null
+  skills: string[]
 }
 
 /** One card in the "Myro Agent Picks" band — a feed card plus the Career-Ops
@@ -4396,6 +4428,48 @@ export const jobs = {
   },
   internship: (jobId: string) =>
     request<JobFeedItem>(`/jobs/internships/${encodeURIComponent(jobId)}`),
+  /** How many people on Myro a post reaches. Public: she has no account yet. */
+  internshipReach: (input: { city: string; remote: boolean; skills: string[] }) => {
+    const params = new URLSearchParams({ remote: String(input.remote), skills: input.skills.join(",") })
+    if (input.city.trim()) params.set("city", input.city.trim())
+    return request<{ matched: number; active_30d: number }>(`/jobs/internships/reach?${params.toString()}`)
+  },
+  /** Paid internships hosted on Myro that fit him, plus how many are live in all. */
+  internshipsForYou: (token: string) =>
+    request<{ total: number; jobs: JobFeedItem[] }>("/jobs/internships/for-you", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** The recruiter's own internships, any review state, with applicant counts. */
+  myInternships: (token: string) =>
+    request<{ jobs: HostedPost[] }>("/jobs/internships/mine", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  internshipApplicants: (token: string, jobId: string) =>
+    request<{ applicants: HostedApplicant[] }>(`/jobs/internships/${encodeURIComponent(jobId)}/applicants`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** Opening an applicant marks him seen. */
+  internshipApplicant: (token: string, jobId: string, applicationId: number) =>
+    request<HostedApplicantView>(
+      `/jobs/internships/${encodeURIComponent(jobId)}/applicants/${applicationId}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+  decideApplicant: (token: string, jobId: string, applicationId: number, status: "shortlisted" | "passed") =>
+    request<HostedApplicantView>(
+      `/jobs/internships/${encodeURIComponent(jobId)}/applicants/${applicationId}`,
+      { method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ status }) },
+    ),
+  /** Held posts waiting for Myro's check. Owner operators only. */
+  reviewQueue: (token: string) =>
+    request<{ jobs: HostedReviewItem[] }>("/jobs/internships/review", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  reviewInternship: (token: string, jobId: string, decision: "clear" | "refuse") =>
+    request<HostedReviewItem>(`/jobs/internships/${encodeURIComponent(jobId)}/review`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ decision }),
+    }),
   postInternship: (token: string, body: HostedInternshipInput) =>
     request<JobFeedItem>("/jobs/internships", {
       method: "POST",

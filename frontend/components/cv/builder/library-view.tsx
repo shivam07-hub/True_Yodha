@@ -12,6 +12,7 @@ import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import type { ApplicationResponse, CVStructured, CVVersion, UserProfile } from "@/lib/api"
+import type { OpenJobCv } from "@/lib/cv/open-document"
 import { CvTabView } from "./cv-tab-view"
 import { MemoryPanel } from "./memory-panel"
 import { ReservoirProfile } from "./reservoir-profile"
@@ -35,10 +36,14 @@ interface LibraryViewProps {
   onOpenJob: (jobId: string) => void
   onReplaceCV: () => void
   onEditMaster: () => void
+  /** Phone: the tailored CV that is open. Absent on the Main CV. */
+  openJob?: OpenJobCv | null
+  onCloseJob?: () => void
 }
 
 export function LibraryView({
   token, cv, currentBaseline, applications, profile, onOpenJob, onReplaceCV, onEditMaster,
+  openJob = null, onCloseJob,
 }: LibraryViewProps) {
   const searchParams = useSearchParams()
   const { isDesktop } = useViewport()
@@ -69,6 +74,20 @@ export function LibraryView({
           <FlowRibbon view={view} />
           <MemoryPanel token={token} />
         </div>
+      )
+    }
+    if (openJob && cv) {
+      return (
+        <MobileCVHub
+          token={token}
+          cv={cv}
+          currentBaseline={currentBaseline}
+          profile={profile}
+          onOpenJob={onOpenJob}
+          onReplaceCV={onReplaceCV}
+          openJob={openJob}
+          onCloseJob={onCloseJob}
+        />
       )
     }
     if (!cv) {

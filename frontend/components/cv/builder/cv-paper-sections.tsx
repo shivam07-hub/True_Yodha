@@ -15,6 +15,7 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import type { CVStructured, UserSkillsByDomain } from "@/lib/api"
+import { withAddedProject, withAddedRole } from "@/lib/cv/add-entry"
 import { itemId } from "@/lib/cv-compose"
 import type { SectionKey } from "@/lib/cv/section-order"
 import { CvRoleBlock } from "./cv-role-block"
@@ -123,9 +124,18 @@ function SkillsBody({ bind }: { bind: PaperBind }) {
 }
 
 function ExperienceBody({ bind }: { bind: PaperBind }) {
-  const { cv } = bind
-  const canDragRoles = !!(bind.onReorderRoles || bind.onPatch) && cv.experience.length > 1
+  const { cv, onPatch } = bind
+  const canDragRoles = !!(bind.onReorderRoles || onPatch) && cv.experience.length > 1
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+  if (cv.experience.length === 0) {
+    return (
+      <EmptySection
+        copy="Empty — a role you held, and what you did there."
+        severity="blocking"
+        onAdd={onPatch ? () => onPatch(withAddedRole) : undefined}
+      />
+    )
+  }
   const ids = cv.experience.map((_, i) => `role-${i}`)
 
   function onDragEnd(event: DragEndEvent) {
@@ -139,6 +149,7 @@ function ExperienceBody({ bind }: { bind: PaperBind }) {
   }
 
   return (
+    <>
     <DndContext id="cvw-roles" sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
         {cv.experience.map((exp, ei) => (
@@ -160,14 +171,25 @@ function ExperienceBody({ bind }: { bind: PaperBind }) {
         ))}
       </SortableContext>
     </DndContext>
+    {onPatch && <AddEntry label="Add role" onAdd={() => onPatch(withAddedRole)} />}
+    </>
   )
 }
 
 function ProjectsBody({ bind }: { bind: PaperBind }) {
-  if (bind.cv.projects.length === 0) return null
+  const { cv, onPatch } = bind
+  if (cv.projects.length === 0) {
+    return (
+      <EmptySection
+        copy="Empty — something you built, and what you did."
+        severity="optional"
+        onAdd={onPatch ? () => onPatch(withAddedProject) : undefined}
+      />
+    )
+  }
   return (
     <>
-      {bind.cv.projects.map((p, pi) => (
+      {cv.projects.map((p, pi) => (
         <CvRoleBlock
           key={`proj-${pi}`}
           kind="proj_bullet"
@@ -179,7 +201,20 @@ function ProjectsBody({ bind }: { bind: PaperBind }) {
           {...pointerBind(bind)}
         />
       ))}
+      {onPatch && <AddEntry label="Add project" onAdd={() => onPatch(withAddedProject)} />}
     </>
+  )
+}
+
+function AddEntry({ label, onAdd }: { label: string; onAdd: () => void }) {
+  return (
+    <div className="cvw-line">
+      <span className="cvw-gutter" aria-hidden />
+      <div className="cvw-linebody">
+        <button type="button" className="cvw-lineact" onClick={onAdd}>＋ {label}</button>
+      </div>
+      <span aria-hidden />
+    </div>
   )
 }
 

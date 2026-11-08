@@ -14,6 +14,7 @@ import { users } from "@/lib/api"
 import { cvPresenceFromProfile, type CvPresence } from "@/lib/cv-presence"
 import { dataKeys } from "@/lib/domain-data"
 import { useSession } from "@/lib/hooks/use-auth"
+import { useIsAndroidApp } from "@/lib/platform/use-android-app"
 import {
   AUTHED_NAV,
   CONTENT_NAV,
@@ -53,7 +54,8 @@ export function useNavUnlocks(): NavUnlocksVm {
   // primary workspace tabs — it is a side offering, not core workflow. It keeps
   // its free-opt-in gate + violet treatment; pulled out of visibleDesktop below.
   const myrologyItem = useMemo(() => AUTHED_NAV.find((i) => i.id === "myrology"), [])
-  const myrologyVisible = !!myrologyItem && isNavItemUnlocked(myrologyItem, ctx)
+  const inApp = useIsAndroidApp()
+  const myrologyVisible = !inApp && !!myrologyItem && isNavItemUnlocked(myrologyItem, ctx)
 
   return {
     ctx,

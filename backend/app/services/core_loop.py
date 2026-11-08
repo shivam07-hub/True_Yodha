@@ -28,15 +28,25 @@ _log = logging.getLogger(__name__)
 SERVER_STEPS: tuple[str, ...] = ("applied", "weave_ran", "review_done")
 
 
-def record_step(user_id: str, job_id: str, step: str, surface: str | None) -> bool:
+def record_step(
+    user_id: str,
+    job_id: str,
+    step: str,
+    surface: str | None,
+    shell: str | None = None,
+) -> bool:
+    row: dict[str, str | None] = {
+        "user_id": user_id,
+        "job_id": job_id,
+        "step": step,
+        "surface": surface,
+        "occurred_at": datetime.now(timezone.utc).isoformat(),
+    }
+    # Server steps have no client shell. Omit the column rather than invent web.
+    if shell is not None:
+        row["shell"] = shell
     try:
-        get_supabase_admin().table("core_loop_events").insert({
-            "user_id": user_id,
-            "job_id": job_id,
-            "step": step,
-            "surface": surface,
-            "occurred_at": datetime.now(timezone.utc).isoformat(),
-        }).execute()
+        get_supabase_admin().table("core_loop_events").insert(row).execute()
         return True
     except Exception as exc:  # noqa: BLE001 — a dropped step must be visible, never fatal
         _log.warning("metric core_loop.persist_failed step=%s error=%s", step, exc)

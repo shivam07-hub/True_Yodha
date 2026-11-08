@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 
 import { billing, myrology, users, type MyrologyBooking, type MyrologyIntake, type MyrologyIntakePayload, type MyrologyOrder } from "@/lib/api"
 import { getAccessToken } from "@/lib/session"
-import { loadRazorpay } from "@/lib/razorpay"
+import { openSale } from "@/lib/sale"
 
 // Logged-out visitors must keep this public page; bounce them to signup
 // instead of mounting useAuth (which auto-redirects to /login). Post-auth
@@ -145,57 +145,61 @@ export function MyrologyProvider({ children }: { children: ReactNode }) {
     setPayStatus("starting")
     void (async () => {
       try {
-        const Razorpay = await loadRazorpay<RazorpayConstructor>()
-        if (!Razorpay) {
-          setPayStatus("error")
-          setPayError("Checkout is unavailable. Try again in a moment.")
+        const result = await openSale<RazorpayConstructor>({
+          token,
+          product: "myrology",
+          open: ({ Razorpay, order }) => {
+            let completed = false
+            const checkout = new Razorpay({
+              key,
+              amount: order.amount,
+              currency: order.currency,
+              name: "Myro · Myrology",
+              description: "Myrology unlock · 3 sessions + report",
+              order_id: order.order_id,
+              theme: { color: "#B084FF", backdrop_color: "#05060f" },
+              modal: {
+                confirm_close: true,
+                ondismiss: () => {
+                  if (!completed) setPayStatus("idle")
+                },
+              },
+              handler: (response) => {
+                completed = true
+                setPayStatus("verifying")
+                void (async () => {
+                  try {
+                    const verified = await billing.verifyPayment(token, response)
+                    if (verified.myrology_unlocked) {
+                      setPayStatus("idle")
+                      await loadUnlockedState(token)
+                    } else {
+                      setPayStatus("error")
+                      setPayError("Payment captured but the unlock didn’t apply. Contact support — we’ll sort it.")
+                    }
+                  } catch {
+                    setPayStatus("error")
+                    setPayError("We couldn’t confirm the payment. If you were charged it will reconcile shortly.")
+                  }
+                })()
+              },
+            })
+            checkout.on("payment.failed", (response) => {
+              completed = true
+              setPayStatus("error")
+              setPayError(response.error?.description || response.error?.reason || "Payment failed. Please retry.")
+            })
+            checkout.open()
+          },
+        })
+        if (result === "absent") {
+          setPayStatus("idle")
           return
         }
-        const order = await billing.createOrder(token, "myrology")
-        let completed = false
-
-        const checkout = new Razorpay({
-          key,
-          amount: order.amount,
-          currency: order.currency,
-          name: "Myro · Myrology",
-          description: "Myrology unlock · 3 sessions + report",
-          order_id: order.order_id,
-          theme: { color: "#B084FF", backdrop_color: "#05060f" },
-          modal: {
-            confirm_close: true,
-            ondismiss: () => {
-              if (!completed) setPayStatus("idle")
-            },
-          },
-          handler: (response) => {
-            completed = true
-            setPayStatus("verifying")
-            void (async () => {
-              try {
-                const verified = await billing.verifyPayment(token, response)
-                if (verified.myrology_unlocked) {
-                  setPayStatus("idle")
-                  await loadUnlockedState(token)
-                } else {
-                  setPayStatus("error")
-                  setPayError("Payment captured but the unlock didn’t apply. Contact support — we’ll sort it.")
-                }
-              } catch {
-                setPayStatus("error")
-                setPayError("We couldn’t confirm the payment. If you were charged it will reconcile shortly.")
-              }
-            })()
-          },
-        })
-
-        checkout.on("payment.failed", (response) => {
-          completed = true
+        if (result === "unavailable") {
           setPayStatus("error")
-          setPayError(response.error?.description || response.error?.reason || "Payment failed. Please retry.")
-        })
-
-        checkout.open()
+          setPayError("Checkout is unavailable. Try again in a moment.")
+        }
       } catch {
         setPayStatus("error")
         setPayError("Couldn’t start checkout. Please retry.")

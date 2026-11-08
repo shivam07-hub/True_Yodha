@@ -244,3 +244,18 @@ def test_stages_counts_every_entry_exactly_once():
 
 def test_the_pending_intent_window_is_a_real_delay():
     assert PENDING_INTENT_AFTER >= timedelta(minutes=1)
+
+
+def test_the_company_answer_sits_beside_his_own_record():
+    out = resolve(
+        applications=[application("j1", status="applied", applied_at="2026-11-08T10:00:00+00:00", employer_status="shortlisted")],
+    )
+    entry = out.entries[0]
+    assert entry.employer_status == "shortlisted"
+    assert entry.status == "applied"  # her answer never moves his stage
+    assert entry.applied_at is not None  # nor his Yes
+
+
+def test_a_career_page_application_has_no_company_answer():
+    entry = resolve(applications=[application("j1", status="applied")]).entries[0]
+    assert entry.employer_status is None

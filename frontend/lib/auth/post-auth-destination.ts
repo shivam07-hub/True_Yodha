@@ -4,6 +4,18 @@ interface PostAuthDestinationInput {
   /** The anon user clicked Save on a job card before auth (Exception 2). */
   hasPendingJobSave: boolean
   /**
+   * A recruiter is coming back to her door: she wrote a post and pressed Post
+   * before she had an account, or she signed in from the door to see who
+   * applied. She lands on /recruiters — never the CV upload stepper, which
+   * asked a recruiter for her own CV, and never Jobs.
+   */
+  recruiterReturning: boolean
+  /**
+   * They opened /account/delete with no session. Sign-in brings them back to
+   * that page, not to Jobs. Play requires the deletion URL to work from the web.
+   */
+  accountDeletionReturn: boolean
+  /**
    * The Chrome extension opened the connect handshake while logged out
    * (Exception 0). Already validated against EXTENSION_REDIRECT_RE by the
    * stash; null when absent.
@@ -35,6 +47,8 @@ export function postAuthDestination({
   firstSignup,
   hasPendingAnonCv,
   hasPendingJobSave,
+  recruiterReturning,
+  accountDeletionReturn,
   pendingExtensionConnect,
   completingPartnerLink,
 }: PostAuthDestinationInput): string {
@@ -51,6 +65,12 @@ export function postAuthDestination({
   // saved worklist so it's the first thing they see. Carried intent overrides
   // onboarding, exactly as the anon-CV claim does.
   if (hasPendingJobSave) return "/collections"
+  // Exception 3: a recruiter coming back to her door (lib/internship-post-stash).
+  if (recruiterReturning) return "/recruiters"
+  // They asked to delete the account. This beats the daily surface and a
+  // brand-new signup, and loses to work already in flight (the extension
+  // handshake, a dropped CV, a saved job).
+  if (accountDeletionReturn) return "/account/delete"
   // Partner consent just closed. The account often already exists and has
   // never uploaded; /onboarding is the one rule that keeps them on the upload
   // and sends a finished journey on to /market. Checked before firstSignup

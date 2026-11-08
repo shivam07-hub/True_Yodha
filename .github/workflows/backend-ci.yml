@@ -26,7 +26,6 @@ jobs:
         run: |
           cd backend
           pip install --require-hashes -r requirements.lock
-          python -m spacy download en_core_web_sm
 
       - name: Lint with ruff
         run: cd backend && ruff check app/

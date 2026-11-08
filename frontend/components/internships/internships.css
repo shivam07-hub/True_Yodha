@@ -75,6 +75,74 @@
   font-family: inherit;
   cursor: pointer;
   border-radius: var(--tm-button-radius);
+  padding: 0 16px;
 }
 .intern-error { color: var(--tm-warning-text, var(--tm-warning)); font-size: var(--tm-fs-caption); }
 .intern-empty { color: var(--tm-text-muted); }
+.intern-reach {
+  margin: 0;
+  font-size: var(--tm-fs-body);
+  color: var(--tm-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.intern-reach strong { color: var(--tm-text); font-weight: 600; }
+.intern-post { display: flex; flex-direction: column; gap: 14px; margin-bottom: 40px; }
+.intern-post .intern-title, .intern-post .intern-lead, .intern-post .intern-kicker { margin-bottom: 0; }
+.intern-subtitle {
+  margin: 12px 0 0;
+  font-size: var(--tm-fs-body);
+  font-weight: 600;
+  color: var(--tm-text);
+}
+.intern-applicants { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.intern-applicants a {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--tm-border-soft);
+  color: var(--tm-text);
+  text-decoration: none;
+}
+.intern-applicant-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.intern-applicant-meta { flex-shrink: 0; color: var(--tm-text-muted); font-size: var(--tm-fs-caption); }
+.intern-secondary {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--tm-border-soft);
+  background: transparent;
+  color: var(--tm-text);
+  font: inherit;
+  border-radius: var(--tm-button-radius);
+  cursor: pointer;
+}
+.intern-secondary:disabled, .intern-submit:disabled { opacity: 0.5; cursor: default; }
+.intern-skills { list-style: none; margin: 0 0 18px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.intern-skills li {
+  padding: 4px 10px;
+  border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-pill);
+  font-size: var(--tm-fs-caption);
+  color: var(--tm-text);
+}
+.intern-cv { margin-top: 8px; overflow-x: auto; }
+.intern-cv-text {
+  white-space: pre-wrap;
+  font: inherit;
+  font-size: var(--tm-fs-body);
+  color: var(--tm-text);
+  margin: 8px 0 0;
+}
+.intern-review-text {
+  margin: 0;
+  white-space: pre-wrap;
+  color: var(--tm-text);
+  font-size: var(--tm-fs-body);
+  line-height: 1.5;
+}
+.intern-poster { margin: 0; color: var(--tm-text); font-size: var(--tm-fs-body); overflow-wrap: anywhere; }
+.intern-band { display: flex; flex-direction: column; gap: 10px; margin: 14px 0 6px; }
+.intern-band .intern-kicker { margin: 0; }
+.intern-band-apply { display: inline-flex; align-items: center; text-decoration: none; }

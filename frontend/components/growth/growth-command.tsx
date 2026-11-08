@@ -170,6 +170,7 @@ export function GrowthCommand() {
         <div className="gc-header-meta">
           <span>{messages.length} items</span>
           <small>{data.operator.display_name || "Operator"} · {data.operator.role}</small>
+          {data.operator.role === "owner" ? <Link href="/admin/internships">Internships to check</Link> : null}
         </div>
       </header>
 

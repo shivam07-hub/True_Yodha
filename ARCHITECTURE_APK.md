@@ -54,8 +54,10 @@ Google. Each slice is its own commit on `Develop`, six gates green, plus
 
 ### S1 · One signal: "am I inside the app?"
 
-`frontend/lib/platform/app-shell.ts` exports `isAndroidApp(): boolean` and a
-`useIsAndroidApp()` hook. Nothing else may sniff the user agent or the referrer.
+`frontend/lib/platform/app-shell.ts` exports `isAndroidApp(): boolean`.
+`useIsAndroidApp()` lives in `use-android-app.ts`: the reader is imported by
+`lib/api.ts`, and server routes import that file, so the hook cannot sit in
+the same module. Nothing else may sniff the user agent or the referrer.
 
 - **Signals:** the TWA start URL carries `?shell=android` (S9 sets it), or
   `document.referrer` starts with `android-app://com.himyro.app`, which Android
@@ -70,7 +72,14 @@ Google. Each slice is its own commit on `Develop`, six gates green, plus
 
 **Done when** unit tests show the query signal and the referrer signal each read
 `true`, a plain browser tab reads `false`, and a reload inside the same session
-still reads `true`.
+still reads `true`. Met by `frontend/tests/app-shell.test.ts`.
+
+**Built 2026-11-05.** `frontend/lib/platform/app-shell.ts` is the only reader of
+the referrer. Beacons send `shell` (`web` | `android`) on
+`POST /v1/telemetry/loop-step`, and `loop_reach.py` counts "in the Android app".
+The column is `database/migrations/20261105193000_core_loop_shell.sql`, applied
+2026-11-07. A read of `core_loop_events.shell` returns 200. The writer is
+`b5fc6def` on `Develop`.
 
 ### S2 · No buying anywhere in the app
 
@@ -90,6 +99,13 @@ does not read `isAndroidApp`, so a sixth sale surface cannot appear unguarded. I
 emulation at 375px, no ₹ price and no Razorpay script appear on any authed surface
 with `?shell=android`.
 
+**Built 2026-11-07.** One Sale module (`frontend/lib/sale.ts`) is the only place
+that loads Razorpay or creates an order. Inside the app `saleMayOpen` is false,
+so the checkout does not start. `/filing`, `/job-switch-plan`,
+`/preparations/audit` and `/myrology` paint nothing and go to Jobs. The offer
+lines (the coin pack, the ₹199 scene, the ₹599 filing link) are absent. A
+salary on a job card stays. Met by `frontend/tests/sale-seam.test.ts`.
+
 ### S3 · Myrology is absent from the app
 
 Hide every link to it in the app:
@@ -105,6 +121,12 @@ Hide every link to it in the app:
 **Done when** `qa:mobile` with the app signal finds no Myrology link, and the web
 is unchanged.
 
+**Built 2026-11-07.** The nav cluster, the phone profile list, the account menu,
+the CV canvas, Settings, and the public footer each ask `useIsAndroidApp` and
+omit the Myrology door. The registry in `site-routes.ts` still lists it, so the
+web footer and the sitemap are unchanged. `/myrology` still goes to Jobs from
+S2. Met by `frontend/tests/myrology-absent.test.ts`.
+
 ### S4 · First open, logged out: create an account
 
 Inside the app, the auth gate sends a person without a session to `/signup`,
@@ -117,16 +139,24 @@ web is unchanged.
 **Done when** a cold open logged out with `?shell=android` shows `/signup` as its
 first painted screen.
 
+**Built 2026-11-07.** `loginRedirectTarget` sends the app to `/signup` and the
+web to `/login`. A blocking script in the root layout leaves `/market` for
+`/signup?shell=android` before the jobs skeleton is parsed when there is no
+session. A stored access or refresh token stays on Jobs. Met by
+`frontend/tests/cold-open.test.ts`. At 375px a logged-out `?shell=android` open
+painted "Start your CV hub" and the jobs skeleton was never inserted; the same
+open without the signal painted "Welcome back".
+
 ### S5 · Phone edits land on the CV that is open
 
-This is #58 S5's mobile half, and it blocks the APK. On a phone,
-`components/cv/builder/library-view.tsx` takes the `if (!isDesktop)` branch, and
-`mobile-cv-sections.tsx` writes through `useMasterAutosave`. So editing a
-**tailored** CV on a phone changes the **master** instead. Phone edits must write
-to the open document. Desktop's missing add-role stays in #58 S5 proper.
+**Closed 2026-11-04** with #58 S5 (`4b9be63d`). It was the APK blocker: the phone
+editor wrote every CV through `useMasterAutosave`, so a tailored CV changed the
+master. `/cv?jobId=` now opens the mobile editor, and that editor saves through
+`useJobDraftAutosave`. The Main CV still uses `useMasterAutosave`.
 
 **Done when** a test opens a tailored CV in the mobile editor, adds a role, and
-finds the role on that tailored version with the master unchanged.
+finds the role on that tailored version with the master unchanged. Met by
+`frontend/tests/cv-add-role.test.ts`.
 
 ### S6 · Phone onboarding (BACKLOG FD7)
 
@@ -137,11 +167,23 @@ finds the role on that tailored version with the master unchanged.
 
 **Done when** both show correctly at 375px, with the failed call simulated.
 
+**Built 2026-11-07.** The rail shows "Your CV" and "Your job" at every width.
+A failed `/onboarding/state` read shows "Couldn't load your next step" and
+Try again, and does not open the upload. Met by
+`frontend/tests/onboarding-phone.test.ts`. At 375px both labels were on screen
+(16px tall) while the failed call was up; Try again then opened the upload.
+
 ### S7 · Phone Fixes queue (cut first if S1–S6 run long)
 
 The copied-list-marker cleanup (`d197a058`) is offered only in the desktop
 editor's Fixes queue, so a phone-only person is never offered it. Offer the same
 row on the phone.
+
+**Built 2026-11-07.** The phone editor's section list shows the same weak
+ats · layout row ("N bullets print a second mark") and Fix all. Fix all runs
+`stripCopiedMarkers` through the open document's save. A clean CV shows no row.
+Met by `frontend/tests/list-markers.test.ts`. At 375px the row was 48px tall;
+Fix all removed it. The save was intercepted and did not reach the server.
 
 ### S8 · A web link for deleting an account
 
@@ -153,6 +195,14 @@ a public `/account/delete` page:
 - Signed out, it goes to sign in and comes back.
 
 Link it from `/privacy`, and add it to `site-routes.ts` so `check:reach` passes.
+
+**Built 2026-11-08.** `/account/delete` says what is deleted and how, and opens
+the existing deletion panel once there is a session. Signed out, it goes to
+sign-in and the carried return brings them back. Linked from Privacy and the
+legal footer. Met by `frontend/tests/account-delete.test.ts` and
+`frontend/tests/post-auth-destination.test.ts`. At 375px a signed-out open
+landed on "Welcome back" and, after sign-in, on the deletion page. The erase
+control was not pressed.
 
 ### S9 · The wrapper
 

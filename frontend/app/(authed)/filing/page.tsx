@@ -4,7 +4,8 @@ import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { billing, filingIntake } from "@/lib/api"
-import { loadRazorpay } from "@/lib/razorpay"
+import { openSale } from "@/lib/sale"
+import { SaleOffer } from "@/components/sale-gate"
 import { getAccessToken } from "@/lib/session"
 import "./filing.css"
 
@@ -87,39 +88,46 @@ export default function FilingIntakePage() {
     setPaying(true)
     setError(null)
     try {
-      const Razorpay = await loadRazorpay<RazorpayCtor>()
-      if (!Razorpay) {
-        setError("Checkout is unavailable. Try again in a moment.")
+      const result = await openSale<RazorpayCtor>({
+        token,
+        product: "filing_intake",
+        open: ({ Razorpay, order }) => {
+          const checkout = new Razorpay({
+            key,
+            amount: order.amount,
+            currency: order.currency,
+            name: "Myro",
+            description: "Filing process · ₹599",
+            order_id: order.order_id,
+            modal: {
+              confirm_close: true,
+              ondismiss: () => setPaying(false),
+            },
+            handler: (response) => {
+              void (async () => {
+                try {
+                  await billing.verifyPayment(token, response)
+                  await queryClient.invalidateQueries({ queryKey: ["filing-intake"] })
+                  setError(null)
+                } catch {
+                  setError("We could not confirm the payment. If you were charged it will reconcile shortly.")
+                } finally {
+                  setPaying(false)
+                }
+              })()
+            },
+          })
+          checkout.open()
+        },
+      })
+      if (result === "absent") {
         setPaying(false)
         return
       }
-      const order = await billing.createOrder(token, "filing_intake")
-      const checkout = new Razorpay({
-        key,
-        amount: order.amount,
-        currency: order.currency,
-        name: "Myro",
-        description: "Filing process · ₹599",
-        order_id: order.order_id,
-        modal: {
-          confirm_close: true,
-          ondismiss: () => setPaying(false),
-        },
-        handler: (response) => {
-          void (async () => {
-            try {
-              await billing.verifyPayment(token, response)
-              await queryClient.invalidateQueries({ queryKey: ["filing-intake"] })
-              setError(null)
-            } catch {
-              setError("We could not confirm the payment. If you were charged it will reconcile shortly.")
-            } finally {
-              setPaying(false)
-            }
-          })()
-        },
-      })
-      checkout.open()
+      if (result === "unavailable") {
+        setError("Checkout is unavailable. Try again in a moment.")
+        setPaying(false)
+      }
     } catch {
       setError("Checkout could not start.")
       setPaying(false)
@@ -135,7 +143,9 @@ export default function FilingIntakePage() {
       <h1 className="fi-title">One role. The company page. You submit.</h1>
       <p className="fi-sub">
         Myro writes one resume for the role you name and fills the company form with you.
-        The fee is ₹599, once. The ₹199 Apply Pack stays the pack for coins and a human check.
+        <SaleOffer>
+          {" "}The fee is ₹599, once. The ₹199 Apply Pack stays the pack for coins and a human check.
+        </SaleOffer>
       </p>
 
       <section className="fi-card">
@@ -196,6 +206,7 @@ export default function FilingIntakePage() {
               Save
             </button>
             {paid ? null : (
+              <SaleOffer>
               <button
                 type="button"
                 className="fi-pay"
@@ -204,6 +215,7 @@ export default function FilingIntakePage() {
               >
                 Pay ₹599
               </button>
+              </SaleOffer>
             )}
           </div>
         </form>

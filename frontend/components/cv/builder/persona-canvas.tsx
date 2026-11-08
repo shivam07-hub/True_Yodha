@@ -17,6 +17,7 @@ import { memory as memoryApi } from "@/lib/api"
 import type { PersonaParagraph } from "@/lib/api"
 import { formatRelativeAge } from "@/lib/format"
 import { Button } from "@/components/ui/button"
+import { useIsAndroidApp } from "@/lib/platform/use-android-app"
 import "./persona-canvas.css"
 
 const MOVEMENTS = [
@@ -131,6 +132,7 @@ function Paragraph({ token, paragraph }: { token: string; paragraph: PersonaPara
 
 export function PersonaCanvas({ token }: { token: string }) {
   const qc = useQueryClient()
+  const inApp = useIsAndroidApp()
   const polls = useRef(0)
 
   const persona = useQuery({
@@ -239,9 +241,11 @@ export function PersonaCanvas({ token }: { token: string }) {
                     Your arc above is drawn from evidence alone. There is a second lens —
                     timing windows read from your birth chart — and it is currently dark.
                   </p>
+                  {inApp ? null : (
                   <Button size="sm" render={<Link href="/myrology" />}>
                     Align with your cosmos
                   </Button>
+                  )}
                   <p className="tm-pc-fine">
                     Date, time and place of birth · asked once, with consent · the chart
                     times, it never overrides evidence.

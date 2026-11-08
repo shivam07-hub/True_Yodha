@@ -156,6 +156,7 @@ def resolve_collection(
                 pending_apply=pending_apply,
                 saved_at=_as_datetime((app_row or {}).get("created_at")),
                 applied_at=_as_datetime((app_row or {}).get("applied_at")),
+                employer_status=(app_row or {}).get("employer_status"),
                 needs_user=_needs_user(stage, pending_apply=pending_apply),
             )
         )

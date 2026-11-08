@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { tierForScore } from "@/lib/score-tiers"
 import { useXPStore } from "@/store/xpStore"
 import { useMobileUI } from "./mobile-ui"
+import { useIsAndroidApp } from "@/lib/platform/use-android-app"
 
 /* ══════════════════════════════════════════════════════════════════════════
    ProfileSurface — the handoff Profile tab: Myro Score ring + tier + stats,
@@ -53,6 +54,7 @@ export function ProfileSurface({ token }: { token: string }) {
   // as the desktop hero, so whichever surface mounts first warms the other.
   const matches = useJobMatches(token, true)
   const matchesN = matches.data?.jobs?.length ?? 0
+  const inApp = useIsAndroidApp()
 
   const missions = [
     { id: "browse", label: "Browse today's matches", done: matchesN > 0 },
@@ -70,7 +72,7 @@ export function ProfileSurface({ token }: { token: string }) {
     { label: "Newsletter", meta: "Weekly signals", onTap: () => router.push("/newsletter") },
     { label: "Ghost Job Index", meta: "Which roles are real", onTap: () => router.push("/ghost-index") },
     { label: "Hiring by Sector", meta: "Live roles by sector", onTap: () => router.push("/hiring") },
-    { label: "Myrology ✦", onTap: () => router.push("/myrology") },
+    ...(inApp ? [] : [{ label: "Myrology ✦", onTap: () => router.push("/myrology") }]),
     { label: "About us", meta: "How Myro works", onTap: () => router.push("/tokens") },
     { label: "Settings", onTap: () => document.dispatchEvent(new CustomEvent("tm:open-settings")) },
     { label: "Sign out", danger: true, onTap: signOut },

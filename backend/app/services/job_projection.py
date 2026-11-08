@@ -155,6 +155,7 @@ def to_application(
         closed_at=row.get("closed_at"),
         offer_received_at=row.get("offer_received_at"),
         notes=row.get("notes"),
+        employer_status=row.get("employer_status"),
         created_at=row["created_at"],
         last_stage_changed_at=row.get("last_stage_changed_at"),
         match_score=match_score,

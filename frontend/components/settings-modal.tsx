@@ -22,7 +22,9 @@ import { dataKeys } from "@/lib/domain-data"
 import { MAX_TARGET_LOCATIONS } from "@/lib/career-target"
 import { catalogFromAnalytics, suggestLocations } from "@/lib/location-catalog"
 import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
-import { loadRazorpay } from "@/lib/razorpay"
+import { openSale } from "@/lib/sale"
+import { SaleOffer } from "@/components/sale-gate"
+import { useIsAndroidApp } from "@/lib/platform/use-android-app"
 import { AccountDeletionPanel } from "@/components/settings/account-deletion-panel"
 import { useXPStore } from "@/store/xpStore"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -187,6 +189,7 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
   const [activeTab, setActiveTab] = useState<Tab>(initialTab)
   const { interested: myrologyInterested, setInterested: setMyrologyInterested } = useMyrologyInterest()
   const [myroPromptOpen, setMyroPromptOpen] = useState(false)
+  const inApp = useIsAndroidApp()
 
   // Account tab state
   const [name, setName] = useState("")
@@ -394,56 +397,62 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
     setBillingMessage("Opening Razorpay checkout…")
 
     try {
-      const Razorpay = await loadRazorpay<RazorpayConstructor>()
-      if (!Razorpay) {
-        setBillingStatus("error")
-        setBillingMessage("Checkout is unavailable. Try again in a moment.")
+      const result = await openSale<RazorpayConstructor>({
+        token,
+        product: "xp_pack",
+        open: ({ Razorpay, order }) => {
+          let completed = false
+          const checkout = new Razorpay({
+            key,
+            amount: order.amount,
+            currency: order.currency,
+            name: "Myro",
+            description: `${XP_PACK_AMOUNT} Myro Coins launch pack`,
+            order_id: order.order_id,
+            theme: {
+              color: "var(--tm-interactive)",
+              backdrop_color: "#050A18",
+            },
+            modal: {
+              confirm_close: true,
+              ondismiss: () => {
+                if (completed) return
+                setBillingStatus("error")
+                setBillingMessage("Checkout closed before payment.")
+              },
+            },
+            handler: async (response) => {
+              completed = true
+              setBillingStatus("verifying")
+              setBillingMessage("Verifying payment…")
+              try {
+                const verified = await billing.verifyPayment(token, response)
+                applyXpChange({ newBalance: verified.new_coin_balance, action: "xp_purchase" })
+                setBillingStatus("success")
+                setBillingMessage(`+${verified.coins_earned} Myro Coins added. New balance: ${verified.new_coin_balance} Myro Coins.`)
+              } catch (error) {
+                setBillingStatus("error")
+                setBillingMessage(messageFromError(error, "Payment verification failed."))
+              }
+            },
+          })
+          checkout.on("payment.failed", (response) => {
+            completed = true
+            setBillingStatus("error")
+            setBillingMessage(response.error?.description || response.error?.reason || "Payment failed. Please retry.")
+          })
+          checkout.open()
+        },
+      })
+      if (result === "absent") {
+        setBillingStatus("idle")
+        setBillingMessage(null)
         return
       }
-      const order = await billing.createOrder(token)
-      let completed = false
-      const checkout = new Razorpay({
-        key,
-        amount: order.amount,
-        currency: order.currency,
-        name: "Myro",
-        description: `${XP_PACK_AMOUNT} Myro Coins launch pack`,
-        order_id: order.order_id,
-        theme: {
-          color: "var(--tm-interactive)",
-          backdrop_color: "#050A18",
-        },
-        modal: {
-          confirm_close: true,
-          ondismiss: () => {
-            if (completed) return
-            setBillingStatus("error")
-            setBillingMessage("Checkout closed before payment.")
-          },
-        },
-        handler: async (response) => {
-          completed = true
-          setBillingStatus("verifying")
-          setBillingMessage("Verifying payment…")
-          try {
-            const verified = await billing.verifyPayment(token, response)
-            applyXpChange({ newBalance: verified.new_coin_balance, action: "xp_purchase" })
-            setBillingStatus("success")
-            setBillingMessage(`+${verified.coins_earned} Myro Coins added. New balance: ${verified.new_coin_balance} Myro Coins.`)
-          } catch (error) {
-            setBillingStatus("error")
-            setBillingMessage(messageFromError(error, "Payment verification failed."))
-          }
-        },
-      })
-
-      checkout.on("payment.failed", (response) => {
-        completed = true
+      if (result === "unavailable") {
         setBillingStatus("error")
-        setBillingMessage(response.error?.description || response.error?.reason || "Payment failed. Please retry.")
-      })
-
-      checkout.open()
+        setBillingMessage("Checkout is unavailable. Try again in a moment.")
+      }
     } catch (error) {
       setBillingStatus("error")
       setBillingMessage(messageFromError(error, "Could not start Razorpay checkout."))
@@ -494,7 +503,7 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
 
   return (
     <>
-    <MyrologyOptInPrompt open={myroPromptOpen} onClose={() => setMyroPromptOpen(false)} />
+    {inApp ? null : <MyrologyOptInPrompt open={myroPromptOpen} onClose={() => setMyroPromptOpen(false)} />}
     <Dialog open={open} onOpenChange={(next) => { if (!next) flushAndClose() }}>
       <DialogContent
         showCloseButton={false}
@@ -687,7 +696,8 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
                   )}
                 </div>
 
-                {/* Myrology — free interest opt-in (separate from the paid unlock). */}
+                {inApp ? null : (
+                <>
                 <div style={SECTION_HEADER}>Cosmic</div>
                 <div style={{ ...ROW_STYLE, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                   <div style={{ paddingRight: 16 }}>
@@ -717,6 +727,8 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
                     }} />
                   </button>
                 </div>
+                </>
+                )}
 
                 {/* Appearance — applies instantly, independent of Save. */}
                 <div style={SECTION_HEADER}>Appearance</div>
@@ -1007,6 +1019,7 @@ function BillingTabContent({
         <span aria-hidden>→</span>
       </Link>
 
+      <SaleOffer>
       <div style={{
         padding: 18,
         borderRadius: "var(--tm-radius)",
@@ -1073,6 +1086,7 @@ function BillingTabContent({
           Myro Coins are in-platform credits that fund Myro&rsquo;s operation — they are not payment for any job or hiring outcome.
         </p>
       </div>
+      </SaleOffer>
 
       <div style={{
         padding: "12px 16px",

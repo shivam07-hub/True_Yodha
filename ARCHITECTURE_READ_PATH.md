@@ -2777,3 +2777,29 @@ for three days (458 / 23,346 / 2,154 / 1,337, last used 10-27 18:13), and the
 `_v2` twins took their names (`20261030120000_live_indexes_swap.sql`). The four
 read shapes kept their plans at 21–54 buffers. `idx_jobs_ingested_at_active` stays
 bare: it answers ingestion, not liveness.
+
+## 32. Paid internships on Jobs, and two wrong guesses (2026-11-08)
+
+`GET /jobs/internships/for-you` is one RPC, `hosted_internships_for(user)`: the
+live, cleared internships hosted on Myro, plus how many are live in all. Since
+2026-11-08 it returns every one (ceiling 20, a payload guard), ordered by
+`hosted_fit` then skill overlap then newest. Ordering costs one `hosted_fit` per
+live internship, **~1ms each warm** (20 stand-in rows: ~15ms), so this read grows
+with the number live: re-measure when it passes ~50. It is a band above the judged list, not rows in `/jobs/feed` (that
+list stays judge-only), so `/jobs/feed` gained no read. The live scan uses
+`listing_is_live(j)` and walks `jobs_internships_live_idx` (1 buffer, 0.3ms).
+Measured warm: **~2.4ms** per call (first ~10ms), with 0 hosted rows live.
+
+Fit is `private.hosted_fit`, shared with the recruiter's live count
+`hosted_match_count`, so the two numbers cannot disagree. Adding the level rule
+there took the count from **~1ms to ~87ms** warm. What I got wrong on the way:
+
+- **Guess 1: `SET search_path` blocks inlining of `hosted_fit`.** Partly true, but
+  a level pre-filter (a strict subset of the fit's own clause) moved nothing:
+  91 → 87ms. The diagnosis was wrong.
+- **Measured: `skill_ids_for` alone was 70ms.** It compared against
+  `any(select … from unnest())`, a subquery, so the planner scanned all 35k
+  skills instead of probing `idx_skills_lower_display_name` /
+  `idx_skills_lower_bare_name`. Normalising the names into an array first
+  (plpgsql) and comparing against that array: **~5ms** per count warm. The
+  pre-filter stays; it trims per-row calls.

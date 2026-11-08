@@ -19,16 +19,16 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 | 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read 11-02: 6 asked, 2 answered, 0 Yes; too few to redesign from |
 | 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) | Built; `0aafb324` on `main`. **BLOCKED on Shivam**: preview → approve |
 | 4 | Front door | **#57** "Which job do you want?" after upload | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor, 1st | On `main` 2026-10-17 · link paste fixed `2cc7b264`; 5 clicks to Download `8c372968`; links read from the corpus `515fd697` · phone run owed |
-| 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1–S4 on `main` · next S5 add role |
+| 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1–S4 on `main` · S5 closed 2026-11-04 (`4b9be63d`, on `Develop`) · open: the two match numbers |
 | 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor, 3rd | Spec only, no commits · S0 audit |
 | 6 | Pay | **#56** the ₹199 Apply Pack | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Cursor, 4th | Spec only, no commits · S1 settlement |
-| 3 | Repeat | **#61** Myro on Android (TWA), buying hidden, then Play billing | [ARCHITECTURE_APK.md](ARCHITECTURE_APK.md) · Cursor, next | Spec 2026-11-03 · Phase 1 S1–S9; Phase 2 waits on #56 · Shivam: D-U-N-S, new upload key |
+| 3 | Repeat | **#61** Myro on Android (TWA), buying hidden, then Play billing | [ARCHITECTURE_APK.md](ARCHITECTURE_APK.md) · Cursor, next | S1–S4, S6–S8 on `Develop`. S8 closed 2026-11-08: `/account/delete`. Next: S9, blocked on the new upload-key SHA-256. Phase 2 waits on #56. Shivam: D-U-N-S, new upload key |
 
 **Cursor's order (Shivam, 2026-10-14; #61 added 2026-11-03):** #57 → #58 → #61
 Phase 1 → #60 → #56 → #61 Phase 2. The biggest absolute leak first (553 of 1,002
 never upload; 511 arrived by partner SSO, 22% of them upload), then collected →
 tailored (26%); the app next (Shivam, 2026-11-03: "ready for an APK next"); #60 once
-jobs flow again; pay after the value. #61 S5 is #58 S5's mobile half.
+jobs flow again; pay after the value. #61 S5 shipped with #58 S5 (`4b9be63d`). S1–S4 and S6–S8 are on `Develop`. The next open slice is S9, blocked on the new upload-key SHA-256. #60, #56, and #61 Phase 2 were not started.
 
 Specs Cursor builds from, each slice its own commit with six gates green:
 PAYMENTS (#56) · FRONT_DOOR (#57) · CV_TIER_A (#58) · GOLDEN_DIGEST (#59) ·
@@ -93,6 +93,20 @@ accounts: 1 person, 2 clicks, 2 asked, 0 answered.**
 person), 0 Yes. Too few to redesign from. **Next:** read again as clicks grow.
 Asked ≈ 0 → people never return to the tab; asked > 0 and answered ≈ 0 → the
 prompt is ignored. Redesign from that, in Myro (no email — APPLY2).
+
+**Apply here — one paid internship posted on Myro (built 2026-11-07/08, on
+`Develop`).** `/recruiters` is her door and home: the post (unpaid refused),
+how many people on Myro it reaches as she types, then her internship and who
+applied. Each applicant's view is the CV frozen at his Yes, his Myro Score and
+skills, with Shortlist / Pass beside his own record. A post is held
+(`hosted_review=pending`) until Myro clears it at `/admin/internships` (owner
+operators in `growth_operators`, linked from `/admin/growth`); each new post
+emails `OPS_ALERT_EMAIL` with that link. Every cleared post shows to every seeker
+in a band above their judged Jobs list (Shivam, 2026-11-08: show all while there
+are few), the ones he fits first (`private.hosted_fit`: intern/entry target, city,
+a listed skill — the same rule as her count); a card leaves when he applies or
+skips it. The Apply here chip only appears while one is live. 0 hosted posts
+exist (checked 2026-11-08).
 
 **Form fill has never run for anyone (measured 2026-11-02).** 0 rows in
 `job_filing_authorizations`, test accounts included, and `/filing/answers` refuses
@@ -234,9 +248,7 @@ paste. Its five fixes are on `main` (ARCHIVE 2026-10-22). Open:
   `names_seat` counted only the employer, so "Currently serving as GTM Business
   Development Manager, …" got "… Manager at Capgemini." prepended. It now counts
   the current role too.
-- **FD7 · Small (now #61 S6):** the phone step rail shows "1" and "2" with no labels; when
-  the onboarding state call fails, /onboarding shows "Upload your CV" — a
-  person with a CV is invited to upload again.
+- **FD7 · closed with #61 S6 (2026-11-07).** The phone rail shows "Your CV" and "Your job". A failed onboarding read retries instead of inviting another upload.
 
 ---
 
@@ -245,16 +257,8 @@ paste. Its five fixes are on `main` (ARCHIVE 2026-10-22). Open:
 On `main`: S1 a blank certification is not a section (`240062eb`) · S2 a tailored
 CV cannot invent a role (`7956792a`) · S3 a master rewrite keeps sections the
 schema cannot name (`041d2cc3`) · S4 the page meter measures the export and never
-refuses a download (`332bec91`).
-
-**Open — S5 add a role or project (#50).** Desktop cannot add a project or a
-role; mobile can. `ProjectsBody` returns `null` when `cv.projects.length === 0`
-(`cv-paper-sections.tsx`), and `EmptySection` is wired to summary and skills
-only. Desktop has `onAddBullet` and `onReorderRoles` but no add-role, delete-role
-or move-between-sections; mobile has all three (`mobile-cv-sections.tsx`), gated
-at `library-view.tsx` `if (!isDesktop)`. Mobile writes through
-`useMasterAutosave` to the **master**, so the one surface that can add a section
-edits the wrong document for a tailored CV.
+refuses a download (`332bec91`). S5 (add a role or project, and the phone writes
+the open CV) is closed — ARCHIVE 2026-11-04, `4b9be63d` on `Develop`.
 
 **T1 findings, U4 run 2026-10-19** (Amazon "Business Analyst, Support, Supply
 Chain", QA account):
@@ -431,6 +435,9 @@ Tracker (3) · no problem or not actionable (~25).
      two Railway variables on prod. Six steps in
      [INSTAGRAM_PROFILE.md](INSTAGRAM_PROFILE.md). The button reaches himyro.com
      with the next `main` merge.
+- **Set `JOB_SWITCH_ADMIN_TOKEN` on mirror-backend-dev and mirror-backend-prod.**
+  It is the reviewer token for the ₹99 plan and AI audit queues. It is unset on
+  both (checked 2026-11-08), so those endpoints answer 503.
 - **Key rotation after Railway's 2026-10-21 incident.** The steps, their order and
   what each one checks are kept off this public repo, in the agent's private
   memory on Shivam's laptop. Ask an agent for the list.

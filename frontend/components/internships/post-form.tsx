@@ -1,25 +1,62 @@
 "use client"
 
-import { useState } from "react"
-import Link from "next/link"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import { jobs, type HostedInternshipInput } from "@/lib/api"
 import { ApiError } from "@/lib/api-error"
-import { useAuth } from "@/lib/hooks/use-auth"
+import { useSession } from "@/lib/hooks/use-auth"
+import { ReachCount, type ReachInput } from "./reach-count"
+import { MY_INTERNSHIPS_KEY } from "./keys"
+
+function splitSkills(raw: string): string[] {
+  return raw.split(",").map((s) => s.trim()).filter(Boolean)
+}
+
+function reachFromForm(form: FormData): ReachInput {
+  return {
+    city: String(form.get("location") || ""),
+    remote: form.get("location_mode") === "remote",
+    skills: splitSkills(String(form.get("skills") || "")),
+  }
+}
+import { stashPendingInternshipPost, takePendingInternshipPost } from "@/lib/internship-post-stash"
 import "./internships.css"
 
 export function InternshipPostForm() {
-  const { token } = useAuth()
+  // Passive: she writes the post before she has an account. useAuth would
+  // send a logged-out visitor to /login before she saw the form.
+  const { token } = useSession()
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const queryClient = useQueryClient()
+  const [reach, setReach] = useState<ReachInput>({ city: "", remote: false, skills: [] })
+
+  async function post(authToken: string, body: HostedInternshipInput) {
+    setPending(true)
+    try {
+      await jobs.postInternship(authToken, body)
+      // The door now has a post to show: her home replaces the form.
+      await queryClient.invalidateQueries({ queryKey: MY_INTERNSHIPS_KEY })
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not post this internship")
+    } finally {
+      setPending(false)
+    }
+  }
+
+  // She pressed Post before she had an account. Sign-in brought her back here
+  // (postAuthDestination); the post goes out once, as written.
+  useEffect(() => {
+    if (!token) return
+    const carried = takePendingInternshipPost()
+    if (carried) void post(token, carried)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when the token lands; take() clears, so it posts once
+  }, [token])
 
   async function onSubmit(form: FormData) {
     setError(null)
-    if (!token) {
-      router.push("/login?next=/internships/post")
-      return
-    }
     const low = Number(form.get("stipend_low_inr") || 0)
     if (low <= 0) {
       setError("Paid internships only")
@@ -35,28 +72,26 @@ export function InternshipPostForm() {
       location: String(form.get("location") || "").trim() || null,
       location_mode: (String(form.get("location_mode") || "onsite") as HostedInternshipInput["location_mode"]),
       job_description: String(form.get("job_description") || "").trim(),
-      skills: String(form.get("skills") || "").split(",").map((s) => s.trim()).filter(Boolean),
+      skills: splitSkills(String(form.get("skills") || "")),
     }
-    setPending(true)
-    try {
-      await jobs.postInternship(token, body)
-      router.push("/internships")
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not post this internship")
-    } finally {
-      setPending(false)
+    if (!token) {
+      stashPendingInternshipPost(body)
+      router.push("/login")
+      return
     }
+    await post(token, body)
   }
 
   return (
     <main className="intern-page">
       <p className="intern-kicker">Hosted on Myro</p>
       <h1 className="intern-title">Post a paid internship</h1>
-      <p className="intern-lead">
-        Students apply here. Unpaid listings are refused. Full-time hiring teams can still
-        {" "}<Link href="/recruiters/workspace">preview the recruiter workspace</Link>.
-      </p>
-      <form className="intern-form" onSubmit={(e) => { e.preventDefault(); void onSubmit(new FormData(e.currentTarget)) }}>
+      <p className="intern-lead">Students apply here, with the CV they already have on Myro.</p>
+      <form
+        className="intern-form"
+        onChange={(e) => setReach(reachFromForm(new FormData(e.currentTarget)))}
+        onSubmit={(e) => { e.preventDefault(); void onSubmit(new FormData(e.currentTarget)) }}
+      >
         <label>Company
           <input name="company_name" required minLength={2} autoComplete="organization" />
         </label>
@@ -95,6 +130,7 @@ export function InternshipPostForm() {
         <label>Skills (comma separated)
           <input name="skills" placeholder="SQL, Figma" />
         </label>
+        <ReachCount input={reach} />
         {error ? <p className="intern-error">{error}</p> : null}
         <button type="submit" className="intern-submit" disabled={pending}>
           {pending ? "Posting" : "Post internship"}

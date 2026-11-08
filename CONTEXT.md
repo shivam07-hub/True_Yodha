@@ -731,6 +731,14 @@ not a Reach Target. Contract: [OFFERING.md](OFFERING.md).
 
 ---
 
+## Sale
+
+A charge Myro collects: the coin pack, the filing fee, the Engagement Scene, the workflow audit, Myrology. A salary on a job is not a Sale.
+
+`openSale` is the only module that starts one. Inside the Android app it does not load a checkout and does not create an order. On the web the page is there at once. Inside the app a pitch goes to Jobs and paints no price; something the person already paid for stays, without the price.
+
+---
+
 ## Engagement Scene
 
 The paid room for **Personalised Engagement** (₹199 / month, ENG1). Not a

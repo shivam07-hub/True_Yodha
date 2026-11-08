@@ -13,6 +13,7 @@ import { claimPendingAnonCv, hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
 import { CVBaselineSkeleton } from "@/components/loading/route-loading/skeleton-mirrors/cv-baseline-skeleton"
 import { CVRouteSkeleton } from "@/components/loading/route-loading/skeleton-mirrors/cv-route-skeleton"
 import { CVWorkstationSkeleton } from "@/components/loading/route-loading/skeleton-mirrors/cv-workstation-skeleton"
+import { displayCompany } from "@/components/cv/builder/keyword-utils"
 import { PlaygroundView } from "@/components/cv/builder/playground-view"
 import { MasterWorkspace } from "@/components/cv/builder/master-workspace"
 import { LibraryView } from "@/components/cv/builder/library-view"
@@ -43,6 +44,7 @@ import { dataKeys, invalidateCvData } from "@/lib/domain-data"
 import { preflightCVUploadFile } from "@/lib/cv-file-detect"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useCVPlayground } from "@/lib/hooks/use-cv-playground"
+import { useViewport } from "@/mobile"
 import { useXPStore } from "@/store/xpStore"
 import { useParticleMoment } from "@/components/particle"
 
@@ -59,6 +61,7 @@ function CVPage() {
   const { token, ready } = useAuth()
   const queryClient = useQueryClient()
   const searchParams = useSearchParams()
+  const { isDesktop, settled } = useViewport()
   const jobId = searchParams.get("jobId")
   const mentorRequested = searchParams.get("mentor") === "1"
 
@@ -517,6 +520,19 @@ function CVPage() {
 
   const displayedUploadError = uploadError ? tokenizedUserMessage(uploadError) : null
   const surfacedError = playground.error ? tokenizedUserMessage(playground.error) : displayedUploadError
+  const jobApp = jobId ? (applicationsQuery.data ?? []).find(a => a.job_id === jobId) : undefined
+  const phoneJob = settled && !isDesktop && view === "playground" && !!jobId && !!cvData
+  const phoneOpenJob = phoneJob && jobId && cvData ? {
+    jobId,
+    company: displayCompany(playground.selectedVersion?.company_name) || displayCompany(jobApp?.company),
+    title: playground.selectedVersion?.job_title || jobApp?.title || "",
+    versionId: playground.selectedVersion?.id ?? null,
+    versionBelongsToJob: Boolean(playground.selectedVersion?.job_id),
+    hiddenItems: Array.from(playground.hiddenItems),
+    sectionOrder: playground.sectionOrder,
+    footerMarkHidden: playground.selectedVersion?.footer_mark_hidden ?? false,
+    save: playground.saveJobCv,
+  } : null
 
   return (
     <>
@@ -524,7 +540,7 @@ function CVPage() {
         {/* LibraryView is a self-contained full-bleed surface that owns its own
             padding (tm-lib-main); when it renders, the page wrapper goes flush
             so the two don't stack a double inset (the dead gap above the toggle). */}
-        <div className={`cvb-page${hasBaseline && view === "baseline" ? " cvb-page--flush" : ""}`}>
+        <div className={`cvb-page${hasBaseline && (view === "baseline" || phoneJob) ? " cvb-page--flush" : ""}`}>
           {/* No baseline yet — onboarding empty state */}
           {!hasBaseline && (
             <>
@@ -570,9 +586,9 @@ function CVPage() {
           {/* A workstation whose CV has not arrived yet shows the workstation
               skeleton, NOT the library. Rendering a real, different screen for
               that window reads as "it went somewhere else and came back". */}
-          {hasBaseline && view !== "baseline" && !cvData && <CVWorkstationSkeleton />}
+          {hasBaseline && view !== "baseline" && (!cvData || (view === "playground" && !settled)) && <CVWorkstationSkeleton />}
 
-          {hasBaseline && view === "baseline" && (
+          {hasBaseline && (view === "baseline" || phoneJob) && (
             <LibraryView
               token={token!}
               cv={cvData}
@@ -582,6 +598,8 @@ function CVPage() {
               onOpenJob={openJob}
               onReplaceCV={openFilePicker}
               onEditMaster={openMasterEdit}
+              openJob={phoneOpenJob}
+              onCloseJob={backToBaseline}
             />
           )}
 
@@ -595,7 +613,7 @@ function CVPage() {
             />
           )}
 
-          {hasBaseline && view === "playground" && jobId && cvData && (
+          {hasBaseline && settled && isDesktop && view === "playground" && jobId && cvData && (
             <PlaygroundView
               token={token!}
               jobId={jobId}

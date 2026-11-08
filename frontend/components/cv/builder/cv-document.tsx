@@ -18,6 +18,7 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import type { CVStructured, UserSkillsByDomain } from "@/lib/api"
+import { showProjectsSection } from "@/lib/cv/add-entry"
 import { itemId } from "@/lib/cv-compose"
 import { collectHiddenLines } from "@/lib/cv/hidden-lines"
 import { moveSection, normalizeSectionOrder, type SectionKey } from "@/lib/cv/section-order"
@@ -206,7 +207,7 @@ export function CvDocument(props: CvDocumentProps) {
       <DndContext id="cvw-sections" sensors={sensors} collisionDetection={closestCenter} onDragEnd={onSectionDrag}>
         <SortableContext items={order} strategy={verticalListSortingStrategy}>
           {order.map(key => {
-            if (key === "projects" && cv.projects.length === 0 && !canDragSections) return null
+            if (key === "projects" && !showProjectsSection(cv.projects.length, !!onPatch, canDragSections)) return null
             return (
             <SortableSection
               key={key}

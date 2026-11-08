@@ -6,7 +6,10 @@ import { XPGateModal } from "@/components/xp/XPGateModal"
 import { XpExplainerModal } from "@/components/xp/xp-explainer-modal"
 import { AuthedTopStrip } from "@/components/shell/authed-top-strip"
 import { FeedbackHub } from "@/components/feedback"
+import { AuthRouteSkeleton } from "@/components/loading/auth-route-skeleton"
 import { skeletonForPath } from "@/components/loading/page-skeletons"
+import { isJobsEntry } from "@/lib/platform/cold-open"
+import { isAndroidApp } from "@/lib/platform/app-shell"
 import { useShellModel } from "@/lib/shell/use-shell-model"
 import { usePendingJobSaveClaim } from "@/lib/hooks/use-pending-job-save-claim"
 import {
@@ -50,9 +53,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // bars around a page that already painted, then paint that page again.
   //
   // Gate on token too: when bootstrap finished with no session (ready && !token)
-  // useAuth has fired router.replace(/login). Holding the skeleton during
-  // that redirect-in-flight window stops authed children rendering token-less
-  // (Backlog #16 — logged-out visitor landed on a blank /tracker).
+  // useAuth has fired the login redirect. Holding the skeleton during that
+  // window stops authed children rendering token-less (Backlog #16 — a
+  // logged-out visitor landed on a blank /tracker).
+  //
+  // Jobs inside the app is the exception. A cold open has already left for
+  // /signup before paint. Once we know there is still no session, hold the
+  // signup shape — never the jobs skeleton — while that redirect finishes.
+  if (m.ready && !m.token && isAndroidApp() && isJobsEntry(pathname)) {
+    return <AuthRouteSkeleton />
+  }
   if (!m.ready || !m.token) {
     return <AppShellSkeleton>{skeletonForPath(pathname)}</AppShellSkeleton>
   }

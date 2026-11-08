@@ -22,8 +22,7 @@ pymupdf>=1.24.2                  # PDF text extraction (no strict pin — ARM64 
 python-docx==1.1.0               # DOCX text extraction
 
 # ── Skill tagging (NLP) ─────────────────────────────────────────
-spacy>=3.8.0                     # NLP pipeline for skill NER — needs >=3.8.0 for Python 3.13 support
-# After pip install, run: python -m spacy download en_core_web_sm
+spacy>=3.8.0                     # NLP package for skill NER — needs >=3.8.0 for Python 3.13 support. No model is loaded.
 
 # ── LLM (job re-ranking) ────────────────────────────────────────
 openai==1.25.0                   # GPT-4o mini for job ranking
