@@ -25,9 +25,6 @@ RUN playwright install --with-deps chromium \
     && apt-get install -y --no-install-recommends fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
-# Download spaCy model (used in Phase 1C CV parsing)
-RUN python -m spacy download en_core_web_sm
-
 COPY . .
 
 EXPOSE 8000
