@@ -219,10 +219,16 @@ Mail anyone outside the cohort.
 day before `CALLBACK_SINCE`, day 31). A union member listed once. A first send
 lists the whole list. The 3-day cadence holds for the cohort.
 
+**Partner users are in the cohort** (Shivam, 2026-11-12: Myro emails
+Finlatics-SSO users directly). They are 93% of new signups and joined through a
+partner's link, so they may not know the Myro name. Read `render()` as one of
+them. If the email needs to say how they joined, take `partners.name` (via
+`partner_users.partner_id`), never a hardcoded string. Active seats bill per seat, so
+every return this brings is partner revenue too.
+
 **BLOCKED for the live send.** The dry run and `--preview-to` can ship. Turning it
-on waits on (a) R1 on `main`, (b) Shivam approving the preview (digest S4), and
-(c) Shivam deciding whether Myro may email Finlatics-SSO users directly (93% of
-new signups).
+on waits on (a) R1 on `main` and (b) Shivam approving the preview (digest S4).
+The preview must include at least one partner-SSO member.
 
 ### R6 · Measure the upload drop before redesigning it
 
@@ -273,4 +279,4 @@ Same pairs, no new tables. Baseline is from 2026-11-12.
 | Chunk | State |
 |---|---|
 | R1–R4, R6 | Spec only. Cursor. |
-| R5 | Spec only. Live send blocked on Shivam (preview + Finlatics email). |
+| R5 | Spec only. Finlatics users included (Shivam, 2026-11-12). Live send blocked on R1 on `main` + Shivam approving the preview. |

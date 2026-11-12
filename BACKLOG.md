@@ -17,7 +17,7 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 | # | Step | Item | Spec · owner | Next |
 |---|---|---|---|---|
 | 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read 11-02: 6 asked, 2 answered, 0 Yes; too few to redesign from |
-| 5 · 3 · 4 | Tailor · Repeat · Front door | **#62** retention: free first tailor (R1–R2), reason + Apply on the card (R3–R4), digest to new signups (R5), measure the upload drop (R6) | [ARCHITECTURE_RETENTION.md](ARCHITECTURE_RETENTION.md) · Cursor, 4 lanes | Spec only. R5's live send waits on #59 S4 + Shivam: may Myro email Finlatics-SSO users? |
+| 5 · 3 · 4 | Tailor · Repeat · Front door | **#62** retention: free first tailor (R1–R2), reason + Apply on the card (R3–R4), digest to new signups (R5), measure the upload drop (R6) | [ARCHITECTURE_RETENTION.md](ARCHITECTURE_RETENTION.md) · Cursor, 4 lanes | Spec only. R5 emails Finlatics-SSO users too (Shivam, 2026-11-12); live send waits on R1 on `main` + #59 S4 preview |
 | 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) | Built; `0aafb324` on `main`. **BLOCKED on Shivam**: preview → approve |
 | 4 | Front door | **#57** "Which job do you want?" after upload | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor, 1st | On `main` 2026-10-17 · link paste fixed `2cc7b264`; 5 clicks to Download `8c372968`; links read from the corpus `515fd697` · phone run owed |
 | 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1–S4 on `main` · S5 closed 2026-11-04 (`4b9be63d`, on `Develop`) · open: the two match numbers |
