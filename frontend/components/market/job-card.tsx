@@ -5,7 +5,7 @@ import { PulseRow } from "@/components/dashboard/card-atoms"
 import { FeedCard, feedCardConfidenceClass, feedCardRereadClass } from "@/components/jobs/feed-card"
 import { LegitimacyBadge } from "@/components/jobs/match-brain"
 import { CapturePill } from "@/components/jobs/capture-pill"
-import { cvForRolePath, hostedApplyPath } from "@/lib/jobs/apply-transport"
+import { hostedApplyPath } from "@/lib/jobs/apply-transport"
 import { ageLabel, feedDataFromFeedItem } from "@/lib/jobs/card-view"
 import { MODE_LABEL } from "@/lib/jobs/card-logistics"
 import Link from "next/link"
@@ -82,7 +82,7 @@ export function TriageButtons({ job, onSave, onSkip, onTailor, token, stage }: {
         <>
           {tailored ? null : (
             <Link
-              href={cvForRolePath(job.job_id)}
+              href={`/cv?jobId=${encodeURIComponent(job.job_id)}`}
               aria-label={label ? `CV for ${label}` : "CV for this role"}
               onClick={e => e.stopPropagation()}
               className="tm-triage-btn tm-triage-tailor"
