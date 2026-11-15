@@ -70,7 +70,8 @@ export function landingStep(facts: TailorFacts): TailorStep {
   if (facts.proposal === "stale") return "weave"
   if (facts.proposal === "none") {
     if (facts.acceptComplete) return facts.closableGaps === 0 ? "paper" : "gaps"
-    return "proof"
+    // null is not 0, so a first visit opens the free deck before coverage lands.
+    return facts.closableGaps === 0 ? "proof" : "gaps"
   }
   if (!facts.acceptComplete) return "accept"
   return facts.closableGaps === 0 ? "paper" : "gaps"
@@ -91,10 +92,12 @@ export function willCharge(step: TailorStep): boolean {
  * Opening a job's CV that was never tailored lands on Mentor — once.
  *
  * 2026-10-19: of 6 real people who opened a job's tailor editor, 4 pressed
- * nothing after: a 0/100 score, a Fixes rail and four buttons, with the one
- * step that tailors the CV among them. `seen` is this person having been shown
- * it on this job already; closing it once leaves the paper alone after that.
- * Opening costs nothing — only a weave that reworks a role charges.
+ * nothing after: a 0/100 score, a Fixes rail and four buttons, with the paid
+ * weave among them. The first door is the free gap step — `landingStep`
+ * returns "gaps", which does not charge — so the job's own CV can be written
+ * before anyone is asked for 50 coins. A known zero gaps is the only
+ * never-tailored case that opens the weave. `seen` is this person having been
+ * shown it on this job already; closing it once leaves the paper alone after that.
  */
 export function autoOpens(facts: TailorFacts, seen: boolean): boolean {
   return !seen && facts.proposal === "none" && !facts.acceptComplete

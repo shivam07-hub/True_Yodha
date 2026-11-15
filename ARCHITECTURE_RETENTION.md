@@ -294,7 +294,7 @@ pass writes "Verified".
 
 | Chunk | State |
 |---|---|
-| R1 | Spec only. |
+| R1 | Built 2026-11-15. |
 | R2 | Spec only. |
 | R3 | Spec only. |
 | R4 | Spec only. |
