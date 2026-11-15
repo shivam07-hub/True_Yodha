@@ -276,7 +276,53 @@ Same pairs, no new tables. Baseline is from 2026-11-12.
 
 ## 5 · Status
 
+Cursor builds, Claude verifies. Cursor writes "Built {date}"; only the verify
+pass writes "Verified".
+
 | Chunk | State |
 |---|---|
-| R1–R4, R6 | Spec only. Cursor. |
+| R1 | Spec only. |
+| R2 | Spec only. |
+| R3 | Spec only. |
+| R4 | Spec only. |
 | R5 | Spec only. Finlatics users included (Shivam, 2026-11-12). Live send blocked on R1 on `main` + Shivam approving the preview. |
+| R6 | Spec only. |
+
+---
+
+## 6 · Handing a chunk to Cursor
+
+One prompt. Change the chunk id and paste it into a fresh Cursor chat. One chunk
+per chat, so a chat never carries a finished chunk's files into the next one.
+
+```text
+Read CLAUDE.md, then ARCHITECTURE_RETENTION.md in full. Build chunk R1 only.
+
+1. Before any edit, open every file the chunk cites and check the cited lines
+   still say what the spec says. If one does not, stop and tell me what you
+   found. Do not improvise around it.
+2. Section 2 names the one owner of each answer. Reuse it. No new editor,
+   endpoint, CV kind, stage, mailer, cron, notification kind or button label.
+3. Touch only the files your lane owns (section 3 table) plus the tests the
+   chunk names. If you need any other file, stop and ask.
+4. Write the chunk's tests first and watch them fail. Then write the code.
+5. Anything the chunk marks BLOCKED or "Do not" stays unbuilt and switched off.
+6. A migration is applied before the code that reads it, then
+   NOTIFY pgrst, 'reload schema'. If you cannot apply it, stop there and say so.
+7. Run all six gates from CLAUDE.md. Paste the last lines of each.
+8. git add only the files you changed, never -A or a dot. One commit on Develop,
+   then push. Never touch main.
+9. In that commit, set the chunk's row in section 5 to "Built {today}".
+10. Reply with: the files changed, the gate output, and the proof the chunk asks
+    for under "Done when". If the proof needs a QA walk or a SQL read, do it and
+    paste the result. If you could not do it, say so. Do not write "done".
+```
+
+**Order.** One Cursor chat at a time: R1 → R2 → R6 → R5 → R3 → R4. R1 first
+because R5's live send waits on it. R6 early because its read needs 7 days of
+data. R5 before the card work because its preview waits on Shivam. With several
+chats at once: one chat per lane (A, B, C, D), never two in one lane.
+
+**After each push**, Claude reads the diff against section 2 and the chunk's
+"Do not", reruns the gates, reads the proof row in SQL, and either writes
+"Verified {sha}" in section 5 or sends Cursor one fix prompt.
