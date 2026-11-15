@@ -28,6 +28,22 @@ test("issue 25's eight captions fit Instagram's caption limit as one", () => {
   assert.ok(caption.length <= MAX_CAPTION_CHARS, `${caption.length} characters`)
 })
 
+test("the laptop block is the same fold as the slide captions", () => {
+  for (const issue of ["023", "024", "025"]) {
+    const kit = readFileSync(
+      new URL(`../../scripts/newsletter-carousel-specs/issue-${issue}-distribution.md`, import.meta.url),
+      "utf8",
+    )
+    const start = kit.indexOf("## Instagram captions, one per slide")
+    const next = kit.indexOf("\n## ", start + 10)
+    const section = next === -1 ? kit.slice(start) : kit.slice(start, next)
+    const slides = section.slice(section.indexOf("Slide 1:"), section.indexOf("First comment:"))
+    const marker = "### One caption, for the laptop"
+    const laptop = section.slice(section.indexOf(marker) + marker.length).trim()
+    assert.equal(singleCaptionFrom(slides), laptop, `issue ${issue}`)
+  }
+})
+
 test("slides upload in the order the builder numbered them", () => {
   const names = ["issue-025-slide-10.png", "issue-025-slide-02.png", "issue-025-slide-01.png"]
   assert.deepEqual(

@@ -7,11 +7,31 @@
     "series": "RISK & COMPLIANCE",
     "h1": "Three of the Big Four post half of India's risk and compliance openings. EY alone posts 30.8%.",
     "bars": [
-      ["EY", 30.8, "30.8%"],
-      ["Deloitte", 13.0, "13.0%"],
-      ["KPMG", 6.7, "6.7%"],
-      ["Axis Bank", 12.4, "12.4%"],
-      ["Deutsche", 3.3, "3.3%"]
+      [
+        "EY",
+        30.8,
+        "30.8%"
+      ],
+      [
+        "Deloitte",
+        13.0,
+        "13.0%"
+      ],
+      [
+        "KPMG",
+        6.7,
+        "6.7%"
+      ],
+      [
+        "Axis Bank",
+        12.4,
+        "12.4%"
+      ],
+      [
+        "Deutsche",
+        3.3,
+        "3.3%"
+      ]
     ],
     "max": 35,
     "dim_from": 3,
@@ -23,70 +43,252 @@
       "kicker": "RISK & COMPLIANCE",
       "h1": "Three of the Big Four post half of India's risk and compliance openings. EY alone posts 30.8%.",
       "sub": "1,868 live openings in India, checked on 20 October 2026 across 260+ MNC career pages.",
-      "link": "Full issue: himyro.com/newsletter"
+      "link": "Full issue: himyro.com/newsletter",
+      "caption": "If you want risk work in India, apply to the Big Four. EY, Deloitte and KPMG post half the openings, and they ask for regulation, audit and a CA.\n\nIf you came for risk analytics, go to the banks with Python and statistics. That seat is real and it is small: 45 titles."
     },
     {
       "kind": "bars",
       "kicker": "Who posts India's risk openings",
       "bars": [
-        ["EY", 30.8, "30.8%"],
-        ["Deloitte", 13.0, "13.0%"],
-        ["KPMG", 6.7, "6.7%"],
-        ["Axis Bank", 12.4, "12.4%"],
-        ["Deutsche", 3.3, "3.3%"],
-        ["JP Morgan", 2.9, "2.9%"]
+        [
+          "EY",
+          30.8,
+          "30.8%"
+        ],
+        [
+          "Deloitte",
+          13.0,
+          "13.0%"
+        ],
+        [
+          "KPMG",
+          6.7,
+          "6.7%"
+        ],
+        [
+          "Axis Bank",
+          12.4,
+          "12.4%"
+        ],
+        [
+          "Deutsche",
+          3.3,
+          "3.3%"
+        ],
+        [
+          "JP Morgan",
+          2.9,
+          "2.9%"
+        ]
       ],
       "max": 35,
       "dim_from": 3,
-      "note": "EY, Deloitte and KPMG: <b>943</b> openings, 50.5% of the lane."
+      "note": "EY, Deloitte and KPMG: <b>943</b> openings, 50.5% of the lane.",
+      "caption": "EY posts 575 risk and compliance openings, 30.8% of the lane on its own. Deloitte posts 242 (13.0%) and KPMG 126 (6.7%). Together the three hold 943 openings, 50.5% of everything we read."
     },
     {
       "kind": "matrix",
       "kicker": "What the postings ask for",
-      "cols": ["All", "Big Four", "BFSI"],
-      "rows": [
-        ["Regulation", [["67.2%", 0], ["60.3%", 0], ["82.6%", 2]]],
-        ["Audit", [["50.6%", 0], ["47.2%", 0], ["50.4%", 0]]],
-        ["Risk management", [["43.8%", 0], ["36.5%", 0], ["51.5%", 2]]],
-        ["Cyber security", [["23.6%", 0], ["26.9%", 2], ["12.9%", 0]]],
-        ["Chartered Accountant", [["19.2%", 0], ["25.9%", 2], ["14.2%", 0]]],
-        ["Excel", [["18.8%", 0], ["14.4%", 0], ["30.0%", 2]]],
-        ["Python", [["11.0%", 0], ["10.3%", 0], ["15.0%", 0]]],
-        ["AML and KYC", [["8.8%", 0], ["2.8%", 0], ["19.6%", 2]]],
-        ["Credit risk", [["8.6%", 0], ["4.5%", 0], ["18.7%", 2]]]
+      "cols": [
+        "All",
+        "Big Four",
+        "BFSI"
       ],
-      "note": "Share of each column's postings whose own text names the skill."
+      "rows": [
+        [
+          "Regulation",
+          [
+            [
+              "67.2%",
+              0
+            ],
+            [
+              "60.3%",
+              0
+            ],
+            [
+              "82.6%",
+              2
+            ]
+          ]
+        ],
+        [
+          "Audit",
+          [
+            [
+              "50.6%",
+              0
+            ],
+            [
+              "47.2%",
+              0
+            ],
+            [
+              "50.4%",
+              0
+            ]
+          ]
+        ],
+        [
+          "Risk management",
+          [
+            [
+              "43.8%",
+              0
+            ],
+            [
+              "36.5%",
+              0
+            ],
+            [
+              "51.5%",
+              2
+            ]
+          ]
+        ],
+        [
+          "Cyber security",
+          [
+            [
+              "23.6%",
+              0
+            ],
+            [
+              "26.9%",
+              2
+            ],
+            [
+              "12.9%",
+              0
+            ]
+          ]
+        ],
+        [
+          "Chartered Accountant",
+          [
+            [
+              "19.2%",
+              0
+            ],
+            [
+              "25.9%",
+              2
+            ],
+            [
+              "14.2%",
+              0
+            ]
+          ]
+        ],
+        [
+          "Excel",
+          [
+            [
+              "18.8%",
+              0
+            ],
+            [
+              "14.4%",
+              0
+            ],
+            [
+              "30.0%",
+              2
+            ]
+          ]
+        ],
+        [
+          "Python",
+          [
+            [
+              "11.0%",
+              0
+            ],
+            [
+              "10.3%",
+              0
+            ],
+            [
+              "15.0%",
+              0
+            ]
+          ]
+        ],
+        [
+          "AML and KYC",
+          [
+            [
+              "8.8%",
+              0
+            ],
+            [
+              "2.8%",
+              0
+            ],
+            [
+              "19.6%",
+              2
+            ]
+          ]
+        ],
+        [
+          "Credit risk",
+          [
+            [
+              "8.6%",
+              0
+            ],
+            [
+              "4.5%",
+              0
+            ],
+            [
+              "18.7%",
+              2
+            ]
+          ]
+        ]
+      ],
+      "note": "Share of each column's postings whose own text names the skill.",
+      "caption": "Our agents read 260+ MNC career pages and checked close to 46,500 live openings in India on 20 October 2026. 1,868 of them were risk and compliance roles. This is what those postings ask for, split by who posts them."
     },
     {
       "kind": "number",
       "kicker": "EY ALONE",
       "huge": "575",
-      "sub": "EY's risk and compliance openings, <b>30.8%</b> of the lane. 305 of them sit in one practice, Business Consulting Risk."
+      "sub": "EY's risk and compliance openings, <b>30.8%</b> of the lane. 305 of them sit in one practice, Business Consulting Risk.",
+      "caption": "More than half of EY's openings, 305, sit in one practice, Business Consulting Risk. Forensics (56), Assurance (51) and Tax (43) follow. Deloitte's risk lane is security work: 79.3% of its postings name cyber or information security."
     },
     {
       "kind": "number",
       "kicker": "THE CA",
       "huge": "25.9%",
-      "sub": "of Big Four risk postings name a Chartered Accountant qualification. At EY it is <b>34.8%</b>. At BFSI firms, 14.2%."
+      "sub": "of Big Four risk postings name a Chartered Accountant qualification. At EY it is <b>34.8%</b>. At BFSI firms, 14.2%.",
+      "caption": "The Big Four ask for a CA more than anyone else in this lane: 25.9% of their postings, and 34.8% of EY's. If you cleared CA and want to work on regulation, this is the door that opens widest."
     },
     {
       "kind": "number",
       "kicker": "AXIS, IN MUMBAI",
       "huge": "231",
-      "sub": "Axis Bank's risk openings, 37.2% of everything BFSI firms posted in this lane. <b>73.2%</b> are in Mumbai. The regulator is a local train away."
+      "sub": "Axis Bank's risk openings, 37.2% of everything BFSI firms posted in this lane. <b>73.2%</b> are in Mumbai. The regulator is a local train away.",
+      "caption": "Axis is hiring for transaction monitoring and credit desks. Bank risk jobs sit in Mumbai: 52.8% of them, and 73.2% of Axis's. The regulator is a local train away."
     },
     {
       "kind": "number",
       "kicker": "RISK ANALYTICS",
       "huge": "45",
-      "sub": "titles say analytics, <b>2.4%</b> of the lane. Inside them, Python is in 51.1% and SAS in 33.3%. Across the lane, SAS and Basel are 2.8% each."
+      "sub": "titles say analytics, <b>2.4%</b> of the lane. Inside them, Python is in 51.1% and SAS in 33.3%. Across the lane, SAS and Basel are 2.8% each.",
+      "caption": "The usual advice for risk analytics is SQL, Python, SAS and Basel. Python appears in 11.0% of all risk postings, and SAS and Basel in 2.8% each. Inside the 45 analytics titles, Python is in 51.1% and SAS in 33.3%."
     },
     {
       "kind": "number",
       "kicker": "IF YOU ARE STARTING OUT",
       "huge": "9.6%",
       "sub": "of the lane is entry level, at 0.7 years. At BFSI firms it is <b>13.8%</b>. At the Big Four, 5.1%.",
-      "link": "Full issue: himyro.com/newsletter"
+      "link": "Full issue: himyro.com/newsletter",
+      "caption": "180 openings are entry level. Axis posts 39 of them and EY 35. If you are starting out, a bank is the shorter door.\n\nTailor your CV to jobs like these. Link in bio."
     }
-  ]
+  ],
+  "article": "2026-10-risk-compliance-big-four-india",
+  "first_comment": "#jobsearch #riskmanagement #bigfour #himyro"
 }

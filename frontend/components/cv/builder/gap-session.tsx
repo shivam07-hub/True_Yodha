@@ -51,6 +51,16 @@ interface GapSessionProps {
   onClose: () => void
   /** Skills-map row: close this requirement only. Header landing walks the deck. */
   focusRequirement?: string | null
+  /** null while the versions read is out. True when this job has no document yet. */
+  firstLanding: boolean | null
+  /** First landing whose plan has nothing to walk. Opens the weave offer. */
+  onNothingToWalk?: () => void
+  /** A plan already in hand. Omitted, the session reads it. */
+  plan?: GapPlanResponse
+  /** Climb floor. Omitted, the score at mount. */
+  startScore?: number
+  /** Accepts already counted. The live session starts at 0 and counts from Accept. */
+  accepted?: number
 }
 
 type DeckCard =
@@ -66,17 +76,33 @@ function forgeHref(skill: string): string {
 // Cards walked in one sitting before the checkpoint offers to continue. Mirrors
 // the backend's gap-priority top-N; the deck is already ordered by it.
 const SESSION_BATCH = 5
+// A first landing walks a short deck. Latent cards lead; the rest wait.
+const FIRST_LANDING_CARDS = 3
 
-export function GapSession({ token, jobId, score, onApplied, onClose, focusRequirement = null }: GapSessionProps) {
-  const [plan, setPlan] = useState<GapPlanResponse | null>(null)
+export function GapSession({
+  token, jobId, score, onApplied, onClose, focusRequirement = null,
+  firstLanding, onNothingToWalk, plan: givenPlan, startScore: givenStart, accepted = 0,
+}: GapSessionProps) {
+  const [plan, setPlan] = useState<GapPlanResponse | null>(givenPlan ?? null)
   const [loadErr, setLoadErr] = useState<string | null>(null)
   const [idx, setIdx] = useState<number | null>(null)
   // Per-deck outcome so the bar shows surfaced work (loud) vs skipped (faint) —
   // a "done" tick used to conflate both, so accepted work read as walked-past.
-  const [outcomes, setOutcomes] = useState<Record<number, "surfaced" | "skipped">>({})
+  const [outcomes, setOutcomes] = useState<Record<number, "surfaced" | "skipped">>(() => {
+    const seed: Record<number, "surfaced" | "skipped"> = {}
+    for (let i = 0; i < accepted; i += 1) seed[i] = "surfaced"
+    return seed
+  })
   // JD-match at the moment the session opened — the floor the header climbs from.
-  const [startScore] = useState(score)
+  // A caller can name the floor when the score prop is already the later number.
+  const [startScore] = useState(givenStart ?? score)
   const [revealed, setRevealed] = useState(SESSION_BATCH)
+  // Latched at the first settled read. An Accept creates the job document
+  // mid-session; that must not grow this sitting's deck.
+  const openedFirst = useRef<boolean | null>(null)
+  if (openedFirst.current === null && firstLanding !== null) openedFirst.current = firstLanding
+  const isFirst = openedFirst.current
+  const handed = useRef(false)
   const surfaced = useMemo(
     () => Object.values(outcomes).filter(o => o === "surfaced").length,
     [outcomes],
@@ -91,7 +117,10 @@ export function GapSession({ token, jobId, score, onApplied, onClose, focusRequi
     }
   }, [token, jobId])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    if (givenPlan) return
+    void load()
+  }, [load, givenPlan])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose() }
@@ -102,14 +131,21 @@ export function GapSession({ token, jobId, score, onApplied, onClose, focusRequi
   // Walkable deck = latent host-bullet cards + shallow cards that have a located
   // host (so they can offer the surface). Everything else routes to practice in
   // the closing panel. Ordered by the backend's gap-priority `order`.
+  // A first landing slices it to three, latent first.
   const deck = useMemo<DeckCard[]>(() => {
     if (!plan) return []
     const latent: DeckCard[] = plan.host_bullet_cards.map(c => ({ kind: "latent", ...c }))
     const shallow: DeckCard[] = plan.below_level_cards
       .filter(c => c.host)
       .map(c => ({ kind: "shallow", ...c }))
-    return [...latent, ...shallow].sort((a, b) => a.order - b.order)
-  }, [plan])
+    const ordered = [...latent, ...shallow].sort((a, b) => a.order - b.order)
+    // A focused skill stays on the full deck so the row the person opened is still there.
+    if (isFirst !== true || focusRequirement) return ordered
+    return [
+      ...ordered.filter(c => c.kind === "latent"),
+      ...ordered.filter(c => c.kind === "shallow"),
+    ].slice(0, FIRST_LANDING_CARDS)
+  }, [plan, isFirst, focusRequirement])
 
   const practiceSkills = useMemo(() => {
     if (!plan) return []
@@ -141,12 +177,14 @@ export function GapSession({ token, jobId, score, onApplied, onClose, focusRequi
   const startIdx = deckMatch >= 0 ? deckMatch : (focusRequirement && practiceMatch ? deck.length : 0)
   const focusOnly = deckMatch >= 0 || Boolean(focusRequirement && practiceMatch && deckMatch < 0)
   const pos = idx ?? startIdx
+  // The meter stays down until a later visit, or until an Accept moves it.
+  const showMeter = isFirst === false || surfaced > 0
 
   if (loadErr) {
     return (
       <Backdrop onClose={onClose}>
         <div className="cvb-modal cvb-gs-modal">
-          <Header score={score} startScore={startScore} plan={null} onClose={onClose} />
+          <Header score={score} startScore={startScore} plan={null} onClose={onClose} showMeter={showMeter} />
           <div className="cvb-gs-body">
             <p className="cvb-rs-error" role="alert">{loadErr}</p>
             <div className="cvb-gs-foot">
@@ -159,16 +197,26 @@ export function GapSession({ token, jobId, score, onApplied, onClose, focusRequi
     )
   }
 
-  if (!plan) {
+  if (!plan || isFirst === null) {
     return (
       <Backdrop onClose={onClose}>
         <div className="cvb-modal cvb-gs-modal">
-          <Header score={score} startScore={startScore} plan={null} onClose={onClose} />
+          <Header score={score} startScore={startScore} plan={null} onClose={onClose} showMeter={showMeter} />
           <div className="cvb-gs-body"><div className="cvb-rw-status" role="status">Reading your gaps…</div></div>
         </div>
       </Backdrop>
     )
   }
+
+  // Nothing to accept on a first landing. The weave offer is the next door;
+  // the closing panel would be a dead end. Once, and not during this render's
+  // parent update.
+  const handingOff = isFirst && deck.length === 0
+  if (handingOff && !handed.current) {
+    handed.current = true
+    queueMicrotask(() => onNothingToWalk?.())
+  }
+  if (handingOff) return null
 
   // Pagination: walk the deck in SESSION_BATCH chunks. At a batch boundary with
   // more cards left, the checkpoint lets the user keep going or wrap up early.
@@ -194,7 +242,7 @@ export function GapSession({ token, jobId, score, onApplied, onClose, focusRequi
   return (
     <Backdrop onClose={onClose}>
       <div className="cvb-modal cvb-gs-modal" onClick={e => e.stopPropagation()}>
-        <Header score={score} startScore={startScore} plan={plan} onClose={onClose} />
+        <Header score={score} startScore={startScore} plan={plan} onClose={onClose} showMeter={showMeter} />
 
         {!focusOnly && deck.length > 1 && (
           <div className="cvb-gs-progress" aria-hidden>
@@ -254,14 +302,20 @@ export function GapSession({ token, jobId, score, onApplied, onClose, focusRequi
 
 // ── Header: the live match number is the climbing anchor ─────────────────────
 
-function Header({ score, startScore, plan, onClose }: { score: number; startScore: number; plan: GapPlanResponse | null; onClose: () => void }) {
+function Header({ score, startScore, plan, onClose, showMeter }: {
+  score: number
+  startScore: number
+  plan: GapPlanResponse | null
+  onClose: () => void
+  showMeter: boolean
+}) {
   return (
     <div className="cvb-modal-head cvb-gs-head">
       <div className="cvb-gs-title">
         <div className="cvb-gs-eyebrow"><MyroMark size={12}/> Tailor with Mentor</div>
         {plan && <div className="cvb-gs-sub">{plan.company ?? "This role"} · {plan.job_title}</div>}
       </div>
-      <LiveMeter score={score} startScore={startScore} />
+      {showMeter && <LiveMeter score={score} startScore={startScore} />}
       <Button variant="ghost" size="icon-sm" aria-label="Close" onClick={onClose}>
         <Icon name="x" size={16}/>
       </Button>
@@ -835,7 +889,7 @@ function ClosingPanel({ token, resolved, startScore, score, practiceSkills, upgr
 
   return (
     <div className="cvb-gs-closing">
-      {score > startScore && (
+      {resolved > 0 && score > startScore && (
         <div className="cvb-gs-climb" role="status">
           <span className="cvb-gs-climb-from">{startScore}%</span>
           <span className="cvb-gs-climb-arrow" aria-hidden>→</span>

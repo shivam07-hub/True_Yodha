@@ -73,7 +73,8 @@ Every pass is in `backend/app/services/forward_pass.py`; `PASSES` answers "what 
   it is on `main` and one real user has hit it.
 - **Commit finished work to `Develop` — standing approval, no need to ask.**
   When green, `git add` ONLY your own files, commit, push. **Never `git add -A`
-  or `.`** — the tree usually holds someone else's uncommitted work.
+  or `.`** — the tree usually holds someone else's uncommitted work. The same
+  commit updates that item's row in [BACKLOG.md](BACKLOG.md).
 - **Supabase migrations — apply them yourself, BEFORE pushing the code that
   reads them.** Then `NOTIFY pgrst, 'reload schema';` and spot-check. Additive,
   reversible; destructive needs Shivam. `/health/ready` names a missing column.
@@ -121,7 +122,7 @@ Jobs come from the scraper repo (Shivam's); this repo only reads them.
 | Servers, domains, env, DNS, deploy order | [INFRA.md](INFRA.md) |
 | Open work, in loop order | [BACKLOG.md](BACKLOG.md) |
 | **Which newsletter to push next · what goes out when** | [NEWSLETTER_QUEUE.md](NEWSLETTER_QUEUE.md) · [MARKETING_SCHEDULE.md](MARKETING_SCHEDULE.md) |
-| **Specs Cursor builds from** | `ARCHITECTURE_*.md` at the root — RETURN_LOOP #55 · PAYMENTS #56 · FRONT_DOOR #57 · CV_TIER_A #58 · GOLDEN_DIGEST #59 · SKILL_EVIDENCE #60 · APK #61 |
+| **Specs Cursor builds from** | `ARCHITECTURE_*.md` at the root — RETURN_LOOP #55 · PAYMENTS #56 · FRONT_DOOR #57 · CV_TIER_A #58 · GOLDEN_DIGEST #59 · SKILL_EVIDENCE #60 · APK #61 · RETENTION #62 · MCP #63 · BRAND_DISTRIBUTION #64 |
 | **Prep = one ladder, four steps** | [UNIFIED_PREP_V2.md](UNIFIED_PREP_V2.md) |
 | Vibecoded tells, ruled against our code | [ANTI_SLOP.md](ANTI_SLOP.md) |
 | One Myro voice + one memory writer | [MYRO_MENTOR.md](MYRO_MENTOR.md) |
@@ -195,5 +196,4 @@ it**; `match_quality.py` that they were the RIGHT jobs. Reach: `loop_reach.py`.
 - **No session summaries here.** Git log holds those.
 - **Never write "OWED: main merge" or "OWED: deploy dev".** Railway deploys
   `Develop` automatically. Notice closes merge `main` themselves.
-- **If you cannot check a claim in seconds, do not write it.**
-- **This file stays under 200 lines.** Past that, something belongs elsewhere.
+- **If you cannot check a claim in seconds, do not write it.** This file stays under 200 lines.

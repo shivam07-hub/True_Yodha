@@ -27,10 +27,24 @@ const facts = (partial: Partial<TailorFacts>): TailorFacts => ({
   ...partial,
 })
 
-test("a first visit opens Proof — there is no draft yet", () => {
-  assert.equal(landingStep(facts({})), "proof")
-  assert.equal(overlayFor("proof"), "weave")
-  assert.equal(willCharge("proof"), true)
+test("a never-tailored job with gaps opens the free deck", () => {
+  const step = landingStep(facts({ closableGaps: 2 }))
+  assert.equal(step, "gaps")
+  assert.equal(willCharge(step), false)
+  assert.equal(overlayFor(step), "gaps")
+})
+
+test("a never-tailored job with coverage still unknown opens the free deck", () => {
+  const step = landingStep(facts({ closableGaps: null }))
+  assert.equal(step, "gaps")
+  assert.equal(willCharge(step), false)
+})
+
+test("a never-tailored job with no gaps left opens Proof", () => {
+  const step = landingStep(facts({ closableGaps: 0 }))
+  assert.equal(step, "proof")
+  assert.equal(willCharge(step), true)
+  assert.equal(overlayFor(step), "weave")
 })
 
 test("a current draft with no Keep/Take yet opens Accept", () => {

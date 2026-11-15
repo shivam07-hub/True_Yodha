@@ -17,12 +17,15 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 | # | Step | Item | Spec · owner | Next |
 |---|---|---|---|---|
 | 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read 11-02: 6 asked, 2 answered, 0 Yes; too few to redesign from |
+| 5 · 3 · 4 | Tailor · Repeat · Front door | **#62** retention: free first tailor (R1–R2), reason + Apply on the card (R3–R4), digest to new signups (R5), measure the upload drop (R6) | [ARCHITECTURE_RETENTION.md](ARCHITECTURE_RETENTION.md) · Cursor, now (Shivam, 2026-11-15) · paste prompt in §6 | R1 built 2026-11-15 (`e8b93503`, on `Develop`). Verify pass 11-15: gates and the free door pass, no coin charged; the Accept row is unproven (QA deck empty on every live job), so R1 is not Verified. R2 built 2026-11-15. Next: R6 → R5 → R3 → R4. R5 live send waits on R1 and R2 on `main` + #59 S4 preview |
 | 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) | Built; `0aafb324` on `main`. **BLOCKED on Shivam**: preview → approve |
 | 4 | Front door | **#57** "Which job do you want?" after upload | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor, 1st | On `main` 2026-10-17 · link paste fixed `2cc7b264`; 5 clicks to Download `8c372968`; links read from the corpus `515fd697` · phone run owed |
 | 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1–S4 on `main` · S5 closed 2026-11-04 (`4b9be63d`, on `Develop`) · open: the two match numbers |
 | 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor, 3rd | Spec only, no commits · S0 audit |
 | 6 | Pay | **#56** the ₹199 Apply Pack | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Cursor, 4th | Spec only, no commits · S1 settlement |
 | 3 | Repeat | **#61** Myro on Android (TWA), buying hidden, then Play billing | [ARCHITECTURE_APK.md](ARCHITECTURE_APK.md) · Cursor, next | S1–S4, S6–S8 on `Develop`. S8 closed 2026-11-08: `/account/delete`. Next: S9, blocked on the new upload-key SHA-256. Phase 2 waits on #56. Shivam: D-U-N-S, new upload key |
+| 4 | Front door | **#63** Myro in Claude and ChatGPT (MCP): sign in with the Myro account, see the judged list, add a job, tailor, record "I applied" | [ARCHITECTURE_MCP.md](ARCHITECTURE_MCP.md) · Cursor | Spec only, no commits. M1–M3 collide with nothing; M4 needs #62 R3. **Gate G waits on Shivam**: Supabase OAuth server on, after M1–M3 reach `main`. Order against #56 is Shivam's call |
+| 4 | Front door | **#64** brand distribution: one command per issue kit (B1), issue 021's kit (B2), kit → tracker (B3), reels through Publish to Instagram (B4), a dead Instagram token opens a Notice (B5) | [ARCHITECTURE_BRAND_DISTRIBUTION.md](ARCHITECTURE_BRAND_DISTRIBUTION.md) · Cursor, beside #62 (no shared files) · paste prompt in §6 | B1 Built 2026-11-15. B3 → B2 → B4 → B5. Live reels and B5 wait on Shivam's Meta setup. Until then Claude posts the overdue Instagram queue with Shivam (024 on 18 Nov) |
 
 **Cursor's order (Shivam, 2026-10-14; #61 added 2026-11-03):** #57 → #58 → #61
 Phase 1 → #60 → #56 → #61 Phase 2. The biggest absolute leak first (553 of 1,002
@@ -32,7 +35,8 @@ jobs flow again; pay after the value. #61 S5 shipped with #58 S5 (`4b9be63d`). S
 
 Specs Cursor builds from, each slice its own commit with six gates green:
 PAYMENTS (#56) · FRONT_DOOR (#57) · CV_TIER_A (#58) · GOLDEN_DIGEST (#59) ·
-SKILL_EVIDENCE (#60) · APK (#61).
+SKILL_EVIDENCE (#60) · APK (#61) · RETENTION (#62) · MCP (#63) ·
+BRAND_DISTRIBUTION (#64).
 
 ---
 
@@ -430,7 +434,8 @@ Tracker (3) · no problem or not actionable (~25).
      image: [INSTAGRAM_PROFILE.md](INSTAGRAM_PROFILE.md).
   2. Mark LinkedIn issues 020, 022 and the loop video posted in `/admin/growth`,
      with their links. They are live, and the rows still say unposted.
-  3. Listen to the Fill video's soundtrack before Thu 5 Nov.
+  3. Listen to the fill reel's soundtrack before Sat 21 Nov, and the match reel's
+     before Sat 28 Nov.
   4. Connect @myrojobs to the tracker's Publish to Instagram: a Meta app, a token,
      two Railway variables on prod. Six steps in
      [INSTAGRAM_PROFILE.md](INSTAGRAM_PROFILE.md). The button reaches himyro.com
