@@ -261,7 +261,7 @@ pass writes "Verified".
 
 | Chunk | State |
 |---|---|
-| B1 | Spec only. |
+| B1 | Built 2026-11-15. |
 | B2 | Spec only. Waits on B1. |
 | B3 | Spec only. Waits on B1. |
 | B4 | Spec only. Live post BLOCKED on Shivam's Meta setup. |

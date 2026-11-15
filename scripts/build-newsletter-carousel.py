@@ -26,7 +26,12 @@ Spec shape:
 Any slide may add "link": "Full issue: himyro.com/newsletter". It renders under
 the slide's content at a size a phone can read; the foot line cannot do that job.
 """
-import base64, json, pathlib, sys, html
+import argparse
+import base64
+import html
+import json
+import pathlib
+import re
 
 ROOT = pathlib.Path("/Users/incognito/True_Yodha")
 FONTS = ROOT / "frontend" / "app" / "fonts"
@@ -155,8 +160,11 @@ def slide_body(s):
         return kicker + bars_html(s["bars"], s["max"], s.get("cliff_after"),
                                   s.get("dim_from")) + note
     if k == "table":
-        head = "".join(f'<th{" style=\"text-align:right\"" if i else ""}>'
-                       f'{html.escape(h)}</th>' for i, h in enumerate(s["head"]))
+        head = "".join(
+            "<th"
+            + (' style="text-align:right"' if i else "")
+            + f">{html.escape(h)}</th>"
+            for i, h in enumerate(s["head"]))
         rows = "".join(
             f'<tr><td>{html.escape(r[0])}</td>'
             f'<td class="n {"hi" if r[2] else "lo"}">{html.escape(r[1])}</td></tr>'
@@ -192,11 +200,127 @@ def link_html(s):
     return f'<div class="golink">{html.escape(s["link"])}</div>' if s.get("link") else ""
 
 
-def main(spec_path):
-    from playwright.sync_api import sync_playwright
+BIO_LINK = (
+    "https://www.himyro.com/newsletter"
+    "?utm_source=instagram&utm_medium=social&utm_campaign=ig-bio"
+)
+_FIGURE = re.compile(r"\d[\d,]*\.?\d*%?")
+_YEAR = re.compile(r"(?:19|20)\d{2}\Z")
+_HASHTAG = re.compile(r"#\w+")
+_ISSUES = ROOT / "frontend" / "content" / "newsletter" / "issues"
+
+
+def fold_captions(captions):
+    """The same fold as frontend/lib/growth/instagram.ts singleCaptionFrom."""
+    return "\n\n".join(part.strip() for part in captions if part.strip())
+
+
+def caption_figures(text):
+    """Hiring figures in a caption. A bare year is not one: issue 023 says
+    "by 2030" and the article does not, and that year is not a count."""
+    figures = []
+    for match in _FIGURE.finditer(text):
+        token = match.group(0).rstrip(".,")
+        if token and not _YEAR.fullmatch(token):
+            figures.append(token)
+    return figures
+
+
+def check_captions(captions, article, first_comment):
+    for index, caption in enumerate(captions, start=1):
+        for token in caption_figures(caption):
+            if token not in article:
+                raise SystemExit(
+                    f"slide {index} figure {token} is not in the article"
+                )
+    folded = fold_captions(captions)
+    if len(folded) > 2200:
+        raise SystemExit(
+            f"folded caption is {len(folded)} characters, over 2,200"
+        )
+    tags = _HASHTAG.findall(first_comment)
+    if not 3 <= len(tags) <= 5:
+        raise SystemExit(
+            f"first comment has {len(tags)} hashtags; it needs 3 to 5"
+        )
+
+
+def kit_texts(captions, first_comment, intro):
+    blocks = [f"SLIDE {i}\n{caption.strip()}" for i, caption in enumerate(captions, start=1)]
+    captions_txt = (
+        "\n\n".join(blocks)
+        + f"\n\nFIRST COMMENT\n{first_comment}\n\n"
+        + f"BIO LINK (fixed, never changes)\n{BIO_LINK}\n"
+    )
+    folded = fold_captions(captions)
+    laptop_txt = (
+        f"{folded}\n\n---\nFIRST COMMENT\n{first_comment}\n\n"
+        + f"BIO LINK (fixed, never changes)\n{BIO_LINK}\n"
+    )
+    if not intro.endswith("\n"):
+        intro += "\n"
+    slides = "".join(f"Slide {i}:\n\n{caption.strip()}\n\n" for i, caption in enumerate(captions, start=1))
+    section = (
+        intro
+        + slides
+        + f"First comment: {first_comment}\n\n"
+        + "### One caption, for the laptop\n\n"
+        + f"{folded}\n"
+    )
+    return captions_txt, laptop_txt, section
+
+
+def rewrite_instagram_section(text, captions, first_comment):
+    heading = "## Instagram captions, one per slide"
+    start = text.find(heading)
+    if start < 0:
+        raise SystemExit("kit has no Instagram captions section")
+    following = re.search(r"\n## ", text[start + len(heading):])
+    end = start + len(heading) + following.start() if following else len(text)
+    section = text[start:end]
+    marker = section.find("\nSlide 1:")
+    intro = section[: marker + 1] if marker >= 0 else section
+    _, _, rebuilt = kit_texts(captions, first_comment, intro)
+    return text[:start] + rebuilt + text[end:]
+
+
+def write_caption_kit(spec_path, spec):
+    article_slug = spec.get("article")
+    if not article_slug:
+        return
+    captions = []
+    for index, slide in enumerate(spec["slides"], start=1):
+        caption = slide.get("caption")
+        if not caption or not str(caption).strip():
+            raise SystemExit(f"slide {index} has no caption")
+        captions.append(caption)
+    first_comment = spec.get("first_comment") or ""
+    article_path = _ISSUES / f"{article_slug}.mdx"
+    article = article_path.read_text()
+    check_captions(captions, article, first_comment)
+    out = ROOT / spec["out"]
+    out.mkdir(parents=True, exist_ok=True)
+    captions_txt, laptop_txt, _ = kit_texts(captions, first_comment, "")
+    (out / "captions.txt").write_text(captions_txt)
+    (out / "caption-laptop.txt").write_text(laptop_txt)
+    kit_path = pathlib.Path(spec_path).with_name(
+        pathlib.Path(spec_path).stem + "-distribution.md"
+    )
+    kit_path.write_text(
+        rewrite_instagram_section(kit_path.read_text(), captions, first_comment)
+    )
+
+
+def main(spec_path, *, captions_only=False, no_og=False):
     spec = json.loads(pathlib.Path(spec_path).read_text())
+    write_caption_kit(spec_path, spec)
+    if captions_only:
+        print(f"issue {spec['issue']}: captions -> {ROOT / spec['out']}")
+        return
+    from playwright.sync_api import sync_playwright
     issue = spec["issue"]
-    out = ROOT / spec["out"]; out.mkdir(parents=True, exist_ok=True)
+    out = ROOT / spec["out"]
+    out.mkdir(parents=True, exist_ok=True)
     slides = spec["slides"]
     n = len(slides)
 
@@ -209,26 +333,28 @@ def main(spec_path):
         f'<div class="foot">{html.escape(s.get("foot", spec["foot"]))}</div></div>'
         for i, s in enumerate(slides))
     doc = f'<!doctype html><meta charset="utf-8"><style>{css(W,H)}</style>{pages}'
-    tmp = out / "_render.html"; tmp.write_text(doc)
+    tmp = out / "_render.html"
+    tmp.write_text(doc)
 
     with sync_playwright() as p:
         br = p.chromium.launch()
         pg = br.new_page(viewport={"width": W, "height": H}, device_scale_factor=2)
-        pg.goto(tmp.as_uri()); pg.wait_for_timeout(1200)
+        pg.goto(tmp.as_uri())
+        pg.wait_for_timeout(1200)
         for i in range(1, n + 1):
             pg.locator(f"#s{i}").screenshot(
                 path=str(out / f"issue-{issue:03d}-slide-{i:02d}.png"))
-        og = spec.get("og")
+        og = None if no_og else spec.get("og")
         if og:
             ocss = css(1200, 630) + ".slide{padding:52px 60px 44px}"
             obars = "".join(
                 f'<div class="row" style="grid-template-columns:190px 1fr 96px;margin-bottom:9px">'
-                f'<div class="city" style="font-size:23px">{html.escape(l)}</div>'
+                f'<div class="city" style="font-size:23px">{html.escape(label)}</div>'
                 f'<div class="track" style="height:26px"><div class="fill'
                 f'{" dim" if i >= og.get("dim_from", 99) else ""}" '
                 f'style="width:{v/og["max"]*100:.1f}%"></div></div>'
                 f'<div class="val" style="font-size:22px">{d}</div></div>'
-                for i, (l, v, d) in enumerate(og["bars"]))
+                for i, (label, v, d) in enumerate(og["bars"]))
             odoc = (f'<!doctype html><meta charset="utf-8"><style>{ocss}</style>'
                     f'<div class="slide" id="og"><div class="rail" style="font-size:17px;margin-bottom:26px">'
                     f'<div class="mark"><span class="dot" style="width:19px;height:19px;border-width:2px"></span>MYRO</div>'
@@ -236,15 +362,26 @@ def main(spec_path):
                     f'<div class="body"><h1 style="font-size:41px;line-height:1.14;margin-bottom:26px;max-width:20ch">{og["h1"]}</h1>'
                     f'{obars}</div>'
                     f'<div class="foot" style="font-size:15px;padding-top:22px">{html.escape(og["foot"])}</div></div>')
-            otmp = out / "_og.html"; otmp.write_text(odoc)
+            otmp = out / "_og.html"
+            otmp.write_text(odoc)
             opg = br.new_page(viewport={"width": 1200, "height": 630}, device_scale_factor=2)
-            opg.goto(otmp.as_uri()); opg.wait_for_timeout(1000)
+            opg.goto(otmp.as_uri())
+            opg.wait_for_timeout(1000)
             opg.locator("#og").screenshot(path=str(ROOT / spec["og_out"]))
             otmp.unlink()
         br.close()
     tmp.unlink()
-    print(f"issue {issue}: {n} slides -> {out}" + (f"\nog -> {spec['og_out']}" if spec.get("og") else ""))
+    wrote_og = spec.get("og") and not no_og
+    print(
+        f"issue {issue}: {n} slides -> {out}"
+        + (f"\nog -> {spec['og_out']}" if wrote_og else "")
+    )
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    parser = argparse.ArgumentParser()
+    parser.add_argument("spec")
+    parser.add_argument("--captions-only", action="store_true")
+    parser.add_argument("--no-og", action="store_true")
+    args = parser.parse_args()
+    main(args.spec, captions_only=args.captions_only, no_og=args.no_og)

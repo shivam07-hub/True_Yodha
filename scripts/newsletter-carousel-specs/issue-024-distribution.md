@@ -68,3 +68,23 @@ Sales leads by a wide margin, at 54.8% of openings. Banking follows at 40.1%, le
 Tailor your CV to jobs like these. Link in bio.
 
 First comment: #jobsearch #bankingjobs #freshers #himyro
+
+### One caption, for the laptop
+
+If you are starting out in banking, one title covers nearly a quarter of the branch openings we tracked, and one bank posts it.
+
+Our agents read 220+ MNC career pages on 9 September 2026 and pulled close to 23,000 openings. 3,138 of them were frontline sales and branch banking roles in India.
+
+If you are starting out, start with Business Development Associate. Axis Bank posts all 763 of these openings, and every one is entry level.
+
+Axis posts the next three titles too. Further down come Inbound Sales Representative – Voice at Accenture (1.6%), Relationship Manager – Priority Banking at Axis (1.1%) and Elite Banker – Branch Banking at Kotak Mahindra Bank (0.8%).
+
+If you want an entry-level role, Kolkata asks for the least: 71.4% of openings, at an average minimum of 1.7 years. Bengaluru sits at the other end among the metros, at 25.8% and 4.3 years.
+
+Axis Bank posted 65.1% of the lane. Kotak Mahindra Bank posted 10.4%. The remaining 24.5% is spread across more than 60 employers.
+
+Axis leads in every big metro, from 62.2% of openings in Mumbai to 89.2% in Kolkata. Outside the big metros, the picture flips: Axis's share is 0.0% and Kotak's is 51.9%. Surat (17), Indore (12) and Rajkot (9) lead the named cities in that group.
+
+Sales leads by a wide margin, at 54.8% of openings. Banking follows at 40.1%, lead generation at 38.4% and financial services at 37.0%. Product knowledge sits alongside the selling.
+
+Tailor your CV to jobs like these. Link in bio.
