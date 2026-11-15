@@ -7,6 +7,7 @@ import { FeedCard, feedCardConfidenceClass, feedCardRereadClass } from "@/compon
 import { CapturePill } from "@/components/jobs/capture-pill"
 import { VirtualFeed } from "@/components/jobs/virtual-feed"
 import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
+import { readerLine } from "@/lib/jobs/reader-line"
 import { CardBrainBadges } from "./job-card"
 import { StoryCard, type FeedStory } from "./story-card"
 import { ShareJobButton } from "./share-job-button"
@@ -87,6 +88,7 @@ function MobileJobCard({
           onPointerUp: onUp,
           onPointerCancel: onUp,
         }}
+        lede={readerLine(job)}
         badges={<CardBrainBadges job={job} />}
         pulse={<PulseRow pulse={pulse} bare />}
         actions={

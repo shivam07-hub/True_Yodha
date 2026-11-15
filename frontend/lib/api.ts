@@ -3922,6 +3922,8 @@ export interface JobFeedItem {
    *  profile (every card for the 83% with one search), and also every card in
    *  the browse tail, which no search found at all. */
   track_id?: number | null
+  /** The line written to the reader. A missing line is no lede. */
+  pick_reason?: string | null
   is_strong?: boolean
   /** A real verdict from before the brain's rules or this person's facts last
    *  moved, listed after every current card and re-read in place. Shown as a
@@ -4010,8 +4012,8 @@ export interface MatchBrainResult {
   recommendation?: "Apply" | "Negotiate" | "Skip" | string | null
   summary?: string | null
   /** The line written TO the reader, second person, checked by reader_voice on
-   *  the way in. Absent until the row is re-rated under the v2 prompt, when the
-   *  surface falls back to `summary`. */
+   *  the way in. Absent until the row is rated under the v2 prompt. No summary
+   *  stands in for it. */
   pick_reason?: string | null
   application_angle?: string | null
   role_fit?: number | null

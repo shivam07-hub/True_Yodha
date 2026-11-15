@@ -25,6 +25,8 @@ import { SwipeCard } from "./swipe-card"
 import { SkipReasonChips } from "@/components/jobs/skip-reasons"
 import { MOBILE_REASON_CLASSES } from "./skip-reason-classes"
 import { feedItemToRow } from "./job-model"
+import { readerLine } from "@/lib/jobs/reader-line"
+import "@/components/jobs/agent-pick-lede.css"
 import { MobileAgentPicks } from "./agent-picks-mobile"
 import { useMobileUI } from "./mobile-ui"
 import { JobsMobileFeedRows } from "@/components/loading/mobile-page-skeletons"
@@ -318,6 +320,7 @@ export function JobsSurface({
                 first={i === 0}
                 hint={showSwipeHint && i === 0}
                 shared={sharedId === entry.row.id}
+                lede={readerLine(entry.job) ? <p className="tm-pick-lede-why">{readerLine(entry.job)}</p> : undefined}
                 onOpen={() => openDetail(entry.row.id)}
                 onSave={() => doSave(entry.job)}
                 onSkip={() => doSkip(entry.job)}

@@ -14,6 +14,8 @@ import { SetupNudge } from "@/components/common/setup-nudge"
 import { PasteJobEntry } from "@/components/job-import/paste-job-entry"
 import { VirtualFeed } from "@/components/jobs/virtual-feed"
 import { JobCard } from "./job-card"
+import { readerLine } from "@/lib/jobs/reader-line"
+import "@/components/jobs/agent-pick-lede.css"
 import { MobileFeed } from "./mobile-feed"
 import { FeedControls, FilterChips, LaneChips } from "./feed-filters"
 import { HostedBand, useHostedForYou } from "@/components/internships/hosted-band"
@@ -269,7 +271,7 @@ export function MarketJobsColumn({
                       companyAction={row.story.kind === "company" ? followCompany.action(row.story.company) : undefined}
                     />
                   ) : (
-                    <JobCard job={row.job} pulse={pulses.get(row.job.job_id)} hasCv={hasCv} onOpen={() => onOpenJob(row.job)} onSave={() => onSave(row.job)} onSkip={() => onSkip(row.job)} onTailor={() => { onSave(row.job); openTailor(row.job, "market") }} />
+                    <JobCard job={row.job} pulse={pulses.get(row.job.job_id)} hasCv={hasCv} lede={readerLine(row.job)} onOpen={() => onOpenJob(row.job)} onSave={() => onSave(row.job)} onSkip={() => onSkip(row.job)} onTailor={() => { onSave(row.job); openTailor(row.job, "market") }} />
                   )
                 }
               />

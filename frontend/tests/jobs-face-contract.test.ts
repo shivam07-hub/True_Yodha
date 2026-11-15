@@ -48,6 +48,7 @@ test("the drawer explains; it does not re-judge", () => {
   assert.match(take, /ArchetypeChip/)
   assert.match(take, /LegitimacyBadge/)
   assert.match(take, /application_angle/)
-  // The reader's own line wins over the evaluator's internal summary.
-  assert.match(take, /r\.pick_reason \|\| r\.summary/)
+  // The reader's own line. A missing one is nothing, not the evaluator's summary.
+  assert.match(take, /readerLine\(r\)/)
+  assert.doesNotMatch(take, /pick_reason \|\| .*\.summary/)
 })
