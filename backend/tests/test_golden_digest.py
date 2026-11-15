@@ -79,6 +79,76 @@ def _job(job_id: str, **over: Any) -> dict[str, Any]:
     return {"job_id": job_id, "job_title": "Analyst", "company_name": "Acme", **over}
 
 
+def _profile(**over: Any) -> dict[str, Any]:
+    base = {
+        "is_test_account": False,
+        "digest_unsubscribed_at": None,
+        "created_at": "2026-11-15T00:00:00+00:00",
+    }
+    base.update(over)
+    return base
+
+
+def test_the_callback_cohort_keeps_its_edges() -> None:
+    live = golden_digest.CALLBACK_SINCE
+    now = live + timedelta(days=10)
+    assert golden_digest.in_callback_cohort(_profile(created_at=live.isoformat()), now)
+    assert not golden_digest.in_callback_cohort(_profile(is_test_account=True), now)
+    assert not golden_digest.in_callback_cohort(
+        _profile(digest_unsubscribed_at="2026-11-16T00:00:00+00:00"), now,
+    )
+    day_before = (live - timedelta(days=1)).isoformat()
+    assert not golden_digest.in_callback_cohort(_profile(created_at=day_before), now)
+    assert golden_digest.in_callback_cohort(
+        _profile(created_at=live.isoformat()), live + timedelta(days=30),
+    )
+    assert not golden_digest.in_callback_cohort(
+        _profile(created_at=live.isoformat()), live + timedelta(days=31),
+    )
+
+
+def test_a_union_member_is_listed_once_and_keeps_the_golden_since() -> None:
+    golden = [{"user_id": "g", "golden_list_since": "2026-10-01T00:00:00+00:00", "email": "g@x"}]
+    cohort = [
+        {"user_id": "g", "created_at": "2026-11-15T00:00:00+00:00", "email": "g@x"},
+        {"user_id": "c", "created_at": "2026-11-16T00:00:00+00:00", "email": "c@x"},
+    ]
+    out = {row["user_id"]: row for row in golden_digest.digest_members(golden, cohort)}
+    assert set(out) == {"g", "c"}
+    assert out["g"]["golden_list_since"] == "2026-10-01T00:00:00+00:00"
+    assert out["c"]["golden_list_since"] == "2026-11-16T00:00:00+00:00"
+
+
+def test_a_cohort_first_send_lists_the_whole_list() -> None:
+    store, mailer = _Store(), _Mailer()
+    store.member["golden_list_since"] = "2026-11-15T00:00:00+00:00"
+    store.on_list = [_job("a", match_score=90), _job("b", match_score=80)]
+    send_due(NOW, store=store, mailer=mailer, apply=True, app_url=APP)
+    text = mailer.sent[0]["text"]
+    assert "jobId=a&" in text and "jobId=b&" in text
+    assert store.asked_since == []
+
+
+def test_the_three_day_cadence_holds_for_the_cohort() -> None:
+    store, mailer = _Store(), _Mailer()
+    store.member["golden_list_since"] = "2026-11-15T00:00:00+00:00"
+    store.worth = [_job("new-1")]
+    store.last = NOW - timedelta(days=1)
+    assert send_due(NOW, store=store, mailer=mailer, apply=True, app_url=APP).skipped == {"cadence": 1}
+
+
+def test_a_partner_signup_is_told_how_they_joined() -> None:
+    digest = Digest(user_id="u", unfinished=[], new=[], first=True)
+    text = golden_digest.render(
+        digest, app_url=APP, name="Asha", unsubscribe_url=None, joined_through="Finlatics",
+    )
+    assert "You joined through Finlatics." in text
+    other = golden_digest.render(
+        digest, app_url=APP, name="Asha", unsubscribe_url=None, joined_through="Campus Bridge",
+    )
+    assert "Campus Bridge" in other and "Finlatics" not in other
+
+
 def test_a_tailored_cv_not_yet_sent_leads_the_email() -> None:
     store, mailer = _Store(), _Mailer()
     store.open_cvs = [_job("tailored", company_name="PhonePe", job_title="Product Designer")]

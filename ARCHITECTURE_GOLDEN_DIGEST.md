@@ -8,6 +8,15 @@ narrowed to the people Shivam picks.
 > slice is its own commit on `Develop`, six gates green. Migrations are applied
 > by the agent before the code that reads them, then `NOTIFY pgrst`.
 
+> **Status 2026-11-15 — the callback cohort is in the same digest.** From
+> `CALLBACK_SINCE` (2026-11-15), a new signup who is not a test account and not
+> unsubscribed is a member for 30 days, once, with `created_at` as the first
+> `since`. Golden-list members keep their own `since`. `golden_list_since` is
+> not written for the cohort. Partner signups are included; the email names
+> `partners.name` when they have one. Live send stays blocked on R1 and R2 on
+> `main` and on Shivam approving the preview (S4). Dry run and `--preview-to`
+> can run. The preview must include at least one partner-SSO member.
+>
 > **Status 2026-10-18 — S1–S3 and the first-email rule are on `main` (#342,
 > 2026-10-17); S4 (preview → approve → schedule) waits on Shivam.** As built, 2026-10-13:
 > `services/golden_digest.py` (`compose`, `render`, `send_due`, the Supabase
