@@ -326,7 +326,7 @@ pass writes "Verified".
 | Chunk | State |
 |---|---|
 | R1 | Built 2026-11-15 (`e8b93503`). Verify pass 11-15: the diff, the six gates and the free door pass; no coin charged. **Not Verified**: the Accept row is unproven because the QA account's deck was empty on every live job tried. That proof is R2's walk (b). |
-| R2 | Spec revised 2026-11-15 from R1's verify pass: an empty deck hands over to the weave. Not built. |
+| R2 | Built 2026-11-15. |
 | R2b | Not specced. A closed listing answers the gap plan with 404 (`gap_plan.py:106` `get_job_skills` reads live rows only; the weave reads the saved snapshot), so the deck shows "Couldn't read your gaps". Seen on one closed job. A rare door: decide after R2. |
 | R3 | Spec only. |
 | R4 | Spec only. |

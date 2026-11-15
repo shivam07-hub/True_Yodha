@@ -96,6 +96,12 @@ export function useTailorLanding(opts: {
       setFocusGap(requirement ?? null)
       setOverlay("gaps")
     },
+    // An empty first deck has nothing to accept. Open the weave offer.
+    // The person runs it; this does not.
+    openWeave: () => {
+      setFocusGap(null)
+      setOverlay("weave")
+    },
     close: () => {
       setOverlay(null)
       setFocusGap(null)

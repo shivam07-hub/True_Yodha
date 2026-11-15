@@ -88,6 +88,7 @@ export function PlaygroundView({
   const {
     selectedVersion, hiddenItems, toggleItem, autosaving, autosaved,
     sectionOrder, setSectionOrder, patchJobCv, patchJobCvPending,
+    versionsLoading, versionsError, allVersions,
   } = playground
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -315,6 +316,13 @@ export function PlaygroundView({
     closableGaps: gapCount,
     mentorRequested,
   })
+  // A job document is a cv_versions row for this job. Until that read settles,
+  // the session does not guess.
+  const firstLanding = versionsLoading
+    ? null
+    : versionsError
+      ? false
+      : !allVersions.some(v => v.job_id === jobId)
 
   const header = (
     <>
@@ -454,6 +462,8 @@ export function PlaygroundView({
           jobId={jobId}
           score={m.ready}
           focusRequirement={tailor.focusGap}
+          firstLanding={firstLanding}
+          onNothingToWalk={tailor.openWeave}
           onApplied={surfaced => {
             // The surfacing wrote the master (a latent skill is a fact, not JD
             // phrasing). Put the same line on this job's draft too, or the user
