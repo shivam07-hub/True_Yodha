@@ -84,18 +84,31 @@ R4 and R6 both touch `lib/api.ts`, in different types. Rebase before you commit.
 overlay with a 50-coin lead (`willCharge("proof")`, `use-tailor-landing.ts:80`).
 The free gap step, which already writes the job's own CV, sits behind it.
 
-**Do.** In `landingStep`, for `proposal === "none"` and `!acceptComplete`: if
-`closableGaps > 0`, return `"gaps"`. If `closableGaps === 0`, keep `"proof"`:
-nothing is left to surface, so the weave is the only move. `null` already waits
-(`ready` is false). `autoOpens` and `overlayFor` need no change. Update the
-2026-10-19 comment to say why the first door is free.
+**Do.** In `landingStep`, for `proposal === "none"` and `!acceptComplete`:
+return `closableGaps === 0 ? "proof" : "gaps"`. A known 0 keeps `"proof"`:
+nothing is left to surface, so the weave is the only move. `null` lands on
+`"gaps"`, the same rule the two lines beside it already use for `null`.
+`autoOpens` and `overlayFor` need no change. Update the 2026-10-19 comment to
+say why the first door is free.
+
+**`null` does not wait** (corrected 2026-11-15; this spec first said it did).
+For this branch `ready` is true as soon as the weave GET succeeds
+(`use-tailor-landing.ts:58-60`), and the open effect latches on that step.
+Leave `ready` alone. `closableGaps` comes from `jd-coverage`, a model read with
+`retry: false` (`use-playground-model.ts:69-75`): on a first visit it lands
+seconds after the weave GET, and it can fail. Waiting on it would hold the door
+shut, or never open it, which is the bare editor of 2026-10-19 again. So a
+first visit opens the free deck at once. If coverage later says 0, the deck has
+already read its own plan and closes on "No gaps to close"; the weave stays on
+the header with its price.
 
 **Do not.** Change the weave's price or `willCharge`. Add a `TailorStep` value.
+Touch `use-tailor-landing.ts`.
 
 **Tests.** `tests/tailor-order-landing.test.ts`: never-tailored with gaps →
-`"gaps"` and `willCharge` is false. Never-tailored with 0 gaps → `"proof"`.
-Stale → `"weave"`, still charges. `tests/core-loop-tailor-contract.test.ts`
-unchanged and green.
+`"gaps"` and `willCharge` is false. Never-tailored with `null` → `"gaps"`,
+`willCharge` false. Never-tailored with 0 gaps → `"proof"`. Stale → `"weave"`,
+still charges. `tests/core-loop-tailor-contract.test.ts` unchanged and green.
 
 **Done when.** A QA account opens `/cv?jobId=` for a job it never tailored, the
 gap deck opens by itself, no coin cost is shown, and one Accept leaves a
