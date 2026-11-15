@@ -1,0 +1,6 @@
+---
+description: Update BACKLOG.md in the same commit that ships a slice
+alwaysApply: true
+---
+
+When a slice ships, the same commit updates that item's row in BACKLOG.md. Write what shipped: the slice, the date, and the sha. Leave the row while later slices are still open. A chunk prompt that limits files still includes BACKLOG.md for that row.

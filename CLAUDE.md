@@ -73,7 +73,8 @@ Every pass is in `backend/app/services/forward_pass.py`; `PASSES` answers "what 
   it is on `main` and one real user has hit it.
 - **Commit finished work to `Develop` — standing approval, no need to ask.**
   When green, `git add` ONLY your own files, commit, push. **Never `git add -A`
-  or `.`** — the tree usually holds someone else's uncommitted work.
+  or `.`** — the tree usually holds someone else's uncommitted work. The same
+  commit updates that item's row in [BACKLOG.md](BACKLOG.md).
 - **Supabase migrations — apply them yourself, BEFORE pushing the code that
   reads them.** Then `NOTIFY pgrst, 'reload schema';` and spot-check. Additive,
   reversible; destructive needs Shivam. `/health/ready` names a missing column.
@@ -195,5 +196,4 @@ it**; `match_quality.py` that they were the RIGHT jobs. Reach: `loop_reach.py`.
 - **No session summaries here.** Git log holds those.
 - **Never write "OWED: main merge" or "OWED: deploy dev".** Railway deploys
   `Develop` automatically. Notice closes merge `main` themselves.
-- **If you cannot check a claim in seconds, do not write it.**
-- **This file stays under 200 lines.** Past that, something belongs elsewhere.
+- **If you cannot check a claim in seconds, do not write it.** This file stays under 200 lines.

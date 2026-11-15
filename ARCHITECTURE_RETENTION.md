@@ -318,7 +318,8 @@ Read CLAUDE.md, then ARCHITECTURE_RETENTION.md in full. Build chunk R1 only.
    chunk does not name: no new editor, endpoint, CV kind, stage, mailer, cron,
    notification kind or button label.
 3. Touch only the files your lane owns (section 3 table) plus the tests the
-   chunk names. If you need any other file, stop and ask.
+   chunk names, plus BACKLOG.md for this chunk's row. If you need any other
+   file, stop and ask.
 4. Write the chunk's tests first and watch them fail. Then write the code.
 5. Anything the chunk marks BLOCKED or "Do not" stays unbuilt and switched off.
 6. A migration is applied before the code that reads it, then
@@ -326,7 +327,9 @@ Read CLAUDE.md, then ARCHITECTURE_RETENTION.md in full. Build chunk R1 only.
 7. Run all six gates from CLAUDE.md. Paste the last lines of each.
 8. git add only the files you changed, never -A or a dot. One commit on Develop,
    then push. Never touch main.
-9. In that commit, set the chunk's row in section 5 to "Built {today}".
+9. In that commit, set the chunk's row in section 5 to "Built {today}", and
+   write the same fact on the #62 row in BACKLOG.md. Leave the row while later
+   chunks are still open.
 10. Reply with: the files changed, the gate output, and the proof the chunk asks
     for under "Done when". If the proof needs a QA walk or a SQL read, do it and
     paste the result. If you could not do it, say so. Do not write "done".
