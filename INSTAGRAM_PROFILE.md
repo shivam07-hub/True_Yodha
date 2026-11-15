@@ -116,17 +116,18 @@ first comment. The bio link stays as it is.
 
 | # | When (IST) | Post | Files | Copy |
 |---|---|---|---|---|
-| 1 | Sat 7 Nov, 10:00 | Fill reel, 22 s (was planned for 31 Oct) | `brag-output-2026-10-20-155052/brag.mp4` | Its `instagram.txt` |
-| 2 | Wed 11 Nov, 19:00 | Issue 024 carousel, 7 slides | `Myro Newsletter/Issue 024 - carousel/` | `scripts/newsletter-carousel-specs/issue-024-distribution.md` |
-| 3 | Sat 14 Nov, 10:00 | Match reel, 22 s | `brag-output-2026-10-20-134012/brag.mp4` | Its `instagram.txt` |
-| 4 | Wed 18 Nov, 19:00 | Issue 023 carousel, 7 slides | `Myro Newsletter/Issue 023 - carousel/` | `scripts/newsletter-carousel-specs/issue-023-distribution.md` |
+| 1 | Wed 18 Nov, 19:00 | Issue 024 carousel, 7 slides (was 11 Nov) | `Myro Newsletter/Issue 024 - carousel/` | `scripts/newsletter-carousel-specs/issue-024-distribution.md` |
+| 2 | Sat 21 Nov, 10:00 | Fill reel, 22 s (was 7 Nov) | `brag-output-2026-10-20-155052/brag.mp4` | Its `instagram.txt` |
+| 3 | Wed 25 Nov, 19:00 | Issue 023 carousel, 7 slides | `Myro Newsletter/Issue 023 - carousel/` | `scripts/newsletter-carousel-specs/issue-023-distribution.md` |
+| 4 | Sat 28 Nov, 10:00 | Match reel, 22 s (was 14 Nov) | `brag-output-2026-10-20-134012/brag.mp4` | Its `instagram.txt` |
+| 5 | Wed 2 Dec, 19:00 | Issue 021 carousel, once #64 B2 and B3 are built | `Myro Newsletter/Issue 021 - carousel/` | `scripts/newsletter-carousel-specs/issue-021-distribution.md` |
 
 A new issue takes the next Wednesday ahead of this list. Issue 26 is held until
 EY is back in the live set (NEWSLETTER_QUEUE). Issue 25's figures are dated
 20 October, before EY dropped out on 27 October, so the hold does not touch it.
 
-Left out: issue 021, which has no Instagram caption, no tracker row and an empty
-slide folder.
+The kits, issue 021's kit, reels through Publish and a dead-token alarm are
+Cursor's: [ARCHITECTURE_BRAND_DISTRIBUTION.md](ARCHITECTURE_BRAND_DISTRIBUTION.md) (#64).
 
 ## Before each post
 

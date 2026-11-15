@@ -25,6 +25,7 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 | 6 | Pay | **#56** the ₹199 Apply Pack | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Cursor, 4th | Spec only, no commits · S1 settlement |
 | 3 | Repeat | **#61** Myro on Android (TWA), buying hidden, then Play billing | [ARCHITECTURE_APK.md](ARCHITECTURE_APK.md) · Cursor, next | S1–S4, S6–S8 on `Develop`. S8 closed 2026-11-08: `/account/delete`. Next: S9, blocked on the new upload-key SHA-256. Phase 2 waits on #56. Shivam: D-U-N-S, new upload key |
 | 4 | Front door | **#63** Myro in Claude and ChatGPT (MCP): sign in with the Myro account, see the judged list, add a job, tailor, record "I applied" | [ARCHITECTURE_MCP.md](ARCHITECTURE_MCP.md) · Cursor | Spec only, no commits. M1–M3 collide with nothing; M4 needs #62 R3. **Gate G waits on Shivam**: Supabase OAuth server on, after M1–M3 reach `main`. Order against #56 is Shivam's call |
+| 4 | Front door | **#64** brand distribution: one command per issue kit (B1), issue 021's kit (B2), kit → tracker (B3), reels through Publish to Instagram (B4), a dead Instagram token opens a Notice (B5) | [ARCHITECTURE_BRAND_DISTRIBUTION.md](ARCHITECTURE_BRAND_DISTRIBUTION.md) · Cursor, beside #62 (no shared files) · paste prompt in §6 | Spec only. B1 → B3 → B2 → B4 → B5. Live reels and B5 wait on Shivam's Meta setup. Until then Claude posts the overdue Instagram queue with Shivam (024 on 18 Nov) |
 
 **Cursor's order (Shivam, 2026-10-14; #61 added 2026-11-03):** #57 → #58 → #61
 Phase 1 → #60 → #56 → #61 Phase 2. The biggest absolute leak first (553 of 1,002
@@ -34,7 +35,8 @@ jobs flow again; pay after the value. #61 S5 shipped with #58 S5 (`4b9be63d`). S
 
 Specs Cursor builds from, each slice its own commit with six gates green:
 PAYMENTS (#56) · FRONT_DOOR (#57) · CV_TIER_A (#58) · GOLDEN_DIGEST (#59) ·
-SKILL_EVIDENCE (#60) · APK (#61) · RETENTION (#62) · MCP (#63).
+SKILL_EVIDENCE (#60) · APK (#61) · RETENTION (#62) · MCP (#63) ·
+BRAND_DISTRIBUTION (#64).
 
 ---
 
@@ -432,7 +434,8 @@ Tracker (3) · no problem or not actionable (~25).
      image: [INSTAGRAM_PROFILE.md](INSTAGRAM_PROFILE.md).
   2. Mark LinkedIn issues 020, 022 and the loop video posted in `/admin/growth`,
      with their links. They are live, and the rows still say unposted.
-  3. Listen to the Fill video's soundtrack before Thu 5 Nov.
+  3. Listen to the fill reel's soundtrack before Sat 21 Nov, and the match reel's
+     before Sat 28 Nov.
   4. Connect @myrojobs to the tracker's Publish to Instagram: a Meta app, a token,
      two Railway variables on prod. Six steps in
      [INSTAGRAM_PROFILE.md](INSTAGRAM_PROFILE.md). The button reaches himyro.com
