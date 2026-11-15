@@ -71,7 +71,7 @@ the same time. Inside a lane, run the chunks in order.
 
 | Lane | Chunks | Files it owns |
 |---|---|---|
-| A · tailor room | R1 → R2 | `lib/cv/tailor-order.ts`, `components/cv/builder/gap-session.tsx` |
+| A · tailor room | R1 → R2 | `lib/cv/tailor-order.ts`, `components/cv/builder/gap-session.tsx`, and for R2 `components/cv/builder/use-tailor-landing.ts`, `components/cv/builder/playground-view.tsx` |
 | B · feed card | R3 → R4 | `repositories/jobs.py` (badge cols), `routers/jobs/list.py`, `schemas/jobs.py`, `components/market/*`, `components/jobs/myro-take.tsx`, `components/collections/collection-rows.tsx`, `mobile/redesign/swipe-card.tsx` |
 | C · call-back email | R5 | `services/golden_digest.py`, `ARCHITECTURE_GOLDEN_DIGEST.md` |
 | D · upload drop | R6 | one migration, `routers/telemetry.py`, `lib/api.ts` `CoreLoopStep`, `components/onboarding/experience-step.tsx` |
@@ -116,25 +116,54 @@ gap deck opens by itself, no coin cost is shown, and one Accept leaves a
 (`playground-view.tsx:457` → `patchJobCv`). Read the row in SQL; do not trust
 the screen.
 
-### R2 · The first gap deck is short, with no score in front
+### R2 · The first gap deck is short, has no score in front, and is never a dead end
 
 **Why.** The 2026-10-19 read: people faced with a 0/100 score, a rail and four
 buttons pressed nothing. GapSession's header shows a live JD-match meter
 (`LiveMeter`), which starts at a low number in front of the first card.
 
-**Do.** When GapSession opens as the first landing (no job document yet), walk
-at most 3 cards, latent first (the deck is already built at
-`gap-session.tsx:102-111`; slice it there). Hide the meter until the first
-Accept moves it. A deck with 0 walkable cards (every gap is `absent`) leaves
-through the existing closing panel, unchanged.
+**What R1's verify pass found, 2026-11-15.** With the QA account, R1's door
+opened by itself on live never-tailored jobs and charged nothing. On every one
+the deck had no card to accept: the gap plan returned 0 walkable cards on 9 of 9
+live jobs probed. The person pressed Tailor CV and got "Build these in practice"
+and Done. Before R1 that person was at least offered the weave. The QA CV is
+thin (5 skills, 11 bullets; the real median is 13 skills), so how often a real
+deck is empty is not known. It must still lead somewhere that tailors.
+
+The paid door first is not the answer either. Since 2026-10-22 the weave offer
+auto-opened for 5 real people (`mentor_opened`, surface `auto`). None ran it
+(`weave_ran`: 0).
+
+**Do.**
+1. When GapSession opens as the first landing (no job document yet), walk at
+   most 3 cards, latent first (the deck is already built at
+   `gap-session.tsx:102-111`; slice it there). Hide the meter until the first
+   Accept moves it.
+2. First landing, and the plan loads with 0 walkable cards: do not render the
+   closing panel. `GapSession` calls a new `onNothingToWalk` once.
+   `use-tailor-landing.ts` gains `openWeave()` beside `openGapsMap()`, and the
+   playground answers the callback with it. A later visit to the same job keeps
+   today's closing panel.
+3. Closing panel: show the climb only when `resolved > 0`. `startScore` is
+   captured at mount, before the score has loaded, so the panel read
+   "0% → 68%" with nothing surfaced.
 
 **Do not.** Write the master or the job draft differently: the playground's
-`onApplied` already does both. Touch the no-fabrication guard.
+`onApplied` already does both. Touch the no-fabrication guard. Decide the
+hand-over in `landingStep`: it cannot know the deck, only the loaded plan can.
+Run the weave for the person: the hand-over opens the offer, they press.
 
 **Tests.** A component test: first landing → ≤3 cards, no meter before an
-accept, meter after one. A later visit to the same job → full deck.
+accept, meter after one. A later visit to the same job → full deck. First
+landing with an empty deck → `onNothingToWalk` fires once and no closing panel.
+A later visit with an empty deck → the closing panel. No climb when nothing
+was surfaced.
 
-**Done when.** R1's "done when", walked at 375px.
+**Done when.** Two QA walks, desktop and 375px. (a) A job whose deck is empty
+lands on the weave offer, and no coin moves until the person runs it. (b) A job
+with a card: one Accept leaves the `cv_versions` row R1 names. Walk (b) needs a
+QA CV that yields a card. Today's does not, so give the QA account a fuller CV
+first.
 
 ### R3 · The feed card says why
 
@@ -240,7 +269,9 @@ them. If the email needs to say how they joined, take `partners.name` (via
 every return this brings is partner revenue too.
 
 **BLOCKED for the live send.** The dry run and `--preview-to` can ship. Turning it
-on waits on (a) R1 on `main` and (b) Shivam approving the preview (digest S4).
+on waits on (a) R1 and R2 on `main` (the email's links land on that door, and
+R1 alone can end on a list of skills) and (b) Shivam approving the preview
+(digest S4).
 The preview must include at least one partner-SSO member.
 
 ### R6 · Measure the upload drop before redesigning it
@@ -294,11 +325,12 @@ pass writes "Verified".
 
 | Chunk | State |
 |---|---|
-| R1 | Built 2026-11-15. |
-| R2 | Spec only. |
+| R1 | Built 2026-11-15 (`e8b93503`). Verify pass 11-15: the diff, the six gates and the free door pass; no coin charged. **Not Verified**: the Accept row is unproven because the QA account's deck was empty on every live job tried. That proof is R2's walk (b). |
+| R2 | Spec revised 2026-11-15 from R1's verify pass: an empty deck hands over to the weave. Not built. |
+| R2b | Not specced. A closed listing answers the gap plan with 404 (`gap_plan.py:106` `get_job_skills` reads live rows only; the weave reads the saved snapshot), so the deck shows "Couldn't read your gaps". Seen on one closed job. A rare door: decide after R2. |
 | R3 | Spec only. |
 | R4 | Spec only. |
-| R5 | Spec only. Finlatics users included (Shivam, 2026-11-12). Live send blocked on R1 on `main` + Shivam approving the preview. |
+| R5 | Spec only. Finlatics users included (Shivam, 2026-11-12). Live send blocked on R1 and R2 on `main` + Shivam approving the preview. |
 | R6 | Spec only. |
 
 ---
