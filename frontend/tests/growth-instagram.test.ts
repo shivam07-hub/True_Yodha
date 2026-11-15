@@ -29,7 +29,7 @@ test("issue 25's eight captions fit Instagram's caption limit as one", () => {
 })
 
 test("the laptop block is the same fold as the slide captions", () => {
-  for (const issue of ["023", "024", "025"]) {
+  for (const issue of ["021", "023", "024", "025"]) {
     const kit = readFileSync(
       new URL(`../../scripts/newsletter-carousel-specs/issue-${issue}-distribution.md`, import.meta.url),
       "utf8",
