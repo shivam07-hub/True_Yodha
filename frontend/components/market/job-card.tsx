@@ -5,10 +5,12 @@ import { PulseRow } from "@/components/dashboard/card-atoms"
 import { FeedCard, feedCardConfidenceClass, feedCardRereadClass } from "@/components/jobs/feed-card"
 import { LegitimacyBadge } from "@/components/jobs/match-brain"
 import { CapturePill } from "@/components/jobs/capture-pill"
+import { cvForRolePath, hostedApplyPath } from "@/lib/jobs/apply-transport"
 import { ageLabel, feedDataFromFeedItem } from "@/lib/jobs/card-view"
 import { MODE_LABEL } from "@/lib/jobs/card-logistics"
 import Link from "next/link"
 import { ShareJobButton } from "@/components/market/share-job-button"
+import { ApplyAction } from "@/components/jobs/apply-action"
 
 // ── shared helpers (used by card, drawer, mobile feed) ───────────────────────
 
@@ -48,15 +50,19 @@ export function LocationLine({ job }: { job: JobFeedItem }) {
 
 // ── triage buttons (Skip / Save / Tailor CV — the curation front door) ───────
 
-export function TriageButtons({ job, onSave, onSkip, onTailor }: {
+export function TriageButtons({ job, onSave, onSkip, onTailor, token, stage }: {
   job: JobFeedItem
   onSave: () => void
   onSkip: () => void
   /** Save this job and open the CV editor for it. The card's primary action:
    *  Save is the quiet outline beside it (capture-pill.css). */
   onTailor?: () => void
+  token?: string
+  stage?: string
 }) {
   const label = job.job_title ? `${job.job_title}${job.company_name ? ` at ${job.company_name}` : ""}` : undefined
+  const hosted = job.listing_venue === "myro"
+  const tailored = stage === "tailored"
   return (
     <div style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
       <button
@@ -72,22 +78,58 @@ export function TriageButtons({ job, onSave, onSkip, onTailor }: {
           pill only ever shows its rest state here; the confirmation + next-step
           live in the upgraded triage band. */}
       <CapturePill status="rest" onSave={onSave} label={label} />
-      {job.listing_venue === "myro" ? (
-        <Link
-          href={`/internships/${encodeURIComponent(job.job_id)}/apply`}
-          aria-label={label ? `Apply here for ${label}` : "Apply here"}
-          onClick={e => e.stopPropagation()}
-          className="tm-triage-btn tm-triage-tailor"
-        >
-          Apply here
-        </Link>
-      ) : null}
-      {onTailor ? (
+      {hosted ? (
+        <>
+          {tailored ? null : (
+            <Link
+              href={cvForRolePath(job.job_id)}
+              aria-label={label ? `CV for ${label}` : "CV for this role"}
+              onClick={e => e.stopPropagation()}
+              className="tm-triage-btn tm-triage-tailor"
+            >
+              CV for this role
+            </Link>
+          )}
+          <Link
+            href={hostedApplyPath(job.job_id)}
+            aria-label={label ? `Apply here for ${label}` : "Apply here"}
+            onClick={e => e.stopPropagation()}
+            className={tailored ? "tm-triage-btn tm-triage-tailor" : "tm-triage-btn tm-triage-skip"}
+          >
+            Apply here
+          </Link>
+        </>
+      ) : tailored && token ? (
+        <>
+          <ApplyAction
+            token={token}
+            job={{
+              job_id: job.job_id,
+              source_url: job.source_url,
+              company: job.company_name,
+              listing_venue: job.listing_venue,
+            }}
+            surface="market"
+            intentSurface="market"
+            className="tm-triage-btn tm-triage-tailor"
+          />
+          {onTailor ? (
+            <button
+              type="button"
+              aria-label={label ? `Tailor CV for ${label}` : "Tailor CV for this job"}
+              onClick={e => { e.stopPropagation(); onTailor() }}
+              className="tm-triage-btn tm-triage-skip"
+            >
+              Tailor CV
+            </button>
+          ) : null}
+        </>
+      ) : onTailor ? (
         <button
           type="button"
           aria-label={label ? `Tailor CV for ${label}` : "Tailor CV for this job"}
           onClick={e => { e.stopPropagation(); onTailor() }}
-          className={job.listing_venue === "myro" ? "tm-triage-btn tm-triage-skip" : "tm-triage-btn tm-triage-tailor"}
+          className="tm-triage-btn tm-triage-tailor"
         >
           Tailor CV
         </button>
@@ -108,7 +150,7 @@ export function CardBrainBadges({ job }: { job: JobFeedItem }) {
 // ── the card (web list) ──────────────────────────────────────────────────────
 
 export function JobCard({
-  job, pulse, hasCv, onOpen, onSave, onSkip, onTailor, lede,
+  job, pulse, hasCv, onOpen, onSave, onSkip, onTailor, lede, token, stage,
 }: {
   job: JobFeedItem
   pulse?: JobPulse
@@ -119,6 +161,8 @@ export function JobCard({
   onTailor?: () => void
   /** Agent Picks pass Myro's reason for the pick; the feed passes nothing. */
   lede?: React.ReactNode
+  token?: string
+  stage?: string
 }) {
   return (
     <FeedCard
@@ -128,7 +172,7 @@ export function JobCard({
       onOpen={onOpen}
       badges={<CardBrainBadges job={job} />}
       pulse={<PulseRow pulse={pulse} bare />}
-      actions={<TriageButtons job={job} onSave={onSave} onSkip={onSkip} onTailor={onTailor} />}
+      actions={<TriageButtons job={job} onSave={onSave} onSkip={onSkip} onTailor={onTailor} token={token} stage={stage} />}
       lede={lede}
     />
   )

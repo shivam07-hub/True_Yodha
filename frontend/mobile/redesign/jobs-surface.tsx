@@ -25,6 +25,7 @@ import { SwipeCard } from "./swipe-card"
 import { SkipReasonChips } from "@/components/jobs/skip-reasons"
 import { MOBILE_REASON_CLASSES } from "./skip-reason-classes"
 import { feedItemToRow } from "./job-model"
+import { useCollection } from "@/lib/collections/use-collection"
 import { readerLine } from "@/lib/jobs/reader-line"
 import "@/components/jobs/agent-pick-lede.css"
 import { MobileAgentPicks } from "./agent-picks-mobile"
@@ -64,6 +65,7 @@ export function JobsSurface({
   exploredCareerBands, onExploredCareerBandsChange,
 }: JobsSurfaceProps) {
   const router = useRouter()
+  const collection = useCollection(token)
   const { snack, closeSnack } = useMobileUI()
   // Myro Search (the paid re-vet run) — one shared wiring across every surface.
   const { run: runMyroSearch, tellMyro, isRefreshing, gate: myroSearchGate } = useMyroSearch(token)
@@ -326,6 +328,14 @@ export function JobsSurface({
                 onSkip={() => doSkip(entry.job)}
                 onShare={() => doShare(entry.job)}
                 onTailor={() => tailorFromCard(entry.job)}
+                tailorState={{
+                  token,
+                  stage: collection.byId.get(entry.job.job_id)?.stage,
+                  hosted: entry.job.listing_venue === "myro",
+                  jobId: entry.job.job_id,
+                  sourceUrl: entry.job.source_url,
+                  company: entry.job.company_name,
+                }}
               />
             ),
           )

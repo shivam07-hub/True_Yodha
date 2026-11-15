@@ -329,7 +329,7 @@ pass writes "Verified".
 | R2 | Built 2026-11-15. |
 | R2b | Not specced. A closed listing answers the gap plan with 404 (`gap_plan.py:106` `get_job_skills` reads live rows only; the weave reads the saved snapshot), so the deck shows "Couldn't read your gaps". Seen on one closed job. A rare door: decide after R2. |
 | R3 | Built 2026-11-15. |
-| R4 | Spec only. |
+| R4 | Built 2026-11-15. |
 | R5 | Built 2026-11-15. Finlatics users included (Shivam, 2026-11-12). Live send blocked on R1 and R2 on `main` + Shivam approving the preview. |
 | R6 | Spec only. |
 

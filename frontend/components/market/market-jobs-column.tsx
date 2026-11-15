@@ -65,6 +65,7 @@ export function MarketJobsColumn({
   onStoryPrimary,
   onStorySecondary,
   onReadMore,
+  stageOf,
 }: {
   token: string
   hasCv: boolean
@@ -105,6 +106,7 @@ export function MarketJobsColumn({
   onStorySecondary: (s: FeedStory) => void
   /** POST /jobs/feed/read-more, then re-read the list while it reads. */
   onReadMore: () => Promise<void>
+  stageOf?: (jobId: string) => string | undefined
 }) {
   const router = useRouter()
   const internLane = filters.lane !== "jobs"
@@ -271,7 +273,7 @@ export function MarketJobsColumn({
                       companyAction={row.story.kind === "company" ? followCompany.action(row.story.company) : undefined}
                     />
                   ) : (
-                    <JobCard job={row.job} pulse={pulses.get(row.job.job_id)} hasCv={hasCv} lede={readerLine(row.job)} onOpen={() => onOpenJob(row.job)} onSave={() => onSave(row.job)} onSkip={() => onSkip(row.job)} onTailor={() => { onSave(row.job); openTailor(row.job, "market") }} />
+                    <JobCard job={row.job} pulse={pulses.get(row.job.job_id)} hasCv={hasCv} lede={readerLine(row.job)} token={token} stage={stageOf?.(row.job.job_id)} onOpen={() => onOpenJob(row.job)} onSave={() => onSave(row.job)} onSkip={() => onSkip(row.job)} onTailor={() => { onSave(row.job); openTailor(row.job, "market") }} />
                   )
                 }
               />
