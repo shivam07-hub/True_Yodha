@@ -301,8 +301,9 @@ Read CLAUDE.md, then ARCHITECTURE_RETENTION.md in full. Build chunk R1 only.
 1. Before any edit, open every file the chunk cites and check the cited lines
    still say what the spec says. If one does not, stop and tell me what you
    found. Do not improvise around it.
-2. Section 2 names the one owner of each answer. Reuse it. No new editor,
-   endpoint, CV kind, stage, mailer, cron, notification kind or button label.
+2. Section 2 names the one owner of each answer. Reuse it. Add nothing the
+   chunk does not name: no new editor, endpoint, CV kind, stage, mailer, cron,
+   notification kind or button label.
 3. Touch only the files your lane owns (section 3 table) plus the tests the
    chunk names. If you need any other file, stop and ask.
 4. Write the chunk's tests first and watch them fail. Then write the code.

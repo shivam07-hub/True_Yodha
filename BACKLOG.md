@@ -24,6 +24,7 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 | 1 | Find the job | **#60** a tag must be able to say why it exists | [ARCHITECTURE_SKILL_EVIDENCE.md](ARCHITECTURE_SKILL_EVIDENCE.md) · Cursor, 3rd | Spec only, no commits · S0 audit |
 | 6 | Pay | **#56** the ₹199 Apply Pack | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Cursor, 4th | Spec only, no commits · S1 settlement |
 | 3 | Repeat | **#61** Myro on Android (TWA), buying hidden, then Play billing | [ARCHITECTURE_APK.md](ARCHITECTURE_APK.md) · Cursor, next | S1–S4, S6–S8 on `Develop`. S8 closed 2026-11-08: `/account/delete`. Next: S9, blocked on the new upload-key SHA-256. Phase 2 waits on #56. Shivam: D-U-N-S, new upload key |
+| 4 | Front door | **#63** Myro in Claude and ChatGPT (MCP): sign in with the Myro account, see the judged list, add a job, tailor, record "I applied" | [ARCHITECTURE_MCP.md](ARCHITECTURE_MCP.md) · Cursor | Spec only, no commits. M1–M3 collide with nothing; M4 needs #62 R3. **Gate G waits on Shivam**: Supabase OAuth server on, after M1–M3 reach `main`. Order against #56 is Shivam's call |
 
 **Cursor's order (Shivam, 2026-10-14; #61 added 2026-11-03):** #57 → #58 → #61
 Phase 1 → #60 → #56 → #61 Phase 2. The biggest absolute leak first (553 of 1,002
@@ -33,7 +34,7 @@ jobs flow again; pay after the value. #61 S5 shipped with #58 S5 (`4b9be63d`). S
 
 Specs Cursor builds from, each slice its own commit with six gates green:
 PAYMENTS (#56) · FRONT_DOOR (#57) · CV_TIER_A (#58) · GOLDEN_DIGEST (#59) ·
-SKILL_EVIDENCE (#60) · APK (#61) · RETENTION (#62).
+SKILL_EVIDENCE (#60) · APK (#61) · RETENTION (#62) · MCP (#63).
 
 ---
 
