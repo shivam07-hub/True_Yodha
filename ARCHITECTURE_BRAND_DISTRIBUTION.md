@@ -263,7 +263,7 @@ pass writes "Verified".
 |---|---|
 | B1 | Built 2026-11-15. |
 | B2 | Spec only. Waits on B1. |
-| B3 | Spec only. Waits on B1. |
+| B3 | Built 2026-11-15. |
 | B4 | Spec only. Live post BLOCKED on Shivam's Meta setup. |
 | B5 | Spec only. |
 | Footer link to @myrojobs | Not needed: already in `public-footer.tsx` (checked 2026-11-15). |
