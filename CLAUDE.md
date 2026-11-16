@@ -129,7 +129,7 @@ Jobs come from the scraper repo (Shivam's); this repo only reads them.
 | Read-path budget · latency ledger · funnel | [ARCHITECTURE_READ_PATH.md](ARCHITECTURE_READ_PATH.md) · [READ_PATH_PLAYBOOK.md](READ_PATH_PLAYBOOK.md) |
 | Closed work, parked ideas, history | [ARCHIVE.md](ARCHIVE.md) |
 | Domain language and code seams | [CONTEXT.md](CONTEXT.md) |
-| Architecture map of the code (AST, 2026-06-14 — rebuild before trusting) | `graphify-out/GRAPH_REPORT_frontend.md` |
+| The loop as a graph: specs, decisions and the code they name. Rebuild: `scripts/graphify_loop.py` | `graphify-out/GRAPH_REPORT_loop.md` (frontend AST of 2026-06-14, stale: `GRAPH_REPORT_frontend.md`) |
 | **Every loop + its production reach number** | [FEATURE_LOOP_REGISTRY.md](docs/FEATURE_LOOP_REGISTRY.md) |
 | Upstream repos we build with · launch-video rules (`/myro-brag`) | [repos/README.md](repos/README.md) · [LAUNCH_VIDEOS.md](LAUNCH_VIDEOS.md) |
 
@@ -143,7 +143,7 @@ put new docs at the repo root; exception `docs/adr/` (held by
 
 Detail and owners: [BACKLOG.md](BACKLOG.md). Spine (2026-10-02, own accounts
 excluded): **947 signed up → 430 uploaded → 420 scored → 186 with a direction →
-208 matched → 73 collected → 17 tailored → 3 applied.** Returning this week:
+208 matched → 73 collected → 17 opened the tailor page → 3 applied.** Returning this week:
 **14** (`last_active_at`, true since 2026-10-03). Run `backend/scripts/loop_reach.py`.
 
 Order is the loop map — broken steps first, nearest the north star first (Shivam, 2026-09-30):
@@ -154,7 +154,7 @@ Order is the loop map — broken steps first, nearest the north star first (Shiv
 | 2 | Apply | 6 real Apply clicks since 2026-09-22, 3 people (last 11-02), 2 answered, 0 Yes. Built work is on `main` (#342); measure click → "Did you submit?" → application. |
 | 3 | Repeat | Golden-list digest (#59): email only to `golden_list_since`. Blocked until the preview is approved. |
 | 4 | Front door | #57 on `main`: after skills, paste · extension · jobs that fit. Door to Download in 5 clicks (FD1–FD4) on `main` 2026-10-22; U4 passed desktop 10-19 and 375px 10-22. Real phone owed (Shivam). |
-| 5 | Tailor + download | #58 S1–S5 closed. S1–S4 on `main`. S5 (`4b9be63d`, on `Develop`): add a role or project; a phone edit of a tailored CV writes that CV. Open: the two match numbers. |
+| 5 | Tailor + download | #58 S1–S5 closed. S1–S4 on `main`. S5 (`4b9be63d`, on `Develop`): add a role or project; a phone edit of a tailored CV writes that CV. Open: the two match numbers. **"Tailored" has meant "opened the page"**: the page writes the job's CV 1.2 s after it opens (11 of 11 real documents since 09-28). Fix first: #62 R0. #62 R1–R2 on `main`, R3–R6 on `Develop`. |
 | 6 | Pay | #56 Apply Pack — [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md), Cursor. |
 
 Gates on everything: #16 Pro is done, compute stays Micro (Shivam, 2026-10-14, cost) · prod
