@@ -5,8 +5,10 @@ import Link from "next/link"
 import { ExternalLink, FileText } from "lucide-react"
 import { CVUploadStep } from "@/components/cv/cv-upload-step"
 import { Button } from "@/components/ui/button"
+import { useLoopStepOnce } from "@/lib/hooks/use-loop-step-once"
 
 interface Props {
+  token: string | null
   busy: boolean
   error: string | null
   progressPct?: number | null
@@ -17,7 +19,10 @@ interface Props {
   onGuideMe: () => void
 }
 
-export function ExperienceStep({ busy, error, progressPct = null, onUpload, onReject, onDescribe, onGuideMe }: Props) {
+export function ExperienceStep({ token, busy, error, progressPct = null, onUpload, onReject, onDescribe, onGuideMe }: Props) {
+  // The upload was on screen. Without this, someone who never uploads is
+  // indistinguishable from someone who never reached this step (R6).
+  useLoopStepOnce(token, "upload_shown", "onboarding", "onboarding")
   const [describing, setDescribing] = useState(false)
   const [description, setDescription] = useState("")
   const words = description.trim().split(/\s+/).filter(Boolean).length

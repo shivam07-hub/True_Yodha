@@ -80,11 +80,13 @@ class CoreLoopStepPayload(BaseModel):
     #: saved -> 6 tailored and nobody could say where in between people stopped.
     #: `apply_asked`: the "Did you apply?" prompt actually rendered. `applied`
     #: is NOT here — only the server states it (core_loop.SERVER_STEPS).
+    #: `upload_shown`: onboarding's upload screen rendered (job_id 'onboarding').
     step: Literal[
         "card_tailor", "panel_opened", "panel_tailor",
         "editor_opened", "mentor_opened", "downloaded",
         "apply_asked",
         "door_shown", "door_paste", "door_extension", "door_fit", "job_imported",
+        "upload_shown",
     ]
     job_id: str = Field(min_length=1, max_length=200)
     surface: str | None = Field(default=None, max_length=40)
