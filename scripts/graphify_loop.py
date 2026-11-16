@@ -140,7 +140,8 @@ def build() -> None:
     ast = extract([ROOT / f for f in code], cache_root=ROOT) if code else {"nodes": [], "edges": []}
 
     doc_paths = [str(ROOT / f) for f in docs]
-    nodes, edges, hyperedges, uncached = check_semantic_cache(doc_paths)
+    # root pins the cache key to the repo, whatever directory this runs from.
+    nodes, edges, hyperedges, uncached = check_semantic_cache(doc_paths, root=ROOT)
 
     seen = {n["id"] for n in ast["nodes"]}
     merged_nodes = list(ast["nodes"])
