@@ -201,7 +201,7 @@ export function MarketJobsColumn({
                   {formatCount(total)} {filters.lane === "jobs"
                     ? `role${total === 1 ? "" : "s"}, chosen for you`
                     : filters.lane === "hosted"
-                      ? `Apply here listing${total === 1 ? "" : "s"}`
+                      ? `Myro Supported opening${total === 1 ? "" : "s"}`
                       : `internship${total === 1 ? "" : "s"}`}
                 </span>
               ) : null}
@@ -312,7 +312,7 @@ function InternLaneEmpty({ lane }: { lane: FeedLane }) {
   return (
     <p className="tm-feed-summary" style={{ marginTop: 18 }}>
       {lane === "hosted" ? (
-        <>No Apply here listings yet.</>
+        <>No Myro Supported openings yet.</>
       ) : (
         <>No live internships. <Link href="/internships">Open internships</Link>.</>
       )}

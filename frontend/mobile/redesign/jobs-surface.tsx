@@ -285,15 +285,17 @@ export function JobsSurface({
         ) : internLane && rows.length === 0 ? (
           <div style={{ textAlign: "center", padding: "44px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
             <div style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600 }}>
-              {filters.lane === "hosted" ? "No Apply here listings" : "No live internships"}
+              {filters.lane === "hosted" ? "No Myro Supported openings yet" : "No live internships"}
             </div>
-            <button
-              onClick={() => router.push(filters.lane === "hosted" ? "/internships/post" : "/internships")}
-              className="mm-press"
-              style={ctaBtn}
-            >
-              {filters.lane === "hosted" ? "Post a paid internship" : "Open internships"}
-            </button>
+            {filters.lane === "hosted" ? null : (
+              <button
+                onClick={() => router.push("/internships")}
+                className="mm-press"
+                style={ctaBtn}
+              >
+                Open internships
+              </button>
+            )}
           </div>
         ) : judgment?.reading && rows.length === 0 ? (
           warmAccepted ? (

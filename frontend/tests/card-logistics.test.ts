@@ -76,6 +76,27 @@ test("stipend and duration labels compact the number", () => {
   assert.equal(durationLabel(null), null)
 })
 
+test("a Myro opening carries the supported mark", () => {
+  const intern = logisticsOf({
+    role: "Product intern",
+    location: "Bengaluru",
+    employmentKind: "internship",
+    listingVenue: "myro",
+    stipendLowInr: 8000,
+    durationMonths: 3,
+  })
+  assert.equal(intern[0]?.label, "Myro Supported")
+  assert.ok(intern.some((i) => i.kind === "stipend"))
+
+  const job = logisticsOf({
+    role: "Area sales manager",
+    location: "Jaipur",
+    employmentKind: "full_time",
+    listingVenue: "myro",
+  })
+  assert.deepEqual(job.map((i) => i.kind), ["supported", "location"])
+})
+
 test("listing venue defaults to career_page", () => {
   assert.equal(listingVenueOf("myro"), "myro")
   assert.equal(listingVenueOf(null), "career_page")

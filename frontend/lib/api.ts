@@ -4338,9 +4338,10 @@ export interface InternshipsResponse {
 export interface HostedInternshipInput {
   company_name: string
   job_title: string
-  stipend_low_inr: number
+  employment_kind?: "full_time" | "internship"
+  stipend_low_inr?: number | null
   stipend_high_inr?: number | null
-  duration_months: number
+  duration_months?: number | null
   ppo?: boolean
   location?: string | null
   location_mode?: "onsite" | "hybrid" | "remote"

@@ -759,11 +759,14 @@ class JobFeedItem(BaseModel):
 
 
 class HostedInternshipRequest(BaseModel):
+    """A Myro Supported opening. Internships stay paid. A job has no stipend."""
+
     company_name: str
     job_title: str
-    stipend_low_inr: int
+    employment_kind: Literal["full_time", "internship"] = "internship"
+    stipend_low_inr: int | None = None
     stipend_high_inr: int | None = None
-    duration_months: int
+    duration_months: int | None = None
     ppo: bool = False
     location: str | None = None
     location_mode: Literal["onsite", "hybrid", "remote"] = "onsite"

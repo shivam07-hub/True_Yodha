@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import { jobs, type HostedPost } from "@/lib/api"
 import { FeedCard } from "@/components/jobs/feed-card"
+import { Button } from "@/components/ui/button"
 import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
 import { formatDate } from "@/lib/format"
 import { EMPLOYER_STATUS_WORD } from "@/lib/jobs/employer-status"
@@ -42,10 +43,19 @@ function Applicants({ token, post }: { token: string; post: HostedPost }) {
   )
 }
 
-/** Her internship(s): the state, who it reaches, the card as seekers see it, who applied. */
-export function RecruiterHome({ token, posts }: { token: string; posts: HostedPost[] }) {
+/** Her openings: the state, who it reaches, the card as seekers see it, who applied. */
+export function RecruiterHome({
+  token, posts, onPostAnother,
+}: {
+  token: string
+  posts: HostedPost[]
+  onPostAnother: () => void
+}) {
   return (
     <main className="intern-page">
+      <div className="intern-actions">
+        <Button type="button" variant="neutral" size="lg" onClick={onPostAnother}>Post another opening</Button>
+      </div>
       {posts.map((post) => {
         const state = post.hosted_review ?? "cleared"
         return (
@@ -54,7 +64,7 @@ export function RecruiterHome({ token, posts }: { token: string; posts: HostedPo
             <h1 className="intern-title">{post.job_title}</h1>
             {state === "pending" ? (
               <p className="intern-lead">
-                Seekers see this under Apply here once Myro checks it, within a day. We email you when it is live.
+                Seekers see this under Myro Supported once Myro checks it, within a day. We email you when it is live. Each application is a CV written for this opening.
               </p>
             ) : null}
             <ReachCount

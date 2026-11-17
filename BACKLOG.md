@@ -98,19 +98,24 @@ person), 0 Yes. Too few to redesign from. **Next:** read again as clicks grow.
 Asked ≈ 0 → people never return to the tab; asked > 0 and answered ≈ 0 → the
 prompt is ignored. Redesign from that, in Myro (no email — APPLY2).
 
-**Apply here — one paid internship posted on Myro (built 2026-11-07/08, on
-`Develop`).** `/recruiters` is her door and home: the post (unpaid refused),
-how many people on Myro it reaches as she types, then her internship and who
-applied. Each applicant's view is the CV frozen at his Yes, his Myro Score and
-skills, with Shortlist / Pass beside his own record. A post is held
+**Myro Supported — an opening whose application lives on Myro (internships
+built 2026-11-07/08; jobs on the same door 2026-11-15).** `/recruiters` is her
+door: a paid internship or a job, how many people on Myro it reaches as she
+types, then the opening and who applied. The seeker's accent is "CV for this
+role" (the existing tailor, which spends coins). Apply here sends that CV,
+refusing the master upload. Each applicant's view is that CV frozen at his Yes,
+his Myro Score and skills, with Shortlist / Pass beside his own record. A post is held
 (`hosted_review=pending`) until Myro clears it at `/admin/internships` (owner
 operators in `growth_operators`, linked from `/admin/growth`); each new post
 emails `OPS_ALERT_EMAIL` with that link. Every cleared post shows to every seeker
 in a band above their judged Jobs list (Shivam, 2026-11-08: show all while there
 are few), the ones he fits first (`private.hosted_fit`: intern/entry target, city,
 a listed skill — the same rule as her count); a card leaves when he applies or
-skips it. The Apply here chip only appears while one is live. 0 hosted posts
-exist (checked 2026-11-08).
+skips it. The Myro Supported chip only appears while one is live. 0 hosted posts
+exist (checked 2026-11-17). The jobs constraint
+(`20261115193000_myro_supported_jobs.sql`) is on prod since 2026-11-17. The
+"CV for this role" gate counts any non-baseline `cv_versions` row, so it holds
+only once #62 R0 is on `main`; before that, opening the page writes one.
 
 **Form fill has never run for anyone (measured 2026-11-02).** 0 rows in
 `job_filing_authorizations`, test accounts included, and `/filing/answers` refuses

@@ -57,13 +57,26 @@ def hosted_job_id() -> str:
 
 
 def hosted_job_row(user_id: str, body: dict[str, Any], *, now: datetime) -> dict[str, Any]:
-    low = require_paid(body.get("stipend_low_inr"), body.get("stipend_high_inr"))
-    high = int(body.get("stipend_high_inr") or low)
-    if high < low:
-        high = low
-    months = int(body.get("duration_months") or 0)
-    if months < 1:
-        raise ValueError("duration_months must be at least 1")
+    kind = str(body.get("employment_kind") or "internship")
+    if kind not in {"internship", "full_time"}:
+        raise ValueError("employment_kind must be internship or full_time")
+    if kind == "internship":
+        low = require_paid(body.get("stipend_low_inr"), body.get("stipend_high_inr"))
+        high = int(body.get("stipend_high_inr") or low)
+        if high < low:
+            high = low
+        months = int(body.get("duration_months") or 0)
+        if months < 1:
+            raise ValueError("duration_months must be at least 1")
+        seniority = "intern"
+        ppo = bool(body.get("ppo"))
+    else:
+        # A stipend on a job would make the card read as an internship.
+        low = None
+        high = None
+        months = None
+        seniority = None
+        ppo = None
     title = str(body.get("job_title") or "").strip()
     company = str(body.get("company_name") or "").strip()
     description = str(body.get("job_description") or "").strip()
@@ -91,12 +104,12 @@ def hosted_job_row(user_id: str, body: dict[str, Any], *, now: datetime) -> dict
         "quality_status": "user_confirmed",
         "created_by_user_id": user_id,
         "listing_venue": "myro",
-        "employment_kind": "internship",
-        "seniority_level": "intern",
+        "employment_kind": kind,
+        "seniority_level": seniority,
         "stipend_low_inr": low,
         "stipend_high_inr": high,
         "duration_months": months,
-        "ppo": bool(body.get("ppo")),
+        "ppo": ppo,
         "listing_confidence": "active",
         # Held until a person at Myro clears it (review_hosted).
         "is_active": False,

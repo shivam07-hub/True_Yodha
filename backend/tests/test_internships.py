@@ -62,6 +62,28 @@ def test_hosted_row_is_a_paid_myro_internship() -> None:
     assert row["created_by_user_id"] == "user-1"
 
 
+def test_a_hosted_job_is_full_time_and_carries_no_stipend() -> None:
+    row = hosted_job_row(
+        "user-1",
+        {
+            "company_name": "Campus Co",
+            "job_title": "Area sales manager",
+            "employment_kind": "full_time",
+            "stipend_low_inr": 8000,
+            "duration_months": 3,
+            "job_description": "Own a territory and a number, reported monthly.",
+        },
+        now=NOW,
+    )
+    assert row["listing_venue"] == "myro"
+    assert row["employment_kind"] == "full_time"
+    assert row["seniority_level"] is None
+    assert row["stipend_low_inr"] is None
+    assert row["duration_months"] is None
+    assert row["ppo"] is None
+    assert row["apply_url"] is None
+
+
 def test_a_new_post_is_held_until_myro_clears_it() -> None:
     """Every live read filters is_active; a held post must fail that filter."""
     row = hosted_job_row(
@@ -230,6 +252,7 @@ def test_apply_here_is_a_yes_through_the_hosted_door(monkeypatch: pytest.MonkeyP
     repo = _HostedRepo()
     seen: list = []
     monkeypatch.setattr(router, "get_internship", lambda _db, _jid: {"listing_venue": "myro"})
+    monkeypatch.setattr(router.cv_of_record, "has_tailored_cv", lambda *_a, **_k: True)
     monkeypatch.setattr(application_yes.cv_of_record, "record_on_apply", lambda *_a, **_k: seen.append("cv"))
     monkeypatch.setattr(application_yes.on_demand, "open_job_eval", lambda *_a: seen.append("judge"))
     monkeypatch.setattr(application_yes.core_loop, "record_step", lambda *a: seen.append(a))
@@ -247,6 +270,32 @@ def test_apply_here_is_a_yes_through_the_hosted_door(monkeypatch: pytest.MonkeyP
     assert res.json()["applied_at"] is not None
     assert repo.intents[0]["destination_type"] == "hosted_role"
     assert seen == ["cv", "judge", ("u1", "myro_1", "applied", "hosted")]
+
+
+def test_hosted_apply_waits_for_a_cv_written_for_the_role(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fastapi.testclient import TestClient
+
+    from app.database import get_supabase_admin
+    from app.deps import Principal, get_principal
+    from app.main import app
+    from app.repositories.jobs import get_token_jobs_repository
+    from app.routers.jobs import internships as router
+
+    repo = _HostedRepo()
+    monkeypatch.setattr(router, "get_internship", lambda _db, _jid: {"listing_venue": "myro"})
+    monkeypatch.setattr(router.cv_of_record, "has_tailored_cv", lambda *_a, **_k: False)
+    app.dependency_overrides[get_principal] = lambda: Principal(id="u1", email=None)
+    app.dependency_overrides[get_supabase_admin] = lambda: object()
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    try:
+        with TestClient(app) as client:
+            res = client.post("/jobs/internships/myro_1/apply")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert res.status_code == 409
+    assert res.json()["detail"] == "Write the CV for this role before applying"
+    assert repo.row is None
 
 
 class _ForYouRpc:

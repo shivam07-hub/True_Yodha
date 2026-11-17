@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { jobs } from "@/lib/api"
 import { useSession } from "@/lib/hooks/use-auth"
@@ -13,6 +13,7 @@ import "./internships.css"
 /** One door: no post yet → the post form; posted → her internship and who applied. */
 export function RecruiterDoor() {
   const { token, ready } = useSession()
+  const [writing, setWriting] = useState(false)
   const mine = useQuery({
     queryKey: MY_INTERNSHIPS_KEY,
     queryFn: () => jobs.myInternships(token as string),
@@ -37,8 +38,13 @@ export function RecruiterDoor() {
       </main>
     )
   }
-  if (token && mine.data && mine.data.jobs.length > 0) {
-    return <RecruiterHome token={token} posts={mine.data.jobs} />
+  if (token && mine.data && mine.data.jobs.length > 0 && !writing) {
+    return <RecruiterHome token={token} posts={mine.data.jobs} onPostAnother={() => setWriting(true)} />
   }
-  return <InternshipPostForm />
+  return (
+    <InternshipPostForm
+      onPosted={() => setWriting(false)}
+      onCancel={mine.data && mine.data.jobs.length > 0 ? () => setWriting(false) : undefined}
+    />
+  )
 }

@@ -26,6 +26,7 @@ from app.schemas.growth import GrowthOperator
 from app.security.anon_rate_limit import enforce_anon_rate
 from app.security.auth_rate_limit import client_ip_from_scope
 from app.services import application_yes
+from app.services import cv_of_record
 from app.services import hosted_applicants
 from app.services.hosted_review_mail import alert_reviewer, poster_email, tell_poster_live
 from app.services.internship_reach import reach
@@ -218,6 +219,11 @@ def apply_hosted_internship(
     card = get_internship(db, job_id)
     if not card or card.get("listing_venue") != "myro":
         raise HTTPException(status_code=404, detail="Hosted internship not found")
+    if not cv_of_record.has_tailored_cv(db, principal.id, job_id):
+        raise HTTPException(
+            status_code=409,
+            detail="Write the CV for this role before applying",
+        )
     repo.record_apply_intent(
         principal.id,
         job_id,

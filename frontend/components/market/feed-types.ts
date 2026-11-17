@@ -31,7 +31,7 @@ import { isInternRole, listingVenueOf } from "@/lib/jobs/card-logistics"
  * inside retrieval, surfaced read-only in the sheet, never a per-session filter.
  */
 export type LocationMode = "onsite" | "hybrid" | "remote"
-/** Jobs = the chosen forty. Internships = the intern lane. Hosted = Apply here. */
+/** Jobs = the chosen forty. Internships = the intern lane. Hosted = Myro Supported. */
 export type FeedLane = "jobs" | "internships" | "hosted"
 
 export interface FeedFilters {
@@ -54,7 +54,7 @@ export const DEFAULT_FILTERS: FeedFilters = {
 export const FEED_LANES: ReadonlyArray<readonly [FeedLane, string]> = [
   ["jobs", "Jobs"],
   ["internships", "Internships"],
-  ["hosted", "Apply here"],
+  ["hosted", "Myro Supported"],
 ] as const
 
 /** Apply here only appears when at least one is live — an empty tab tells him

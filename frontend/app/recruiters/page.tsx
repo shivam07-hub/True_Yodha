@@ -5,14 +5,15 @@ import { RecruiterDoor } from "@/components/internships/recruiter-door"
 
 const BASE = "https://www.himyro.com"
 
-// The recruiter door is the post itself. A founder filling one paid intern seat
-// came to reach people who already have a CV here, not to read a pitch or a
-// sample shortlist. Once she has posted, the same door is her home: the post,
-// who it reaches, who applied. /internships/post forwards here (next.config.mjs).
+// The recruiter door is the post itself. A founder filling one seat, a paid
+// internship or a job, came to reach people who already have a CV here, not to
+// read a pitch or a sample shortlist. Once she has posted, the same door is her
+// home: the post, who it reaches, who applied. /internships/post forwards here
+// (next.config.mjs).
 export const metadata: Metadata = {
-  title: "Hire a paid intern — Myro",
+  title: "Post an internship or job — Myro",
   description:
-    "Post one paid internship on Myro. Students apply with the CV they already have here.",
+    "Post a paid internship or a job on Myro. Each applicant sends a CV written for your opening.",
   alternates: { canonical: `${BASE}/recruiters` },
   robots: { index: true, follow: true },
 }
