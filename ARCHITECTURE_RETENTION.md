@@ -84,12 +84,16 @@ R4 and R6 both touch `lib/api.ts`, in different types. Rebase before you commit.
 
 ### R0 · Opening a job's CV must not write its document
 
-**Why.** Found in the verify pass of 2026-11-16. `use-cv-playground.ts` keeps
-`lastSavedRef` at `""` until a job document hydrates it (`:127`). On a job with
-no document nothing does, so the debounced autosave (`:375-397`) sees a
-projection that differs from `""` and calls `saveVersion` 1.2 s after the page
-mounts. The comment above it says the first edit creates the document. The code
-creates it on arrival.
+**Why.** Found in the verify pass of 2026-11-16, traced to the line on
+2026-11-17. `use-cv-playground.ts` starts `lastSavedRef` at `""` (`:127`). The
+autosave effect (`:376-397`) first runs before the versions read has landed:
+the projection on screen is the empty one, it differs from `""`, and the 1.2 s
+timer arms. The read carries every version's full CV, so it often takes longer
+than that. The timer then fires with no version selected and `saveVersion`
+creates the job document. The comment at `:372` says the first edit creates it.
+The code creates it while the page is still loading. The same `""` guards
+`flushHidden` (`:410`) and the unmount flush (`:429`), so leaving the page
+inside 1.2 s creates one too.
 
 `collections/resolve.py` `_stage` calls a job `tailored` when that row exists.
 So `tailored` has meant "opened the page for 1.2 seconds".
@@ -106,22 +110,28 @@ Apply after a page open. R1's "done when" row proves nothing. §1's "Tailored"
 and §4's baselines count opens.
 
 **Do.**
-1. A job with no document writes nothing until the person changes something.
-   Fix the one comparison: when the versions read settles with no document for
-   this job, `lastSavedRef` holds the serialisation of the projection on screen.
-   The same wherever the hook resets for another job.
+1. `lastSavedRef` starts as `null`: nothing has been hydrated, so there is
+   nothing to compare with. The autosave effect, `flushHidden` and the unmount
+   flush each return while it is `null`. Only hydration sets it: the default
+   pick (`:171-182`), `hydrateFrom` (`:192`) and `onMutationSuccess` (`:270`).
+   A job with no document hydrates from the master (`chooseDefault`, `:110`),
+   so an untouched page matches what was hydrated and writes nothing. The first
+   toggle differs and creates the document, as the comment at `:372` says.
 2. Keep every write a person causes: a toggle, a section move, `patchJobCv`,
    weave apply, the unmount flush of a real change.
-3. Download and the apply snapshot: read what each needs. If one needs the
-   document, it creates it at that click, as that person's act.
+3. Download and the apply snapshot need no document. Download renders the
+   sheet on screen (`playground-view.tsx` `downloadInPlace`). The snapshot
+   sends the CV itself and takes `cv_version_id: null`
+   (`routers/cv/apply_snapshot.py`). Leave both alone.
 4. Then walk R2 (a) and (b) and R4 again.
 
 **Do not.** Change `_stage` or what `tailored` means. Delete or relabel rows
 already written: never backfill. Add a "dirty" flag beside `lastSavedRef`.
 
-**Tests.** Hook test: mount on a job with no document, wait past the debounce:
-no `versions.create`. Toggle one line: one create. Unmount with nothing
-changed: no create.
+**Tests.** Hook tests, with the versions read held back past the debounce:
+mount on a job with no document and wait: no `versions.create`. Unmount before
+the read lands: no create. After it lands, toggle one line: one create. A job
+that has a document: a toggle patches it and creates nothing.
 
 **Done when.** QA: open a never-tailored job's `/cv?jobId=`, wait 10 s, touch
 nothing: SQL shows no `cv_versions` row for that job, and Collections shows it
