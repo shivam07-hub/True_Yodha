@@ -361,7 +361,7 @@ already holds both facts. The daily Notice closer reads neither.
 **Do not.**
 - Add a table, a column, a cron, an email or a `Sighting` field. The digest is the
   alert and `/admin/growth` is where it gets fixed.
-- Write to any growth row. Marking posted, archiving and re-planning stay human
+- Write to any growth row. Marking posted, pausing and re-planning stay human
   (section 4).
 - Count X, email or any other channel. X is off the schedule.
 - Cap how far back a missed slot counts. A missed slot stays missed until someone
@@ -381,9 +381,8 @@ already holds both facts. The daily Notice closer reads neither.
   the closer behaves as it does today.
 
 **Done when.** Tests and gates pass. Run `check_posting()` against production once
-from the laptop and paste the four states. The first digest after the `main`
-merge names only what is truly behind, because Claude's cleanup (section 4) ran
-first.
+from the laptop and paste the four states. The tracker backlog was settled on
+17 Nov (section 4), so the first digest names only slots missed after that.
 
 ---
 
@@ -404,11 +403,16 @@ first.
   issue 024 on Wed 18 Nov, the fill reel on Sat 21 Nov, issue 023 on Wed 25 Nov,
   the match reel on Sat 28 Nov, issue 021 on Wed 2 Dec (after B2 and B3).
 - Reads the LinkedIn page with Shivam and marks in the tracker what went out.
-- **Before the `main` merge that carries B7**, settles every Instagram or LinkedIn
-  row past its slot (10 LinkedIn rows on 17 Nov, 27 May → 17 Nov). Each one is
-  marked posted in `/admin/growth` with its live URL, archived if it will never go
-  out (the May and June rows), or re-planned to a real date. After that, every
-  slot that passes gets the same treatment, either Mark posted or a decision.
+- **Settles every slot that passes**: Mark posted in `/admin/growth` with the live
+  URL, `paused` if it will never go out, or re-planned to a real date. Done for
+  the backlog on 17 Nov, read against the live company page and Shivam's profile:
+  - Issue 020 and the loop video were posted (17 Sep and 23 Oct, both on the
+    company page) and are now marked posted.
+  - The May and June rows, issue 022 and issue 023 are `paused`. 022 and 023
+    repeat figures the 25 Sep Ghost Index post already made.
+  - Issue 025 moved to 1 Dec and 021 to 8 Dec (newest first). The fill and match
+    videos moved to Thu 19 and 26 Nov.
+  - Nothing has gone out on LinkedIn since 23 Oct.
 
 ---
 
@@ -425,7 +429,7 @@ pass writes "Verified".
 | B4 | Spec only. Live post BLOCKED on Shivam's Meta setup. |
 | B5 | Spec only. |
 | B6 | Spec only (2026-11-17). Never holds a slot. |
-| B7 | Spec only (2026-11-17). Needs Claude's tracker cleanup (section 4) before its `main` merge. |
+| B7 | Spec only (2026-11-17). Tracker backlog settled 2026-11-17 (section 4). |
 | Footer link to @myrojobs | Not needed: already in `public-footer.tsx` (checked 2026-11-15). |
 
 ---
