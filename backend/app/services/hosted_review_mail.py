@@ -1,4 +1,4 @@
-"""The two emails around a held internship post.
+"""The two emails around a held Myro Supported post: a job or a paid internship.
 
 The reviewer hears the moment a post arrives, so the glance a seeker is
 protected by actually happens. The poster hears the moment it is cleared:
@@ -16,8 +16,12 @@ from app.services.email_service import send_email
 logger = logging.getLogger(__name__)
 
 
+def _kind(card: dict[str, Any]) -> str:
+    return "job" if card.get("employment_kind") == "full_time" else "internship"
+
+
 def _label(card: dict[str, Any]) -> str:
-    return f"{card.get('job_title') or 'Internship'} at {card.get('company_name') or 'a company'}"
+    return f"{card.get('job_title') or 'Opening'} at {card.get('company_name') or 'a company'}"
 
 
 def poster_email(db: Any, poster_id: str | None) -> str:
@@ -31,17 +35,22 @@ def poster_email(db: Any, poster_id: str | None) -> str:
 
 def alert_reviewer(card: dict[str, Any]) -> bool:
     """A new post is waiting. Sent to the ops inbox the Notice digest uses."""
-    stipend = card.get("stipend_low_inr")
+    kind = _kind(card)
+    place = card.get("location") or card.get("location_mode") or "no city"
+    terms = (
+        f"Stipend: INR {card.get('stipend_low_inr')}/month · {card.get('duration_months')} months · {place}"
+        if kind == "internship"
+        else place
+    )
     text = (
         f"{_label(card)} is waiting for a check before seekers see it.\n\n"
-        f"Stipend: INR {stipend}/month · {card.get('duration_months')} months · "
-        f"{card.get('location') or card.get('location_mode') or 'no city'}\n\n"
+        f"{terms}\n\n"
         f"{(card.get('job_description') or '').strip()[:600]}\n\n"
         f"Clear or refuse it: {settings.public_app_url}/admin/internships"
     )
     return send_email(
         to=settings.ops_alert_email,
-        subject=f"Internship to check: {_label(card)}",
+        subject=f"{kind.capitalize()} to check: {_label(card)}",
         text=text,
     )
 
@@ -54,8 +63,8 @@ def tell_poster_live(db: Any, card: dict[str, Any]) -> bool:
         return False
     email = poster_email(db, str(poster_id))
     text = (
-        f"{_label(card)} is live on Myro. Seekers see it under Apply here and apply "
-        "with the CV they already have on Myro.\n\n"
+        f"{_label(card)} is live on Myro. Seekers see it under Myro Supported, and "
+        "each one applies with a CV written for this opening.\n\n"
         f"See who applies: {settings.public_app_url}/recruiters"
     )
-    return send_email(to=email, subject=f"Your internship is live: {_label(card)}", text=text)
+    return send_email(to=email, subject=f"Your {_kind(card)} is live: {_label(card)}", text=text)

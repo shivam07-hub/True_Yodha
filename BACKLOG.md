@@ -116,6 +116,21 @@ exist (checked 2026-11-17). The jobs constraint
 (`20261115193000_myro_supported_jobs.sql`) is on prod since 2026-11-17. The
 "CV for this role" gate counts any non-baseline `cv_versions` row, so it holds
 only once #62 R0 is on `main`; before that, opening the page writes one.
+The Internships page lists internships only; a Myro job shows on Jobs. The
+review and go-live emails say job or internship.
+
+Decided by Shivam, 2026-11-17:
+- **Not built — job fit by experience.** The job form asks years (from, an
+  optional to; 0 = fresher), stored in `min_years_experience` /
+  `max_years_experience`. For a job, her count and his "fits" are city + a
+  listed skill + years inside the band or not on record (only 44 of 1,108
+  seekers have `years_experience`, checked 2026-11-17). A seeker with no years
+  is asked once, when he opens a Myro Supported job with a band. Internships
+  keep the intern/entry rule.
+- **Myro posts real startup openings itself**, from one Myro hiring account
+  (non-test, an address Shivam owns). **Owner: Shivam** — create the account,
+  post the first opening, clear it at `/admin/internships`. That post is the
+  first walk of the seeker side: the QA account applies, then is marked Pass.
 
 **Form fill has never run for anyone (measured 2026-11-02).** 0 rows in
 `job_filing_authorizations`, test accounts included, and `/filing/answers` refuses
