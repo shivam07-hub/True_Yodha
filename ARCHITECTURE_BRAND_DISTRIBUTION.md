@@ -399,9 +399,9 @@ from the laptop and paste the four states. The tracker backlog was settled on
 - Verifies each chunk: reads the diff against section 2 and the chunk's "Do not",
   reruns the gates, reads the proof, then writes "Verified {sha}" in section 5 or
   sends Cursor one fix prompt.
-- Posts the overdue queue with Shivam in Chrome until the publisher is connected:
-  issue 024 on Wed 18 Nov, the fill reel on Sat 21 Nov, issue 023 on Wed 25 Nov,
-  the match reel on Sat 28 Nov, issue 021 on Wed 2 Dec (after B2 and B3).
+- Readies each day's posts from the queue in INSTAGRAM_PROFILE.md (Next) until
+  the publisher is connected: one a day on each channel until 23 Nov (Shivam,
+  2026-11-17). Shivam posts them (MARKETING_SCHEDULE.md).
 - Reads the LinkedIn page with Shivam and marks in the tracker what went out.
 - **Settles every slot that passes**: Mark posted in `/admin/growth` with the live
   URL, `paused` if it will never go out, or re-planned to a real date. Done for

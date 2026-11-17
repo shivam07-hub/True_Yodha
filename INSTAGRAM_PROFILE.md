@@ -114,16 +114,29 @@ permissions error, that is the step left, and the row will say so.
 Each carousel below is published from the laptop as above. Hashtags go in the
 first comment. The bio link stays as it is.
 
-| # | When (IST) | Post | Files | Copy |
-|---|---|---|---|---|
-| 1 | Tue 17 Nov, 19:00 | Issue 024 carousel, 7 slides, with its LinkedIn post (was 18 Nov) | `Myro Newsletter/Issue 024 - carousel/` | `scripts/newsletter-carousel-specs/issue-024-distribution.md` |
-| 2 | Sat 21 Nov, 10:00 | Fill reel, 22 s (was 7 Nov) | `brag-output-2026-10-20-155052/brag.mp4` | Its `instagram.txt` |
-| 3 | Wed 25 Nov, 19:00 | Issue 026 carousel, 8 slides | `Myro Newsletter/Issue 026 - carousel/` | `scripts/newsletter-carousel-specs/issue-026-distribution.md` |
-| 4 | Sat 28 Nov, 10:00 | Match reel, 22 s (was 14 Nov) | `brag-output-2026-10-20-134012/brag.mp4` | Its `instagram.txt` |
-| 5 | Wed 2 Dec, 19:00 | Issue 023 carousel, 7 slides (was 25 Nov) | `Myro Newsletter/Issue 023 - carousel/` | `scripts/newsletter-carousel-specs/issue-023-distribution.md` |
-| 6 | Wed 9 Dec, 19:00 | Issue 021 carousel, once #64 B2 and B3 are built | `Myro Newsletter/Issue 021 - carousel/` | `scripts/newsletter-carousel-specs/issue-021-distribution.md` |
+One post a day on each channel until the backlog clears (Shivam, 2026-11-17).
+The tracker rows carry these dates. Neither channel has issue 024 yet: the
+17 Nov slot passed unposted.
 
-A new issue takes the next Wednesday ahead of this list.
+| Day | LinkedIn, 10:30 | Instagram, 19:00 | Before it goes |
+|---|---|---|---|
+| Wed 18 Nov | Issue 024 | Issue 024 carousel | |
+| Thu 19 Nov | Fill video, 10:00 | Issue 026 carousel | Video: someone listens to the soundtrack. 026: `main` merged, so the issue page is live (it was not on 17 Nov) |
+| Fri 20 Nov | Issue 026 | Issue 023 carousel | 023: re-read its Ghost Index figures against `/ghost-index` |
+| Sat 21 Nov | Issue 021 | Fill reel, 10:00 | |
+| Sun 22 Nov | Issue 025 | Issue 021 carousel | |
+| Mon 23 Nov | Match video | Match reel | Soundtrack heard |
+
+Issue N's copy lives in `scripts/newsletter-carousel-specs/issue-0NN-distribution.md`:
+the `## LinkedIn` section, and the Instagram caption in `caption-laptop.txt`
+beside its slides in `Myro Newsletter/Issue 0NN - carousel/`. On LinkedIn the
+link goes in the first comment, with `utm_campaign=issue-0NN`. The fill video is
+`brag-output-2026-10-20-155052/` and the match video `brag-output-2026-10-20-134012/`,
+each with its own `linkedin.txt` and `instagram.txt`. On LinkedIn, 022 and 023 are
+paused because they repeat the 25 Sep Ghost Index post.
+
+After 23 Nov, a new issue takes the next Tuesday (LinkedIn) and Wednesday
+(Instagram).
 
 The kits, issue 021's kit, reels through Publish and a dead-token alarm are
 Cursor's: [ARCHITECTURE_BRAND_DISTRIBUTION.md](ARCHITECTURE_BRAND_DISTRIBUTION.md) (#64).
