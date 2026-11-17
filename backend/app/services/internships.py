@@ -187,7 +187,9 @@ def without_dismissed(
 def list_internships(db: Any, *, venue: str | None = None, limit: int = 60) -> list[dict[str, Any]]:
     rows = internship_rows(db, venue=venue, limit=limit)
     now = datetime.now(timezone.utc)
-    return [intern_card(row, now=now) for row in rows if is_intern_job(row) or (row.get("listing_venue") == "myro")]
+    # Myro Supported (venue="myro") is every Myro opening, jobs included. The
+    # Internships list is internships only: a Myro job lives on Jobs.
+    return [intern_card(row, now=now) for row in rows if venue == "myro" or is_intern_job(row)]
 
 
 def get_internship(db: Any, job_id: str) -> dict[str, Any] | None:

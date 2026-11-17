@@ -84,6 +84,26 @@ def test_a_hosted_job_is_full_time_and_carries_no_stipend() -> None:
     assert row["apply_url"] is None
 
 
+def test_the_internships_list_leaves_out_myro_jobs(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A full-time Myro Supported job belongs on Jobs, not under Internships."""
+    from app.services import internships as svc
+
+    rows = [
+        {"job_id": "myro_job", "job_title": "Area sales manager", "company_name": "Campus Co",
+         "listing_venue": "myro", "employment_kind": "full_time"},
+        {"job_id": "myro_intern", "job_title": "Product intern", "company_name": "Campus Co",
+         "listing_venue": "myro", "employment_kind": "internship", "stipend_low_inr": 8000},
+        {"job_id": "page_intern", "job_title": "Analyst intern", "company_name": "Bank Co",
+         "listing_venue": "career_page", "employment_kind": "internship"},
+    ]
+    monkeypatch.setattr(svc, "internship_rows", lambda _db, *, venue, limit: rows)
+
+    assert [c["job_id"] for c in svc.list_internships(object())] == ["myro_intern", "page_intern"]
+    assert [c["job_id"] for c in svc.list_internships(object(), venue="myro")] == [
+        "myro_job", "myro_intern", "page_intern",
+    ]
+
+
 def test_a_new_post_is_held_until_myro_clears_it() -> None:
     """Every live read filters is_active; a held post must fail that filter."""
     row = hosted_job_row(
