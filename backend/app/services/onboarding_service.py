@@ -350,6 +350,14 @@ def save_level(
     targeting_write.commit(users_repo, user_id, _level_patch(seniority, years_experience))
 
 
+def save_years(db: Client, user_id: str, *, years_experience: float) -> None:
+    """Years alone, asked once when he opens a Myro Supported job that states
+    years (Shivam, 2026-11-17). Through `targeting_write.commit`, like the level."""
+    from app.services import targeting_write
+
+    targeting_write.commit(UsersRepository(db), user_id, _level_patch(None, years_experience))
+
+
 def save_target(
     db: Client,
     user_id: str,

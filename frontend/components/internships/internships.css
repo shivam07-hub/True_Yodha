@@ -60,6 +60,13 @@
   font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
 }
+.intern-years {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-top: 18px;
+}
+.intern-years label { flex: 1 1 160px; }
 .intern-form .intern-kind label {
   flex-direction: row;
   align-items: center;

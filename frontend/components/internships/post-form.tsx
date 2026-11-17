@@ -16,11 +16,19 @@ function splitSkills(raw: string): string[] {
   return raw.split(",").map((s) => s.trim()).filter(Boolean)
 }
 
+/** An empty field is no answer, not 0. */
+function yearsOf(form: FormData, name: string): number | null {
+  const raw = String(form.get(name) ?? "").trim()
+  return raw === "" ? null : Number(raw)
+}
+
 function reachFromForm(form: FormData): ReachInput {
   return {
     city: String(form.get("location") || ""),
     remote: form.get("location_mode") === "remote",
     skills: splitSkills(String(form.get("skills") || "")),
+    kind: form.get("employment_kind") === "full_time" ? "full_time" : "internship",
+    minYears: yearsOf(form, "min_years_experience"),
   }
 }
 
@@ -32,7 +40,9 @@ export function InternshipPostForm({ onPosted, onCancel }: { onPosted?: () => vo
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const queryClient = useQueryClient()
-  const [reach, setReach] = useState<ReachInput>({ city: "", remote: false, skills: [] })
+  const [reach, setReach] = useState<ReachInput>({
+    city: "", remote: false, skills: [], kind: "internship", minYears: null,
+  })
   const [kind, setKind] = useState<"internship" | "full_time">("internship")
 
   async function post(authToken: string, body: HostedInternshipInput) {
@@ -80,7 +90,10 @@ export function InternshipPostForm({ onPosted, onCancel }: { onPosted?: () => vo
             duration_months: Number(form.get("duration_months") || 0),
             ppo: form.get("ppo") === "on",
           }
-        : {}),
+        : {
+            min_years_experience: yearsOf(form, "min_years_experience"),
+            max_years_experience: yearsOf(form, "max_years_experience"),
+          }),
     }
     if (!token) {
       stashPendingInternshipPost(body)
@@ -136,7 +149,16 @@ export function InternshipPostForm({ onPosted, onCancel }: { onPosted?: () => vo
               </label>
             </div>
           </>
-        ) : null}
+        ) : (
+          <div className="intern-row">
+            <label>Years from
+              <input name="min_years_experience" type="number" inputMode="numeric" min={0} max={40} required placeholder="0" />
+            </label>
+            <label>Years to
+              <input name="max_years_experience" type="number" inputMode="numeric" min={0} max={40} />
+            </label>
+          </div>
+        )}
         <div className="intern-row">
           <label>Work mode
             <select name="location_mode" defaultValue="onsite">

@@ -70,6 +70,8 @@ def hosted_job_row(user_id: str, body: dict[str, Any], *, now: datetime) -> dict
             raise ValueError("duration_months must be at least 1")
         seniority = "intern"
         ppo = bool(body.get("ppo"))
+        years_from = None
+        years_to = None
     else:
         # A stipend on a job would make the card read as an internship.
         low = None
@@ -77,6 +79,15 @@ def hosted_job_row(user_id: str, body: dict[str, Any], *, now: datetime) -> dict
         months = None
         seniority = None
         ppo = None
+        # The years decide who the job reaches (private.hosted_fit). 0 is a
+        # fresher; no answer is refused rather than read as 0.
+        if body.get("min_years_experience") is None:
+            raise ValueError("min_years_experience is required for a job")
+        years_from = int(body["min_years_experience"])
+        if years_from < 0:
+            raise ValueError("min_years_experience cannot be negative")
+        raw_to = body.get("max_years_experience")
+        years_to = None if raw_to is None else max(int(raw_to), years_from)
     title = str(body.get("job_title") or "").strip()
     company = str(body.get("company_name") or "").strip()
     description = str(body.get("job_description") or "").strip()
@@ -110,6 +121,8 @@ def hosted_job_row(user_id: str, body: dict[str, Any], *, now: datetime) -> dict
         "stipend_high_inr": high,
         "duration_months": months,
         "ppo": ppo,
+        "min_years_experience": years_from,
+        "max_years_experience": years_to,
         "listing_confidence": "active",
         # Held until a person at Myro clears it (review_hosted).
         "is_active": False,

@@ -15,6 +15,7 @@ import { applyLinkAttrs, cvForRolePath, resolveApplyTarget } from "@/lib/jobs/ap
 import { listingVenueOf } from "@/lib/jobs/card-logistics"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { HOSTED_FOR_YOU_KEY } from "./hosted-band"
+import { YearsAsk } from "./years-ask"
 import "./internships.css"
 
 export function InternshipApplyForm({ jobId }: { jobId: string }) {
@@ -39,6 +40,11 @@ export function InternshipApplyForm({ jobId }: { jobId: string }) {
   const sending = written ?? (versions.data ? cvOfRecordFor(jobId, versions.data.versions) : null)
   const noCv = Boolean(versions.data) && !sending
   const needsRoleCv = Boolean(versions.data) && !written
+  const isJob = listing.data?.employment_kind === "full_time"
+  const statesYears = isJob && listing.data?.min_years_experience != null
+  const back = isJob
+    ? { href: "/market?lane=hosted", label: "All Myro Supported" }
+    : { href: "/internships", label: "All internships" }
   const company = listing.data?.company_name || "the company"
   const target = listing.data
     ? resolveApplyTarget({
@@ -90,6 +96,8 @@ export function InternshipApplyForm({ jobId }: { jobId: string }) {
           Sent to {company} · {formatDate(sentAt, "medium")}. In <Link href="/collections">Collections</Link>.
         </p>
       ) : hosted ? (
+        <>
+        {token && statesYears ? <YearsAsk token={token} /> : null}
         <div className="intern-actions" style={{ marginTop: 18, flexDirection: "column", alignItems: "flex-start" }}>
           {noCv ? (
             <p className="intern-lead" style={{ margin: 0 }}>
@@ -113,10 +121,11 @@ export function InternshipApplyForm({ jobId }: { jobId: string }) {
               {pending ? "Sending" : "Apply here"}
             </button>
           )}
-          <Link href="/internships" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "var(--tm-text-muted)" }}>
-            All internships
+          <Link href={back.href} style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "var(--tm-text-muted)" }}>
+            {back.label}
           </Link>
         </div>
+        </>
       ) : target?.url && target.actionLabel ? (
         <div className="intern-actions" style={{ marginTop: 18 }}>
           <a

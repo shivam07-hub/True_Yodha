@@ -52,6 +52,9 @@ class UserProfileResponse(BaseModel):
     target_roles: list[str]
     target_role_titles: list[str] = []
     target_seniority: str | None = None
+    #: None is not 0: most accounts have never said. A Myro Supported job that
+    #: states years asks for it once.
+    years_experience: float | None = None
     target_career_band: CareerBand | None = None
     explored_career_bands: list[CareerBand] = []
     target_locations: list[str] = []

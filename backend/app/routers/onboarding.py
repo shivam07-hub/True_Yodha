@@ -205,6 +205,22 @@ def save_level(
         ) from exc
 
 
+class YearsRequest(BaseModel):
+    """Years in the craft, alone. 0 is a real answer."""
+    years_experience: float = Field(ge=0, le=60)
+
+
+@router.put("/target/years", status_code=status.HTTP_204_NO_CONTENT)
+def save_years(
+    body: YearsRequest,
+    principal: Principal = Depends(get_principal),
+) -> None:
+    """Asked once, on a Myro Supported job that states years."""
+    onboarding_service.save_years(
+        get_supabase_admin(), principal.id, years_experience=body.years_experience
+    )
+
+
 @router.delete("/target", status_code=status.HTTP_204_NO_CONTENT)
 def reset_target(principal: Principal = Depends(get_principal)) -> None:
     onboarding_service.reset_target(get_supabase_admin(), principal.id)

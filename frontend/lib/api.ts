@@ -444,6 +444,8 @@ export interface UserProfile {
   target_roles: string[]
   target_role_titles?: string[]
   target_seniority?: "intern" | "entry" | "mid" | "senior" | "lead" | "executive" | "any" | null
+  /** Null is not 0: most accounts have never said. */
+  years_experience?: number | null
   target_career_band?: CareerBand | null
   explored_career_bands?: CareerBand[]
   target_locations: string[]
@@ -1087,6 +1089,11 @@ export const onboarding = {
   saveLevel: (token: string, body: { seniority: Exclude<TargetSeniority, "any">; years_experience?: number }) =>
     request<void>("/onboarding/target/level", {
       method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(body),
+    }),
+  /** Years alone, asked once on a Myro Supported job that states years. */
+  saveYears: (token: string, years_experience: number) =>
+    request<void>("/onboarding/target/years", {
+      method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ years_experience }),
     }),
   resetTarget: (token: string) => request<void>("/onboarding/target", {
     method: "DELETE", headers: { Authorization: `Bearer ${token}` },
@@ -4343,6 +4350,9 @@ export interface HostedInternshipInput {
   stipend_high_inr?: number | null
   duration_months?: number | null
   ppo?: boolean
+  /** A job's years from (0 = fresher) and optional to. Not sent for an internship. */
+  min_years_experience?: number | null
+  max_years_experience?: number | null
   location?: string | null
   location_mode?: "onsite" | "hybrid" | "remote"
   job_description: string
@@ -4432,9 +4442,20 @@ export const jobs = {
   internship: (jobId: string) =>
     request<JobFeedItem>(`/jobs/internships/${encodeURIComponent(jobId)}`),
   /** How many people on Myro a post reaches. Public: she has no account yet. */
-  internshipReach: (input: { city: string; remote: boolean; skills: string[] }) => {
-    const params = new URLSearchParams({ remote: String(input.remote), skills: input.skills.join(",") })
+  internshipReach: (input: {
+    city: string
+    remote: boolean
+    skills: string[]
+    kind: "internship" | "full_time"
+    minYears: number | null
+  }) => {
+    const params = new URLSearchParams({
+      remote: String(input.remote),
+      skills: input.skills.join(","),
+      kind: input.kind,
+    })
     if (input.city.trim()) params.set("city", input.city.trim())
+    if (input.kind === "full_time" && input.minYears != null) params.set("min_years", String(input.minYears))
     return request<{ matched: number; active_30d: number }>(`/jobs/internships/reach?${params.toString()}`)
   },
   /** Paid internships hosted on Myro that fit him, plus how many are live in all. */

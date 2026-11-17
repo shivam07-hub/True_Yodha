@@ -120,13 +120,20 @@ The Internships page lists internships only; a Myro job shows on Jobs. The
 review and go-live emails say job or internship.
 
 Decided by Shivam, 2026-11-17:
-- **Not built — job fit by experience.** The job form asks years (from, an
-  optional to; 0 = fresher), stored in `min_years_experience` /
-  `max_years_experience`. For a job, her count and his "fits" are city + a
-  listed skill + years inside the band or not on record (only 44 of 1,108
-  seekers have `years_experience`, checked 2026-11-17). A seeker with no years
-  is asked once, when he opens a Myro Supported job with a band. Internships
-  keep the intern/entry rule.
+- **Job fit by experience (built 2026-11-17, on `Develop`).** The job form asks
+  years (from, required, 0 = fresher; an optional to), stored in
+  `min_years_experience` / `max_years_experience`. For a job, her count and his
+  "fits" are city + a listed skill + the `candidates_for_user` level rule: the
+  job's from is within reach of the top of his span (years +- 1; else his
+  target level's span; else open, so someone who never said is counted). No
+  ceiling, as on Jobs. Only 44 of 1,108 seekers have `years_experience`
+  (checked 2026-11-17). A seeker with none is asked once on the apply page of
+  a job that states years (`PUT /onboarding/target/years`); it never blocks
+  Apply. Internships keep the intern/entry rule
+  (`20261117230000_myro_supported_job_fit.sql`, on prod). The count for a job
+  reads every profile: ~220 ms, debounced 400 ms on the form.
+  Walked on 375px 11-17 with the local API: Bengaluru + SQL, from 0 → 5 people;
+  from 3 → none; internship → 3. The years ask is unwalked until a job exists.
 - **Myro posts real startup openings itself**, from one Myro hiring account
   (non-test, an address Shivam owns). **Owner: Shivam** — create the account,
   post the first opening, clear it at `/admin/internships`. That post is the

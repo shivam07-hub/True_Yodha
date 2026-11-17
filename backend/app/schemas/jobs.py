@@ -759,7 +759,8 @@ class JobFeedItem(BaseModel):
 
 
 class HostedInternshipRequest(BaseModel):
-    """A Myro Supported opening. Internships stay paid. A job has no stipend."""
+    """A Myro Supported opening. Internships stay paid. A job has no stipend
+    and states its years instead: from (0 = fresher), and an optional to."""
 
     company_name: str
     job_title: str
@@ -768,6 +769,8 @@ class HostedInternshipRequest(BaseModel):
     stipend_high_inr: int | None = None
     duration_months: int | None = None
     ppo: bool = False
+    min_years_experience: int | None = Field(default=None, ge=0, le=40)
+    max_years_experience: int | None = Field(default=None, ge=0, le=40)
     location: str | None = None
     location_mode: Literal["onsite", "hybrid", "remote"] = "onsite"
     job_description: str

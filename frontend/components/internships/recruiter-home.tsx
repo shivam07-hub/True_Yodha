@@ -72,6 +72,8 @@ export function RecruiterHome({
                 city: post.location ?? "",
                 remote: post.location_mode === "remote",
                 skills: post.skills ?? [],
+                kind: post.employment_kind === "full_time" ? "full_time" : "internship",
+                minYears: post.min_years_experience ?? null,
               }}
             />
             {/* The listing as a seeker sees it, minus the per-viewer fit slot:

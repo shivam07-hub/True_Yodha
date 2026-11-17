@@ -1,4 +1,5 @@
 import uuid
+from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 
@@ -129,13 +130,17 @@ def get_reach(
     city: str | None = Query(default=None, max_length=80),
     remote: bool = Query(default=False),
     skills: str = Query(default="", max_length=600),
+    kind: Literal["internship", "full_time"] = Query(default="internship"),
+    min_years: int | None = Query(default=None, ge=0, le=40),
     db=Depends(get_supabase_admin),
 ) -> InternshipReach:
     """How many people on Myro a post reaches, while she writes it. Public —
     she has no account yet — so per-IP limited; two counts, never people."""
     enforce_anon_rate("intern_reach", client_ip_from_scope(request.scope))
     names = [s for s in skills.split(",") if s.strip()]
-    return InternshipReach(**reach(db, city=city, remote=remote, skills=names))
+    return InternshipReach(
+        **reach(db, city=city, remote=remote, skills=names, kind=kind, min_years=min_years)
+    )
 
 
 def require_reviewer(operator: GrowthOperator = Depends(get_growth_operator)) -> GrowthOperator:

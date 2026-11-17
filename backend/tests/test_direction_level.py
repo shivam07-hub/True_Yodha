@@ -94,6 +94,33 @@ def test_unknown_years_are_left_alone(committed: list[dict[str, Any]]) -> None:
     assert committed == [{"target_seniority": "senior"}]
 
 
+def test_years_alone_are_written_through_commit(committed: list[dict[str, Any]]) -> None:
+    """Asked once on a Myro Supported job: the years, nothing else."""
+    onboarding_service.save_years(object(), "u1", years_experience=3)
+    assert committed == [{"years_experience": 3, "years_experience_source": "user"}]
+
+
+def test_the_route_saves_years_alone(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.routers import onboarding as router
+
+    seen: list[tuple[str, dict[str, Any]]] = []
+    monkeypatch.setattr(router, "get_supabase_admin", lambda: object())
+    monkeypatch.setattr(
+        router.onboarding_service, "save_years",
+        lambda _db, uid, **kw: seen.append((uid, kw)),
+    )
+    app.dependency_overrides[get_principal] = lambda: Principal(id="u1", email=None)
+    try:
+        with TestClient(app) as client:
+            ok = client.put("/onboarding/target/years", json={"years_experience": 0})
+            bad = client.put("/onboarding/target/years", json={"years_experience": -1})
+    finally:
+        app.dependency_overrides.clear()
+    assert ok.status_code == 204
+    assert seen == [("u1", {"years_experience": 0.0})]
+    assert bad.status_code == 422
+
+
 def test_a_level_without_a_role_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
     """The level is asked only of someone who chose the work."""
     from app.repositories import users as users_repo_module

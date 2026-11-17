@@ -71,6 +71,8 @@ def test_a_hosted_job_is_full_time_and_carries_no_stipend() -> None:
             "employment_kind": "full_time",
             "stipend_low_inr": 8000,
             "duration_months": 3,
+            "min_years_experience": 2,
+            "max_years_experience": 5,
             "job_description": "Own a territory and a number, reported monthly.",
         },
         now=NOW,
@@ -82,6 +84,63 @@ def test_a_hosted_job_is_full_time_and_carries_no_stipend() -> None:
     assert row["duration_months"] is None
     assert row["ppo"] is None
     assert row["apply_url"] is None
+    assert row["min_years_experience"] == 2
+    assert row["max_years_experience"] == 5
+
+
+_JOB = {
+    "company_name": "Campus Co",
+    "job_title": "Area sales manager",
+    "employment_kind": "full_time",
+    "job_description": "Own a territory and a number, reported monthly.",
+}
+
+
+def test_a_hosted_job_states_its_years_from() -> None:
+    """0 is a real answer (a fresher); no answer is refused."""
+    with pytest.raises(ValueError):
+        hosted_job_row("user-1", dict(_JOB), now=NOW)
+    fresher = hosted_job_row("user-1", {**_JOB, "min_years_experience": 0}, now=NOW)
+    assert fresher["min_years_experience"] == 0
+    assert fresher["max_years_experience"] is None
+
+
+def test_a_years_to_below_from_is_raised_to_from() -> None:
+    row = hosted_job_row("user-1", {**_JOB, "min_years_experience": 4, "max_years_experience": 2}, now=NOW)
+    assert (row["min_years_experience"], row["max_years_experience"]) == (4, 4)
+
+
+def test_an_internship_carries_no_years() -> None:
+    row = hosted_job_row(
+        "user-1",
+        {
+            "company_name": "Campus Co",
+            "job_title": "Product intern",
+            "stipend_low_inr": 8000,
+            "duration_months": 3,
+            "min_years_experience": 3,
+            "job_description": "Work with the product team on live listings.",
+        },
+        now=NOW,
+    )
+    assert row["min_years_experience"] is None
+    assert row["max_years_experience"] is None
+
+
+def test_the_job_fit_is_the_candidates_for_user_span() -> None:
+    """The recruiter's count and the seeker's Jobs list read years one way."""
+    from pathlib import Path
+
+    from app.services.job_eligibility import PERSON_YEAR_SPAN_BY_BAND
+
+    sql = (
+        Path(__file__).resolve().parents[2]
+        / "database/migrations/20261117230000_myro_supported_job_fit.sql"
+    ).read_text(encoding="utf-8").lower()
+    for band, lo, hi in PERSON_YEAR_SPAN_BY_BAND:
+        assert f"('{band}', {lo}, {hi})" in sql
+    assert "p_profile.years_experience::numeric + 1" in sql
+    assert "coalesce(p_min_years, 0) <= private.person_year_hi(p_profile)" in sql
 
 
 def test_the_internships_list_leaves_out_myro_jobs(monkeypatch: pytest.MonkeyPatch) -> None:

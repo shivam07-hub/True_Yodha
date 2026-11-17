@@ -8,6 +8,9 @@ export interface ReachInput {
   city: string
   remote: boolean
   skills: string[]
+  /** A job reaches by its years from; an internship by the student rule. */
+  kind: "internship" | "full_time"
+  minYears: number | null
 }
 
 /**
@@ -19,7 +22,14 @@ export function ReachCount({ input }: { input: ReachInput }) {
   const settled = useDebouncedValue(input, 400)
   const asked = settled.remote || settled.city.trim().length > 0
   const { data } = useQuery({
-    queryKey: ["internship-reach", settled.city.trim().toLowerCase(), settled.remote, settled.skills.map((s) => s.toLowerCase())],
+    queryKey: [
+      "internship-reach",
+      settled.city.trim().toLowerCase(),
+      settled.remote,
+      settled.skills.map((s) => s.toLowerCase()),
+      settled.kind,
+      settled.kind === "full_time" ? settled.minYears : null,
+    ],
     queryFn: () => jobs.internshipReach(settled),
     enabled: asked,
     staleTime: 5 * 60_000,
