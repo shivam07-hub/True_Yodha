@@ -116,7 +116,7 @@ first comment. The bio link stays as it is.
 
 | # | When (IST) | Post | Files | Copy |
 |---|---|---|---|---|
-| 1 | Wed 18 Nov, 19:00 | Issue 024 carousel, 7 slides (was 11 Nov) | `Myro Newsletter/Issue 024 - carousel/` | `scripts/newsletter-carousel-specs/issue-024-distribution.md` |
+| 1 | Tue 17 Nov, 19:00 | Issue 024 carousel, 7 slides, with its LinkedIn post (was 18 Nov) | `Myro Newsletter/Issue 024 - carousel/` | `scripts/newsletter-carousel-specs/issue-024-distribution.md` |
 | 2 | Sat 21 Nov, 10:00 | Fill reel, 22 s (was 7 Nov) | `brag-output-2026-10-20-155052/brag.mp4` | Its `instagram.txt` |
 | 3 | Wed 25 Nov, 19:00 | Issue 026 carousel, 8 slides | `Myro Newsletter/Issue 026 - carousel/` | `scripts/newsletter-carousel-specs/issue-026-distribution.md` |
 | 4 | Sat 28 Nov, 10:00 | Match reel, 22 s (was 14 Nov) | `brag-output-2026-10-20-134012/brag.mp4` | Its `instagram.txt` |
