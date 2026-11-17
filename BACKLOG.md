@@ -456,8 +456,11 @@ Tracker (3) · no problem or not actionable (~25).
   no feed 10-01 → 10-14. The 11-02 run after the 10-29 company repairs: Meta, EY
   India and BDO India read `complete`; ANZ Bank `partial`, 11 of 482 (2.3%, under
   the 50% floor).
-  Still yours: Axis Bank = 14,259 live rows (~18%,
-  747 titles) — dedupe at the source.
+  Still yours: club repeated openings of the same role at one company into one
+  role, so a count is the unique roles that company is hiring for, not a row
+  per city or link. Last measured 11-03: Axis Bank 14,259 live rows, 747 titles.
+  The feed already shows one card per employer and title. The stored rows, and
+  every public count, still count each link. Dedupe at the source (scraper).
 - The prod deploy guard (above).
 - **#59 golden digest go-live**: prod carries the first-email rule (`0aafb324`).
   Run the preview SQL in `ARCHITECTURE_GOLDEN_DIGEST.md` (status block), read the
