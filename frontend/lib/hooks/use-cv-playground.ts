@@ -23,6 +23,7 @@ import { renderDeterministic } from "@/lib/cv-compose"
 import { hasCvContent, latestBaseline } from "@/lib/cv/durable-answer"
 import { dataKeys } from "@/lib/domain-data"
 import { normalizeSectionOrder, type SectionKey } from "@/lib/cv/section-order"
+import { projectionChanged } from "@/lib/cv/projection-save"
 
 interface PatchJobCvVars {
   mut: (draft: CVStructured) => CVStructured
@@ -122,9 +123,11 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
   // Tracks the last id we hydrated FROM. If a refetch arrives with the same selection,
   // we skip the redundant setHiddenItems write — preserves user toggles in-flight.
   const lastHydratedRef = useRef<number | null>(null)
-  // Serialized hidden_items last persisted to the server. Guards the autosave
-  // effect from re-firing on a state that's already saved (incl. post-save refetch).
-  const lastSavedRef = useRef<string>("")
+  // The projection of the version last hydrated from or written: what the
+  // server holds. Guards every persist from re-saving a saved state (incl. the
+  // post-save refetch). null until the first hydration, so a page still
+  // loading writes nothing (projectionChanged, #62 R0).
+  const lastSavedRef = useRef<string | null>(null)
   const [autosaved, setAutosaved] = useState(false)
 
   const serializeProjection = (hidden: Iterable<string>, order: SectionKey[]) =>
@@ -371,12 +374,12 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
   // Debounced auto-save: 1.2s after the user stops toggling, persist the
   // projection. The first edit on a job with no working draft creates one
   // (saveVersion); subsequent edits patch it in place (no snapshot pile-up).
+  // Opening the page is not an edit: nothing runs until hydration.
   // The timer lives in a ref so flushHidden can cancel it and persist NOW.
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     if (!enabled || !token || !jobId) return
-    const serialized = serializeProjection(hiddenItems, sectionOrder)
-    if (serialized === lastSavedRef.current) return
+    if (!projectionChanged(lastSavedRef.current, serializeProjection(hiddenItems, sectionOrder))) return
     setAutosaved(false)
     debounceRef.current = setTimeout(() => {
       debounceRef.current = null
@@ -407,7 +410,7 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
       debounceRef.current = null
     }
     if (!enabled || !token || !jobId) return
-    if (serializeProjection(hiddenItems, sectionOrder) === lastSavedRef.current) return
+    if (!projectionChanged(lastSavedRef.current, serializeProjection(hiddenItems, sectionOrder))) return
     const sel = selectedVersion
     if (sel && sel.job_id) {
       await autosave.mutateAsync({ versionId: sel.id, hidden: Array.from(hiddenItems), order: sectionOrder })
@@ -426,7 +429,7 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
   useEffect(() => () => {
     const { enabled: en, token: tk, jobId: jid, hiddenItems: hid, sectionOrder: ord, selectedVersion: sel } = unmountRef.current
     if (!en || !tk || !jid) return
-    if (serializeProjection(hid, ord) === lastSavedRef.current) return
+    if (!projectionChanged(lastSavedRef.current, serializeProjection(hid, ord))) return
     const hidden = Array.from(hid)
     const persist = sel && sel.job_id
       ? cv.versions.updateHiddenItems(tk, sel.id, hidden, ord)
