@@ -63,7 +63,7 @@ Three lanes. Lanes do not share files, and none touches a #62 lane's files.
 | Lane | Chunks | Files it owns |
 |---|---|---|
 | A · kits | B1 → B2 → B6 (B6 also takes lane C's two files) | `scripts/build-newsletter-carousel.py`, `scripts/newsletter-carousel-specs/*`, `backend/tests/test_carousel_kit.py`, `frontend/tests/growth-instagram.test.ts`, the gitignored `Myro Newsletter/Issue NNN - carousel/` outputs |
-| B · publisher | B4 → B5 | `services/instagram_publisher.py`, `routers/growth.py`, `repositories/growth.py`, `schemas/growth.py`, `components/growth/*`, `lib/growth/instagram.ts`, the growth section of `lib/api.ts`, `notice/harvest.py`, `notice/fingerprint.py`, `notice/closer.py`, one migration, their tests |
+| B · publisher | B4 → B5, and B7 in either order (B7 adds `services/probe.py`, a new `services/posting_health.py` and their tests) | `services/instagram_publisher.py`, `routers/growth.py`, `repositories/growth.py`, `schemas/growth.py`, `components/growth/*`, `lib/growth/instagram.ts`, the growth section of `lib/api.ts`, `notice/harvest.py`, `notice/fingerprint.py`, `notice/closer.py`, one migration, their tests |
 | C · tracker sync | B3 | `backend/scripts/growth_kit_sync.py`, `backend/tests/test_growth_kit_sync.py` |
 
 B3 reads the fields B1 adds, so lane C starts after B1. B4 and #62 R6 both edit
@@ -314,6 +314,77 @@ so. Write a figure the article does not have.
 section, and the tracker row's new caption. Claude looks at every recut slide at
 360px wide and reads each caption for voice before it posts.
 
+### B7 · A missed posting slot opens a Notice
+
+**Why.** Posting on schedule is the point of this spec. From 3 to 16 November
+nothing went out on Instagram and nothing said so. On 17 November, 10 LinkedIn
+rows were past their slot with no post recorded. The oldest was planned for 27
+May, and none since June is marked posted. Two things stop the rhythm: a slot
+passes with no post, or the coming week has too little planned. The tracker
+already holds both facts. The daily Notice closer reads neither.
+
+**Do.**
+- `services/probe.py`: `POSTING_CHANNELS = ("instagram", "linkedin")`. A
+  `POSTING` dict of declarations, two per channel, both opening on `"stalled"`:
+  `posting.{channel}.missed` and `posting.{channel}.under_floor`. Each is its own
+  belt, the same as `SNAPSHOTS`, so the digest names the channel and the reason,
+  and a recovery on one never closes another.
+- New `services/posting_health.py`. It reads and writes nothing else.
+  - A pure `posting_states(rows, now) -> dict[str, BeltState]` over
+    `growth_messages` rows (`channel`, `status`, `planned_at`).
+  - **missed:** a row whose `status` is `ready_for_review`, `approved`, `queued`
+    or `failed`, with `planned_at` at least 12 hours before `now`. `mark_published`
+    sets a posted row to `published`, so a post that went out and was marked never
+    counts. A failed post is a missed slot.
+  - **under_floor:** fewer than 2 rows with `planned_at` in the next 7 days and a
+    `status` of `ready_for_review`, `approved`, `queued` or `published`. `draft`
+    and `paused` rows are not planned posts. The 2 is the weekly floor in
+    MARKETING_SCHEDULE.md. Name it once, with a comment pointing there.
+  - Each belt is `"stalled"` when its condition holds and `"ok"` when it does not.
+  - `check_posting()` makes one read: rows where `archived_at` is null,
+    `channel` is in `POSTING_CHANNELS` and `planned_at` is not null. It returns
+    `posting_states` of those rows.
+  - **Why 12 hours.** The closer runs at 02:30 UTC (08:00 IST). Slots are 10:00,
+    10:30 and 19:00 IST, so 12 hours puts every missed slot in the next
+    morning's digest. At 24 hours, Wednesday's 19:00 carousel would wait until
+    Friday.
+- `notice/harvest.py`: `harvest_belts(..., posting_states=...)`. Lift the snapshot
+  loop into one helper that takes the declarations and the states, and call it for
+  both. `"stalled"` opens `Sighting.dead_man(belt=...)`. `"ok"` closes with a
+  proof keyed `harvest:{belt}_held`. A belt the declarations do not name is never
+  closed.
+- `notice/closer.py`: in `harvest_into`, one more block in the same pattern as the
+  snapshot block: `posting_health.check_posting()`, failure logged as
+  `metric notice.harvest_posting_failed`, state left `None` (no open, no close).
+- `notice/fingerprint.py`: add the `POSTING` belts to `_BELTS`, as `SNAPSHOTS` does.
+
+**Do not.**
+- Add a table, a column, a cron, an email or a `Sighting` field. The digest is the
+  alert and `/admin/growth` is where it gets fixed.
+- Write to any growth row. Marking posted, archiving and re-planning stay human
+  (section 4).
+- Count X, email or any other channel. X is off the schedule.
+- Cap how far back a missed slot counts. A missed slot stays missed until someone
+  records what happened to it.
+
+**Tests.** Write these first.
+- `backend/tests/test_posting_health.py`, with fixed rows and a fixed `now`:
+  - A slot 13 hours past is missed. One 11 hours past is not.
+  - A `published` row never counts, and a `failed` one does.
+  - With 1 planned row in the next 7 days the channel is under the floor; with 2
+    it is ok. A `draft` row does not count toward the floor.
+  - Instagram stalled and LinkedIn ok stay apart.
+- `backend/tests/test_notice_harvest.py`: a stalled posting belt opens its own
+  `dead_man`. An ok one closes only its own. An undeclared belt is never closed.
+  The snapshot cases still pass through the shared helper.
+- The fingerprint allowlist includes all four belts. When `check_posting` raises,
+  the closer behaves as it does today.
+
+**Done when.** Tests and gates pass. Run `check_posting()` against production once
+from the laptop and paste the four states. The first digest after the `main`
+merge names only what is truly behind, because Claude's cleanup (section 4) ran
+first.
+
 ---
 
 ## 4 · Not Cursor's
@@ -333,6 +404,11 @@ section, and the tracker row's new caption. Claude looks at every recut slide at
   issue 024 on Wed 18 Nov, the fill reel on Sat 21 Nov, issue 023 on Wed 25 Nov,
   the match reel on Sat 28 Nov, issue 021 on Wed 2 Dec (after B2 and B3).
 - Reads the LinkedIn page with Shivam and marks in the tracker what went out.
+- **Before the `main` merge that carries B7**, settles every Instagram or LinkedIn
+  row past its slot (10 LinkedIn rows on 17 Nov, 27 May → 17 Nov). Each one is
+  marked posted in `/admin/growth` with its live URL, archived if it will never go
+  out (the May and June rows), or re-planned to a real date. After that, every
+  slot that passes gets the same treatment, either Mark posted or a decision.
 
 ---
 
@@ -349,6 +425,7 @@ pass writes "Verified".
 | B4 | Spec only. Live post BLOCKED on Shivam's Meta setup. |
 | B5 | Spec only. |
 | B6 | Spec only (2026-11-17). Never holds a slot. |
+| B7 | Spec only (2026-11-17). Needs Claude's tracker cleanup (section 4) before its `main` merge. |
 | Footer link to @myrojobs | Not needed: already in `public-footer.tsx` (checked 2026-11-15). |
 
 ---
@@ -382,8 +459,11 @@ Read CLAUDE.md, then ARCHITECTURE_BRAND_DISTRIBUTION.md in full. Build chunk B1 
     for under "Done when". If you could not produce it, say so. Do not write "done".
 ```
 
-**Order.** B1 → B3 → B2 → B4 → B5, one chat at a time. B6 runs beside B4 or B5:
-it holds lanes A and C, so no other chat may touch those lanes while it runs. B1 first, because B2 and B3
+**Order.** B1 → B3 → B2 → B4 → B5 → B7, one chat at a time. B7 does not wait on
+Shivam's Meta setup, so it may go before B4 and B5. B5 and B7 both edit
+`harvest.py`, `closer.py` and `fingerprint.py`, so one of them rebases on the
+other. B6 runs beside lane B: it holds lanes A and C, so no other chat may touch
+those lanes while it runs. B1 first, because B2 and B3
 read its fields. B3 before B2, so issue 021's row comes from the command. With
 two chats at once: lane A or C in one, lane B in the other, never two in one lane.
 
