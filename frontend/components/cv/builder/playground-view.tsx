@@ -486,6 +486,7 @@ export function PlaygroundView({
           loomRoles={cv.experience.map(e => e.company || e.role).filter(Boolean)}
           coverageSettled={coverageQuery.isSuccess}
           coverageFailed={coverageQuery.isError}
+          pricedPress={tailor.pricedPress}
           currentSummary={cv.summary ?? ""}
           currentSkillsLine={cv.skills_line ?? ""}
           onRetryCoverage={() => void coverageQuery.refetch()}

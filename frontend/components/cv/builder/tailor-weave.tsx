@@ -11,8 +11,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useMutation, useQuery } from "@tanstack/react-query"
+import { Button } from "@/components/ui/button"
 import { cv as cvApi, type WeaveProposal } from "@/lib/api"
-import { interviewActions } from "@/lib/cv/interview-actions"
+import { interviewActions, openingRun, startLabel } from "@/lib/cv/interview-actions"
 import { weaveWaitVerdict } from "@/lib/cv/weave-wait"
 import { useRunWait } from "@/lib/hooks/use-run-wait"
 import { runOutcomeUnseen } from "@/lib/run-wait"
@@ -24,7 +25,7 @@ import { useTailorGateRefresh } from "./use-tailor-gate"
 import { useWeaveLanding } from "./use-weave-landing"
 import { WeaveReview } from "./weave-review"
 
-type Act = "loom" | "interview" | "review"
+type Act = "loom" | "interview" | "start" | "review"
 
 interface TailorWeaveProps {
   token: string
@@ -37,6 +38,9 @@ interface TailorWeaveProps {
   coverageSettled: boolean
   coverageFailed?: boolean
   onRetryCoverage?: () => void
+  /** Opened by a press on a control that showed the price. Only then does a
+   *  weave start by itself; otherwise the start act shows the price. */
+  pricedPress?: boolean
   /** What the paper says today — shown as the "was" on the extras card. */
   currentSummary?: string
   currentSkillsLine?: string
@@ -46,7 +50,7 @@ interface TailorWeaveProps {
 
 export function TailorWeave({
   token, jobId, company, jobTitle, loomRoles, cost = 50,
-  coverageSettled, coverageFailed = false, onRetryCoverage,
+  coverageSettled, coverageFailed = false, onRetryCoverage, pricedPress = false,
   currentSummary = "", currentSkillsLine = "",
   onApplied, onClose,
 }: TailorWeaveProps) {
@@ -168,33 +172,36 @@ export function TailorWeave({
       return
     }
     if (!coverageSettled || !existing.isFetched) return
-    if (staleDraft) {
-      if (!weaveStarted.current && !weaving) {
-        weaveStarted.current = true
-        weaveMutate({ refresh: true })
+    if (!staleDraft) {
+      if (interview.isError) {
+        const msg = interview.error instanceof Error ? interview.error.message : "Could not read this job."
+        setError(msg)
+        return
       }
-      return
+      if (!interview.isSuccess) return
     }
-    if (interview.isError) {
-      const msg = interview.error instanceof Error ? interview.error.message : "Could not read this job."
-      setError(msg)
-      return
-    }
-    if (!interview.isSuccess) return
     // "Weave now" already left the interview; do not put it back on screen.
-    if (weaveStarted.current) return
-    if (interview.data.questions.length > 0) {
+    if (weaveStarted.current || weaving) return
+    // A run charges, so it starts here only after a priced press (openingRun).
+    const next = openingRun({
+      questions: staleDraft ? 0 : interview.data?.questions.length ?? 0,
+      staleDraft,
+      pricedPress,
+    })
+    if (next === "start") {
+      setAct("start")
+      return
+    }
+    if (next === "interview") {
       setAct("interview")
       return
     }
-    if (!weaveStarted.current && !weaving) {
-      weaveStarted.current = true
-      weaveMutate({ refresh: false })
-    }
+    weaveStarted.current = true
+    weaveMutate({ refresh: next === "refresh" })
   }, [
     coverageSettled, coverageFailed, currentProposal, staleDraft, weavingNow,
     existing.isFetched, interview.isSuccess, interview.isError, interview.data,
-    interview.error, act, weaving, weaveMutate, startWait,
+    interview.error, act, weaving, weaveMutate, startWait, pricedPress,
   ])
 
 
@@ -214,6 +221,13 @@ export function TailorWeave({
     weaveStarted.current = true
     setAct("loom")
     runWeave.mutate({ refresh: stale })
+  }
+
+  /** The start act's one button: the person pressed the price. */
+  function pressStart() {
+    if (weaveStarted.current || runWeave.isPending) return
+    weaveStarted.current = true
+    runWeave.mutate({ refresh: staleDraft || stale })
   }
 
   function advanceInterview() {
@@ -289,6 +303,18 @@ export function TailorWeave({
               onSubmit={submitAnswer}
               onSkip={advanceInterview}
             />
+          )}
+
+          {act === "start" && (
+            <div className="tw-start">
+              <span className="tw-start-k mono">Mentor rewrites</span>
+              <ul className="tw-start-roles">
+                {Array.from(new Set(loomRoles)).slice(0, 4).map(role => <li key={role}>{role}</li>)}
+              </ul>
+              <div className="tw-start-actions">
+                <Button onClick={pressStart}>{startLabel(cost)}</Button>
+              </div>
+            </div>
           )}
 
           {act === "review" && proposal && (

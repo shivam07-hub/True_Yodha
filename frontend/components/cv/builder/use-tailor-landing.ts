@@ -61,6 +61,9 @@ export function useTailorLanding(opts: {
 
   const [overlay, setOverlay] = useState<TailorOverlay>(null)
   const [focusGap, setFocusGap] = useState<string | null>(null)
+  // The overlay was opened by a press on a control that showed the price.
+  // Only then may it start a charged weave by itself (openingRun).
+  const [pricedPress, setPricedPress] = useState(false)
   const mentorOpened = useRef(false)
   useEffect(() => {
     if (mentorOpened.current || !ready) return
@@ -71,6 +74,7 @@ export function useTailorLanding(opts: {
     mentorOpened.current = true
     if (auto) markAuto(opts.jobId)
     setFocusGap(null)
+    setPricedPress(false)
     const next = overlayFor(step)
     if (next) emitLoopStep(opts.token, "mentor_opened", opts.jobId, auto ? "auto" : "link")
     setOverlay(next)
@@ -82,11 +86,13 @@ export function useTailorLanding(opts: {
   return {
     overlay,
     focusGap,
+    pricedPress,
     showLead,
     leadCost,
     onHeader: () => {
       const next = overlayFor(weaveGet.isSuccess ? step : "proof")
       setFocusGap(null)
+      setPricedPress(leadCost != null)
       if (next) {
         emitLoopStep(opts.token, "mentor_opened", opts.jobId, "cv_header")
         setOverlay(next)
@@ -100,6 +106,7 @@ export function useTailorLanding(opts: {
     // The person runs it; this does not.
     openWeave: () => {
       setFocusGap(null)
+      setPricedPress(false)
       setOverlay("weave")
     },
     close: () => {
