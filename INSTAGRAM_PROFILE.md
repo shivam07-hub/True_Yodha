@@ -47,11 +47,12 @@ Every week we publish what India's MNC openings ask for, read from the employers
 
 ## Posted so far
 
-Newest first. The top four are marked done in the Distribution Tracker with their
+Newest first. The top five are marked done in the Distribution Tracker with their
 live links and captions as posted.
 
 | Date | Post |
 |---|---|
+| 18 Nov, 02:15 | [Issue 024 carousel](https://www.instagram.com/myrojobs/p/Df20WH9EkmA/), posted by Claude in Chrome, one caption, not shared to Facebook. Same night on the LinkedIn company page: [issue 024](https://www.linkedin.com/feed/update/urn:li:activity:7528558060508762112/), with the link in the first comment |
 | 3 Nov | [Issue 025 carousel](https://www.instagram.com/myrojobs/p/DfSXQmFo_NL/), from the laptop in Chrome, one caption |
 | 23 Oct | [Loop reel](https://www.instagram.com/myrojobs/reel/De2Grhax5BJ/) |
 | 25 Sep | [Issue 022 carousel](https://www.instagram.com/myrojobs/p/DdtOUlPI5Bn/) |
@@ -115,12 +116,12 @@ Each carousel below is published from the laptop as above. Hashtags go in the
 first comment. The bio link stays as it is.
 
 One post a day on each channel until the backlog clears (Shivam, 2026-11-17).
-The tracker rows carry these dates. Neither channel has issue 024 yet: the
-17 Nov slot passed unposted.
+The tracker rows carry these dates. Issue 024 went out on both channels at 02:15
+on 18 Nov (Shivam chose now over the slots).
 
 | Day | LinkedIn, 10:30 | Instagram, 19:00 | Before it goes |
 |---|---|---|---|
-| Wed 18 Nov | Issue 024 | Issue 024 carousel | |
+| Wed 18 Nov | Issue 024, posted | Issue 024 carousel, posted | |
 | Thu 19 Nov | Fill video, 10:00 | Issue 026 carousel | Video: someone listens to the soundtrack. 026: `main` merged, so the issue page is live (it was not on 17 Nov) |
 | Fri 20 Nov | Issue 026 | Issue 023 carousel | 023: re-read its Ghost Index figures against `/ghost-index` |
 | Sat 21 Nov | Issue 021 | Fill reel, 10:00 | |
