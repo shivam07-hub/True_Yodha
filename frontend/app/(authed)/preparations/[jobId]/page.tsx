@@ -1,6 +1,5 @@
 "use client"
 
-import { useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { PrepShell } from "@/components/preparations/prep-shell"
 import { PrepSkeleton } from "@/components/preparations/prep-skeleton"
@@ -11,20 +10,11 @@ import "@/app/(authed)/practice/practice.css"
  * /preparations/[jobId] — the same screen as /preparations with this room open.
  * Deep-linkable by design (grill Q4/Q8): Collections rows, the loop bar and
  * notifications all land here. Unified Prep v2 (2b) made the list and the room
- * one surface, so this route only chooses which room the main column holds.
+ * one surface; the shell reads the room and `?step=N` off the URL itself, so
+ * this route exists only so a deep link resolves.
  */
-export default function PreparationRoomPage({ params }: { params: { jobId: string } }) {
+export default function PreparationRoomPage() {
   const { token, ready } = useAuth()
-  // `?step=N` — the cross-room footer sends people to a specific step, not just
-  // to a room. Landing on the room head and making them hunt for it would lose
-  // the whole point of naming the bottleneck.
-  const step = Number(useSearchParams().get("step"))
   if (!ready) return <PrepSkeleton />
-  return (
-    <PrepShell
-      token={token ?? ""}
-      jobId={decodeURIComponent(params.jobId)}
-      step={step >= 1 && step <= 4 ? step : null}
-    />
-  )
+  return <PrepShell token={token ?? ""} />
 }

@@ -102,8 +102,9 @@ export function PrepRoom({
   totals: LadderTotals | undefined
   /** The room the cross-room footer sends people to. */
   behind: LadderRoom | null
-  /** Open another room in place — same screen, same read, no route change. */
-  onOpenRoom: (jobId: string, href: string, step: number | null) => void
+  /** Open another room in place — same screen, same read, no route change.
+   *  The href names the room and step; the shell reads both back off the URL. */
+  onOpenRoom: (href: string) => void
   /** `?step=N` — the step a cross-room link asked to open. */
   initialStep?: number | null
 }) {
@@ -296,9 +297,7 @@ export function PrepRoom({
                     ) return
                     event.preventDefault()
                     onOpenRoom(
-                      behind.job_id,
                       `/preparations/${encodeURIComponent(behind.job_id)}?step=${totals.bottleneck_step}`,
-                      totals.bottleneck_step,
                     )
                   }}
                   className="prp-across-go tm-link tm-control-focus"

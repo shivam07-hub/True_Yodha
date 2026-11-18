@@ -47,6 +47,22 @@ export function ladderOrder(apps: ApplicationResponse[]): ApplicationResponse[] 
   return [...groups.interviewing, ...groups.applied, ...groups.closed]
 }
 
+/** The room and step `/preparations[/jobId][?step=N]` names. The URL is the
+ *  only place the open room lives — a rail click pushes it, a link or Back
+ *  moves it — so the shell can never show a room the address bar has left. */
+export function roomFromUrl(
+  pathname: string,
+  search: string,
+): { jobId: string | null; step: number | null } {
+  const match = /^\/preparations\/([^/?#]+)/.exec(pathname)
+  if (!match) return { jobId: null, step: null }
+  const step = Number(new URLSearchParams(search).get("step"))
+  return {
+    jobId: decodeURIComponent(match[1]),
+    step: Number.isInteger(step) && step >= 1 && step <= 4 ? step : null,
+  }
+}
+
 /** Days the application has sat in its current stage (created_at fallback). */
 export function daysInStage(app: ApplicationResponse, now: Date): number {
   const since = app.last_stage_changed_at ?? app.applied_at ?? app.created_at

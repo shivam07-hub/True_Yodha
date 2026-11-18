@@ -42,7 +42,7 @@ function RoomRow({
   app: ApplicationResponse
   room: LadderRoom | undefined
   selected: boolean
-  onOpen: (jobId: string, href: string) => void
+  onOpen: (href: string) => void
 }) {
   const steps = room?.steps ?? [0, 0, 0, 0]
   const meta = STAGE_META[app.status]
@@ -65,7 +65,7 @@ function RoomRow({
           event.metaKey || event.ctrlKey || event.shiftKey || event.altKey
         ) return
         event.preventDefault()
-        onOpen(app.job_id, href)
+        onOpen(href)
       }}
       className={[
         "prp-lroom tm-control-focus",
@@ -109,7 +109,7 @@ export function PrepRail({
   ladder: PrepLadderResponse | undefined
   selectedJobId: string | null
   live: number
-  onOpenRoom: (jobId: string, href: string) => void
+  onOpenRoom: (href: string) => void
   /** No rooms: the Finlatics picker stands where the room list would. */
   shelf: ShelfRow[] | null
   /** The Finlatics programme open in the main column, if any. */
