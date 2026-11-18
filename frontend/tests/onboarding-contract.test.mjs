@@ -172,3 +172,11 @@ test("progressive personalization derives the post-score three-move triad", () =
   const rail = read("components/mission-control/mission-hero-rail.tsx")
   assert.match(rail, /deriveNextBestSteps/)
 })
+
+// R6: 59 of 101 new signups never uploaded and nothing said whether the upload
+// screen even rendered for them. The step is recorded where the upload renders.
+test("the onboarding upload records that it was shown", () => {
+  const step = read("components/onboarding/experience-step.tsx")
+  assert.match(step, /useLoopStepOnce\(token, "upload_shown", "onboarding", "onboarding"\)/)
+  assert.match(read("app/onboarding/page.tsx"), /<ExperienceStep\s+token=\{token\}/)
+})

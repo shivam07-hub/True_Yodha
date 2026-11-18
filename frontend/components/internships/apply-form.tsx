@@ -5,16 +5,17 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { cv as cvApi, jobs } from "@/lib/api"
-import { cvOfRecordFor } from "@/lib/cv/workspace"
+import { cvOfRecordFor, latestCVVersionForJob } from "@/lib/cv/workspace"
 import { formatDate } from "@/lib/format"
 import { ApiError } from "@/lib/api-error"
 import { dataKeys } from "@/lib/domain-data"
 import { FeedCard } from "@/components/jobs/feed-card"
 import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
-import { applyLinkAttrs, resolveApplyTarget } from "@/lib/jobs/apply-transport"
+import { applyLinkAttrs, cvForRolePath, resolveApplyTarget } from "@/lib/jobs/apply-transport"
 import { listingVenueOf } from "@/lib/jobs/card-logistics"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { HOSTED_FOR_YOU_KEY } from "./hosted-band"
+import { YearsAsk } from "./years-ask"
 import "./internships.css"
 
 export function InternshipApplyForm({ jobId }: { jobId: string }) {
@@ -35,9 +36,15 @@ export function InternshipApplyForm({ jobId }: { jobId: string }) {
     enabled: Boolean(token) && hosted,
     staleTime: 60_000,
   })
-  // The CV the application freezes (cv_of_record) — named before he presses.
-  const sending = versions.data ? cvOfRecordFor(jobId, versions.data.versions) : null
+  const written = versions.data ? latestCVVersionForJob(jobId, versions.data.versions) : null
+  const sending = written ?? (versions.data ? cvOfRecordFor(jobId, versions.data.versions) : null)
   const noCv = Boolean(versions.data) && !sending
+  const needsRoleCv = Boolean(versions.data) && !written
+  const isJob = listing.data?.employment_kind === "full_time"
+  const statesYears = isJob && listing.data?.min_years_experience != null
+  const back = isJob
+    ? { href: "/market?lane=hosted", label: "All Myro Supported" }
+    : { href: "/internships", label: "All internships" }
   const company = listing.data?.company_name || "the company"
   const target = listing.data
     ? resolveApplyTarget({
@@ -70,7 +77,7 @@ export function InternshipApplyForm({ jobId }: { jobId: string }) {
 
   return (
     <main className="intern-page">
-      <p className="intern-kicker">{hosted ? "Apply here" : "Internship"}</p>
+      <p className="intern-kicker">{hosted ? "Myro Supported" : "Internship"}</p>
       <h1 className="intern-title">
         {listing.data?.job_title ?? (listing.isLoading ? "Loading listing" : "Listing not found")}
       </h1>
@@ -89,23 +96,36 @@ export function InternshipApplyForm({ jobId }: { jobId: string }) {
           Sent to {company} · {formatDate(sentAt, "medium")}. In <Link href="/collections">Collections</Link>.
         </p>
       ) : hosted ? (
+        <>
+        {token && statesYears ? <YearsAsk token={token} /> : null}
         <div className="intern-actions" style={{ marginTop: 18, flexDirection: "column", alignItems: "flex-start" }}>
           {noCv ? (
             <p className="intern-lead" style={{ margin: 0 }}>
               <Link href="/cv">Add your CV</Link> to apply.
+            </p>
+          ) : needsRoleCv ? (
+            <p className="intern-lead" style={{ margin: 0 }}>
+              {company} receives the CV written for this role.
             </p>
           ) : sending ? (
             <p className="intern-lead" style={{ margin: 0 }}>
               Sends {sending.title || "your CV"} ({formatDate(sending.created_at, "short")}), your Myro Score and skills to {company}.
             </p>
           ) : null}
-          <button type="button" className="intern-submit" disabled={pending || !listing.data || noCv} onClick={() => void submit()}>
-            {pending ? "Sending" : "Apply here"}
-          </button>
-          <Link href="/internships" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "var(--tm-text-muted)" }}>
-            All internships
+          {needsRoleCv ? (
+            <Link href={cvForRolePath(jobId)} className="intern-submit" style={{ display: "inline-flex", alignItems: "center", textDecoration: "none" }}>
+              CV for this role
+            </Link>
+          ) : (
+            <button type="button" className="intern-submit" disabled={pending || !listing.data || noCv} onClick={() => void submit()}>
+              {pending ? "Sending" : "Apply here"}
+            </button>
+          )}
+          <Link href={back.href} style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "var(--tm-text-muted)" }}>
+            {back.label}
           </Link>
         </div>
+        </>
       ) : target?.url && target.actionLabel ? (
         <div className="intern-actions" style={{ marginTop: 18 }}>
           <a

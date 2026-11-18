@@ -57,13 +57,37 @@ def hosted_job_id() -> str:
 
 
 def hosted_job_row(user_id: str, body: dict[str, Any], *, now: datetime) -> dict[str, Any]:
-    low = require_paid(body.get("stipend_low_inr"), body.get("stipend_high_inr"))
-    high = int(body.get("stipend_high_inr") or low)
-    if high < low:
-        high = low
-    months = int(body.get("duration_months") or 0)
-    if months < 1:
-        raise ValueError("duration_months must be at least 1")
+    kind = str(body.get("employment_kind") or "internship")
+    if kind not in {"internship", "full_time"}:
+        raise ValueError("employment_kind must be internship or full_time")
+    if kind == "internship":
+        low = require_paid(body.get("stipend_low_inr"), body.get("stipend_high_inr"))
+        high = int(body.get("stipend_high_inr") or low)
+        if high < low:
+            high = low
+        months = int(body.get("duration_months") or 0)
+        if months < 1:
+            raise ValueError("duration_months must be at least 1")
+        seniority = "intern"
+        ppo = bool(body.get("ppo"))
+        years_from = None
+        years_to = None
+    else:
+        # A stipend on a job would make the card read as an internship.
+        low = None
+        high = None
+        months = None
+        seniority = None
+        ppo = None
+        # The years decide who the job reaches (private.hosted_fit). 0 is a
+        # fresher; no answer is refused rather than read as 0.
+        if body.get("min_years_experience") is None:
+            raise ValueError("min_years_experience is required for a job")
+        years_from = int(body["min_years_experience"])
+        if years_from < 0:
+            raise ValueError("min_years_experience cannot be negative")
+        raw_to = body.get("max_years_experience")
+        years_to = None if raw_to is None else max(int(raw_to), years_from)
     title = str(body.get("job_title") or "").strip()
     company = str(body.get("company_name") or "").strip()
     description = str(body.get("job_description") or "").strip()
@@ -91,12 +115,14 @@ def hosted_job_row(user_id: str, body: dict[str, Any], *, now: datetime) -> dict
         "quality_status": "user_confirmed",
         "created_by_user_id": user_id,
         "listing_venue": "myro",
-        "employment_kind": "internship",
-        "seniority_level": "intern",
+        "employment_kind": kind,
+        "seniority_level": seniority,
         "stipend_low_inr": low,
         "stipend_high_inr": high,
         "duration_months": months,
-        "ppo": bool(body.get("ppo")),
+        "ppo": ppo,
+        "min_years_experience": years_from,
+        "max_years_experience": years_to,
         "listing_confidence": "active",
         # Held until a person at Myro clears it (review_hosted).
         "is_active": False,
@@ -174,7 +200,9 @@ def without_dismissed(
 def list_internships(db: Any, *, venue: str | None = None, limit: int = 60) -> list[dict[str, Any]]:
     rows = internship_rows(db, venue=venue, limit=limit)
     now = datetime.now(timezone.utc)
-    return [intern_card(row, now=now) for row in rows if is_intern_job(row) or (row.get("listing_venue") == "myro")]
+    # Myro Supported (venue="myro") is every Myro opening, jobs included. The
+    # Internships list is internships only: a Myro job lives on Jobs.
+    return [intern_card(row, now=now) for row in rows if venue == "myro" or is_intern_job(row)]
 
 
 def get_internship(db: Any, job_id: str) -> dict[str, Any] | None:

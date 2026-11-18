@@ -3,6 +3,8 @@
 import type { CSSProperties, ReactNode } from "react"
 import type { MobileJobRow } from "./job-model"
 import { SWIPE_SETTLE, useCardSwipe } from "./use-card-swipe"
+import { ApplyAction } from "@/components/jobs/apply-action"
+import { hostedApplyPath } from "@/lib/jobs/apply-transport"
 
 /* ══════════════════════════════════════════════════════════════════════════
    SwipeCard — the handoff Jobs feed card: swipe-right = Save, swipe-left =
@@ -23,6 +25,7 @@ export function SwipeCard({
   onTailor,
   shared,
   lede,
+  tailorState,
 }: {
   row: MobileJobRow
   first: boolean
@@ -36,7 +39,16 @@ export function SwipeCard({
   shared: boolean
   /** Agent Picks pass Myro's reason for the pick; the feed passes nothing. */
   lede?: ReactNode
+  tailorState?: {
+    token: string
+    stage?: string
+    hosted: boolean
+    jobId: string
+    sourceUrl?: string | null
+    company?: string | null
+  }
 }) {
+  const tailored = tailorState?.stage === "tailored"
   const swipe = useCardSwipe({ onSave, onSkip })
   const anim = hint && first ? "mm-peekHint 1.7s cubic-bezier(0.32,0.72,0,1) 0.7s 1" : "mm-screenIn 260ms cubic-bezier(0.16,1,0.3,1) both"
 
@@ -111,7 +123,21 @@ export function SwipeCard({
           </div>
           <button onClick={(e) => { e.stopPropagation(); swipe.commit("left") }} aria-label="Not interested" className="mm-press-sm tm-dismiss-action" style={iconBtn}><svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
           <button onClick={(e) => { e.stopPropagation(); onShare() }} aria-label="Share" className="mm-press-sm" style={iconBtn}>{shareIcon}</button>
-          {onTailor ? (
+          {tailored && tailorState?.hosted ? (
+            <a href={hostedApplyPath(tailorState.jobId)} onClick={e => e.stopPropagation()} className="mm-press" style={tailorBtnAccent}>Apply here</a>
+          ) : tailored && tailorState ? (
+            <ApplyAction
+              token={tailorState.token}
+              job={{ job_id: tailorState.jobId, source_url: tailorState.sourceUrl, company: tailorState.company, listing_venue: "career_page" }}
+              surface="market"
+              intentSurface="mobile_jobs"
+              className="mm-press"
+              style={tailorBtnAccent}
+            />
+          ) : onTailor ? (
+            <button onClick={(e) => { e.stopPropagation(); onTailor() }} className="mm-press" style={tailorBtn}>Tailor CV</button>
+          ) : null}
+          {tailored && !tailorState?.hosted && onTailor ? (
             <button onClick={(e) => { e.stopPropagation(); onTailor() }} className="mm-press" style={tailorBtn}>Tailor CV</button>
           ) : null}
           <button onClick={(e) => { e.stopPropagation(); swipe.commit("right") }} className="mm-press" style={{ flex: "none", height: 32, display: "flex", alignItems: "center", gap: 5, padding: "0 13px", borderRadius: 10, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: "var(--tm-fs-caption)", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>★ Save</button>
@@ -119,6 +145,13 @@ export function SwipeCard({
       </div>
     </div>
   )
+}
+
+const tailorBtnAccent: CSSProperties = {
+  height: 32, flex: "none", display: "flex", alignItems: "center", padding: "0 12px", borderRadius: 10,
+  border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)",
+  fontSize: "var(--tm-fs-caption)", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+  textDecoration: "none",
 }
 
 const tailorBtn: CSSProperties = {

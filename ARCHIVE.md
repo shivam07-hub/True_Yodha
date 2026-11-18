@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-11-16 — Parked: a focus session in the extension
+
+Blocking YouTube and similar sites while someone applies (Shivam's idea, 11-16). Buildable with the access the extension already holds: `declarativeNetRequestWithHostAccess` redirects the blocked sites to an extension page that shows the next saved job. Parked on the cut rule: it fixes no broken step, the extension has 3 store users, and nothing shows distraction is why 73 collected became 3 applied. A blocker is also a second purpose on a listing that says "capture any job page", which the store can reject. Revisit when the extension has users whose apply sessions exist to protect.
+
 ## 2026-11-08 — #61 S8 a public page deletes an account
 
 `/account/delete` says what is deleted and how. Signed in, it opens the existing panel. Signed out, sign-in comes back to the page. Linked from Privacy.

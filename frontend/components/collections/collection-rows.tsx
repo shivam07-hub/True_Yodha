@@ -9,9 +9,7 @@ import { feedDataFromMatch } from "@/lib/jobs/card-view"
 import { PulseRow } from "@/components/dashboard/card-atoms"
 import { LegitimacyBadge } from "@/components/jobs/match-brain"
 import { companyHref } from "@/components/companies/company-link"
-import { ApplyCapturePrompt } from "@/components/jobs/apply-capture-prompt"
-import { useApplyCapture } from "@/components/jobs/use-apply-capture"
-import { applyLinkAttrs } from "@/lib/jobs/apply-transport"
+import { ApplyAction } from "@/components/jobs/apply-action"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
@@ -67,19 +65,6 @@ export function CollectionRow({
   const hero = heroFor(entry)
   const job = entry.job
   const canRemove = entry.stage !== "applied"
-
-  const capture = useApplyCapture({
-    token,
-    job: {
-      job_id: entry.job_id,
-      source_url: job.source_url,
-      company: job.company,
-      listing_venue: job.listing_venue,
-      listing_confidence: entry.liveness === "down" ? "closed" : entry.liveness === "live" ? "active" : "uncertain",
-    },
-    surface: "dashboard",
-    intentSurface: "collections",
-  })
 
   const removeThen = () => {
     setLeaving(true)
@@ -177,18 +162,21 @@ export function CollectionRow({
 
               {/* Apply Transport. Not a peer of the hero — it is the handoff
                   control, and it is absent once the listing is down. */}
-              {entry.liveness !== "down" && capture.target.url && capture.target.actionLabel ? (
-                <a
-                  className="db-btn db-btn-secondary tm-control-focus"
-                  {...applyLinkAttrs(capture.target)}
-                  onClick={capture.onApply}
-                  title={capture.target.actionLabel}
-                >
-                  {capture.target.actionLabel}
-                </a>
-              ) : null}
+              <ApplyAction
+                token={token}
+                job={{
+                  job_id: entry.job_id,
+                  source_url: job.source_url,
+                  company: job.company,
+                  listing_venue: job.listing_venue,
+                  listing_confidence: entry.liveness === "down" ? "closed" : entry.liveness === "live" ? "active" : "uncertain",
+                }}
+                surface="dashboard"
+                intentSurface="collections"
+                className="db-btn db-btn-secondary tm-control-focus"
+                hidden={entry.liveness === "down"}
+              />
             </div>
-            <ApplyCapturePrompt capture={capture} />
             {/* The ask the 1.2s inline band never got to make: they left for the
                 ATS and came back to a card that had moved on. */}
             {entry.pending_apply && actions.onAnswerPending ? (

@@ -33,6 +33,11 @@ is posted by hand. Revisit once LinkedIn and Instagram hold for a month.
 This is the floor: two LinkedIn, two Instagram, one issue a week. The brand guide
 allows more. Add slots only once these hold for a month.
 
+**Until the backlog clears on Mon 23 Nov, one post a day on each channel**
+(Shivam, 2026-11-17): LinkedIn at 10:30, Instagram at 19:00, reels and videos at
+10:00. The day-by-day order is in [INSTAGRAM_PROFILE.md](INSTAGRAM_PROFILE.md),
+under Next. After that, the week above.
+
 ## Before anything goes out
 
 - **Newsletter:** angle, chart and heading agreed with Shivam before drafting.

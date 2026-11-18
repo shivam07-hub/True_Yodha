@@ -390,6 +390,7 @@ def _rank_feed_rows(rows: list[dict], brain_evals: dict[str, dict], *, reorder: 
         r["archetype"] = ev.get("archetype")
         # Which of the user's searches found this. NULL for the 83% with one.
         r["track_id"] = ev.get("track_id")
+        r["pick_reason"] = ev.get("pick_reason")
         # The Match Verdict is derived server-side from the eval (never in the
         # client): the one "how good / what to do" read every surface shares.
         me = MatchEval.model_validate(ev)

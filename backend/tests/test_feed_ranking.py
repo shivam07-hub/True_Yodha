@@ -147,6 +147,38 @@ def test_read_rows_sort_among_themselves_and_so_do_unread_ones() -> None:
     assert [r["job_id"] for r in rows] == ["r2", "r1", "u2", "u1"]
 
 
+def test_the_feed_row_carries_pick_reason_from_the_badge_read() -> None:
+    from app.repositories.jobs import JobsRepository
+
+    assert "pick_reason" in JobsRepository._MATCH_EVAL_BADGE_COLS
+    rows = [_row("a"), _row("b")]
+    evals = {
+        "a": _ev(4.0) | {"pick_reason": " You already ran this billing rewrite. "},
+        "b": _ev(3.2) | {"pick_reason": None, "summary": "internal note"},
+    }
+    _rank_feed_rows(rows, evals, reorder=False)
+    by_id = {r["job_id"]: r for r in rows}
+    assert by_id["a"]["pick_reason"] == " You already ran this billing rewrite. "
+    assert by_id["b"]["pick_reason"] is None
+    assert len(rows) == 2
+
+
+def test_the_feed_row_carries_pick_reason_from_the_badge_read() -> None:
+    from app.repositories.jobs import JobsRepository
+
+    assert "pick_reason" in JobsRepository._MATCH_EVAL_BADGE_COLS
+    rows = [_row("a"), _row("b")]
+    evals = {
+        "a": _ev(4.0) | {"pick_reason": " You already ran this billing rewrite. "},
+        "b": _ev(3.2) | {"pick_reason": None, "summary": "internal note"},
+    }
+    _rank_feed_rows(rows, evals, reorder=False)
+    by_id = {r["job_id"]: r for r in rows}
+    assert by_id["a"]["pick_reason"] == " You already ran this billing rewrite. "
+    assert by_id["b"]["pick_reason"] is None
+    assert len(rows) == 2
+
+
 def test_the_feed_carries_which_search_found_each_card() -> None:
     """NULL is track 1 — the profile — which is every card for the 83% of users
     with one search, and every card in the browse tail, which no search found."""

@@ -17,7 +17,7 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 | # | Step | Item | Spec · owner | Next |
 |---|---|---|---|---|
 | 2 | Apply | click → "Did you submit?" → application, measured | `core_loop_events` + `job_apply_intents` | read 11-02: 6 asked, 2 answered, 0 Yes; too few to redesign from |
-| 5 · 3 · 4 | Tailor · Repeat · Front door | **#62** retention: free first tailor (R1–R2), reason + Apply on the card (R3–R4), digest to new signups (R5), measure the upload drop (R6) | [ARCHITECTURE_RETENTION.md](ARCHITECTURE_RETENTION.md) · Cursor, now (Shivam, 2026-11-15) · paste prompt in §6 | R1 built 2026-11-15 (`e8b93503`, on `Develop`). Verify pass 11-15: gates and the free door pass, no coin charged; the Accept row is unproven (QA deck empty on every live job), so R1 is not Verified. R2 built 2026-11-15. Next: R6 → R5 → R3 → R4. R5 live send waits on R1 and R2 on `main` + #59 S4 preview |
+| 5 · 3 · 4 | Tailor · Repeat · Front door | **#62** retention: free first tailor (R1–R2), reason + Apply on the card (R3–R4), digest to new signups (R5), measure the upload drop (R6) | [ARCHITECTURE_RETENTION.md](ARCHITECTURE_RETENTION.md) · Cursor, now (Shivam, 2026-11-15) · paste prompt in §6 | R0–R5 built, R6 steps 1–2. R1–R2 on `main` (#351); R0 and R3–R6 on `Develop`. R0 (`22b9eea1`, 11-17, built by Claude while Cursor was down) stops the page writing a job's CV on open, so "tailored" is true from its day on `main`; walked: untouched page writes nothing, one edit writes one row. R2 walked on R0: an empty deck hands over to Tailor with Mentor. Mentor now starts a paid weave only after a press on a button that showed the price (Shivam, 11-17); its start and interview buttons are pinned in view. **Shivam:** merge `Develop` to `main` (core-loop fix); R4's hosted card lead button. Open: R6 walk and its read on 2026-11-23. R5 live send waits on R0 on `main` + #59 S4 preview |
 | 3 | Repeat | **#59** golden-list digest · the next hunt after a listing closes | [ARCHITECTURE_GOLDEN_DIGEST.md](ARCHITECTURE_GOLDEN_DIGEST.md) | Built; `0aafb324` on `main`. **BLOCKED on Shivam**: preview → approve |
 | 4 | Front door | **#57** "Which job do you want?" after upload | [ARCHITECTURE_FRONT_DOOR.md](ARCHITECTURE_FRONT_DOOR.md) · Cursor, 1st | On `main` 2026-10-17 · link paste fixed `2cc7b264`; 5 clicks to Download `8c372968`; links read from the corpus `515fd697` · phone run owed |
 | 5 | Tailor + download | **#58** CV Tier A | [ARCHITECTURE_CV_TIER_A.md](ARCHITECTURE_CV_TIER_A.md) · Cursor, 2nd | S1–S4 on `main` · S5 closed 2026-11-04 (`4b9be63d`, on `Develop`) · open: the two match numbers |
@@ -25,7 +25,7 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 | 6 | Pay | **#56** the ₹199 Apply Pack | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Cursor, 4th | Spec only, no commits · S1 settlement |
 | 3 | Repeat | **#61** Myro on Android (TWA), buying hidden, then Play billing | [ARCHITECTURE_APK.md](ARCHITECTURE_APK.md) · Cursor, next | S1–S4, S6–S8 on `Develop`. S8 closed 2026-11-08: `/account/delete`. Next: S9, blocked on the new upload-key SHA-256. Phase 2 waits on #56. Shivam: D-U-N-S, new upload key |
 | 4 | Front door | **#63** Myro in Claude and ChatGPT (MCP): sign in with the Myro account, see the judged list, add a job, tailor, record "I applied" | [ARCHITECTURE_MCP.md](ARCHITECTURE_MCP.md) · Cursor | Spec only, no commits. M1–M3 collide with nothing; M4 needs #62 R3. **Gate G waits on Shivam**: Supabase OAuth server on, after M1–M3 reach `main`. Order against #56 is Shivam's call |
-| 4 | Front door | **#64** brand distribution: one command per issue kit (B1), issue 021's kit (B2), kit → tracker (B3), reels through Publish to Instagram (B4), a dead Instagram token opens a Notice (B5) | [ARCHITECTURE_BRAND_DISTRIBUTION.md](ARCHITECTURE_BRAND_DISTRIBUTION.md) · Cursor, beside #62 (no shared files) · paste prompt in §6 | B1 Built 2026-11-15. B3 → B2 → B4 → B5. Live reels and B5 wait on Shivam's Meta setup. Until then Claude posts the overdue Instagram queue with Shivam (024 on 18 Nov) |
+| 4 | Front door | **#64** brand distribution: one command per issue kit (B1), issue 021's kit (B2), kit → tracker (B3), reels through Publish to Instagram (B4), a dead Instagram token opens a Notice (B5), slides a phone can read with one caption per post (B6), a missed posting slot opens a Notice (B7) | [ARCHITECTURE_BRAND_DISTRIBUTION.md](ARCHITECTURE_BRAND_DISTRIBUTION.md) · Cursor, beside #62 (no shared files) · paste prompt in §6 | B1, B3 and B2 Built 2026-11-15. B4 → B5. B6 and B7 spec 2026-11-17; B6 never holds a slot, LinkedIn tracker settled against the live pages 2026-11-17 (nothing posted there since 23 Oct). Live reels and B5 wait on Shivam's Meta setup. Until then Claude posts the overdue Instagram queue with Shivam (024 on 18 Nov) |
 
 **Cursor's order (Shivam, 2026-10-14; #61 added 2026-11-03):** #57 → #58 → #61
 Phase 1 → #60 → #56 → #61 Phase 2. The biggest absolute leak first (553 of 1,002
@@ -98,19 +98,46 @@ person), 0 Yes. Too few to redesign from. **Next:** read again as clicks grow.
 Asked ≈ 0 → people never return to the tab; asked > 0 and answered ≈ 0 → the
 prompt is ignored. Redesign from that, in Myro (no email — APPLY2).
 
-**Apply here — one paid internship posted on Myro (built 2026-11-07/08, on
-`Develop`).** `/recruiters` is her door and home: the post (unpaid refused),
-how many people on Myro it reaches as she types, then her internship and who
-applied. Each applicant's view is the CV frozen at his Yes, his Myro Score and
-skills, with Shortlist / Pass beside his own record. A post is held
+**Myro Supported — an opening whose application lives on Myro (internships
+built 2026-11-07/08; jobs on the same door 2026-11-15).** `/recruiters` is her
+door: a paid internship or a job, how many people on Myro it reaches as she
+types, then the opening and who applied. The seeker's accent is "CV for this
+role" (the existing tailor, which spends coins). Apply here sends that CV,
+refusing the master upload. Each applicant's view is that CV frozen at his Yes,
+his Myro Score and skills, with Shortlist / Pass beside his own record. A post is held
 (`hosted_review=pending`) until Myro clears it at `/admin/internships` (owner
 operators in `growth_operators`, linked from `/admin/growth`); each new post
 emails `OPS_ALERT_EMAIL` with that link. Every cleared post shows to every seeker
 in a band above their judged Jobs list (Shivam, 2026-11-08: show all while there
 are few), the ones he fits first (`private.hosted_fit`: intern/entry target, city,
 a listed skill — the same rule as her count); a card leaves when he applies or
-skips it. The Apply here chip only appears while one is live. 0 hosted posts
-exist (checked 2026-11-08).
+skips it. The Myro Supported chip only appears while one is live. 0 hosted posts
+exist (checked 2026-11-17). The jobs constraint
+(`20261115193000_myro_supported_jobs.sql`) is on prod since 2026-11-17. The
+"CV for this role" gate counts any non-baseline `cv_versions` row, so it holds
+only once #62 R0 is on `main`; before that, opening the page writes one.
+The Internships page lists internships only; a Myro job shows on Jobs. The
+review and go-live emails say job or internship.
+
+Decided by Shivam, 2026-11-17:
+- **Job fit by experience (built 2026-11-17, on `Develop`).** The job form asks
+  years (from, required, 0 = fresher; an optional to), stored in
+  `min_years_experience` / `max_years_experience`. For a job, her count and his
+  "fits" are city + a listed skill + the `candidates_for_user` level rule: the
+  job's from is within reach of the top of his span (years +- 1; else his
+  target level's span; else open, so someone who never said is counted). No
+  ceiling, as on Jobs. Only 44 of 1,108 seekers have `years_experience`
+  (checked 2026-11-17). A seeker with none is asked once on the apply page of
+  a job that states years (`PUT /onboarding/target/years`); it never blocks
+  Apply. Internships keep the intern/entry rule
+  (`20261117230000_myro_supported_job_fit.sql`, on prod). The count for a job
+  reads every profile: ~220 ms, debounced 400 ms on the form.
+  Walked on 375px 11-17 with the local API: Bengaluru + SQL, from 0 → 5 people;
+  from 3 → none; internship → 3. The years ask is unwalked until a job exists.
+- **Myro posts real startup openings itself**, from one Myro hiring account
+  (non-test, an address Shivam owns). **Owner: Shivam** — create the account,
+  post the first opening, clear it at `/admin/internships`. That post is the
+  first walk of the seeker side: the QA account applies, then is marked Pass.
 
 **Form fill has never run for anyone (measured 2026-11-02).** 0 rows in
 `job_filing_authorizations`, test accounts included, and `/filing/answers` refuses
@@ -451,8 +478,11 @@ Tracker (3) · no problem or not actionable (~25).
   no feed 10-01 → 10-14. The 11-02 run after the 10-29 company repairs: Meta, EY
   India and BDO India read `complete`; ANZ Bank `partial`, 11 of 482 (2.3%, under
   the 50% floor).
-  Still yours: Axis Bank = 14,259 live rows (~18%,
-  747 titles) — dedupe at the source.
+  Still yours: club repeated openings of the same role at one company into one
+  role, so a count is the unique roles that company is hiring for, not a row
+  per city or link. Last measured 11-03: Axis Bank 14,259 live rows, 747 titles.
+  The feed already shows one card per employer and title. The stored rows, and
+  every public count, still count each link. Dedupe at the source (scraper).
 - The prod deploy guard (above).
 - **#59 golden digest go-live**: prod carries the first-email rule (`0aafb324`).
   Run the preview SQL in `ARCHITECTURE_GOLDEN_DIGEST.md` (status block), read the

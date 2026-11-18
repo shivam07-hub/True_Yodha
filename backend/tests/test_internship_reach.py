@@ -22,7 +22,17 @@ def test_reach_is_two_counts_and_never_people() -> None:
     }
     name, params = db.calls[0]
     assert name == "hosted_match_count"
-    assert params == {"p_city": "Bengaluru", "p_remote": False, "p_skills": ["SQL", "Python"]}
+    assert params == {
+        "p_city": "Bengaluru", "p_remote": False, "p_skills": ["SQL", "Python"],
+        "p_kind": "internship", "p_min_years": None,
+    }
+
+
+def test_a_job_reaches_by_its_years_from() -> None:
+    db = _Rpc([{"matched": 5, "active_30d": 1}])
+    reach(db, city="Jaipur", remote=False, skills=["Sales"], kind="full_time", min_years=2)
+    assert db.calls[0][1]["p_kind"] == "full_time"
+    assert db.calls[0][1]["p_min_years"] == 2
 
 
 def test_reach_with_no_row_is_zero_not_an_error() -> None:
@@ -47,8 +57,15 @@ def test_reach_route_is_not_read_as_a_job_id() -> None:
     try:
         with TestClient(app) as client:
             res = client.get("/jobs/internships/reach", params={"city": "Bengaluru", "skills": "SQL, Python"})
+            job = client.get(
+                "/jobs/internships/reach",
+                params={"city": "Jaipur", "kind": "full_time", "min_years": 3},
+            )
     finally:
         app.dependency_overrides.clear()
     assert res.status_code == 200
     assert res.json() == {"matched": 4, "active_30d": 1}
     assert db.calls[0][1]["p_skills"] == ["SQL", "Python"]
+    assert db.calls[0][1]["p_kind"] == "internship"
+    assert job.status_code == 200
+    assert (db.calls[1][1]["p_kind"], db.calls[1][1]["p_min_years"]) == ("full_time", 3)

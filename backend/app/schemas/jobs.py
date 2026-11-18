@@ -117,8 +117,7 @@ class MatchEval(BaseModel):
     personalization: str | None = None      # how THIS candidate tailors their application
     star_pointers: list[str] = []           # the candidate's own STAR stories to cite (no-fab)
     #: The one line written TO the reader (second person, reader_voice-checked).
-    #: NULL on rows rated before the v2 prompt — the card falls back to `summary`
-    #: until that row is re-rated, which happens when its inputs move.
+    #: NULL until the row is rated under the v2 prompt. The card shows no line.
     pick_reason: str | None = None
     #: Pay band, INR lakhs per annum. NULL on rows rated before prompt v4.
     ctc_low_lpa: float | None = None
@@ -730,6 +729,8 @@ class JobFeedItem(BaseModel):
     #: profile — which is every card for the 83% who have one search, and every
     #: card in the browse tail, which no search found at all.
     track_id: int | None = None
+    #: The line written to the reader. A missing line drops no card.
+    pick_reason: str | None = None
     #: Pay band, INR lakhs per annum, and whether even its top sits under the
     #: person's pay floor. A floor never hides a card; it is said here instead.
     #: None when there is no band or no floor.
@@ -758,12 +759,18 @@ class JobFeedItem(BaseModel):
 
 
 class HostedInternshipRequest(BaseModel):
+    """A Myro Supported opening. Internships stay paid. A job has no stipend
+    and states its years instead: from (0 = fresher), and an optional to."""
+
     company_name: str
     job_title: str
-    stipend_low_inr: int
+    employment_kind: Literal["full_time", "internship"] = "internship"
+    stipend_low_inr: int | None = None
     stipend_high_inr: int | None = None
-    duration_months: int
+    duration_months: int | None = None
     ppo: bool = False
+    min_years_experience: int | None = Field(default=None, ge=0, le=40)
+    max_years_experience: int | None = Field(default=None, ge=0, le=40)
     location: str | None = None
     location_mode: Literal["onsite", "hybrid", "remote"] = "onsite"
     job_description: str
@@ -931,8 +938,8 @@ class MatchBrainResult(BaseModel):
     grade: str | None = None
     recommendation: str | None = None
     summary: str | None = None
-    #: The line written TO the reader (second person, reader_voice-checked). The
-    #: drawer prefers it and falls back to `summary` on rows rated before v2.
+    #: The line written TO the reader (second person, reader_voice-checked).
+    #: NULL until the row is rated under the v2 prompt. No summary stands in.
     pick_reason: str | None = None
     application_angle: str | None = None
     role_fit: float | None = None

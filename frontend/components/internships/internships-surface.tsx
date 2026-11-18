@@ -6,7 +6,7 @@ import { jobs } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { FeedCard } from "@/components/jobs/feed-card"
 import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
-import { applyLinkAttrs, resolveApplyTarget } from "@/lib/jobs/apply-transport"
+import { applyLinkAttrs, cvForRolePath, resolveApplyTarget } from "@/lib/jobs/apply-transport"
 import { useAuth } from "@/lib/hooks/use-auth"
 import "./internships.css"
 
@@ -24,7 +24,7 @@ export function InternshipsSurface() {
       <p className="intern-kicker">Paid internships</p>
       <h1 className="intern-title">Internships</h1>
       <p className="intern-lead">
-        Hosted listings use Apply here. Career-page listings open the company portal.
+        Myro Supported openings apply on this page, with a CV written for the role. The rest open the company portal.
       </p>
       <div className="intern-actions">
         <Link href="/market?lane=internships" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, padding: "0 14px", border: "1px solid var(--tm-border-soft)", color: "var(--tm-text)", textDecoration: "none" }}>
@@ -50,7 +50,16 @@ export function InternshipsSurface() {
                 key={job.job_id}
                 data={feedDataFromFeedItem(job, { hasCv: false })}
                 variant="row"
-                actions={attrs.href && target.actionLabel ? (
+                actions={target.kind === "hosted" ? (
+                  <span className="intern-actions" style={{ margin: 0 }}>
+                    <a href={cvForRolePath(job.job_id)} className="intern-submit" style={{ display: "inline-flex", alignItems: "center", padding: "0 14px", textDecoration: "none" }}>
+                      CV for this role
+                    </a>
+                    {attrs.href ? (
+                      <a {...attrs} className="intern-secondary">{target.actionLabel}</a>
+                    ) : null}
+                  </span>
+                ) : attrs.href && target.actionLabel ? (
                   <a
                     {...attrs}
                     className="intern-submit"
@@ -59,9 +68,9 @@ export function InternshipsSurface() {
                       alignItems: "center",
                       padding: "0 14px",
                       textDecoration: "none",
-                      ...(target.kind === "hosted"
-                        ? {}
-                        : { background: "transparent", color: "var(--tm-text)", borderColor: "var(--tm-border-soft)" }),
+                      background: "transparent",
+                      color: "var(--tm-text)",
+                      borderColor: "var(--tm-border-soft)",
                     }}
                   >
                     {target.actionLabel}{target.kind === "direct" ? " ↗" : ""}

@@ -14,7 +14,7 @@ export const MODE_LABEL: Record<string, string> = {
 
 export type ListingVenue = "career_page" | "myro"
 export type EmploymentKind = "full_time" | "internship"
-export type LogisticsKind = "location" | "mode" | "pay" | "years" | "stipend" | "duration" | "ppo"
+export type LogisticsKind = "location" | "mode" | "pay" | "years" | "stipend" | "duration" | "ppo" | "supported"
 
 export interface LogisticsItem {
   kind: LogisticsKind
@@ -109,6 +109,9 @@ export function isFreshAge(iso: string | null | undefined): boolean {
 export function logisticsOf(input: LogisticsInput): LogisticsItem[] {
   const intern = isInternRole(input)
   const items: LogisticsItem[] = []
+  if (listingVenueOf(input.listingVenue) === "myro") {
+    items.push({ kind: "supported", label: "Myro Supported" })
+  }
   const city = firstCity(input)
   if (city) items.push({ kind: "location", label: city })
   const mode = modeLabel(input.locationMode, city)

@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { jobs, type JobFeedItem } from "@/lib/api"
 import { FeedCard } from "@/components/jobs/feed-card"
 import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
-import { applyLinkAttrs, resolveApplyTarget } from "@/lib/jobs/apply-transport"
+import { applyLinkAttrs, cvForRolePath, resolveApplyTarget } from "@/lib/jobs/apply-transport"
 import "./internships.css"
 
 export const HOSTED_FOR_YOU_KEY = ["internships-for-you"] as const
@@ -43,8 +43,8 @@ export function HostedBand({ token }: { token: string }) {
   }
 
   return (
-    <section className="intern-band" aria-label="Paid internships">
-      <p className="intern-kicker">Paid internships</p>
+    <section className="intern-band" aria-label="Myro Supported">
+      <p className="intern-kicker">Myro Supported</p>
       {shown.map((job) => {
         const target = resolveApplyTarget({
           job_id: job.job_id,
@@ -60,8 +60,9 @@ export function HostedBand({ token }: { token: string }) {
             variant="row"
             actions={
               <>
+                <a href={cvForRolePath(job.job_id)} className="intern-submit intern-band-apply">CV for this role</a>
                 {attrs.href && target.actionLabel ? (
-                  <a {...attrs} className="intern-submit intern-band-apply">{target.actionLabel}</a>
+                  <a {...attrs} className="intern-secondary">{target.actionLabel}</a>
                 ) : null}
                 <button type="button" className="intern-secondary" onClick={() => skip(job)}>
                   Not for me

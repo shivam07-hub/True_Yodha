@@ -3,6 +3,7 @@
 import * as React from "react"
 import { ArchetypeChip, LegitimacyBadge } from "@/components/jobs/match-brain"
 import { useMatchBrain } from "@/lib/hooks/use-match-brain"
+import { readerLine } from "@/lib/jobs/reader-line"
 
 /**
  * "Myro's take" — the Matching Brain's reasoning about ONE job, wherever it's
@@ -23,9 +24,7 @@ export function MyroTake({ token, jobId }: { token: string; jobId: string }) {
 
   const r = result
   if (!r || !r.available || r.overall_score == null) return null
-  // The line written TO the reader when the row has been rated under the v2
-  // prompt; the evaluator's own summary until then.
-  const line = r.pick_reason || r.summary
+  const line = readerLine(r)
 
   return (
     <div style={panelStyle}>

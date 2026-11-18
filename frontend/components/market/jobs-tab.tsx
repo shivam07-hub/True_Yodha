@@ -20,6 +20,7 @@ import { type FeedStory } from "./story-card"
 import { interleaveStories } from "./feed-rows"
 import { DEFAULT_FILTERS, applyViewFilters, localFilters, type FeedFilters } from "./feed-types"
 import { type MarketJobsTabProps } from "./market-jobs-tab-props"
+import { useCollection } from "@/lib/collections/use-collection"
 import "./market.css"
 import "./market-intel.css"
 
@@ -37,6 +38,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   } = props
   const router = useRouter()
   const { isDesktop } = useViewport()
+  const collection = useCollection(token)
   // Where this list is looking. Every place-naming surface below reads it —
   // the pill, the divider, the rail, the story card, the filters sheet.
   const scope = useFeedScope(targetLocations)
@@ -315,6 +317,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
         onStoryPrimary={onStoryPrimary}
         onStorySecondary={onStorySecondary}
         onReadMore={readMore}
+        stageOf={id => collection.byId.get(id)?.stage}
       />
     </MarketFeedFrame>
   )

@@ -47,11 +47,12 @@ Every week we publish what India's MNC openings ask for, read from the employers
 
 ## Posted so far
 
-Newest first. The top four are marked done in the Distribution Tracker with their
+Newest first. The top five are marked done in the Distribution Tracker with their
 live links and captions as posted.
 
 | Date | Post |
 |---|---|
+| 18 Nov, 02:15 | [Issue 024 carousel](https://www.instagram.com/myrojobs/p/Df20WH9EkmA/), posted by Claude in Chrome, one caption, not shared to Facebook. Same night on the LinkedIn company page: [issue 024](https://www.linkedin.com/feed/update/urn:li:activity:7528558060508762112/), with the link in the first comment |
 | 3 Nov | [Issue 025 carousel](https://www.instagram.com/myrojobs/p/DfSXQmFo_NL/), from the laptop in Chrome, one caption |
 | 23 Oct | [Loop reel](https://www.instagram.com/myrojobs/reel/De2Grhax5BJ/) |
 | 25 Sep | [Issue 022 carousel](https://www.instagram.com/myrojobs/p/DdtOUlPI5Bn/) |
@@ -114,17 +115,29 @@ permissions error, that is the step left, and the row will say so.
 Each carousel below is published from the laptop as above. Hashtags go in the
 first comment. The bio link stays as it is.
 
-| # | When (IST) | Post | Files | Copy |
-|---|---|---|---|---|
-| 1 | Wed 18 Nov, 19:00 | Issue 024 carousel, 7 slides (was 11 Nov) | `Myro Newsletter/Issue 024 - carousel/` | `scripts/newsletter-carousel-specs/issue-024-distribution.md` |
-| 2 | Sat 21 Nov, 10:00 | Fill reel, 22 s (was 7 Nov) | `brag-output-2026-10-20-155052/brag.mp4` | Its `instagram.txt` |
-| 3 | Wed 25 Nov, 19:00 | Issue 023 carousel, 7 slides | `Myro Newsletter/Issue 023 - carousel/` | `scripts/newsletter-carousel-specs/issue-023-distribution.md` |
-| 4 | Sat 28 Nov, 10:00 | Match reel, 22 s (was 14 Nov) | `brag-output-2026-10-20-134012/brag.mp4` | Its `instagram.txt` |
-| 5 | Wed 2 Dec, 19:00 | Issue 021 carousel, once #64 B2 and B3 are built | `Myro Newsletter/Issue 021 - carousel/` | `scripts/newsletter-carousel-specs/issue-021-distribution.md` |
+One post a day on each channel until the backlog clears (Shivam, 2026-11-17).
+The tracker rows carry these dates. Issue 024 went out on both channels at 02:15
+on 18 Nov (Shivam chose now over the slots).
 
-A new issue takes the next Wednesday ahead of this list. Issue 26 is held until
-EY is back in the live set (NEWSLETTER_QUEUE). Issue 25's figures are dated
-20 October, before EY dropped out on 27 October, so the hold does not touch it.
+| Day | LinkedIn, 10:30 | Instagram, 19:00 | Before it goes |
+|---|---|---|---|
+| Wed 18 Nov | Issue 024, posted | Issue 024 carousel, posted | |
+| Thu 19 Nov | Fill video, 10:00 | Issue 026 carousel | Video: someone listens to the soundtrack. 026: `main` merged, so the issue page is live (it was not on 17 Nov) |
+| Fri 20 Nov | Issue 026 | Issue 023 carousel | 023: re-read its Ghost Index figures against `/ghost-index` |
+| Sat 21 Nov | Issue 021 | Fill reel, 10:00 | |
+| Sun 22 Nov | Issue 025 | Issue 021 carousel | |
+| Mon 23 Nov | Match video | Match reel | Soundtrack heard |
+
+Issue N's copy lives in `scripts/newsletter-carousel-specs/issue-0NN-distribution.md`:
+the `## LinkedIn` section, and the Instagram caption in `caption-laptop.txt`
+beside its slides in `Myro Newsletter/Issue 0NN - carousel/`. On LinkedIn the
+link goes in the first comment, with `utm_campaign=issue-0NN`. The fill video is
+`brag-output-2026-10-20-155052/` and the match video `brag-output-2026-10-20-134012/`,
+each with its own `linkedin.txt` and `instagram.txt`. On LinkedIn, 022 and 023 are
+paused because they repeat the 25 Sep Ghost Index post.
+
+After 23 Nov, a new issue takes the next Tuesday (LinkedIn) and Wednesday
+(Instagram).
 
 The kits, issue 021's kit, reels through Publish and a dead-token alarm are
 Cursor's: [ARCHITECTURE_BRAND_DISTRIBUTION.md](ARCHITECTURE_BRAND_DISTRIBUTION.md) (#64).

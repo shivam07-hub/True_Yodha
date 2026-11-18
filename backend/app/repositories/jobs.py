@@ -2844,13 +2844,15 @@ class JobsRepository:
         "eval_context_hash, eval_outcome, "
         # With `eval_context_hash`, what Verdict Currency reads to tell a stale
         # verdict from one judged for another direction (the Agent Picks read).
-        "target_context_hash"
+        # One short line per warmed card. The full read already carried it;
+        # the feed's light read is the one the card uses.
+        "target_context_hash, pick_reason"
     )
     _MATCH_EVAL_FULL_COLS = (
         _MATCH_EVAL_BADGE_COLS
         + ", summary, application_angle, role_fit, comp_fit, growth_fit, "
         "culture_fit, risk_score, strengths, concerns, "
-        "level_strategy, personalization, star_pointers, pick_reason, "
+        "level_strategy, personalization, star_pointers, "
         # A cached verdict is re-persisted by the next run (`ranking.rank` merges
         # it into `evaluations`); leave these out and that write blanks them.
         "ctc_low_lpa, ctc_high_lpa, ctc_basis, breaks"

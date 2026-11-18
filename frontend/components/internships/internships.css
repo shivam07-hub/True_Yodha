@@ -39,12 +39,46 @@
   flex-direction: column;
   gap: 12px;
 }
+.intern-kind {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.intern-kind legend {
+  width: 100%;
+  padding: 0;
+  font-size: var(--tm-fs-caption);
+  color: var(--tm-text-muted);
+}
 .intern-form label {
   display: flex;
   flex-direction: column;
   gap: 6px;
   font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
+}
+.intern-years {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-top: 18px;
+}
+.intern-years label { flex: 1 1 160px; }
+.intern-form .intern-kind label {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--tm-text);
+}
+.intern-form .intern-kind input {
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  padding: 0;
 }
 .intern-form input,
 .intern-form textarea,

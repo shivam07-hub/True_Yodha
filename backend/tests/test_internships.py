@@ -62,6 +62,107 @@ def test_hosted_row_is_a_paid_myro_internship() -> None:
     assert row["created_by_user_id"] == "user-1"
 
 
+def test_a_hosted_job_is_full_time_and_carries_no_stipend() -> None:
+    row = hosted_job_row(
+        "user-1",
+        {
+            "company_name": "Campus Co",
+            "job_title": "Area sales manager",
+            "employment_kind": "full_time",
+            "stipend_low_inr": 8000,
+            "duration_months": 3,
+            "min_years_experience": 2,
+            "max_years_experience": 5,
+            "job_description": "Own a territory and a number, reported monthly.",
+        },
+        now=NOW,
+    )
+    assert row["listing_venue"] == "myro"
+    assert row["employment_kind"] == "full_time"
+    assert row["seniority_level"] is None
+    assert row["stipend_low_inr"] is None
+    assert row["duration_months"] is None
+    assert row["ppo"] is None
+    assert row["apply_url"] is None
+    assert row["min_years_experience"] == 2
+    assert row["max_years_experience"] == 5
+
+
+_JOB = {
+    "company_name": "Campus Co",
+    "job_title": "Area sales manager",
+    "employment_kind": "full_time",
+    "job_description": "Own a territory and a number, reported monthly.",
+}
+
+
+def test_a_hosted_job_states_its_years_from() -> None:
+    """0 is a real answer (a fresher); no answer is refused."""
+    with pytest.raises(ValueError):
+        hosted_job_row("user-1", dict(_JOB), now=NOW)
+    fresher = hosted_job_row("user-1", {**_JOB, "min_years_experience": 0}, now=NOW)
+    assert fresher["min_years_experience"] == 0
+    assert fresher["max_years_experience"] is None
+
+
+def test_a_years_to_below_from_is_raised_to_from() -> None:
+    row = hosted_job_row("user-1", {**_JOB, "min_years_experience": 4, "max_years_experience": 2}, now=NOW)
+    assert (row["min_years_experience"], row["max_years_experience"]) == (4, 4)
+
+
+def test_an_internship_carries_no_years() -> None:
+    row = hosted_job_row(
+        "user-1",
+        {
+            "company_name": "Campus Co",
+            "job_title": "Product intern",
+            "stipend_low_inr": 8000,
+            "duration_months": 3,
+            "min_years_experience": 3,
+            "job_description": "Work with the product team on live listings.",
+        },
+        now=NOW,
+    )
+    assert row["min_years_experience"] is None
+    assert row["max_years_experience"] is None
+
+
+def test_the_job_fit_is_the_candidates_for_user_span() -> None:
+    """The recruiter's count and the seeker's Jobs list read years one way."""
+    from pathlib import Path
+
+    from app.services.job_eligibility import PERSON_YEAR_SPAN_BY_BAND
+
+    sql = (
+        Path(__file__).resolve().parents[2]
+        / "database/migrations/20261117230000_myro_supported_job_fit.sql"
+    ).read_text(encoding="utf-8").lower()
+    for band, lo, hi in PERSON_YEAR_SPAN_BY_BAND:
+        assert f"('{band}', {lo}, {hi})" in sql
+    assert "p_profile.years_experience::numeric + 1" in sql
+    assert "coalesce(p_min_years, 0) <= private.person_year_hi(p_profile)" in sql
+
+
+def test_the_internships_list_leaves_out_myro_jobs(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A full-time Myro Supported job belongs on Jobs, not under Internships."""
+    from app.services import internships as svc
+
+    rows = [
+        {"job_id": "myro_job", "job_title": "Area sales manager", "company_name": "Campus Co",
+         "listing_venue": "myro", "employment_kind": "full_time"},
+        {"job_id": "myro_intern", "job_title": "Product intern", "company_name": "Campus Co",
+         "listing_venue": "myro", "employment_kind": "internship", "stipend_low_inr": 8000},
+        {"job_id": "page_intern", "job_title": "Analyst intern", "company_name": "Bank Co",
+         "listing_venue": "career_page", "employment_kind": "internship"},
+    ]
+    monkeypatch.setattr(svc, "internship_rows", lambda _db, *, venue, limit: rows)
+
+    assert [c["job_id"] for c in svc.list_internships(object())] == ["myro_intern", "page_intern"]
+    assert [c["job_id"] for c in svc.list_internships(object(), venue="myro")] == [
+        "myro_job", "myro_intern", "page_intern",
+    ]
+
+
 def test_a_new_post_is_held_until_myro_clears_it() -> None:
     """Every live read filters is_active; a held post must fail that filter."""
     row = hosted_job_row(
@@ -230,6 +331,7 @@ def test_apply_here_is_a_yes_through_the_hosted_door(monkeypatch: pytest.MonkeyP
     repo = _HostedRepo()
     seen: list = []
     monkeypatch.setattr(router, "get_internship", lambda _db, _jid: {"listing_venue": "myro"})
+    monkeypatch.setattr(router.cv_of_record, "has_tailored_cv", lambda *_a, **_k: True)
     monkeypatch.setattr(application_yes.cv_of_record, "record_on_apply", lambda *_a, **_k: seen.append("cv"))
     monkeypatch.setattr(application_yes.on_demand, "open_job_eval", lambda *_a: seen.append("judge"))
     monkeypatch.setattr(application_yes.core_loop, "record_step", lambda *a: seen.append(a))
@@ -247,6 +349,32 @@ def test_apply_here_is_a_yes_through_the_hosted_door(monkeypatch: pytest.MonkeyP
     assert res.json()["applied_at"] is not None
     assert repo.intents[0]["destination_type"] == "hosted_role"
     assert seen == ["cv", "judge", ("u1", "myro_1", "applied", "hosted")]
+
+
+def test_hosted_apply_waits_for_a_cv_written_for_the_role(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fastapi.testclient import TestClient
+
+    from app.database import get_supabase_admin
+    from app.deps import Principal, get_principal
+    from app.main import app
+    from app.repositories.jobs import get_token_jobs_repository
+    from app.routers.jobs import internships as router
+
+    repo = _HostedRepo()
+    monkeypatch.setattr(router, "get_internship", lambda _db, _jid: {"listing_venue": "myro"})
+    monkeypatch.setattr(router.cv_of_record, "has_tailored_cv", lambda *_a, **_k: False)
+    app.dependency_overrides[get_principal] = lambda: Principal(id="u1", email=None)
+    app.dependency_overrides[get_supabase_admin] = lambda: object()
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    try:
+        with TestClient(app) as client:
+            res = client.post("/jobs/internships/myro_1/apply")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert res.status_code == 409
+    assert res.json()["detail"] == "Write the CV for this role before applying"
+    assert repo.row is None
 
 
 class _ForYouRpc:

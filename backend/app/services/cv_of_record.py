@@ -36,6 +36,26 @@ logger = logging.getLogger(__name__)
 CAPTURE_STATUS_CHANGE = "status_change"
 
 
+def has_tailored_cv(db: Any, user_id: str, job_id: str) -> bool:
+    """A CV written for this opening, not the master upload.
+
+    Myro Supported applications send this version. A baseline does not count:
+    the recruiter is reading a CV made for the role.
+    """
+    rows = (
+        db.table("cv_versions")
+        .select("id")
+        .eq("user_id", user_id)
+        .eq("job_id", job_id)
+        .neq("kind", "baseline_upload")
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    return bool(rows)
+
+
 def _pick_version(versions: list[dict[str, Any]], job_id: str) -> dict[str, Any] | None:
     """The CV that went out, best guess, in the order a person would guess it.
 

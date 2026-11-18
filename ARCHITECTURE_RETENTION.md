@@ -40,6 +40,10 @@ it cannot say what they saw.
 judged for them, because nothing calls them back (22) → open the tailor room and
 press nothing (handoff: 4 of 6).
 
+**Correction, 2026-11-16.** "Tailored" in this table counts job documents, and
+the page writes one 1.2 s after it opens (R0). Read it as "opened the tailor
+page". Nobody in this table is known to have changed a line.
+
 ---
 
 ## 2 · Owners you reuse, never re-create
@@ -71,12 +75,69 @@ the same time. Inside a lane, run the chunks in order.
 
 | Lane | Chunks | Files it owns |
 |---|---|---|
-| A · tailor room | R1 → R2 | `lib/cv/tailor-order.ts`, `components/cv/builder/gap-session.tsx`, and for R2 `components/cv/builder/use-tailor-landing.ts`, `components/cv/builder/playground-view.tsx` |
+| A · tailor room | R0 → R1 → R2 | `lib/cv/tailor-order.ts`, `components/cv/builder/gap-session.tsx`, and for R2 `components/cv/builder/use-tailor-landing.ts`, `components/cv/builder/playground-view.tsx`, and for R0 `lib/hooks/use-cv-playground.ts` |
 | B · feed card | R3 → R4 | `repositories/jobs.py` (badge cols), `routers/jobs/list.py`, `schemas/jobs.py`, `components/market/*`, `components/jobs/myro-take.tsx`, `components/collections/collection-rows.tsx`, `mobile/redesign/swipe-card.tsx` |
 | C · call-back email | R5 | `services/golden_digest.py`, `ARCHITECTURE_GOLDEN_DIGEST.md` |
 | D · upload drop | R6 | one migration, `routers/telemetry.py`, `lib/api.ts` `CoreLoopStep`, `components/onboarding/experience-step.tsx` |
 
 R4 and R6 both touch `lib/api.ts`, in different types. Rebase before you commit.
+
+### R0 · Opening a job's CV must not write its document
+
+**Why.** Found in the verify pass of 2026-11-16, traced to the line on
+2026-11-17. `use-cv-playground.ts` starts `lastSavedRef` at `""` (`:127`). The
+autosave effect (`:376-397`) first runs before the versions read has landed:
+the projection on screen is the empty one, it differs from `""`, and the 1.2 s
+timer arms. The read carries every version's full CV, so it often takes longer
+than that. The timer then fires with no version selected and `saveVersion`
+creates the job document. The comment at `:372` says the first edit creates it.
+The code creates it while the page is still loading. The same `""` guards
+`flushHidden` (`:410`) and the unmount flush (`:429`), so leaving the page
+inside 1.2 s creates one too.
+
+`collections/resolve.py` `_stage` calls a job `tailored` when that row exists.
+So `tailored` has meant "opened the page for 1.2 seconds".
+
+Measured, own accounts excluded: real people have 12 job documents since
+2026-09-28. 11 follow an `editor_opened`, and all 11 were written within 5 s of
+it (median 1.33 s). None has a `weave_ran` or a `review_done`. With the QA
+account, opening `/cv?jobId=` and touching nothing left a row each time.
+
+What it breaks here. R2's `firstLanding` is already false when the deck mounts,
+so the short deck, the hidden meter and the hand-over never run (walked
+2026-11-16: the skills list and a 0% meter, on `4aa225a6`). R4's card turns to
+Apply after a page open. R1's "done when" row proves nothing. §1's "Tailored"
+and §4's baselines count opens.
+
+**Do.**
+1. `lastSavedRef` starts as `null`: nothing has been hydrated, so there is
+   nothing to compare with. The autosave effect, `flushHidden` and the unmount
+   flush each return while it is `null`. Only hydration sets it: the default
+   pick (`:171-182`), `hydrateFrom` (`:192`) and `onMutationSuccess` (`:270`).
+   A job with no document hydrates from the master (`chooseDefault`, `:110`),
+   so an untouched page matches what was hydrated and writes nothing. The first
+   toggle differs and creates the document, as the comment at `:372` says.
+2. Keep every write a person causes: a toggle, a section move, `patchJobCv`,
+   weave apply, the unmount flush of a real change.
+3. Download and the apply snapshot need no document. Download renders the
+   sheet on screen (`playground-view.tsx` `downloadInPlace`). The snapshot
+   sends the CV itself and takes `cv_version_id: null`
+   (`routers/cv/apply_snapshot.py`). Leave both alone.
+4. Then walk R2 (a) and (b) and R4 again.
+
+**Do not.** Change `_stage` or what `tailored` means. Delete or relabel rows
+already written: never backfill. Add a "dirty" flag beside `lastSavedRef`.
+
+**Tests.** This repo has no DOM test runtime, so the decision is one pure
+function, `lib/cv/projection-save.ts` `projectionChanged`, and
+`tests/projection-save.test.ts` holds the hook to it: the marker starts at
+`null`, all three persist paths ask it first, and only a version's own
+projection ever sets the marker. The behaviour is proven by the walk below.
+
+**Done when.** QA: open a never-tailored job's `/cv?jobId=`, wait 10 s, touch
+nothing: SQL shows no `cv_versions` row for that job, and Collections shows it
+saved. Toggle one line or accept one gap card: one row, and Collections shows
+it tailored.
 
 ### R1 · A never-tailored job opens on the free step
 
@@ -269,8 +330,8 @@ them. If the email needs to say how they joined, take `partners.name` (via
 every return this brings is partner revenue too.
 
 **BLOCKED for the live send.** The dry run and `--preview-to` can ship. Turning it
-on waits on (a) R1 and R2 on `main` (the email's links land on that door, and
-R1 alone can end on a list of skills) and (b) Shivam approving the preview
+on waits on (a) R0 on `main` (the email's links land on that door, and
+without R0 it ends on a list of skills) and (b) Shivam approving the preview
 (digest S4).
 The preview must include at least one partner-SSO member.
 
@@ -323,15 +384,19 @@ Same pairs, no new tables. Baseline is from 2026-11-12.
 Cursor builds, Claude verifies. Cursor writes "Built {date}"; only the verify
 pass writes "Verified".
 
+Gates on `22b9eea1`, clean checkout, 2026-11-17: backend 4,105 passed; frontend
+types, lint, 1,295 tests, UI drift, reach and build pass.
+
 | Chunk | State |
 |---|---|
-| R1 | Built 2026-11-15 (`e8b93503`). Verify pass 11-15: the diff, the six gates and the free door pass; no coin charged. **Not Verified**: the Accept row is unproven because the QA account's deck was empty on every live job tried. That proof is R2's walk (b). |
-| R2 | Built 2026-11-15. |
+| R0 | **Verified 2026-11-17** (`22b9eea1`), on `Develop`. Built by Claude: Cursor was down. Walked with the QA account: two never-tailored jobs opened and left untouched, one left within a second, wrote no row; one hidden line wrote one `deterministic` row and Collections moved the job to tailored; no coin moved. At 375px `/cv?jobId=` is the phone CV view, which has no landing deck, and it wrote nothing either. Counts are true from the day R0 reaches `main`; rows written before stay as they are (never backfill). |
+| R1 | Built (`e8b93503`), on `main` since 2026-11-15 (#351). Walked 11-17 on R0: the free door opens by itself and charges nothing. Its Accept proof is still unwalked: the QA CV gives no card to accept on any of 14 live jobs tried. R0's walk proves the write a real edit makes. |
+| R2 | Built (`435a6625`), on `main`. **Walked 11-17 on R0**: an empty first deck hands over to Tailor with Mentor; no skills list, no meter, no coin moved. **Press to start (Shivam, 2026-11-17), built by Claude:** a weave starts by itself only when the header's priced "Tailor with Mentor" opened the overlay. An auto-open, a `?mentor=1` link or this hand-over lands on what Mentor rewrites and one "Weave now · up to 50" button, pinned to the window's foot; the interview's buttons are pinned the same way (they fell below the fold at 800×600). Owner: `lib/cv/interview-actions.ts` `openingRun`. Walked desktop: start act, no run, no coin; interview buttons in view. Below ~760px the app shows the phone CV page, which has no overlay. Walk (b) unwalked: no QA job gives a card. |
 | R2b | Not specced. A closed listing answers the gap plan with 404 (`gap_plan.py:106` `get_job_skills` reads live rows only; the weave reads the saved snapshot), so the deck shows "Couldn't read your gaps". Seen on one closed job. A rare door: decide after R2. |
-| R3 | Spec only. |
-| R4 | Spec only. |
-| R5 | Spec only. Finlatics users included (Shivam, 2026-11-12). Live send blocked on R1 and R2 on `main` + Shivam approving the preview. |
-| R6 | Spec only. |
+| R3 | Built (`144b9da6`), on `Develop`. Verify 11-16: the diff matches the chunk, gates pass. Not walked on screen. |
+| R4 | Built (`26a1abc9`, `43fd50d4`), on `Develop`. Verify 11-16: the diff matches the chunk, gates pass. Not walked: the QA account's /market list is empty (0 rows on 11-17), so no card to look at; `core-loop-tailor-contract` holds the rule. One change the chunk did not ask for: a hosted listing that is not tailored now leads with "CV for this role" and Apply here is the quiet button. Shivam's call. |
+| R5 | Built (`4f96c29b`), on `Develop`. Finlatics users included (Shivam, 2026-11-12). Verify 11-16: the diff matches; no schedule exists (`cron.job`) and no digest row was written, so nothing has been sent. `CALLBACK_SINCE` is 2026-11-15, the build date: set it to the day the send is turned on. The email now says "You joined through {partner}." Live send waits on R0 on `main` and Shivam approving the preview. |
+| R6 | Steps 1–2 built (`4aa225a6`), on `Develop`. Verify 11-16: `upload_shown` is on the live CHECK and one event is recorded. It fires once per mount, not once per person: count distinct people. Open: the walk (step 3) and the 7-day read on 2026-11-23. |
 
 ---
 
@@ -367,7 +432,9 @@ Read CLAUDE.md, then ARCHITECTURE_RETENTION.md in full. Build chunk R1 only.
     paste the result. If you could not do it, say so. Do not write "done".
 ```
 
-**Order.** One Cursor chat at a time: R1 → R2 → R6 → R5 → R3 → R4. R1 first
+**Order.** R0–R6 are built (section 5). What is left is not code: Shivam's two
+calls, the email preview, and R6's read on 2026-11-23. The order they were built
+in: R1 → R2 → R6 → R5 → R3 → R4 → R0. R1 first
 because R5's live send waits on it. R6 early because its read needs 7 days of
 data. R5 before the card work because its preview waits on Shivam. With several
 chats at once: one chat per lane (A, B, C, D), never two in one lane.

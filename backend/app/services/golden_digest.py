@@ -40,6 +40,9 @@ logger = logging.getLogger(__name__)
 
 KIND = "golden_digest"
 EVERY = timedelta(days=3)
+# The day this cohort went live. Signups before it are never mailed.
+CALLBACK_SINCE = datetime(2026, 11, 15, tzinfo=timezone.utc)
+CALLBACK_WINDOW = timedelta(days=30)
 MAX_UNFINISHED = 2
 UTM = "utm_source=golden_digest"
 _JOB_LINK = re.compile(r"jobId=([^&\s]+)")
@@ -197,12 +200,22 @@ def _url(app_url: str, path: str) -> str:
     return f"{app_url}{path}&{UTM}"
 
 
-def render(digest: Digest, *, app_url: str, name: str | None, unsubscribe_url: str | None) -> str:
+def render(
+    digest: Digest,
+    *,
+    app_url: str,
+    name: str | None,
+    unsubscribe_url: str | None,
+    joined_through: str | None = None,
+) -> str:
     """Plain text, short lines, full URLs — read on a phone first (§7)."""
     first = (name or "").strip().split(" ")[0]
     if first.isupper():  # "RAJ KISHORE" as typed at signup reads as shouting
         first = first.title()
     lines = [f"Hi {first}," if first else "Hi,", ""]
+    partner = (joined_through or "").strip()
+    if partner:
+        lines += [f"You joined through {partner}.", ""]
     for job in digest.unfinished:
         at = f" at {job.company}" if job.company else ""
         lines += [f"You tailored a CV for {job.title}{at}. Apply with it:", _url(app_url, job.path), ""]
@@ -260,6 +273,7 @@ def send_due(
             app_url=app_url,
             name=member.get("full_name"),
             unsubscribe_url=f"{app_url}/unsubscribe?t={token}" if token else None,
+            joined_through=member.get("joined_through"),
         )
         report.previews.append((user_id, digest.subject, text))
         if preview_to is not None:
@@ -294,6 +308,42 @@ def send_due(
     return report
 
 
+def in_callback_cohort(profile: dict[str, Any], now: datetime) -> bool:
+    """New signups the digest may call back. Not a second list, and not a backfill.
+
+    Not a test account, not unsubscribed, created on or after `CALLBACK_SINCE`,
+    and still inside 30 days of `now`. A golden-list member is not required.
+    """
+    if profile.get("is_test_account"):
+        return False
+    if profile.get("digest_unsubscribed_at"):
+        return False
+    created = _parse(profile.get("created_at"))
+    if created is None or created < CALLBACK_SINCE:
+        return False
+    return now - created <= CALLBACK_WINDOW
+
+
+def digest_members(golden: list[dict[str, Any]], cohort: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Golden-list members ∪ the cohort, each once.
+
+    A person on the golden list keeps that `since`. A cohort member's first
+    `since` is `created_at`, carried in `golden_list_since` so the one sender
+    does not grow a second field. This does not write the column.
+    """
+    by_id: dict[str, dict[str, Any]] = {}
+    for row in golden:
+        by_id[str(row["user_id"])] = row
+    for row in cohort:
+        user_id = str(row["user_id"])
+        if user_id in by_id:
+            continue
+        member = dict(row)
+        member["golden_list_since"] = row.get("created_at")
+        by_id[user_id] = member
+    return list(by_id.values())
+
+
 def _parse(value: Any) -> datetime | None:
     if not value:
         return None
@@ -314,7 +364,7 @@ class SupabaseStore:
         self._jobs = JobsRepository(db, db)
 
     def members(self) -> list[dict[str, Any]]:
-        rows = (
+        golden_rows = (
             self._db.table("user_profiles")
             .select("id, full_name, golden_list_since")
             .not_.is_("golden_list_since", "null")
@@ -322,16 +372,66 @@ class SupabaseStore:
             .eq("is_test_account", False)
             .execute()
         ).data or []
-        out = []
-        for row in rows:
-            user = self._db.auth.admin.get_user_by_id(row["id"]).user
-            out.append({
+        golden = [
+            {
                 "user_id": row["id"],
-                "email": getattr(user, "email", None),
                 "full_name": row.get("full_name"),
                 "golden_list_since": row.get("golden_list_since"),
-            })
+            }
+            for row in golden_rows
+        ]
+        now = datetime.now(timezone.utc)
+        cohort_rows = (
+            self._db.table("user_profiles")
+            .select("id, full_name, created_at, is_test_account, digest_unsubscribed_at")
+            .gte("created_at", CALLBACK_SINCE.isoformat())
+            .execute()
+        ).data or []
+        cohort = [
+            {
+                "user_id": row["id"],
+                "full_name": row.get("full_name"),
+                "created_at": row.get("created_at"),
+            }
+            for row in cohort_rows
+            if in_callback_cohort(row, now)
+        ]
+        merged = digest_members(golden, cohort)
+        joined = self._joined_through([str(member["user_id"]) for member in merged])
+        out = []
+        for member in merged:
+            user = self._db.auth.admin.get_user_by_id(member["user_id"]).user
+            row = {
+                **member,
+                "email": getattr(user, "email", None),
+            }
+            partner = joined.get(str(member["user_id"]))
+            if partner:
+                row["joined_through"] = partner
+            out.append(row)
         return out
+
+    def _joined_through(self, user_ids: list[str]) -> dict[str, str]:
+        if not user_ids:
+            return {}
+        links = (
+            self._db.table("partner_users")
+            .select("user_id, partner_id")
+            .in_("user_id", user_ids)
+            .execute()
+        ).data or []
+        partner_ids = list({row["partner_id"] for row in links if row.get("partner_id")})
+        if not partner_ids:
+            return {}
+        partners = (
+            self._db.table("partners").select("id, name").in_("id", partner_ids).execute()
+        ).data or []
+        names = {row["id"]: row.get("name") for row in partners if row.get("name")}
+        return {
+            str(row["user_id"]): names[row["partner_id"]]
+            for row in links
+            if row.get("partner_id") in names
+        }
 
     def last_sent_at(self, user_id: str) -> datetime | None:
         rows = (

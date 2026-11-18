@@ -69,6 +69,34 @@ test("the step survives the navigation it precedes", () => {
   assert.match(fn.slice(0, 700), /keepalive: true/)
 })
 
+test("an untailored card keeps Tailor CV as the accent and opens the editor", () => {
+  const card = read("components/market/job-card.tsx")
+  const tab = read("components/market/jobs-tab.tsx")
+  assert.match(card, /className="tm-triage-btn tm-triage-tailor"[\s\S]*Tailor CV/)
+  assert.match(tab, /emitLoopStep\(token, "card_tailor", j\.job_id, surface\)/)
+  assert.match(tab, /router\.push\(`\/cv\?jobId=\$\{encodeURIComponent\(j\.job_id\)\}`\)/)
+})
+
+test("a tailored card makes Apply the accent and keeps Tailor quiet", () => {
+  const card = read("components/market/job-card.tsx")
+  assert.match(card, /stage === "tailored"/)
+  assert.match(card, /<ApplyAction[\s\S]*className="tm-triage-btn tm-triage-tailor"/)
+  assert.match(card, /className="tm-triage-btn tm-triage-skip"[\s\S]*Tailor CV/)
+})
+
+test("a hosted tailored card keeps Apply here and does not open the tailor door", () => {
+  const card = read("components/market/job-card.tsx")
+  assert.match(card, /hosted \? \([\s\S]*tailored \? null/)
+  assert.match(card, /Apply here/)
+  assert.doesNotMatch(card, /hosted && tailored[\s\S]{0,200}onTailor\(\)/)
+})
+
+test("collections apply uses the shared Apply control", () => {
+  const rows = read("components/collections/collection-rows.tsx")
+  assert.match(rows, /<ApplyAction/)
+  assert.doesNotMatch(rows, /useApplyCapture/)
+})
+
 test("an open is one row: a token refresh or a StrictMode re-run is not a second visit", () => {
   const hook = readFileSync(new URL("../lib/hooks/use-loop-step-once.ts", import.meta.url), "utf8")
   assert.match(hook, /if \(!token \|\| !jobId \|\| sentFor\.current === jobId\) return\n\s+sentFor\.current = jobId\n\s+emitLoopStep\(token, step, jobId, surface\)/)

@@ -27,6 +27,11 @@ export function hostedApplyPath(jobId: string): string {
   return `/internships/${encodeURIComponent(jobId)}/apply`
 }
 
+/** The CV written for a Myro Supported opening. The application is this CV. */
+export function cvForRolePath(jobId: string): string {
+  return `/cv?jobId=${encodeURIComponent(jobId)}`
+}
+
 /** Careers-search primitive — Google "{company} careers". Null when company is unknown. */
 export function careersSearchUrl(company: string | null | undefined): string | null {
   const c = company?.trim()

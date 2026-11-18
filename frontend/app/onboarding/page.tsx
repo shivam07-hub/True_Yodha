@@ -112,6 +112,7 @@ export default function OnboardingPage() {
             </section>
           ) : (
           <ExperienceStep
+            token={token}
             busy={busy}
             error={error}
             progressPct={transferPct}

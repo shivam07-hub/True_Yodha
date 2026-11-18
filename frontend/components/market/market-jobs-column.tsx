@@ -14,6 +14,8 @@ import { SetupNudge } from "@/components/common/setup-nudge"
 import { PasteJobEntry } from "@/components/job-import/paste-job-entry"
 import { VirtualFeed } from "@/components/jobs/virtual-feed"
 import { JobCard } from "./job-card"
+import { readerLine } from "@/lib/jobs/reader-line"
+import "@/components/jobs/agent-pick-lede.css"
 import { MobileFeed } from "./mobile-feed"
 import { FeedControls, FilterChips, LaneChips } from "./feed-filters"
 import { HostedBand, useHostedForYou } from "@/components/internships/hosted-band"
@@ -63,6 +65,7 @@ export function MarketJobsColumn({
   onStoryPrimary,
   onStorySecondary,
   onReadMore,
+  stageOf,
 }: {
   token: string
   hasCv: boolean
@@ -103,6 +106,7 @@ export function MarketJobsColumn({
   onStorySecondary: (s: FeedStory) => void
   /** POST /jobs/feed/read-more, then re-read the list while it reads. */
   onReadMore: () => Promise<void>
+  stageOf?: (jobId: string) => string | undefined
 }) {
   const router = useRouter()
   const internLane = filters.lane !== "jobs"
@@ -197,7 +201,7 @@ export function MarketJobsColumn({
                   {formatCount(total)} {filters.lane === "jobs"
                     ? `role${total === 1 ? "" : "s"}, chosen for you`
                     : filters.lane === "hosted"
-                      ? `Apply here listing${total === 1 ? "" : "s"}`
+                      ? `Myro Supported opening${total === 1 ? "" : "s"}`
                       : `internship${total === 1 ? "" : "s"}`}
                 </span>
               ) : null}
@@ -269,7 +273,7 @@ export function MarketJobsColumn({
                       companyAction={row.story.kind === "company" ? followCompany.action(row.story.company) : undefined}
                     />
                   ) : (
-                    <JobCard job={row.job} pulse={pulses.get(row.job.job_id)} hasCv={hasCv} onOpen={() => onOpenJob(row.job)} onSave={() => onSave(row.job)} onSkip={() => onSkip(row.job)} onTailor={() => { onSave(row.job); openTailor(row.job, "market") }} />
+                    <JobCard job={row.job} pulse={pulses.get(row.job.job_id)} hasCv={hasCv} lede={readerLine(row.job)} token={token} stage={stageOf?.(row.job.job_id)} onOpen={() => onOpenJob(row.job)} onSave={() => onSave(row.job)} onSkip={() => onSkip(row.job)} onTailor={() => { onSave(row.job); openTailor(row.job, "market") }} />
                   )
                 }
               />
@@ -308,7 +312,7 @@ function InternLaneEmpty({ lane }: { lane: FeedLane }) {
   return (
     <p className="tm-feed-summary" style={{ marginTop: 18 }}>
       {lane === "hosted" ? (
-        <>No Apply here listings yet.</>
+        <>No Myro Supported openings yet.</>
       ) : (
         <>No live internships. <Link href="/internships">Open internships</Link>.</>
       )}

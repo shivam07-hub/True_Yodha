@@ -138,8 +138,31 @@
 }
 .tw-composer:focus-visible { outline: 2px solid var(--tm-accent-text); outline-offset: 1px; border-color: transparent; }
 .tw-int-hint { font-size: var(--tm-fs-caption); color: var(--tm-text-faint); margin: 0 0 14px; }
-/* Wraps: "Weave now · up to 50" beside two buttons outgrows a 375px column. */
-.tw-int-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+/* Wraps: "Weave now · up to 50" beside two buttons outgrows a 375px column.
+   Pinned to the stage's foot: the composer pushed it below the fold on a
+   laptop as well as a phone (walked 2026-11-17). */
+.tw-int-actions {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  position: sticky; bottom: 0; padding: 12px 0 2px;
+  background: linear-gradient(to top, var(--tm-surface) 75%, transparent);
+}
+
+/* ── act: start ────────────────────────────────────────────────────────── */
+/* An opening nobody priced lands here: what Mentor rewrites, and one button
+   with the price on it. Nothing charges until it is pressed. */
+.tw-modal[data-act="start"] .tw-stage { display: flex; flex-direction: column; }
+.tw-start { display: flex; flex-direction: column; gap: 14px; flex: 1; }
+.tw-start-k {
+  font-size: var(--tm-fs-caption); letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--tm-text-muted);
+}
+.tw-start-roles { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.tw-start-roles li { font-size: var(--tm-fs-body); font-weight: 600; color: var(--tm-text); line-height: 1.4; }
+.tw-start-actions {
+  display: flex; justify-content: flex-end;
+  position: sticky; bottom: 0; padding: 12px 0 2px;
+  background: linear-gradient(to top, var(--tm-surface) 75%, transparent);
+}
 
 /* ── act: loom (the signature) ─────────────────────────────────────────── */
 /* The loom glyph and narrated-line rules live in mentor-thinking.css, imported

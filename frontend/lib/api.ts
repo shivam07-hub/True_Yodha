@@ -444,6 +444,8 @@ export interface UserProfile {
   target_roles: string[]
   target_role_titles?: string[]
   target_seniority?: "intern" | "entry" | "mid" | "senior" | "lead" | "executive" | "any" | null
+  /** Null is not 0: most accounts have never said. */
+  years_experience?: number | null
   target_career_band?: CareerBand | null
   explored_career_bands?: CareerBand[]
   target_locations: string[]
@@ -1087,6 +1089,11 @@ export const onboarding = {
   saveLevel: (token: string, body: { seniority: Exclude<TargetSeniority, "any">; years_experience?: number }) =>
     request<void>("/onboarding/target/level", {
       method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(body),
+    }),
+  /** Years alone, asked once on a Myro Supported job that states years. */
+  saveYears: (token: string, years_experience: number) =>
+    request<void>("/onboarding/target/years", {
+      method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ years_experience }),
     }),
   resetTarget: (token: string) => request<void>("/onboarding/target", {
     method: "DELETE", headers: { Authorization: `Bearer ${token}` },
@@ -2476,7 +2483,7 @@ export function emitJourneyPhase(
  *  tailoring, a Mentor run and an apply click each have their own record; these
  *  are the gaps between them. Tied to `CORE_LOOP_STEPS` and the SQL CHECK by
  *  `test_telemetry_vocabulary` — keep this union on one line. */
-export type CoreLoopStep = "card_tailor" | "panel_opened" | "panel_tailor" | "editor_opened" | "mentor_opened" | "downloaded" | "apply_asked" | "door_shown" | "door_paste" | "door_extension" | "door_fit" | "job_imported"
+export type CoreLoopStep = "card_tailor" | "panel_opened" | "panel_tailor" | "editor_opened" | "mentor_opened" | "downloaded" | "apply_asked" | "door_shown" | "door_paste" | "door_extension" | "door_fit" | "job_imported" | "upload_shown"
 
 const CORE_LOOP_TELEMETRY_PATH = "/v1/telemetry/loop-step"
 
@@ -3922,6 +3929,8 @@ export interface JobFeedItem {
    *  profile (every card for the 83% with one search), and also every card in
    *  the browse tail, which no search found at all. */
   track_id?: number | null
+  /** The line written to the reader. A missing line is no lede. */
+  pick_reason?: string | null
   is_strong?: boolean
   /** A real verdict from before the brain's rules or this person's facts last
    *  moved, listed after every current card and re-read in place. Shown as a
@@ -4010,8 +4019,8 @@ export interface MatchBrainResult {
   recommendation?: "Apply" | "Negotiate" | "Skip" | string | null
   summary?: string | null
   /** The line written TO the reader, second person, checked by reader_voice on
-   *  the way in. Absent until the row is re-rated under the v2 prompt, when the
-   *  surface falls back to `summary`. */
+   *  the way in. Absent until the row is rated under the v2 prompt. No summary
+   *  stands in for it. */
   pick_reason?: string | null
   application_angle?: string | null
   role_fit?: number | null
@@ -4336,10 +4345,14 @@ export interface InternshipsResponse {
 export interface HostedInternshipInput {
   company_name: string
   job_title: string
-  stipend_low_inr: number
+  employment_kind?: "full_time" | "internship"
+  stipend_low_inr?: number | null
   stipend_high_inr?: number | null
-  duration_months: number
+  duration_months?: number | null
   ppo?: boolean
+  /** A job's years from (0 = fresher) and optional to. Not sent for an internship. */
+  min_years_experience?: number | null
+  max_years_experience?: number | null
   location?: string | null
   location_mode?: "onsite" | "hybrid" | "remote"
   job_description: string
@@ -4429,9 +4442,20 @@ export const jobs = {
   internship: (jobId: string) =>
     request<JobFeedItem>(`/jobs/internships/${encodeURIComponent(jobId)}`),
   /** How many people on Myro a post reaches. Public: she has no account yet. */
-  internshipReach: (input: { city: string; remote: boolean; skills: string[] }) => {
-    const params = new URLSearchParams({ remote: String(input.remote), skills: input.skills.join(",") })
+  internshipReach: (input: {
+    city: string
+    remote: boolean
+    skills: string[]
+    kind: "internship" | "full_time"
+    minYears: number | null
+  }) => {
+    const params = new URLSearchParams({
+      remote: String(input.remote),
+      skills: input.skills.join(","),
+      kind: input.kind,
+    })
     if (input.city.trim()) params.set("city", input.city.trim())
+    if (input.kind === "full_time" && input.minYears != null) params.set("min_years", String(input.minYears))
     return request<{ matched: number; active_30d: number }>(`/jobs/internships/reach?${params.toString()}`)
   },
   /** Paid internships hosted on Myro that fit him, plus how many are live in all. */

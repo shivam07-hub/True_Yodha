@@ -25,6 +25,9 @@ import { SwipeCard } from "./swipe-card"
 import { SkipReasonChips } from "@/components/jobs/skip-reasons"
 import { MOBILE_REASON_CLASSES } from "./skip-reason-classes"
 import { feedItemToRow } from "./job-model"
+import { useCollection } from "@/lib/collections/use-collection"
+import { readerLine } from "@/lib/jobs/reader-line"
+import "@/components/jobs/agent-pick-lede.css"
 import { MobileAgentPicks } from "./agent-picks-mobile"
 import { useMobileUI } from "./mobile-ui"
 import { JobsMobileFeedRows } from "@/components/loading/mobile-page-skeletons"
@@ -62,6 +65,7 @@ export function JobsSurface({
   exploredCareerBands, onExploredCareerBandsChange,
 }: JobsSurfaceProps) {
   const router = useRouter()
+  const collection = useCollection(token)
   const { snack, closeSnack } = useMobileUI()
   // Myro Search (the paid re-vet run) — one shared wiring across every surface.
   const { run: runMyroSearch, tellMyro, isRefreshing, gate: myroSearchGate } = useMyroSearch(token)
@@ -281,15 +285,17 @@ export function JobsSurface({
         ) : internLane && rows.length === 0 ? (
           <div style={{ textAlign: "center", padding: "44px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
             <div style={{ fontSize: "var(--tm-fs-body)", fontWeight: 600 }}>
-              {filters.lane === "hosted" ? "No Apply here listings" : "No live internships"}
+              {filters.lane === "hosted" ? "No Myro Supported openings yet" : "No live internships"}
             </div>
-            <button
-              onClick={() => router.push(filters.lane === "hosted" ? "/internships/post" : "/internships")}
-              className="mm-press"
-              style={ctaBtn}
-            >
-              {filters.lane === "hosted" ? "Post a paid internship" : "Open internships"}
-            </button>
+            {filters.lane === "hosted" ? null : (
+              <button
+                onClick={() => router.push("/internships")}
+                className="mm-press"
+                style={ctaBtn}
+              >
+                Open internships
+              </button>
+            )}
           </div>
         ) : judgment?.reading && rows.length === 0 ? (
           warmAccepted ? (
@@ -318,11 +324,20 @@ export function JobsSurface({
                 first={i === 0}
                 hint={showSwipeHint && i === 0}
                 shared={sharedId === entry.row.id}
+                lede={readerLine(entry.job) ? <p className="tm-pick-lede-why">{readerLine(entry.job)}</p> : undefined}
                 onOpen={() => openDetail(entry.row.id)}
                 onSave={() => doSave(entry.job)}
                 onSkip={() => doSkip(entry.job)}
                 onShare={() => doShare(entry.job)}
                 onTailor={() => tailorFromCard(entry.job)}
+                tailorState={{
+                  token,
+                  stage: collection.byId.get(entry.job.job_id)?.stage,
+                  hosted: entry.job.listing_venue === "myro",
+                  jobId: entry.job.job_id,
+                  sourceUrl: entry.job.source_url,
+                  company: entry.job.company_name,
+                }}
               />
             ),
           )

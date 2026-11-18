@@ -3,6 +3,8 @@
   "out": "Myro Newsletter/Issue 021 - carousel",
   "og_out": "frontend/public/newsletter/issue-021-og.png",
   "foot": "Share of India's finance openings by metro, 9 September 2026 · himyro.com",
+  "article": "2026-09-finance-city-map-india",
+  "first_comment": "#jobsearch #financejobs #himyro",
   "og": {
     "series": "HIRING HEATMAP",
     "h1": "22% of India's Finance Openings Sit in Mumbai, and 32 Companies Hold All of Them.",
@@ -36,5 +38,64 @@
     "max": 30,
     "foot": "Share of India's finance openings by metro, 9 September 2026 · himyro.com"
   },
-  "slides": []
+  "slides": [
+    {
+      "kind": "statement",
+      "kicker": "FINANCE BY CITY",
+      "h1": "22% of India's finance openings sit in Mumbai, and 32 companies hold all of them.",
+      "sub": "2,067 finance, risk and compliance roles, read this month from 220+ MNC career pages.",
+      "link": "Full issue: himyro.com/newsletter",
+      "caption": "22% of India's finance openings sit in Mumbai, and 32 companies hold all of them.\n\nOur agents read 220+ MNC career pages this month and pulled close to 23,000 openings. 2,067 of them are finance, risk and compliance roles in India."
+    },
+    {
+      "kind": "number",
+      "kicker": "MUMBAI",
+      "huge": "14.2",
+      "sub": "roles each, from 32 employers. <b>453</b> openings, 21.9% of the country, and the deepest market in it.",
+      "caption": "Mumbai has 21.9% of India's finance openings, which is 453 roles. They come from 32 employers, 14.2 roles each, the deepest per-employer market in the country. Entry level runs 19.3%, the highest of any big metro."
+    },
+    {
+      "kind": "table",
+      "kicker": "Three employers hold 51.7% of Mumbai",
+      "head": ["Employer", "Openings"],
+      "rows": [
+        ["Axis Bank", "113", true],
+        ["EY", "74", true],
+        ["Deloitte", "47", true],
+        ["JP Morgan Chase", "34", false],
+        ["Morgan Stanley", "29", false]
+      ],
+      "note": "Career pages of one firm are counted as one employer.",
+      "caption": "Three employers hold 51.7% of the city: Axis Bank with 113, EY with 74 and Deloitte with 47. JP Morgan Chase adds 34 and Morgan Stanley 29."
+    },
+    {
+      "kind": "bars",
+      "kicker": "Share of India's finance openings",
+      "bars": [
+        ["Bengaluru", 24.8, "24.8%"],
+        ["Mumbai", 21.9, "21.9%"],
+        ["Delhi NCR", 17.9, "17.9%"],
+        ["Hyderabad", 11.1, "11.1%"],
+        ["Pune", 6.6, "6.6%"]
+      ],
+      "max": 30,
+      "note": "Read 9 September 2026.",
+      "caption": "Bengaluru holds 24.8%, which is 512 roles, more than Mumbai. NCR holds 17.9%, which is 371 roles from 32 employers. Hyderabad holds 11.1% from 28 employers. Pune holds 6.6%."
+    },
+    {
+      "kind": "prose",
+      "kicker": "BENGALURU",
+      "lead": "More roles, twice as many doors.",
+      "text": "65 employers at 7.9 roles each. The most-named skill is SQL, ahead of financial services and Python.",
+      "caption": "Bengaluru holds 24.8%, which is 512 roles, more than Mumbai. They come from 65 employers at 7.9 each. Bengaluru's most-named skill is SQL (81), ahead of financial services (80), regulatory requirements (69), regulatory compliance (69), Python (61) and financial statements (56). A finance job in Bengaluru is a finance job run as analytics."
+    },
+    {
+      "kind": "prose",
+      "kicker": "WHERE THE DOORS ARE",
+      "lead": "Delhi NCR is one firm's market.",
+      "text": "EY posts 39.6% of every finance opening there. Pune is 63.0% senior and above. Hyderabad's entry level is 8.0%.",
+      "link": "Full issue: himyro.com/newsletter",
+      "caption": "EY posts 147 of them, 39.6% of every finance opening in the metro. Pune holds 6.6% and is 63.0% senior and above, the most experienced finance market in India. Entry level is 8.0%, the lowest of the big metros.\n\nTailor your CV to jobs like these. Link in bio."
+    }
+  ]
 }
