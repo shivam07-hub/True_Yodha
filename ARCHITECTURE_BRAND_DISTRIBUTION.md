@@ -262,25 +262,31 @@ The rules:
   not end a sentence.
   - Slide 1 is a `statement` with no `sub` and an `h1` of at most 17 words (issue
     025's cover is 17, the longest that reads).
-  - Any other `h1`: at most 17 words. Every `sub` and `note`: one sentence of at
-    most 12 words.
+  - Any other `h1`: at most 17 words. Every `headline`, `sub` and `note`: one
+    sentence of at most 12 words.
   - `matrix`: at most 2 value columns and 6 rows. `table`: at most 5 rows.
     `cards`: at most 3, each `d` at most 12 words. `prose`: at most 25 words.
 - **One caption per post.** The spec has one top-level `"caption"`, and a slide
   that has its own `"caption"` fails. The first paragraph, up to the first blank
-  line, is the claim: at most 125 characters, which is what Instagram shows
-  before "more". The whole caption is at most 500 characters and ends
-  `Tailor your CV to jobs like these. Link in bio.` The figure check runs on it.
+  line, is the cover's line of the story (NEWSLETTER_STANDARD.md, "Carousel: a
+  story"): at most 125 characters, which is what Instagram shows before "more".
+  The whole caption is at most 500 characters and ends with the action and
+  `Link in bio.` The figure check runs on it.
 - **Outputs.** `caption.txt` (the caption, then the FIRST COMMENT and BIO LINK
   blocks as today) replaces `captions.txt` and `caption-laptop.txt`. The kit's
   `## Instagram captions, one per slide` section becomes `## Instagram caption`:
   the caption, then `First comment:`. Delete `fold_captions` and the per-slide
-  writers in the same commit.
+  writers in the same commit. Keep the `headline` field and
+  `issue-0NN-linkedin.pdf` (both added 2026-11-18).
 - **`backend/scripts/growth_kit_sync.py`** (lane C's file, taken by this chunk):
   `instagram_draft` returns the spec's `caption`, the how-to names `caption.txt`,
   and the missing-caption check reads the top-level field.
-- **Recut the kits whose Instagram post is not out**, in slot order: 024, 026,
-  023, 021. Before each one, read its Instagram row in `growth_messages`. A row
+- **Recut the kits whose Instagram post is not out**, in slot order. 024 went
+  out as it was on 18 Nov. 026 was rebuilt as a story on 18 Nov and passes the
+  slide checks: fold its per-slide captions into the one caption, in order, cut
+  to 500 characters. 023 and 021 are recut as stories only once Shivam agrees
+  each storyline, and post as they are if that has not happened by their slot.
+  Before each one, read its Instagram row in `growth_messages`. A row
   that is `published` or `queued` means that kit stays exactly as it is (the same
   rule as B3's `SKIP_STATUSES`). Recutting removes words and never adds a claim.
   A cut `sub` was a second idea: it moves into the caption, or it stays only in

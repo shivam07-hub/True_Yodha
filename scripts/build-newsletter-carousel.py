@@ -25,6 +25,14 @@ Spec shape:
 
 Any slide may add "link": "Full issue: himyro.com/newsletter". It renders under
 the slide's content at a size a phone can read; the foot line cannot do that job.
+
+Any slide may add "headline": the one sentence that slide adds to the story.
+It renders above the slide's number, bars or table. Read in order, they tell
+the story on their own (NEWSLETTER_STANDARD.md, "Carousel: a story").
+
+The same slides are also written as one PDF, issue-0NN-linkedin.pdf, for a
+LinkedIn document post: it swipes like the carousel, and a document post from
+a Page can be boosted where a multi-image post cannot.
 """
 import argparse
 import base64
@@ -128,8 +136,12 @@ td.hi { color:var(--mint); } td.lo { color:var(--muted); }
 .lead { font-size:96px; line-height:1; font-weight:680; letter-spacing:-.04em;
   color:var(--mint); font-variant-numeric:tabular-nums; margin-bottom:34px; }
 .note { font-size:29px; color:var(--muted); line-height:1.45; margin-top:34px; }
+.headline { font-size:62px; line-height:1.1; font-weight:640; letter-spacing:-.024em;
+  color:var(--fg); margin-bottom:56px; max-width:20ch; }
+@page { size:%dpx %dpx; margin:0; }
+.slide + .slide { break-before:page; }
 .golink { font-size:34px; line-height:1.3; font-weight:540; color:var(--fg); margin-top:44px; }
-""" % (_font("GeistVF.woff"), _font("GeistMonoVF.woff"), w, h)
+""" % (_font("GeistVF.woff"), _font("GeistMonoVF.woff"), w, h, w, h)
 
 
 def bars_html(bars, maxv, cliff_after=None, dim_from=None):
@@ -149,6 +161,8 @@ def bars_html(bars, maxv, cliff_after=None, dim_from=None):
 def slide_body(s):
     k = s.get("kind")
     kicker = f'<div class="kicker">{html.escape(s["kicker"])}</div>' if s.get("kicker") else ""
+    if s.get("headline"):
+        kicker += f'<h2 class="headline">{s["headline"]}</h2>'
     if k == "statement":
         return (f'{kicker}<h1>{s["h1"]}</h1>'
                 + (f'<div class="sub">{s["sub"]}</div>' if s.get("sub") else ""))
@@ -344,6 +358,8 @@ def main(spec_path, *, captions_only=False, no_og=False):
         for i in range(1, n + 1):
             pg.locator(f"#s{i}").screenshot(
                 path=str(out / f"issue-{issue:03d}-slide-{i:02d}.png"))
+        pg.pdf(path=str(out / f"issue-{issue:03d}-linkedin.pdf"),
+               width=f"{W}px", height=f"{H}px", print_background=True)
         og = None if no_og else spec.get("og")
         if og:
             ocss = css(1200, 630) + ".slide{padding:52px 60px 44px}"
@@ -373,7 +389,7 @@ def main(spec_path, *, captions_only=False, no_og=False):
     tmp.unlink()
     wrote_og = spec.get("og") and not no_og
     print(
-        f"issue {issue}: {n} slides -> {out}"
+        f"issue {issue}: {n} slides + issue-{issue:03d}-linkedin.pdf -> {out}"
         + (f"\nog -> {spec['og_out']}" if wrote_og else "")
     )
 

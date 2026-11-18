@@ -2,9 +2,10 @@
 ### Set 2026-08-26 from Issue 019. This is the default, not one issue's format.
 
 An issue is written **slide-first**. Each section is a self-contained piece of
-knowledge that stands alone on a phone screen, because the same sentences ship
-as the LinkedIn and Instagram carousel with no rewrite. If a paragraph cannot
-survive being screenshotted on its own, it is not finished.
+knowledge that stands alone on a phone screen. If a paragraph cannot survive
+being screenshotted on its own, it is not finished. The carousel is written
+after the issue, as a story told in its slide headlines (below), with every
+figure taken from the issue.
 
 Reference issue: `Myro Newsletter/issues/2026-08-industry-city-map-india.mdx`
 Carousel: `scripts/build-newsletter-carousel.py` + a spec in
@@ -57,6 +58,35 @@ standard. The differences, in order of how much they matter:
 Deliberately absent from the gold version: career-stage blocks (Early / Mid /
 Senior). `myro-newsletter Skills/page-anatomy.md` calls them load-bearing. They
 are not, when every section is already addressed to one reader type by name.
+
+## Carousel: a story
+
+Set by Shivam, 2026-11-18: "There is no story - only random numbers." Kits 020
+to 026 cut the issue section by section into one number per slide. The slides
+could be shuffled and nothing was lost, so nothing carried the reader to the
+next swipe.
+
+1. **The headlines come first, as one storyline.** Each slide has a `headline`
+   (or the cover's `h1`): one sentence of at most 12 words. Read in order, the
+   headlines tell the story with no slide open: what the reader believes, the
+   turn, the proof, what it means for them, what to do.
+2. **The reader is the subject.** Write to "you" and their work, and put the
+   number under the sentence it proves.
+3. **Each slide answers the one before it.** If two slides can swap places, one
+   of them belongs in the article.
+4. **The last slide is the action:** pick a role, tailor your CV to it.
+5. **Shivam agrees the storyline before the slides are built:** the headlines in
+   order, one line each, the same gate as angle, chart and heading.
+
+Each slide's caption is that slide's line of the story, so the folded caption
+reads as the story in brief. Issue 026 is the reference:
+`scripts/newsletter-carousel-specs/issue-026.json`.
+
+**LinkedIn gets the same slides as one PDF document**,
+`issue-0NN-linkedin.pdf`, which the builder writes beside the PNGs. It swipes
+like the carousel. A Page can boost a document post; it cannot boost a
+multi-image post (LinkedIn Help, "Posts available to boost from a LinkedIn
+Page", read 2026-11-18). Issue 024 went out on LinkedIn as a multi-image post.
 
 ## Carousel hierarchy: one accent role at a time
 

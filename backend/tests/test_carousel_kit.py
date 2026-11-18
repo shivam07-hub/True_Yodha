@@ -96,3 +96,23 @@ def test_hashtag_count_outside_three_to_five_fails(comment: str) -> None:
     mod = kit()
     with pytest.raises(SystemExit, match="hashtag"):
         mod.check_captions(["No figures."], "No figures.", comment)
+
+
+def test_a_headline_sits_above_the_slide_evidence() -> None:
+    mod = kit()
+    body = mod.slide_body(
+        {
+            "kind": "table",
+            "headline": "Your cloud work already counts.",
+            "head": ["Roles that name it", ""],
+            "rows": [["Cloud", "49.3%", True]],
+        }
+    )
+    assert body.index('<h2 class="headline">Your cloud work already counts.</h2>') < body.index("<table>")
+    assert "<th>Roles that name it</th>" in body
+
+
+def test_a_slide_without_a_headline_renders_as_before() -> None:
+    mod = kit()
+    body = mod.slide_body({"kind": "number", "huge": "58.2%", "sub": "of roles."})
+    assert "headline" not in body

@@ -122,8 +122,8 @@ on 18 Nov (Shivam chose now over the slots).
 | Day | LinkedIn, 10:30 | Instagram, 19:00 | Before it goes |
 |---|---|---|---|
 | Wed 18 Nov | Issue 024, posted | Issue 024 carousel, posted | |
-| Thu 19 Nov | Fill video, 10:00 | Issue 026 carousel | Video: someone listens to the soundtrack. 026: `main` merged, so the issue page is live (it was not on 17 Nov) |
-| Fri 20 Nov | Issue 026 | Issue 023 carousel | 023: re-read its Ghost Index figures against `/ghost-index` |
+| Thu 19 Nov | Fill video, 10:00 | Issue 026 carousel, rebuilt as a story 18 Nov | Video: someone listens to the soundtrack. 026: `main` merged, so the issue page is live (it was not on 17 Nov) |
+| Fri 20 Nov | Issue 026, as the document `issue-026-linkedin.pdf` | Issue 023 carousel | 023: re-read its Ghost Index figures against `/ghost-index`, and recut it as a story once Shivam agrees the storyline |
 | Sat 21 Nov | Issue 021 | Fill reel, 10:00 | |
 | Sun 22 Nov | Issue 025 | Issue 021 carousel | |
 | Mon 23 Nov | Match video | Match reel | Soundtrack heard |
@@ -131,7 +131,8 @@ on 18 Nov (Shivam chose now over the slots).
 Issue N's copy lives in `scripts/newsletter-carousel-specs/issue-0NN-distribution.md`:
 the `## LinkedIn` section, and the Instagram caption in `caption-laptop.txt`
 beside its slides in `Myro Newsletter/Issue 0NN - carousel/`. On LinkedIn the
-link goes in the first comment, with `utm_campaign=issue-0NN`. The fill video is
+slides go up as one document, `issue-0NN-linkedin.pdf` from the same folder, and
+the link goes in the first comment, with `utm_campaign=issue-0NN`. The fill video is
 `brag-output-2026-10-20-155052/` and the match video `brag-output-2026-10-20-134012/`,
 each with its own `linkedin.txt` and `instagram.txt`. On LinkedIn, 022 and 023 are
 paused because they repeat the 25 Sep Ghost Index post.

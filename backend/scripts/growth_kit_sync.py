@@ -62,7 +62,12 @@ def instagram_how_to_post(spec: dict[str, Any]) -> str:
 def linkedin_how_to_post(spec: dict[str, Any]) -> str:
     count = len(spec["slides"])
     folder = str(spec["out"]).rstrip("/")
-    return f"Upload the {count} slides in {folder}/ in order."
+    pdf = f"issue-{int(spec['issue']):03d}-linkedin.pdf"
+    return (
+        f"Add a document: {folder}/{pdf} ({count} pages), titled with the "
+        "first slide's line. A document post can be boosted; a multi-image "
+        "post cannot."
+    )
 
 
 def linkedin_draft(distribution: str) -> str:

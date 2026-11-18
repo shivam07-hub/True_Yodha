@@ -248,3 +248,15 @@ def test_issue_024_laptop_wording_is_the_live_sentence() -> None:
     )
     assert mod.instagram_draft(spec).startswith("Slide 1:\nIf you are starting out")
     assert "\n\nSlide 2:\nIf you are starting out, start with" in mod.instagram_draft(spec)
+
+
+def test_linkedin_posts_the_kit_as_one_document() -> None:
+    mod = sync_module()
+    spec = json.loads(
+        (ROOT / "scripts/newsletter-carousel-specs/issue-026.json").read_text()
+    )
+    assert mod.linkedin_how_to_post(spec) == (
+        "Add a document: Myro Newsletter/Issue 026 - carousel/issue-026-linkedin.pdf "
+        "(8 pages), titled with the first slide's line. A document post can be "
+        "boosted; a multi-image post cannot."
+    )

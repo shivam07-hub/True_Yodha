@@ -41,6 +41,8 @@ under Next. After that, the week above.
 ## Before anything goes out
 
 - **Newsletter:** angle, chart and heading agreed with Shivam before drafting.
+- **Carousel:** Shivam agrees its storyline, the slide headlines in order,
+  before the slides are built (NEWSLETTER_STANDARD.md, "Carousel: a story").
   When the issue ships, delete its NEWSLETTER_QUEUE row and add its posts to the
   tracker. Its copy lives in `scripts/newsletter-carousel-specs/issue-NNN-distribution.md`.
 - **Ghost Index rates:** issue 023's posts quote them, and the index recomputes.
@@ -55,12 +57,14 @@ under Next. After that, the week above.
   `utm_campaign` per item (`brag-loop`, `issue-026`). Signup stores them
   (`frontend/lib/attribution.ts`), so each post's signups can be counted.
 - **LinkedIn:** no link in the post body. It goes in the first comment, and the
-  post carries the carousel, the OG image or the video. The company page is
+  post carries the carousel as one PDF document (`issue-0NN-linkedin.pdf`
+  beside the slides: a Page can boost a document post, never a multi-image
+  post), the OG image or the video. The company page is
   posted from `linkedin.com/company/118214305/admin/` (the `himyro` slug
   redirected to an unavailable page when checked on 2026-06-02).
 - **Instagram:** a carousel is published from the laptop with Publish to
-  Instagram in the tracker (INSTAGRAM_PROFILE.md). Its caption is the newsletter
-  sections, one per slide and in slide order, folded into one caption. Its first
+  Instagram in the tracker (INSTAGRAM_PROFILE.md). Its caption is the slides'
+  story, one line per slide and in slide order, folded into one caption. Its first
   and last slides carry `Full issue: himyro.com/newsletter` on the image. A reel
   keeps one caption of two lines. Three to five hashtags go in the first comment.
   The bio holds one fixed link, `https://www.himyro.com/newsletter?utm_source=instagram&utm_medium=social&utm_campaign=ig-bio`. Links change only in the app, so it
