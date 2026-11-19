@@ -33,54 +33,55 @@ The number of doors decides how you look for work.
 
 ## Instagram captions, one per slide
 
-Each caption is that slide's newsletter section, cut to what the slide shows.
-From the laptop they go out folded into one caption, in slide order
-(`caption-laptop.txt` beside the slides). The phone app can post them per slide
-with Multiple Captions. The first and last slides carry the issue link on the image.
+Rebuilt as a story on 19 Nov (Shivam agreed the storyline): read in order, the
+slide headlines tell it, and each caption is that slide's line of the story. From
+the laptop they go out folded into one caption, in slide order
+(`caption-laptop.txt` beside the slides). Slides 1 and 7 carry the issue link on
+the image. LinkedIn takes the same slides as one document,
+`issue-021-linkedin.pdf`.
+
 Slide 1:
 
-22% of India's finance openings sit in Mumbai, and 32 companies hold all of them.
-
-Our agents read 220+ MNC career pages this month and pulled close to 23,000 openings. 2,067 of them are finance, risk and compliance roles in India.
+If you want a finance job in India, you'd look in Mumbai first. We read 2,067 finance, risk and compliance openings from 220+ MNC career pages.
 
 Slide 2:
 
-Mumbai has 21.9% of India's finance openings, which is 453 roles. They come from 32 employers, 14.2 roles each, the deepest per-employer market in the country. Entry level runs 19.3%, the highest of any big metro.
+Bengaluru has more: 24.8% of India's finance openings, which is 512 roles, against Mumbai's 21.9%.
 
 Slide 3:
 
-Three employers hold 51.7% of the city: Axis Bank with 113, EY with 74 and Deloitte with 47. JP Morgan Chase adds 34 and Morgan Stanley 29.
+There, you'll be asked for SQL and Python too. SQL is the most-named skill in Bengaluru's finance postings (81), ahead of financial services (80). Python is named 61 times.
 
 Slide 4:
 
-Bengaluru holds 24.8%, which is 512 roles, more than Mumbai. NCR holds 17.9%, which is 371 roles from 32 employers. Hyderabad holds 11.1% from 28 employers. Pune holds 6.6%.
+In Mumbai, you'll be asked for classic finance skills: financial services (91), risk management (77), regulatory compliance (71) and chartered accountant (47).
 
 Slide 5:
 
-Bengaluru holds 24.8%, which is 512 roles, more than Mumbai. They come from 65 employers at 7.9 each. Bengaluru's most-named skill is SQL (81), ahead of financial services (80), regulatory requirements (69), regulatory compliance (69), Python (61) and financial statements (56). A finance job in Bengaluru is a finance job run as analytics.
+There, three employers hold 51.7% of the roles: Axis Bank with 113, EY with 74 and Deloitte with 47. A short list of employers means a short list of applications, each one worth writing properly.
 
 Slide 6:
 
-EY posts 147 of them, 39.6% of every finance opening in the metro. Pune holds 6.6% and is 63.0% senior and above, the most experienced finance market in India. Entry level is 8.0%, the lowest of the big metros.
+If you're starting out, 19.3% of Mumbai's finance roles are entry level, the highest of any big metro.
 
-Tailor your CV to jobs like these. Link in bio.
+Slide 7:
+
+Pick your city, then tailor your CV to one role there. Link in bio.
 
 First comment: #jobsearch #financejobs #himyro
 
 ### One caption, for the laptop
 
-22% of India's finance openings sit in Mumbai, and 32 companies hold all of them.
+If you want a finance job in India, you'd look in Mumbai first. We read 2,067 finance, risk and compliance openings from 220+ MNC career pages.
 
-Our agents read 220+ MNC career pages this month and pulled close to 23,000 openings. 2,067 of them are finance, risk and compliance roles in India.
+Bengaluru has more: 24.8% of India's finance openings, which is 512 roles, against Mumbai's 21.9%.
 
-Mumbai has 21.9% of India's finance openings, which is 453 roles. They come from 32 employers, 14.2 roles each, the deepest per-employer market in the country. Entry level runs 19.3%, the highest of any big metro.
+There, you'll be asked for SQL and Python too. SQL is the most-named skill in Bengaluru's finance postings (81), ahead of financial services (80). Python is named 61 times.
 
-Three employers hold 51.7% of the city: Axis Bank with 113, EY with 74 and Deloitte with 47. JP Morgan Chase adds 34 and Morgan Stanley 29.
+In Mumbai, you'll be asked for classic finance skills: financial services (91), risk management (77), regulatory compliance (71) and chartered accountant (47).
 
-Bengaluru holds 24.8%, which is 512 roles, more than Mumbai. NCR holds 17.9%, which is 371 roles from 32 employers. Hyderabad holds 11.1% from 28 employers. Pune holds 6.6%.
+There, three employers hold 51.7% of the roles: Axis Bank with 113, EY with 74 and Deloitte with 47. A short list of employers means a short list of applications, each one worth writing properly.
 
-Bengaluru holds 24.8%, which is 512 roles, more than Mumbai. They come from 65 employers at 7.9 each. Bengaluru's most-named skill is SQL (81), ahead of financial services (80), regulatory requirements (69), regulatory compliance (69), Python (61) and financial statements (56). A finance job in Bengaluru is a finance job run as analytics.
+If you're starting out, 19.3% of Mumbai's finance roles are entry level, the highest of any big metro.
 
-EY posts 147 of them, 39.6% of every finance opening in the metro. Pune holds 6.6% and is 63.0% senior and above, the most experienced finance market in India. Entry level is 8.0%, the lowest of the big metros.
-
-Tailor your CV to jobs like these. Link in bio.
+Pick your city, then tailor your CV to one role there. Link in bio.

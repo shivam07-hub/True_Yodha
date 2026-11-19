@@ -26,60 +26,58 @@ The World Economic Forum's Future of Jobs survey, January 2025, names Big Data S
 
 ## Instagram captions, one per slide
 
-Each caption is that slide's newsletter section, cut to what the slide shows.
-From the laptop they go out folded into one caption, in slide order
-(`caption-laptop.txt` beside the slides). The phone app can post them per slide
-with Multiple Captions. The first and last slides carry the issue link on the image.
+Rebuilt as a story on 19 Nov (Shivam agreed the storyline): read in order, the
+slide headlines tell it, and each caption is that slide's line of the story. From
+the laptop they go out folded into one caption, in slide order
+(`caption-laptop.txt` beside the slides). Slides 1 and 6 carry the issue link on
+the image. LinkedIn takes the same slides as one document,
+`issue-023-linkedin.pdf`, if 023 ever goes there.
+
+The slides name only AB InBev, Palo Alto Networks and Barclays: the three whose
+rates the live Ghost Index still shows (`/ghost-index`, ledger of 7 Nov: 70%, 50%,
+13%). It shows Cisco at 0% and no longer lists Citibank, Wells Fargo, Amazon,
+Okta, Nike or Capgemini, so the X and LinkedIn cuts above do not go out as written.
+
 
 Slide 1:
 
-If you are applying to Citibank or Wells Fargo, tailor the CV and submit it on their careers page. If you are applying to AB InBev or Palo Alto Networks, check the hiring system still has the role before that evening goes into the CV.
+The job ad you're tailoring a CV for may already be closed. A role can end in the hiring system while the careers page still shows it.
 
 Slide 2:
 
-We read ten global employers' India career pages against their own hiring systems, through 24 September 2026. A role counts as closed once the hiring system stops serving it. Four employers sit under 15%. Four sit over 29%.
+Whether it's still open depends on the employer. AB InBev still advertised 69.6% of the India roles its hiring system had closed, Palo Alto Networks 50.0% and Barclays 13.2%, through 24 September 2026.
 
 Slide 3:
 
-Citibank pulls a closed listing in 2.6 days on average. Amazon's closed ads in this cut come down the same day. A posting on these pages, on the day you open it, is a role the hiring system is still serving.
+Closing the role and pulling the ad are two teams' jobs at most companies, and one of them is slower.
 
 Slide 4:
 
-AB InBev still advertises 69.6% of the roles its hiring system has closed, 23 roles watched. Okta's closed ads stay up 42.4 days. Palo Alto Networks sits at 50.0% of 44.
+So you can spend an evening tailoring a CV for a role that's already filled. At AB InBev, a closed role's ad stayed up 11.5 days on average.
 
 Slide 5:
 
-Across the live postings at these four, the skills named were SQL (57 mentions), regulatory compliance (55), Java (49), Python (40) and supply chain (12). Write those into the CV you take to their page, then submit there.
+Check the employer's own hiring system before you tailor, not just the careers page.
 
 Slide 6:
 
-These four name Python (90 mentions), the Okta platform itself (37), artificial intelligence (30), computer science fundamentals (27) and software engineering (23). The skills are real. The ad has to be real on the day you send them.
-
-Slide 7:
-
-The World Economic Forum's survey asks employers what they expect by 2030. On the India page, the fastest-growing role names are Big Data Specialists, AI and Machine Learning Specialists, and Security Management Specialists. The tailored CV follows the posting that is open.
-
-Tailor your CV to jobs like these. Link in bio.
+Still open? Tailor your CV to it and apply on the company's own page. Link in bio.
 
 First comment: #jobsearch #ghostjobs #jobsindia #himyro
 
 ### One caption, for the laptop
 
-If you are applying to Citibank or Wells Fargo, tailor the CV and submit it on their careers page. If you are applying to AB InBev or Palo Alto Networks, check the hiring system still has the role before that evening goes into the CV.
+The job ad you're tailoring a CV for may already be closed. A role can end in the hiring system while the careers page still shows it.
 
-We read ten global employers' India career pages against their own hiring systems, through 24 September 2026. A role counts as closed once the hiring system stops serving it. Four employers sit under 15%. Four sit over 29%.
+Whether it's still open depends on the employer. AB InBev still advertised 69.6% of the India roles its hiring system had closed, Palo Alto Networks 50.0% and Barclays 13.2%, through 24 September 2026.
 
-Citibank pulls a closed listing in 2.6 days on average. Amazon's closed ads in this cut come down the same day. A posting on these pages, on the day you open it, is a role the hiring system is still serving.
+Closing the role and pulling the ad are two teams' jobs at most companies, and one of them is slower.
 
-AB InBev still advertises 69.6% of the roles its hiring system has closed, 23 roles watched. Okta's closed ads stay up 42.4 days. Palo Alto Networks sits at 50.0% of 44.
+So you can spend an evening tailoring a CV for a role that's already filled. At AB InBev, a closed role's ad stayed up 11.5 days on average.
 
-Across the live postings at these four, the skills named were SQL (57 mentions), regulatory compliance (55), Java (49), Python (40) and supply chain (12). Write those into the CV you take to their page, then submit there.
+Check the employer's own hiring system before you tailor, not just the careers page.
 
-These four name Python (90 mentions), the Okta platform itself (37), artificial intelligence (30), computer science fundamentals (27) and software engineering (23). The skills are real. The ad has to be real on the day you send them.
-
-The World Economic Forum's survey asks employers what they expect by 2030. On the India page, the fastest-growing role names are Big Data Specialists, AI and Machine Learning Specialists, and Security Management Specialists. The tailored CV follows the posting that is open.
-
-Tailor your CV to jobs like these. Link in bio.
+Still open? Tailor your CV to it and apply on the company's own page. Link in bio.
 
 ## Demo storyboard
 

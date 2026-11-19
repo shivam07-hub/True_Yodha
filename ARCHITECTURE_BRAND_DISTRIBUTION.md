@@ -284,8 +284,9 @@ The rules:
 - **Recut the kits whose Instagram post is not out**, in slot order. 024 went
   out as it was on 18 Nov. 026 was rebuilt as a story on 18 Nov and passes the
   slide checks: fold its per-slide captions into the one caption, in order, cut
-  to 500 characters. 023 and 021 are recut as stories only once Shivam agrees
-  each storyline, and post as they are if that has not happened by their slot.
+  to 500 characters. 023 and 021 were rebuilt as stories on 19 Nov (Shivam
+  agreed both storylines) and get the same treatment as 026. 023's spec now
+  names its own article, `2026-10-open-role-apply-on-their-page`.
   Before each one, read its Instagram row in `growth_messages`. A row
   that is `published` or `queued` means that kit stays exactly as it is (the same
   rule as B3's `SKIP_STATUSES`). Recutting removes words and never adds a claim.
