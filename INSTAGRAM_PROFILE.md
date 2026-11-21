@@ -124,9 +124,9 @@ on 18 Nov (Shivam chose now over the slots).
 |---|---|---|---|
 | Wed 18 Nov | Issue 024, posted | Issue 024 carousel, posted | |
 | Thu 19 Nov | Fill video, 10:00 | Issue 026 carousel, posted 21 Nov | Video: someone listens to the soundtrack. 026's page is live (checked 18 Nov after the `main` merge, #352) |
-| Fri 20 Nov | Issue 026, as the document `issue-026-linkedin.pdf` | Issue 023 carousel, rebuilt as a story 19 Nov | 023 names only AB InBev, Palo Alto Networks and Barclays, the three rates the live Ghost Index still shows (read 19 Nov) |
+| Fri 20 Nov | Issue 026, as the document `issue-026-linkedin.pdf` (hook cover, 22 Nov) | Issue 023 carousel, rebuilt as a story 19 Nov, hook cover 22 Nov | 023 names only AB InBev, Palo Alto Networks and Barclays, the three rates the live Ghost Index still shows (read 19 Nov) |
 | Sat 21 Nov | Issue 021, as the document `issue-021-linkedin.pdf` | Fill reel, 10:00 | |
-| Sun 22 Nov | Issue 025 | Issue 021 carousel, rebuilt as a story 19 Nov | |
+| Sun 22 Nov | Issue 025 | Issue 021 carousel, rebuilt as a story 19 Nov, hook cover 22 Nov | |
 | Mon 23 Nov | Match video | Match reel | Soundtrack heard |
 
 Issue N's copy lives in `scripts/newsletter-carousel-specs/issue-0NN-distribution.md`:

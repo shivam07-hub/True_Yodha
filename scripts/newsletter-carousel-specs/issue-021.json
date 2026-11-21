@@ -41,14 +41,15 @@
   "slides": [
     {
       "kind": "statement",
-      "kicker": "FINANCE JOBS BY CITY",
-      "h1": "You'd look for a finance job in Mumbai first.",
+      "kicker": "Finance jobs by city",
+      "h1": "The city with the most finance jobs isn't Mumbai.",
       "link": "Full issue: himyro.com/newsletter",
-      "caption": "If you want a finance job in India, you'd look in Mumbai first. We read 2,067 finance, risk and compliance openings from 220+ MNC career pages."
+      "caption": "The city with the most finance jobs in India isn't Mumbai, and where you look decides what you'll be asked for. We read 2,067 finance, risk and compliance openings from 220+ MNC career pages.",
+      "sub": "Where you look decides what you'll be asked for."
     },
     {
       "kind": "bars",
-      "headline": "Bengaluru has more finance openings.",
+      "headline": "It's Bengaluru, and it hires for finance differently.",
       "bars": [
         [
           "Bengaluru",
@@ -79,7 +80,7 @@
       "max": 30,
       "dim_from": 2,
       "note": "Share of India's 2,067 finance openings, read 9 September 2026.",
-      "caption": "Bengaluru has more: 24.8% of India's finance openings, which is 512 roles, against Mumbai's 21.9%."
+      "caption": "It's Bengaluru: 24.8% of India's finance openings, which is 512 roles, against Mumbai's 21.9%."
     },
     {
       "kind": "table",

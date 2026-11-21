@@ -44,10 +44,11 @@
   "slides": [
     {
       "kind": "statement",
-      "kicker": "BEFORE YOU TAILOR",
-      "h1": "The job ad you're tailoring a CV for may be closed.",
+      "kicker": "Before you tailor",
+      "h1": "You may be tailoring a CV for a job that's already closed.",
       "link": "Full issue: himyro.com/newsletter",
-      "caption": "The job ad you're tailoring a CV for may already be closed. A role can end in the hiring system while the careers page still shows it."
+      "caption": "You may be tailoring a CV for a job that's already closed. AB InBev still advertised 69.6% of the India roles its hiring system had closed, through 24 September 2026.",
+      "sub": "AB InBev still advertised 69.6% of the India roles it had closed."
     },
     {
       "kind": "bars",
@@ -71,7 +72,7 @@
       ],
       "max": 70,
       "note": "Share of closed India roles still advertised, through 24 September 2026.",
-      "caption": "Whether it's still open depends on the employer. AB InBev still advertised 69.6% of the India roles its hiring system had closed, Palo Alto Networks 50.0% and Barclays 13.2%, through 24 September 2026."
+      "caption": "Whether it's still open depends on the employer: Palo Alto Networks still advertised 50.0% of its closed India roles, Barclays 13.2%."
     },
     {
       "kind": "prose",

@@ -33,15 +33,15 @@ the image. LinkedIn takes the same slides as one document,
 
 Slide 1:
 
-If you write code, risk and compliance sounds like a job for accountants. One corner of it is hiring engineers.
+A job that sounds like accounting is hiring engineers: 292 openings in India, most of them at Deloitte, KPMG and EY.
 
 Slide 2:
 
-That corner is technology risk: 58.2% of its roles in India ask for an engineering degree. Across the rest of risk and compliance, 15.1% do.
+It's called technology risk, and it asks for your degree: 58.2% of its roles in India ask for an engineering degree. Across the rest of risk and compliance, 15.1% do.
 
 Slide 3:
 
-Deloitte, KPMG and EY post 65.4% of those 292 roles.
+Deloitte alone posts 44.9% of them. With KPMG and EY, it's 65.4% of those 292 roles.
 
 Slide 4:
 
@@ -67,11 +67,11 @@ First comment: #cybersecurity #jobsearch #softwareengineer #bigfour #himyro
 
 ### One caption, for the laptop
 
-If you write code, risk and compliance sounds like a job for accountants. One corner of it is hiring engineers.
+A job that sounds like accounting is hiring engineers: 292 openings in India, most of them at Deloitte, KPMG and EY.
 
-That corner is technology risk: 58.2% of its roles in India ask for an engineering degree. Across the rest of risk and compliance, 15.1% do.
+It's called technology risk, and it asks for your degree: 58.2% of its roles in India ask for an engineering degree. Across the rest of risk and compliance, 15.1% do.
 
-Deloitte, KPMG and EY post 65.4% of those 292 roles.
+Deloitte alone posts 44.9% of them. With KPMG and EY, it's 65.4% of those 292 roles.
 
 Your cloud and access work already counts: cloud appears in 49.3% of these roles, against 15.5% across the rest of the lane.
 

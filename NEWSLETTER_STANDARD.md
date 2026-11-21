@@ -68,14 +68,22 @@ next swipe.
 
 1. **The headlines come first, as one storyline.** Each slide has a `headline`
    (or the cover's `h1`): one sentence of at most 12 words. Read in order, the
-   headlines tell the story with no slide open: what the reader believes, the
-   turn, the proof, what it means for them, what to do.
-2. **The reader is the subject.** Write to "you" and their work, and put the
+   headlines tell the story with no slide open: the hook, the proof, what it
+   means for the reader, what to do.
+2. **Slide 1 is the hook** (Shivam, 2026-11-22: "where the hell is the hook?").
+   It is the turn, told as the reader's stake, with one number on the cover
+   and the question left open: which job, which city, how to tell. The reader's
+   old belief alone is a setup, and a setup gives no reason to swipe. 026 went
+   out with "Risk and compliance sounds like a job for accountants" and the
+   292 roles in the footer; its hook is "A job that sounds like accounting is
+   hiring engineers." Every later headline also leaves the question the next
+   slide answers.
+3. **The reader is the subject.** Write to "you" and their work, and put the
    number under the sentence it proves.
-3. **Each slide answers the one before it.** If two slides can swap places, one
+4. **Each slide answers the one before it.** If two slides can swap places, one
    of them belongs in the article.
-4. **The last slide is the action:** pick a role, tailor your CV to it.
-5. **Shivam agrees the storyline before the slides are built:** the headlines in
+5. **The last slide is the action:** pick a role, tailor your CV to it.
+6. **Shivam agrees the storyline before the slides are built:** the headlines in
    order, one line each, the same gate as angle, chart and heading.
 
 Each slide's caption is that slide's line of the story, so the folded caption
@@ -88,26 +96,23 @@ like the carousel. A Page can boost a document post; it cannot boost a
 multi-image post (LinkedIn Help, "Posts available to boost from a LinkedIn
 Page", read 2026-11-18). Issue 024 went out on LinkedIn as a multi-image post.
 
-## Carousel hierarchy: one accent role at a time
+## Carousel type: two sizes, one colour, one font
 
-Shipped wrong once and caught by Shivam, 2026-08-26. A slide read
-kicker-then-lead where both were mint, and the lead was 46px bold against the
-kicker's 25px, so the section label lost to the line beneath it and the block
-had no top.
+Set by Shivam, 2026-11-22: "at max 1-2 font size, 1 color, and 1 font style.
+That is standard and professional." Slides until then mixed a mono and a sans,
+mint, bone and grey, and seven sizes on one screen.
 
-The token roles on a slide, in order:
+| Size | What |
+|---|---|
+| Large, 64px | The cover's `h1`, each `headline`, the one number |
+| Small, 34px | Everything else: label, sub, note, bars, table, link, foot, rail |
 
-| Level | Treatment | Accent |
-|---|---|---|
-| Section label (kicker) | 28px mono, uppercase, letterspaced, short rule beneath | mint |
-| Lead statement | 46px, weight 680 | Bone (`--fg`) |
-| Body | 46px, weight 440 | Bone |
-| The one number that matters | `<span class="hl">` | mint |
-
-Mint appears **twice per slide at most**: the label and one figure. `<b>` inside
-prose is Bone bold and never mint — bold and accent together outrank a label
-that sits above them, which inverts the hierarchy. This is the visual half of
-`three-accent-budget.md`; the earlier slide spent four accent uses on one screen.
+One font (Geist), one weight (500), bone on near-black. No accent colour, no
+bold, no uppercase or letter-spacing, no gradient. Bars and table rules are
+drawn in the same bone. Emphasis comes from size and position only, so the
+sentence that matters is the large one. `css()` in
+`scripts/build-newsletter-carousel.py` holds the two sizes; the OG card uses
+the same rule at its own scale (41px and 22px).
 
 ## Rules that are not negotiable
 

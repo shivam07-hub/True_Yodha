@@ -41,11 +41,11 @@ Okta, Nike or Capgemini, so the X and LinkedIn cuts above do not go out as writt
 
 Slide 1:
 
-The job ad you're tailoring a CV for may already be closed. A role can end in the hiring system while the careers page still shows it.
+You may be tailoring a CV for a job that's already closed. AB InBev still advertised 69.6% of the India roles its hiring system had closed, through 24 September 2026.
 
 Slide 2:
 
-Whether it's still open depends on the employer. AB InBev still advertised 69.6% of the India roles its hiring system had closed, Palo Alto Networks 50.0% and Barclays 13.2%, through 24 September 2026.
+Whether it's still open depends on the employer: Palo Alto Networks still advertised 50.0% of its closed India roles, Barclays 13.2%.
 
 Slide 3:
 
@@ -67,9 +67,9 @@ First comment: #jobsearch #ghostjobs #jobsindia #himyro
 
 ### One caption, for the laptop
 
-The job ad you're tailoring a CV for may already be closed. A role can end in the hiring system while the careers page still shows it.
+You may be tailoring a CV for a job that's already closed. AB InBev still advertised 69.6% of the India roles its hiring system had closed, through 24 September 2026.
 
-Whether it's still open depends on the employer. AB InBev still advertised 69.6% of the India roles its hiring system had closed, Palo Alto Networks 50.0% and Barclays 13.2%, through 24 September 2026.
+Whether it's still open depends on the employer: Palo Alto Networks still advertised 50.0% of its closed India roles, Barclays 13.2%.
 
 Closing the role and pulling the ad are two teams' jobs at most companies, and one of them is slower.
 

@@ -42,11 +42,11 @@ the image. LinkedIn takes the same slides as one document,
 
 Slide 1:
 
-If you want a finance job in India, you'd look in Mumbai first. We read 2,067 finance, risk and compliance openings from 220+ MNC career pages.
+The city with the most finance jobs in India isn't Mumbai, and where you look decides what you'll be asked for. We read 2,067 finance, risk and compliance openings from 220+ MNC career pages.
 
 Slide 2:
 
-Bengaluru has more: 24.8% of India's finance openings, which is 512 roles, against Mumbai's 21.9%.
+It's Bengaluru: 24.8% of India's finance openings, which is 512 roles, against Mumbai's 21.9%.
 
 Slide 3:
 
@@ -72,9 +72,9 @@ First comment: #jobsearch #financejobs #himyro
 
 ### One caption, for the laptop
 
-If you want a finance job in India, you'd look in Mumbai first. We read 2,067 finance, risk and compliance openings from 220+ MNC career pages.
+The city with the most finance jobs in India isn't Mumbai, and where you look decides what you'll be asked for. We read 2,067 finance, risk and compliance openings from 220+ MNC career pages.
 
-Bengaluru has more: 24.8% of India's finance openings, which is 512 roles, against Mumbai's 21.9%.
+It's Bengaluru: 24.8% of India's finance openings, which is 512 roles, against Mumbai's 21.9%.
 
 There, you'll be asked for SQL and Python too. SQL is the most-named skill in Bengaluru's finance postings (81), ahead of financial services (80). Python is named 61 times.
 
