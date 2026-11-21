@@ -52,7 +52,7 @@ live links and captions as posted.
 
 | Date | Post |
 |---|---|
-| 22 Nov, 05:00 | [Issue 026 carousel, reposted](https://www.instagram.com/myrojobs/p/DgBaSReEtrV/) with the hook cover, five bands and two type sizes, posted by Claude in Chrome as @myrojobs, hashtags as the first comment, not shared to Facebook |
+| 22 Nov, 05:00 | [Issue 026 carousel, reposted](https://www.instagram.com/myrojobs/p/DgBaSReEtrV/) with the hook cover, five bands and two type sizes, posted by Claude in Chrome as @myrojobs, hashtags as the first comment, not shared to Facebook. Same morning on the LinkedIn company page: [issue 026 as a document](https://www.linkedin.com/feed/update/urn:li:ugcPost:7530051124012449792/), the first one LinkedIn offers to boost, with the link in the first comment |
 | 21 Nov | [Issue 026 carousel](https://www.instagram.com/myrojobs/p/DgAw1OqIwA-/), first version, no hook on the cover. To be archived in the app (instagram.com offers only Delete) |
 | 18 Nov, 02:15 | [Issue 024 carousel](https://www.instagram.com/myrojobs/p/Df20WH9EkmA/), posted by Claude in Chrome, one caption, not shared to Facebook. Same night on the LinkedIn company page: [issue 024](https://www.linkedin.com/feed/update/urn:li:activity:7528558060508762112/), with the link in the first comment |
 | 3 Nov | [Issue 025 carousel](https://www.instagram.com/myrojobs/p/DfSXQmFo_NL/), from the laptop in Chrome, one caption |
@@ -117,7 +117,8 @@ permissions error, that is the step left, and the row will say so.
 Each carousel below is published from the laptop as above. Hashtags go in the
 first comment. The bio link stays as it is.
 
-One post a day on each channel until the backlog clears (Shivam, 2026-11-17).
+One post a day on each channel until the backlog clears (Shivam, 2026-11-17),
+and never within 24 hours of that channel's last post (Shivam, 2026-11-22).
 The tracker rows carry these dates. Issue 024 went out on both channels at 02:15
 on 18 Nov (Shivam chose now over the slots).
 
@@ -125,7 +126,7 @@ on 18 Nov (Shivam chose now over the slots).
 |---|---|---|---|
 | Wed 18 Nov | Issue 024, posted | Issue 024 carousel, posted | |
 | Thu 19 Nov | Fill video, 10:00 | Issue 026 carousel, posted 21 Nov, reposted 22 Nov with the hook cover | Video: someone listens to the soundtrack. 026's page is live (checked 18 Nov after the `main` merge, #352) |
-| Fri 20 Nov | Issue 026, as the document `issue-026-linkedin.pdf` (hook cover, 22 Nov) | Issue 023 carousel, rebuilt as a story 19 Nov, hook cover 22 Nov | 023 names only AB InBev, Palo Alto Networks and Barclays, the three rates the live Ghost Index still shows (read 19 Nov) |
+| Fri 20 Nov | Issue 026, as the document `issue-026-linkedin.pdf`, posted 22 Nov | Issue 023 carousel, rebuilt as a story 19 Nov, hook cover 22 Nov | 023 names only AB InBev, Palo Alto Networks and Barclays, the three rates the live Ghost Index still shows (read 19 Nov) |
 | Sat 21 Nov | Issue 021, as the document `issue-021-linkedin.pdf` | Fill reel, 10:00 | |
 | Sun 22 Nov | Issue 025 | Issue 021 carousel, rebuilt as a story 19 Nov, hook cover 22 Nov | |
 | Mon 23 Nov | Match video | Match reel | Soundtrack heard |
