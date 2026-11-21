@@ -123,7 +123,7 @@ export function PrepRail({
       <div className="mc-rail">
         <div className="prp-rail-head">
           <div className="prp-rail-title">
-            <h1>Prep</h1>
+            <h1>Preparation</h1>
             {live > 0 ? <span className="prp-rail-live">{live} live</span> : null}
           </div>
           <p className="prp-rail-sub">
