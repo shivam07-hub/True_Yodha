@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button"
 import { APPLICATION_STAGES, type ApplicationStatus } from "@/lib/api"
 import { pastedLink } from "@/lib/job-import/pasted-link"
-import { ExtensionPromo } from "@/components/extension/extension-promo"
+import { ExtensionRow } from "@/components/extension/extension-row"
 import { reviewGap, useJobImport } from "@/lib/job-import/use-job-import"
 import { STAGE_LABEL, type StageKey } from "@/components/cv/pipeline/useTrackerBoard"
 
@@ -85,7 +85,6 @@ export function JobImportDialog({
           </div>
         ) : !draft ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <ExtensionPromo />
             <div style={{ display: "flex", gap: 8 }}>
               <input
                 value={url}
@@ -125,6 +124,7 @@ export function JobImportDialog({
             <button type="button" onClick={importJob.pasteInstead} style={textButton}>
               Paste the description instead
             </button>
+            <ExtensionRow />
           </div>
         ) : (
           <Review
