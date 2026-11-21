@@ -52,48 +52,52 @@ def _font(name):
 
 def css(w, h):
     """One font, one weight, one text colour, two sizes: --L for the sentence
-    that carries the slide, --S for everything else (Shivam, 2026-11-22). The
-    background keeps Myro's mint glow. Emphasis comes from size and position,
-    never from a second text colour or weight."""
+    that carries the slide, --S for everything else, the same on every slide.
+    The slide is five equal bands: the rail sits in the first, the foot in the
+    last, and the content starts at the top of the second and ends inside the
+    fourth (Shivam, 2026-11-22). The background keeps Myro's mint glow.
+    Emphasis comes from size and position, never a second colour or weight."""
     return """
 @font-face { font-family:'Geist'; src:url(data:font/woff;base64,%s) format('woff');
   font-weight:100 900; font-display:block; }
 * { margin:0; padding:0; box-sizing:border-box; font:inherit; color:inherit; }
-:root { --bg:#191918; --fg:#F2F0EC; --L:64px; --S:34px; }
+:root { --bg:#191918; --fg:#F2F0EC; --L:84px; --S:38px; --edge:80px; }
 body { margin:0; background:var(--bg); color:var(--fg);
   font-family:'Geist',system-ui,sans-serif; font-weight:500; font-size:var(--S);
-  line-height:1.35; font-variant-numeric:tabular-nums; -webkit-font-smoothing:antialiased; }
-.slide { width:%dpx; height:%dpx; background:var(--bg); padding:88px 80px 72px;
-  display:flex; flex-direction:column; overflow:hidden; position:relative; }
+  line-height:1.3; font-variant-numeric:tabular-nums; -webkit-font-smoothing:antialiased; }
+.slide { width:%dpx; height:%dpx; background:var(--bg); padding:0 var(--edge);
+  display:grid; grid-template-rows:20%% 60%% 20%%; overflow:hidden; position:relative; }
 .slide::after { content:''; position:absolute; inset:0; pointer-events:none;
   background:radial-gradient(120%% 80%% at 92%% 4%%, hsl(172 100%% 48%% / .10), transparent 58%%); }
 .rail, .body, .foot { z-index:1; }
-.rail { display:flex; align-items:center; justify-content:space-between; margin-bottom:52px; }
+.rail { align-self:start; padding-top:var(--edge); display:flex; align-items:center;
+  justify-content:space-between; }
 .rail .mark { display:flex; align-items:center; gap:14px; }
-.dot { width:26px; height:26px; border-radius:50%%; border:3px solid var(--fg); position:relative; }
-.dot::after { content:''; position:absolute; inset:5px; border-radius:50%%; background:var(--fg); }
-.body { flex:1; display:flex; flex-direction:column; justify-content:center; }
-h1, h2, .headline, .huge, .lead { font-size:var(--L); line-height:1.1; letter-spacing:-.02em; }
-.kicker { margin-bottom:24px; }
-.headline { margin-bottom:56px; max-width:22ch; }
-.huge, .lead { margin-bottom:24px; }
+.dot { width:30px; height:30px; border-radius:50%%; border:3px solid var(--fg); position:relative; }
+.dot::after { content:''; position:absolute; inset:6px; border-radius:50%%; background:var(--fg); }
+.body { min-height:0; overflow:hidden; display:flex; flex-direction:column;
+  justify-content:flex-start; }
+.foot { align-self:end; padding-bottom:var(--edge); }
+h1, h2, .headline, .huge, .lead { font-size:var(--L); line-height:1.08; letter-spacing:-.025em; }
+.kicker { margin-bottom:20px; }
+.headline { margin-bottom:44px; }
+.huge, .lead { margin-bottom:16px; }
 .huge + .sub { margin-top:0; }
-.sub { margin-top:40px; max-width:30ch; }
-.note, .golink { margin-top:44px; }
-.foot { padding-top:40px; }
-.row { display:grid; grid-template-columns:360px 1fr 130px; align-items:center;
-  gap:22px; margin-bottom:22px; }
-.track { height:38px; }
+.sub { margin-top:32px; }
+.note, .golink { margin-top:32px; }
+.row { display:grid; grid-template-columns:380px 1fr 140px; align-items:center;
+  gap:22px; margin-bottom:18px; }
+.track { height:40px; }
 .fill { height:100%%; background:var(--fg); }
 .val { text-align:right; }
-.cliff { display:flex; align-items:center; gap:20px; margin:26px 0 30px; }
+.cliff { display:flex; align-items:center; gap:20px; margin:20px 0 24px; }
 .cliff .line { flex:1; height:1px; background:var(--fg); }
 table { width:100%%; border-collapse:collapse; }
-td, th { text-align:left; padding:20px 0; border-bottom:1px solid var(--fg); }
+td, th { text-align:left; padding:14px 0; border-bottom:1px solid var(--fg); }
 td.n { text-align:right; padding-left:24px; white-space:nowrap; }
-.card { margin-bottom:36px; }
-.cta { display:inline-block; border:3px solid var(--fg); padding:24px 44px; border-radius:999px; }
-.mtx td, .mtx th { padding:14px 6px; }
+.card { margin-bottom:28px; }
+.cta { display:inline-block; border:3px solid var(--fg); padding:22px 40px; border-radius:999px; }
+.mtx td, .mtx th { padding:12px 6px; }
 .mtx .mx { text-align:center; }
 .mtx td.mx.hot { background:var(--fg); color:var(--bg); }
 @page { size:%dpx %dpx; margin:0; }
@@ -312,6 +316,15 @@ def main(spec_path, *, captions_only=False, no_og=False):
         pg = br.new_page(viewport={"width": W, "height": H}, device_scale_factor=2)
         pg.goto(tmp.as_uri())
         pg.wait_for_timeout(1200)
+        over = pg.evaluate(
+            "() => [...document.querySelectorAll('.slide')].map((s, i) => {"
+            " const b = s.querySelector('.body');"
+            " return b.scrollHeight > b.clientHeight + 1 ? i + 1 : 0; }).filter(Boolean)")
+        if over:
+            br.close()
+            tmp.unlink()
+            raise SystemExit(
+                f"slides {over} run past the fourth fifth; cut words or rows")
         for i in range(1, n + 1):
             pg.locator(f"#s{i}").screenshot(
                 path=str(out / f"issue-{issue:03d}-slide-{i:02d}.png"))
@@ -319,7 +332,9 @@ def main(spec_path, *, captions_only=False, no_og=False):
                width=f"{W}px", height=f"{H}px", print_background=True)
         og = None if no_og else spec.get("og")
         if og:
-            ocss = css(1200, 630) + ":root{--L:41px;--S:22px} .slide{padding:52px 60px 44px}"
+            ocss = css(1200, 630) + (":root{--L:41px;--S:22px} .slide{padding:52px 60px 44px;"
+                                    "grid-template-rows:auto 1fr auto} .rail{padding-top:0}"
+                                    " .foot{padding-bottom:0} .body{justify-content:center}")
             obars = "".join(
                 f'<div class="row" style="grid-template-columns:230px 1fr 96px;margin-bottom:9px;gap:16px">'
                 f'<div class="city">{html.escape(label)}</div>'

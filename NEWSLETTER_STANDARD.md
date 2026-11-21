@@ -104,8 +104,15 @@ mint, bone and grey, and seven sizes on one screen.
 
 | Size | What |
 |---|---|
-| Large, 64px | The cover's `h1`, each `headline`, the one number |
-| Small, 34px | Everything else: label, sub, note, bars, table, link, foot, rail |
+| Large, 84px | The cover's `h1`, each `headline`, the one number |
+| Small, 38px | Everything else: label, sub, note, bars, table, link, foot, rail |
+
+**Five bands, the same on every slide** (Shivam, same day). The slide is five
+equal bands, 270px each. The rail sits in the first and the foot in the last.
+The content starts at the top of the second band and ends inside the fourth,
+so the top edge never moves from slide to slide. The builder refuses a slide
+whose content runs past the fourth band: cut words or rows, never shrink the
+type. Issue 021 lost two employer rows this way.
 
 One font (Geist), one weight (500), and all text in bone. The background
 stays Myro's: near-black with the mint glow in the top-right corner (Shivam,
