@@ -52,6 +52,7 @@ live links and captions as posted.
 
 | Date | Post |
 |---|---|
+| 21 Nov | [Issue 026 carousel](https://www.instagram.com/myrojobs/p/DgAw1OqIwA-/), the first told as a story, posted by Claude in Chrome two days after its slot, one caption, hashtags as the first comment, not shared to Facebook |
 | 18 Nov, 02:15 | [Issue 024 carousel](https://www.instagram.com/myrojobs/p/Df20WH9EkmA/), posted by Claude in Chrome, one caption, not shared to Facebook. Same night on the LinkedIn company page: [issue 024](https://www.linkedin.com/feed/update/urn:li:activity:7528558060508762112/), with the link in the first comment |
 | 3 Nov | [Issue 025 carousel](https://www.instagram.com/myrojobs/p/DfSXQmFo_NL/), from the laptop in Chrome, one caption |
 | 23 Oct | [Loop reel](https://www.instagram.com/myrojobs/reel/De2Grhax5BJ/) |
@@ -122,7 +123,7 @@ on 18 Nov (Shivam chose now over the slots).
 | Day | LinkedIn, 10:30 | Instagram, 19:00 | Before it goes |
 |---|---|---|---|
 | Wed 18 Nov | Issue 024, posted | Issue 024 carousel, posted | |
-| Thu 19 Nov | Fill video, 10:00 | Issue 026 carousel, rebuilt as a story 18 Nov | Video: someone listens to the soundtrack. 026's page is live (checked 18 Nov after the `main` merge, #352) |
+| Thu 19 Nov | Fill video, 10:00 | Issue 026 carousel, posted 21 Nov | Video: someone listens to the soundtrack. 026's page is live (checked 18 Nov after the `main` merge, #352) |
 | Fri 20 Nov | Issue 026, as the document `issue-026-linkedin.pdf` | Issue 023 carousel, rebuilt as a story 19 Nov | 023 names only AB InBev, Palo Alto Networks and Barclays, the three rates the live Ghost Index still shows (read 19 Nov) |
 | Sat 21 Nov | Issue 021, as the document `issue-021-linkedin.pdf` | Fill reel, 10:00 | |
 | Sun 22 Nov | Issue 025 | Issue 021 carousel, rebuilt as a story 19 Nov | |
