@@ -51,9 +51,10 @@ def _font(name):
 
 
 def css(w, h):
-    """One font, one weight, one colour, two sizes: --L for the sentence that
-    carries the slide, --S for everything else (Shivam, 2026-11-22). Emphasis
-    comes from size and position, never from a second colour or weight."""
+    """One font, one weight, one text colour, two sizes: --L for the sentence
+    that carries the slide, --S for everything else (Shivam, 2026-11-22). The
+    background keeps Myro's mint glow. Emphasis comes from size and position,
+    never from a second text colour or weight."""
     return """
 @font-face { font-family:'Geist'; src:url(data:font/woff;base64,%s) format('woff');
   font-weight:100 900; font-display:block; }
@@ -63,7 +64,10 @@ body { margin:0; background:var(--bg); color:var(--fg);
   font-family:'Geist',system-ui,sans-serif; font-weight:500; font-size:var(--S);
   line-height:1.35; font-variant-numeric:tabular-nums; -webkit-font-smoothing:antialiased; }
 .slide { width:%dpx; height:%dpx; background:var(--bg); padding:88px 80px 72px;
-  display:flex; flex-direction:column; overflow:hidden; }
+  display:flex; flex-direction:column; overflow:hidden; position:relative; }
+.slide::after { content:''; position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(120%% 80%% at 92%% 4%%, hsl(172 100%% 48%% / .10), transparent 58%%); }
+.rail, .body, .foot { z-index:1; }
 .rail { display:flex; align-items:center; justify-content:space-between; margin-bottom:52px; }
 .rail .mark { display:flex; align-items:center; gap:14px; }
 .dot { width:26px; height:26px; border-radius:50%%; border:3px solid var(--fg); position:relative; }

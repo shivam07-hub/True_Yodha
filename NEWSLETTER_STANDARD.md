@@ -96,7 +96,7 @@ like the carousel. A Page can boost a document post; it cannot boost a
 multi-image post (LinkedIn Help, "Posts available to boost from a LinkedIn
 Page", read 2026-11-18). Issue 024 went out on LinkedIn as a multi-image post.
 
-## Carousel type: two sizes, one colour, one font
+## Carousel type: two sizes, one text colour, one font
 
 Set by Shivam, 2026-11-22: "at max 1-2 font size, 1 color, and 1 font style.
 That is standard and professional." Slides until then mixed a mono and a sans,
@@ -107,9 +107,11 @@ mint, bone and grey, and seven sizes on one screen.
 | Large, 64px | The cover's `h1`, each `headline`, the one number |
 | Small, 34px | Everything else: label, sub, note, bars, table, link, foot, rail |
 
-One font (Geist), one weight (500), bone on near-black. No accent colour, no
-bold, no uppercase or letter-spacing, no gradient. Bars and table rules are
-drawn in the same bone. Emphasis comes from size and position only, so the
+One font (Geist), one weight (500), and all text in bone. The background
+stays Myro's: near-black with the mint glow in the top-right corner (Shivam,
+same day: one colour means the text, not the background). No accent colour on
+text, no bold, no uppercase or letter-spacing. Bars and table rules are drawn
+in the same bone. Emphasis comes from size and position only, so the
 sentence that matters is the large one. `css()` in
 `scripts/build-newsletter-carousel.py` holds the two sizes; the OG card uses
 the same rule at its own scale (41px and 22px).
