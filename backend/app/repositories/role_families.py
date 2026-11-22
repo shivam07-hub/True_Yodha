@@ -9,9 +9,86 @@ used to build the whole label taxonomy per call — four nested regexes over
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from supabase import Client
+
+# Words that say how senior a role is, not what it is. "Senior data scientist"
+# asks about Data Science; left in, "senio" matches no family name.
+_RANK_WORDS = frozenset({
+    "senior", "sr", "junior", "jr", "lead", "principal", "associate", "head",
+    "intern", "trainee", "staff", "chief", "assistant", "deputy", "i", "ii",
+    "iii", "of", "and", "the", "in", "for", "a", "an", "role", "roles", "job",
+    "jobs",
+})
+# Title words that name a kind of seat, not a field. They add to a match but
+# never make one alone: "engineer" would otherwise pull in every family with
+# "Engineering" in its name, and "manager" every "Management".
+_SEAT_WORDS = frozenset({
+    "engin", "manag", "speci", "execu", "offic", "analy", "coord",
+    "direc", "repre", "admin", "super", "opera", "profe", "exper",
+})
+# Short forms people type for the fields the taxonomy spells out.
+_ALIASES = {
+    "hr": "human resources",
+    "ml": "machine learning",
+    "ai": "artificial intelligence",
+    "qa": "quality assurance",
+    "sde": "software development",
+    "swe": "software",
+    "pm": "product management",
+    "ui": "design",
+    "ux": "design",
+    "devops": "cloud computing",
+    "fintech": "financial",
+}
+_WORD = re.compile(r"[a-z0-9]+")
+_STEM = 5
+
+
+def _words(text: str) -> list[str]:
+    return _WORD.findall((text or "").casefold())
+
+
+def _wanted(role: str) -> list[str]:
+    words: list[str] = []
+    for word in _words(role):
+        if word in _RANK_WORDS:
+            continue
+        words.append(word)
+        words.extend(_words(_ALIASES.get(word, "")))
+    return list(dict.fromkeys(w[:_STEM] for w in words))
+
+
+def family_match_score(role: str, family: str) -> int:
+    """Words of `role` that start a word of `family`, by their first five
+    letters. A field word counts ten, a seat word one, so seats only break ties
+    and never make a match alone: "product manager" puts Product Management
+    (11) over Product Development (10); "engineer" alone scores nothing."""
+    have = _words(family)
+    hits = [w for w in _wanted(role) if any(h.startswith(w) for h in have)]
+    fields = sum(1 for w in hits if w not in _SEAT_WORDS)
+    if fields == 0:
+        return 0
+    return fields * 10 + (len(hits) - fields)
+
+
+def rank_families(role: str, rows: list[dict[str, Any]], *, limit: int = 3) -> list[dict[str, Any]]:
+    """The families whose NAME best answers a free-text role, ties broken by
+    open roles. Not `list_role_families(p_query=…)`: that searches `label`, one
+    sample job title per family (Alternative Therapy carries "Principal Product
+    Manager"), so it answers "product manager" with chakras. Family names are
+    skill domains (Software Development), not titles, so the best answer is the
+    family sharing the most field words with the role."""
+    scored = [
+        (family_match_score(role, str(row["family"])), row)
+        for row in rows
+        if row.get("family")
+    ]
+    scored = [pair for pair in scored if pair[0] > 0]
+    scored.sort(key=lambda pair: (pair[0], int(pair[1].get("open_count") or 0)), reverse=True)
+    return [row for _score, row in scored[: max(1, int(limit))]]
 
 
 class RoleFamiliesRepository:
@@ -174,6 +251,23 @@ class RoleFamiliesRepository:
             for row in rows
             if row.get("family")
         }
+
+    def named_families(self) -> list[dict[str, Any]]:
+        """Every non-catch-all family with its open roles and core skills —
+        the corpus `rank_families` matches a free-text role against.
+
+        One read of the 337-row snapshot. Catch-all families are left out:
+        their skills are the corpus average, not a role's. `label` is not read:
+        it is one sample job title per family, not a name.
+        """
+        return (
+            self._db.table("role_family_labels")
+            .select("family, open_count, core_skills, refreshed_at")
+            .eq("is_catch_all", False)
+            .execute()
+            .data
+            or []
+        )
 
     def all_core_skills(self) -> dict[str, list[str]]:
         """Every direction's vocabulary — the corpus a skip is counted against.

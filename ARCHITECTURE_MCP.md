@@ -345,8 +345,11 @@ reaches no user's data.
 
 **What it never returns.** Job-description text (a stranger's writing going
 into the person's assistant), anything about a person, or a Myro verdict (that
-needs a CV). Every job carries `apply_url`, the employer's own page, because
-applying there is the loop. Every Myro page link carries `utm_source=mcp`.
+needs a CV). Every job carries `tailor_url`, `https://himyro.com/cv?jobId=…`:
+the page `/intel` already sends a visitor to, which holds tailor, Download and
+Apply on the employer's page. Handing over the employer's link would skip the
+CV the loop exists to make. Every Myro link carries `utm_source=mcp`
+(`lib/attribution.ts` reads it).
 
 ### O1 · The API answers two market questions it could not
 
@@ -381,7 +384,7 @@ Errors say what to try next.
 
 | Tool | Reads | Answers |
 |---|---|---|
-| `myro_search_jobs(role, city?, country?, work_mode?, limit?)` | `/partner/v1/market/jobs` | live roles at named employers, `apply_url`, first seen |
+| `myro_search_jobs(role, city?, country?, work_mode?, limit?)` | `/partner/v1/market/jobs` | live roles at named employers, first seen, `tailor_url` |
 | `myro_skills_for_role(role)` | `/partner/v1/market/role-skills` | the skills listings for that role ask for, and how many are open |
 | `myro_company_profile(company)` | `/companies/{name}/skill-intelligence`, `/companies/{name}/jobs` | what one employer asks for and has open |
 | `myro_skill_demand(city?)` | `/jobs/skill-demand`, `/jobs/skill-demand/cities` | the most-asked skills in a city; with no city, the cities we cover |
