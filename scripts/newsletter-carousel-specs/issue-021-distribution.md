@@ -66,7 +66,7 @@ If you're starting out, 19.3% of Mumbai's finance roles are entry level, the hig
 
 Slide 7:
 
-Pick your city, then tailor your CV to one role there. Link in bio.
+Upload your CV and see which of these roles you fit, and what they ask that your CV doesn't. Link in bio.
 
 First comment: #jobsearch #financejobs #himyro
 
@@ -84,4 +84,4 @@ There, three employers hold 51.7% of the roles: Axis Bank with 113, EY with 74 a
 
 If you're starting out, 19.3% of Mumbai's finance roles are entry level, the highest of any big metro.
 
-Pick your city, then tailor your CV to one role there. Link in bio.
+Upload your CV and see which of these roles you fit, and what they ask that your CV doesn't. Link in bio.

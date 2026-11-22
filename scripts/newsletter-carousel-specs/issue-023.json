@@ -46,7 +46,6 @@
       "kind": "statement",
       "kicker": "Before you tailor",
       "h1": "You may be tailoring a CV for a job that's already closed.",
-      "link": "Full issue: himyro.com/newsletter",
       "caption": "You may be tailoring a CV for a job that's already closed. AB InBev still advertised 69.6% of the India roles its hiring system had closed, through 24 September 2026.",
       "sub": "AB InBev still advertised 69.6% of the India roles it had closed."
     },
@@ -94,10 +93,10 @@
     },
     {
       "kind": "cta",
-      "h1": "Still open? Tailor your CV and apply on their page.",
-      "sub": "Myro tailors it to that one job.",
-      "pill": "Full issue: himyro.com/newsletter",
-      "caption": "Still open? Tailor your CV to it and apply on the company's own page. Link in bio."
+      "h1": "Still open? Upload your CV and see what it's missing.",
+      "sub": "Myro reads it against that job, then tailors it.",
+      "pill": "Upload your CV: himyro.com",
+      "caption": "Still open? Upload your CV and see what it's missing for that job, then tailor it. Link in bio."
     }
   ],
   "article": "2026-10-open-role-apply-on-their-page",

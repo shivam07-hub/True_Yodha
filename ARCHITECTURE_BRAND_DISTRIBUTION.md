@@ -45,7 +45,7 @@ Shivam until the publisher is connected. Cursor builds.
 | Tracker rows | `growth_*` through `GrowthRepository` (`repositories/growth.py`), keys `asset:issue:<slug>`, `campaign:issue:<slug>`, `message:issue:<slug>:<channel>` | raw SQL, new tables, new key shapes |
 | Instagram API calls | `InstagramClient` in `services/instagram_publisher.py` | a second client, a token in a POST's URL |
 | One publish, never two | `claim_for_instagram` + `metadata.instagram_media_id` + unique `(message_id, external_id)` | another lock or flag |
-| The bio link | fixed, `…/newsletter?utm_source=instagram&utm_medium=social&utm_campaign=ig-bio` ([MARKETING_SCHEDULE.md](MARKETING_SCHEDULE.md)) | a per-post bio link |
+| The bio link | fixed, `himyro.com/?utm_source=instagram&utm_medium=social&utm_campaign=ig-bio`, the CV upload ([MARKETING_SCHEDULE.md](MARKETING_SCHEDULE.md)) | a per-post bio link, a newsletter link |
 | When things go out | MARKETING_SCHEDULE.md and the rows' `planned_at` | dates in code |
 | Telling Shivam something broke | the Notice board belts: `notice/harvest.py`, `notice/fingerprint.py` `_BELTS` | an email, cron or alert of its own |
 
@@ -123,8 +123,9 @@ match today's byte for byte. Paste the `cmp` output.
 **Why.** Issue 021 (finance city map, published 2026-09-17) is the only shipped
 issue with a LinkedIn row and no Instagram kit. Its slide folder is empty.
 
-**Do.** In `issue-021.json`: `"link": "Full issue: himyro.com/newsletter"` on the
-first and last slide; `"article": "2026-09-finance-city-map-india"`;
+**Do.** In `issue-021.json` (built 19 Nov; since 22 Nov no slide carries a
+newsletter link, the last slide's pill is `Upload your CV: himyro.com`):
+`"article": "2026-09-finance-city-map-india"`;
 `first_comment` (`#jobsearch` + one niche + `#himyro`); a `caption` per slide cut
 from the article section that slide shows, in the article's own sentences. The
 last caption ends `Tailor your CV to jobs like these. Link in bio.` Run the
@@ -155,7 +156,8 @@ voice before anything is posted.
 - Instagram `draft_copy` is the `Slide n:` blocks, as the 024 row holds today.
   `metadata`: `prepared_draft`, `first_comment`, the fixed `bio_link`, the kit
   path, and `how_to_post` in the 024 row's laptop wording. `utm_url` is
-  `https://www.himyro.com/newsletter/<slug>?utm_source=<channel>&utm_medium=social&utm_campaign=issue-NNN`.
+  `https://www.himyro.com/?utm_source=<channel>&utm_medium=social&utm_campaign=issue-NNN`,
+  the CV upload, never the issue page (Shivam, 2026-11-22).
 - Creating a row sets its `format` and leaves `planned_at` empty: Claude dates
   it. An existing row keeps its `format` and `planned_at`; issue 021's LinkedIn
   row is a `post`, and it stays one. On a row that exists the command writes only

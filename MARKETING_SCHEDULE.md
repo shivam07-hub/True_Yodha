@@ -55,8 +55,12 @@ under Next. After that, the week above.
 - **Copy:** the brand-guidelines surface file for the channel, then
   write-like-human. Both lints pass (`ai-tells-lint.mjs`, `lint-vocab.sh`).
   No prices, no counts except `loop_reach.py` with its date, no auto-apply.
-- **Links:** every link carries `utm_source`, `utm_medium=social` and a
-  `utm_campaign` per item (`brag-loop`, `issue-026`). Signup stores them
+- **Links go to the product, never the newsletter** (Shivam, 2026-11-22). Every
+  post sends people to the CV upload on `himyro.com`'s home page; the issue is
+  the proof, the upload is the ask. Through 22 Nov, while posts pointed at the
+  newsletter, 0 of the 11 attributed signups came from Instagram or LinkedIn.
+  Every link carries `utm_source`, `utm_medium=social` and a `utm_campaign` per
+  item (`brag-loop`, `issue-026`). Signup stores them
   (`frontend/lib/attribution.ts`), so each post's signups can be counted.
 - **LinkedIn:** no link in the post body. It goes in the first comment, and the
   post carries the carousel as one PDF document (`issue-0NN-linkedin.pdf`
@@ -66,8 +70,8 @@ under Next. After that, the week above.
   redirected to an unavailable page when checked on 2026-06-02).
 - **Instagram:** a carousel is published from the laptop with Publish to
   Instagram in the tracker (INSTAGRAM_PROFILE.md). Its caption is the slides'
-  story, one line per slide and in slide order, folded into one caption. Its first
-  and last slides carry `Full issue: himyro.com/newsletter` on the image. A reel
+  story, one line per slide and in slide order, folded into one caption. Its last
+  slide carries `Upload your CV: himyro.com`; no slide names the newsletter. A reel
   keeps one caption of two lines. Three to five hashtags go in the first comment.
-  The bio holds one fixed link, `https://www.himyro.com/newsletter?utm_source=instagram&utm_medium=social&utm_campaign=ig-bio`. Links change only in the app, so it
+  The bio holds one fixed link, `https://www.himyro.com/?utm_source=instagram&utm_medium=social&utm_campaign=ig-bio`. Links change only in the app, so it
   never changes: Instagram signups count under `ig-bio`, not per post.

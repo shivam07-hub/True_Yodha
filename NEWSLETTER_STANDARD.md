@@ -82,7 +82,9 @@ next swipe.
    number under the sentence it proves.
 4. **Each slide answers the one before it.** If two slides can swap places, one
    of them belongs in the article.
-5. **The last slide is the action:** pick a role, tailor your CV to it.
+5. **The last slide is the action:** upload your CV at himyro.com and see what
+   these roles ask that it doesn't. No slide sends people to the newsletter
+   (Shivam, 2026-11-22): the issue is the proof, Myro is the product.
 6. **Shivam agrees the storyline before the slides are built:** the headlines in
    order, one line each, the same gate as angle, chart and heading.
 

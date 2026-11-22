@@ -43,7 +43,6 @@
       "kind": "statement",
       "kicker": "Finance jobs by city",
       "h1": "The city with the most finance jobs isn't Mumbai.",
-      "link": "Full issue: himyro.com/newsletter",
       "caption": "The city with the most finance jobs in India isn't Mumbai, and where you look decides what you'll be asked for. We read 2,067 finance, risk and compliance openings from 220+ MNC career pages.",
       "sub": "Where you look decides what you'll be asked for."
     },
@@ -181,10 +180,10 @@
     },
     {
       "kind": "cta",
-      "h1": "Pick your city, then tailor your CV to one role there.",
-      "sub": "Myro tailors it, and you apply on the company's own page.",
-      "pill": "Full issue: himyro.com/newsletter",
-      "caption": "Pick your city, then tailor your CV to one role there. Link in bio."
+      "h1": "Upload your CV and see which of these roles you fit.",
+      "sub": "Myro shows what they ask that your CV doesn't, then tailors it.",
+      "pill": "Upload your CV: himyro.com",
+      "caption": "Upload your CV and see which of these roles you fit, and what they ask that your CV doesn't. Link in bio."
     }
   ]
 }

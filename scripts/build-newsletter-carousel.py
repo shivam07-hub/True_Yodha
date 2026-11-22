@@ -23,8 +23,9 @@ Spec shape:
                "cards": [["Early · 0-3 yrs", "..."], ...]},
               {"kind": "cta", "h1": "...", "sub": "...", "pill": "himyro.com →"}]}
 
-Any slide may add "link": "Full issue: himyro.com/newsletter". It renders under
-the slide's content at a size a phone can read; the foot line cannot do that job.
+Any slide may add "link", a line under its content. The last slide's pill
+names where the reader goes next: the CV upload at himyro.com, never the
+newsletter (Shivam, 2026-11-22).
 
 Any slide may add "headline": the one sentence that slide adds to the story.
 It renders above the slide's number, bars or table. Read in order, they tell
@@ -176,7 +177,7 @@ def link_html(s):
 
 
 BIO_LINK = (
-    "https://www.himyro.com/newsletter"
+    "https://www.himyro.com/"
     "?utm_source=instagram&utm_medium=social&utm_campaign=ig-bio"
 )
 _FIGURE = re.compile(r"\d[\d,]*\.?\d*%?")

@@ -10,7 +10,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "backend" / "scripts" / "growth_kit_sync.py"
 BIO = (
-    "https://www.himyro.com/newsletter"
+    "https://www.himyro.com/"
     "?utm_source=instagram&utm_medium=social&utm_campaign=ig-bio"
 )
 
@@ -143,12 +143,17 @@ def test_a_new_issue_creates_the_asset_campaign_and_both_messages(tmp_path: Path
     assert instagram["metadata"]["bio_link"] == BIO
     assert instagram["metadata"]["first_comment"] == "#jobsearch #example #himyro"
     assert instagram["draft_copy"].startswith("Slide 1:\nOne opening, 1 of them.")
+    # Posts send people to the CV upload on the home page, not the issue
+    # (Shivam, 2026-11-22): the newsletter is the proof, Myro is the product.
     assert instagram["utm_url"] == (
-        "https://www.himyro.com/newsletter/2026-01-example"
+        "https://www.himyro.com/"
         "?utm_source=instagram&utm_medium=social&utm_campaign=issue-099"
     )
     assert linkedin["draft_copy"] == "The linkedin body."
-    assert linkedin["utm_url"].endswith("utm_source=linkedin&utm_medium=social&utm_campaign=issue-099")
+    assert linkedin["utm_url"] == (
+        "https://www.himyro.com/"
+        "?utm_source=linkedin&utm_medium=social&utm_campaign=issue-099"
+    )
 
 
 def test_running_twice_changes_nothing(tmp_path: Path) -> None:

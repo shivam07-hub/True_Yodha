@@ -15,7 +15,7 @@ followers. Three fields still describe an older Myro.
 |---|---|---|
 | Name | HiMyro Career Intelligence | `Myro · CV for the job you want` (30 of 30 characters; Instagram search reads this field) |
 | Bio | An AI-based Career Intelligence Service that tracks jobs from top MNC websites for you | The block below (130 of 150 characters) |
-| Links | Three: himyro.com/newsletter with no UTM, titled "Offical web page of Himyro"; myrojobs.com, which redirects to himyro.com; the LinkedIn page | One, fixed: `https://www.himyro.com/newsletter?utm_source=instagram&utm_medium=social&utm_campaign=ig-bio`, titled `Myro newsletter`. It never changes. |
+| Links | Three: himyro.com/newsletter with no UTM, titled "Offical web page of Himyro"; myrojobs.com, which redirects to himyro.com; the LinkedIn page | One, fixed: `https://www.himyro.com/?utm_source=instagram&utm_medium=social&utm_campaign=ig-bio`, titled `Upload your CV`. It never changes once set. Set 2026-11-02 to the newsletter; moved to the upload on 2026-11-22 (Shivam), in the app |
 
 ```
 Pick the job you want. Myro tailors your CV to it.
@@ -78,12 +78,13 @@ went out this way on 2026-11-03.
 
 Bio links change only in the Instagram app. instagram.com's Edit profile says so
 and shows the field read-only (checked 2026-11-03). That is why the bio holds one
-fixed link to the newsletter, where the newest issue sits first.
+fixed link, to the CV upload on the home page: every post's last slide sends
+people there.
 
 Instagram's publishing API takes one caption per carousel, so the panel folds the
 per-slide captions into one, in slide order (issue 25: 1,650 of 2,200 characters).
-The slides carry the issue link on the first and last slide, so nothing depends
-on the caption. Multiple Captions stays an app-only option.
+The last slide names himyro.com, so nothing depends on the caption. Multiple
+Captions stays an app-only option.
 
 The panel appears once the backend holds the account's token. A second press
 cannot post twice: the row is claimed before anything is sent, and the media id
@@ -115,7 +116,8 @@ permissions error, that is the step left, and the row will say so.
 ## Next
 
 Each carousel below is published from the laptop as above. Hashtags go in the
-first comment. The bio link stays as it is.
+first comment. **Before 023 goes, Shivam moves the bio link to the upload** (the
+Links row above, in the app): until then "Link in bio" still opens the newsletter.
 
 One post a day on each channel until the backlog clears (Shivam, 2026-11-17),
 and never within 24 hours of that channel's last post (Shivam, 2026-11-22).

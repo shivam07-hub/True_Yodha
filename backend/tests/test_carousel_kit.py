@@ -10,7 +10,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "build-newsletter-carousel.py"
 BIO = (
-    "https://www.himyro.com/newsletter"
+    "https://www.himyro.com/"
     "?utm_source=instagram&utm_medium=social&utm_campaign=ig-bio"
 )
 

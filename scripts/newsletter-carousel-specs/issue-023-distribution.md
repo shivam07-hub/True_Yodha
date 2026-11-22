@@ -61,7 +61,7 @@ Check the employer's own hiring system before you tailor, not just the careers p
 
 Slide 6:
 
-Still open? Tailor your CV to it and apply on the company's own page. Link in bio.
+Still open? Upload your CV and see what it's missing for that job, then tailor it. Link in bio.
 
 First comment: #jobsearch #ghostjobs #jobsindia #himyro
 
@@ -77,7 +77,7 @@ So you can spend an evening tailoring a CV for a role that's already filled. At 
 
 Check the employer's own hiring system before you tailor, not just the careers page.
 
-Still open? Tailor your CV to it and apply on the company's own page. Link in bio.
+Still open? Upload your CV and see what it's missing for that job, then tailor it. Link in bio.
 
 ## Demo storyboard
 

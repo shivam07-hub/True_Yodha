@@ -19,7 +19,7 @@ from typing import Any, Protocol
 
 ROOT = Path(__file__).resolve().parents[2]
 BIO_LINK = (
-    "https://www.himyro.com/newsletter"
+    "https://www.himyro.com/"
     "?utm_source=instagram&utm_medium=social&utm_campaign=ig-bio"
 )
 SKIP_STATUSES = frozenset({"published", "queued"})
@@ -87,9 +87,11 @@ def _kit_path(spec_path: Path) -> str:
         return distribution.as_posix()
 
 
-def _utm(slug: str, issue: int, channel: str) -> str:
+def _utm(issue: int, channel: str) -> str:
+    """A post sends people to the CV upload on the home page, tagged with its
+    issue (Shivam, 2026-11-22). The issue page is the proof, not the stop."""
     return (
-        f"https://www.himyro.com/newsletter/{slug}"
+        "https://www.himyro.com/"
         f"?utm_source={channel}&utm_medium=social&utm_campaign=issue-{issue:03d}"
     )
 
@@ -268,7 +270,7 @@ def sync(store: Store, spec_path: Path, *, dry_run: bool) -> list[str]:
         if current is not None and current.get("status") in SKIP_STATUSES:
             lines.append(f"{channel} skipped ({current.get('status')})")
             continue
-        wanted = {"draft_copy": draft, "utm_url": _utm(slug, issue, channel), "metadata": metadata}
+        wanted = {"draft_copy": draft, "utm_url": _utm(issue, channel), "metadata": metadata}
         changed = _diff(channel, current, wanted)
         lines.extend(changed)
         if changed and not dry_run:
