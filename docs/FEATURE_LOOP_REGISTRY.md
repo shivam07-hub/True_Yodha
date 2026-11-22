@@ -68,6 +68,7 @@ that starts after step 4 can only ever serve 14 people.
 | L11 | Coin economy → spend → unlock | 818 ledgered, 2 paid | **NOT A LOOP YET** |
 | L12 | LinkedIn Services → scene → subscribe | door in product, 0 charges | **BUILT, UNCHARGED** |
 | L13 | Internships lane → Apply here / portal | **0** | **NEVER FIRED** |
+| L14 | Reach desk → sent → follow-up → reply | **0** | **NEVER FIRED** |
 
 ---
 
@@ -309,6 +310,23 @@ apply or intern-lane skip lands in production.
 
 ---
 
+### L14 — Reach desk → sent → follow-up → reply · **NEVER FIRED**
+
+```
+card rail "Log who you reached" · prep room Reach log · Collections "Desk" strip
+  → POST /jobs/reach/targets   (user pastes an /in/{vanity} URL, types the name)
+  → queued → sent → follow-up due T+3 → followed_up → replied | stopped
+```
+
+ADR-0018 Path 3, shipped 2026-09-15 (`766fcea2`), on `main`. Myro keeps the
+list; the user finds and sends. The doors are on both skins. **`reach_targets`
+held 0 rows on 2026-11-22, Myro's own accounts included** — 68 days live and
+nobody has logged one person. Nothing pings a user when a follow-up falls due;
+building that ping is moot until a first row exists. Add no ledger feature
+before then.
+
+---
+
 ## ORPHAN SURFACES — the notebook class
 
 A page that exists, renders, passes every gate, and has **no way in**. The
@@ -371,6 +389,7 @@ union all select 'issued a certificate', count(distinct user_id)::text from skil
 union all select 'certificate on a CV',  count(distinct user_id)::text from skill_certificates where cv_promoted_at is not null
 union all select 'followed a company',   count(distinct user_id)::text from followed_companies
 union all select 'partner SSO',          count(distinct user_id)::text from partner_users
+union all select 'logged a reach target', count(distinct user_id)::text from reach_targets
 union all select 'arrived via referral', count(*)::text from user_profiles where referred_by_user_id is not null;
 ```
 
