@@ -35,6 +35,17 @@ are everyone v1 can serve on day one. A new person still starts on the website.
 where 4 of 6 pressed nothing. Chat has no room. That is a guess, and §4 is how
 we will know.
 
+**Two doors, one adapter (Shivam, 2026-11-22: "spec + build").** A stranger who
+finds Myro in the Claude directory has no Myro account, so a sign-in-only
+connector meets them with "go to the website first". The **open door**
+(`https://himyro.com/mcp/open`, no sign-in, §3A) answers what only Myro knows
+about the market: live MNC roles, the skills a role or a company asks for, where
+demand is, who leaves ads up. The **account door** (`https://himyro.com/mcp`,
+M1–M7) does the person's own loop. Claude can already write a bullet and draft
+interview questions; it cannot know which employers have the role open today.
+In an assistant Myro sells the data, not the model. The open door ships first:
+it needs no OAuth, so no Gate G, and it proves U4 with nothing at stake.
+
 **UNPROVEN.**
 - **U1.** Supabase Auth's OAuth 2.1 server (beta) issues tokens that Claude and
   ChatGPT accept through discovery and dynamic client registration.
@@ -43,7 +54,10 @@ we will know.
 - **U3.** A `POST /cv/weave` keeps running after its caller stops waiting. A run
   may take 240 s (`paid_run.py:46`); a chat tool call cannot.
 - **U4.** The MCP TypeScript SDK serves a stateless JSON handler from a Next 14
-  route handler on Vercel.
+  route handler on Vercel. **O2 proves it.**
+- **U5.** The directory lists a remote connector with no sign-in. Anthropic's
+  submission page allows "no authentication for public data"; read 2026-11-22,
+  not yet tried.
 
 ---
 
@@ -307,6 +321,108 @@ last 30 days.
 
 ---
 
+## 3A · The open door — no sign-in
+
+```text
+Claude / ChatGPT  ──POST https://himyro.com/mcp/open──►  Next route handler
+                                                         │ holds ONE server env key:
+                                                         │ MYRO_MCP_OPEN_KEY (partner key,
+                                                         │ scope market.read, revocable)
+     anonymous reads ◄──────────────────────────────────┤
+     /companies/* · /jobs/skill-demand · /public/*      │
+     keyed reads ◄──────────────────────────────────────┘
+     /partner/v1/market/*  (Redis limiter, fails closed in prod)
+```
+
+**Why a partner key.** Every chat on claude.ai reaches the adapter from
+Anthropic's servers, and the adapter reaches the API from Vercel's: a per-IP
+limit would be one bucket shared by every stranger. The keyed reads are a
+partner integration whose partner is Myro itself: `partner_auth` already
+counts per key in Redis, fails closed in production, revokes in one command,
+and stamps last use. The same scope is §7's data product for other companies'
+AI. One API, the open door its first client. The key is not a Supabase key and
+reaches no user's data.
+
+**What it never returns.** Job-description text (a stranger's writing going
+into the person's assistant), anything about a person, or a Myro verdict (that
+needs a CV). Every job carries `apply_url`, the employer's own page, because
+applying there is the loop. Every Myro page link carries `utm_source=mcp`.
+
+### O1 · The API answers two market questions it could not
+
+**Do.**
+1. `partner_auth.SCOPE_MARKET_READ = "market.read"`, in `ALL_SCOPES`.
+2. `routers/partner/market.py`, both behind `require_scope(SCOPE_MARKET_READ)`:
+   - `GET /partner/v1/market/jobs?role=&city=&country=&mode=&limit≤20` →
+     `FilterSpec(roles=(role,), …)` → `JobQuery.public`. The landing search
+     without its model parse: the assistant is the parser. Same rows, same
+     `relaxed`.
+   - `GET /partner/v1/market/role-skills?role=&limit≤5` → role families whose
+     NAME matches every word of `role` by prefix (`product manager` finds
+     Product Management), catch-all families excluded, most open roles first,
+     each with `open_roles` and its twelve `core_skills` from
+     `role_family_labels`. The `label` column is one sample job title, not a
+     name: never return it.
+3. Mint the key: `scripts/partner_admin.py`, partner `myro-mcp`, scope
+   `market.read` only. Shivam puts it in Vercel as `MYRO_MCP_OPEN_KEY`.
+
+**Do not.** Rank, filter or score in the router. Read a person. Meter
+deliveries: this is not the paid feed, `roles.read` is.
+
+**Tests.** No key 401; a key without the scope 403; shaping of both routes;
+`label` absent; a word that matches no family gives `families: []`, not a 404.
+
+### O2 · The adapter, six read-only tools
+
+`app/mcp/open/route.ts`: POST only, stateless, JSON responses, official SDK
+pinned exact. Server name `myro-market`. Every tool `readOnlyHint: true`,
+`destructiveHint: false`, `openWorldHint: false`, a `title`, an output schema.
+Errors say what to try next.
+
+| Tool | Reads | Answers |
+|---|---|---|
+| `myro_search_jobs(role, city?, country?, work_mode?, limit?)` | `/partner/v1/market/jobs` | live roles at named employers, `apply_url`, first seen |
+| `myro_skills_for_role(role)` | `/partner/v1/market/role-skills` | the skills listings for that role ask for, and how many are open |
+| `myro_company_profile(company)` | `/companies/{name}/skill-intelligence`, `/companies/{name}/jobs` | what one employer asks for and has open |
+| `myro_skill_demand(city?)` | `/jobs/skill-demand`, `/jobs/skill-demand/cities` | the most-asked skills in a city; with no city, the cities we cover |
+| `myro_hiring_by_sector()` | `/public/hiring-panel` | which sectors are hiring, largest live pool first |
+| `myro_ghost_jobs(company?)` | `/public/ghost-index` | which employers leave ads up after hiring |
+
+**Do not.** Hold a person in module scope. Log a query. Return a page the size
+of the index: `myro_ghost_jobs` returns the coverage block, the overall rate
+and at most 20 employers.
+
+**Tests.** `tools/list` with annotations; each tool's shaping with a fake
+fetch; 404 becomes "no company by that name, try …"; 5xx becomes a tool error.
+
+**Done when.** MCP Inspector against local dev lists six tools and each returns
+real rows.
+
+### O3 · The door page
+
+`/ai`: the address with a copy control, the steps for Claude and ChatGPT, what
+it answers, what needs the website. Footer and Settings link to it;
+`llms.txt` gains one line; the privacy page gains one line. M8 later adds the
+account door to the same page. `/frontend-design`, `/ux-copy`, 375px.
+
+### O4 · The directory (Shivam's hands, Claude prepares)
+
+Portal `claude.ai/directory/manage`, a paid plan's Owner. Slug `myro` is
+permanent. Needs: docs URL (`/ai`), privacy policy, support contact, icon, use
+cases, data-handling answers, seven acknowledgments, every tool run once as a
+custom connector. Lists as Community; Anthropic may raise it to Verified. Read
+the Software Directory Policy on scraped data before submitting.
+
+### P1 · The skills plugin
+
+Skills are not listed alone: they ship in a plugin from a public GitHub repo
+(`.claude-plugin/plugin.json`, `claude plugin validate`), which points at the
+connectors' URLs. Skills carry the method, never data: `find-my-next-job`,
+`skills-gap-for-role`, `spot-ghost-jobs`, `market-brief` (open door);
+`tailor-cv-for-job`, `interview-prep` (account door, after M7).
+
+---
+
 ## 4 · Re-measure, weekly after Gate G
 
 No new tables. Own accounts excluded.
@@ -331,6 +447,11 @@ pass writes "Verified".
 
 | Chunk | State |
 |---|---|
+| O1 | Claude builds, 2026-11-22. |
+| O2 | Claude builds, 2026-11-22. Needs O1 and the key in Vercel. |
+| O3 | Spec only. Needs O2. |
+| O4 | Spec only. Needs O3 on `main`. Shivam submits. |
+| P1 | Spec only. Open-door skills after O4; account skills after M7. |
 | M1 | Spec only. |
 | M2 | Spec only. |
 | M3 | Spec only. |
@@ -351,7 +472,8 @@ Paste into a fresh Cursor chat, changing the chunk id:
 Read CLAUDE.md, then ARCHITECTURE_MCP.md in full. Build chunk M1 only, under the ten numbered rules in ARCHITECTURE_RETENTION.md section 6. Those rules name sections 2, 3 and 5: read them as this file's sections 2, 3 and 5.
 ```
 
-**Order.** M1, M2 and M3 can run in three chats at once. Then Gate G. Then
+**Order.** O1 → O2 → O3 → O4 first: no sign-in, so nothing waits on Gate G.
+M1, M2 and M3 can run beside them in three chats. Then Gate G. Then
 M4 → M5 → M6 → M7 in one chat at a time, then M8.
 
 **Shivam's list (not agent work).**
