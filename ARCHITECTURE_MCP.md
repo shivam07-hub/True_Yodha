@@ -450,8 +450,8 @@ pass writes "Verified".
 
 | Chunk | State |
 |---|---|
-| O1 | Claude builds, 2026-11-22. |
-| O2 | Claude builds, 2026-11-22. Needs O1 and the key in Vercel. |
+| O1 | Built + verified 2026-11-22 (`04d5ffe7`): 4198 backend tests green; live on the dev API (401 without a key). Reaches `api.himyro.com` when `main` takes it. |
+| O2 | Built 2026-11-22. Local dev against the dev API: `tools/list` gives six tools with annotations; company, skill demand, sectors and ghost index return real rows. U4 holds locally. Search and role skills wait on the key: Claude mints `myro-mcp` on Shivam's yes; Shivam sets `MYRO_MCP_OPEN_KEY` in Vercel. |
 | O3 | Spec only. Needs O2. |
 | O4 | Spec only. Needs O3 on `main`. Shivam submits. |
 | P1 | Spec only. Open-door skills after O4; account skills after M7. |

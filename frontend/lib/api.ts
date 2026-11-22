@@ -4139,6 +4139,39 @@ export interface SkillDemandCities {
   computed_at?: string | null
 }
 
+// ── Market reads for the open MCP door (`/partner/v1/market/*`, market.read) ──
+// Read server-side by app/mcp/open with a partner key; never by the browser.
+
+export interface MarketJob {
+  job_id: string
+  title: string
+  company: string | null
+  location_city: string | null
+  location_country: string | null
+  work_mode: string | null
+  /** Unix seconds. */
+  first_seen: number | null
+}
+
+export interface MarketJobsResponse {
+  jobs: MarketJob[]
+  total: number
+  /** Filters dropped to reach real roles, e.g. ["location"]. */
+  relaxed: string[]
+}
+
+export interface RoleFamilySkills {
+  family: string
+  open_roles: number
+  core_skills: string[]
+}
+
+export interface RoleSkillsResponse {
+  role: string
+  families: RoleFamilySkills[]
+  refreshed_at: string | null
+}
+
 /** Company demand pulse (Signal Thread S2). pulse === null = live but no signal. */
 export interface CompanyPulseItem {
   company_name: string
@@ -6219,8 +6252,10 @@ export interface GhostIndexRow {
   median_observed_days: number | null
 }
 
-/** The corpus row also carries the state of everything we could not judge. */
-export interface GhostIndexOverall extends GhostIndexRow {
+/** The corpus row also carries the state of everything we could not judge.
+ *  It names no scope: the live payload has no `scope_key` on it (read
+ *  2026-11-22), so the type must not promise one. */
+export interface GhostIndexOverall extends Omit<GhostIndexRow, "scope_key"> {
   listings_conclusive: number | null
   listings_live: number | null
   listings_inconclusive: number | null
