@@ -3,9 +3,12 @@
 Set 2026-10-22. Shivam posts everything. Agents write the copy and never post.
 Times are IST.
 
-**Under review since 2026-11-22: [DISTRIBUTION_TEARDOWN.md](DISTRIBUTION_TEARDOWN.md).**
-Months of posts brought 0 signups. Until Shivam answers its four decisions, nothing
-posts from the backlog, and no post carries numbers read more than 7 days before it goes out.
+**Reset on 2026-11-22: [DISTRIBUTION_TEARDOWN.md](DISTRIBUTION_TEARDOWN.md)** (months of
+posts, 0 signups). Shivam's answers: the company page, renamed Myro Career Intelligence,
+stays the main LinkedIn channel; Shivam's profile posts once or twice a week as the
+newsletter's voice and points people to the page. Backlog posts go out with their dates
+removed (trends hold over a month or a quarter); new posts use this week's data. Shivam
+records a short reel a week, and demo videos of Myro for YouTube, LinkedIn and Instagram.
 
 **What is drafted, planned and posted lives in the Distribution Tracker at
 [himyro.com/admin/growth](https://www.himyro.com/admin/growth)**: one row per
@@ -26,7 +29,8 @@ profiles, and Instagram's next posts: [INSTAGRAM_PROFILE.md](INSTAGRAM_PROFILE.m
 | Thu | 10:00 | Launch video | LinkedIn, Shivam's profile |
 | Sat | 10:00 | Same video as a reel | Instagram |
 
-Newsletter posts go on the company page because their kits speak as "we". Launch
+Newsletter posts go on the company page (Shivam, 2026-11-22: he stays employed
+elsewhere, so his profile carries one or two posts a week, not the whole load). Launch
 videos go on Shivam's profile, so the same post never sits on both within 7 days
 (brand-guidelines `surfaces/linkedin.md`). Instagram goes on Saturday morning
 because the brand guide names weekend mornings as the student segment's best window.

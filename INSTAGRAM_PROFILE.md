@@ -25,8 +25,11 @@ Weekly: what India's MNC openings ask for.
 
 ## LinkedIn company page
 
-Agreed 2026-11-02. Shivam changes it; the page name stays. Today's text still
-says "Career Intelligence Platform" and leads with CV scoring.
+Agreed 2026-11-02. The name changed on 2026-11-22 from HiMyro Career Intelligence
+to **Myro Career Intelligence** (Shivam asked; Claude in Chrome saved it; the URL
+`himyro-career-intelligence` stays). The tagline below is still Shivam's to change:
+today's reads "An AI-based Career Intelligence Service that tracks jobs for you and
+helps you upgrade your resume." 
 
 | Field | Change to |
 |---|---|

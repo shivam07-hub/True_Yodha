@@ -2,7 +2,7 @@
   "issue": 21,
   "out": "Myro Newsletter/Issue 021 - carousel",
   "og_out": "frontend/public/newsletter/issue-021-og.png",
-  "foot": "2,067 finance roles · read 9 Sept 2026 · himyro.com",
+  "foot": "2,067 finance roles · himyro.com",
   "article": "2026-09-finance-city-map-india",
   "first_comment": "#jobsearch #financejobs #himyro",
   "og": {
@@ -78,7 +78,7 @@
       ],
       "max": 30,
       "dim_from": 2,
-      "note": "Share of India's 2,067 finance openings, read 9 September 2026.",
+      "note": "Share of India's 2,067 finance openings.",
       "caption": "It's Bengaluru: 24.8% of India's finance openings, which is 512 roles, against Mumbai's 21.9%."
     },
     {

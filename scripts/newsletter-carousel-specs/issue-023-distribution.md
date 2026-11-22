@@ -18,7 +18,7 @@ The issue is the Substack post. The cuts below are the same numbers, cut to the 
 
 Citibank pulls a closed listing in 2.6 days on average. AB InBev still advertises 69.6% of roles its hiring system has already closed.
 
-We read ten India career pages against the hiring system behind them, through 24 September 2026. Four employers sit under 15% still advertised. Four sit over 29%.
+We read ten India career pages against the hiring system behind them. Four employers sit under 15% still advertised. Four sit over 29%.
 
 On the cleaner four, the live postings name SQL (57), regulatory compliance (55), Java (49), Python (40) and supply chain (12). On the slower four: Python (90), the Okta platform (37), artificial intelligence (30), computer science fundamentals (27), software engineering (23).
 
@@ -41,7 +41,7 @@ Okta, Nike or Capgemini, so the X and LinkedIn cuts above do not go out as writt
 
 Slide 1:
 
-You may be tailoring a CV for a job that's already closed. AB InBev still advertised 69.6% of the India roles its hiring system had closed, through 24 September 2026.
+You may be tailoring a CV for a job that's already closed. AB InBev still advertised 69.6% of the India roles its hiring system had closed.
 
 Slide 2:
 
@@ -67,7 +67,7 @@ First comment: #jobsearch #ghostjobs #jobsindia #himyro
 
 ### One caption, for the laptop
 
-You may be tailoring a CV for a job that's already closed. AB InBev still advertised 69.6% of the India roles its hiring system had closed, through 24 September 2026.
+You may be tailoring a CV for a job that's already closed. AB InBev still advertised 69.6% of the India roles its hiring system had closed.
 
 Whether it's still open depends on the employer: Palo Alto Networks still advertised 50.0% of its closed India roles, Barclays 13.2%.
 

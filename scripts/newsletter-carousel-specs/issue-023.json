@@ -2,7 +2,7 @@
   "issue": 23,
   "out": "Myro Newsletter/Issue 023 - carousel",
   "og_out": "frontend/public/newsletter/issue-023-og.png",
-  "foot": "Ghost Index · closed through 24 Sept 2026",
+  "foot": "Ghost Index · India roles",
   "og": {
     "series": "OPEN ROLE",
     "h1": "If the job is still open, tailor the CV and apply on their page.",
@@ -46,7 +46,7 @@
       "kind": "statement",
       "kicker": "Before you tailor",
       "h1": "You may be tailoring a CV for a job that's already closed.",
-      "caption": "You may be tailoring a CV for a job that's already closed. AB InBev still advertised 69.6% of the India roles its hiring system had closed, through 24 September 2026.",
+      "caption": "You may be tailoring a CV for a job that's already closed. AB InBev still advertised 69.6% of the India roles its hiring system had closed.",
       "sub": "AB InBev still advertised 69.6% of the India roles it had closed."
     },
     {
@@ -70,7 +70,7 @@
         ]
       ],
       "max": 70,
-      "note": "Share of closed India roles still advertised, through 24 September 2026.",
+      "note": "Share of closed India roles still advertised.",
       "caption": "Whether it's still open depends on the employer: Palo Alto Networks still advertised 50.0% of its closed India roles, Barclays 13.2%."
     },
     {

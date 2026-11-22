@@ -19,7 +19,7 @@ Every number below is quoted from the published issue.
 
 22% of India's finance openings sit in Mumbai, and 32 companies hold all of them.
 
-Our agents read 220+ MNC career pages in September 2026 and pulled close to 23,000 openings. 2,067 were finance, risk and compliance roles in India.
+Our agents read 220+ MNC career pages and pulled close to 23,000 openings. 2,067 were finance, risk and compliance roles in India.
 
 If you want Mumbai, you are choosing from 32 employers posting 14.2 roles each, the deepest market in the country. Axis Bank, EY and Deloitte hold 51.7% of the city. Entry level is 19.3%, the highest of any big metro.
 

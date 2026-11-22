@@ -117,11 +117,18 @@ Success at the end of two weeks: one LinkedIn post over 2,000 impressions,
 one Instagram post reaching beyond our 53 followers, and the first signup
 tagged to a post.
 
-## Decisions for Shivam
+## Decisions (Shivam, 2026-11-22)
 
-1. Post LinkedIn from your profile, in your voice, with the page resharing?
-2. Drop 021, 023 and 025 as dated issues, and re-read their angles from this
-   week's data instead?
-3. Will you record a short reel a week, or does Instagram stay
-   carousel-only?
-4. Change the Instagram bio link to the upload (in the app).
+1. **LinkedIn stays on the company page**, renamed Myro Career Intelligence
+   the same day. Shivam is employed elsewhere and keeps his profile to one or
+   two posts a week, as the newsletter's voice, pointing people to the page.
+   The page still needs followers: its 50 monthly invite credits and those
+   profile posts are how it gets them.
+2. **No re-reads.** 021, 023 and 025 go out with every date removed from
+   slides, captions and LinkedIn copy (done 22 Nov); trends hold over a month
+   or a quarter. New posts use this week's data. The 7-day builder check in
+   "The new system" is not built.
+3. **Yes to a reel a week**, recorded by Shivam, plus demo videos of Myro for
+   YouTube, LinkedIn and Instagram showing what to do on Myro and how it helps.
+4. **Bio link to the upload: yes.** instagram.com says links are editable only
+   in the app, so Shivam changes it there.

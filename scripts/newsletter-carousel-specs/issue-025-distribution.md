@@ -18,7 +18,7 @@ Chart: what risk and compliance postings ask for, split All / Big Four / BFSI. 1
 
 Learning Python for a risk job? Only 2.4% of risk and compliance titles in India say analytics. Three of the Big Four post half of the openings, and EY alone posts 30.8%.
 
-Our agents read 260+ MNC career pages and checked close to 46,500 live openings in India on 20 October 2026. 1,868 of them were risk and compliance roles.
+Our agents read 260+ MNC career pages and checked close to 46,500 live openings in India. 1,868 of them were risk and compliance roles.
 
 If you want risk work in India, apply to the Big Four. EY posts 575 openings, Deloitte 242 and KPMG 126. More than half of EY's, 305, sit in one practice, Business Consulting Risk. They ask for regulation, audit and a CA: 25.9% of Big Four postings name the qualification, and 34.8% of EY's.
 
