@@ -1,7 +1,8 @@
 # Payments — one pack, one settlement
 
-**Architecture spec. Implementation by Cursor. Written 2026-09-30 from the CEO
-grill with Shivam.** Assessed with `/improve-codebase-architecture`; the UI
+**Architecture spec. Written 2026-09-30 from the CEO grill with Shivam; the
+LinkedIn check kind added 2026-11-22 (ENG3, ADR-0018).** S1–S2 are built by
+Claude, S3–S5 by Cursor. Assessed with `/improve-codebase-architecture`; the UI
 slices go through `/frontend-design`.
 
 > **VERIFY IN CODE before building.** Line numbers are from `19781a61`. Each
@@ -20,9 +21,10 @@ gets you applying. People pay at two moments inside that machine, and both sell
 | | |
 |---|---|
 | **Product** | **Apply Pack** — ₹199, one-time (19900 paise). Bought again when needed. |
-| **Contents** | **500 coins** (10 AI-tailored CVs at `CV_WEAVE_XP_COST = 50`) **+ 1 Human Check**: a named reviewer reads your tailored CV against one job and returns it **within 24 hours**. |
+| **Contents** | **500 coins** (10 AI-tailored CVs at `CV_WEAVE_XP_COST = 50`) **+ 1 Human Check**, returned **within 24 hours** by a named reviewer. A check is one of two kinds (ENG3): **`cv_job`**, your tailored CV read against one job, or **`linkedin`**, your LinkedIn profile rewritten for you to paste on a short call. |
 | **Door 1 · Fuel** | The "Not enough Myro Coins" modal (`XPGateModal`). Today its only action links to `/tokens`, which has no buy button. |
 | **Door 2 · Stakes** | "Human check before you apply" on a job's tailored CV (the playground header). The check arrives pre-assigned to that job. |
+| **Door 3 · LinkedIn** | On the CV page after the Myro Score. **5,000 coins, or the Apply Pack** with its check spent on LinkedIn. 5,000 sits above `WELCOME_XP` on purpose (0 real users held 5,000 on 2026-11-22). The user gives their `/in/{vanity}` URL and a WhatsApp number. |
 | **Retired** | ₹99 coin pack (`myro_xp_launch_pack`) and ₹199 / month Personalised Engagement (`myro_job_switch_plan`, Razorpay Subscriptions). Folded, not re-priced. |
 | **Untouched here** | ₹999 AI Workflow Audit (a different buyer) and Myrology ₹299 (awaiting the baggage decision). Both move onto Settlement; their products do not change. |
 | **Not changed** | `WELCOME_XP = 3000`. The free allowance is tuned later from front-door numbers, not now. |
@@ -161,11 +163,20 @@ router helpers.
 
 `backend/app/services/human_check.py`, router `backend/app/routers/human_checks.py`.
 
-Lifecycle: **awaiting_job → queued → in_review → delivered**.
+Lifecycle: **unassigned → queued → in_review → delivered**. A held check has
+no kind until it is used, so the waiting state is `unassigned`, not
+`awaiting_job`.
 
 - `open(user, billing_payment_id, job_id)` — idempotent on `billing_payment_id`.
-  With a job → `queued`; without (fuel door) → `awaiting_job`.
-- `assign_job(user, check_id, job_id)` — the user picks a job; → `queued`.
+  With a job → `queued` as `cv_job`; without (fuel door) → `unassigned`.
+- `assign_job(user, check_id, job_id)` — the user picks a job; → `queued` as
+  `cv_job`.
+- `assign_linkedin(user, check_id, linkedin_url, whatsapp)` → `queued` as
+  `linkedin`. The URL must be a member `/in/{vanity}` URL (the Reach Target
+  rule). **Myro never fetches it**; the reviewer opens it in their own browser.
+- `open_linkedin_with_coins(user, linkedin_url, whatsapp)` — inserts the check
+  first, then `charge_coins(5000, "linkedin_check", ref_table="human_checks",
+  ref_id=check.id)`; a refused charge deletes the row. No `billing_payment_id`.
 - On `queued`: `slot_starts_at` = now if a slot is free, else when the earliest
   open check falls due; `due_at = slot_starts_at + 24h`. Reviewer is emailed a
   deep link to the check.
@@ -174,10 +185,25 @@ Lifecycle: **awaiting_job → queued → in_review → delivered**.
   document** (ADR-0025) through the CV Version Writer Seam; `delivered` requires
   a note and records the reviewed version id. User gets an email and a
   `user_notifications` row.
-- `MAX_OPEN_CHECKS = 5` (`queued + in_review`) feeds `availability()` — this
-  replaces `MAX_OPEN_PASSES`.
+- `MAX_OPEN_CHECKS = 5` (`queued + in_review`, both kinds) feeds
+  `availability()` — this replaces `MAX_OPEN_PASSES`.
 
-User endpoints: `GET /human-checks` (mine), `POST /human-checks/{id}/job`.
+**The `linkedin` kind, beyond the shared lifecycle:**
+
+- On `queued`, Myro drafts the blocks from the CV and the reservoir
+  (`mentor_grounding.assemble`; ADR-0016, nothing the user did not give):
+  headline, About, one entry per experience, education lines, top 5 skills, one
+  Featured line, and a delete list of duplicate or empty rows. The draft is the
+  check's own record (`draft`), written once.
+- `deliver` requires the note **and** the reviewer's signed blocks (`blocks`).
+  The clock stops there. The reviewer then books the paste call on WhatsApp.
+- `close_call(check_id, pasted)` — sets `pasted_at` when the user pasted on the
+  call, and **always clears `contact_whatsapp`**: the number exists only to book
+  that call.
+- A late check is not refunded; it is delivered late (ENG3).
+
+User endpoints: `GET /human-checks` (mine), `POST /human-checks/{id}/job`,
+`POST /human-checks/{id}/linkedin`, `POST /human-checks/linkedin` (coins).
 Reviewer endpoints behind the one `require_admin` guard
 (`security/admin_auth.py:23`): `GET /admin/human-checks` (queue by `due_at`, plus
 **stuck payments** — `grant_pending` older than 1 hour — with a retry that calls
@@ -194,11 +220,13 @@ Reviewer endpoints behind the one `require_admin` guard
 - **M2 `ai_workflow_audits`:** `billing_payment_id uuid null unique references
   billing_payments(id)`.
 - **M3 `human_checks`:** `id uuid pk`, `user_id uuid`, `billing_payment_id uuid
-  unique references billing_payments(id)`, `job_id text null`, `status text
-  check (awaiting_job|queued|in_review|delivered)`, `slot_starts_at`, `due_at`,
+  null unique references billing_payments(id)` (null when bought with coins),
+  `kind text null check (cv_job|linkedin)`, `job_id text null`, `status text
+  check (unassigned|queued|in_review|delivered)`, `slot_starts_at`, `due_at`,
   `reviewer_name text`, `note text`, `reviewed_cv_version_id bigint`,
-  `delivered_at`, `created_at default now()`. RLS select-own. Index
-  `(status, due_at)`.
+  `linkedin_url text`, `contact_whatsapp text`, `draft jsonb`, `blocks jsonb`,
+  `pasted_at`, `delivered_at`, `created_at default now()`. RLS select-own, with
+  `contact_whatsapp` left out of the user-facing select. Index `(status, due_at)`.
 - **M4 — only on Shivam's explicit yes:** drop `job_switch_plans` and
   `job_switch_plan_reviews` (0 rows on 2026-09-30). Until then leave them.
 
@@ -225,13 +253,17 @@ every exit to one outcome. It never rejects. `useCatalogue()` (TanStack Query on
 `GET /api/catalogue`) decides whether a button renders and what it costs.
 Myrology and the audit move onto this module with their UX unchanged.
 
-### The two doors and the pack page
+### The three doors and the pack page
 
 - **Fuel:** `XPGateModal` primary action becomes the Apply Pack (price from the
   catalogue). "See how Myro Coins work" becomes the quiet secondary.
 - **Stakes:** the playground header on a **job** document (never the master)
   gets "Human check before you apply". If the user already holds an unused check
-  (`awaiting_job`), it reads "Use your human check" and costs nothing.
+  (`unassigned`), it reads "Use your human check" and costs nothing.
+- **LinkedIn:** a card on the CV page after the score. Price from the catalogue
+  (5,000 coins, or the pack); an `unassigned` check makes it free. Two fields: the
+  `/in/` URL and WhatsApp. Delivered → the signed blocks, each with Copy, and a
+  plain link to the user's own LinkedIn.
 - **Status on the CV:** "Human check · due {time}" while open; "Checked by
   {name}" + the note once delivered.
 - **Pack page:** new `/apply-pack`. `/job-switch-plan` becomes a redirect shim so
@@ -250,7 +282,7 @@ explaining it.
 | # | Slice | Done when |
 |---|---|---|
 | **S1** | M1 + M2. `billing_catalogue`, `razorpay_gateway`, `settlement`. `routers/payments.py` becomes thin: create-order (catalogue → availability → gateway → record, carrying `job_id`), verify (signature → `settle`), webhook (signature → `settle` or `record_failure`). Coins through `reward_coins`. Myrology and audit through `settle`. `job_switch_plan` and `xp_pack` aliases refused at create. | `test_settlement.py` green: duplicate arrival · webhook first · checkout first · grant raises then second arrival completes (one ledger row) · unknown product raises · amount mismatch · failed then captured · two concurrent claims grant once |
-| **S2** | M3. `human_check` service + routers; `apply_pack` product and grant; reviewer + user notifications; `/api/catalogue` with `checks_full` + ETA. | `test_human_check.py`: transitions, capacity, ETA, deliver requires a note and a reviewed version |
+| **S2** | M3. `human_check` service + routers, both kinds; `apply_pack` product and grant; the 5,000-coin LinkedIn path; reviewer + user notifications; `/api/catalogue` with `checks_full` + ETA. | `test_human_check.py`: transitions, capacity across both kinds, ETA, `cv_job` deliver requires a note and a reviewed version, `linkedin` deliver requires a note and blocks, a refused coin charge leaves no row, `close_call` clears the WhatsApp number |
 | **S3** | `lib/checkout.ts`, `useCatalogue`, both doors, `/apply-pack`, CV status line. Remove the Settings coin-pack tab (`settings-modal.tsx:381-453, 931-936, 1044`), `lib/engagement-checkout.ts`, `plan-line.tsx`; retarget `skill-path-maps.tsx:179` and `intel-job-switch-plan.tsx` to the pack. | `checkout.test.ts` runs the real function with a fake Razorpay: createOrder rejects → no hang · dismiss → `dismissed` · 202 → `setting_up` |
 | **S4** | `/admin/checks` reviewer desk incl. stuck payments + retry. | Deliver a check end to end on dev with the QA account |
 | **S5** | **Delete on the way past:** `services/engagement_subscription.py`, subscription code in `payments.py`, `job_switch_plan_service.py`, `job_switch_plan_draft.py`, `routers/job_switch_plan.py`, `billing_month.py` if nothing else imports it, their tests, and config `razorpay_engagement_plan_id`, `engagement_sales_enabled`, `job_switch_admin_token`; rename `job_switch_reviewer_email` → `human_check_reviewer_email`, add `human_check_reviewer_name`. Docs: OFFERING.md (ENG2), DECISIONS.md, CONTEXT.md (Apply Pack, Human Check, Settlement; retire Engagement Scene), INFRA.md env. | grep finds no `job_switch_plan` / `engagement` code path; six gates green |
@@ -284,7 +316,7 @@ branch) · the ₹999 audit's own reviewer flow beyond moving it onto Settlement
 
 - Razorpay **test mode on dev**, QA account: buy the pack from each door →
   `coin_ledger` gains exactly one `apply_pack` row of +500 → a `human_checks` row
-  is `queued` (stakes) or `awaiting_job` (fuel) → reviewer email arrives → deliver
+  is `queued` (stakes) or `unassigned` (fuel) → reviewer email arrives → deliver
   → the CV shows "Checked by {name}".
 - Kill the grant mid-flight in a test → the next arrival finishes it; still one
   ledger row.
@@ -292,3 +324,6 @@ branch) · the ₹999 audit's own reviewer flow beyond moving it onto Settlement
   at **0**; anything else is on the reviewer desk.
 - Every buy button in the app is rendered from `/api/catalogue`; none can open a
   503.
+- LinkedIn: a QA-account check bought with coins drafts on `queued`, is
+  delivered with signed blocks, and `close_call` leaves `contact_whatsapp` null.
+  On prod the number to watch is LinkedIn checks with `pasted_at` set.
