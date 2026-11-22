@@ -3,6 +3,10 @@
 Set 2026-10-22. Shivam posts everything. Agents write the copy and never post.
 Times are IST.
 
+**Under review since 2026-11-22: [DISTRIBUTION_TEARDOWN.md](DISTRIBUTION_TEARDOWN.md).**
+Months of posts brought 0 signups. Until Shivam answers its four decisions, nothing
+posts from the backlog, and no post carries numbers read more than 7 days before it goes out.
+
 **What is drafted, planned and posted lives in the Distribution Tracker at
 [himyro.com/admin/growth](https://www.himyro.com/admin/growth)**: one row per
 post, with its date, copy and tracked link. Mark a post done there with its live
