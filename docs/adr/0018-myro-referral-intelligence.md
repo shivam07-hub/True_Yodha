@@ -113,7 +113,7 @@ Shivam in one grill, 2026-11-22:
 | Price | **5,000 coins, or the ₹199 Apply Pack** with its Human Check spent on LinkedIn. 5,000 sits above the 3,000 welcome grant on purpose; no real user held 5,000 on 11-22. |
 | Intake | The LinkedIn `/in/{vanity}` URL and a WhatsApp number. Our person reads the public profile in their own browser. **Myro's code never fetches the URL.** |
 | Contact | WhatsApp, required, used only to book the paste call, shown only to the reviewer. |
-| Who writes | Myro drafts every block from the CV and reservoir when the check is queued (ADR-0016: nothing the user did not give). Shivam edits and signs off. |
+| Who writes | Myro drafts every block from the CV and reservoir when the reviewer claims the check (ADR-0016: nothing the user did not give). Shivam edits and signs off. |
 | 24-hour promise | Every block written and waiting in Myro, and the call booked. The clock starts when a check slot opens. |
 | Full queue | Show the honest ETA before paying and keep selling. 5 open checks, shared with CV checks. |
 | Missed 24 hours | No refund; deliver late. The same as the audit. |

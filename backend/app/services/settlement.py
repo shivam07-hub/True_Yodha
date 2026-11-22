@@ -24,7 +24,7 @@ from typing import Any, Literal, Protocol
 from fastapi.concurrency import run_in_threadpool
 
 from app.database import get_supabase_admin
-from app.services import ai_workflow_audit, billing_catalogue, filing_intake, xp_service
+from app.services import ai_workflow_audit, billing_catalogue, filing_intake, human_check, xp_service
 from app.services.billing_catalogue import CURRENCY, Product, UnknownProduct
 from app.services.razorpay_gateway import Arrival, Failure
 
@@ -191,6 +191,24 @@ async def _grant_coin_pack(row: dict[str, Any]) -> int:
     )
 
 
+async def _grant_apply_pack(row: dict[str, Any]) -> int:
+    """500 coins and one Human Check, both idempotent on the payment row. The
+    check arrives queued on the job it was bought for, else unassigned."""
+    user_id, row_id = str(row["user_id"]), str(row["id"])
+    product = billing_catalogue.by_key(str(row["product"]))
+    balance = await xp_service.reward(
+        user_id, product.coins, "apply_pack", "purchase", ref_table="billing_payments", ref_id=row_id
+    )
+    await run_in_threadpool(
+        human_check.open_check,
+        human_check.SupabaseHumanCheckStore(),
+        user_id,
+        billing_payment_id=row_id,
+        job_id=row.get("job_id"),
+    )
+    return balance
+
+
 async def _grant_myrology(row: dict[str, Any]) -> None:
     await run_in_threadpool(unlock_myrology, str(row["user_id"]))
 
@@ -207,6 +225,7 @@ def default_grants() -> dict[str, Grant]:
     """Order products only. The ₹199/month engagement is a subscription and
     keeps its own path until S5 deletes it."""
     return {
+        billing_catalogue.by_alias("apply_pack").key: _grant_apply_pack,
         billing_catalogue.by_alias("xp_pack").key: _grant_coin_pack,
         billing_catalogue.by_alias("myrology").key: _grant_myrology,
         billing_catalogue.by_alias("ai_workflow_audit").key: _grant_audit,

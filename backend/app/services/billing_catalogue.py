@@ -31,6 +31,7 @@ class Product:
     key: str  # what billing_payments.product stores
     price_paise: int
     coins: int  # coins the grant adds; 0 for an entitlement
+    human_checks: int = 0  # Human Checks the grant opens (the Apply Pack: 1)
     billing: Literal["order", "subscription"] = "order"
 
 
@@ -41,6 +42,9 @@ class Availability:
 
 
 _PRODUCTS: tuple[Product, ...] = (
+    # ENG2/ENG3: the closer. 500 coins and one Human Check (a CV read against a
+    # job, or a LinkedIn rewrite).
+    Product(alias="apply_pack", key="myro_apply_pack", price_paise=19900, coins=500, human_checks=1),
     Product(alias="xp_pack", key="myro_xp_launch_pack", price_paise=9900, coins=1000),
     Product(alias="myrology", key="myro_myrology_unlock", price_paise=29900, coins=0),
     Product(
@@ -66,6 +70,15 @@ _PRODUCTS: tuple[Product, ...] = (
 
 _BY_ALIAS = {p.alias: p for p in _PRODUCTS}
 _BY_KEY = {p.key: p for p in _PRODUCTS}
+
+# Sellable until S3 / S5 replace their buttons, but never offered to a new
+# client: `GET /api/catalogue` leaves them out.
+_RETIRED = frozenset({"xp_pack", "job_switch_plan"})
+
+
+def listed() -> tuple[Product, ...]:
+    """The products a client may render a buy button for."""
+    return tuple(p for p in _PRODUCTS if p.alias not in _RETIRED)
 
 
 def by_alias(alias: str) -> Product:

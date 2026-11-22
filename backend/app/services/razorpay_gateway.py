@@ -31,7 +31,7 @@ class Arrival:
 
     order_id: str
     payment_id: str
-    source: Literal["checkout", "webhook"]
+    source: Literal["checkout", "webhook", "retry"]
     user_id: str | None = None  # the checkout path is scoped to its caller
 
 

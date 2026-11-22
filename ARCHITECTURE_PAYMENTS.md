@@ -190,24 +190,30 @@ no kind until it is used, so the waiting state is `unassigned`, not
 
 **The `linkedin` kind, beyond the shared lifecycle:**
 
-- On `queued`, Myro drafts the blocks from the CV and the reservoir
-  (`mentor_grounding.assemble`; ADR-0016, nothing the user did not give):
-  headline, About, one entry per experience, education lines, top 5 skills, one
-  Featured line, and a delete list of duplicate or empty rows. The draft is the
-  check's own record (`draft`), written once.
+- On `claim`, Myro drafts the blocks from the CV and the reservoir
+  (`linkedin_draft.draft`, `mentor_grounding.assemble`) — on the reviewer's tap,
+  never on the payment path, as the engagement's review draft already does.
+  Employers, titles, dates and schools are copied from the CV; pinned skills
+  must be on its skills line; a number the CV and stories never state is listed
+  in `flags` (ADR-0016). The delete list starts empty: only the reviewer, reading
+  the public profile, can see LinkedIn's duplicates. The draft (`draft`) is the
+  reviewer's and never reaches the browser.
 - `deliver` requires the note **and** the reviewer's signed blocks (`blocks`).
   The clock stops there. The reviewer then books the paste call on WhatsApp.
-- `close_call(check_id, pasted)` — sets `pasted_at` when the user pasted on the
-  call, and **always clears `contact_whatsapp`**: the number exists only to book
-  that call.
+- `close_call(check_id, pasted)` — sets `call_closed_at`, sets `pasted_at` when
+  the user pasted on the call, and **always clears `contact_whatsapp`**: the
+  number exists only to book that call.
 - A late check is not refunded; it is delivered late (ENG3).
 
 User endpoints: `GET /human-checks` (mine), `POST /human-checks/{id}/job`,
 `POST /human-checks/{id}/linkedin`, `POST /human-checks/linkedin` (coins).
+`GET /api/catalogue` gives `human_check.checks_full`, `ready_by` (when a check
+bought now comes back) and `linkedin_coins`.
 Reviewer endpoints behind the one `require_admin` guard
 (`security/admin_auth.py:23`): `GET /admin/human-checks` (queue by `due_at`, plus
 **stuck payments** — `grant_pending` older than 1 hour — with a retry that calls
-`settle` again), `POST .../claim`, `POST .../deliver`.
+`settle` again), `POST .../claim`, `POST .../deliver`, `POST .../close-call`, and
+`POST /admin/payments/{id}/settle` (the stuck-payment retry).
 
 ---
 
@@ -225,7 +231,7 @@ Reviewer endpoints behind the one `require_admin` guard
   check (unassigned|queued|in_review|delivered)`, `slot_starts_at`, `due_at`,
   `reviewer_name text`, `note text`, `reviewed_cv_version_id bigint`,
   `linkedin_url text`, `contact_whatsapp text`, `draft jsonb`, `blocks jsonb`,
-  `pasted_at`, `delivered_at`, `created_at default now()`. RLS select-own, with
+  `pasted_at`, `call_closed_at`, `delivered_at`, `created_at default now()`. RLS select-own, with
   `contact_whatsapp` left out of the user-facing select. Index `(status, due_at)`.
 - **M4 — only on Shivam's explicit yes:** drop `job_switch_plans` and
   `job_switch_plan_reviews` (0 rows on 2026-09-30). Until then leave them.

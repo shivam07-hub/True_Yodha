@@ -441,3 +441,35 @@ def test_webhook_unknown_order_acks(monkeypatch: pytest.MonkeyPatch) -> None:
         response = _post_webhook(client, _event())
     assert response.status_code == 200
     assert response.json()["status"] == "unknown_order"
+
+
+# ── catalogue ───────────────────────────────────────────────────────────────
+
+
+def test_catalogue_offers_the_pack_and_never_a_retired_product(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.services import human_check
+
+    class _NoOpenChecks:
+        def open_due_ats(self) -> list[Any]:
+            return []
+
+    monkeypatch.setattr(human_check, "SupabaseHumanCheckStore", lambda: _NoOpenChecks())
+    monkeypatch.setattr(ai_workflow_audit, "is_available", lambda: True)
+
+    with TestClient(app) as client:
+        response = client.get("/api/catalogue")
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    aliases = {p["alias"]: p for p in body["products"]}
+    assert set(aliases) == {"apply_pack", "myrology", "ai_workflow_audit", "filing_intake"}
+    assert aliases["apply_pack"] == {
+        "alias": "apply_pack",
+        "price_paise": 19900,
+        "coins": 500,
+        "human_checks": 1,
+        "available": True,
+        "unavailable_reason": None,
+    }
+    assert body["human_check"]["checks_full"] is False
+    assert body["human_check"]["linkedin_coins"] == 5000

@@ -21,6 +21,7 @@ from app.routers import (
     ghost_index,
     growth,
     home,
+    human_checks,
     institutions,
     internal,
     job_switch_plan,
@@ -110,6 +111,7 @@ app.include_router(career_skill_path.router)
 app.include_router(xp.router)
 app.include_router(profile.router)
 app.include_router(payments.router)
+app.include_router(human_checks.router)
 app.include_router(preflight.router)
 app.include_router(preparations.router)
 app.include_router(mentor.router)

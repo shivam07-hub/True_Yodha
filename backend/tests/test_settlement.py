@@ -185,8 +185,36 @@ def test_every_order_product_in_the_catalogue_has_a_grant() -> None:
     from app.services import billing_catalogue
 
     grants = settlement.default_grants()
-    for alias in ("xp_pack", "myrology", "ai_workflow_audit", "filing_intake"):
+    for alias in ("apply_pack", "xp_pack", "myrology", "ai_workflow_audit", "filing_intake"):
         product = billing_catalogue.by_alias(alias)
         assert product.billing == "order"
         assert product.key in grants
     assert billing_catalogue.by_alias("job_switch_plan").key not in grants
+
+
+def test_the_apply_pack_grants_500_coins_and_opens_one_check_on_its_job(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.services import human_check
+
+    pack = by_alias("apply_pack")
+    rewarded: list[dict[str, Any]] = []
+    opened: list[dict[str, Any]] = []
+
+    async def _reward(user_id: str, amount: int, action: str, reason: str, **kw: Any) -> int:
+        rewarded.append({"user": user_id, "amount": amount, "action": action, **kw})
+        return 3500
+
+    def _open(_store: Any, user_id: str, **kw: Any) -> dict[str, Any]:
+        opened.append({"user": user_id, **kw})
+        return {"id": "check-1"}
+
+    monkeypatch.setattr(settlement.xp_service, "reward", _reward)
+    monkeypatch.setattr(human_check, "open_check", _open)
+    monkeypatch.setattr(human_check, "SupabaseHumanCheckStore", lambda: object())
+
+    row = {"id": "row-1", "user_id": "u1", "product": pack.key, "job_id": "job-9"}
+    balance = asyncio.run(settlement.default_grants()[pack.key](row))
+
+    assert balance == 3500
+    assert rewarded == [{"user": "u1", "amount": 500, "action": "apply_pack", "ref_table": "billing_payments", "ref_id": "row-1"}]
+    assert opened == [{"user": "u1", "billing_payment_id": "row-1", "job_id": "job-9"}]
+    assert (pack.price_paise, pack.coins, pack.human_checks) == (19900, 500, 1)

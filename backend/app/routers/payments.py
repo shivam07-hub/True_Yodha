@@ -27,6 +27,7 @@ from app.deps import Principal, get_principal
 from app.services import (
     billing_catalogue as catalogue,
     engagement_subscription as eng,
+    human_check,
     job_switch_plan_service,
     razorpay_gateway as gateway,
     settlement,
@@ -147,6 +148,58 @@ def _record_created_payment(
     result = get_supabase_admin().table("billing_payments").insert(row).execute()
     if not result.data:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to record payment order")
+
+
+class CatalogueProduct(BaseModel):
+    alias: str
+    price_paise: int
+    coins: int
+    human_checks: int
+    available: bool
+    unavailable_reason: str | None = None
+
+
+class HumanCheckOffer(BaseModel):
+    checks_full: bool
+    ready_by: str  # when a check bought now comes back, shown before paying
+    linkedin_coins: int
+
+
+class CatalogueOut(BaseModel):
+    products: list[CatalogueProduct]
+    human_check: HumanCheckOffer
+
+
+def _catalogue() -> CatalogueOut:
+    products = []
+    for product in catalogue.listed():
+        available = catalogue.availability(product)
+        products.append(
+            CatalogueProduct(
+                alias=product.alias,
+                price_paise=product.price_paise,
+                coins=product.coins,
+                human_checks=product.human_checks,
+                available=available.available,
+                unavailable_reason=available.reason,
+            )
+        )
+    slots = human_check.availability(human_check.SupabaseHumanCheckStore())
+    return CatalogueOut(
+        products=products,
+        human_check=HumanCheckOffer(
+            checks_full=slots.checks_full,
+            ready_by=slots.ready_by.isoformat(),
+            linkedin_coins=human_check.LINKEDIN_CHECK_COINS,
+        ),
+    )
+
+
+@router.get("/catalogue", response_model=CatalogueOut)
+async def get_catalogue() -> CatalogueOut:
+    """Every buy button renders from this: price, whether the server will take
+    the order, and when a Human Check bought now comes back."""
+    return await run_in_threadpool(_catalogue)
 
 
 @router.post("/create-order", response_model=CreateOrderResponse, response_model_exclude_none=True)
