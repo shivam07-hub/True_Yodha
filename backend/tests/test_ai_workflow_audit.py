@@ -9,6 +9,7 @@ draft never reaches the buyer.
 from __future__ import annotations
 
 import re
+from typing import Any
 from pathlib import Path
 
 import pytest
@@ -105,16 +106,44 @@ def test_a_complete_intake_normalises_and_caps() -> None:
     assert all(len(v) == 4000 for v in cleaned.values())
 
 
-def test_activation_never_raises_into_the_payment_path(monkeypatch: pytest.MonkeyPatch) -> None:
-    """An exception here would fail a captured payment's fulfilment and strand
-    the buyer between charged and served. The payment stays on record in
-    `billing_payments`, so a missing row is recoverable by hand."""
+def test_activation_is_one_row_per_paid_payment(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Settlement may run the grant twice for one payment (two arrivals). The
+    row is keyed on the payment, so the second run conflicts and does nothing."""
+    calls: list[dict[str, Any]] = []
 
+    class _Upsert:
+        def execute(self) -> None:
+            return None
+
+    class _Table:
+        def upsert(self, row: dict[str, Any], **kwargs: Any) -> _Upsert:
+            calls.append({"row": row, **kwargs})
+            return _Upsert()
+
+    class _Admin:
+        def table(self, name: str) -> _Table:
+            assert name == "ai_workflow_audits"
+            return _Table()
+
+    monkeypatch.setattr(svc, "get_supabase_admin", lambda: _Admin())
+    svc.activate_audit("user-1", "pay-row-1")
+
+    assert calls == [
+        {
+            "row": {"user_id": "user-1", "status": "awaiting_submission", "billing_payment_id": "pay-row-1"},
+            "on_conflict": "billing_payment_id",
+            "ignore_duplicates": True,
+        }
+    ]
+
+
+def test_activation_failure_raises_so_settlement_retries(monkeypatch: pytest.MonkeyPatch) -> None:
     def _explode() -> None:
         raise RuntimeError("data api down")
 
     monkeypatch.setattr(svc, "get_supabase_admin", _explode)
-    svc.activate_audit("user-1")  # must not raise
+    with pytest.raises(RuntimeError):
+        svc.activate_audit("user-1", "pay-row-1")
 
 
 def test_the_audit_paywalls_nothing_that_is_free_today() -> None:

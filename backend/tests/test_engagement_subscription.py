@@ -13,6 +13,8 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.routers import payments as payments_router
+from app.config import settings
+from app.services import billing_catalogue, razorpay_gateway
 from app.services import engagement_subscription as eng
 from app.services import job_switch_plan_service as svc
 
@@ -49,10 +51,10 @@ def _auth() -> None:
 
 @pytest.fixture(autouse=True)
 def _razorpay(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(payments_router.settings, "razorpay_key_id", "rzp_test_key")
-    monkeypatch.setattr(payments_router.settings, "razorpay_key_secret", "test_secret")
-    monkeypatch.setattr(payments_router.settings, "razorpay_engagement_plan_id", "plan_eng_test")
-    monkeypatch.setattr(payments_router.settings, "engagement_sales_enabled", True)
+    monkeypatch.setattr(settings, "razorpay_key_id", "rzp_test_key")
+    monkeypatch.setattr(settings, "razorpay_key_secret", "test_secret")
+    monkeypatch.setattr(settings, "razorpay_engagement_plan_id", "plan_eng_test")
+    monkeypatch.setattr(settings, "engagement_sales_enabled", True)
     monkeypatch.setattr(eng.settings, "razorpay_engagement_plan_id", "plan_eng_test")
     monkeypatch.setattr(eng.settings, "engagement_sales_enabled", True)
 
@@ -66,7 +68,7 @@ def _sub_signature(payment_id: str, subscription_id: str, secret: str = "test_se
 
 
 def test_engagement_product_is_199_a_month() -> None:
-    product = payments_router.PRODUCTS["job_switch_plan"]
+    product = billing_catalogue.by_alias("job_switch_plan")
     assert product.price_paise == eng.ENGAGEMENT_PRICE_PAISE
     assert product.price_paise == 19900
 
@@ -74,7 +76,7 @@ def test_engagement_product_is_199_a_month() -> None:
 def test_create_order_opens_a_subscription_not_an_order(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = _FakeRazorpayClient()
     recorded: dict[str, Any] = {}
-    monkeypatch.setattr(payments_router, "_razorpay_client", lambda: fake)
+    monkeypatch.setattr(razorpay_gateway, "client", lambda: fake)
     monkeypatch.setattr(payments_router, "_record_created_payment", lambda **kwargs: recorded.update(kwargs))
     monkeypatch.setattr(svc, "open_pass_count", lambda: 0)
     monkeypatch.setattr(svc, "has_active_subscription", lambda _uid: False)
@@ -220,7 +222,7 @@ def _webhook_sig(body: bytes, secret: str = "whsecret") -> str:
 
 
 def test_webhook_renewal_opens_the_next_month_pass(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(payments_router.settings, "razorpay_webhook_secret", "whsecret")
+    monkeypatch.setattr(settings, "razorpay_webhook_secret", "whsecret")
     renewed: dict[str, Any] = {}
     monkeypatch.setattr(
         payments_router,
@@ -275,7 +277,7 @@ def test_webhook_renewal_opens_the_next_month_pass(monkeypatch: pytest.MonkeyPat
 
 
 def test_webhook_cancelled_stops_the_scene(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(payments_router.settings, "razorpay_webhook_secret", "whsecret")
+    monkeypatch.setattr(settings, "razorpay_webhook_secret", "whsecret")
     stopped: dict[str, str] = {}
     monkeypatch.setattr(
         payments_router.job_switch_plan_service,

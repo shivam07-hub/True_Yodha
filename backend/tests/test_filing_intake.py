@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from fastapi.testclient import TestClient
@@ -9,7 +10,7 @@ from fastapi.testclient import TestClient
 from app.deps import Principal, get_principal
 from app.main import app
 from app.repositories.filing_intake import get_filing_intake_repository
-from app.routers import payments as payments_router
+from app.services import billing_catalogue, settlement
 
 
 class _Intake:
@@ -74,9 +75,11 @@ def test_consent_and_the_three_fields_are_required() -> None:
 
 def test_filing_payment_marks_the_intake_and_leaves_myrology_alone(monkeypatch) -> None:
     called: dict[str, Any] = {}
-    monkeypatch.setattr(payments_router.filing_intake, "mark_paid", lambda uid: called.update(paid=uid))
-    monkeypatch.setattr(payments_router, "_unlock_myrology", lambda uid: called.update(myrology=uid))
-    payments_router._apply_entitlement("u9", payments_router.PRODUCTS["filing_intake"])
+    monkeypatch.setattr(settlement.filing_intake, "mark_paid", lambda uid: called.update(paid=uid))
+    monkeypatch.setattr(settlement, "unlock_myrology", lambda uid: called.update(myrology=uid))
+    product = billing_catalogue.by_alias("filing_intake")
+    grant = settlement.default_grants()[product.key]
+    asyncio.run(grant({"id": "row-1", "user_id": "u9", "product": product.key}))
     assert called == {"paid": "u9"}
-    assert payments_router.PRODUCTS["filing_intake"].price_paise == 59900
-    assert payments_router.PRODUCTS["xp_pack"].key == "myro_xp_launch_pack"
+    assert product.price_paise == 59900
+    assert billing_catalogue.by_alias("xp_pack").key == "myro_xp_launch_pack"
