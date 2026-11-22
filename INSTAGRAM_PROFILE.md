@@ -13,7 +13,7 @@ followers. Three fields still describe an older Myro.
 
 | Field | Today | Change to |
 |---|---|---|
-| Name | HiMyro Career Intelligence | `Myro · CV for the job you want` (30 of 30 characters; Instagram search reads this field) |
+| Name | **Myro Career Intelligence** (changed 2026-11-22 in Accounts Center, Shivam asked; matches the LinkedIn page. Instagram allows two name changes in 14 days) | The earlier proposal `Myro · CV for the job you want` is dropped |
 | Bio | An AI-based Career Intelligence Service that tracks jobs from top MNC websites for you | The block below (130 of 150 characters) |
 | Links | Three: himyro.com/newsletter with no UTM, titled "Offical web page of Himyro"; myrojobs.com, which redirects to himyro.com; the LinkedIn page | One, fixed: `https://www.himyro.com/?utm_source=instagram&utm_medium=social&utm_campaign=ig-bio`, titled `Upload your CV`. It never changes once set. Set 2026-11-02 to the newsletter; moved to the upload on 2026-11-22 (Shivam), in the app |
 
