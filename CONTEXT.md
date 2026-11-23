@@ -478,6 +478,13 @@ the compare strip as a live jobs query.
 - Formula (`compute_pulse`, sparkline) lives in one Python module. SQL only
   aggregates the raw inputs: live count, weekly inflow, the inflow series.
 
+## Snapshot Refresh
+
+A precomputed read model rebuilt in the database (`snapshot_refresh_state`, one row per task). `request_snapshot_refresh` asks (after a scraper finalize, or 20h without a success); `claim_snapshot_refresh` is the one place that decides whether a refresh runs now, under a lease; `run_snapshot_sql_refresh` runs it and `finish_snapshot_refresh` records the verdict.
+- **Budget:** pg_cron runs a refresh under a 2-minute statement timeout, on the one database every user read waits on. Read each large table **once** per refresh (a temp table), never once per step: role_families re-read the 53k live jobs five times and outgrew the budget on 2026-11-17 (77s once fixed); ghost_index read `jobs` and the observations three times each (27s once fixed).
+- **A timeout is a failure.** It raises `query_canceled`, which PL/pgSQL `when others` does not match; the handler names both. Before 2026-11-23 a timeout rolled back its own record, the task stayed `pending`, and the hourly cron re-ran the same two minutes every hour (281 minutes in a week).
+- **A failing task backs off.** `consecutive_failures` (reset on success) makes the claim wait 1h, 2h, 4h … up to a day after the last failed start. Reset it to 0 to force a run.
+
 ## Taxonomy Read-Model
 
 The public `/taxonomy` page's view of the 35,108-skill Lightcast tree, served as **three tiers** instead of one 4MB blocking fetch. The tiers exist because the page's access pattern is the inverse of its payload: the first paint needs only structure (domains → clusters → counts), the in-demand lead needs ~3,000 skills, and the 35k leaf names matter only on search or deep drill-down.

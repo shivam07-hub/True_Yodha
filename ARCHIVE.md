@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-11-23 — Snapshot refreshes fit their budget
+
+The digest's two snapshot dead-men were one defect. role_families timed out on 140 of 168 hourly runs in a week (281 database-minutes rolled back, data stale since 11-17); ghost_index failed every day since 11-08. Each re-read its big tables once per step, and a timeout (`query_canceled`) slipped past `when others`, so the failure was never recorded and the hourly cron repeated it. Migration `20261123120000`: one read per table (role_families 77s, ghost_index 27s, both verified on prod; ghost per-job facts identical to the views on 3,000 jobs, corpus count 286 either way), timeouts recorded, and `consecutive_failures` backoff in the claim (verified with a rolled-back simulated timeout). CONTEXT.md gains **Snapshot Refresh**. **Check:** the next digest closes `dead_man:snapshot.ghost_index`; `role_families` (failed-close) clears after a healthy week.
+
 ## 2026-11-23 — A CV uploads in any form
 
 Before: PDF and DOCX only, by MIME and extension. 18 real people were told "unreadable" (mostly scans; 4 never got in), and the picker hid photos, slides and text files, so those losses were never recorded. Now one reader (`cv_parser.read_cv_file`, CONTEXT.md **CV Reader**) decides from the bytes: text layers locally; photos, screenshots and scans through the vision model (~4s); `.doc`/`.rtf` refused with how to save them. All four upload doors share `CV_UPLOAD_ACCEPT` / `CV_UPLOAD_FORMATS`; the `cv-uploads` bucket allows the same types (`20261123100000`); the anonymous door's cap went from 5MB to the 10MB every door states. CVUP4 amended.
