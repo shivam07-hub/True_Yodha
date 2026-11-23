@@ -2803,3 +2803,27 @@ there took the count from **~1ms to ~87ms** warm. What I got wrong on the way:
   `idx_skills_lower_bare_name`. Normalising the names into an array first
   (plpgsql) and comparing against that array: **~5ms** per count warm. The
   pre-filter stays; it trims per-row calls.
+
+## 33. One quiet hour after the snapshot fix (2026-11-23)
+
+Two `pg_stat_statements` snapshots, **13:03 → 13:55 UTC**, summed per `queryid`
+(see the playbook: the first diff, joined on `queryid` alone, reported company
+pages at 39% — a lifetime, not the window). The whole database spent **~16s**
+in 52 minutes.
+
+| | calls | time | mean |
+|---|---:|---:|---:|
+| `company_open_roles_page` (`/companies/{c}/jobs`) | 19 | 3.2s | 169ms |
+| `claim_verify_targets` | 3 | 4.9s | 1,619ms |
+| one queue claim (`p_qty`, `p_max_attempts`) | 1 | 2.9s | 2,860ms |
+
+Company pages: ~450 renders a day at ~170ms, unchanged from §30. They are not
+the alarm source, and a Tier-0 company page model would save about a minute of
+database time a day. The hourly `role_families` refresh (2 minutes an hour,
+rolled back on 140 of 168 runs the week before) is gone (ARCHIVE 2026-11-23,
+migration `20261123120000`). `slow_200:capacity_queue` and `slow_200:db_stall`
+are bursts this window did not contain.
+
+**Next.** Read their growth in the digest for three days. Before: capacity_queue
+~323/day (25,220 since 09-06), db_stall ~32/day (1,137 since 10-19). If neither
+drops, take a window across a scraper landing, where the bursts are.

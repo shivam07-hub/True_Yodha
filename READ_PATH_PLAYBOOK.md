@@ -54,6 +54,15 @@ order by total_exec_time desc limit 10;
 biggest consumer here was ranked #1 by total time and had never appeared in an
 alert email.
 
+**A window, not a lifetime.** `stats_reset` is the postmaster start (2026-07-12),
+so the query above ranks four months, not today. Snapshot, wait, snapshot, diff.
+`pg_stat_statements` keeps one row per **(userid, dbid, queryid)**: the same
+query run as `service_role` and as `authenticated` is two rows. **Sum per
+`queryid` on both sides before you diff**, or store `userid`. Joining on
+`queryid` alone paired the wrong rows and reported a lifetime as a window: a
+52-minute "window" on 2026-11-23 showed 30,532 company-page calls and 39% of
+the database; the real numbers were 19 calls and 3 seconds.
+
 ### 2. Read `max_ms` as a ceiling, not a cost
 
 `max_ms` clustering at **~7,9xx** is the `authenticator` role's
