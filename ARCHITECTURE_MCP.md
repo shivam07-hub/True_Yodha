@@ -453,7 +453,7 @@ pass writes "Verified".
 | Chunk | State |
 |---|---|
 | O1 | Built + verified 2026-11-22 (`04d5ffe7`): 4198 backend tests green; live on the dev API (401 without a key). Reaches `api.himyro.com` when `main` takes it. |
-| O2 | Built 2026-11-22. Local dev against the dev API: `tools/list` gives six tools with annotations; company, skill demand, sectors and ghost index return real rows. U4 holds locally. Key `myro-mcp` (scope `market.read`) minted 2026-11-23; through the adapter, search and role skills answer from real data (~0.5 s warm). Their first real calls fixed two things: `first_seen` is a YYYYMMDD marker, now sent as a day; "investment" no longer matches "investigation". Owed: Shivam sets `MYRO_MCP_OPEN_KEY` in Vercel. |
+| O2 | Built 2026-11-22. Local dev against the dev API: `tools/list` gives six tools with annotations; company, skill demand, sectors and ghost index return real rows. U4 holds locally. Key `myro-mcp` (scope `market.read`) minted 2026-11-23; through the adapter, search and role skills answer from real data (~0.5 s warm). Their first real calls fixed two things: `first_seen` is a YYYYMMDD marker, now sent as a day; "investment" no longer matches "investigation". Key set in Vercel 2026-11-23; all six tools answer on prod. Then "data analyst" + Mumbai answered Noida: the search filtered the city after a national window. `search_live_jobs` filters the place first (ARCHITECTURE_READ_PATH.md §34). |
 | O3 | Spec only. Needs O2. |
 | O4 | Spec only. Needs O3 on `main`. Shivam submits. |
 | P1 | Spec only. Open-door skills after O4; account skills after M7. |

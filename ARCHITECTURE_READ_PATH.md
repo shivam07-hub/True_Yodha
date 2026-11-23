@@ -2827,3 +2827,49 @@ are bursts this window did not contain.
 **Next.** Read their growth in the digest for three days. Before: capacity_queue
 ~323/day (25,220 since 09-06), db_stall ~32/day (1,137 since 10-19). If neither
 drops, take a window across a scraper landing, where the bursts are.
+
+## 34. The public job search filters the place before the window (2026-11-23)
+
+`public_job_query` (landing `/public/job-search`, the MCP's `myro_search_jobs`)
+read `search_jobs_global`: the newest N rows matching ANY role word,
+nationally, then filtered the city in Python. "Data analyst" + Mumbai: the
+window held 400 rows from four days (11-19 → 11-22), 8 data analyst titles,
+no Mumbai row, and 17% closed listings. It answered Noida while Mumbai had five
+live data analyst jobs from 09-09 and 11-07.
+
+`search_live_jobs` (migration `20261123140000`) puts the place, the mode and
+liveness ahead of the window and requires every role word. The repository
+walks a ladder (every word in the place → every word anywhere, relaxed
+"location" → any word in the place → any word anywhere); each rung only adds
+rows below the ones above. A title holding the whole role ranks first.
+`global_job_search` (⌘K) is unchanged.
+
+Measured warm on prod, `explain (analyze)` of the function, `p_limit` 120:
+
+| search | before | after |
+|---|---:|---:|
+| data analyst · Mumbai | 0 Mumbai rows | 10ms, 56 rows |
+| software engineer · Bengaluru | — | 83ms (5,875 matches) |
+| product manager · national | 446ms (`search_jobs_global`, 480) | 65ms |
+| engineer · remote | — | 22ms |
+
+What I got wrong on the way:
+
+- **OR-then-filter in SQL: 7,269ms.** 11,680 primary-key lookups into `jobs`,
+  mostly read from disk. Putting the city inside the blob's trigram match,
+  and every word ANDed, made the candidate set 104 rows.
+- **`lower(btrim(location_mode))`: 19,282ms** for engineer + remote. The
+  wrapper hid `idx_jobs_location_mode` and the row estimate. Values are clean
+  lowercase; plain equality: 148ms. 'onsite' (62,581 of 62,941 live) keeps
+  the windowed shape instead.
+- **`p_limit` 400: 1,449ms**, all of it fetching full `jobs` rows. The caller
+  keeps 60; 120 measured 83ms.
+- **A country next to a city: 83 → 699ms.** "india" matches nearly every
+  row. With a city named, the country is checked in Python only.
+- **The first ladder replaced a rung's rows** instead of adding below them:
+  the one Morgan Stanley IB Analyst in Mumbai vanished behind 60 newer
+  Mumbai banking rows.
+
+**Open.** The blob carries `location_city` only: 698 multi-city live rows
+match on their first city, 7 with no city match on none. ⌘K still reads the
+OR window, closed rows included.
