@@ -9,6 +9,7 @@ used to build the whole label taxonomy per call — four nested regexes over
 
 from __future__ import annotations
 
+import os
 import re
 from typing import Any
 
@@ -52,23 +53,33 @@ def _words(text: str) -> list[str]:
 
 
 def _wanted(role: str) -> list[str]:
-    words: list[str] = []
+    """The role's words that say what it is, one per five-letter stem."""
+    words: dict[str, str] = {}
     for word in _words(role):
         if word in _RANK_WORDS:
             continue
-        words.append(word)
-        words.extend(_words(_ALIASES.get(word, "")))
-    return list(dict.fromkeys(w[:_STEM] for w in words))
+        for found in (word, *_words(_ALIASES.get(word, ""))):
+            words.setdefault(found[:_STEM], found)
+    return list(words.values())
+
+
+def _same_root(want: str, have: str) -> bool:
+    """`have` shares `want`'s root: it covers `want`'s first five letters and
+    most of the shorter word. "engineer" meets "engineering" and "scientist"
+    meets "science", but "investment" and "investigation" part after "invest",
+    and a one-letter family word ("C and C++") never covers a role word."""
+    common = len(os.path.commonprefix([want, have]))
+    return common >= min(_STEM, len(want)) and common * 10 >= min(len(want), len(have)) * 7
 
 
 def family_match_score(role: str, family: str) -> int:
-    """Words of `role` that start a word of `family`, by their first five
-    letters. A field word counts ten, a seat word one, so seats only break ties
-    and never make a match alone: "product manager" puts Product Management
-    (11) over Product Development (10); "engineer" alone scores nothing."""
+    """Words of `role` that share a root with a word of `family`. A field word
+    counts ten, a seat word one, so seats only break ties and never make a
+    match alone: "product manager" puts Product Management (11) over Product
+    Development (10); "engineer" alone scores nothing."""
     have = _words(family)
-    hits = [w for w in _wanted(role) if any(h.startswith(w) for h in have)]
-    fields = sum(1 for w in hits if w not in _SEAT_WORDS)
+    hits = [w for w in _wanted(role) if any(_same_root(w, h) for h in have)]
+    fields = sum(1 for w in hits if w[:_STEM] not in _SEAT_WORDS)
     if fields == 0:
         return 0
     return fields * 10 + (len(hits) - fields)

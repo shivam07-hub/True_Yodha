@@ -23,6 +23,7 @@ from app.schemas.market import (
 )
 from app.security.partner_auth import SCOPE_MARKET_READ, require_scope
 from app.services import shared_cache
+from app.services.listing_time import day
 from app.services.matching.filter_spec import FilterSpec
 from app.services.matching.job_query import JobQuery
 
@@ -66,7 +67,7 @@ def market_jobs(
                 location_city=row.get("location_city"),
                 location_country=row.get("location_country"),
                 work_mode=row.get("location_mode"),
-                first_seen=row.get("first_seen"),
+                first_seen=day(row.get("first_seen")),
             )
             for row in result["rows"]
             if row.get("job_id")

@@ -4149,8 +4149,8 @@ export interface MarketJob {
   location_city: string | null
   location_country: string | null
   work_mode: string | null
-  /** Unix seconds. */
-  first_seen: number | null
+  /** The day the crawler discovered it, YYYY-MM-DD. */
+  first_seen: string | null
 }
 
 export interface MarketJobsResponse {

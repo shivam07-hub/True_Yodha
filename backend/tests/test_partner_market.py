@@ -63,7 +63,7 @@ class _FakeJobs:
                     "location_city": "Bengaluru",
                     "location_country": "India",
                     "location_mode": "hybrid",
-                    "first_seen": 1763000000,
+                    "first_seen": 20261120,
                     "job_description": "a stranger's writing",
                     "role_domain": "product",
                 },
@@ -155,7 +155,7 @@ def test_jobs_hands_the_structured_filters_to_the_public_query(client, monkeypat
         "location_city": "Bengaluru",
         "location_country": "India",
         "work_mode": "hybrid",
-        "first_seen": 1763000000,
+        "first_seen": "2026-11-20",
     }]
 
 
@@ -212,6 +212,11 @@ def test_role_skills_with_no_named_family_is_empty_not_missing(client, monkeypat
         ("engineer", "Software Engineering", False),
         ("manager", "Project Management", False),
         ("senior", "Senior Living", False),
+        ("investment analyst", "Investment Management", True),
+        ("investment banking analyst", "Criminal Investigation and Forensics", False),
+        ("electrical engineer", "Electronics Engineering", False),
+        ("cloud engineer", "C and C++", False),
+        ("content writer", "E-Commerce", False),
     ],
 )
 def test_family_match_score(role, family, wins):
