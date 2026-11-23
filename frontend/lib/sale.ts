@@ -31,12 +31,14 @@ export function saleMayOpen(shell: AppShell): boolean {
 export async function openSale<T>(args: {
   token: string
   product: BillingProduct
+  /** The job an Apply Pack is bought for (the stakes door). */
+  jobId?: string
   open: (loaded: { Razorpay: T; order: RazorpayOrderResponse }) => void | Promise<void>
 }): Promise<SaleResult> {
   if (!saleMayOpen(appShell())) return "absent"
   const Razorpay = await loadRazorpay<T>()
   if (!Razorpay) return "unavailable"
-  const order = await billing.createOrder(args.token, args.product)
+  const order = await billing.createOrder(args.token, args.product, args.jobId)
   await args.open({ Razorpay, order })
   return "opened"
 }

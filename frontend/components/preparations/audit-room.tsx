@@ -14,17 +14,13 @@
 
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { billing, workflowAudit, type AuditIntake, type WorkflowAudit } from "@/lib/api"
+import { workflowAudit, type AuditIntake, type WorkflowAudit } from "@/lib/api"
 import { formatDate } from "@/lib/format"
-import { openSale } from "@/lib/sale"
+import { checkout } from "@/lib/checkout"
 import { SalePage } from "@/components/sale-gate"
 import { AuditIntakeForm } from "./audit-intake-form"
 import "./audit-room.css"
 import { Button } from "@/components/ui/button"
-
-interface RazorpayConstructor {
-  new (options: Record<string, unknown>): { open: () => void }
-}
 
 const COVERS = [
   "Where the workflow can be wrong without anyone noticing",
@@ -54,33 +50,13 @@ export function AuditRoom({ token }: { token: string }) {
 
   const buy = async () => {
     setPayError(null)
-    try {
-      const result = await openSale<RazorpayConstructor>({
-        token,
-        product: "ai_workflow_audit",
-        open: ({ Razorpay, order }) => {
-          new Razorpay({
-            key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-            amount: order.amount,
-            currency: order.currency,
-            order_id: order.order_id,
-            name: "Myro",
-            description: "AI Workflow Audit",
-            handler: async (response: Record<string, string>) => {
-              await billing.verifyPayment(token, {
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_signature: response.razorpay_signature,
-              })
-              qc.invalidateQueries({ queryKey: ["workflow-audit"] })
-            },
-          }).open()
-        },
-      })
-      if (result === "unavailable") {
-        setPayError("Payments could not load. Check your connection and try again.")
-      }
-    } catch {
+    const outcome = await checkout({ token, product: "ai_workflow_audit", name: "Myro", description: "AI Workflow Audit" })
+    if (outcome.kind === "paid" || outcome.kind === "setting_up") {
+      qc.invalidateQueries({ queryKey: ["workflow-audit"] })
+    }
+    if (outcome.kind === "setting_up") setPayError("Payment received · setting up your audit. Refresh in a minute.")
+    if (outcome.kind === "failed") setPayError(outcome.reason)
+    if (outcome.kind === "unavailable") {
       // A full queue answers 409 between render and click. Say the true thing
       // rather than a generic failure.
       setPayError("That slot just went. Check back when a call is done.")

@@ -427,6 +427,11 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
               setBillingMessage("Verifying payment…")
               try {
                 const verified = await billing.verifyPayment(token, response)
+                if ("outcome" in verified) {
+                  setBillingStatus("success")
+                  setBillingMessage("Payment received · adding your coins. Refresh in a minute.")
+                  return
+                }
                 applyXpChange({ newBalance: verified.new_coin_balance, action: "xp_purchase" })
                 setBillingStatus("success")
                 setBillingMessage(`+${verified.coins_earned} Myro Coins added. New balance: ${verified.new_coin_balance} Myro Coins.`)
