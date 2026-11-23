@@ -11,6 +11,7 @@ import { fitBand, jobFitNextPath } from "@/lib/job-fit-intent"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import type { ResultJob } from "./intel-results"
 import type { JobRowFit } from "./intel-rows"
+import { CV_UPLOAD_ACCEPT } from "@/lib/cv-file-detect"
 
 interface Props {
   open: boolean
@@ -224,7 +225,7 @@ export function JobFitDrawer({
             <input
               ref={inputRef}
               type="file"
-              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              accept={CV_UPLOAD_ACCEPT}
               hidden
               onChange={(e) => {
                 const file = e.target.files?.[0]

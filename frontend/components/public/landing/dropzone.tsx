@@ -3,6 +3,7 @@
 import { forwardRef, useImperativeHandle, useRef, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { stashAnonCvFile, stashAnonCvText } from "@/lib/anon-cv-stash"
+import { CV_UPLOAD_ACCEPT, CV_UPLOAD_FORMATS } from "@/lib/cv-file-detect"
 
 /**
  * The live CV dropzone (grill: pre-login real score). The landing CV Hub
@@ -18,8 +19,6 @@ import { stashAnonCvFile, stashAnonCvText } from "@/lib/anon-cv-stash"
  * a small text POST that dodges the multipart-upload failures some networks and
  * regions hit. Same navigate-then-load fork; text stash instead of a File.
  */
-const ACCEPT = ".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-
 interface LandingDropzoneProps {
   source: string
   /** When set, the parent owns scoring (the /cv-preview direct-hit case). When
@@ -85,11 +84,11 @@ export const LandingDropzone = forwardRef<LandingDropzoneHandle, LandingDropzone
     ? "Sending your CV…"
     : stage
       ? "Drop your CV here, or choose a file"
-      : "Upload CV — PDF or DOCX"
+      : `Upload CV — ${CV_UPLOAD_FORMATS}`
   const hint = pending
     ? null
     : stage
-      ? "PDF or DOCX, up to 10 MB"
+      ? `${CV_UPLOAD_FORMATS}, up to 10 MB`
       : "Private · saved only if you create an account"
 
   return (
@@ -97,7 +96,7 @@ export const LandingDropzone = forwardRef<LandingDropzoneHandle, LandingDropzone
       <input
         ref={inputRef}
         type="file"
-        accept={ACCEPT}
+        accept={CV_UPLOAD_ACCEPT}
         hidden
         onChange={(e) => {
           const file = e.target.files?.[0]

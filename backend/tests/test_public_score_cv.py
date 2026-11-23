@@ -37,13 +37,20 @@ def _reset_rate_limit_and_turnstile(monkeypatch: pytest.MonkeyPatch):
     anon_rate_limit.reset()
 
 
+_REAL_READ = public_router.cv_parser.read_cv_file
+_GIF = b"GIF89a" + b"\x00\x01" * 64  # an animation: no form of CV the reader takes
+
+
 def _wire_engine(
     monkeypatch: pytest.MonkeyPatch, *, raw_text: str, skills: list[dict], structured: dict | None = None
 ) -> None:
     async def _fake_parse(_text: str, provider=None) -> dict:
         return {"skills_detected": skills, "cv_structured": structured, "raw_text": _text, "provider_failed": False}
 
-    monkeypatch.setattr(public_router.cv_parser, "extract_raw_text", lambda data, ftype: raw_text)
+    async def _read(_data: bytes, **_kwargs) -> str:
+        return raw_text
+
+    monkeypatch.setattr(public_router.cv_parser, "read_cv_file", _read)
     monkeypatch.setattr(public_router.cv_parser, "parse_cv_text", _fake_parse)
     monkeypatch.setattr(public_router, "get_cv_upload_provider", lambda: object())
     monkeypatch.setattr(public_router, "build_skill_level_map", lambda s: {"python": 3})
@@ -171,10 +178,12 @@ def test_score_cv_null_cv_when_unstructured(monkeypatch: pytest.MonkeyPatch) -> 
     assert body["contact"] is None
 
 
-def test_score_cv_rejects_wrong_type(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_score_cv_rejects_a_file_that_is_no_form_of_cv(monkeypatch: pytest.MonkeyPatch) -> None:
     _wire_engine(monkeypatch, raw_text="A" * 400, skills=[{"display_name": "Python"}])
-    res = TestClient(app).post("/public/score-cv", files={"file": ("cv.txt", b"hello", "text/plain")})
+    monkeypatch.setattr(public_router.cv_parser, "read_cv_file", _REAL_READ)
+    res = TestClient(app).post("/public/score-cv", files={"file": ("cv.gif", _GIF, "image/gif")})
     assert res.status_code == 422
+    assert "photos of a CV" in res.json()["detail"]
 
 
 def test_score_cv_scanned_pdf_guard(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -182,7 +191,7 @@ def test_score_cv_scanned_pdf_guard(monkeypatch: pytest.MonkeyPatch) -> None:
     _wire_engine(monkeypatch, raw_text="too short", skills=[{"display_name": "Python"}])
     res = TestClient(app).post("/public/score-cv", files=_pdf_upload())
     assert res.status_code == 422
-    assert "scanned" in res.json()["detail"].lower()
+    assert "couldn't read any text" in res.json()["detail"].lower()
 
 
 def test_score_cv_no_skills(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -281,9 +290,10 @@ def test_job_fit_preview_unknown_when_job_has_no_skills(monkeypatch: pytest.Monk
 
 def test_job_fit_preview_rejects_wrong_file_type(monkeypatch: pytest.MonkeyPatch) -> None:
     _wire_engine(monkeypatch, raw_text="A" * 400, skills=[{"display_name": "Python"}])
+    monkeypatch.setattr(public_router.cv_parser, "read_cv_file", _REAL_READ)
     res = TestClient(app).post(
         "/public/jobs/j1/fit-preview",
-        files={"file": ("cv.txt", b"hello", "text/plain")},
+        files={"file": ("cv.gif", _GIF, "image/gif")},
     )
     assert res.status_code == 422
 

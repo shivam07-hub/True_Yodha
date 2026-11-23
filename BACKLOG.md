@@ -433,9 +433,11 @@ and asserts contrast, squeeze, reach, theme and tap size (credentials in
   and a retry does not make you pick the file again. *17 reports* — 20 25 30 45
   63 71 75 76 97 111 141 144 (stuck at 20%) 145 146 147 + one unnumbered; same
   hole as the 221 `signed-url` starts with no terminal outcome (#16 §3d).
-- **U2 · Hard PDFs parse.** Two-column layout, a scanned/image-heavy PDF, LinkedIn
-  and GitHub as embedded hyperlinks, 10th / 12th / college percentages kept
-  apart, stack skills (HTML, CSS, JS, MySQL) detected. — 36 46 72 100 105 133
+- **U2 · Hard PDFs parse.** Two-column layout, LinkedIn and GitHub as embedded
+  hyperlinks, 10th / 12th / college percentages kept apart, stack skills (HTML,
+  CSS, JS, MySQL) detected. — 36 46 72 100 105 133. *Scanned/image-heavy PDFs
+  are read by the vision model since 2026-11-22 (CV Reader, CONTEXT.md); a real
+  phone photo and a real scan on prod are still owed.*
 - **U3 · Onboarding on a phone.** The primary-role step waits for your choice;
   every seniority option is tappable. — 96 143
 - **T1 · Paste a JD → the CV actually changes toward it.** Bullets rewritten

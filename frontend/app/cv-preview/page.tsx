@@ -67,7 +67,7 @@ export default function CvPreviewPage() {
         }
       } catch (e) {
         setScoring(false)
-        setError(e instanceof Error ? e.message : "We couldn't read that CV. Try a text-based PDF or DOCX.")
+        setError(e instanceof Error ? e.message : "We couldn't read that CV. Try another file, or paste your CV text.")
       }
     },
     [router],

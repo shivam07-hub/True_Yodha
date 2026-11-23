@@ -243,7 +243,7 @@ export function DataSection() {
 export const FAQ_ITEMS: [string, string][] = [
   ["Is Myro free?", "Yes — uploading your CV, getting your Myro Score, and seeing your 10-domain breakdown are free. You can start without a credit card."],
   ["What is Practice?", "Your practice yard. Pick a skill the Engine says is in demand, clear levelled question sets, and move from Level 0 to Level 5. See the “Skill levels” section above."],
-  ["What file formats can I upload?", "PDF or DOCX. Drop your CV on the homepage and Myro reads it in under a minute."],
+  ["What file formats can I upload?", "PDF, Word, PowerPoint, a text file, or a photo or screenshot of your CV. Drop it on the homepage and Myro reads it in under a minute."],
   ["Do I need to use my real name or email?", "Any email works. Your public identity is your Myro handle."],
   ["Is my CV shared with employers or other users?", "Your CV is used only to generate your score and tailored versions for you."],
   ["How is my Myro Score calculated?", "Your CV is read and scored across 10 career domains, then combined into a single 0–100 Myro Score. See the “Your Myro Score” and “How your CV is read” sections above for the full method."],

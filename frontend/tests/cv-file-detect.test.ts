@@ -2,10 +2,16 @@ import test from "node:test"
 import assert from "node:assert/strict"
 
 import {
+  CV_UPLOAD_ACCEPT,
   CV_UPLOAD_MAX_BYTES,
   CV_UPLOAD_MIN_BYTES,
   DOCX_MIME,
+  JPEG_MIME,
   PDF_MIME,
+  PNG_MIME,
+  PPTX_MIME,
+  TEXT_MIME,
+  WEBP_MIME,
   detectCVFile,
   detectCVFileTypeByName,
   detectCVMimeByMagic,
@@ -34,24 +40,28 @@ test("detectCVFileTypeByName resolves common extensions case-insensitively", () 
   assert.equal(detectCVFileTypeByName("resume.pdf"), PDF_MIME)
   assert.equal(detectCVFileTypeByName("Resume.PDF"), PDF_MIME)
   assert.equal(detectCVFileTypeByName("CV.docx"), DOCX_MIME)
-  assert.equal(detectCVFileTypeByName("cv.png"), null)
+  assert.equal(detectCVFileTypeByName("cv.png"), PNG_MIME)
+  assert.equal(detectCVFileTypeByName("Scan.JPEG"), JPEG_MIME)
+  assert.equal(detectCVFileTypeByName("cv.gif"), null)
   assert.equal(detectCVFileTypeByName("cv"), null)
 })
 
-test("detectCVMimeByType matches only canonical PDF/DOCX MIME strings", () => {
+test("detectCVMimeByType matches only the canonical MIME strings the backend reads", () => {
   assert.equal(detectCVMimeByType(PDF_MIME), PDF_MIME)
   assert.equal(detectCVMimeByType(DOCX_MIME), DOCX_MIME)
   assert.equal(detectCVMimeByType("application/octet-stream"), null)
   assert.equal(detectCVMimeByType(""), null)
 })
 
-test("detectCVMimeByMagic identifies PDF and DOCX by header bytes", () => {
+test("detectCVMimeByMagic identifies each readable form by header bytes", () => {
   const pdf = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])
   const docx = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x14])
-  const garbage = new Uint8Array([0xff, 0xd8, 0xff, 0xe0])
+  const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0])
+  const gif = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61])
   assert.equal(detectCVMimeByMagic(pdf), PDF_MIME)
   assert.equal(detectCVMimeByMagic(docx), DOCX_MIME)
-  assert.equal(detectCVMimeByMagic(garbage), null)
+  assert.equal(detectCVMimeByMagic(jpeg), JPEG_MIME)
+  assert.equal(detectCVMimeByMagic(gif), null)
   assert.equal(detectCVMimeByMagic(new Uint8Array([0x25, 0x50])), null)  // too short
 })
 
@@ -61,6 +71,7 @@ test("ensureCVExtension appends the canonical ext when missing", () => {
   assert.equal(ensureCVExtension("resume.bin", PDF_MIME), "resume.pdf")
   assert.equal(ensureCVExtension("CV", DOCX_MIME), "CV.docx")
   assert.equal(ensureCVExtension("", PDF_MIME), "cv.pdf")
+  assert.equal(ensureCVExtension("IMG_2041", JPEG_MIME), "IMG_2041.jpg")
 })
 
 test("detectCVFile — phone-storage upload: filename + correct MIME both signal PDF", async () => {
@@ -80,10 +91,35 @@ test("detectCVFile — Drive serving DOCX as application/octet-stream", async ()
   assert.equal(await detectCVFile(file), DOCX_MIME)
 })
 
-test("detectCVFile — image file rejected at every layer", async () => {
+test("detectCVFile — a phone photo of a CV is a CV (the backend transcribes it)", async () => {
   const jpgHead = new Uint8Array([0xff, 0xd8, 0xff, 0xe0])
-  const file = fakeFile({ name: "selfie.jpg", type: "image/jpeg", bytes: jpgHead })
+  const file = fakeFile({ name: "IMG_2041.jpg", type: "image/jpeg", bytes: jpgHead })
+  assert.equal(await detectCVFile(file), JPEG_MIME)
+})
+
+test("detectCVFile — slides and text files by name", async () => {
+  assert.equal(await detectCVFile(fakeFile({ name: "Asha CV.pptx", type: "" })), PPTX_MIME)
+  assert.equal(await detectCVFile(fakeFile({ name: "cv.txt", type: "" })), TEXT_MIME)
+  assert.equal(await detectCVFile(fakeFile({ name: "cv.md", type: "" })), TEXT_MIME)
+})
+
+test("detectCVFile — screenshots shared without a name, by magic bytes", async () => {
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+  const webp = new Uint8Array([0x52, 0x49, 0x46, 0x46, 0x24, 0, 0, 0, 0x57, 0x45, 0x42, 0x50])
+  assert.equal(await detectCVFile(fakeFile({ name: "shared", type: "application/octet-stream", bytes: png })), PNG_MIME)
+  assert.equal(await detectCVFile(fakeFile({ name: "shared", type: "application/octet-stream", bytes: webp })), WEBP_MIME)
+})
+
+test("detectCVFile — a spreadsheet's ZIP bytes never pass as a Word file", async () => {
+  const zipHead = new Uint8Array([0x50, 0x4b, 0x03, 0x04])
+  const file = fakeFile({ name: "skills.xlsx", type: "", bytes: zipHead })
   assert.equal(await detectCVFile(file), null)
+})
+
+test("every picker offers the camera and each form the backend reads", () => {
+  for (const form of [".pdf", ".docx", ".pptx", ".txt", ".jpg", ".png", ".webp", "image/*"]) {
+    assert.ok(CV_UPLOAD_ACCEPT.split(",").includes(form), form)
+  }
 })
 
 test("detectCVFile — extensionless file with correct MIME (Drive happy path)", async () => {
@@ -162,14 +198,14 @@ test("detectUnsupportedFormatKind: XLSX by extension → spreadsheet", async () 
   assert.equal(await detectUnsupportedFormatKind(file), "spreadsheet")
 })
 
-test("detectUnsupportedFormatKind: JPG by extension → image", async () => {
-  const file = fakeFile({ name: "photo.jpg", type: "image/jpeg" })
-  assert.equal(await detectUnsupportedFormatKind(file), "image")
+test("detectUnsupportedFormatKind: .doc by extension → legacy_word", async () => {
+  const file = fakeFile({ name: "Resume 2019.doc", type: "application/msword" })
+  assert.equal(await detectUnsupportedFormatKind(file), "legacy_word")
 })
 
-test("detectUnsupportedFormatKind: PNG by extension → image", async () => {
-  const file = fakeFile({ name: "screenshot.png", type: "image/png" })
-  assert.equal(await detectUnsupportedFormatKind(file), "image")
+test("detectUnsupportedFormatKind: HEIC by extension → heic", async () => {
+  const file = fakeFile({ name: "IMG_0042.HEIC", type: "image/heic" })
+  assert.equal(await detectUnsupportedFormatKind(file), "heic")
 })
 
 test("detectUnsupportedFormatKind: ZIP named linkedin → linkedin_data_zip", async () => {
@@ -188,10 +224,16 @@ test("detectUnsupportedFormatKind: ZIP magic bytes + linkedin in name → linked
   assert.equal(await detectUnsupportedFormatKind(file), "linkedin_data_zip")
 })
 
-test("detectUnsupportedFormatKind: JPEG magic bytes with no extension → image", async () => {
-  const jpgHead = new Uint8Array([0xff, 0xd8, 0xff, 0xe0])
-  const file = fakeFile({ name: "selfie", type: "application/octet-stream", bytes: jpgHead })
-  assert.equal(await detectUnsupportedFormatKind(file), "image")
+test("detectUnsupportedFormatKind: OLE magic bytes with no extension → legacy_word", async () => {
+  const ole = new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])
+  const file = fakeFile({ name: "attachment", type: "application/octet-stream", bytes: ole })
+  assert.equal(await detectUnsupportedFormatKind(file), "legacy_word")
+})
+
+test("detectUnsupportedFormatKind: HEIF ftyp box with no extension → heic", async () => {
+  const heic = new Uint8Array([0, 0, 0, 0x18, ...Array.from("ftypheic", (c) => c.charCodeAt(0))])
+  const file = fakeFile({ name: "photo", type: "application/octet-stream", bytes: heic })
+  assert.equal(await detectUnsupportedFormatKind(file), "heic")
 })
 
 // ── preflightCVUploadFile: tailored rejection copy ───────────────────────────
@@ -209,16 +251,33 @@ test("preflightCVUploadFile: LinkedIn zip gets tailored message", async () => {
   }
 })
 
-test("preflightCVUploadFile: image gets tailored message", async () => {
+test("preflightCVUploadFile: a screenshot of a CV goes through under its own type", async () => {
   const jpgHead = new Uint8Array([0xff, 0xd8, 0xff, 0xe0])
-  const file = fakeFile({ name: "cv-screenshot.jpg", type: "image/jpeg", bytes: jpgHead })
-  ;(file as unknown as { size: number }).size = 2048
+  const file = fakeFile({ name: "cv-screenshot", type: "image/jpeg", bytes: jpgHead })
+  ;(file as unknown as { size: number }).size = 240_000
+  const result = await preflightCVUploadFile(file as unknown as File)
+  assert.equal(result.ok, true)
+  if (result.ok) {
+    assert.equal(result.mime, JPEG_MIME)
+    assert.equal(result.safeName, "cv-screenshot.jpg")
+  }
+})
+
+test("preflightCVUploadFile: a short text CV under 1KB is not a cloud shortcut", async () => {
+  const file = fakeFile({ name: "cv.txt", type: "text/plain" })
+  ;(file as unknown as { size: number }).size = 640
+  const result = await preflightCVUploadFile(file as unknown as File)
+  assert.equal(result.ok, true)
+})
+
+test("preflightCVUploadFile: an iPhone HEIC photo says how to send it", async () => {
+  const file = fakeFile({ name: "IMG_0042.heic", type: "image/heic" })
+  ;(file as unknown as { size: number }).size = 2_400_000
   const result = await preflightCVUploadFile(file as unknown as File)
   assert.equal(result.ok, false)
   if (!result.ok) {
-    assert.equal(result.code, "unsupported_format")
-    assert.equal(result.unsupportedKind, "image")
-    assert.match(result.message, /screenshot/)
+    assert.equal(result.unsupportedKind, "heic")
+    assert.match(result.message, /JPEG/)
   }
 })
 
@@ -230,6 +289,6 @@ test("preflightCVUploadFile: CSV gets tailored message", async () => {
   if (!result.ok) {
     assert.equal(result.code, "unsupported_format")
     assert.equal(result.unsupportedKind, "spreadsheet")
-    assert.match(result.message, /PDF or DOCX/)
+    assert.match(result.message, /photo of your CV/)
   }
 })

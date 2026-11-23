@@ -19,10 +19,6 @@ from app.services import cv_workflow
 
 router = APIRouter()
 
-ALLOWED_TYPES = {
-    "application/pdf",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-}
 MAX_FILE_BYTES = 10 * 1024 * 1024  # 10MB
 
 
@@ -75,13 +71,8 @@ async def upload_cv(
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     x_myro_cv_source: str | None = Header(default=None, alias="X-Myro-CV-Source"),
 ) -> CVUploadResponse:
-    if file.content_type not in ALLOWED_TYPES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"code": "unsupported_format", "message": "Only PDF and DOCX files are accepted."},
-            headers={"X-Myro-Error-Code": "unsupported_format"},
-        )
-
+    # No MIME gate: browsers send application/octet-stream for Drive files and the
+    # wrong type for renamed ones. The reader decides from the bytes.
     file_bytes = await file.read()
     if len(file_bytes) > MAX_FILE_BYTES:
         raise HTTPException(
@@ -90,13 +81,11 @@ async def upload_cv(
             headers={"X-Myro-Error-Code": "file_too_large"},
         )
 
-    file_type = "pdf" if file.content_type == "application/pdf" else "docx"
     source = _normalize_source(x_myro_cv_source, default="pdf_upload")
     payload = await cv_workflow.start_cv_upload_job(
         cv_repo=cv_repo,
         user_id=principal.id,
         file_bytes=file_bytes,
-        file_type=file_type,
         idempotency_key=idempotency_key,
         source=source,
     )

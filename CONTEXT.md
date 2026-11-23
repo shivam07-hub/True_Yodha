@@ -1640,6 +1640,14 @@ A durable unit of deferred work that must survive a process restart. Today: CV u
 - A failed terminal Background Job refunds via the idempotent `refund_xp` RPC, per ADR-0004.
 - The CVUP3 orphan-sweep is KEPT as an independent backstop (the "night watchman") — a periodic reaper that catches any ticket the rail drops despite the timeout (Redis eviction, stuck registry, misconfig) and refunds it. Defense-in-depth for the Upload Guarantee; does not depend on RQ being perfectly configured.
 
+## CV Reader
+
+`cv_parser.read_cv_file(bytes)` is the one door every CV upload uses (signed-in multipart, resumable finalize, the anonymous score and job-fit preview). **The bytes decide the form, never the name or the browser's MIME** (2026-11-22): Drive strips extensions and people rename files to get past a picker (a one-slide PowerPoint CV arrived as `.docx`, 2026-10-30).
+- **Read locally, no model:** PDF text layer, Word, PowerPoint (slides in show order), plain text.
+- **Read by the vision model:** a photo, a screenshot, or a PDF with under `MIN_CV_TEXT_CHARS` of text (a scan; first `SCAN_PAGE_LIMIT` pages). The transcript is ordinary CV text from there. The contact header is in the picture, so for these files only it reaches the vision provider unredacted.
+- **Refused with what to do:** `.doc`, `.rtf`, anything else (`UnsupportedCVFile`, a 400 / 422). A vision outage is `CVReaderUnavailable`, a retryable 503; finalize keeps the object for the retry.
+- The browser's mirror is `lib/cv-file-detect.ts`: `CV_UPLOAD_ACCEPT` and `CV_UPLOAD_FORMATS` are every picker's list and label, and it refuses at the pick only what the reader would refuse. The `cv-uploads` bucket's MIME allowlist says the same.
+
 ## Upload Guarantee
 
 The product-level invariant the whole Background Job system serves: **once a user uploads a CV, they get their output.** Priority order: speed, success, no outages — but success is never sacrificed for speed. The durable rail (no loss on restart) + retry-on-transient-failure (self-heal hiccups) + never-reject overload policy (no busy-failures) + orphan-sweep watchman (independent backstop) together make a silently-dropped upload structurally impossible. The only terminal non-success is a PERMANENT failure (no skills / scanned PDF / taxonomy-unmapped), which fails fast, refunds, and tells the user exactly how to fix it.

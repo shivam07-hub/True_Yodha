@@ -11,7 +11,8 @@ test("CV Hub and onboarding share one canonical upload surface", () => {
 
   assert.match(surface, /preflightCVUploadFile/, "the canonical surface owns file safety validation")
   assert.match(surface, /Drop your CV here, or choose a file/)
-  assert.match(surface, /PDF or DOCX, up to 10 MB/)
+  assert.match(surface, /\{CV_UPLOAD_FORMATS\}, up to 10 MB/, "the surface names every form the reader takes")
+  assert.match(surface, /accept=\{CV_UPLOAD_ACCEPT\}/, "and its picker offers them")
   assert.match(onboarding, /CVUploadStep/)
   assert.match(hub, /CVUploadStep/)
   assert.doesNotMatch(hub, /LandingDropzone/)

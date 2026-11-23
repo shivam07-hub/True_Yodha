@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-11-23 — A CV uploads in any form
+
+Before: PDF and DOCX only, by MIME and extension. 18 real people were told "unreadable" (mostly scans; 4 never got in), and the picker hid photos, slides and text files, so those losses were never recorded. Now one reader (`cv_parser.read_cv_file`, CONTEXT.md **CV Reader**) decides from the bytes: text layers locally; photos, screenshots and scans through the vision model (~4s); `.doc`/`.rtf` refused with how to save them. All four upload doors share `CV_UPLOAD_ACCEPT` / `CV_UPLOAD_FORMATS`; the `cv-uploads` bucket allows the same types (`20261123100000`); the anonymous door's cap went from 5MB to the 10MB every door states. CVUP4 amended.
+
 ## 2026-11-22 — A slide-deck CV named .docx reads as its slides
 
 The only `.docx` upload 500s (2026-10-30, two finalizes, one person) were a one-slide PowerPoint CV renamed `.docx`; the picker takes PDF and DOCX only. `64db0c6f` ended the 500 but filed that CV as unreadable, with the scanned-PDF message. `_extract_text_docx` now reads a PowerPoint package's slides in show order (that file: 79 lines). `test_notice_close_cv_slide_deck.py` closes `unhandled_500:ValueError:…:_extract_text_docx` and `upload_guarantee:object_no_job`, the same two attempts, once it reaches `main`.

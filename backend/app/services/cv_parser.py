@@ -3,7 +3,9 @@ cv_parser.py
 Real CV → Lightcast skill extractor.
 
 Pipeline:
-  1. Extract text from PDF (pymupdf) or DOCX (python-docx)
+  1. Read the CV file in whatever form it came (`read_cv_file`): text layers
+     locally, scans and photos through the vision model
+
   2. LLM extraction via OpenRouter — returns Lightcast-shaped skill names
   3. Validate each taxonomy_key against lightcast_skills_taxonomy.json
      (exact match → fuzzy fallback via difflib if no exact hit)
@@ -27,6 +29,7 @@ Dependencies (already pinned in backend/requirements.txt):
 
 from __future__ import annotations
 
+import base64
 import io
 import json
 import logging
@@ -53,7 +56,12 @@ from app.security.personal_data import (
     restore_redactions,
     sanitize_cv_text_for_ai,
 )
-from app.services.llm_provider import LLMProvider, LLMProviderError, get_llm_provider
+from app.services.llm_provider import (
+    LLMProvider,
+    LLMProviderError,
+    get_llm_provider,
+    get_vision_provider,
+)
 from app.services.model_outcome import ModelOutcome
 from app.services.taxonomy_loader import _name_index, lookup_by_name
 
@@ -80,7 +88,9 @@ _CV_TEXT_CHAR_LIMIT = 15_000  # truncate very long CVs before sending to LLM
 # and the JSON restating them with keys and escaping is strictly larger — so the
 # ceiling has to sit comfortably above the input, not at it.
 _STRUCTURED_MAX_OUTPUT_TOKENS = 12_000
-_MIN_RAW_TEXT_LEN = 80        # below this we assume scanned / empty CV
+# Below this much text a file has no CV in it (CVUP4). A PDF this short is a scan,
+# so the vision model reads its pages before the guard decides.
+MIN_CV_TEXT_CHARS = 80
 _MIN_VOWEL_RATIO = 0.15       # real text ≥ 35%; keyboard-smash is typically < 5%
 
 
@@ -100,21 +110,31 @@ def _is_plausible_professional_text(text: str) -> bool:
 # ── Text extraction ───────────────────────────────────────────────────────────
 
 def _extract_text_pdf(file_bytes: bytes) -> str:
-    """Extract text from PDF bytes using pymupdf (fitz). Lazy-imported."""
+    """The PDF's text layer (pymupdf). A PDF that does not open has none."""
     import fitz  # pymupdf
 
-    with fitz.open(stream=file_bytes, filetype="pdf") as doc:
-        pages = [page.get_text("text", sort=True) for page in doc]
+    try:
+        with fitz.open(stream=file_bytes, filetype="pdf") as doc:
+            pages = [page.get_text("text", sort=True) for page in doc]
+    except fitz.FileDataError:  # damaged or truncated in transit
+        return ""
     return "\n\n".join(pages).strip()
 
 
-def _extract_text_docx(file_bytes: bytes) -> str:
-    """Extract text from a file that arrived as .docx. The bytes decide, not the name.
+def _extract_text_plain(file_bytes: bytes) -> str:
+    """A text file's text. A byte-order mark names the encoding; otherwise UTF-8."""
+    if file_bytes.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return file_bytes.decode("utf-16").strip()
+    return file_bytes.decode("utf-8-sig").strip()
+
+
+def _extract_text_office(file_bytes: bytes) -> str:
+    """Text of an Office package. The bytes decide what it is, not the name.
 
     A Word package reads paragraphs + tables (python-docx). A PowerPoint package
-    reads its slides: a one-slide CV built in PowerPoint and renamed .docx (the
-    picker takes PDF and DOCX only) 500'd the upload on 2026-10-30. Anything else
-    is empty text, which callers already treat as unreadable.
+    reads its slides: a one-slide CV built in PowerPoint and renamed .docx 500'd
+    the upload on 2026-10-30. Anything else (a spreadsheet) is empty text, which
+    callers already treat as unreadable.
     """
     from docx import Document  # lazy import
 
@@ -171,6 +191,128 @@ def _extract_text_slides(package: zipfile.ZipFile) -> str:
     except (KeyError, ET.ParseError):
         return ""
     return "\n".join(lines)
+
+
+# ── Any form of CV ────────────────────────────────────────────────────────────
+#
+# A CV arrives however the person keeps it: a PDF, a Word file, slides, a text
+# file, a phone photo, a screenshot, a scan (Shivam, 2026-11-22). The bytes
+# decide what it is; names and browser MIME types are wrong often enough
+# (Drive strips extensions, people rename files to get past a picker).
+
+SCAN_PAGE_LIMIT = 3      # a CV is one or two pages; a longer scan is mostly not CV
+_SCAN_DPI = 150          # small print stays legible; one page is ~200 KB as JPEG
+_TRANSCRIBE_MAX_TOKENS = 4096
+
+_TRANSCRIBE_PROMPT = (
+    "These images are a CV: a phone photo, a screenshot or a scan. Transcribe "
+    "every word on them exactly as written, in reading order, one line of the "
+    "CV per line, across all images in the order given. Plain text only: no "
+    "commentary, no markdown, nothing added or corrected. If an image holds no "
+    "CV text, write nothing for it."
+)
+
+_SAVE_AS = "Open it in Word or Google Docs, save it as PDF or DOCX, then upload that."
+
+
+class UnsupportedCVFile(Exception):
+    """Bytes that are no form of CV we read. `message` says what to upload instead."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
+
+
+class CVReaderUnavailable(Exception):
+    """The vision model could not read a scan or photo right now. Retrying can work."""
+
+
+def _image_mime(head: bytes) -> str | None:
+    if head.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if head.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+def _is_plain_text(file_bytes: bytes) -> bool:
+    try:
+        text = _extract_text_plain(file_bytes)
+    except UnicodeDecodeError:
+        return False
+    return "\x00" not in text and not text.startswith("{\\rtf")
+
+
+def _scan_pages(file_bytes: bytes) -> list[bytes]:
+    """The first pages of a PDF rendered as JPEG, for a PDF with no text layer."""
+    import fitz  # pymupdf
+
+    try:
+        with fitz.open(stream=file_bytes, filetype="pdf") as doc:
+            return [
+                page.get_pixmap(dpi=_SCAN_DPI).tobytes("jpg", jpg_quality=80)
+                for page in list(doc)[:SCAN_PAGE_LIMIT]
+            ]
+    except fitz.FileDataError:
+        return []
+
+
+async def _transcribe(images: list[bytes], mime: str, vision: LLMProvider) -> str:
+    """The text on pictures of a CV. The contact header is in the picture, so
+    unlike CV text it reaches this model; everything after it is CV text again."""
+    content: list[dict] = [{"type": "text", "text": _TRANSCRIBE_PROMPT}]
+    content += [
+        {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{base64.b64encode(image).decode('ascii')}"}}
+        for image in images
+    ]
+    try:
+        text = await vision.complete(
+            [{"role": "user", "content": content}],
+            max_tokens=_TRANSCRIBE_MAX_TOKENS,
+            temperature=0,
+        )
+    except LLMProviderError as exc:
+        raise CVReaderUnavailable("vision transcription failed") from exc
+    return text.strip()
+
+
+async def read_cv_file(file_bytes: bytes, *, vision: LLMProvider | None = None) -> str:
+    """The text of a CV file in any form we take. The one door every CV upload uses.
+
+    Text layers (PDF, Word, PowerPoint, plain text) are read here with no model
+    call. A photo, a screenshot, or a PDF with too little text to be a CV (a scan)
+    is read by the vision model. Empty text means the file holds no CV; callers
+    already refuse that (CVUP4).
+
+    Raises UnsupportedCVFile for bytes we cannot read at all, and
+    CVReaderUnavailable when the vision model is down.
+    """
+    head = file_bytes[:16]
+    image_mime = _image_mime(head)
+    if image_mime:
+        return await _transcribe([file_bytes], image_mime, vision or get_vision_provider())
+    if head.startswith(b"%PDF"):
+        text = _extract_text_pdf(file_bytes)
+        if len(text) >= MIN_CV_TEXT_CHARS:
+            return text
+        pages = _scan_pages(file_bytes)
+        if not pages:
+            return text
+        return await _transcribe(pages, "image/jpeg", vision or get_vision_provider())
+    if head.startswith(b"PK\x03\x04"):
+        return _extract_text_office(file_bytes)
+    if head.startswith(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"):
+        raise UnsupportedCVFile(f"That's an older Word file (.doc). {_SAVE_AS}")
+    if _is_plain_text(file_bytes):
+        return _extract_text_plain(file_bytes)
+    if file_bytes.lstrip().startswith(b"{\\rtf"):
+        raise UnsupportedCVFile(f"That's a Rich Text file (.rtf). {_SAVE_AS}")
+    raise UnsupportedCVFile(
+        "We read PDF, Word, PowerPoint, text files and photos of a CV. "
+        "Upload one of those, or paste your CV text."
+    )
 
 
 # ── LLM extraction ────────────────────────────────────────────────────────────
@@ -468,11 +610,17 @@ def _honest_skills(raw_text: str, deterministic: list, enriched: list) -> list:
 # ── Main entry points ─────────────────────────────────────────────────────────
 
 def extract_raw_text(file_bytes: bytes, file_type: str) -> str:
-    """Extract plain text from a CV file without running LLM analysis."""
+    """A file's text layer, read locally with no model call.
+
+    "docx" is any Office package (Word or PowerPoint). For a CV whose form is not
+    known, `read_cv_file` decides from the bytes and reads scans and photos too.
+    """
     if file_type == "pdf":
         return _extract_text_pdf(file_bytes)
     if file_type == "docx":
-        return _extract_text_docx(file_bytes)
+        return _extract_text_office(file_bytes)
+    if file_type == "txt":
+        return _extract_text_plain(file_bytes)
     raise ValueError(f"Unsupported file_type: {file_type!r}")
 
 
@@ -487,7 +635,7 @@ async def parse_cv_text(raw_text: str, provider: LLMProvider | None = None) -> d
                            unparseable output; False when at least one responded
                            with valid JSON (even if skills list is empty)
     """
-    if not raw_text or len(raw_text.strip()) < _MIN_RAW_TEXT_LEN:
+    if not raw_text or len(raw_text.strip()) < MIN_CV_TEXT_CHARS:
         return {"skills_detected": [], "cv_structured": None, "raw_text": raw_text, "provider_failed": False}
 
     if not _is_plausible_professional_text(raw_text):
@@ -529,7 +677,7 @@ async def parse_cv_skills(raw_text: str, provider: LLMProvider | None = None) ->
     can enrich but can never erase what the candidate actually wrote.
     """
     deterministic = extract_explicit_skills(raw_text)
-    if not raw_text or len(raw_text.strip()) < _MIN_RAW_TEXT_LEN:
+    if not raw_text or len(raw_text.strip()) < MIN_CV_TEXT_CHARS:
         skills = apply_cv_evidence_rules(deterministic, raw_text or "", _SIGNAL_XP)
         return {
             "skills_detected": skills,
@@ -586,7 +734,7 @@ async def parse_cv(file_bytes: bytes, file_type: str, provider: LLMProvider | No
     if file_type == "pdf":
         raw_text = _extract_text_pdf(file_bytes)
     elif file_type == "docx":
-        raw_text = _extract_text_docx(file_bytes)
+        raw_text = _extract_text_office(file_bytes)
     else:
         raise ValueError(f"Unsupported file_type: {file_type!r}")
 
@@ -622,7 +770,7 @@ async def reparse_structured_only(raw_text: str) -> ModelOutcome:
 
     Returns a Model Outcome, never a collapsed None.
     """
-    if not raw_text or len(raw_text.strip()) < _MIN_RAW_TEXT_LEN:
+    if not raw_text or len(raw_text.strip()) < MIN_CV_TEXT_CHARS:
         return ModelOutcome.invalid_input("short_text")
 
     ledger: dict[str, str] = {}

@@ -56,6 +56,13 @@ class _FakeAdmin:
         self.storage = storage
 
 
+def _reads_as(text_of):  # type: ignore[no-untyped-def]
+    """The upload's one read seam: whatever bytes arrive, they read as this text."""
+    async def _read(file_bytes: bytes, **_kwargs: Any) -> str:
+        return text_of(file_bytes)
+    return _read
+
+
 def _override_principal_and_repo(repo) -> None:
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[get_token_cv_repository] = lambda: repo
@@ -108,7 +115,7 @@ def test_finalize_downloads_then_queues_job_and_deletes_object(monkeypatch) -> N
     storage = _FakeStorageBucket(data=b"%PDF-1.4 real bytes")
     _patch_storage(monkeypatch, storage)
     state = _patch_xp(monkeypatch, balance=3000)
-    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", _good_text)
+    monkeypatch.setattr(cv_workflow.cv_parser, "read_cv_file", _reads_as(_good_text))
     _patch_jobs_create(monkeypatch, job_id="job-fin")
     _patch_async_workflow(monkeypatch)
     monkeypatch.setattr(cv_workflow.upload_jobs_repo, "find_by_idempotency_key", lambda *_a, **_k: None)
@@ -195,12 +202,71 @@ def test_finalize_returns_410_when_object_missing(monkeypatch) -> None:
     assert res.json()["detail"]["code"] == "upload_expired"
 
 
+def test_finalize_reads_a_photo_whatever_its_object_is_named(monkeypatch) -> None:
+    """The object path's extension used to gate finalize (PDF and DOCX only). The
+    bytes go to the reader now, so a phone photo finalizes like any CV."""
+    _override_principal_and_repo(_FakeCVRepository())
+    photo = b"\xff\xd8\xff\xe0" + b"\x00" * 4096
+    storage = _FakeStorageBucket(data=photo)
+    _patch_storage(monkeypatch, storage)
+    _patch_xp(monkeypatch, balance=3000)
+    read: list[bytes] = []
+
+    async def _read(file_bytes: bytes, **_kwargs: Any) -> str:
+        read.append(file_bytes)
+        return _good_text()
+
+    monkeypatch.setattr(cv_workflow.cv_parser, "read_cv_file", _read)
+    _patch_jobs_create(monkeypatch, job_id="job-photo")
+    _patch_async_workflow(monkeypatch)
+    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "find_by_idempotency_key", lambda *_a, **_k: None)
+
+    try:
+        with TestClient(app) as client:
+            res = client.post(
+                "/cv/upload/finalize",
+                json={"storage_path": "u1/key-photo.jpg", "idempotency_key": "idem-photo"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert res.status_code == 202, res.text
+    assert read == [photo]
+    assert storage.removed == ["u1/key-photo.jpg"]
+
+
+def test_finalize_keeps_the_object_when_the_photo_reader_is_down(monkeypatch) -> None:
+    """Transient: the retry must finalize without the person picking the file again."""
+    _override_principal_and_repo(_FakeCVRepository())
+    storage = _FakeStorageBucket(data=b"\xff\xd8\xff\xe0" + b"\x00" * 4096)
+    _patch_storage(monkeypatch, storage)
+    _patch_xp(monkeypatch, balance=3000)
+
+    async def _vision_down(_bytes: bytes, **_kwargs: Any) -> str:
+        raise cv_workflow.cv_parser.CVReaderUnavailable("vision transcription failed")
+
+    monkeypatch.setattr(cv_workflow.cv_parser, "read_cv_file", _vision_down)
+    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "find_by_idempotency_key", lambda *_a, **_k: None)
+
+    try:
+        with TestClient(app) as client:
+            res = client.post(
+                "/cv/upload/finalize",
+                json={"storage_path": "u1/key-photo.jpg", "idempotency_key": "idem-down"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert res.status_code == 503
+    assert storage.removed == []
+
+
 def test_finalize_unreadable_text_422_deletes_object(monkeypatch) -> None:
     _override_principal_and_repo(_FakeCVRepository())
     storage = _FakeStorageBucket()
     _patch_storage(monkeypatch, storage)
     _patch_xp(monkeypatch, balance=3000)
-    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "   ")  # < 80 chars → CVUP4 guard
+    monkeypatch.setattr(cv_workflow.cv_parser, "read_cv_file", _reads_as(lambda *_a, **_k: "   "))  # < 80 chars → CVUP4 guard
     monkeypatch.setattr(cv_workflow.upload_jobs_repo, "find_by_idempotency_key", lambda *_a, **_k: None)
 
     try:

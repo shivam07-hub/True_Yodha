@@ -2,10 +2,8 @@
 
 import { useRef, useState, type ReactNode } from "react"
 import { LoaderCircle, Upload } from "lucide-react"
-import { preflightCVUploadFile } from "@/lib/cv-file-detect"
+import { CV_UPLOAD_ACCEPT, CV_UPLOAD_FORMATS, preflightCVUploadFile } from "@/lib/cv-file-detect"
 import { cn } from "@/lib/utils"
-
-const ACCEPT = ".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 const STEPS = [
   { n: "01", label: "Upload your CV" },
@@ -121,13 +119,13 @@ export function CVUploadStep({ busy, error = null, inputSource, progressPct = nu
               <span className="font-mono text-xs tabular-nums text-[var(--tm-text-muted)]">{progressPct}%</span>
             </span>
           ) : !busy ? (
-            <span className="text-sm text-[var(--tm-text-muted)]">PDF or DOCX, up to 10 MB</span>
+            <span className="text-sm text-[var(--tm-text-muted)]">{CV_UPLOAD_FORMATS}, up to 10 MB</span>
           ) : null}
         </button>
         <input
           ref={inputRef}
           type="file"
-          accept={ACCEPT}
+          accept={CV_UPLOAD_ACCEPT}
           className="sr-only"
           data-source={inputSource}
           onChange={(event) => {
