@@ -24,63 +24,61 @@ First comment: Full issue and the data: https://www.himyro.com/newsletter/2026-1
 
 ## Instagram captions, one per slide
 
-Each caption is that slide's newsletter section, cut to what the slide shows.
-From the laptop they go out folded into one caption, in slide order
-(`caption-laptop.txt` beside the slides). The phone app can post them per slide
-with Multiple Captions. Slides 1 and 8 carry the issue link on the image.
+Rebuilt as a story on 18 Nov (Shivam agreed the storyline): read in order, the
+slide headlines tell it, and each caption is that slide's line of the story. From
+the laptop they go out folded into one caption, in slide order
+(`caption-laptop.txt` beside the slides). Slides 1 and 8 carry the issue link on
+the image. LinkedIn takes the same slides as one document,
+`issue-026-linkedin.pdf`.
 
 Slide 1:
 
-If you are a software engineer looking for a way into risk, the seat is technology risk, and the Big Four post most of it. Deloitte, EY and KPMG post 65.4% of these roles, and 58.2% of them ask for an engineering degree.
+A job that sounds like accounting is hiring engineers: 292 openings in India, most of them at Deloitte, KPMG and EY.
 
 Slide 2:
 
-Deloitte posts 131 technology-risk roles, 44.9% of all of them. KPMG posts 31 (10.6%) and EY 29 (9.9%). Infosys (11) and Cognizant (9) come next.
+It's called technology risk, and it asks for your degree: 58.2% of its roles in India ask for an engineering degree. Across the rest of risk and compliance, 15.1% do.
 
 Slide 3:
 
-Cloud appears in 49.3% of technology-risk roles, against 15.5% across the rest of the lane. Identity and access appears in 39.4%, against 11.3%. Python appears in 8.6%.
+Deloitte alone posts 44.9% of them. With KPMG and EY, it's 65.4% of those 292 roles.
 
 Slide 4:
 
-At the Big Four, 72.3% of these roles ask for an engineering degree. Across the rest of the risk lane, 15.1% do.
+Your cloud and access work already counts: cloud appears in 49.3% of these roles, against 15.5% across the rest of the lane.
 
 Slide 5:
 
-ISO 27001 is named in 102 roles and NIST in 87. CISSP appears in 102, CISA in 95 and CISM in 58. The usual advice runs through credit-risk models: credit risk appears in 1 of the 292.
+Add one framework and one certificate. ISO 27001 and CISSP are each named in 102 roles.
 
 Slide 6:
 
-200 of the 292 roles state a minimum experience. 130 of those (65.0%) ask for five years or less, and 74 (37.0%) for three or less. 13 are entry level.
+Five years of work covers most of them. Only 13 of the 292 are entry level.
 
 Slide 7:
 
-Bengaluru has 44.9% of technology-risk roles. Mumbai has 23.6% and Delhi NCR 18.2%, then Pune (11.3%) and Hyderabad (10.3%). 39.4% of these roles were first posted in the 30 days before we read them.
+Nearly half are in Bengaluru: 44.9%.
 
 Slide 8:
 
-23 build roles sit inside the risk lane. Goldman Sachs posts 7, Wipro 3, American Express 2 and Deloitte 2.
-
-Tailor your CV to jobs like these. Link in bio.
+Pick one of these roles and tailor your CV to it. Link in bio.
 
 First comment: #cybersecurity #jobsearch #softwareengineer #bigfour #himyro
 
 ### One caption, for the laptop
 
-If you are a software engineer looking for a way into risk, the seat is technology risk, and the Big Four post most of it. Deloitte, EY and KPMG post 65.4% of these roles, and 58.2% of them ask for an engineering degree.
+A job that sounds like accounting is hiring engineers: 292 openings in India, most of them at Deloitte, KPMG and EY.
 
-Deloitte posts 131 technology-risk roles, 44.9% of all of them. KPMG posts 31 (10.6%) and EY 29 (9.9%). Infosys (11) and Cognizant (9) come next.
+It's called technology risk, and it asks for your degree: 58.2% of its roles in India ask for an engineering degree. Across the rest of risk and compliance, 15.1% do.
 
-Cloud appears in 49.3% of technology-risk roles, against 15.5% across the rest of the lane. Identity and access appears in 39.4%, against 11.3%. Python appears in 8.6%.
+Deloitte alone posts 44.9% of them. With KPMG and EY, it's 65.4% of those 292 roles.
 
-At the Big Four, 72.3% of these roles ask for an engineering degree. Across the rest of the risk lane, 15.1% do.
+Your cloud and access work already counts: cloud appears in 49.3% of these roles, against 15.5% across the rest of the lane.
 
-ISO 27001 is named in 102 roles and NIST in 87. CISSP appears in 102, CISA in 95 and CISM in 58. The usual advice runs through credit-risk models: credit risk appears in 1 of the 292.
+Add one framework and one certificate. ISO 27001 and CISSP are each named in 102 roles.
 
-200 of the 292 roles state a minimum experience. 130 of those (65.0%) ask for five years or less, and 74 (37.0%) for three or less. 13 are entry level.
+Five years of work covers most of them. Only 13 of the 292 are entry level.
 
-Bengaluru has 44.9% of technology-risk roles. Mumbai has 23.6% and Delhi NCR 18.2%, then Pune (11.3%) and Hyderabad (10.3%). 39.4% of these roles were first posted in the 30 days before we read them.
+Nearly half are in Bengaluru: 44.9%.
 
-23 build roles sit inside the risk lane. Goldman Sachs posts 7, Wipro 3, American Express 2 and Deloitte 2.
-
-Tailor your CV to jobs like these. Link in bio.
+Pick one of these roles and tailor your CV to it. Link in bio.

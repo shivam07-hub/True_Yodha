@@ -12,16 +12,74 @@
   box-sizing: border-box;
 }
 
-/* The job page sits behind the popup. Bars stand in for a listing so the
+/* A browser, drawn just enough to be read as one: a tab, an address bar and
+   the extension's icon in the toolbar. Bars stand in for the listing so the
    picture stays a picture of the action, not a made-up company. */
 .ext-scene {
   position: relative;
   width: 100%;
-  height: 148px;
+  height: 160px;
   overflow: hidden;
   border: 1px solid var(--tm-border);
   border-radius: var(--tm-radius);
   background: var(--tm-bg);
+}
+
+.ext-tabs {
+  display: flex;
+  align-items: flex-end;
+  height: 26px;
+  padding: 0 8px;
+  background: var(--tm-surface-2);
+}
+
+.ext-tab {
+  max-width: 60%;
+  padding: 5px 10px;
+  border-radius: var(--tm-radius-sm) var(--tm-radius-sm) 0 0;
+  background: var(--tm-bg);
+  font-size: var(--tm-fs-micro);
+  line-height: 1.2;
+  color: var(--tm-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ext-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--tm-border-subtle);
+}
+
+.ext-url {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 10px;
+  border-radius: var(--tm-radius-pill);
+  background: var(--tm-surface-2);
+  font-size: var(--tm-fs-micro);
+  line-height: 1.2;
+  color: var(--tm-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The icon that was clicked: the popup hangs from it. */
+.ext-toolbar-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--tm-radius-sm);
+  background: var(--tm-interactive-wash);
+  color: var(--tm-text);
 }
 
 .ext-page {
@@ -29,10 +87,10 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
+  max-width: calc(100% - 164px);
   padding: 12px 14px;
 }
 
-.ext-kicker,
 .ext-meta {
   font-size: var(--tm-fs-caption);
   line-height: 1.2;
@@ -48,23 +106,24 @@
 
 .ext-bar {
   display: block;
+  width: 100%;
   height: 6px;
-  width: calc(100% - 150px);
   margin-top: 4px;
   border-radius: var(--tm-radius-sm);
   background: var(--tm-surface-3);
 }
 
-.ext-bar--short { width: calc(100% - 210px); margin-top: 0; }
+.ext-bar--short { width: 70%; margin-top: 0; }
 
+/* Right edge and caret line up under .ext-toolbar-icon. */
 .ext-pop {
   position: absolute;
-  right: 8px;
-  bottom: 8px;
+  top: 64px;
+  right: 6px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  width: 132px;
+  gap: 6px;
+  width: 140px;
   padding: 8px;
   border: 1px solid var(--tm-border);
   border-radius: var(--tm-radius);
@@ -72,22 +131,34 @@
   box-shadow: var(--tm-shadow-2);
 }
 
-.ext-pop-head {
+.ext-pop::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  right: 8px;
+  width: 10px;
+  height: 10px;
+  border-top: 1px solid var(--tm-border);
+  border-left: 1px solid var(--tm-border);
+  background: var(--tm-surface);
+  transform: rotate(45deg);
+}
+
+.ext-pop-brand {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  font-size: var(--tm-fs-micro);
+  line-height: 1.2;
+  color: var(--tm-text-muted);
+}
+
+.ext-pop-title {
+  font-size: var(--tm-fs-caption);
+  font-weight: 600;
+  line-height: 1.2;
   color: var(--tm-text);
 }
-
-.ext-pop-brand,
-.ext-pop-title {
-  display: block;
-  font-size: var(--tm-fs-caption);
-  line-height: 1.2;
-}
-
-.ext-pop-brand { color: var(--tm-text-muted); }
-.ext-pop-title { font-weight: 600; }
 
 .ext-pop-btn {
   display: block;
@@ -98,4 +169,55 @@
   font-size: var(--tm-fs-caption);
   font-weight: 600;
   text-align: center;
+}
+
+/* Add a job: the last way in, under link, file and paste. */
+.ext-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius);
+  color: var(--tm-text-muted);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--tm-dur) var(--tm-ease), border-color var(--tm-dur) var(--tm-ease);
+}
+
+.ext-row:hover {
+  background: var(--tm-bg-surface-hover);
+  border-color: var(--tm-int-border-soft);
+}
+
+.ext-row:focus-visible {
+  outline: none;
+  border-color: var(--tm-int-border);
+  box-shadow: 0 0 0 3px var(--tm-int-bg-wash);
+}
+
+.ext-row-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ext-row-title {
+  font-size: var(--tm-fs-body);
+  font-weight: 600;
+  color: var(--tm-text);
+}
+
+.ext-row-sub {
+  font-size: var(--tm-fs-caption);
+  color: var(--tm-text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ext-row { transition: none; }
 }

@@ -1,38 +1,44 @@
+"""Payments: create an order, verify it, take Razorpay's webhook.
+
+Thin by design (ARCHITECTURE_PAYMENTS.md §3). Prices and availability come from
+`billing_catalogue`, every Razorpay call from `razorpay_gateway`, and both the
+checkout verify and the webhook hand the arrival to `settlement.settle`, which
+grants exactly once.
+
+The ₹199/month engagement (`job_switch_plan`) is a Razorpay subscription, not an
+order, and keeps its own path below until S5 deletes it.
+"""
+
 from __future__ import annotations
 
-import hashlib
-import hmac
 import json
 import logging
 import secrets
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
-import razorpay
-import requests
-from fastapi.concurrency import run_in_threadpool
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from razorpay import errors as razorpay_errors
 
-from app.config import settings
 from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
 from app.services import (
-    ai_workflow_audit,
+    billing_catalogue as catalogue,
     engagement_subscription as eng,
-    filing_intake,
+    human_check,
     job_switch_plan_service,
+    razorpay_gateway as gateway,
+    settlement,
     xp_service,
 )
+from app.services.billing_catalogue import CURRENCY, Product, UnknownProduct
+from app.services.razorpay_gateway import Arrival, Failure
 
-CURRENCY = "INR"
-RAZORPAY_ORDER_TIMEOUT_SECONDS = 12
+router = APIRouter(prefix="/api", tags=["payments"])
+logger = logging.getLogger(__name__)
 
-# Webhook events that fulfil money received. `payment.captured` is the one-shot
-# path. Subscription charges use `subscription.charged` (first month and renewals).
-_HANDLED_WEBHOOK_EVENTS = {"payment.captured"}
 _SUBSCRIPTION_WEBHOOK_EVENTS = {
     "subscription.charged",
     "subscription.activated",
@@ -42,60 +48,12 @@ _SUBSCRIPTION_WEBHOOK_EVENTS = {
 }
 
 
-@dataclass(frozen=True)
-class Product:
-    """A purchasable item. ``key`` is the value persisted in billing_payments.product."""
-
-    key: str
-    price_paise: int
-    xp_amount: int  # 0 for entitlement products
-    kind: str  # "xp" | "entitlement"
-
-
-# Friendly request alias -> Product. Existing XP-pack clients omit the product
-# field entirely, so "xp_pack" must stay the default.
-PRODUCTS: dict[str, Product] = {
-    "xp_pack": Product(key="myro_xp_launch_pack", price_paise=9900, xp_amount=1000, kind="xp"),
-    "myrology": Product(key="myro_myrology_unlock", price_paise=29900, xp_amount=0, kind="entitlement"),
-    # ₹199 / month Personalised Engagement (ENG1). Entitlement → staffs the
-    # scene and opens this month's human pass. Recurring charges renew the period.
-    "job_switch_plan": Product(key="myro_job_switch_plan", price_paise=19900, xp_amount=0, kind="entitlement"),
-    # ₹999 AI Workflow Audit. A human reads the workflow the buyer actually runs
-    # and writes them an answer, so intake is BOUNDED — see the availability
-    # guard in create_order. It paywalls nothing that is free today.
-    "ai_workflow_audit": Product(
-        key="myro_ai_workflow_audit",
-        price_paise=ai_workflow_audit.AUDIT_PRICE_PAISE,
-        xp_amount=0,
-        kind="entitlement",
-    ),
-    # ₹599 once. A person, a role, the career pages, and consent. Separate from
-    # the ₹199 Apply Pack, which stays the closer.
-    "filing_intake": Product(
-        key="myro_filing_intake",
-        price_paise=filing_intake.FILING_INTAKE_PRICE_PAISE,
-        xp_amount=0,
-        kind="entitlement",
-    ),
-}
-# Reverse lookup keyed by the persisted product key (used on verify).
-_PRODUCT_BY_KEY: dict[str, Product] = {p.key: p for p in PRODUCTS.values()}
-
-# Back-compat constants referenced elsewhere / in tests.
-XP_PACK_PRICE_PAISE = PRODUCTS["xp_pack"].price_paise
-XP_PACK_AMOUNT = PRODUCTS["xp_pack"].xp_amount
-XP_PACK_CURRENCY = CURRENCY
-XP_PACK_PRODUCT = PRODUCTS["xp_pack"].key
-
-router = APIRouter(prefix="/api", tags=["payments"])
-logger = logging.getLogger(__name__)
-
-
 class CreateOrderRequest(BaseModel):
     amount: int
     currency: str = CURRENCY
-    product: str = "xp_pack"
+    product: str
     receipt: str | None = Field(default=None, max_length=40)
+    job_id: str | None = Field(default=None, max_length=200)
 
 
 class CreateOrderResponse(BaseModel):
@@ -122,84 +80,44 @@ class VerifyPaymentResponse(BaseModel):
     job_switch_plan_active: bool = False
 
 
+class WebhookAck(BaseModel):
+    status: str
+
+
+def _settlement_store() -> settlement.SettlementStore:
+    return settlement.SupabaseSettlementStore()
+
+
+def _grants() -> settlement.Grants:
+    return settlement.default_grants()
+
+
 def _default_receipt() -> str:
     """Opaque gateway receipt; never disclose the account id to Razorpay."""
     return f"myro_{secrets.token_hex(10)}"
 
 
-def _clean_credential(value: str) -> str:
-    cleaned = value.strip()
-    if len(cleaned) >= 2 and cleaned[0] == cleaned[-1] and cleaned[0] in {"'", '"'}:
-        cleaned = cleaned[1:-1].strip()
-    return cleaned
+def _gateway_http_error(exc: Exception) -> HTTPException:
+    if isinstance(exc, gateway.GatewayNotConfigured):
+        return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Razorpay credentials are not configured")
+    if isinstance(exc, gateway.GatewayAuthFailed):
+        return HTTPException(status.HTTP_401_UNAUTHORIZED, "Razorpay authentication failed")
+    if isinstance(exc, gateway.GatewayUnreachable):
+        return HTTPException(status.HTTP_502_BAD_GATEWAY, "Payment gateway is temporarily unavailable")
+    return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, str(exc) or "Razorpay order creation failed")
 
 
-def _razorpay_credentials() -> tuple[str, str]:
-    key_id = _clean_credential(settings.razorpay_key_id)
-    key_secret = _clean_credential(settings.razorpay_key_secret)
-    if not key_id or not key_secret:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Razorpay credentials are not configured",
-        )
-    return key_id, key_secret
+_GATEWAY_ERRORS = (
+    gateway.GatewayNotConfigured,
+    gateway.GatewayAuthFailed,
+    gateway.GatewayFailed,
+    gateway.GatewayUnreachable,
+)
 
-
-def _razorpay_client() -> razorpay.Client:
-    key_id, key_secret = _razorpay_credentials()
-    client = razorpay.Client(
-        auth=(key_id, key_secret),
-        max_retries=3,
-        initial_delay=0.4,
-        max_delay=2,
-        jitter=0.2,
-    )
-    client.enable_retry(True)
-    return client
-
-
-def _create_razorpay_subscription(payload: dict[str, Any]) -> dict[str, Any]:
-    client = _razorpay_client()
-    return client.subscription.create(payload, timeout=RAZORPAY_ORDER_TIMEOUT_SECONDS)
-
-
-def _create_razorpay_order(payload: dict[str, Any]) -> dict[str, Any]:
-    client = _razorpay_client()
-    return client.order.create(payload, timeout=RAZORPAY_ORDER_TIMEOUT_SECONDS)
-
-
-def _razorpay_error(exc: Exception) -> HTTPException:
-    message = str(exc) or "Razorpay order creation failed"
-    lowered = message.lower()
-    is_auth_error = any(term in lowered for term in ("auth", "key", "credential", "secret", "token"))
-    return HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED if is_auth_error else status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail="Razorpay authentication failed" if is_auth_error else "Razorpay order creation failed",
-    )
-
-
-def _signature_matches(order_id: str, payment_id: str, provided_signature: str) -> bool:
-    _, key_secret = _razorpay_credentials()
-    expected = hmac.new(
-        key_secret.encode("utf-8"),
-        f"{order_id}|{payment_id}".encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
-    return hmac.compare_digest(expected, provided_signature)
-
-
-def _webhook_signature_matches(raw_body: bytes, provided_signature: str) -> bool:
-    """Razorpay signs the RAW webhook body with the webhook secret (distinct
-    from the API key secret). The signature must be computed over the exact
-    bytes received — never the re-serialised JSON."""
-    secret = _clean_credential(settings.razorpay_webhook_secret)
-    expected = hmac.new(secret.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(expected, provided_signature)
-
-
-def _extract_order_and_payment(event: dict[str, Any]) -> tuple[str | None, str | None]:
-    entity = (((event.get("payload") or {}).get("payment") or {}).get("entity") or {})
-    return entity.get("order_id"), entity.get("id")
+_UNAVAILABLE_DETAIL = {
+    "not_configured": "Payments are not open yet.",
+    "audit_full": "All audit slots are taken this week. Leave your email and we will open the next one to you first.",
+}
 
 
 def _record_created_payment(
@@ -209,8 +127,8 @@ def _record_created_payment(
     amount_paise: int,
     currency: str,
     receipt: str,
-    xp_amount: int,
-    product_key: str,
+    product: Product,
+    job_id: str | None = None,
     razorpay_subscription_id: str | None = None,
 ) -> None:
     row: dict[str, Any] = {
@@ -219,18 +137,216 @@ def _record_created_payment(
         "amount_paise": amount_paise,
         "currency": currency,
         "receipt": receipt,
-        "xp_amount": xp_amount,
-        "product": product_key,
+        "xp_amount": product.coins,
+        "product": product.key,
         "status": "created",
     }
+    if job_id:
+        row["job_id"] = job_id
     if razorpay_subscription_id:
         row["razorpay_subscription_id"] = razorpay_subscription_id
     result = get_supabase_admin().table("billing_payments").insert(row).execute()
     if not result.data:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to record payment order",
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to record payment order")
+
+
+class CatalogueProduct(BaseModel):
+    alias: str
+    price_paise: int
+    coins: int
+    human_checks: int
+    available: bool
+    unavailable_reason: str | None = None
+
+
+class HumanCheckOffer(BaseModel):
+    checks_full: bool
+    ready_by: str  # when a check bought now comes back, shown before paying
+    linkedin_coins: int
+
+
+class CatalogueOut(BaseModel):
+    products: list[CatalogueProduct]
+    human_check: HumanCheckOffer
+
+
+def _catalogue() -> CatalogueOut:
+    products = []
+    for product in catalogue.listed():
+        available = catalogue.availability(product)
+        products.append(
+            CatalogueProduct(
+                alias=product.alias,
+                price_paise=product.price_paise,
+                coins=product.coins,
+                human_checks=product.human_checks,
+                available=available.available,
+                unavailable_reason=available.reason,
+            )
         )
+    slots = human_check.availability(human_check.SupabaseHumanCheckStore())
+    return CatalogueOut(
+        products=products,
+        human_check=HumanCheckOffer(
+            checks_full=slots.checks_full,
+            ready_by=slots.ready_by.isoformat(),
+            linkedin_coins=human_check.LINKEDIN_CHECK_COINS,
+        ),
+    )
+
+
+@router.get("/catalogue", response_model=CatalogueOut)
+async def get_catalogue() -> CatalogueOut:
+    """Every buy button renders from this: price, whether the server will take
+    the order, and when a Human Check bought now comes back."""
+    return await run_in_threadpool(_catalogue)
+
+
+@router.post("/create-order", response_model=CreateOrderResponse, response_model_exclude_none=True)
+async def create_order(
+    body: CreateOrderRequest,
+    principal: Principal = Depends(get_principal),
+) -> CreateOrderResponse:
+    try:
+        product = catalogue.by_alias(body.product)
+    except UnknownProduct:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unknown product") from None
+
+    currency = body.currency.strip().upper()
+    if currency != CURRENCY:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Only INR payments are supported")
+    if body.amount != product.price_paise:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Amount does not match the selected product price")
+
+    available = await run_in_threadpool(catalogue.availability, product)
+    if not available.available:
+        code = status.HTTP_503_SERVICE_UNAVAILABLE if available.reason == "not_configured" else status.HTTP_409_CONFLICT
+        raise HTTPException(code, _UNAVAILABLE_DETAIL.get(str(available.reason), "Not available right now."))
+
+    # The caller-provided receipt is deliberately ignored: account data must
+    # not be forwarded to the payment processor.
+    receipt = _default_receipt()
+
+    if product.billing == "subscription":
+        return await _create_engagement_subscription(principal.id, product, currency, receipt)
+
+    try:
+        order = await run_in_threadpool(
+            gateway.create_order, amount_paise=product.price_paise, currency=currency, receipt=receipt
+        )
+    except _GATEWAY_ERRORS as exc:
+        raise _gateway_http_error(exc) from exc
+
+    order_id = str(order["id"])
+    amount = int(order.get("amount", product.price_paise))
+    order_currency = str(order.get("currency", currency))
+    await run_in_threadpool(
+        _record_created_payment,
+        user_id=principal.id,
+        razorpay_order_id=order_id,
+        amount_paise=amount,
+        currency=order_currency,
+        receipt=receipt,
+        product=product,
+        job_id=body.job_id,
+    )
+    return CreateOrderResponse(order_id=order_id, amount=amount, currency=order_currency, product=product.key)
+
+
+@router.post("/verify-payment", response_model=VerifyPaymentResponse)
+async def verify_payment(
+    body: VerifyPaymentRequest,
+    principal: Principal = Depends(get_principal),
+) -> VerifyPaymentResponse | JSONResponse:
+    if not body.razorpay_order_id or not body.razorpay_payment_id or not body.razorpay_signature:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Missing payment verification fields")
+    if not gateway.configured():
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Razorpay credentials are not configured")
+
+    if body.razorpay_subscription_id:
+        return await _verify_engagement_subscription(body, principal.id)
+
+    if not gateway.checkout_signature_ok(body.razorpay_order_id, body.razorpay_payment_id, body.razorpay_signature):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Signature mismatch")
+
+    arrival = Arrival(
+        order_id=body.razorpay_order_id,
+        payment_id=body.razorpay_payment_id,
+        source="checkout",
+        user_id=principal.id,
+    )
+    try:
+        result = await settlement.settle(arrival, store=_settlement_store(), grants=_grants())
+    except UnknownProduct:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Payment order has an unknown product") from None
+
+    if result.outcome == "unknown_order":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unknown payment order")
+    if result.outcome == "amount_mismatch":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Payment order does not match product price")
+    if result.outcome == "grant_pending":
+        # Money is in; the grant has not finished. The next arrival (the
+        # webhook, or this call retried) finishes it.
+        return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content={"outcome": "grant_pending"})
+
+    product = result.product
+    assert product is not None  # granted / already_granted always carry it
+    balance = result.new_coin_balance
+    if balance is None:
+        balance = await xp_service.get_xp_balance(principal.id)
+    return VerifyPaymentResponse(
+        success=True,
+        coins_earned=product.coins if result.outcome == "granted" else 0,
+        new_coin_balance=balance,
+        product=product.key,
+        myrology_unlocked=product.alias == "myrology",
+    )
+
+
+@router.post("/razorpay/webhook", response_model=WebhookAck)
+async def razorpay_webhook(
+    request: Request,
+    x_razorpay_signature: str | None = Header(default=None),
+) -> WebhookAck | JSONResponse:
+    """Server-to-server arrival. Razorpay POSTs `payment.captured` whether or
+    not the browser ever called /verify-payment (tab closed after the charge).
+
+    A grant that has not finished answers 500 so Razorpay delivers again; every
+    other validly signed event answers 2xx so it stops.
+    """
+    if not gateway.webhook_secret():
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Razorpay webhook is not configured")
+
+    raw_body = await request.body()
+    if not x_razorpay_signature or not gateway.webhook_signature_ok(raw_body, x_razorpay_signature):
+        logger.warning("metric webhook.bad_signature bytes=%d", len(raw_body))
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid webhook signature")
+
+    try:
+        event = json.loads(raw_body)
+    except (ValueError, TypeError):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Malformed webhook payload") from None
+    if not isinstance(event, dict):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Malformed webhook payload")
+
+    if event.get("event") in _SUBSCRIPTION_WEBHOOK_EVENTS:
+        return await _reconcile_subscription_event(event, x_razorpay_signature)
+
+    parsed = gateway.parse_webhook(event)
+    if parsed is None:
+        return WebhookAck(status="ignored")
+    if isinstance(parsed, Failure):
+        await settlement.record_failure(parsed, store=_settlement_store())
+        return WebhookAck(status="failed")
+
+    result = await settlement.settle(parsed, store=_settlement_store(), grants=_grants())
+    if result.outcome == "grant_pending":
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"status": "grant_pending"})
+    logger.info("metric webhook.settled outcome=%s", result.outcome)
+    return WebhookAck(status=result.outcome)
+
+
+# ── ₹199/month engagement (subscription). Deleted in S5. ──────────────────────
 
 
 def _find_payment_by_order(*, user_id: str, razorpay_order_id: str) -> dict[str, Any] | None:
@@ -260,6 +376,37 @@ def _find_payment_by_subscription_id(subscription_id: str) -> dict[str, Any] | N
     return rows[0] if rows else None
 
 
+def _find_payment_by_payment_id(razorpay_payment_id: str) -> dict[str, Any] | None:
+    result = (
+        get_supabase_admin()
+        .table("billing_payments")
+        .select("*")
+        .eq("razorpay_payment_id", razorpay_payment_id)
+        .maybe_single()
+        .execute()
+    )
+    return (result.data if result else None) or None
+
+
+def _mark_payment_verified(*, payment_row_id: str, razorpay_payment_id: str, razorpay_signature: str) -> bool:
+    result = (
+        get_supabase_admin()
+        .table("billing_payments")
+        .update(
+            {
+                "status": "verified",
+                "razorpay_payment_id": razorpay_payment_id,
+                "razorpay_signature": razorpay_signature,
+                "verified_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+        .eq("id", payment_row_id)
+        .eq("status", "created")
+        .execute()
+    )
+    return bool(result.data)
+
+
 def _record_renewal_payment(
     *,
     user_id: str,
@@ -287,92 +434,9 @@ def _record_renewal_payment(
     ).execute()
 
 
-def _find_payment_by_payment_id(razorpay_payment_id: str) -> dict[str, Any] | None:
-    result = (
-        get_supabase_admin()
-        .table("billing_payments")
-        .select("*")
-        .eq("razorpay_payment_id", razorpay_payment_id)
-        .maybe_single()
-        .execute()
-    )
-    return (result.data if result else None) or None
-
-
-def _find_payment_by_order_id(razorpay_order_id: str) -> dict[str, Any] | None:
-    """Order lookup WITHOUT a user scope — the webhook is server-to-server and
-    has no authenticated principal; it reconciles purely on the order id."""
-    result = (
-        get_supabase_admin()
-        .table("billing_payments")
-        .select("*")
-        .eq("razorpay_order_id", razorpay_order_id)
-        .maybe_single()
-        .execute()
-    )
-    return (result.data if result else None) or None
-
-
-def _mark_payment_verified(
-    *,
-    payment_row_id: str,
-    razorpay_payment_id: str,
-    razorpay_signature: str,
-) -> bool:
-    result = (
-        get_supabase_admin()
-        .table("billing_payments")
-        .update(
-            {
-                "status": "verified",
-                "razorpay_payment_id": razorpay_payment_id,
-                "razorpay_signature": razorpay_signature,
-                "verified_at": datetime.now(timezone.utc).isoformat(),
-            }
-        )
-        .eq("id", payment_row_id)
-        .eq("status", "created")
-        .execute()
-    )
-    return bool(result.data)
-
-
-def _unlock_myrology(user_id: str) -> None:
-    # Paying implies interest — set both so the payer gets the nav icon without
-    # hunting the opt-in toggle. `myrology_unlocked` still guards the paid routes.
-    get_supabase_admin().table("user_profiles").update(
-        {"myrology_unlocked": True, "myrology_interested": True}
-    ).eq("id", user_id).execute()
-
-
-def _apply_entitlement(user_id: str, product: Product, payment: dict[str, Any] | None = None) -> None:
-    """Grant the effect of an entitlement product. Dispatches by product key so
-    each entitlement owns its own fulfilment (Myrology unlock vs Job-Switch Plan
-    activation). Runs inside the won-CAS path → exactly-once."""
-    if product.key == PRODUCTS["job_switch_plan"].key:
-        sub_id = str((payment or {}).get("razorpay_subscription_id") or "") or None
-        job_switch_plan_service.activate_plan(user_id, subscription_id=sub_id)
-    elif product.key == PRODUCTS["ai_workflow_audit"].key:
-        ai_workflow_audit.activate_audit(user_id)
-    elif product.key == PRODUCTS["filing_intake"].key:
-        filing_intake.mark_paid(user_id)
-    else:
-        _unlock_myrology(user_id)
-
-
-async def _apply_fulfilment(user_id: str, product: Product, payment: dict[str, Any]) -> int:
-    """Apply a product's effect and return the resulting XP balance.
-
-    MUST only be called by the path that won the atomic created->verified CAS
-    (``_mark_payment_verified`` returning True), or on a confirmed-idempotent
-    replay. That guard is what makes fulfilment exactly-once across the browser
-    verify path, the webhook, and webhook retries — never double-credit / double-grant.
-    """
-    if product.kind == "entitlement":
-        await run_in_threadpool(_apply_entitlement, user_id, product, payment)
-        return await xp_service.get_xp_balance(user_id)
-    xp_amount = int(payment.get("xp_amount") or product.xp_amount)
-    return await xp_service.earn_xp(user_id, xp_amount)
+def _activate_engagement(user_id: str, payment: dict[str, Any]) -> None:
+    sub_id = str(payment.get("razorpay_subscription_id") or "") or None
+    job_switch_plan_service.activate_plan(user_id, subscription_id=sub_id)
 
 
 async def _create_engagement_subscription(
@@ -383,218 +447,63 @@ async def _create_engagement_subscription(
 ) -> CreateOrderResponse:
     eng.require_sale(open_pass_count=job_switch_plan_service.open_pass_count)
     if await run_in_threadpool(job_switch_plan_service.has_active_subscription, user_id):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="You already have a live engagement.",
-        )
+        raise HTTPException(status.HTTP_409_CONFLICT, "You already have a live engagement.")
     try:
-        sub = await run_in_threadpool(_create_razorpay_subscription, eng.subscription_payload())
-    except (razorpay_errors.BadRequestError, razorpay_errors.GatewayError, razorpay_errors.ServerError) as exc:
-        logger.warning("Razorpay subscription create failed reason=%s", type(exc).__name__)
-        raise _razorpay_error(exc) from exc
-    except requests.exceptions.RequestException as exc:
-        logger.error("Razorpay network failure reason=%s", type(exc).__name__)
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Payment gateway is temporarily unavailable",
-        ) from exc
-    sub_id = sub.get("id")
-    if not sub_id:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Razorpay did not return a subscription id",
-        )
+        sub = await run_in_threadpool(gateway.create_subscription, eng.subscription_payload())
+    except _GATEWAY_ERRORS as exc:
+        raise _gateway_http_error(exc) from exc
+    sub_id = str(sub["id"])
     await run_in_threadpool(
         _record_created_payment,
         user_id=user_id,
-        razorpay_order_id=str(sub_id),
+        razorpay_order_id=sub_id,
         amount_paise=product.price_paise,
         currency=currency,
         receipt=receipt,
-        xp_amount=0,
-        product_key=product.key,
-        razorpay_subscription_id=str(sub_id),
+        product=product,
+        razorpay_subscription_id=sub_id,
     )
     return CreateOrderResponse(
-        order_id=str(sub_id),
+        order_id=sub_id,
         amount=product.price_paise,
         currency=currency,
         product=product.key,
-        subscription_id=str(sub_id),
+        subscription_id=sub_id,
     )
 
 
-@router.post("/create-order", response_model=CreateOrderResponse, response_model_exclude_none=True)
-async def create_order(
-    body: CreateOrderRequest,
-    principal: Principal = Depends(get_principal),
-) -> CreateOrderResponse:
-    product = PRODUCTS.get(body.product)
-    if product is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown product")
-
-    currency = body.currency.strip().upper()
-    if currency != CURRENCY:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only INR payments are supported")
-
-    # Capacity is checked BEFORE the order, never after the payment. Refusing to
-    # sell is recoverable; taking money for work the reviewer queue cannot
-    # absorb is not. This is the only product with a per-unit human cost.
-    if product.key == PRODUCTS["ai_workflow_audit"].key and not await run_in_threadpool(
-        ai_workflow_audit.is_available
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="All audit slots are taken this week. Leave your email and we will open the next one to you first.",
-        )
-
-    if body.amount != product.price_paise:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Amount does not match the selected product price",
-        )
-
-    # The caller-provided legacy field is deliberately ignored: arbitrary
-    # account data must not be forwarded to the payment processor.
-    receipt = _default_receipt()
-    if len(receipt) > 40:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Receipt must be 40 characters or fewer")
-
-    if product.key == PRODUCTS["job_switch_plan"].key:
-        return await _create_engagement_subscription(principal.id, product, currency, receipt)
-
-    payload = {
-        "amount": product.price_paise,
-        "currency": currency,
-        "receipt": receipt,
-    }
-
-    try:
-        order = await run_in_threadpool(_create_razorpay_order, payload)
-    except (razorpay_errors.BadRequestError, razorpay_errors.GatewayError, razorpay_errors.ServerError) as exc:
-        logger.warning("Razorpay order create failed reason=%s", type(exc).__name__)
-        raise _razorpay_error(exc) from exc
-    except requests.exceptions.RequestException as exc:
-        logger.error("Razorpay network failure reason=%s", type(exc).__name__)
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Payment gateway is temporarily unavailable",
-        ) from exc
-
-    order_id = order.get("id")
-    if not order_id:
-        logger.error("Razorpay order create returned no id")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Razorpay did not return an order id",
-        )
-
-    await run_in_threadpool(
-        _record_created_payment,
-        user_id=principal.id,
-        razorpay_order_id=order_id,
-        amount_paise=int(order.get("amount", product.price_paise)),
-        currency=str(order.get("currency", currency)),
-        receipt=receipt,
-        xp_amount=product.xp_amount,
-        product_key=product.key,
-    )
-
-    return CreateOrderResponse(
-        order_id=order_id,
-        amount=int(order.get("amount", product.price_paise)),
-        currency=str(order.get("currency", currency)),
-        product=product.key,
-    )
-
-
-@router.post("/verify-payment", response_model=VerifyPaymentResponse)
-async def verify_payment(
-    body: VerifyPaymentRequest,
-    principal: Principal = Depends(get_principal),
-) -> VerifyPaymentResponse:
-    if not body.razorpay_order_id or not body.razorpay_payment_id or not body.razorpay_signature:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Missing payment verification fields",
-        )
-    if not _clean_credential(settings.razorpay_key_secret):
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Razorpay credentials are not configured",
-        )
-
+async def _verify_engagement_subscription(body: VerifyPaymentRequest, user_id: str) -> VerifyPaymentResponse:
+    assert body.razorpay_order_id and body.razorpay_payment_id and body.razorpay_signature
     payment = await run_in_threadpool(
-        _find_payment_by_order,
-        user_id=principal.id,
-        razorpay_order_id=body.razorpay_order_id,
+        _find_payment_by_order, user_id=user_id, razorpay_order_id=body.razorpay_order_id
     )
     if not payment:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown payment order")
-
-    secret = _clean_credential(settings.razorpay_key_secret)
-    sub_id = body.razorpay_subscription_id or payment.get("razorpay_subscription_id")
-    if sub_id:
-        signed = eng.subscription_signature_matches(
-            body.razorpay_payment_id, str(sub_id), body.razorpay_signature, secret
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unknown payment order")
+    _, secret = gateway.credentials()
+    if not eng.subscription_signature_matches(
+        body.razorpay_payment_id, str(body.razorpay_subscription_id), body.razorpay_signature, secret
+    ):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Signature mismatch")
+    product = catalogue.by_key(str(payment.get("product") or ""))
+    if product.billing != "subscription":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Payment order is not a subscription")
+    if payment.get("status") == "created":
+        won = await run_in_threadpool(
+            _mark_payment_verified,
+            payment_row_id=payment["id"],
+            razorpay_payment_id=body.razorpay_payment_id,
+            razorpay_signature=body.razorpay_signature,
         )
-    else:
-        signed = _signature_matches(body.razorpay_order_id, body.razorpay_payment_id, body.razorpay_signature)
-    if not signed:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Signature mismatch")
-
-    product = _PRODUCT_BY_KEY.get(str(payment.get("product") or XP_PACK_PRODUCT))
-    if product is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment order has an unknown product")
-
-    payment_currency = str(payment.get("currency", "")).strip().upper()
-    if int(payment.get("amount_paise", 0)) != product.price_paise or payment_currency != CURRENCY:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment order does not match product price")
-
-    # Idempotent replay of an already-verified order.
-    if payment.get("status") == "verified":
-        if payment.get("razorpay_payment_id") != body.razorpay_payment_id:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment order was already verified")
-        return await _fulfilment_snapshot(principal.id, product)
-
-    updated = await run_in_threadpool(
-        _mark_payment_verified,
-        payment_row_id=payment["id"],
-        razorpay_payment_id=body.razorpay_payment_id,
-        razorpay_signature=body.razorpay_signature,
-    )
-    if not updated:
-        latest = await run_in_threadpool(
-            _find_payment_by_order,
-            user_id=principal.id,
-            razorpay_order_id=body.razorpay_order_id,
-        )
-        if latest and latest.get("status") == "verified" and latest.get("razorpay_payment_id") == body.razorpay_payment_id:
-            return await _fulfilment_snapshot(principal.id, product)
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Payment verification is already in progress")
-
-    balance = await _apply_fulfilment(principal.id, product, payment)
-    coins_earned = 0 if product.kind == "entitlement" else int(payment.get("xp_amount") or product.xp_amount)
-    return VerifyPaymentResponse(
-        success=True,
-        coins_earned=coins_earned,
-        new_coin_balance=balance,
-        product=product.key,
-        myrology_unlocked=product.key == PRODUCTS["myrology"].key,
-        job_switch_plan_active=product.key == PRODUCTS["job_switch_plan"].key,
-    )
-
-
-async def _fulfilment_snapshot(user_id: str, product: Product) -> VerifyPaymentResponse:
-    """Response for an already-fulfilled order — earns nothing, reports current state."""
-    balance = await xp_service.get_xp_balance(user_id)
+        if won:
+            await run_in_threadpool(_activate_engagement, user_id, payment)
+    elif payment.get("razorpay_payment_id") != body.razorpay_payment_id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Payment order was already verified")
     return VerifyPaymentResponse(
         success=True,
         coins_earned=0,
-        new_coin_balance=balance,
+        new_coin_balance=await xp_service.get_xp_balance(user_id),
         product=product.key,
-        myrology_unlocked=product.key == PRODUCTS["myrology"].key,
-        job_switch_plan_active=product.key == PRODUCTS["job_switch_plan"].key,
+        job_switch_plan_active=True,
     )
 
 
@@ -609,34 +518,31 @@ async def _reconcile_subscription_event(event: dict[str, Any], signature: str) -
     if not payment:
         logger.warning("metric webhook.unknown_subscription")
         return WebhookAck(status="unknown_order")
-    product = _PRODUCT_BY_KEY.get(str(payment.get("product") or XP_PACK_PRODUCT))
-    if product is None:
+    try:
+        product = catalogue.by_key(str(payment.get("product") or ""))
+    except UnknownProduct:
         return WebhookAck(status="unknown_product")
+    if not charge.payment_id:
+        return WebhookAck(status="ignored")
     if payment.get("status") == "created":
-        if not charge.payment_id:
-            return WebhookAck(status="ignored")
-        updated = await run_in_threadpool(
+        won = await run_in_threadpool(
             _mark_payment_verified,
             payment_row_id=payment["id"],
             razorpay_payment_id=charge.payment_id,
             razorpay_signature=f"webhook:{signature[:80]}",
         )
-        if not updated:
+        if not won:
             return WebhookAck(status="already_verified")
-        await _apply_fulfilment(str(payment["user_id"]), product, payment)
+        await run_in_threadpool(_activate_engagement, str(payment["user_id"]), payment)
         return WebhookAck(status="reconciled")
-    if charge.payment_id and charge.payment_id == payment.get("razorpay_payment_id"):
+    if charge.payment_id == payment.get("razorpay_payment_id"):
         return WebhookAck(status="already_verified")
-    if not charge.payment_id:
-        return WebhookAck(status="ignored")
-    already = await run_in_threadpool(_find_payment_by_payment_id, charge.payment_id)
-    if already:
+    if await run_in_threadpool(_find_payment_by_payment_id, charge.payment_id):
         return WebhookAck(status="already_verified")
-    order_id = charge.order_id or f"subcharge_{charge.payment_id}"
     await run_in_threadpool(
         _record_renewal_payment,
         user_id=str(payment["user_id"]),
-        razorpay_order_id=order_id,
+        razorpay_order_id=charge.order_id or f"subcharge_{charge.payment_id}",
         razorpay_payment_id=charge.payment_id,
         razorpay_subscription_id=charge.subscription_id,
         amount_paise=product.price_paise,
@@ -646,88 +552,3 @@ async def _reconcile_subscription_event(event: dict[str, Any], signature: str) -
     await run_in_threadpool(job_switch_plan_service.renew_period, str(payment["user_id"]))
     logger.info("metric webhook.subscription_renewed sub=%s", charge.subscription_id)
     return WebhookAck(status="renewed")
-
-
-class WebhookAck(BaseModel):
-    status: str
-
-
-@router.post("/razorpay/webhook", response_model=WebhookAck)
-async def razorpay_webhook(
-    request: Request,
-    x_razorpay_signature: str | None = Header(default=None),
-) -> WebhookAck:
-    """Server-to-server fulfilment fallback.
-
-    Razorpay POSTs here on ``payment.captured`` regardless of whether the
-    browser ever called ``/verify-payment`` (tab closed / network dropped after
-    the charge). We verify the webhook signature over the RAW body, then
-    reconcile the order through the SAME atomic created->verified CAS the
-    browser path uses — so the two races converge to exactly-once fulfilment.
-
-    Always returns 2xx for a validly-signed request (even for orders we don't
-    recognise or have already fulfilled) so Razorpay stops retrying. Only an
-    invalid/absent signature or an unconfigured secret is a non-2xx.
-    """
-    secret = _clean_credential(settings.razorpay_webhook_secret)
-    if not secret:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Razorpay webhook is not configured",
-        )
-
-    raw_body = await request.body()
-    if not x_razorpay_signature or not _webhook_signature_matches(raw_body, x_razorpay_signature):
-        logger.warning("metric webhook.bad_signature bytes=%d", len(raw_body))
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook signature")
-
-    try:
-        event = json.loads(raw_body)
-    except (ValueError, TypeError):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Malformed webhook payload")
-
-    event_type = event.get("event") if isinstance(event, dict) else None
-    if event_type in _SUBSCRIPTION_WEBHOOK_EVENTS:
-        return await _reconcile_subscription_event(event, x_razorpay_signature)
-    if event_type not in _HANDLED_WEBHOOK_EVENTS:
-        return WebhookAck(status="ignored")
-
-    order_id, payment_id = _extract_order_and_payment(event)
-    if not order_id or not payment_id:
-        logger.warning("metric webhook.missing_ids event=%s", event_type)
-        return WebhookAck(status="ignored")
-
-    payment = await run_in_threadpool(_find_payment_by_order_id, order_id)
-    if not payment:
-        # Order we never created (e.g. a different Razorpay account / env). Ack
-        # so Razorpay stops retrying; nothing to fulfil here.
-        logger.warning("metric webhook.unknown_order")
-        return WebhookAck(status="unknown_order")
-
-    product = _PRODUCT_BY_KEY.get(str(payment.get("product") or XP_PACK_PRODUCT))
-    if product is None:
-        logger.error("metric webhook.unknown_product")
-        return WebhookAck(status="unknown_product")
-
-    payment_currency = str(payment.get("currency", "")).strip().upper()
-    if int(payment.get("amount_paise", 0)) != product.price_paise or payment_currency != CURRENCY:
-        logger.error("metric webhook.amount_mismatch")
-        return WebhookAck(status="amount_mismatch")
-
-    if payment.get("status") == "verified":
-        return WebhookAck(status="already_verified")
-
-    updated = await run_in_threadpool(
-        _mark_payment_verified,
-        payment_row_id=payment["id"],
-        razorpay_payment_id=payment_id,
-        razorpay_signature=f"webhook:{x_razorpay_signature[:80]}",
-    )
-    if not updated:
-        # Lost the CAS to the browser verify (or a concurrent webhook delivery).
-        # The winner already fulfilled — nothing to do.
-        return WebhookAck(status="already_verified")
-
-    await _apply_fulfilment(str(payment["user_id"]), product, payment)
-    logger.info("metric webhook.reconciled product=%s", product.key)
-    return WebhookAck(status="reconciled")

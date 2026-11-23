@@ -1,6 +1,6 @@
 # Myro Referral Intelligence Uses Own-Connections + Strategy, Never Stranger PII
 
-**Status:** Accepted (amended 2026-09-15, 2026-10-06, 2026-10-15)
+**Status:** Accepted (amended 2026-09-15, 2026-10-06, 2026-10-15, 2026-11-22)
 **Date:** 2026-06-05
 **Related:** ADR-0004 (LLM actions cost XP), ADR-0006 (LinkedIn write-scope), MYRO_TUTOR_DESIGN.md
 
@@ -95,3 +95,34 @@ told the user to "add a company or role" on a page that had both.
 
 When the person's own connections export is in hand, the pass after they apply is two notes and then it stops (ADR-0026). First, someone they have actually written to. Second, the person whose seat is the motion, even if that thread is cold. The same CV goes with both. The person sends. A longer list is a spray, and this amendment does not authorise one.
 
+## Amendment (2026-11-22) — LinkedIn rewrite is a Human Check
+
+Shivam asked for a one-click LinkedIn profile rewrite, for himself first and
+then for every user. One click that *writes* to LinkedIn is not open to us:
+Profile Edit needs `w_compliance`, a programme closed to new partners and meant
+for FINRA/SEC archiving, and `w_member_social` (ADR-0006) is posts the user
+taps. So the rewrite is paid human work that the user pastes, sold inside the
+₹199 Apply Pack (ARCHITECTURE_PAYMENTS.md, DECISIONS ENG3). Settled with
+Shivam in one grill, 2026-11-22:
+
+| Fork | Decision |
+|---|---|
+| Cut rule | Keep it. Not a loop step; open by Shivam's call. |
+| Door | The CV page, after the Myro Score. 497 people have a score (11-22, own accounts excluded). |
+| Who saves on LinkedIn | **The user pastes; our person guides them on a short call.** Nobody logs in as the user and Myro never holds a LinkedIn password. |
+| Price | **5,000 coins, or the ₹199 Apply Pack** with its Human Check spent on LinkedIn. 5,000 sits above the 3,000 welcome grant on purpose; no real user held 5,000 on 11-22. |
+| Intake | The LinkedIn `/in/{vanity}` URL and a WhatsApp number. Our person reads the public profile in their own browser. **Myro's code never fetches the URL.** |
+| Contact | WhatsApp, required, used only to book the paste call, shown only to the reviewer. |
+| Who writes | Myro drafts every block from the CV and reservoir when the reviewer claims the check (ADR-0016: nothing the user did not give). Shivam edits and signs off. |
+| 24-hour promise | Every block written and waiting in Myro, and the call booked. The clock starts when a check slot opens. |
+| Full queue | Show the honest ETA before paying and keep selling. 5 open checks, shared with CV checks. |
+| Missed 24 hours | No refund; deliver late. The same as the audit. |
+| Scope | Headline, About, every experience entry, education lines, top 5 skills, one Featured line, and a list of duplicate or empty rows to delete. No photo or banner. |
+| Build | Claude builds #56 S1–S2 with LinkedIn as the second check kind. Cursor keeps S3–S5. |
+
+**Measured by:** LinkedIn checks delivered, and `pasted_at`, which the reviewer
+sets after the call. What changes on LinkedIn itself cannot be seen by Myro.
+
+**Still forbidden.** Myro calling LinkedIn for this, profile writes, holding a
+LinkedIn credential, the extension typing into linkedin.com, and anything
+scheduled. A paid check is a person helping the user, not a bot acting as them.

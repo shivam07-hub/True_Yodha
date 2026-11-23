@@ -88,24 +88,23 @@ def is_available() -> bool:
     return slots_available() > 0
 
 
-def activate_audit(user_id: str) -> None:
-    """Create the audit row on payment. Called from the entitlement path.
+def activate_audit(user_id: str, billing_payment_id: str) -> None:
+    """Create the audit row for a paid `billing_payments` row. Settlement's grant.
 
-    Never raises into fulfilment. A row that fails to appear is recoverable —
-    the payment is on record in `billing_payments` and the row can be created by
-    hand — whereas an exception here would fail a captured payment's fulfilment
-    and strand the buyer between charged and served.
+    Idempotent on `billing_payment_id` (unique): a second arrival for the same
+    payment conflicts and changes nothing. A failure raises, so Settlement keeps
+    the payment `grant_pending` and the next arrival creates the row — a buyer
+    is never left charged with no audit and nothing on record to retry.
     """
-    try:
-        get_supabase_admin().table("ai_workflow_audits").insert(
-            {"user_id": user_id, "status": "awaiting_submission"}
-        ).execute()
-    except Exception as exc:  # noqa: BLE001 — classified: never break fulfilment
-        logger.error(
-            "metric ai_workflow_audit.activate_failed user=%s reason=%s",
-            user_id,
-            type(exc).__name__,
-        )
+    get_supabase_admin().table("ai_workflow_audits").upsert(
+        {
+            "user_id": user_id,
+            "status": "awaiting_submission",
+            "billing_payment_id": billing_payment_id,
+        },
+        on_conflict="billing_payment_id",
+        ignore_duplicates=True,
+    ).execute()
 
 
 def validate_intake(raw: dict[str, Any]) -> dict[str, str]:

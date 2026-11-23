@@ -37,7 +37,17 @@ SCOPE_WEBHOOKS_MANAGE = "webhooks.manage"
 #: from a key that may read what we matched for a named user, and collapsing
 #: them would hand every SSO partner the data product for free.
 SCOPE_ROLES_READ = "roles.read"
-ALL_SCOPES = (SCOPE_SSO, SCOPE_JOBS_READ, SCOPE_WEBHOOKS_MANAGE, SCOPE_ROLES_READ)
+#: Market answers with no person in them: live roles by search, the skills a
+#: role family asks for. Myro's own open MCP door is the first holder
+#: (ARCHITECTURE_MCP.md §3A). Not the metered feed — that is `roles.read`.
+SCOPE_MARKET_READ = "market.read"
+ALL_SCOPES = (
+    SCOPE_SSO,
+    SCOPE_JOBS_READ,
+    SCOPE_WEBHOOKS_MANAGE,
+    SCOPE_ROLES_READ,
+    SCOPE_MARKET_READ,
+)
 
 # Per-key ceiling. Generous for an integration that syncs a roster, low enough
 # that a leaked key cannot enumerate sessions at speed.

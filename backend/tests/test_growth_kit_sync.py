@@ -10,7 +10,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "backend" / "scripts" / "growth_kit_sync.py"
 BIO = (
-    "https://www.himyro.com/newsletter"
+    "https://www.himyro.com/"
     "?utm_source=instagram&utm_medium=social&utm_campaign=ig-bio"
 )
 
@@ -143,12 +143,17 @@ def test_a_new_issue_creates_the_asset_campaign_and_both_messages(tmp_path: Path
     assert instagram["metadata"]["bio_link"] == BIO
     assert instagram["metadata"]["first_comment"] == "#jobsearch #example #himyro"
     assert instagram["draft_copy"].startswith("Slide 1:\nOne opening, 1 of them.")
+    # Posts send people to the CV upload on the home page, not the issue
+    # (Shivam, 2026-11-22): the newsletter is the proof, Myro is the product.
     assert instagram["utm_url"] == (
-        "https://www.himyro.com/newsletter/2026-01-example"
+        "https://www.himyro.com/"
         "?utm_source=instagram&utm_medium=social&utm_campaign=issue-099"
     )
     assert linkedin["draft_copy"] == "The linkedin body."
-    assert linkedin["utm_url"].endswith("utm_source=linkedin&utm_medium=social&utm_campaign=issue-099")
+    assert linkedin["utm_url"] == (
+        "https://www.himyro.com/"
+        "?utm_source=linkedin&utm_medium=social&utm_campaign=issue-099"
+    )
 
 
 def test_running_twice_changes_nothing(tmp_path: Path) -> None:
@@ -248,3 +253,15 @@ def test_issue_024_laptop_wording_is_the_live_sentence() -> None:
     )
     assert mod.instagram_draft(spec).startswith("Slide 1:\nIf you are starting out")
     assert "\n\nSlide 2:\nIf you are starting out, start with" in mod.instagram_draft(spec)
+
+
+def test_linkedin_posts_the_kit_as_one_document() -> None:
+    mod = sync_module()
+    spec = json.loads(
+        (ROOT / "scripts/newsletter-carousel-specs/issue-026.json").read_text()
+    )
+    assert mod.linkedin_how_to_post(spec) == (
+        "Add a document: Myro Newsletter/Issue 026 - carousel/issue-026-linkedin.pdf "
+        "(8 pages), titled with the first slide's line. A document post can be "
+        "boosted; a multi-image post cannot."
+    )

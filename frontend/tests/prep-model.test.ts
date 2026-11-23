@@ -8,6 +8,7 @@ import {
   groupForList,
   liveRoomCount,
   needsStageCheck,
+  roomFromUrl,
   roomStage,
 } from "../components/preparations/prep-model"
 import type { ApplicationResponse, ApplicationStatus } from "../lib/api"
@@ -73,4 +74,14 @@ test("liveRoomCount + attentionCount", () => {
 
 test("daysInStage clamps garbage to 0", () => {
   assert.equal(daysInStage(app("applied", 0, { last_stage_changed_at: "not-a-date", applied_at: null, created_at: "nope" }), NOW), 0)
+})
+
+test("roomFromUrl: the URL alone names the open room and step", () => {
+  assert.deepEqual(roomFromUrl("/preparations", ""), { jobId: null, step: null })
+  assert.deepEqual(roomFromUrl("/preparations/", ""), { jobId: null, step: null })
+  assert.deepEqual(roomFromUrl("/preparations/job-1", ""), { jobId: "job-1", step: null })
+  assert.deepEqual(roomFromUrl("/preparations/job-1", "step=3"), { jobId: "job-1", step: 3 })
+  assert.deepEqual(roomFromUrl("/preparations/a%20b", "step=9"), { jobId: "a b", step: null })
+  // A step with no room has nothing to open.
+  assert.deepEqual(roomFromUrl("/preparations", "step=2"), { jobId: null, step: null })
 })

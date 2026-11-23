@@ -96,12 +96,12 @@ function NavIcon({ name }: { name: TabIcon }) {
 }
 
 // Mobile mirrors the desktop journey exactly (unified-structure S3, lock #6):
-// Jobs · Collections · CV · Prep. Profile moved to the top-bar avatar.
+// Jobs · Collections · CV · Preparation. Profile moved to the top-bar avatar.
 const TABS: { key: TabIcon; label: string; href: string; match: (p: string) => boolean }[] = [
   { key: "jobs", label: "Jobs", href: "/market", match: p => p.startsWith("/market") },
   { key: "collections", label: "Collections", href: "/collections", match: p => p.startsWith("/collections") },
   { key: "cv", label: "CV", href: "/cv", match: p => p.startsWith("/cv") },
-  { key: "prep", label: "Prep", href: "/preparations", match: p => p.startsWith("/preparations") },
+  { key: "prep", label: "Preparation", href: "/preparations", match: p => p.startsWith("/preparations") },
 ]
 
 function TabBadge({ n }: { n: number }) {

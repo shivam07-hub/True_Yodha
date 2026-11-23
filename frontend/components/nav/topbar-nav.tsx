@@ -53,8 +53,8 @@ export function TopbarNav({ nav }: { nav: NavUnlocksVm }) {
   const pathname = usePathname()
   const counts = useJourneyCounts()
 
-  // Split the merged CV workspace into two sibling tabs — CV and Prep.
-  // Prep (2026-07-15 grill; "Prep" label per unified-structure lock #8) is the
+  // Split the merged CV workspace into two sibling tabs — CV and Preparation.
+  // Preparation (2026-07-15 grill; renamed from "Prep" 2026-11-22, Shivam) is the
   // post-apply prep surface at its own route; the old /cv?view=active
   // Applications tab redirects there. renderKey disambiguates the two cv slots;
   // the coachmark and NEW pill stay on the primary (CV) slot only so they don't
@@ -69,7 +69,7 @@ export function TopbarNav({ nav }: { nav: NavUnlocksVm }) {
         ...item,
         renderKey: "preparations",
         href: "/preparations",
-        label: "Prep",
+        label: "Preparation",
         desc: "A prep room for every application",
         stalePill: true,
       },

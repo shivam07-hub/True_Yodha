@@ -15,7 +15,8 @@ test("Prep is ONE screen: the rail lists rooms, the main column holds the open o
   // Both routes render the same shell — a second geometry is what drifted before.
   assert.match(listPage, /<PrepShell\b/)
   assert.match(roomPage, /<PrepShell\b/)
-  assert.match(roomPage, /jobId=/)
+  // Neither route names the room: the shell reads it off the URL.
+  assert.doesNotMatch(roomPage, /jobId=/)
 
   assert.match(shell, /tm-intel-page prp-workspace-page/)
   assert.match(shell, /className="mc-workspace"/)
@@ -192,9 +193,18 @@ test("The room renders the four steps, and every pip reads the same data-state",
   // itself down on every click. Deep links keep working: the href stays.
   const shell = code("components/preparations/prep-shell.tsx")
   assert.match(rail, /event\.preventDefault\(\)/)
-  assert.match(rail, /onOpen\(app\.job_id, href\)/)
+  assert.match(rail, /onOpen\(href\)/)
   assert.match(shell, /window\.history\.pushState/)
-  assert.match(shell, /popstate/)
+  // The URL is the ONE place the open room lives. A copy in state, re-synced
+  // only when the route's props changed, went stale after a shallow push: a
+  // Link to /preparations re-rendered the list page with the same props, so the
+  // URL moved and the screen did not. Next 14.2 moves usePathname on pushState
+  // and on Back, so no props and no popstate listener are needed.
+  assert.match(shell, /usePathname\(\)/)
+  assert.match(shell, /useSearchParams\(\)/)
+  assert.match(shell, /roomFromUrl\(/)
+  assert.doesNotMatch(shell, /popstate/)
+  assert.doesNotMatch(shell, /useState<\{ jobId/)
 
   // The list page's stage-grouped index is gone, and so are its styles.
   assert.doesNotMatch(css, /\.prp-group-head/)

@@ -2,9 +2,10 @@
 ### Set 2026-08-26 from Issue 019. This is the default, not one issue's format.
 
 An issue is written **slide-first**. Each section is a self-contained piece of
-knowledge that stands alone on a phone screen, because the same sentences ship
-as the LinkedIn and Instagram carousel with no rewrite. If a paragraph cannot
-survive being screenshotted on its own, it is not finished.
+knowledge that stands alone on a phone screen. If a paragraph cannot survive
+being screenshotted on its own, it is not finished. The carousel is written
+after the issue, as a story told in its slide headlines (below), with every
+figure taken from the issue.
 
 Reference issue: `Myro Newsletter/issues/2026-08-industry-city-map-india.mdx`
 Carousel: `scripts/build-newsletter-carousel.py` + a spec in
@@ -58,26 +59,71 @@ Deliberately absent from the gold version: career-stage blocks (Early / Mid /
 Senior). `myro-newsletter Skills/page-anatomy.md` calls them load-bearing. They
 are not, when every section is already addressed to one reader type by name.
 
-## Carousel hierarchy: one accent role at a time
+## Carousel: a story
 
-Shipped wrong once and caught by Shivam, 2026-08-26. A slide read
-kicker-then-lead where both were mint, and the lead was 46px bold against the
-kicker's 25px, so the section label lost to the line beneath it and the block
-had no top.
+Set by Shivam, 2026-11-18: "There is no story - only random numbers." Kits 020
+to 026 cut the issue section by section into one number per slide. The slides
+could be shuffled and nothing was lost, so nothing carried the reader to the
+next swipe.
 
-The token roles on a slide, in order:
+1. **The headlines come first, as one storyline.** Each slide has a `headline`
+   (or the cover's `h1`): one sentence of at most 12 words. Read in order, the
+   headlines tell the story with no slide open: the hook, the proof, what it
+   means for the reader, what to do.
+2. **Slide 1 is the hook** (Shivam, 2026-11-22: "where the hell is the hook?").
+   It is the turn, told as the reader's stake, with one number on the cover
+   and the question left open: which job, which city, how to tell. The reader's
+   old belief alone is a setup, and a setup gives no reason to swipe. 026 went
+   out with "Risk and compliance sounds like a job for accountants" and the
+   292 roles in the footer; its hook is "A job that sounds like accounting is
+   hiring engineers." Every later headline also leaves the question the next
+   slide answers.
+3. **The reader is the subject.** Write to "you" and their work, and put the
+   number under the sentence it proves.
+4. **Each slide answers the one before it.** If two slides can swap places, one
+   of them belongs in the article.
+5. **The last slide is the action:** upload your CV at himyro.com and see what
+   these roles ask that it doesn't. No slide sends people to the newsletter
+   (Shivam, 2026-11-22): the issue is the proof, Myro is the product.
+6. **Shivam agrees the storyline before the slides are built:** the headlines in
+   order, one line each, the same gate as angle, chart and heading.
 
-| Level | Treatment | Accent |
-|---|---|---|
-| Section label (kicker) | 28px mono, uppercase, letterspaced, short rule beneath | mint |
-| Lead statement | 46px, weight 680 | Bone (`--fg`) |
-| Body | 46px, weight 440 | Bone |
-| The one number that matters | `<span class="hl">` | mint |
+Each slide's caption is that slide's line of the story, so the folded caption
+reads as the story in brief. Issue 026 is the reference:
+`scripts/newsletter-carousel-specs/issue-026.json`.
 
-Mint appears **twice per slide at most**: the label and one figure. `<b>` inside
-prose is Bone bold and never mint — bold and accent together outrank a label
-that sits above them, which inverts the hierarchy. This is the visual half of
-`three-accent-budget.md`; the earlier slide spent four accent uses on one screen.
+**LinkedIn gets the same slides as one PDF document**,
+`issue-0NN-linkedin.pdf`, which the builder writes beside the PNGs. It swipes
+like the carousel. A Page can boost a document post; it cannot boost a
+multi-image post (LinkedIn Help, "Posts available to boost from a LinkedIn
+Page", read 2026-11-18). Issue 024 went out on LinkedIn as a multi-image post.
+
+## Carousel type: two sizes, one text colour, one font
+
+Set by Shivam, 2026-11-22: "at max 1-2 font size, 1 color, and 1 font style.
+That is standard and professional." Slides until then mixed a mono and a sans,
+mint, bone and grey, and seven sizes on one screen.
+
+| Size | What |
+|---|---|
+| Large, 84px | The cover's `h1`, each `headline`, the one number |
+| Small, 38px | Everything else: label, sub, note, bars, table, link, foot, rail |
+
+**Five bands, the same on every slide** (Shivam, same day). The slide is five
+equal bands, 270px each. The rail sits in the first and the foot in the last.
+The content starts at the top of the second band and ends inside the fourth,
+so the top edge never moves from slide to slide. The builder refuses a slide
+whose content runs past the fourth band: cut words or rows, never shrink the
+type. Issue 021 lost two employer rows this way.
+
+One font (Geist), one weight (500), and all text in bone. The background
+stays Myro's: near-black with the mint glow in the top-right corner (Shivam,
+same day: one colour means the text, not the background). No accent colour on
+text, no bold, no uppercase or letter-spacing. Bars and table rules are drawn
+in the same bone. Emphasis comes from size and position only, so the
+sentence that matters is the large one. `css()` in
+`scripts/build-newsletter-carousel.py` holds the two sizes; the OG card uses
+the same rule at its own scale (41px and 22px).
 
 ## Rules that are not negotiable
 

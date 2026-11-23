@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-11-22 — A slide-deck CV named .docx reads as its slides
+
+The only `.docx` upload 500s (2026-10-30, two finalizes, one person) were a one-slide PowerPoint CV renamed `.docx`; the picker takes PDF and DOCX only. `64db0c6f` ended the 500 but filed that CV as unreadable, with the scanned-PDF message. `_extract_text_docx` now reads a PowerPoint package's slides in show order (that file: 79 lines). `test_notice_close_cv_slide_deck.py` closes `unhandled_500:ValueError:…:_extract_text_docx` and `upload_guarantee:object_no_job`, the same two attempts, once it reaches `main`.
+
 ## 2026-11-16 — Parked: a focus session in the extension
 
 Blocking YouTube and similar sites while someone applies (Shivam's idea, 11-16). Buildable with the access the extension already holds: `declarativeNetRequestWithHostAccess` redirects the blocked sites to an extension page that shows the next saved job. Parked on the cut rule: it fixes no broken step, the extension has 3 store users, and nothing shows distraction is why 73 collected became 3 applied. A blocker is also a second purpose on a listing that says "capture any job page", which the store can reject. Revisit when the extension has users whose apply sessions exist to protect.

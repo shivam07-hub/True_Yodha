@@ -13,9 +13,9 @@ followers. Three fields still describe an older Myro.
 
 | Field | Today | Change to |
 |---|---|---|
-| Name | HiMyro Career Intelligence | `Myro · CV for the job you want` (30 of 30 characters; Instagram search reads this field) |
+| Name | **Myro Career Intelligence** (changed 2026-11-22 in Accounts Center, Shivam asked; matches the LinkedIn page. Instagram allows two name changes in 14 days) | The earlier proposal `Myro · CV for the job you want` is dropped |
 | Bio | An AI-based Career Intelligence Service that tracks jobs from top MNC websites for you | The block below (130 of 150 characters) |
-| Links | Three: himyro.com/newsletter with no UTM, titled "Offical web page of Himyro"; myrojobs.com, which redirects to himyro.com; the LinkedIn page | One, fixed: `https://www.himyro.com/newsletter?utm_source=instagram&utm_medium=social&utm_campaign=ig-bio`, titled `Myro newsletter`. It never changes. |
+| Links | Three: himyro.com/newsletter with no UTM, titled "Offical web page of Himyro"; myrojobs.com, which redirects to himyro.com; the LinkedIn page | One, fixed: `https://www.himyro.com/?utm_source=instagram&utm_medium=social&utm_campaign=ig-bio`, titled `Upload your CV`. It never changes once set. Set 2026-11-02 to the newsletter; moved to the upload on 2026-11-22 (Shivam), in the app |
 
 ```
 Pick the job you want. Myro tailors your CV to it.
@@ -25,8 +25,11 @@ Weekly: what India's MNC openings ask for.
 
 ## LinkedIn company page
 
-Agreed 2026-11-02. Shivam changes it; the page name stays. Today's text still
-says "Career Intelligence Platform" and leads with CV scoring.
+Agreed 2026-11-02. The name changed on 2026-11-22 from HiMyro Career Intelligence
+to **Myro Career Intelligence** (Shivam asked; Claude in Chrome saved it; the URL
+`himyro-career-intelligence` stays). The tagline below is still Shivam's to change:
+today's reads "An AI-based Career Intelligence Service that tracks jobs for you and
+helps you upgrade your resume." 
 
 | Field | Change to |
 |---|---|
@@ -47,11 +50,13 @@ Every week we publish what India's MNC openings ask for, read from the employers
 
 ## Posted so far
 
-Newest first. The top five are marked done in the Distribution Tracker with their
+Newest first. The top six are marked done in the Distribution Tracker with their
 live links and captions as posted.
 
 | Date | Post |
 |---|---|
+| 22 Nov, 05:00 | [Issue 026 carousel, reposted](https://www.instagram.com/myrojobs/p/DgBaSReEtrV/) with the hook cover, five bands and two type sizes, posted by Claude in Chrome as @myrojobs, hashtags as the first comment, not shared to Facebook. Same morning on the LinkedIn company page: [issue 026 as a document](https://www.linkedin.com/feed/update/urn:li:ugcPost:7530051124012449792/), the first one LinkedIn offers to boost, with the link in the first comment |
+| 21 Nov | [Issue 026 carousel](https://www.instagram.com/myrojobs/p/DgAw1OqIwA-/), first version, no hook on the cover. To be archived in the app (instagram.com offers only Delete) |
 | 18 Nov, 02:15 | [Issue 024 carousel](https://www.instagram.com/myrojobs/p/Df20WH9EkmA/), posted by Claude in Chrome, one caption, not shared to Facebook. Same night on the LinkedIn company page: [issue 024](https://www.linkedin.com/feed/update/urn:li:activity:7528558060508762112/), with the link in the first comment |
 | 3 Nov | [Issue 025 carousel](https://www.instagram.com/myrojobs/p/DfSXQmFo_NL/), from the laptop in Chrome, one caption |
 | 23 Oct | [Loop reel](https://www.instagram.com/myrojobs/reel/De2Grhax5BJ/) |
@@ -76,12 +81,13 @@ went out this way on 2026-11-03.
 
 Bio links change only in the Instagram app. instagram.com's Edit profile says so
 and shows the field read-only (checked 2026-11-03). That is why the bio holds one
-fixed link to the newsletter, where the newest issue sits first.
+fixed link, to the CV upload on the home page: every post's last slide sends
+people there.
 
 Instagram's publishing API takes one caption per carousel, so the panel folds the
 per-slide captions into one, in slide order (issue 25: 1,650 of 2,200 characters).
-The slides carry the issue link on the first and last slide, so nothing depends
-on the caption. Multiple Captions stays an app-only option.
+The last slide names himyro.com, so nothing depends on the caption. Multiple
+Captions stays an app-only option.
 
 The panel appears once the backend holds the account's token. A second press
 cannot post twice: the row is claimed before anything is sent, and the media id
@@ -113,25 +119,28 @@ permissions error, that is the step left, and the row will say so.
 ## Next
 
 Each carousel below is published from the laptop as above. Hashtags go in the
-first comment. The bio link stays as it is.
+first comment. **Before 023 goes, Shivam moves the bio link to the upload** (the
+Links row above, in the app): until then "Link in bio" still opens the newsletter.
 
-One post a day on each channel until the backlog clears (Shivam, 2026-11-17).
+One post a day on each channel until the backlog clears (Shivam, 2026-11-17),
+and never within 24 hours of that channel's last post (Shivam, 2026-11-22).
 The tracker rows carry these dates. Issue 024 went out on both channels at 02:15
 on 18 Nov (Shivam chose now over the slots).
 
 | Day | LinkedIn, 10:30 | Instagram, 19:00 | Before it goes |
 |---|---|---|---|
 | Wed 18 Nov | Issue 024, posted | Issue 024 carousel, posted | |
-| Thu 19 Nov | Fill video, 10:00 | Issue 026 carousel | Video: someone listens to the soundtrack. 026: `main` merged, so the issue page is live (it was not on 17 Nov) |
-| Fri 20 Nov | Issue 026 | Issue 023 carousel | 023: re-read its Ghost Index figures against `/ghost-index` |
-| Sat 21 Nov | Issue 021 | Fill reel, 10:00 | |
-| Sun 22 Nov | Issue 025 | Issue 021 carousel | |
+| Thu 19 Nov | Fill video, 10:00 | Issue 026 carousel, posted 21 Nov, reposted 22 Nov with the hook cover | Video: someone listens to the soundtrack. 026's page is live (checked 18 Nov after the `main` merge, #352) |
+| Fri 20 Nov | Issue 026, as the document `issue-026-linkedin.pdf`, posted 22 Nov | Issue 023 carousel, rebuilt as a story 19 Nov, hook cover 22 Nov | 023 names only AB InBev, Palo Alto Networks and Barclays, the three rates the live Ghost Index still shows (read 19 Nov) |
+| Sat 21 Nov | Issue 021, as the document `issue-021-linkedin.pdf` | Fill reel, 10:00 | |
+| Sun 22 Nov | Issue 025, as the document `issue-025-linkedin.pdf`, rebuilt as a story 22 Nov | Issue 021 carousel, rebuilt as a story 19 Nov, hook cover 22 Nov | |
 | Mon 23 Nov | Match video | Match reel | Soundtrack heard |
 
 Issue N's copy lives in `scripts/newsletter-carousel-specs/issue-0NN-distribution.md`:
 the `## LinkedIn` section, and the Instagram caption in `caption-laptop.txt`
 beside its slides in `Myro Newsletter/Issue 0NN - carousel/`. On LinkedIn the
-link goes in the first comment, with `utm_campaign=issue-0NN`. The fill video is
+slides go up as one document, `issue-0NN-linkedin.pdf` from the same folder, and
+the link goes in the first comment, with `utm_campaign=issue-0NN`. The fill video is
 `brag-output-2026-10-20-155052/` and the match video `brag-output-2026-10-20-134012/`,
 each with its own `linkedin.txt` and `instagram.txt`. On LinkedIn, 022 and 023 are
 paused because they repeat the 25 Sep Ghost Index post.

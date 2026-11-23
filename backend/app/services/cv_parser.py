@@ -31,6 +31,7 @@ import io
 import json
 import logging
 import re
+import zipfile
 from difflib import get_close_matches
 from functools import lru_cache
 
@@ -108,27 +109,68 @@ def _extract_text_pdf(file_bytes: bytes) -> str:
 
 
 def _extract_text_docx(file_bytes: bytes) -> str:
-    """Extract text from DOCX bytes using python-docx. Walks paragraphs + tables.
+    """Extract text from a file that arrived as .docx. The bytes decide, not the name.
 
-    A file that is not a Word package is empty text. Callers already treat
-    empty text as unreadable. PackageNotFoundError is a ValueError, and
-    letting it out of an upload turned two finishes into a 500.
+    A Word package reads paragraphs + tables (python-docx). A PowerPoint package
+    reads its slides: a one-slide CV built in PowerPoint and renamed .docx (the
+    picker takes PDF and DOCX only) 500'd the upload on 2026-10-30. Anything else
+    is empty text, which callers already treat as unreadable.
     """
-    import zipfile
-
     from docx import Document  # lazy import
 
     try:
-        doc = Document(io.BytesIO(file_bytes))
-        parts: list[str] = [p.text for p in doc.paragraphs if p.text.strip()]
-        for table in doc.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    if cell.text.strip():
-                        parts.append(cell.text.strip())
-    except (ValueError, zipfile.BadZipFile):
+        package = zipfile.ZipFile(io.BytesIO(file_bytes))
+    except zipfile.BadZipFile:
         return ""
+    if _DECK_MAIN_PART in package.namelist():
+        return _extract_text_slides(package)
+    try:
+        doc = Document(io.BytesIO(file_bytes))
+    except ValueError:  # python-docx: not a Word package (PackageNotFoundError, or another main part)
+        return ""
+    parts: list[str] = [p.text for p in doc.paragraphs if p.text.strip()]
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                if cell.text.strip():
+                    parts.append(cell.text.strip())
     return "\n".join(parts).strip()
+
+
+_DECK_MAIN_PART = "ppt/presentation.xml"
+_DRAWING_NS = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+_DECK_NS = "{http://schemas.openxmlformats.org/presentationml/2006/main}"
+_REL_ID = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
+_PKG_REL = "{http://schemas.openxmlformats.org/package/2006/relationships}Relationship"
+
+
+def _extract_text_slides(package: zipfile.ZipFile) -> str:
+    """Text of a PowerPoint package: one line per paragraph, slides in show order.
+
+    Show order is the presentation's slide list, not slide file numbers, which
+    keep their names when slides are moved. A package that does not resolve is
+    empty text, like a Word file that does not open. Expat bounds entity
+    expansion and never fetches external entities, so stdlib XML is safe here.
+    """
+    import posixpath
+    import xml.etree.ElementTree as ET
+
+    try:
+        show = ET.fromstring(package.read(_DECK_MAIN_PART))
+        rels = ET.fromstring(package.read("ppt/_rels/presentation.xml.rels"))
+        target = {r.get("Id"): r.get("Target") or "" for r in rels.iter(_PKG_REL)}
+        lines: list[str] = []
+        for slide_id in show.iter(f"{_DECK_NS}sldId"):
+            path = target[slide_id.get(_REL_ID)]
+            path = path.lstrip("/") if path.startswith("/") else posixpath.normpath(posixpath.join("ppt", path))
+            slide = ET.fromstring(package.read(path))
+            for para in slide.iter(f"{_DRAWING_NS}p"):
+                line = "".join(run.text or "" for run in para.iter(f"{_DRAWING_NS}t")).strip()
+                if line:
+                    lines.append(line)
+    except (KeyError, ET.ParseError):
+        return ""
+    return "\n".join(lines)
 
 
 # ── LLM extraction ────────────────────────────────────────────────────────────

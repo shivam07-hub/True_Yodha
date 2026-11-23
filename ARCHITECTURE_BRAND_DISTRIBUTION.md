@@ -45,7 +45,7 @@ Shivam until the publisher is connected. Cursor builds.
 | Tracker rows | `growth_*` through `GrowthRepository` (`repositories/growth.py`), keys `asset:issue:<slug>`, `campaign:issue:<slug>`, `message:issue:<slug>:<channel>` | raw SQL, new tables, new key shapes |
 | Instagram API calls | `InstagramClient` in `services/instagram_publisher.py` | a second client, a token in a POST's URL |
 | One publish, never two | `claim_for_instagram` + `metadata.instagram_media_id` + unique `(message_id, external_id)` | another lock or flag |
-| The bio link | fixed, `…/newsletter?utm_source=instagram&utm_medium=social&utm_campaign=ig-bio` ([MARKETING_SCHEDULE.md](MARKETING_SCHEDULE.md)) | a per-post bio link |
+| The bio link | fixed, `himyro.com/?utm_source=instagram&utm_medium=social&utm_campaign=ig-bio`, the CV upload ([MARKETING_SCHEDULE.md](MARKETING_SCHEDULE.md)) | a per-post bio link, a newsletter link |
 | When things go out | MARKETING_SCHEDULE.md and the rows' `planned_at` | dates in code |
 | Telling Shivam something broke | the Notice board belts: `notice/harvest.py`, `notice/fingerprint.py` `_BELTS` | an email, cron or alert of its own |
 
@@ -123,8 +123,9 @@ match today's byte for byte. Paste the `cmp` output.
 **Why.** Issue 021 (finance city map, published 2026-09-17) is the only shipped
 issue with a LinkedIn row and no Instagram kit. Its slide folder is empty.
 
-**Do.** In `issue-021.json`: `"link": "Full issue: himyro.com/newsletter"` on the
-first and last slide; `"article": "2026-09-finance-city-map-india"`;
+**Do.** In `issue-021.json` (built 19 Nov; since 22 Nov no slide carries a
+newsletter link, the last slide's pill is `Upload your CV: himyro.com`):
+`"article": "2026-09-finance-city-map-india"`;
 `first_comment` (`#jobsearch` + one niche + `#himyro`); a `caption` per slide cut
 from the article section that slide shows, in the article's own sentences. The
 last caption ends `Tailor your CV to jobs like these. Link in bio.` Run the
@@ -155,7 +156,8 @@ voice before anything is posted.
 - Instagram `draft_copy` is the `Slide n:` blocks, as the 024 row holds today.
   `metadata`: `prepared_draft`, `first_comment`, the fixed `bio_link`, the kit
   path, and `how_to_post` in the 024 row's laptop wording. `utm_url` is
-  `https://www.himyro.com/newsletter/<slug>?utm_source=<channel>&utm_medium=social&utm_campaign=issue-NNN`.
+  `https://www.himyro.com/?utm_source=<channel>&utm_medium=social&utm_campaign=issue-NNN`,
+  the CV upload, never the issue page (Shivam, 2026-11-22).
 - Creating a row sets its `format` and leaves `planned_at` empty: Claude dates
   it. An existing row keeps its `format` and `planned_at`; issue 021's LinkedIn
   row is a `post`, and it stays one. On a row that exists the command writes only
@@ -262,25 +264,32 @@ The rules:
   not end a sentence.
   - Slide 1 is a `statement` with no `sub` and an `h1` of at most 17 words (issue
     025's cover is 17, the longest that reads).
-  - Any other `h1`: at most 17 words. Every `sub` and `note`: one sentence of at
-    most 12 words.
+  - Any other `h1`: at most 17 words. Every `headline`, `sub` and `note`: one
+    sentence of at most 12 words.
   - `matrix`: at most 2 value columns and 6 rows. `table`: at most 5 rows.
     `cards`: at most 3, each `d` at most 12 words. `prose`: at most 25 words.
 - **One caption per post.** The spec has one top-level `"caption"`, and a slide
   that has its own `"caption"` fails. The first paragraph, up to the first blank
-  line, is the claim: at most 125 characters, which is what Instagram shows
-  before "more". The whole caption is at most 500 characters and ends
-  `Tailor your CV to jobs like these. Link in bio.` The figure check runs on it.
+  line, is the cover's line of the story (NEWSLETTER_STANDARD.md, "Carousel: a
+  story"): at most 125 characters, which is what Instagram shows before "more".
+  The whole caption is at most 500 characters and ends with the action and
+  `Link in bio.` The figure check runs on it.
 - **Outputs.** `caption.txt` (the caption, then the FIRST COMMENT and BIO LINK
   blocks as today) replaces `captions.txt` and `caption-laptop.txt`. The kit's
   `## Instagram captions, one per slide` section becomes `## Instagram caption`:
   the caption, then `First comment:`. Delete `fold_captions` and the per-slide
-  writers in the same commit.
+  writers in the same commit. Keep the `headline` field and
+  `issue-0NN-linkedin.pdf` (both added 2026-11-18).
 - **`backend/scripts/growth_kit_sync.py`** (lane C's file, taken by this chunk):
   `instagram_draft` returns the spec's `caption`, the how-to names `caption.txt`,
   and the missing-caption check reads the top-level field.
-- **Recut the kits whose Instagram post is not out**, in slot order: 024, 026,
-  023, 021. Before each one, read its Instagram row in `growth_messages`. A row
+- **Recut the kits whose Instagram post is not out**, in slot order. 024 went
+  out as it was on 18 Nov. 026 was rebuilt as a story on 18 Nov and passes the
+  slide checks: fold its per-slide captions into the one caption, in order, cut
+  to 500 characters. 023 and 021 were rebuilt as stories on 19 Nov (Shivam
+  agreed both storylines) and get the same treatment as 026. 023's spec now
+  names its own article, `2026-10-open-role-apply-on-their-page`.
+  Before each one, read its Instagram row in `growth_messages`. A row
   that is `published` or `queued` means that kit stays exactly as it is (the same
   rule as B3's `SKIP_STATUSES`). Recutting removes words and never adds a claim.
   A cut `sub` was a second idea: it moves into the caption, or it stays only in

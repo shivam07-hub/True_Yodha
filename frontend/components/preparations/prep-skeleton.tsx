@@ -7,7 +7,7 @@ import "./training-card.css"
 /**
  * Layout-matched loading for Preparations. Uses the live workspace classes
  * (tm-intel-page · mc-workspace · prp-lroom · prp-stand) so the swap to content
- * does not move the page. The rail's own copy stays — "Prep", the four step
+ * does not move the page. The rail's own copy stays — "Preparation", the four step
  * labels and the Finlatics lockup never wait on a query. Visible "Loading…"
  * copy is omitted: the shimmer is the state.
  *
@@ -97,7 +97,7 @@ export function PrepSkeleton() {
         <aside className="mc-ws-rail prp-rail">
           <div className="mc-rail">
             <div className="prp-rail-head">
-              <div className="prp-rail-title"><h1>Prep</h1></div>
+              <div className="prp-rail-title"><h1>Preparation</h1></div>
               <div className="prp-legend" aria-hidden="true">
                 {STEPS.map((label) => (
                   <span className="prp-legend-col" key={label}>

@@ -23,7 +23,7 @@ test("issue 25's eight captions fit Instagram's caption limit as one", () => {
   )
   const section = kit.slice(kit.indexOf("Slide 1:"), kit.indexOf("First comment:"))
   const caption = singleCaptionFrom(section.replace(/^(Slide \d+:)\n\n/gm, "$1\n"))
-  assert.ok(caption.startsWith("If you want risk work in India"))
+  assert.ok(caption.startsWith("Learning Python for a risk job?"))
   assert.ok(caption.endsWith("Link in bio."))
   assert.ok(caption.length <= MAX_CAPTION_CHARS, `${caption.length} characters`)
 })

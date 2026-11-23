@@ -134,6 +134,12 @@ class Settings(BaseSettings):
     job_switch_reviewer_email: str = ""
     job_switch_admin_token: str = ""
 
+    # Human Check (#56 S2, ENG3). The reviewer's name is on every delivered
+    # check; the email gets a desk link when a check is queued. Empty email =
+    # the check still queues and the miss is logged.
+    human_check_reviewer_name: str = ""
+    human_check_reviewer_email: str = ""
+
     # Backlog #36 (event-driven matching) — token guarding the scrape-landed
     # webhook (POST /internal/scrape/landed). The scraper (firecrawl_Supabase)
     # fires this after it finishes writing a batch of new jobs, so the app sweeps

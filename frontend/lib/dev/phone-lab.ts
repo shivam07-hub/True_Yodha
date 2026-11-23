@@ -15,7 +15,7 @@ export const PHONE_LAB_TABS = [
   { id: "collections", label: "Collections", path: "/collections" },
   { id: "cv", label: "CV", path: "/cv" },
   { id: "cv-work", label: "Workstation", path: "/cv?edit=1" },
-  { id: "prep", label: "Prep", path: "/preparations" },
+  { id: "prep", label: "Preparation", path: "/preparations" },
   { id: "practice", label: "Practice", path: "/practice" },
   { id: "me", label: "Profile", path: "/me" },
 ] as const

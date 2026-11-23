@@ -12,13 +12,13 @@ const versionFormat = readFileSync(new URL("../lib/cv/version-format.ts", import
 const autosave = readFileSync(new URL("../lib/hooks/use-master-autosave.ts", import.meta.url), "utf8")
 
 // Mobile nav became the fixed 4-tab bar in the Apple-standards redesign, and
-// "Applications" became "Prep" at /preparations in the Delta-4 nav pass. This
+// "Applications" became "Preparation" at /preparations (Delta-4 nav pass, renamed 11-22). This
 // asserted the pre-redesign `/cv?view=…` hrefs. The contract that survives both
 // reworks is the one worth pinning: CV and post-apply prep each have their own
 // top-level destination, rather than hiding behind a sub-view of another tab.
 test("mobile navigation exposes direct CV and prep destinations", () => {
   assert.match(nav, /label: "CV", href: "\/cv"/)
-  assert.match(nav, /label: "Prep", href: "\/preparations"/)
+  assert.match(nav, /label: "Preparation", href: "\/preparations"/)
 })
 
 test("CV Hub is document-first", () => {

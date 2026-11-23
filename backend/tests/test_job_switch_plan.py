@@ -19,6 +19,7 @@ from app.main import app
 from app.routers import job_switch_plan as jsp_router
 from app.security import admin_auth
 from app.routers import payments as payments_router
+from app.services import billing_catalogue, settlement
 from app.services import job_switch_plan_draft as draft
 from app.services import job_switch_plan_service as svc
 from app.services import llm_provider as llm_mod
@@ -179,29 +180,29 @@ def test_admin_endpoint_401_wrong_token(monkeypatch: pytest.MonkeyPatch) -> None
 
 # ── payments: fulfilment dispatch (entitlement → activate_plan) ──────────────
 
-def test_entitlement_dispatch_to_job_switch_plan(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_engagement_activation_activates_the_plan(monkeypatch: pytest.MonkeyPatch) -> None:
     called: dict[str, Any] = {}
     monkeypatch.setattr(
         payments_router.job_switch_plan_service,
         "activate_plan",
-        lambda uid, subscription_id=None: called.update(uid=uid),
+        lambda uid, subscription_id=None: called.update(uid=uid, sub=subscription_id),
     )
-    monkeypatch.setattr(payments_router, "_unlock_myrology", lambda uid: called.update(myrology=uid))
 
-    payments_router._apply_entitlement("u9", payments_router.PRODUCTS["job_switch_plan"])
-    assert called == {"uid": "u9"}  # plan activated, myrology NOT unlocked
+    payments_router._activate_engagement("u9", {"razorpay_subscription_id": "sub_1"})
+    assert called == {"uid": "u9", "sub": "sub_1"}
 
 
-def test_entitlement_dispatch_to_myrology(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_myrology_grant_does_not_activate_a_plan(monkeypatch: pytest.MonkeyPatch) -> None:
     called: dict[str, Any] = {}
     monkeypatch.setattr(
         payments_router.job_switch_plan_service,
         "activate_plan",
         lambda uid, subscription_id=None: called.update(plan=uid),
     )
-    monkeypatch.setattr(payments_router, "_unlock_myrology", lambda uid: called.update(uid=uid))
+    monkeypatch.setattr(settlement, "unlock_myrology", lambda uid: called.update(uid=uid))
 
-    payments_router._apply_entitlement("u9", payments_router.PRODUCTS["myrology"])
+    key = billing_catalogue.by_alias("myrology").key
+    asyncio.run(settlement.default_grants()[key]({"id": "row-1", "user_id": "u9", "product": key}))
     assert called == {"uid": "u9"}  # myrology unlocked, plan NOT activated
 
 

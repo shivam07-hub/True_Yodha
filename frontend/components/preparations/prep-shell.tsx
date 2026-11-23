@@ -16,9 +16,11 @@
  * `/preparations/[jobId]` bought nothing and cost everything: an RSC round trip
  * for a payload that renders the same tree, behind a `loading.tsx` whose
  * skeleton is the WHOLE page — so clicking a room in the rail tore the rail
- * down and put it back seconds later. The room is chosen here and the URL is
- * corrected with `history.pushState`, which App Router treats as shallow. Deep
- * links, refresh and Back all still work; only the wait is gone.
+ * down and put it back seconds later. A rail click `history.pushState`s the
+ * room's URL, which App Router treats as shallow, and the room is READ BACK
+ * from `usePathname` — Next 14.2 moves it on pushState and on Back. The URL is
+ * the only copy: one kept in state went stale after a shallow push, and a Link
+ * to `/preparations` then moved the address bar but not the screen.
  *
  * A Finlatics programme opens in the main column the same way, from either
  * state of the rail. It is a pick, not a place: no URL of its own, and any room
@@ -28,6 +30,7 @@
 import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 import Link from "next/link"
+import { usePathname, useSearchParams } from "next/navigation"
 import { jobs as jobsApi, preparations, type ApplicationResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useCareerSkillPath } from "@/lib/hooks/use-career-skill-path"
@@ -35,7 +38,7 @@ import { PrepSkeleton } from "./prep-skeleton"
 import { PrepRail } from "./prep-rail"
 import { PrepRoom } from "./prep-room"
 import { NoRoomsDoor, TrainingDetail, shelfRows } from "./training-shelf"
-import { furthestBehind, ladderOrder, liveRoomCount, roomStage } from "./prep-model"
+import { furthestBehind, ladderOrder, liveRoomCount, roomFromUrl, roomStage } from "./prep-model"
 import "@/app/(authed)/home/mission-control.css"
 
 /** The room the list route opens: the first still-workable one, hottest first. */
@@ -44,52 +47,20 @@ function openByDefault(ordered: ApplicationResponse[]): string | null {
   return (live ?? ordered[0])?.job_id ?? null
 }
 
-/** The job id `/preparations/[jobId]` names, or null on the list route. Read
- *  back off the URL after a Back/Forward, which is the only way this component
- *  hears about a shallow entry it pushed itself. */
-function jobIdFromPath(pathname: string): string | null {
-  const match = /^\/preparations\/([^/?#]+)/.exec(pathname)
-  return match ? decodeURIComponent(match[1]) : null
-}
-
-export function PrepShell({
-  token,
-  jobId = null,
-  step = null,
-}: {
-  token: string
-  jobId?: string | null
-  /** `?step=N` from a cross-room link — opens that card in the room. */
-  step?: number | null
-}) {
-  // Seeded by the route, then owned here. A room switch never re-enters Next's
-  // router, so this is the only thing that moves.
-  const [chosen, setChosen] = React.useState<{ jobId: string | null; step: number | null }>(
-    { jobId, step },
-  )
+export function PrepShell({ token }: { token: string }) {
+  // `?step=N` comes from a cross-room link and opens that card in the room.
+  const chosen = roomFromUrl(usePathname(), useSearchParams().toString())
   // The Finlatics programme in the main column. With no rooms, null follows the
   // best match; with rooms, null means the room shows. A pick holds even when
   // the match lands later.
   const [programId, setProgramId] = React.useState<string | null>(null)
-  // A real navigation INTO this screen (Collections, a notification, the loop
-  // bar) still arrives as a prop change, and must win over what was chosen here.
+  // Any room the URL moves to — a rail click, Back, a link in — closes it.
   React.useEffect(() => {
-    setChosen({ jobId, step })
     setProgramId(null)
-  }, [jobId, step])
-  // Back/Forward across rooms we pushed ourselves: the router never re-renders
-  // for a shallow entry, so the URL is the only source left.
-  React.useEffect(() => {
-    function onPop() {
-      setChosen({ jobId: jobIdFromPath(window.location.pathname), step: null })
-      setProgramId(null)
-    }
-    window.addEventListener("popstate", onPop)
-    return () => window.removeEventListener("popstate", onPop)
-  }, [])
+  }, [chosen.jobId, chosen.step])
 
-  function openRoom(nextJobId: string, href: string, nextStep: number | null = null) {
-    setChosen({ jobId: nextJobId, step: nextStep })
+  function openRoom(href: string) {
+    // The room already in the URL does not move it, and must still close a pick.
     setProgramId(null)
     // Shallow (Next 14.2 supports history.pushState for this) — the URL stays
     // deep-linkable and Back still works, with no RSC fetch and no remount.
