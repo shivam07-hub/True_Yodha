@@ -38,9 +38,9 @@ we will know.
 **Two doors, one adapter (Shivam, 2026-11-22: "spec + build").** A stranger who
 finds Myro in the Claude directory has no Myro account, so a sign-in-only
 connector meets them with "go to the website first". The **open door**
-(`https://himyro.com/mcp/open`, no sign-in, §3A) answers what only Myro knows
+(`https://www.himyro.com/mcp/open`, no sign-in, §3A) answers what only Myro knows
 about the market: live MNC roles, the skills a role or a company asks for, where
-demand is, who leaves ads up. The **account door** (`https://himyro.com/mcp`,
+demand is, who leaves ads up. The **account door** (`https://www.himyro.com/mcp`,
 M1–M7) does the person's own loop. Claude can already write a bullet and draft
 interview questions; it cannot know which employers have the role open today.
 In an assistant Myro sells the data, not the model. The open door ships first:
@@ -90,7 +90,7 @@ have, the chunk is BLOCKED: say so, do not write the logic in the adapter.
 
 ```text
 Claude / ChatGPT
-   │  POST https://himyro.com/mcp            Next route handler, no keys
+   │  POST https://www.himyro.com/mcp            Next route handler, no keys
    ▼
 https://api.himyro.com/...                   same bearer token, routers as today
 
@@ -182,7 +182,7 @@ Signed out: login keeps `authorization_id`.
 
 **Do.**
 1. `app/.well-known/oauth-protected-resource/route.ts`: the RFC 9728 document.
-   `resource` is `https://himyro.com/mcp`; `authorization_servers` is
+   `resource` is `https://www.himyro.com/mcp`; `authorization_servers` is
    `{NEXT_PUBLIC_SUPABASE_URL}/auth/v1`.
 2. `app/mcp/route.ts`: POST only, stateless, JSON responses, no sessions. The
    official MCP TypeScript SDK, current stable line, exact version pinned.
@@ -310,7 +310,7 @@ only when the person says they submitted on the company's own site.
 
 **Needs.** M4–M7 verified. Do not advertise a thing that does not work yet.
 
-**Do.** A public page `/ai`: what it does, the address `https://himyro.com/mcp`
+**Do.** A public page `/ai`: what it does, the address `https://www.himyro.com/mcp`
 with a copy control, the steps for Claude and for ChatGPT, what it cannot do.
 Link it from the site footer and from Settings. Add one line to `llms.txt`.
 `/frontend-design`, `/ux-copy`, 375px.
@@ -324,7 +324,7 @@ last 30 days.
 ## 3A · The open door — no sign-in
 
 ```text
-Claude / ChatGPT  ──POST https://himyro.com/mcp/open──►  Next route handler
+Claude / ChatGPT  ──POST https://www.himyro.com/mcp/open──►  Next route handler
                                                          │ holds ONE server env key:
                                                          │ MYRO_MCP_OPEN_KEY (partner key,
                                                          │ scope market.read, revocable)
@@ -414,7 +414,9 @@ Portal `claude.ai/directory/manage`, a paid plan's Owner. Slug `myro` is
 permanent. Needs: docs URL (`/ai`), privacy policy, support contact, icon, use
 cases, data-handling answers, seven acknowledgments, every tool run once as a
 custom connector. Lists as Community; Anthropic may raise it to Verified. Read
-the Software Directory Policy on scraped data before submitting.
+the Software Directory Policy on scraped data before submitting. The connector
+URL is `https://www.himyro.com/mcp/open`: the bare `himyro.com` answers 307 to
+`www` (checked 2026-11-23).
 
 ### P1 · The skills plugin
 
