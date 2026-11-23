@@ -68,7 +68,7 @@ export async function startEngagementCheckout(args: {
                 razorpay_subscription_id: response.razorpay_subscription_id || subscriptionId,
                 razorpay_signature: response.razorpay_signature,
               })
-              outcome = verified.job_switch_plan_active ? "active" : "failed"
+              outcome = "outcome" in verified || verified.job_switch_plan_active ? "active" : "failed"
               if (outcome === "failed") {
                 args.onFailed("Payment captured but the scene didn't activate. Contact support.")
               }

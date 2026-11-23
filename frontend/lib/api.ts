@@ -4149,8 +4149,8 @@ export interface MarketJob {
   location_city: string | null
   location_country: string | null
   work_mode: string | null
-  /** Unix seconds. */
-  first_seen: number | null
+  /** The day the crawler discovered it, YYYY-MM-DD. */
+  first_seen: string | null
 }
 
 export interface MarketJobsResponse {
@@ -5170,9 +5170,10 @@ export const skills = {
 
 // ── Billing ──────────────────────────────────────────────────────────────────
 
-export type BillingProduct = "xp_pack" | "myrology" | "job_switch_plan" | "ai_workflow_audit" | "filing_intake"
+export type BillingProduct = "apply_pack" | "xp_pack" | "myrology" | "job_switch_plan" | "ai_workflow_audit" | "filing_intake"
 
 export const BILLING_PRODUCT_AMOUNT_PAISE: Record<BillingProduct, number> = {
+  apply_pack: 19900,
   xp_pack: 9900,
   myrology: 29900,
   job_switch_plan: 19900,
@@ -5204,7 +5205,34 @@ export interface RazorpayVerifyResponse {
   job_switch_plan_active: boolean
 }
 
+/** 202: money is in, the grant has not finished; the next arrival finishes it. */
+export interface RazorpayGrantPending {
+  outcome: "grant_pending"
+}
+
+export type RazorpayVerifyResult = RazorpayVerifyResponse | RazorpayGrantPending
+
+export interface CatalogueProduct {
+  alias: BillingProduct
+  price_paise: number
+  coins: number
+  human_checks: number
+  available: boolean
+  unavailable_reason: string | null
+}
+
+export interface Catalogue {
+  products: CatalogueProduct[]
+  human_check: {
+    checks_full: boolean
+    /** When a Human Check bought now comes back. */
+    ready_by: string
+    linkedin_coins: number
+  }
+}
+
 const BILLING_RECEIPT_PREFIX: Record<BillingProduct, string> = {
+  apply_pack: "ap",
   xp_pack: "xp",
   myrology: "myro",
   job_switch_plan: "jsp",
@@ -5213,7 +5241,7 @@ const BILLING_RECEIPT_PREFIX: Record<BillingProduct, string> = {
 }
 
 export const billing = {
-  createOrder: (token: string, product: BillingProduct = "xp_pack") =>
+  createOrder: (token: string, product: BillingProduct, jobId?: string) =>
     request<RazorpayOrderResponse>("/api/create-order", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -5222,11 +5250,15 @@ export const billing = {
         currency: "INR",
         product,
         receipt: `${BILLING_RECEIPT_PREFIX[product]}_${Date.now()}`,
+        ...(jobId ? { job_id: jobId } : {}),
       }),
     }),
 
+  /** Public. Every buy button renders from this. */
+  catalogue: () => request<Catalogue>("/api/catalogue"),
+
   verifyPayment: (token: string, payload: RazorpayVerifyPayload) =>
-    request<RazorpayVerifyResponse>("/api/verify-payment", {
+    request<RazorpayVerifyResult>("/api/verify-payment", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify(payload),

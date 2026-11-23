@@ -478,6 +478,13 @@ the compare strip as a live jobs query.
 - Formula (`compute_pulse`, sparkline) lives in one Python module. SQL only
   aggregates the raw inputs: live count, weekly inflow, the inflow series.
 
+## Snapshot Refresh
+
+A precomputed read model rebuilt in the database (`snapshot_refresh_state`, one row per task). `request_snapshot_refresh` asks (after a scraper finalize, or 20h without a success); `claim_snapshot_refresh` is the one place that decides whether a refresh runs now, under a lease; `run_snapshot_sql_refresh` runs it and `finish_snapshot_refresh` records the verdict.
+- **Budget:** pg_cron runs a refresh under a 2-minute statement timeout, on the one database every user read waits on. Read each large table **once** per refresh (a temp table), never once per step: role_families re-read the 53k live jobs five times and outgrew the budget on 2026-11-17 (77s once fixed); ghost_index read `jobs` and the observations three times each (27s once fixed).
+- **A timeout is a failure.** It raises `query_canceled`, which PL/pgSQL `when others` does not match; the handler names both. Before 2026-11-23 a timeout rolled back its own record, the task stayed `pending`, and the hourly cron re-ran the same two minutes every hour (281 minutes in a week).
+- **A failing task backs off.** `consecutive_failures` (reset on success) makes the claim wait 1h, 2h, 4h … up to a day after the last failed start. Reset it to 0 to force a run.
+
 ## Taxonomy Read-Model
 
 The public `/taxonomy` page's view of the 35,108-skill Lightcast tree, served as **three tiers** instead of one 4MB blocking fetch. The tiers exist because the page's access pattern is the inverse of its payload: the first paint needs only structure (domains → clusters → counts), the in-demand lead needs ~3,000 skills, and the 35k leaf names matter only on search or deep drill-down.
@@ -1639,6 +1646,14 @@ A durable unit of deferred work that must survive a process restart. Today: CV u
 - Per-job timeout configured on the Runner so a SIGKILLed worker's job moves to the failed registry and refunds — making orphans structurally rare.
 - A failed terminal Background Job refunds via the idempotent `refund_xp` RPC, per ADR-0004.
 - The CVUP3 orphan-sweep is KEPT as an independent backstop (the "night watchman") — a periodic reaper that catches any ticket the rail drops despite the timeout (Redis eviction, stuck registry, misconfig) and refunds it. Defense-in-depth for the Upload Guarantee; does not depend on RQ being perfectly configured.
+
+## CV Reader
+
+`cv_parser.read_cv_file(bytes)` is the one door every CV upload uses (signed-in multipart, resumable finalize, the anonymous score and job-fit preview). **The bytes decide the form, never the name or the browser's MIME** (2026-11-22): Drive strips extensions and people rename files to get past a picker (a one-slide PowerPoint CV arrived as `.docx`, 2026-10-30).
+- **Read locally, no model:** PDF text layer, Word, PowerPoint (slides in show order), plain text.
+- **Read by the vision model:** a photo, a screenshot, or a PDF with under `MIN_CV_TEXT_CHARS` of text (a scan; first `SCAN_PAGE_LIMIT` pages). The transcript is ordinary CV text from there. The contact header is in the picture, so for these files only it reaches the vision provider unredacted.
+- **Refused with what to do:** `.doc`, `.rtf`, anything else (`UnsupportedCVFile`, a 400 / 422). A vision outage is `CVReaderUnavailable`, a retryable 503; finalize keeps the object for the retry.
+- The browser's mirror is `lib/cv-file-detect.ts`: `CV_UPLOAD_ACCEPT` and `CV_UPLOAD_FORMATS` are every picker's list and label, and it refuses at the pick only what the reader would refuse. The `cv-uploads` bucket's MIME allowlist says the same.
 
 ## Upload Guarantee
 

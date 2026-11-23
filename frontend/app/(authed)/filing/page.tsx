@@ -3,34 +3,11 @@
 import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { billing, filingIntake } from "@/lib/api"
-import { openSale } from "@/lib/sale"
+import { filingIntake } from "@/lib/api"
+import { checkout } from "@/lib/checkout"
 import { SaleOffer } from "@/components/sale-gate"
 import { getAccessToken } from "@/lib/session"
 import "./filing.css"
-
-interface RazorpaySuccess {
-  razorpay_payment_id: string
-  razorpay_order_id: string
-  razorpay_signature: string
-}
-
-interface RazorpayOptions {
-  key: string
-  amount: number
-  currency: string
-  name: string
-  description: string
-  order_id: string
-  modal?: { confirm_close?: boolean; ondismiss?: () => void }
-  handler: (response: RazorpaySuccess) => void
-}
-
-interface RazorpayInstance {
-  open: () => void
-}
-
-type RazorpayCtor = new (options: RazorpayOptions) => RazorpayInstance
 
 export default function FilingIntakePage() {
   const queryClient = useQueryClient()
@@ -80,58 +57,20 @@ export default function FilingIntakePage() {
 
   async function pay() {
     if (!token) return
-    const key = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
-    if (!key) {
-      setError("Payments are still being connected.")
-      return
-    }
     setPaying(true)
     setError(null)
-    try {
-      const result = await openSale<RazorpayCtor>({
-        token,
-        product: "filing_intake",
-        open: ({ Razorpay, order }) => {
-          const checkout = new Razorpay({
-            key,
-            amount: order.amount,
-            currency: order.currency,
-            name: "Myro",
-            description: "Filing process · ₹599",
-            order_id: order.order_id,
-            modal: {
-              confirm_close: true,
-              ondismiss: () => setPaying(false),
-            },
-            handler: (response) => {
-              void (async () => {
-                try {
-                  await billing.verifyPayment(token, response)
-                  await queryClient.invalidateQueries({ queryKey: ["filing-intake"] })
-                  setError(null)
-                } catch {
-                  setError("We could not confirm the payment. If you were charged it will reconcile shortly.")
-                } finally {
-                  setPaying(false)
-                }
-              })()
-            },
-          })
-          checkout.open()
-        },
-      })
-      if (result === "absent") {
-        setPaying(false)
-        return
-      }
-      if (result === "unavailable") {
-        setError("Checkout is unavailable. Try again in a moment.")
-        setPaying(false)
-      }
-    } catch {
-      setError("Checkout could not start.")
-      setPaying(false)
+    const outcome = await checkout({
+      token,
+      product: "filing_intake",
+      name: "Myro",
+      description: "Filing process · ₹599",
+    })
+    if (outcome.kind === "paid" || outcome.kind === "setting_up") {
+      await queryClient.invalidateQueries({ queryKey: ["filing-intake"] })
     }
+    if (outcome.kind === "setting_up") setError("Payment received · setting up. Refresh in a minute.")
+    if (outcome.kind === "unavailable" || outcome.kind === "failed") setError(outcome.reason)
+    setPaying(false)
   }
 
   const paid = intake.data?.paid === true

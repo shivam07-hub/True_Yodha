@@ -41,7 +41,7 @@ import {
 import { hasPendingCVUpload } from "@/lib/cv-upload-queue"
 import { jwtSub } from "@/lib/cv-resumable-upload"
 import { dataKeys, invalidateCvData } from "@/lib/domain-data"
-import { preflightCVUploadFile } from "@/lib/cv-file-detect"
+import { CV_UPLOAD_ACCEPT, CV_UPLOAD_FORMATS, preflightCVUploadFile } from "@/lib/cv-file-detect"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useCVPlayground } from "@/lib/hooks/use-cv-playground"
 import { useViewport } from "@/mobile"
@@ -641,7 +641,7 @@ function CVPage() {
         ref={fileInputRef}
         id="cv-upload-input"
         type="file"
-        accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf,.docx"
+        accept={CV_UPLOAD_ACCEPT}
         style={{ position: "fixed", width: 1, height: 1, opacity: 0, pointerEvents: "none", left: -9999, top: -9999 }}
         onChange={(e) => {
           const f = e.target.files?.[0]
@@ -771,7 +771,7 @@ function CVPage() {
                 <span className="cvb-upload-label">
                   {displayedUploadError ? "Pick another file" : "Drop your CV here, or click to browse"}
                 </span>
-                <span className="cvb-upload-formats">PDF or DOCX · up to 10MB</span>
+                <span className="cvb-upload-formats">{CV_UPLOAD_FORMATS} · up to 10MB</span>
               </button>
               {displayedUploadError && (
                 <div style={{

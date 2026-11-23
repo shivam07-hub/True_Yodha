@@ -80,6 +80,13 @@ _skill_name_to_id_cache = shared_cache.SharedTTLMapping(
     "jobs.skill_name_to_id", ttl_seconds=7 * 24 * 3600
 )
 _search_cache = shared_cache.SharedTTLMapping("jobs.search", ttl_seconds=_SEARCH_TTL)
+# Rows `search_live_jobs` hands back per call. The public search keeps 60, so
+# 120 leaves the ranking room; 400 cost 1,449ms against 83ms, all of it
+# fetching full jobs rows (database/migrations/20261123140000_search_live_jobs.sql).
+_LIVE_SEARCH_WINDOW = 120
+# Below this many rows in the asked-for place, the public search relaxes the
+# place rather than show a near-empty page — and tries any role word before that.
+_MIN_PUBLIC_RESULTS = 3
 _company_search_cache = shared_cache.SharedTTLMapping(
     "jobs.company_search", ttl_seconds=_COMPANY_SEARCH_TTL
 )
@@ -251,6 +258,20 @@ def _global_search_rank(row: dict[str, Any], terms: list[str]) -> int:
     return score
 
 
+def _live_search_rank(row: dict[str, Any], terms: list[str], phrase: str) -> int:
+    """`_global_search_rank`, plus a title that holds the whole role, then every
+    word of it. Without this every Mumbai row with "data" and "analyst"
+    anywhere tied, and "Reference Data & Security Master Analyst" outranked
+    "Data Analyst" on date alone."""
+    title = str(row.get("job_title") or "").casefold()
+    bonus = 0
+    if phrase and phrase in title:
+        bonus += 20
+    if terms and all(term in title for term in terms):
+        bonus += 10
+    return _global_search_rank(row, terms) + bonus
+
+
 def _global_search_location_match(row: dict[str, Any], location_terms: list[str]) -> bool:
     if not location_terms:
         return True
@@ -404,6 +425,17 @@ def _location_match_values(value: str | None, *, kind: Literal["city", "country"
     if canonical:
         values.add(canonical.lower())
     return values
+
+
+def _place_patterns(value: str | None, *, kind: Literal["city", "country"]) -> list[str] | None:
+    """Every spelling of a place for `search_live_jobs` to prefilter on: what
+    `_location_match_values` accepts plus the search aliases, so "Bengaluru"
+    also reaches rows still filed as "Bangalore". The prefilter only has to
+    be a superset; `_matches_location_filters` still decides each row."""
+    values = _location_match_values(value, kind=kind)
+    for known in list(values):
+        values.update(_GLOBAL_SEARCH_ALIASES.get(known, []))
+    return sorted(values) or None
 
 
 def _cache_key(
@@ -1468,6 +1500,64 @@ class JobsRepository:
         _search_cache[cache_key] = (now, {"rows": rows})
         return rows
 
+    def live_job_search(
+        self,
+        role: str,
+        *,
+        location_city: str | None = None,
+        location_country: str | None = None,
+        location_mode: str | None = None,
+        any_word: bool = False,
+        limit: int = _LIVE_SEARCH_WINDOW // 2,
+    ) -> list[dict[str, Any]]:
+        """Live roles for a role in a place, best-ranked first (`search_live_jobs`).
+
+        Not `global_job_search`: that takes the newest matches of ANY word
+        nationally, and a place filtered after that window misses the place —
+        "data analyst" + Mumbai read four days of national rows and found none
+        while Mumbai had five live ones. Here the place, the mode and liveness
+        are in SQL ahead of the window, and every role word must match unless
+        `any_word`. A title holding the whole role ranks first.
+        """
+        role_term = " ".join((role or "").split())
+        terms = _global_search_terms(role_term) if len(role_term) >= 2 else []
+        if not terms:
+            return []
+        bounded = max(1, min(_LIVE_SEARCH_WINDOW, int(limit)))
+        mode = _norm_filter(location_mode)
+        cache_key = (
+            "__live__", role_term.lower(), _norm_filter(location_city),
+            _norm_filter(location_country), mode, any_word, 1, bounded,
+        )
+        now = time.monotonic()
+        cached = _search_cache.get(cache_key)
+        if cached is not None and (now - cached[0]) < 60:
+            return list(cached[1]["rows"])
+        rows = self._admin_db.rpc(
+            "search_live_jobs",
+            {
+                "p_terms": terms,
+                "p_cities": _place_patterns(location_city, kind="city"),
+                # With a city named, "india" would match nearly every row and buy
+                # no selectivity (Bengaluru 83ms → 699ms with it); the country is
+                # still checked exactly by `_matches_location_filters`.
+                "p_countries": None if location_city else _place_patterns(location_country, kind="country"),
+                "p_mode": mode,
+                "p_match_all": not any_word,
+                "p_limit": _LIVE_SEARCH_WINDOW,
+            },
+        ).execute().data or []
+        phrase = role_term.casefold()
+        ranked = sorted(
+            rows,
+            key=lambda row: (_live_search_rank(row, terms, phrase), str(row.get("first_seen") or "")),
+            reverse=True,
+        )[:bounded]
+        for row in ranked:
+            _hydrate_location_fields(row)
+        _search_cache[cache_key] = (now, {"rows": ranked})
+        return ranked
+
     def public_job_query(
         self,
         *,
@@ -1477,39 +1567,45 @@ class JobsRepository:
         location_mode: str | None = None,
         limit: int = 12,
     ) -> dict[str, Any]:
-        """Public NL job search (#33 job-gen) → REAL openings only.
+        """Public NL job search (#33 job-gen) and the MCP's `myro_search_jobs`
+        → REAL live openings only.
 
-        Searches live job titles/companies by role text, then filters by location.
-        Closest-rec fallback (#33 Q3 thin-market): if the strict location filter is
-        too thin, relax location and report it, so the user still sees the nearest
-        real roles instead of an empty page. Never fabricates — every returned card
-        is a real `jobs` row.
+        A ladder that keeps the role before the place and the place before a
+        loose read of the role: every role word in the place; every word
+        anywhere (relaxed "location"); any one word in the place; any one word
+        anywhere. Each rung adds only rows the rungs above did not find, below
+        them, and the ladder stops at three rows (#33 Q3 thin-market) — so the
+        one Morgan Stanley "Investment Banking Analyst" in Mumbai stays first
+        instead of being replaced by 60 newer Mumbai banking rows.
+        `_matches_location_filters` decides each row's place exactly. Never
+        fabricates — every returned card is a real `jobs` row.
         """
-        min_results = 3  # below this, relax rather than show a near-empty page
-        role_term = " ".join((role or "").split())
-        rows = self.global_job_search(role_term, limit=60) if role_term else []
+        place = {
+            "location_city": location_city,
+            "location_country": location_country,
+            "location_mode": location_mode,
+        }
+        has_loc = any(place.values())
+        # (any one word?, in the place?)
+        rungs = (
+            [(False, True), (False, False), (True, True), (True, False)]
+            if has_loc
+            else [(False, False), (True, False)]
+        )
+        chosen: list[dict[str, Any]] = []
+        seen: set[str] = set()
         relaxed: list[str] = []
-
-        has_loc = bool(location_city or location_country or location_mode)
-        if has_loc:
-            strict = [
-                r
-                for r in rows
-                if _matches_location_filters(
-                    r,
-                    location_city=location_city,
-                    location_country=location_country,
-                    location_mode=location_mode,
-                )
-            ]
-            if len(strict) >= min_results:
-                chosen = strict
-            else:
-                # Closest rec — keep the real role matches, drop the location filter.
-                chosen = rows
-                relaxed.append("location")
-        else:
-            chosen = rows
+        for any_word, in_place in rungs:
+            found = self.live_job_search(role, any_word=any_word, **(place if in_place else {}))
+            if in_place:
+                found = [r for r in found if _matches_location_filters(r, **place)]
+            new = [r for r in found if r["job_id"] not in seen]
+            if new and has_loc and not in_place:
+                relaxed = ["location"]
+            chosen += new
+            seen.update(r["job_id"] for r in new)
+            if len(chosen) >= _MIN_PUBLIC_RESULTS:
+                break
 
         bounded = max(1, min(24, int(limit)))
         return {

@@ -1,19 +1,70 @@
 /**
- * CV file-type detection — handles the three sources users actually pick from:
- *   1. Phone storage — keeps `.pdf`/`.docx` extension + correct MIME
+ * CV file-type detection. A CV comes in whatever form the person keeps it in —
+ * PDF, Word, PowerPoint, a text file, a phone photo, a screenshot (2026-11-22).
+ * The backend reader (`cv_parser.read_cv_file`) decides from the bytes; this is the
+ * pick-time mirror of that list, so a file is refused here only when the server
+ * would refuse it too. Three sources users actually pick from:
+ *   1. Phone storage / camera — keeps an extension + correct MIME
  *   2. Google Drive  — often strips the extension; MIME may be canonical
- *      PDF/DOCX OR application/octet-stream when Drive serves a virtual URI
+ *      OR application/octet-stream when Drive serves a virtual URI
  *   3. Share intents — name may be a hash with no extension; MIME = octet-stream
  *
- * Strategy: filename-ext → file.type → magic bytes on first 4 bytes.
+ * Strategy: filename-ext → file.type → magic bytes on the first 12 bytes.
  * Returns a canonical MIME or null when nothing matches.
  */
 
 export const PDF_MIME = "application/pdf"
 export const DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+export const PPTX_MIME =
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+export const TEXT_MIME = "text/plain"
+export const JPEG_MIME = "image/jpeg"
+export const PNG_MIME = "image/png"
+export const WEBP_MIME = "image/webp"
 
-export type CVFileMime = typeof PDF_MIME | typeof DOCX_MIME
+export type CVFileMime =
+  | typeof PDF_MIME
+  | typeof DOCX_MIME
+  | typeof PPTX_MIME
+  | typeof TEXT_MIME
+  | typeof JPEG_MIME
+  | typeof PNG_MIME
+  | typeof WEBP_MIME
+
+/** The one extension each canonical MIME is stored under. */
+const EXTENSION: Record<CVFileMime, string> = {
+  [PDF_MIME]: ".pdf",
+  [DOCX_MIME]: ".docx",
+  [PPTX_MIME]: ".pptx",
+  [TEXT_MIME]: ".txt",
+  [JPEG_MIME]: ".jpg",
+  [PNG_MIME]: ".png",
+  [WEBP_MIME]: ".webp",
+}
+
+const BY_EXTENSION: ReadonlyArray<readonly [string, CVFileMime]> = [
+  [".pdf", PDF_MIME],
+  [".docx", DOCX_MIME],
+  [".pptx", PPTX_MIME],
+  [".txt", TEXT_MIME],
+  [".md", TEXT_MIME],
+  [".jpg", JPEG_MIME],
+  [".jpeg", JPEG_MIME],
+  [".png", PNG_MIME],
+  [".webp", WEBP_MIME],
+]
+
+/** How every upload surface names what it takes — one string, so no door says less. */
+export const CV_UPLOAD_FORMATS = "PDF, Word, slides or a photo"
+
+/** What every CV file picker offers. `image/*` lets a phone offer its camera. */
+export const CV_UPLOAD_ACCEPT = [
+  ...BY_EXTENSION.map(([ext]) => ext),
+  "image/*",
+  ...Object.keys(EXTENSION),
+].join(",")
+
 export const CV_UPLOAD_MAX_BYTES = 10 * 1024 * 1024
 
 /** Below this a file cannot be a document, only a pointer to one. A PDF needs a header,
@@ -23,7 +74,7 @@ export const CV_UPLOAD_MAX_BYTES = 10 * 1024 * 1024
  *  file picker a 76-byte stub for anything not downloaded locally, correct magic bytes
  *  and all. Two users uploaded the identical 76-byte stub; one retried six times, never
  *  scored, and never came back. Catch it at the pick, where the user still has the real
- *  file in front of them. */
+ *  file in front of them. A plain-text CV is the exception: a short one is under 1KB. */
 export const CV_UPLOAD_MIN_BYTES = 1024
 
 export type CVUploadPreflightErrorCode =
@@ -36,8 +87,9 @@ export type CVUploadPreflightErrorCode =
 export type UnsupportedFormatKind =
   | "linkedin_data_zip"  // GDPR data archive — user needs Save to PDF instead
   | "spreadsheet"        // CSV, XLSX, XLS
-  | "image"              // PNG, JPG, JPEG, HEIC
-  | "unknown"            // anything else not PDF/DOCX
+  | "legacy_word"        // .doc — Word 97-2003, no reader here
+  | "heic"               // iPhone photo format the vision models do not all take
+  | "unknown"            // anything else
 
 export type CVUploadPreflightResult =
   | {
@@ -57,38 +109,50 @@ export type CVUploadPreflightResult =
 
 export function detectCVFileTypeByName(name: string): CVFileMime | null {
   const lower = name.toLowerCase()
-  if (lower.endsWith(".pdf")) return PDF_MIME
-  if (lower.endsWith(".docx")) return DOCX_MIME
-  return null
+  const hit = BY_EXTENSION.find(([ext]) => lower.endsWith(ext))
+  return hit ? hit[1] : null
 }
 
 export function detectCVMimeByType(mime: string): CVFileMime | null {
-  if (mime === PDF_MIME) return PDF_MIME
-  if (mime === DOCX_MIME) return DOCX_MIME
-  return null
+  return mime in EXTENSION ? (mime as CVFileMime) : null
 }
 
-/** Inspect first 4 bytes to identify PDF (`%PDF`) or DOCX/zip (`PK\x03\x04`).
- *  DOCX shares the zip prefix with XLSX/PPTX; the backend rejects non-Word
- *  zips so a false-positive here surfaces a clear error, not silent corruption.
- */
+/** Identify a CV form from its first bytes: `%PDF`, a ZIP (`PK\x03\x04` — Word or
+ *  PowerPoint; the backend reads either and returns empty text for any other Office
+ *  package), JPEG, PNG, or WebP (`RIFF....WEBP`). */
 export function detectCVMimeByMagic(head: Uint8Array): CVFileMime | null {
   if (head.length < 4) return null
   if (head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46) return PDF_MIME
   if (head[0] === 0x50 && head[1] === 0x4b && head[2] === 0x03 && head[3] === 0x04) return DOCX_MIME
+  if (head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff) return JPEG_MIME
+  if (head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47) return PNG_MIME
+  if (
+    head.length >= 12 &&
+    String.fromCharCode(...head.slice(0, 4)) === "RIFF" &&
+    String.fromCharCode(...head.slice(8, 12)) === "WEBP"
+  ) return WEBP_MIME
   return null
 }
 
 export function ensureCVExtension(name: string, mime: CVFileMime): string {
-  const ext = mime === PDF_MIME ? ".pdf" : ".docx"
+  const ext = EXTENSION[mime]
   if (name.toLowerCase().endsWith(ext)) return name
   const base = name.includes(".") ? name.slice(0, name.lastIndexOf(".")) : name
   return `${base || "cv"}${ext}`
 }
 
+/** A name or browser type that says the file is a form we cannot read, so its
+ *  magic bytes are not trusted to say otherwise (an .xlsx is a ZIP, like a DOCX). */
+function unsupportedKindByLabel(lowerName: string, type: string): UnsupportedFormatKind | null {
+  if (/\.(csv|xlsx|xls)$/.test(lowerName) || type === "text/csv") return "spreadsheet"
+  if (lowerName.endsWith(".doc") || type === "application/msword") return "legacy_word"
+  if (/\.(heic|heif)$/.test(lowerName) || type === "image/heic" || type === "image/heif") return "heic"
+  return null
+}
+
 /**
- * Classify WHY a file failed CV detection — name heuristics first, then magic bytes.
- * Only called after `detectCVFile` returns null, so we know it's not PDF/DOCX.
+ * Classify WHY a file failed CV detection — name and type first, then magic bytes.
+ * Only called after `detectCVFile` returns null, so we know it's no form we read.
  */
 export async function detectUnsupportedFormatKind(file: {
   name: string
@@ -96,35 +160,29 @@ export async function detectUnsupportedFormatKind(file: {
   slice: (start: number, end: number) => Blob
 }): Promise<UnsupportedFormatKind> {
   const lower = file.name.toLowerCase()
-
-  if (lower.endsWith(".csv")) return "spreadsheet"
-  if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) return "spreadsheet"
-  if (lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".heic")) return "image"
+  const byLabel = unsupportedKindByLabel(lower, file.type)
+  if (byLabel) return byLabel
+  const looksLinkedIn = lower.includes("linkedin") || lower.includes("dataexport")
 
   // ZIP by extension or MIME — check if it's a LinkedIn data export
   const isZipByName =
     lower.endsWith(".zip") ||
     file.type === "application/zip" ||
     file.type === "application/x-zip-compressed"
-  if (isZipByName) {
-    return lower.includes("linkedin") || lower.includes("dataexport")
-      ? "linkedin_data_zip"
-      : "unknown"
-  }
+  if (isZipByName) return looksLinkedIn ? "linkedin_data_zip" : "unknown"
 
   // Fall back to magic bytes
   try {
-    const head = new Uint8Array(await file.slice(0, 4).arrayBuffer())
+    const head = new Uint8Array(await file.slice(0, 12).arrayBuffer())
     // ZIP magic: PK\x03\x04 (also matches DOCX, but detectCVFile already cleared those)
     if (head[0] === 0x50 && head[1] === 0x4b && head[2] === 0x03 && head[3] === 0x04) {
-      return lower.includes("linkedin") || lower.includes("dataexport")
-        ? "linkedin_data_zip"
-        : "unknown"
+      return looksLinkedIn ? "linkedin_data_zip" : "unknown"
     }
-    // JPEG: ff d8
-    if (head[0] === 0xff && head[1] === 0xd8) return "image"
-    // PNG: 89 50 4e 47
-    if (head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47) return "image"
+    // OLE compound file: Word 97-2003 .doc (and .xls)
+    if (head[0] === 0xd0 && head[1] === 0xcf && head[2] === 0x11 && head[3] === 0xe0) return "legacy_word"
+    // ISO media `ftyp` box naming a HEIF brand: an iPhone photo
+    const brand = String.fromCharCode(...head.slice(4, 12))
+    if (/^ftyp(heic|heix|hevc|mif1)$/.test(brand)) return "heic"
   } catch {
     // ignore — fall through to "unknown"
   }
@@ -132,16 +190,20 @@ export async function detectUnsupportedFormatKind(file: {
   return "unknown"
 }
 
+const READ_FORMS = "PDF, Word, PowerPoint, a text file or a photo of your CV"
+
 function unsupportedFormatMessage(kind: UnsupportedFormatKind): string {
   switch (kind) {
     case "linkedin_data_zip":
       return "That's LinkedIn's data archive. We need your profile PDF — open your profile → More → Save to PDF."
     case "spreadsheet":
-      return "CSV and spreadsheet files aren't a CV format. Upload your CV as a PDF or DOCX."
-    case "image":
-      return "Looks like a screenshot or photo. Export your CV as a text-based PDF instead."
+      return `A spreadsheet isn't a CV. Upload the CV itself: ${READ_FORMS}.`
+    case "legacy_word":
+      return "That's an older Word file (.doc). Open it in Word or Google Docs, save it as PDF or DOCX, then upload that."
+    case "heic":
+      return "That's an iPhone HEIC photo. Take a screenshot of it, or share it as a JPEG, then upload that."
     default:
-      return "Only PDF and DOCX files are supported."
+      return `We read ${READ_FORMS}.`
   }
 }
 
@@ -151,18 +213,19 @@ export async function detectCVFile(file: {
   type: string
   slice: (start: number, end: number) => Blob
 }): Promise<CVFileMime | null> {
-  const byName = detectCVFileTypeByName(file.name)
+  const lower = file.name.toLowerCase()
+  const byName = detectCVFileTypeByName(lower)
   if (byName) return byName
+  if (unsupportedKindByLabel(lower, file.type)) return null
   const byType = detectCVMimeByType(file.type)
   if (byType) return byType
   try {
-    const head = new Uint8Array(await file.slice(0, 4).arrayBuffer())
+    const head = new Uint8Array(await file.slice(0, 12).arrayBuffer())
     const byMagic = detectCVMimeByMagic(head)
     if (!byMagic) return null
     // DOCX shares the ZIP magic prefix (PK\x03\x04). Rule out explicit ZIP containers
     // so linkedin data exports and generic archives don't pass as "DOCX".
     if (byMagic === DOCX_MIME) {
-      const lower = file.name.toLowerCase()
       const isExplicitZip =
         lower.endsWith(".zip") ||
         file.type === "application/zip" ||
@@ -189,7 +252,7 @@ export async function preflightCVUploadFile(
     return {
       ok: false,
       code: "empty_file",
-      message: "This file appears empty. Pick a non-empty PDF or DOCX and try again.",
+      message: "This file appears empty. Pick your CV again.",
       fileBytes: file.size,
       maxBytes,
     }
@@ -218,7 +281,7 @@ export async function preflightCVUploadFile(
   // Size is judged only once the file claims to be a CV format. A 512-byte CSV is a
   // spreadsheet and should be told so; a 76-byte PDF passed every format check it has —
   // correct magic bytes, correct extension — and is still not a document.
-  if (file.size < CV_UPLOAD_MIN_BYTES) {
+  if (file.size < CV_UPLOAD_MIN_BYTES && detected !== TEXT_MIME) {
     return {
       ok: false,
       code: "placeholder_file",

@@ -13,6 +13,7 @@ from app.repositories.cv import (
     CVVersionWriteSpec,
     CVVersionsRepository,
 )
+from app.security.error_handling import ServiceUnavailable
 from app.services import background, cv_parser
 from app.services.matching import match_run
 from app.services.background import TransientJobError
@@ -118,14 +119,14 @@ def _persist_baseline_cv(
 
 
 # ── ADR-0004 two-phase upload ─────────────────────────────────────────────────
-# Phase 1 — synchronous, fast (~500ms): validate, extract raw text, hash-check
-#   cache, charge XP, persist a processing row, return job_id.
+# Phase 1 — synchronous: read the file's text, hash-check cache, charge XP,
+#   persist a processing row, return job_id. ~500ms for a file with a text layer;
+#   a photo or scan waits on one vision transcription first (~4s, 2026-11-22).
 # Phase 2 — async: deterministic recall + skills-only LLM, structured document
 #   extraction, persist one reviewable baseline, then mark the intake done.
 #   Refund XP on provider failure or empty extraction. Skill confirmation owns
 #   scoring and matching after the user reviews the evidence.
 
-_MIN_CV_TEXT_LEN = 80  # below this the LLM has nothing useful to extract
 _STALE_PROCESSING_MINUTES = 5
 # How many times a stalled upload may be put back on the lane before we stop and
 # refund. Deploy casualties recover on the first attempt; anything that stalls
@@ -298,18 +299,18 @@ def _status_phase(row: dict[str, Any]) -> str | None:
 
 
 def _assert_cv_text_extractable(raw_text: str, *, source: str) -> None:
-    """Reject scanned / image-only PDFs and DOCX-with-only-images BEFORE charging XP.
+    """Reject a file with no CV text in it BEFORE charging XP (CVUP4).
 
-    The async worker would otherwise refund every time and trap the user in a
-    retry loop. Threshold is shared with the typed-text path so both flows
-    apply the same minimum-content rule.
+    Scans and photos have already been transcribed by the time this runs, so what
+    fails here holds no readable CV at all. The async worker would otherwise
+    refund every time and trap the user in a retry loop. Threshold is shared with
+    the typed-text path so both flows apply the same minimum-content rule.
     """
-    if len(raw_text.strip()) < _MIN_CV_TEXT_LEN:
+    if len(raw_text.strip()) < cv_parser.MIN_CV_TEXT_CHARS:
         if source == "upload":
             detail = (
-                "We couldn't read any text in this file. If it's a scanned or "
-                "photo-based PDF, export a text-based PDF (Save As → PDF in "
-                "Word/Google Docs) and try again."
+                "We couldn't read any text in this file. If it's a photo, take "
+                "it in good light with the whole page in frame, or paste your CV text."
             )
         else:
             detail = "Please write at least a few sentences about yourself."
@@ -331,12 +332,29 @@ def _is_reviewable_baseline(row: dict[str, Any] | None) -> bool:
     return isinstance(structured, dict) and bool(structured)
 
 
+async def _read_uploaded_cv(file_bytes: bytes) -> str:
+    """The CV file's text, whatever form it came in, as an HTTP verdict on failure."""
+    try:
+        return await cv_parser.read_cv_file(file_bytes)
+    except cv_parser.UnsupportedCVFile as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "unsupported_format", "message": exc.message},
+            headers={"X-Myro-Error-Code": "unsupported_format"},
+        ) from exc
+    except cv_parser.CVReaderUnavailable as exc:
+        # A 5xx detail is blanked at the boundary unless it is authored copy.
+        raise ServiceUnavailable(
+            "We couldn't read this photo or scan just now. Try again in a minute.",
+            headers={"X-Myro-Error-Code": "provider_unavailable"},
+        ) from exc
+
+
 async def start_cv_upload_job(
     cv_repo: CVVersionsRepository,
     user_id: str,
     *,
     file_bytes: bytes,
-    file_type: str,
     idempotency_key: str | None = None,
     source: str = "pdf_upload",
 ) -> dict[str, Any]:
@@ -344,7 +362,8 @@ async def start_cv_upload_job(
       - {status: "done", skills_detected, score, redirect_to}      ← hash cache hit
       - {status: "processing", job_id}                              ← LLM job queued
       - existing job's status payload                               ← idempotency hit
-    Raises 400 on insufficient XP, 422 on unreadable text, 429 on rate-limit.
+    Raises 400 on insufficient XP or a file we cannot read, 422 on a file with no
+    CV text, 429 on rate-limit, 503 when a photo's reader is down.
     """
     if idempotency_key:
         existing = upload_jobs_repo.find_by_idempotency_key(user_id, idempotency_key)
@@ -353,7 +372,7 @@ async def start_cv_upload_job(
 
     _enforce_user_upload_rate_limit(user_id)
 
-    raw_text = cv_parser.extract_raw_text(file_bytes, file_type)
+    raw_text = await _read_uploaded_cv(file_bytes)
     _assert_cv_text_extractable(raw_text, source="upload")
     content_hash = hashlib.sha256(raw_text.encode()).hexdigest()
 
@@ -379,20 +398,10 @@ async def start_cv_upload_job(
 CV_UPLOAD_BUCKET = "cv-uploads"
 
 
-def _download_cv_object(storage_path: str) -> tuple[bytes, str]:
+def _download_cv_object(storage_path: str) -> bytes:
     """Pull a resumable-uploaded CV out of private storage (service-role, RLS-bypassing).
-    Caller MUST have already verified storage_path belongs to the requesting user."""
-    ext = storage_path.rsplit(".", 1)[-1].lower() if "." in storage_path else ""
-    if ext == "pdf":
-        file_type = "pdf"
-    elif ext == "docx":
-        file_type = "docx"
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"code": "unsupported_format", "message": "Only PDF and DOCX files are accepted."},
-            headers={"X-Myro-Error-Code": "unsupported_format"},
-        )
+    Caller MUST have already verified storage_path belongs to the requesting user.
+    The object's name says nothing about its form; the reader decides from the bytes."""
     try:
         data = get_supabase_admin().storage.from_(CV_UPLOAD_BUCKET).download(storage_path)
     except Exception:  # object gone / storage unreachable — the bytes never landed
@@ -401,7 +410,7 @@ def _download_cv_object(storage_path: str) -> tuple[bytes, str]:
             detail={"code": "upload_expired", "message": "Upload expired. Please pick your CV again."},
             headers={"X-Myro-Error-Code": "upload_expired"},
         )
-    return data, file_type
+    return data
 
 
 def _delete_cv_object(storage_path: str) -> None:
@@ -431,11 +440,11 @@ async def start_cv_upload_job_from_storage(
         if existing:
             return _idem_response(existing)
 
-    file_bytes, file_type = _download_cv_object(storage_path)
+    file_bytes = _download_cv_object(storage_path)
     try:
         result = await start_cv_upload_job(
             cv_repo, user_id,
-            file_bytes=file_bytes, file_type=file_type,
+            file_bytes=file_bytes,
             idempotency_key=idempotency_key, source=source,
         )
     except HTTPException as exc:

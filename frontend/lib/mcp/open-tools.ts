@@ -50,11 +50,6 @@ function tailorUrl(jobId: string, tool: string): string {
   return siteUrl("/cv", tool, { jobId })
 }
 
-function isoDay(unixSeconds: number | null): string | null {
-  if (unixSeconds === null || !Number.isFinite(unixSeconds)) return null
-  return new Date(unixSeconds * 1000).toISOString().slice(0, 10)
-}
-
 function ok<T extends Record<string, unknown>>(data: T): CallToolResult {
   return { content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: data }
 }
@@ -194,7 +189,7 @@ export async function searchJobs(
       city: job.location_city,
       country: job.location_country,
       work_mode: job.work_mode,
-      first_seen: isoDay(job.first_seen),
+      first_seen: job.first_seen,
       tailor_url: tailorUrl(job.job_id, "myro_search_jobs"),
     })),
     total: outcome.data.total,

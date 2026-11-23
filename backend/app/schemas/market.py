@@ -1,7 +1,7 @@
 """Market answers with no person in them (`/partner/v1/market/*`, scope `market.read`)."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel
@@ -16,8 +16,9 @@ class MarketJob(BaseModel):
     location_city: str | None = None
     location_country: str | None = None
     work_mode: str | None = None
-    # Unix seconds, as `jobs.first_seen` stores it.
-    first_seen: int | None = None
+    # The day the crawler discovered it. `jobs.first_seen` stores a YYYYMMDD
+    # marker; `listing_time.day` is the only conversion.
+    first_seen: date | None = None
 
 
 class MarketJobsResponse(BaseModel):

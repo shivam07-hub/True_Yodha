@@ -42,7 +42,7 @@ test("search_jobs sends the structured filters on the keyed read and links each 
   const api = fakeApi({
     "/partner/v1/market/jobs": data({
       jobs: [{ job_id: "j 1", title: "Product Manager", company: "Acme", location_city: "Bengaluru",
-        location_country: "India", work_mode: "hybrid", first_seen: 1763596800 }],
+        location_country: "India", work_mode: "hybrid", first_seen: "2026-11-20" }],
       total: 11,
       relaxed: [],
     }),
@@ -57,7 +57,7 @@ test("search_jobs sends the structured filters on the keyed read and links each 
   }])
   const out = structured<{ jobs: Job[]; total: number; more_url: string }>(result)
   assert.equal(out.total, 11)
-  assert.equal(out.jobs[0].first_seen, "2025-11-20")
+  assert.equal(out.jobs[0].first_seen, "2026-11-20")
   assert.equal(out.jobs[0].tailor_url, "https://himyro.com/cv?jobId=j+1&utm_source=mcp&utm_campaign=myro_search_jobs")
   assert.equal(out.more_url, "https://himyro.com/intel?search=product+manager+Bengaluru&utm_source=mcp&utm_campaign=myro_search_jobs")
 })

@@ -53,6 +53,13 @@ class _CachedCVRepository:
         return 72.5
 
 
+def _reads_as(text_of):  # type: ignore[no-untyped-def]
+    """The upload's one read seam: whatever bytes arrive, they read as this text."""
+    async def _read(file_bytes: bytes, **_kwargs: Any) -> str:
+        return text_of(file_bytes)
+    return _read
+
+
 def _override_principal_and_repo(repo) -> None:
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[get_token_cv_repository] = lambda: repo
@@ -111,7 +118,7 @@ def _patch_jobs_create(monkeypatch, *, job_id: str = "job-123") -> None:
 def test_upload_returns_202_with_job_id_on_fresh_content(monkeypatch) -> None:
     _override_principal_and_repo(_FakeCVRepository())
     state = _patch_xp(monkeypatch, balance=3000)
-    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "Python engineer with five years of backend experience building production APIs, data pipelines, and shipping reliable systems.")
+    monkeypatch.setattr(cv_workflow.cv_parser, "read_cv_file", _reads_as(lambda *_a, **_k: "Python engineer with five years of backend experience building production APIs, data pipelines, and shipping reliable systems."))
     _patch_jobs_create(monkeypatch, job_id="job-abc")
     enqueued: list[tuple[str, str]] = []
     monkeypatch.setattr(
@@ -143,7 +150,7 @@ def test_upload_returns_202_with_job_id_on_fresh_content(monkeypatch) -> None:
 def test_upload_returns_hash_cache_hit_without_charging(monkeypatch) -> None:
     _override_principal_and_repo(_CachedCVRepository())
     state = _patch_xp(monkeypatch, balance=3000)
-    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "Same CV uploaded again. The hash check below must short-circuit before any LLM or XP charge runs.")
+    monkeypatch.setattr(cv_workflow.cv_parser, "read_cv_file", _reads_as(lambda *_a, **_k: "Same CV uploaded again. The hash check below must short-circuit before any LLM or XP charge runs."))
     _patch_jobs_create(monkeypatch)
 
     try:
@@ -177,8 +184,8 @@ def test_upload_does_not_reuse_unreviewable_hash_cache_hit(monkeypatch) -> None:
     state = _patch_xp(monkeypatch, balance=3000)
     monkeypatch.setattr(
         cv_workflow.cv_parser,
-        "extract_raw_text",
-        lambda *_a, **_k: "Same CV uploaded again, but its historical baseline has no reviewable document structure yet.",
+        "read_cv_file",
+        _reads_as(lambda *_a, **_k: "Same CV uploaded again, but its historical baseline has no reviewable document structure yet."),
     )
     _patch_jobs_create(monkeypatch, job_id="job-repair")
     _patch_async_workflow(monkeypatch)
@@ -212,7 +219,7 @@ def test_upload_does_not_reuse_unreviewable_hash_cache_hit(monkeypatch) -> None:
 def test_upload_blocks_with_400_when_xp_insufficient(monkeypatch) -> None:
     _override_principal_and_repo(_FakeCVRepository())
     _patch_xp(monkeypatch, balance=50)  # < 200 cost
-    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "Python developer with several years of experience building backend services and CLI tools for production.")
+    monkeypatch.setattr(cv_workflow.cv_parser, "read_cv_file", _reads_as(lambda *_a, **_k: "Python developer with several years of experience building backend services and CLI tools for production."))
     _patch_jobs_create(monkeypatch, job_id="job-blocked")  # job row pre-charge per new ordering
 
     try:
@@ -259,12 +266,51 @@ def test_submit_text_rate_limit_fail_open_when_supabase_unavailable(monkeypatch)
     assert res.status_code == 422
 
 
-def test_upload_returns_422_without_charge_when_pdf_has_no_text(monkeypatch) -> None:
-    """Scanned/image-only PDFs extract to empty string. Reject in phase 1
-    so the user is not charged-refunded in a retry loop."""
+def test_a_file_we_cannot_read_is_refused_with_what_to_upload_instead(monkeypatch) -> None:
+    """No MIME gate: an old .doc reaches the reader, which names the way out."""
     _override_principal_and_repo(_FakeCVRepository())
     state = _patch_xp(monkeypatch, balance=3000)
-    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "")
+    old_word = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00" * 2048
+
+    try:
+        with TestClient(app) as client:
+            res = client.post("/cv/upload", files={"file": ("cv.doc", old_word, "application/msword")})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert res.status_code == 400
+    detail = res.json()["detail"]
+    assert detail["code"] == "unsupported_format"
+    assert ".doc" in detail["message"]
+    assert state["charged"] == 0
+
+
+def test_a_photo_cv_whose_reader_is_down_is_a_retryable_503(monkeypatch) -> None:
+    _override_principal_and_repo(_FakeCVRepository())
+    state = _patch_xp(monkeypatch, balance=3000)
+
+    async def _vision_down(_bytes: bytes, **_kwargs: Any) -> str:
+        raise cv_workflow.cv_parser.CVReaderUnavailable("vision transcription failed")
+
+    monkeypatch.setattr(cv_workflow.cv_parser, "read_cv_file", _vision_down)
+
+    try:
+        with TestClient(app) as client:
+            res = client.post("/cv/upload", files={"file": ("cv.jpg", b"\xff\xd8\xff" + b"\x00" * 2048, "image/jpeg")})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert res.status_code == 503
+    assert "try again" in res.json()["detail"].lower()
+    assert state["charged"] == 0
+
+
+def test_upload_returns_422_without_charge_when_pdf_has_no_text(monkeypatch) -> None:
+    """A file with no CV text even after the reader ran (a blank scan) is
+    rejected in phase 1 so the user is not charged-refunded in a retry loop."""
+    _override_principal_and_repo(_FakeCVRepository())
+    state = _patch_xp(monkeypatch, balance=3000)
+    monkeypatch.setattr(cv_workflow.cv_parser, "read_cv_file", _reads_as(lambda *_a, **_k: ""))
 
     try:
         with TestClient(app) as client:
@@ -547,7 +593,7 @@ def test_upload_with_idempotency_key_returns_existing_job_without_recharging(mon
     """Same idempotency_key + same user → return existing job, no second charge."""
     _override_principal_and_repo(_FakeCVRepository())
     state = _patch_xp(monkeypatch, balance=3000)
-    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "X" * 200)
+    monkeypatch.setattr(cv_workflow.cv_parser, "read_cv_file", _reads_as(lambda *_a, **_k: "X" * 200))
     monkeypatch.setattr(
         cv_workflow.upload_jobs_repo,
         "find_by_idempotency_key",

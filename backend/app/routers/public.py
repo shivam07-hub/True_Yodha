@@ -167,12 +167,9 @@ def get_public_stats(response: Response) -> dict[str, Any]:
 # stays gated behind signup; this endpoint returns the score + domain split
 # only — the hook, not the product.
 
-_MAX_CV_BYTES = 5 * 1024 * 1024  # 5MB — same ceiling as the authed upload path
-_MIN_TEXT_CHARS = 80  # CVUP4 scanned-PDF guard: reject before any LLM spend
-_ALLOWED_CONTENT_TYPES = {
-    "application/pdf": "pdf",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
-}
+# The ceiling every upload door states ("up to 10 MB") and the authed path holds.
+# It was 5MB here under a "same as authed" comment; phone photos made the drift bite.
+_MAX_CV_BYTES = 10 * 1024 * 1024
 
 # Soft per-IP sliding-window limit. In-process (per worker) — a soft cost guard,
 # NOT the primary bot defence (that's Turnstile). Good enough at current scale;
@@ -294,43 +291,35 @@ async def _score_anon_cv(
     if pasted:
         raw_text = pasted[: _MAX_CV_BYTES]
     elif file is not None:
-        content_type = (file.content_type or "").split(";")[0].strip()
-        file_type = _ALLOWED_CONTENT_TYPES.get(content_type)
-        if not file_type:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Upload a PDF or DOCX CV, or paste your CV text.",
-            )
-
         # Read with a hard ceiling — one extra byte tells us it's over the cap.
         data = await file.read(_MAX_CV_BYTES + 1)
         if len(data) > _MAX_CV_BYTES:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail="That file is over 5MB. Try a smaller PDF or DOCX.",
+                detail="That file is over 10MB. Try a smaller file, or paste your CV text.",
             )
 
+        # The bytes decide the form (PDF, Word, slides, text, photo, scan), never the MIME.
         try:
-            raw_text = cv_parser.extract_raw_text(data, file_type)
-        except Exception:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="We couldn't read that file. Try a different PDF or DOCX export.",
-            )
+            raw_text = await cv_parser.read_cv_file(data)
+        except cv_parser.UnsupportedCVFile as exc:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.message) from exc
+        except cv_parser.CVReaderUnavailable as exc:
+            raise ServiceUnavailable("We couldn't read this photo or scan just now. Try again in a minute.") from exc
     else:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Upload a PDF or DOCX CV, or paste your CV text.",
+            detail="Upload your CV, or paste your CV text.",
         )
 
-    # CVUP4 — reject scanned/empty PDFs before spending any LLM budget.
-    if len(raw_text.strip()) < _MIN_TEXT_CHARS:
+    # CVUP4 — a file with no CV text in it is refused before the parse spends anything.
+    if len(raw_text.strip()) < cv_parser.MIN_CV_TEXT_CHARS:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=(
                 "Paste a bit more of your CV — a few lines of experience and skills."
                 if pasted
-                else "This looks like a scanned image with no selectable text. Upload a text-based PDF or DOCX."
+                else "We couldn't read any text in this file. If it's a photo, take it in good light, or paste your CV text."
             ),
         )
 
