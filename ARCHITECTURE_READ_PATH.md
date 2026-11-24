@@ -2896,3 +2896,13 @@ engineer + Bengaluru 121ms. Wrong turns:
   771 MB table, 12.4s.
 - **Timings taken during an autovacuum of `jobs`** ran 100× slow (the 9ms
   calibration query read 1,362ms). Calibrate first; compare paired runs.
+
+**Open: the first search after a quiet minute reads from disk.** Through the
+dev API, a search called again 65s later (past the app's 60s cache) took
+0.6–6.7s server-side; the same SQL back to back took 27–36ms. The pre-existing
+blob query shows the same split (2,043ms first, 5.7ms third). `shared_buffers`
+is 224MB; the search's matview and trigram index are 41MB, but the worker and
+autovacuum keep reading the 772MB `jobs` table and push them out. Not caused
+by `search_live_jobs`; ⌘K and the landing search pay it too. Compute stays
+Micro (Shivam, 2026-10-14, cost), so the levers are smaller reads: a live-only
+narrow index (63k of 107k rows) or a cheaper worker poll.
