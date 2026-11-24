@@ -58,6 +58,8 @@ export function GET() {
         return "Post one paid internship; students apply with the CV they already have on Myro."
       case "/myrology":
         return "A lighter, narrative read on a person's career direction."
+      case "/ai":
+        return "Add Myro to Claude or ChatGPT as a remote MCP connector (https://www.himyro.com/mcp/open, no sign-in, read-only): live roles, skills a role or company asks for, skill demand by city, hiring by sector, ghost ads."
       case "/docs#faq":
         return "Frequently asked questions about how Myro works."
       default:

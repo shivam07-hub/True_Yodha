@@ -158,6 +158,10 @@ export default function PrivacyPage() {
                 <Li><strong>What they share:</strong> your name, email, and profile picture — plus, for LinkedIn, the public headline you&apos;ve already published. Nothing private, nothing you haven&apos;t already made public.</Li>
                 <Li><strong>What we never do:</strong> we don&apos;t post for you, message your network, or read who you&apos;re connected to. If something needs to leave Myro, you tap a button to send it.</Li>
               </Ul>
+              <Sub title="D. Myro in Claude and ChatGPT" />
+              <Ul>
+                <Li><strong>What we receive:</strong> only what your assistant passes to a Myro tool, such as a role, a place or a company name, to answer it. Not your conversation, your name or your account. The connector needs no sign-in. Setup and the full list of tools are on <Link href="/ai" style={{ color: "var(--tm-interactive)" }}>/ai</Link>.</Li>
+              </Ul>
             </Section>
 
             <Section id="how-we-use" n="03" title="How We Use Your Data">

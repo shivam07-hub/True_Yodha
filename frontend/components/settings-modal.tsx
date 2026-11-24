@@ -612,6 +612,15 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
                   <AccentControl onPersist={(next) => mutation.mutate({ accent_pref: next })} />
                 </div>
 
+                {/* The MCP open door (ARCHITECTURE_MCP.md §3A): no sign-in, so
+                    this row only leads to the setup page. New tab, like the
+                    legal links, so the locked shell stays up. */}
+                <div style={SECTION_HEADER}>Assistants</div>
+                <div style={{ ...ROW_STYLE, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={ROW_LABEL}>Claude & ChatGPT</div>
+                  <a className="tm-link" href="/ai" target="_blank" rel="noopener noreferrer">Set up</a>
+                </div>
+
                 {/* Save lives in the header — this row carries only what the
                     header can't show: an earned reward, or a failed save. */}
                 {(rewardNotice || (saveStatus === "error" && saveError)) && (
