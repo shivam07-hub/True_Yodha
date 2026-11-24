@@ -155,7 +155,7 @@ Order is the loop map — broken steps first, nearest the north star first (Shiv
 | 3 | Repeat | Golden-list digest (#59): email only to `golden_list_since`. Blocked until the preview is approved. |
 | 4 | Front door | #57 on `main`: after skills, paste · extension · jobs that fit. Door to Download in 5 clicks (FD1–FD4) on `main` 2026-10-22; U4 passed desktop 10-19 and 375px 10-22. Real phone owed (Shivam). |
 | 5 | Tailor + download | #58 S1–S5 closed. S1–S4 on `main`. S5 (`4b9be63d`, on `Develop`): add a role or project; a phone edit of a tailored CV writes that CV. Open: the two match numbers. **Until #62 R0 reaches `main`, "tailored" means "opened the page"**: the page wrote the job's CV 1.2 s after it opened (11 of 11 real documents since 09-28). R0 fixed it 11-17 (`22b9eea1`, on `Develop`); rows before it stay as written. #62 R1–R2 on `main`, R0 and R3–R6 on `Develop`. |
-| 6 | Pay | #56 Apply Pack + Human Check (CV or LinkedIn): S1–S5 on `Develop` 2026-11-23, desk `/admin/checks`. Owed by Shivam: reviewer name/email on Railway, Razorpay `payment.failed` event, dev test keys, yes/no on dropping the two empty plan tables (M4). [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) |
+| 6 | Pay | #56 Apply Pack + Human Check (CV or LinkedIn): S1–S5 on `Develop` 2026-11-23, desk `/admin/checks`. Owed by Shivam: reviewer name/email on Railway, Razorpay `payment.failed` event, dev test keys. [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) |
 
 Gates on everything: #16 Pro is done, compute stays Micro (Shivam, 2026-10-14, cost) · prod
 deploy guard (`PORT=8000`, then `healthcheckPath`, Shivam). How far `Develop` is
