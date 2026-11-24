@@ -733,41 +733,52 @@ with no collected job.
 Surfaces: job Reach section (`ReachLog`), Collections desk strip, `/reach`.
 
 **Not this:** LinkedIn Services inbound (strangers asking HiMyro to write a
-resume) is the opposite direction. Those requests become an Engagement Scene,
-not a Reach Target. Contract: [OFFERING.md](OFFERING.md).
+resume) is the opposite direction. Those requests become a Human Check bought
+with the Apply Pack, not a Reach Target. Contract: [OFFERING.md](OFFERING.md).
 
 ---
 
 ## Sale
 
-A charge Myro collects: the coin pack, the filing fee, the Engagement Scene, the workflow audit, Myrology. A salary on a job is not a Sale.
+A charge Myro collects: the Apply Pack, the filing fee, the workflow audit, Myrology. A salary on a job is not a Sale. Every order is settled by **Settlement** and every buy button renders from `/api/catalogue`.
 
 `openSale` is the only module that starts one. Inside the Android app it does not load a checkout and does not create an order. On the web the page is there at once. Inside the app a pitch goes to Jobs and paints no price; something the person already paid for stays, without the price.
 
 ---
 
-## Engagement Scene
+## Apply Pack
 
-The paid room for **Personalised Engagement** (₹199 / month, ENG1). Not a
-pricing card. One scene per subscriber:
+The closer (ENG2): ₹199 once, **500 Myro Coins + one Human Check**. Sold from the
+out-of-coins modal (fuel), the job's On record line in the prep room (stakes),
+`/apply-pack`, and the LinkedIn card on the CV page. Retired into it: the ₹99
+coin pack (refused at create; old orders still settle) and the ₹199/month
+Engagement Scene (deleted 2026-11-23, #56 S5).
 
-- the collected job (company, title — the prep room they are in)
-- the CV of record, read against that job
-- the skill path for that target
-- a named reviewer and a date (one human pass per billing month)
+## Human Check
 
-**Doors.** LinkedIn Services *Resume Writing* inbound (`/job-switch-plan?utm_source=linkedin_services`), and Myro's last CTA (prep "Keep a person on this scene · ₹199 / month"). Same queue.
-Month 1 from LinkedIn **is** the resume they asked for, delivered in Myro.
-A month exists because conversion is theirs: if they have not got the job,
-they still need the scene. Myro does not sell the offer.
+What the pack's check buys: a named reviewer returns it within 24 hours. Two
+kinds (ENG3), fixed when it is spent:
 
-**Invariants**
+- **`cv_job`** — the job's one document read against that job, delivered with a
+  note and the reviewed version id.
+- **`linkedin`** — the profile rewritten from the CV for the person to paste on
+  a short call. Myro takes the `/in/` URL and a WhatsApp number, never fetches
+  the profile, never logs in as them. The draft is written on the reviewer's
+  claim (ADR-0016: roles, dates and schools copied from the CV, unknown numbers
+  flagged); the WhatsApp number is cleared when the call closes. Also bought
+  alone for 5,000 coins.
 
-- Not placement. Not unlimited rewrites. Not Myro sending LinkedIn mail.
-- Razorpay Subscriptions: `job_switch_plan` at 19900 paise. First charge
-  activates the scene; `subscription.charged` opens the next IST month's pass.
-  Live charges need `RAZORPAY_ENGAGEMENT_PLAN_ID`.
-- Full contract: [OFFERING.md](OFFERING.md).
+Lifecycle `unassigned → queued → in_review → delivered`. Five open slots shared
+by both kinds; a full queue shows "ready by" and keeps selling. A late check is
+delivered late, not refunded. Table `human_checks`; desk `/admin/checks`.
+
+## Settlement
+
+A payment arrived; grant exactly once. The checkout verify and the webhook both
+hand an Arrival to `settlement.settle`. The claim flips `verified` and sets
+`grant_pending` in one update; only a finished grant clears it, so any later
+arrival finishes a grant that failed. A pending grant answers 202 on checkout
+and 500 on the webhook so Razorpay delivers again.
 
 ---
 

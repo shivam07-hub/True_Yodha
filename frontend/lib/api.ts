@@ -5198,7 +5198,6 @@ export interface RazorpayVerifyResponse {
   new_coin_balance: number
   product: string
   myrology_unlocked: boolean
-  job_switch_plan_active: boolean
 }
 
 /** 202: money is in, the grant has not finished; the next arrival finishes it. */

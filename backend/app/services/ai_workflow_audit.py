@@ -19,9 +19,8 @@ before an order is created, not after payment: refusing to sell is recoverable,
 taking money for work the queue cannot absorb is not. The bound is small on
 purpose and should move only when a reviewer says it can.
 
-Lifecycle mirrors `job_switch_plan_service` — the ₹99 plan is the same shape and
-is already live. When there is a third of these, they should become one
-primitive; today that refactor would touch a live paid product for no gain.
+Its lifecycle is the same shape as the Human Check (`human_check.py`); the
+audit is a call, the check is a written return, so they stay two services.
 """
 
 from __future__ import annotations
@@ -181,7 +180,7 @@ def submit_intake(user_id: str, raw: dict[str, Any]) -> dict[str, Any]:
 # is reachable by a buyer's session.
 
 #: Target status => the statuses it may be reached from. `delivered` is terminal.
-#: Mirrors `job_switch_plan_service._ALLOWED_REVIEW_TRANSITIONS` — same lifecycle,
+#: The audit's own lifecycle,
 #: same words, so the two merge cleanly when there is a third of these.
 _ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "in_progress": {"submitted"},

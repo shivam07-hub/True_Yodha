@@ -1,8 +1,8 @@
 # Payments — one pack, one settlement
 
 **Architecture spec. Written 2026-09-30 from the CEO grill with Shivam; the
-LinkedIn check kind added 2026-11-22 (ENG3, ADR-0018).** S1–S2 are built by
-Claude, S3–S5 by Cursor. Assessed with `/improve-codebase-architecture`; the UI
+LinkedIn check kind added 2026-11-22 (ENG3, ADR-0018).** S1–S5 built by Claude
+(Cursor stopped 2026-11-23). Assessed with `/improve-codebase-architecture`; the UI
 slices go through `/frontend-design`.
 
 > **VERIFY IN CODE before building.** Line numbers are from `19781a61`. Each
@@ -292,7 +292,7 @@ explaining it.
 | **S2** | M3. `human_check` service + routers, both kinds; `apply_pack` product and grant; the 5,000-coin LinkedIn path; reviewer + user notifications; `/api/catalogue` with `checks_full` + ETA. | `test_human_check.py`: transitions, capacity across both kinds, ETA, `cv_job` deliver requires a note and a reviewed version, `linkedin` deliver requires a note and blocks, a refused coin charge leaves no row, `close_call` clears the WhatsApp number |
 | **S3** | `lib/checkout.ts`, `useCatalogue`, both doors, `/apply-pack`, CV status line. Refuse `xp_pack` at create. Remove the Settings coin-pack tab (`settings-modal.tsx:381-453, 931-936, 1044`), `lib/engagement-checkout.ts`, `plan-line.tsx`; retarget `skill-path-maps.tsx:179` and `intel-job-switch-plan.tsx` to the pack. | `checkout.test.ts` runs the real function with a fake Razorpay: createOrder rejects → no hang · dismiss → `dismissed` · 202 → `setting_up` |
 | **S4** | `/admin/checks` reviewer desk incl. stuck payments + retry. | Deliver a check end to end on dev with the QA account |
-| **S5** | **Delete on the way past:** the `job_switch_plan` product and its subscription path in `payments.py`, `services/engagement_subscription.py`, `razorpay_gateway.create_subscription`, subscription code in `payments.py`, `job_switch_plan_service.py`, `job_switch_plan_draft.py`, `routers/job_switch_plan.py`, `billing_month.py` if nothing else imports it, their tests, and config `razorpay_engagement_plan_id`, `engagement_sales_enabled`, `job_switch_admin_token`; rename `job_switch_reviewer_email` → `human_check_reviewer_email`, add `human_check_reviewer_name`. Docs: OFFERING.md (ENG2), DECISIONS.md, CONTEXT.md (Apply Pack, Human Check, Settlement; retire Engagement Scene), INFRA.md env. | grep finds no `job_switch_plan` / `engagement` code path; six gates green |
+| **S5** | **Built 2026-11-23 (Claude).** `job_switch_admin_token` kept: it is the one admin token `require_admin` reads, already set on both backends. **Delete on the way past:** the `job_switch_plan` product and its subscription path in `payments.py`, `services/engagement_subscription.py`, `razorpay_gateway.create_subscription`, subscription code in `payments.py`, `job_switch_plan_service.py`, `job_switch_plan_draft.py`, `routers/job_switch_plan.py`, `billing_month.py` if nothing else imports it, their tests, and config `razorpay_engagement_plan_id`, `engagement_sales_enabled`, `job_switch_admin_token`; rename `job_switch_reviewer_email` → `human_check_reviewer_email`, add `human_check_reviewer_name`. Docs: OFFERING.md (ENG2), DECISIONS.md, CONTEXT.md (Apply Pack, Human Check, Settlement; retire Engagement Scene), INFRA.md env. | grep finds no `job_switch_plan` / `engagement` code path; six gates green |
 | **S6** | M4, **only after Shivam says yes.** | — |
 
 ---

@@ -24,7 +24,6 @@ from app.routers import (
     human_checks,
     institutions,
     internal,
-    job_switch_plan,
     jobs,
     mentor,
     myrology,
@@ -116,7 +115,6 @@ app.include_router(preflight.router)
 app.include_router(preparations.router)
 app.include_router(mentor.router)
 app.include_router(myrology.router)
-app.include_router(job_switch_plan.router)
 app.include_router(newsletter.router)
 app.include_router(notifications.router)
 app.include_router(onboarding.router)

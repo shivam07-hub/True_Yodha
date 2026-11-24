@@ -2,10 +2,6 @@
 
 One credential cleaner, one client, order creation, the two signature checks,
 and the reading of a webhook event into an `Arrival` or a `Failure`.
-
-`create_subscription` exists only for the ₹199/month engagement, which S5
-deletes together with `engagement_subscription.py` (it keeps its own
-subscription signature and parsing until then; they are not moved here).
 """
 
 from __future__ import annotations
@@ -128,17 +124,6 @@ def create_order(*, amount_paise: int, currency: str, receipt: str) -> dict[str,
         logger.error("Razorpay order create returned no id")
         raise GatewayFailed("Razorpay did not return an order id")
     return order
-
-
-def create_subscription(payload: dict[str, Any]) -> dict[str, Any]:
-    """The ₹199/month engagement only. Deleted in S5."""
-    try:
-        sub = client().subscription.create(payload, timeout=ORDER_TIMEOUT_SECONDS)
-    except _RAZORPAY_ERRORS as exc:
-        raise _translate(exc) from exc
-    if not sub.get("id"):
-        raise GatewayFailed("Razorpay did not return a subscription id")
-    return sub
 
 
 def checkout_signature_ok(order_id: str, payment_id: str, signature: str) -> bool:

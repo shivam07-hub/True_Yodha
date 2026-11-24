@@ -51,20 +51,22 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
 
 ---
 
-## RAZORPAY — Personalised Engagement (ENG1)
+## RAZORPAY — Apply Pack and Settlement (ENG2/ENG3)
 
-`RAZORPAY_ENGAGEMENT_PLAN_ID` — id of the monthly plan created once in the
-Razorpay dashboard (amount **19900 paise**, period monthly, 12 cycles). Empty =
-engagement `create-order` returns 503. Set on **both** Railway backends
-(`mirror-backend-dev` and `mirror-backend-prod`). Prod charges wait on the
-`main` merge.
+Plain orders only; the monthly subscription and `RAZORPAY_ENGAGEMENT_PLAN_ID` /
+`ENGAGEMENT_SALES_ENABLED` are gone (#56 S5, 2026-11-23).
 
-`ENGAGEMENT_SALES_ENABLED` — kill-switch, default true. `false` refuses new
-checkouts; existing subscribers keep their scene until Razorpay stops charging.
-
-Webhook (same secret as today, `RAZORPAY_WEBHOOK_SECRET`) must also fire
-`subscription.charged`, `subscription.activated`, `subscription.cancelled`,
-`subscription.completed`, `subscription.halted`.
+- `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` on **both** Railway backends (test-mode
+  pair on dev). Missing = every product reads `not_configured` in
+  `/api/catalogue` and no buy button renders. Vercel `NEXT_PUBLIC_RAZORPAY_KEY_ID`
+  matches the backend's key per environment.
+- `RAZORPAY_WEBHOOK_SECRET`, with the dashboard webhook firing
+  `payment.captured` and `payment.failed` to `/api/razorpay/webhook`.
+- `HUMAN_CHECK_REVIEWER_NAME`, `HUMAN_CHECK_REVIEWER_EMAIL` — the name is on every
+  delivered check (claim answers 503 without it); the email gets the
+  `/admin/checks?id=` link when a check is queued.
+- `JOB_SWITCH_ADMIN_TOKEN` — the one admin token (`X-Myro-Admin-Token`) for the
+  reviewer desk and every admin route. Named for history; allowed through CORS.
 
 ---
 

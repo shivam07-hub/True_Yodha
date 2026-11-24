@@ -1,167 +1,90 @@
 # MYRO — What we sell
-### The last CTA, the scene, and how LinkedIn Services joins the product
-Locked 2026-09-17 · Shivam. Cockpit: [CLAUDE.md](CLAUDE.md).
-
-> **Superseded 2026-09-30 (Shivam, ENG2).** The closer is now a one-time ₹199
-> **Apply Pack** — 500 coins + one Human Check (24h) — sold from the out-of-coins
-> modal and from "Human check before you apply". The monthly subscription and the
-> ₹99 coin pack fold into it. Build and contract: [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md).
-> The rest of this file is history until #56 S5 rewrites it.
-
-This file is the commercial contract. Checkout charges ₹199 / month via
-Razorpay Subscriptions (`job_switch_plan` at 19900 paise). New checkouts
-503 until `RAZORPAY_ENGAGEMENT_PLAN_ID` is set. The ₹999 audit stays a
-different buyer.
+### The Apply Pack, the Human Check, and how LinkedIn Services joins the product
+Rewritten 2026-11-23 (#56 S5) from ENG2 (2026-09-30) and ENG3 (2026-11-22), Shivam.
+Cockpit: [CLAUDE.md](CLAUDE.md). Build: [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md).
+The ₹199/month Personalised Engagement this file used to describe is retired;
+its contract is in git history (`OFFERING.md` before 2026-11-23).
 
 ---
 
 ## THE CLOSER
 
-**The last consumer CTA is a ₹199 / month subscription: Personalised Engagement.**
+**One-time ₹199 Apply Pack: 500 Myro Coins and one Human Check.** Bought again
+when needed. No subscription, no mandate step before value.
 
-It is the closer, not an intro, not a decoy under a higher price. The ₹99
-one-time Job-Switch Plan is retired as a CTA. The deferred ₹499 / year idea is
-retired with it. Two human reviews in 120 days was a one-shot package; this is
-a retained person on a living scene.
+People pay at two moments inside the CV machine, and both doors sell the same
+pack:
 
-**What ₹199 buys:** one **Engagement Scene** kept staffed for the month. A
-named reviewer makes **one human pass per billing period** against that scene.
-Not unlimited rewrites. Not placement. Not us messaging hiring managers.
+| Door | Moment | Where |
+|---|---|---|
+| **Fuel** | The coins run out | "Not enough Myro Coins" offers the pack |
+| **Stakes** | One job matters enough for a human read | The prep room's On record line: "Human check before you apply" |
 
-**What the scene is:** the room they already have, made obviously theirs.
+**What a Human Check is.** A named reviewer returns it within 24 hours. One of
+two kinds, chosen when it is spent:
 
-- this job (company, title — the prep room they are in)
-- this CV of record, read against that job
-- the skill path for that target (the maps at `/skills`)
-- a reviewer name and a date
+- **CV check** — the tailored CV read against one job, with a note.
+- **LinkedIn rewrite** — headline, About, every role, education, top 5 skills,
+  one Featured line, and the rows to delete, written from the CV for the person
+  to paste on a short call with the reviewer.
 
-Payment is how the scene stays staffed. The hero is the scene, not a price.
+A check bought without either waits until it is spent. When every slot is
+taken the buyer sees "ready by" before paying; the clock starts when their slot
+opens. A late check is delivered late, not refunded.
 
-**Why a month, not a package that "gets them the job".** Guidance is ours.
-Conversion is theirs. It is not on Myro to hand them the guidance *and* the
-job if they cannot convert. A one-shot (₹99, two reviews, 120 days) implied
-a finish line we do not own. A month staffs the scene while they try; if they
-have not converted, they still need the scene, not a refund because the offer
-did not arrive. If they convert, they cancel. That split is the product.
+**The LinkedIn rewrite on its own: 5,000 coins** (ENG3). That sits above the
+3,000 welcome grant on purpose; most people buy the pack and spend its check.
 
-**Honesty:** we make them switch-ready. We do not place them. The job can
-vanish; the scene still holds. Copy that promises an outcome (the role, the
-interview, the offer) is a bug.
-
-**Cadence:** ₹199 per calendar month, IST, same billing-month rule as MTR4.
-Confirmed 2026-09-17. Razorpay Subscriptions: `POST /api/create-order` with
-`product=job_switch_plan` opens a subscription (not a one-time order). Recurring
-charges arrive as `subscription.charged`. Live charges need the Razorpay plan
-id in `RAZORPAY_ENGAGEMENT_PLAN_ID`.
+**Honesty.** We make the paper right. We do not place people, we do not message
+anyone for them, and nobody at Myro logs in to their LinkedIn. Copy that
+promises the role, the interview or the offer is a bug.
 
 ---
 
-## TWO DOORS, ONE QUEUE
+## LINKEDIN SERVICES → MYRO
 
-HiMyro already has two paid-looking surfaces. They must call each other. They
-must not become two companies.
+Cold Resume Writing requests on HiMyro Career Intelligence's LinkedIn Services
+page are the same work as a Human Check.
 
-| Door | Who arrives | What they asked for |
-|---|---|---|
-| **LinkedIn Services** | Cold. They opened HiMyro Career Intelligence and requested *Resume Writing*. | A human to write the CV. |
-| **Myro, last CTA** | Warm. CV scored, job collected, they are in the room. | A human to read this CV against this job. |
+1. Reply with one door: `/job-switch-plan?utm_source=linkedin_services` (it
+   forwards to `/apply-pack` with the attribution kept), or `/apply-pack`
+   directly. Do not write the resume in the LinkedIn inbox.
+2. They make a Myro account, upload the CV, and buy the pack.
+3. Their check is the resume or the LinkedIn rewrite they asked for, delivered
+   in Myro.
 
-That is the same work. LinkedIn is already selling it; Myro was selling it as
-₹99. The subscription is how both doors charge for it.
-
-### LinkedIn → Myro
-
-A Services request is incomplete until it is a scene.
-
-1. Reply with **one door**: upload the CV, name the job, enter the scene
-   (`utm_source=linkedin_services`). Do not write the resume in the LinkedIn
-   inbox. A Word doc there creates a customer Myro will never see again.
-2. They get a Myro account (PV1 — email is enough). The CV × the named job
-   **is** the scene.
-3. Last CTA: ₹199 / month. Month 1's human pass **is** the resume they asked
-   for, written against that job, delivered in Myro.
-4. LinkedIn follow-up names the scene, not an attachment as the product.
-
-Join key when they have one: `linkedin.com/in/{vanity}` — already on
-`user_profiles.linkedin_url` and on Reach Targets. A Services request is **not**
-a Reach Target (see below).
-
-### Myro → LinkedIn (the operator, not the user)
-
-A subscriber never needs to go to LinkedIn Services to "request resume writing".
-The scene is the brief. The operator works the **same review queue** they would
-have worked from a LinkedIn request — with a scored CV, a live job, and a gap
-path instead of a blank form.
-
-Do not add a second SKU on LinkedIn that competes with ₹199. The Services
-listing can stay named **Resume Writing** (that is the query they use).
-Fulfilment is the scene.
+Do not add a second SKU on LinkedIn that competes with ₹199.
 
 ### What does not cross
 
-**Reach** (People you reached / Desk) is the user logging hiring managers *they*
-will message. Myro never sends. LinkedIn Services inbound is strangers asking
-*us* for a resume. Opposite direction. Do not pour Services requests into
-`reach_targets`. Do not offer the ₹199 closer as "we will reach people for you".
-
-The ₹999 **AI Workflow Audit** is a different buyer (someone who already runs
-an AI workflow). It stays a bounded one-shot. It does not belong on the Resume
-Writing service page. It is not the last consumer CTA.
-
-**Myrology** (₹299 unlock) stays its own entitlement.
+**Reach** (the Desk) is the user logging people *they* will message. Myro never
+sends. Do not pour Services requests into `reach_targets`, and never sell the
+pack as "we will reach people for you".
 
 ---
 
-## CTA LADDER (consumer)
+## THE OTHER PRODUCTS
 
-Free, in order, until they have a scene worth staffing:
+| Product | Price | Buyer |
+|---|---|---|
+| AI Workflow Audit | ₹999 once | Someone who already runs an AI workflow. A call, bounded at 5 open. Not on the Resume Writing page. |
+| Filing intake | ₹599 once | A person, a role, the career pages, and consent. Separate from the pack. |
+| Myrology | ₹299 unlock | Its own entitlement and its own sky. |
 
-1. Upload CV → score → target → matches → collect a job.
-2. Skill path is visible. **"Request this learning path"** stays the free
-   demand-capture on an incomplete ladder ([PLATFORM_STANDARD_CAREER_TARGET_SKILL_PATH.md](PLATFORM_STANDARD_CAREER_TARGET_SKILL_PATH.md) §4). It is not the closer.
-3. Reach stays free: they find the person, they send.
-
-**Last CTA**, only once a job is on record (prep "On record"):
-
-> Keep a person on this scene · ₹199 / month
-
-On the skill-path page, the page-level closer is the same subscription. Do not
-replace every request button with a paywall.
-
-On Intel / public teaser: free score first. The paid closer, when it appears, is
-₹199 / month engagement — never "₹99 to start".
+All three settle through the same Settlement as the pack.
 
 ---
 
-## UNIT ECONOMICS (why the scene has to look expensive)
+## OPERATOR WORK (Shivam, not code)
 
-A LinkedIn resume rewrite sold at ₹199 with month-1 cancel is a ₹199 resume.
-Market writing is not that. Months 2–n are what you pay when you have not
-converted yet: the scene is still the job in front of you, and conversion is
-still yours. That is why it is a month, not a package that ends when we have
-"done guidance". The surface must read as retained engagement, not a checkout
-for a file.
+- Railway: `HUMAN_CHECK_REVIEWER_NAME`, `HUMAN_CHECK_REVIEWER_EMAIL`. Without the
+  name, claiming a check answers 503; without the email, queued checks log a
+  warning and only show on `/admin/checks`.
+- Razorpay webhook events `payment.captured` and `payment.failed`, secret equal
+  to `RAZORPAY_WEBHOOK_SECRET` on both Railway backends.
+- Razorpay test-mode keys on the dev backend, or every buy button stays hidden
+  there (`not_configured`).
+- The reviewer desk is `/admin/checks`, behind the one admin token
+  (`JOB_SWITCH_ADMIN_TOKEN`, named for history).
 
-- One scene per subscriber. One human pass per month. SLA stays 5 working days.
-- No refund after that pass is delivered (same logic as the audit: the work
-  is the service). Before delivery, full refund — Shivam still confirms this
-  against Razorpay when subscriptions are wired.
-- Capacity is a bound, not a vibe. Reuse the audit pattern: do not take a
-  month we cannot staff. LinkedIn requests wait on the same bound.
-
----
-
-## BUILD
-
-Checkout is the subscription. Remaining operator work (not code):
-
-- Create the Razorpay monthly plan at 19900 paise; set `RAZORPAY_ENGAGEMENT_PLAN_ID`
-  on both Railway backends. Empty = 503 on engagement checkout (safe).
-- Webhook events: `subscription.charged`, `subscription.activated`,
-  `subscription.cancelled`, `subscription.completed`, `subscription.halted`
-  (plus existing `payment.captured`).
-- Reviewer email + admin token still required or delivery 503s.
-- Kill-switch: `ENGAGEMENT_SALES_ENABLED=false`.
-
-Do not write "sold" until a real charge has landed. The code path is live;
-the Razorpay plan id is not.
+Do not write "sold" until a real charge has landed.

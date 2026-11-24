@@ -266,7 +266,6 @@ def test_verify_payment_grants_coins_once(monkeypatch: pytest.MonkeyPatch) -> No
         "new_coin_balance": 2200,
         "product": "myro_xp_launch_pack",
         "myrology_unlocked": False,
-        "job_switch_plan_active": False,
     }
     assert ledger.rows == ["row-1"]
     assert store.row("order_test_123")["grant_pending"] is False
@@ -298,7 +297,6 @@ def test_verify_payment_unlocks_myrology(monkeypatch: pytest.MonkeyPatch) -> Non
         "new_coin_balance": 1500,
         "product": "myro_myrology_unlock",
         "myrology_unlocked": True,
-        "job_switch_plan_active": False,
     }
     assert unlocked == ["user-1"]
 

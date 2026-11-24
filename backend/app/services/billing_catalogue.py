@@ -5,16 +5,13 @@ A product is looked up by the alias a client sends or by the key a
 is never a default product, because a default is how an unknown order once
 unlocked Myrology.
 
-`xp_pack` and `job_switch_plan` are retired by ENG2. The coin pack is refused
-at create since S3 (its old orders still settle); the monthly engagement goes
-with the subscription code in S5.
+`xp_pack` is retired by ENG2: refused at create since S3, kept here so its old
+orders still settle. The ₹199/month engagement was deleted in S5 (2026-11-23).
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
-
 from app.services import ai_workflow_audit, filing_intake, razorpay_gateway
 
 CURRENCY = "INR"
@@ -31,7 +28,6 @@ class Product:
     price_paise: int
     coins: int  # coins the grant adds; 0 for an entitlement
     human_checks: int = 0  # Human Checks the grant opens (the Apply Pack: 1)
-    billing: Literal["order", "subscription"] = "order"
 
 
 @dataclass(frozen=True)
@@ -46,13 +42,6 @@ _PRODUCTS: tuple[Product, ...] = (
     Product(alias="apply_pack", key="myro_apply_pack", price_paise=19900, coins=500, human_checks=1),
     Product(alias="xp_pack", key="myro_xp_launch_pack", price_paise=9900, coins=1000),
     Product(alias="myrology", key="myro_myrology_unlock", price_paise=29900, coins=0),
-    Product(
-        alias="job_switch_plan",
-        key="myro_job_switch_plan",
-        price_paise=19900,
-        coins=0,
-        billing="subscription",
-    ),
     Product(
         alias="ai_workflow_audit",
         key="myro_ai_workflow_audit",
@@ -70,9 +59,8 @@ _PRODUCTS: tuple[Product, ...] = (
 _BY_ALIAS = {p.alias: p for p in _PRODUCTS}
 _BY_KEY = {p.key: p for p in _PRODUCTS}
 
-# Sellable until S3 / S5 replace their buttons, but never offered to a new
-# client: `GET /api/catalogue` leaves them out.
-_RETIRED = frozenset({"xp_pack", "job_switch_plan"})
+# Settles its old orders, never offered: `GET /api/catalogue` leaves it out.
+_RETIRED = frozenset({"xp_pack"})
 
 
 def listed() -> tuple[Product, ...]:
