@@ -5,12 +5,25 @@ Single source of truth for the authenticated-principal shape used in
 """
 from __future__ import annotations
 
+import os
+
 import pytest
 from typing import Any
 
 from tests.shipped_runtime import refuse_off_the_shipped_runtime
 
 refuse_off_the_shipped_runtime()
+
+# No test reaches the database. Dev and prod share ONE Supabase, and Settings
+# reads the real `.env`, so every `with TestClient(app)` ran the boot hooks
+# against production (the skill-floor count, the orphaned-upload sweep) and
+# every unstubbed test wrote fake ids there. On 2026-11-24 a morning of gate
+# runs did that 2,633 times on top of the scraper's ingest; the Micro host
+# starved and the Data API answered 503 for hours. Set before `app` is
+# imported, the environment beats `.env`: no client is ever built with the
+# real address, and a test that forgot its stub fails on every machine alike.
+for _name in ("SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_SERVICE_KEY"):
+    os.environ[_name] = ""
 
 from app.deps import CurrentUser, Principal  # noqa: E402
 from app.services import test_accounts  # noqa: E402
