@@ -67,6 +67,9 @@ class HumanCheckStore(Protocol):
     def open_due_ats(self) -> list[datetime]: ...
     def for_user(self, user_id: str) -> list[dict[str, Any]]: ...
     def open_queue(self) -> list[dict[str, Any]]: ...
+    def calls_to_close(self) -> list[dict[str, Any]]:
+        """Delivered LinkedIn checks whose paste call is still open."""
+        ...
 
 
 def _parse(value: Any) -> datetime:
@@ -112,6 +115,19 @@ class SupabaseHumanCheckStore:
 
     def open_queue(self) -> list[dict[str, Any]]:
         res = self._t().select("*").in_("status", list(_OPEN)).order("due_at").limit(50).execute()
+        return list(res.data or [])
+
+    def calls_to_close(self) -> list[dict[str, Any]]:
+        res = (
+            self._t()
+            .select("*")
+            .eq("kind", "linkedin")
+            .eq("status", "delivered")
+            .is_("call_closed_at", "null")
+            .order("delivered_at")
+            .limit(50)
+            .execute()
+        )
         return list(res.data or [])
 
 

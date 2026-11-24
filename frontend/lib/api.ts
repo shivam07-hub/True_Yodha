@@ -6525,3 +6525,65 @@ export const humanChecks = {
     }),
 }
 
+// ── Reviewer desk (#56 S4) — behind the one admin token ─────────────────────
+
+export interface ReviewerCheck extends HumanCheck {
+  user_id: string
+  buyer_email: string | null
+  contact_whatsapp: string | null
+  draft: (LinkedInBlocks & { flags?: string[] }) | null
+}
+
+export interface StuckPayment {
+  id: string
+  user_id: string
+  product: string
+  amount_paise: number
+  verified_at: string
+}
+
+export interface ReviewerQueue {
+  checks: ReviewerCheck[]
+  calls: ReviewerCheck[]
+  stuck_payments: StuckPayment[]
+}
+
+function adminHeaders(adminToken: string): Record<string, string> {
+  return { "X-Myro-Admin-Token": adminToken }
+}
+
+export const reviewer = {
+  queue: (adminToken: string) =>
+    request<ReviewerQueue>("/admin/human-checks", { headers: adminHeaders(adminToken) }),
+  claim: (adminToken: string, checkId: string) =>
+    request<ReviewerCheck>(`/admin/human-checks/${encodeURIComponent(checkId)}/claim`, {
+      method: "POST",
+      headers: adminHeaders(adminToken),
+    }),
+  document: (adminToken: string, checkId: string) =>
+    request<{ version_id: number | null; body_text: string | null }>(
+      `/admin/human-checks/${encodeURIComponent(checkId)}/document`,
+      { headers: adminHeaders(adminToken) },
+    ),
+  deliver: (
+    adminToken: string,
+    checkId: string,
+    body: { note: string; reviewed_cv_version_id?: number; blocks?: LinkedInBlocks },
+  ) =>
+    request<ReviewerCheck>(`/admin/human-checks/${encodeURIComponent(checkId)}/deliver`, {
+      method: "POST",
+      headers: adminHeaders(adminToken),
+      body: JSON.stringify(body),
+    }),
+  closeCall: (adminToken: string, checkId: string, pasted: boolean) =>
+    request<ReviewerCheck>(`/admin/human-checks/${encodeURIComponent(checkId)}/close-call`, {
+      method: "POST",
+      headers: adminHeaders(adminToken),
+      body: JSON.stringify({ pasted }),
+    }),
+  retrySettle: (adminToken: string, paymentRowId: string) =>
+    request<{ outcome: string }>(`/admin/payments/${encodeURIComponent(paymentRowId)}/settle`, {
+      method: "POST",
+      headers: adminHeaders(adminToken),
+    }),
+}

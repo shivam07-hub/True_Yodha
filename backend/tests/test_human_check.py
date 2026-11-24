@@ -59,6 +59,13 @@ class InMemoryChecks:
             (dict(r) for r in self.rows.values() if r["status"] in ("queued", "in_review")), key=lambda r: r["due_at"]
         )
 
+    def calls_to_close(self) -> list[dict[str, Any]]:
+        return [
+            dict(r)
+            for r in self.rows.values()
+            if r.get("kind") == "linkedin" and r["status"] == "delivered" and not r.get("call_closed_at")
+        ]
+
 
 @pytest.fixture(autouse=True)
 def _quiet_notifications(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, str]]:
@@ -243,8 +250,10 @@ def test_closing_the_paste_call_clears_the_whatsapp_number_either_way() -> None:
         hc.claim(store, check["id"], "Shivam")
         hc.deliver(store, check["id"], note="Ready.", reviewer_name="Shivam", blocks=BLOCKS)
 
+    assert {c["id"] for c in store.calls_to_close()} == {pasted["id"], skipped["id"]}
     yes = hc.close_call(store, pasted["id"], pasted=True)
     no = hc.close_call(store, skipped["id"], pasted=False)
+    assert store.calls_to_close() == []
 
     assert yes["contact_whatsapp"] is None and yes["pasted_at"]
     assert no["contact_whatsapp"] is None and not no.get("pasted_at")

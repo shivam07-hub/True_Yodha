@@ -181,9 +181,12 @@ def _with_buyer_email(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 @router.get("/admin/human-checks", dependencies=[Depends(require_admin)])
 async def reviewer_queue() -> dict[str, Any]:
     now = datetime.now(timezone.utc)
-    queue = await run_in_threadpool(_store().open_queue)
+    store = _store()
+    queue = await run_in_threadpool(store.open_queue)
+    calls = await run_in_threadpool(store.calls_to_close)
     return {
         "checks": await run_in_threadpool(_with_buyer_email, queue),
+        "calls": await run_in_threadpool(_with_buyer_email, calls),
         "stuck_payments": await run_in_threadpool(_stuck_payments, now),
     }
 
@@ -203,6 +206,21 @@ async def reviewer_claim(check_id: str) -> dict[str, Any]:
             row = await run_in_threadpool(human_check.store_draft, store, check_id, draft) or row
         logger.info("metric human_check.linkedin_drafted drafted=%s", draft is not None)
     return row
+
+
+@router.get("/admin/human-checks/{check_id}/document", dependencies=[Depends(require_admin)])
+async def reviewer_document(check_id: str) -> dict[str, Any]:
+    """The job's one document (ADR-0025) a CV check reads, and the version id
+    its delivery records."""
+    row = await run_in_threadpool(_store().by_id, check_id)
+    if row is None or row.get("kind") != "cv_job":
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No CV check with that id")
+    doc = await run_in_threadpool(
+        CVRepository(get_supabase_admin()).job_document, str(row["user_id"]), str(row["job_id"])
+    )
+    if doc is None:
+        return {"version_id": None, "body_text": None}
+    return {"version_id": doc.get("id"), "body_text": doc.get("polished_text") or doc.get("body_text")}
 
 
 def _assert_reviewed_version(row: dict[str, Any], version_id: int) -> None:

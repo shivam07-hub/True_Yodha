@@ -16,6 +16,7 @@
   "external": {
     "/": "Public landing page — the front door.",
     "/admin/growth": "Admin only, entered by URL by the team.",
+    "/admin/checks": "Reviewer desk for Human Checks. Entered from the link in the queued-check email (HUMAN_CHECK_REVIEWER_EMAIL).",
     "/offline": "PWA offline fallback, served by the service worker.",
     "/signup/institutions": "B2B campaign landing — entered from outreach, not from the app.",
     "/dev/phone": "375px device lab (BACKLOG #42). Entered by URL during mobile QA.",
