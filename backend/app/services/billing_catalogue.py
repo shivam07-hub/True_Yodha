@@ -5,10 +5,9 @@ A product is looked up by the alias a client sends or by the key a
 is never a default product, because a default is how an unknown order once
 unlocked Myrology.
 
-`xp_pack` and `job_switch_plan` are retired by ENG2 but stay sellable until the
-Apply Pack checkout replaces their buttons (S3) and the subscription code is
-deleted (S5). Refusing them first would leave two buy buttons the server turns
-down.
+`xp_pack` and `job_switch_plan` are retired by ENG2. The coin pack is refused
+at create since S3 (its old orders still settle); the monthly engagement goes
+with the subscription code in S5.
 """
 
 from __future__ import annotations

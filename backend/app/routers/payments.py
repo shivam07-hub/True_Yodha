@@ -211,6 +211,9 @@ async def create_order(
         product = catalogue.by_alias(body.product)
     except UnknownProduct:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unknown product") from None
+    if product.alias == "xp_pack":
+        # Folded into the Apply Pack (ENG2, #56 S3); its old orders still settle.
+        raise HTTPException(status.HTTP_410_GONE, "Coins now come in the Apply Pack.")
 
     currency = body.currency.strip().upper()
     if currency != CURRENCY:

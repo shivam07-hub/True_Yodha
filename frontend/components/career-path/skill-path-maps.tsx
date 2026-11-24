@@ -178,8 +178,8 @@ export function SkillPathMaps({ path }: { path: CareerSkillPath }) {
       <RequestBoard cards={requestQueue(path)} />
       <SaleOffer>
       <p className="csp-closer">
-        <Link href="/job-switch-plan">Keep a person on this path</Link>
-        <span>₹199 / month</span>
+        <Link href="/apply-pack">A person reads your CV before you apply</Link>
+        <span>Apply Pack</span>
       </p>
       </SaleOffer>
     </div>

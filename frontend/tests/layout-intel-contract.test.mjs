@@ -107,13 +107,13 @@ test("intel combines live search with industry role discovery from analytics", (
 test("supporting explanations live with their destination surfaces", () => {
   const landingSource = read("components/public/landing-page.tsx")
   const intelPaneSource = read("components/public/intel-pane.tsx")
-  const intelPlanSource = read("components/public/intel/intel-job-switch-plan.tsx")
+  const intelPackSource = read("components/public/intel/intel-apply-pack.tsx")
   const docsSource = read("components/docs/docs-sections.tsx")
   const docsPricingSource = read("components/docs/faq-pricing.tsx")
 
   assert.doesNotMatch(landingSource, /LandingJobSwitchPlan|LandingProof/)
-  assert.match(intelPaneSource, /<IntelJobSwitchPlan\s*\/>/)
-  assert.match(intelPlanSource, /The Personalised Job-Switch Plan\./)
+  assert.match(intelPaneSource, /<IntelApplyPack\s*\/>/)
+  assert.match(intelPackSource, /The Apply Pack\./)
   assert.match(docsSource, /<Section id="faq"[^>]*>[\s\S]*<FAQPricing\s*\/>/)
   assert.match(docsPricingSource, /Free to start\. Private by default\./)
 })

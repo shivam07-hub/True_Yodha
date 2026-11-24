@@ -427,24 +427,6 @@
   .prp-level-cta { min-height: 32px; }
 }
 
-/* ── The Job-Switch Plan line, inside "On record" ────────────────────────────
-   The plan sold nothing for months because nothing linked to it. This is its
-   entry point, sitting beside the CV the user actually sent. A line, not a
-   card: the room already carries the context. */
-
-.prp-plan {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.prp-plan-price {
-  font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-caption);
-  font-variant-numeric: tabular-nums;
-  color: var(--tm-text-muted);
-}
-
 /* ══ Unified Prep v2 (artboard 2b) ══════════════════════════════════════════
    One ladder, every room. The rail's pips, the room's ring and its step cards
    are the same four steps from the same read, so they cannot disagree.

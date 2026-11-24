@@ -43,7 +43,7 @@ import { RehearsePanel } from "./rehearse-panel"
 import { DrillPanel } from "./drill-panel"
 import { BriefCard } from "./brief-card"
 import { ClosingPanel } from "./closing-panel"
-import { PlanLine } from "./plan-line"
+import { HumanCheckLine } from "@/components/apply-pack/human-check-line"
 import { LevelRows, nextLevel } from "./level-rows"
 import { StepCard, CLEAR } from "./step-card"
 
@@ -332,7 +332,7 @@ export function PrepRoom({
           {stage !== "closed" ? (
             <>
               {app.applied_at ? <span className="sep">·</span> : null}
-              <PlanLine token={token} />
+              <HumanCheckLine token={token} jobId={app.job_id} />
             </>
           ) : null}
         </div>

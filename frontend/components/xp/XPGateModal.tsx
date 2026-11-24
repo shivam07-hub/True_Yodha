@@ -2,6 +2,8 @@
 
 import { useEffect } from "react"
 import Link from "next/link"
+import { ApplyPackBuy } from "@/components/apply-pack/apply-pack-buy"
+import { SaleOffer } from "@/components/sale-gate"
 import { useXPStore } from "@/store/xpStore"
 import { useXPGateStore } from "@/store/xpGateStore"
 import { trackEvent } from "@/lib/analytics"
@@ -13,9 +15,8 @@ import "./xp-gate-modal.css"
  * to the store; this component renders the canonical "Not enough tokens"
  * dialog.
  *
- * Branch 2 lock (2026-05-24): generic copy + tokens guide link. Does not
- * suggest an earn path inline; routes the user to /xp via the existing
- * tokens guide content.
+ * The fuel door (#56, ENG2): the primary action is the Apply Pack, priced from
+ * the catalogue. How coins work stays one quiet link away.
  */
 export function XPGateModal() {
   const open = useXPGateStore((s) => s.open)
@@ -61,8 +62,11 @@ export function XPGateModal() {
           You need {cost}. You have {balance}.
         </p>
         <div className="tm-xp-gate-actions">
-          <Link href="/tokens" className="tm-xp-gate-primary" onClick={handleGuide}>
-            See how Myro Coins work →
+          <SaleOffer>
+            <ApplyPackBuy onPaid={closeGate} />
+          </SaleOffer>
+          <Link href="/tokens" className="tm-link" onClick={handleGuide}>
+            See how Myro Coins work
           </Link>
           <button type="button" className="tm-xp-gate-secondary" onClick={handleDismiss}>
             Cancel

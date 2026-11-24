@@ -14,8 +14,8 @@ export type SaleResult = "absent" | "unavailable" | "opened"
 
 /** Routes whose job is a Sale. Opening one inside the app goes to Jobs. */
 export const SALE_PATHS = [
+  "/apply-pack",
   "/filing",
-  "/job-switch-plan",
   "/preparations/audit",
   "/myrology",
 ] as const

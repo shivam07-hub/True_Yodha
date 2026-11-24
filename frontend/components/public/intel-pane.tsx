@@ -20,7 +20,7 @@ import {
 } from "@/components/public/job-search-console-model"
 import { IntelAuthedHeader } from "./intel/intel-hero"
 import { IntelIndustryExplorer } from "./intel/intel-industry-explorer"
-import { IntelJobSwitchPlan } from "./intel/intel-job-switch-plan"
+import { IntelApplyPack } from "./intel/intel-apply-pack"
 import type { JobRowFit } from "./intel/intel-rows"
 import { IntelResults, ResultsTab, ResultCompany, ResultGroup, ResultJob } from "./intel/intel-results"
 import { JobFitDrawer } from "./intel/job-fit-drawer"
@@ -446,7 +446,7 @@ export function IntelPane() {
         onClose={() => setFitDrawer(null)}
       />
 
-      {!authed && <IntelJobSwitchPlan />}
+      {!authed && <IntelApplyPack />}
 
       {/* "Open by default" commons + canonical footer are folded into
           <PublicFooter commons />, mounted by app/intel/page.tsx. */}

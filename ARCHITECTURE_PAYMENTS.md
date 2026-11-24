@@ -263,7 +263,8 @@ Myrology and the audit move onto this module with their UX unchanged.
 
 - **Fuel:** `XPGateModal` primary action becomes the Apply Pack (price from the
   catalogue). "See how Myro Coins work" becomes the quiet secondary.
-- **Stakes:** the playground header on a **job** document (never the master)
+- **Stakes:** built 2026-11-23 in the prep room's "On record" line for the job (where the
+  ₹199/month plan line sat, beside the CV they sent), not the playground header. It
   gets "Human check before you apply". If the user already holds an unused check
   (`unassigned`), it reads "Use your human check" and costs nothing.
 - **LinkedIn:** a card on the CV page after the score. Price from the catalogue

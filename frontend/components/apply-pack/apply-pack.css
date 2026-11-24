@@ -1,0 +1,104 @@
+/* Apply Pack + Human Check (#56). Tokens only; hard corners. */
+
+.ap-buy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tm-space-xs) var(--tm-space-sm);
+}
+
+.ap-buy-eta,
+.ap-buy-ok {
+  font-size: var(--tm-fs-caption);
+  color: var(--tm-text-muted);
+}
+
+.ap-buy-error {
+  font-size: var(--tm-fs-caption);
+  color: var(--tm-danger-text);
+}
+
+/* The Human Check line on a job: one line, not a card. */
+.hc-line {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--tm-space-2xs) var(--tm-space-sm);
+  min-width: 0;
+}
+
+.hc-line-state {
+  color: var(--tm-text-secondary);
+}
+
+.hc-line-note {
+  flex-basis: 100%;
+  color: var(--tm-text-muted);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+/* The pack page */
+.ap-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tm-section-gap);
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: var(--tm-space-lg) var(--tm-space-md);
+}
+
+.ap-head h1 {
+  font-size: var(--tm-fs-title);
+  font-weight: 600;
+  margin: 0;
+}
+
+.ap-head p {
+  margin: var(--tm-space-xs) 0 0;
+  color: var(--tm-text-muted);
+}
+
+.ap-contents {
+  display: grid;
+  gap: var(--tm-space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ap-contents li {
+  display: grid;
+  grid-template-columns: minmax(0, 7rem) minmax(0, 1fr);
+  gap: var(--tm-space-sm);
+  padding: var(--tm-space-sm) 0;
+  border-top: 1px solid var(--tm-border-subtle);
+}
+
+.ap-contents dt,
+.ap-contents .ap-k {
+  color: var(--tm-text-muted);
+  font-size: var(--tm-fs-meta);
+}
+
+.ap-held {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tm-space-xs);
+  padding: var(--tm-space-md);
+  border: 1px solid var(--tm-border);
+  background: var(--tm-surface);
+}
+
+.ap-held-uses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tm-space-sm);
+}
+
+@media (max-width: 480px) {
+  .ap-contents li {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--tm-space-2xs);
+  }
+}

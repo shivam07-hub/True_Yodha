@@ -4,6 +4,9 @@ type JobId = string | null | undefined
 
 export const dataKeys = {
   profile: () => ["profile"] as const,
+  /** Prices, whether a sale is open, and when a Human Check comes back. */
+  catalogue: () => ["catalogue"] as const,
+  humanChecks: () => ["human-checks"] as const,
   onboarding: () => ["onboarding"] as const,
   onboardingResult: () => ["onboarding", "result"] as const,
   roleStanding: () => ["skills", "role-standing"] as const,

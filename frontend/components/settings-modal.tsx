@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { SidebarProfile as ShellSidebarProfile } from "@/lib/shell/contract"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
-import { formatCount } from "@/lib/format"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ThemeControl } from "@/components/ui/theme-control"
@@ -15,22 +14,19 @@ import { BandSettings } from "@/components/target-role/band-settings"
 import { TargetRolesChips } from "@/components/target-role/target-roles-chips"
 import { CompanyLink } from "@/components/companies/company-link"
 import { FollowCompanyControl } from "@/components/companies/follow-company-control"
-import { billing, jobs, users } from "@/lib/api"
+import { jobs, users } from "@/lib/api"
 import type { ProfileUpdate } from "@/lib/api"
 import { serverMessage } from "@/lib/api-error"
 import { dataKeys } from "@/lib/domain-data"
 import { MAX_TARGET_LOCATIONS } from "@/lib/career-target"
 import { catalogFromAnalytics, suggestLocations } from "@/lib/location-catalog"
 import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
-import { openSale } from "@/lib/sale"
-import { SaleOffer } from "@/components/sale-gate"
 import { useIsAndroidApp } from "@/lib/platform/use-android-app"
 import { AccountDeletionPanel } from "@/components/settings/account-deletion-panel"
 import { useXPStore } from "@/store/xpStore"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { MyrologyOptInPrompt, useMyrologyInterest } from "@/components/myrology-optin-prompt"
 import { LinkedInIcon } from "@/components/icons/social-icons"
-import Link from "next/link"
 import {
   CATEGORIES,
   CATEGORY_ORDER,
@@ -40,62 +36,19 @@ import {
 } from "@/components/feedback"
 import "./settings-modal.css"
 
-export type Tab = "Account" | "Following" | "Feedback" | "Billing"
+export type Tab = "Account" | "Following" | "Feedback"
 // The shell already owns this shape. A second copy here drifted from it once
 // already — the modal is a chrome surface like any other, so it reads the same
 // contract rather than restating it.
 type SidebarProfile = ShellSidebarProfile
 type SaveStatus = "idle" | "saving" | "saved" | "error"
-type BillingStatus = "idle" | "creating" | "verifying" | "success" | "error"
-
-type RazorpaySuccessResponse = {
-  razorpay_payment_id: string
-  razorpay_order_id: string
-  razorpay_signature: string
-}
-
-type RazorpayFailureResponse = {
-  error?: {
-    code?: string
-    description?: string
-    reason?: string
-  }
-}
-
-type RazorpayCheckoutOptions = {
-  key: string
-  amount: number
-  currency: string
-  name: string
-  description: string
-  order_id: string
-  prefill?: { name?: string; email?: string }
-  theme?: { color?: string; backdrop_color?: string }
-  modal?: {
-    confirm_close?: boolean
-    ondismiss?: () => void
-  }
-  handler: (response: RazorpaySuccessResponse) => void
-}
-
-type RazorpayCheckout = {
-  open: () => void
-  on: (event: "payment.failed", handler: (response: RazorpayFailureResponse) => void) => void
-}
-
-type RazorpayConstructor = new (options: RazorpayCheckoutOptions) => RazorpayCheckout
 
 const AUTOSAVE_MS = 800
 const SAVED_DISPLAY_MS = 2000
-const XP_PACK_AMOUNT = 1000
-const XP_PACK_PRICE_RUPEES = 99
 
 const normalize = (v: string): string | null => v.trim() || null
 /** Mirrors `ninja_name.is_valid` on the backend — same charset, same bounds. */
 const NINJA_NAME_RE = /^[a-z0-9-]{3,32}$/
-const messageFromError = (error: unknown, fallback: string): string => (
-  error instanceof Error && error.message ? error.message : fallback
-)
 const normalizeLinkedIn = (v: string): string | null => {
   const t = v.trim()
   if (!t) return null
@@ -207,8 +160,6 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle")
   const [saveError, setSaveError] = useState<string | null>(null)
   const [rewardNotice, setRewardNotice] = useState<string | null>(null)
-  const [billingStatus, setBillingStatus] = useState<BillingStatus>("idle")
-  const [billingMessage, setBillingMessage] = useState<string | null>(null)
 
   // Following tab state
   const [companyInput, setCompanyInput] = useState("")
@@ -232,7 +183,7 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
     setLinkedin(profile?.linkedin_url ?? "")
     setLocationInput(""); setLocationDropdown(false); setLocationFocused(false)
     setSaveStatus("idle"); setSaveError(null); setRewardNotice(null)
-    setBillingStatus("idle"); setBillingMessage(null); pending.current = {}
+    pending.current = {}
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
     if (savedTimer.current) clearTimeout(savedTimer.current)
   }, [open, profile?.full_name, profile?.ninja_name, profile?.target_locations, profile?.linkedin_url])
@@ -379,91 +330,6 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
     handleLocationsChange(locations.filter((_, idx) => idx !== i))
   }
 
-  async function handleBuyXP() {
-    if (!token) {
-      setBillingStatus("error")
-      setBillingMessage("Session not ready — please refresh.")
-      return
-    }
-
-    const key = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
-    if (!key) {
-      setBillingStatus("error")
-      setBillingMessage("Razorpay public key is not configured.")
-      return
-    }
-
-    setBillingStatus("creating")
-    setBillingMessage("Opening Razorpay checkout…")
-
-    try {
-      const result = await openSale<RazorpayConstructor>({
-        token,
-        product: "xp_pack",
-        open: ({ Razorpay, order }) => {
-          let completed = false
-          const checkout = new Razorpay({
-            key,
-            amount: order.amount,
-            currency: order.currency,
-            name: "Myro",
-            description: `${XP_PACK_AMOUNT} Myro Coins launch pack`,
-            order_id: order.order_id,
-            theme: {
-              color: "var(--tm-interactive)",
-              backdrop_color: "#050A18",
-            },
-            modal: {
-              confirm_close: true,
-              ondismiss: () => {
-                if (completed) return
-                setBillingStatus("error")
-                setBillingMessage("Checkout closed before payment.")
-              },
-            },
-            handler: async (response) => {
-              completed = true
-              setBillingStatus("verifying")
-              setBillingMessage("Verifying payment…")
-              try {
-                const verified = await billing.verifyPayment(token, response)
-                if ("outcome" in verified) {
-                  setBillingStatus("success")
-                  setBillingMessage("Payment received · adding your coins. Refresh in a minute.")
-                  return
-                }
-                applyXpChange({ newBalance: verified.new_coin_balance, action: "xp_purchase" })
-                setBillingStatus("success")
-                setBillingMessage(`+${verified.coins_earned} Myro Coins added. New balance: ${verified.new_coin_balance} Myro Coins.`)
-              } catch (error) {
-                setBillingStatus("error")
-                setBillingMessage(messageFromError(error, "Payment verification failed."))
-              }
-            },
-          })
-          checkout.on("payment.failed", (response) => {
-            completed = true
-            setBillingStatus("error")
-            setBillingMessage(response.error?.description || response.error?.reason || "Payment failed. Please retry.")
-          })
-          checkout.open()
-        },
-      })
-      if (result === "absent") {
-        setBillingStatus("idle")
-        setBillingMessage(null)
-        return
-      }
-      if (result === "unavailable") {
-        setBillingStatus("error")
-        setBillingMessage("Checkout is unavailable. Try again in a moment.")
-      }
-    } catch (error) {
-      setBillingStatus("error")
-      setBillingMessage(messageFromError(error, "Could not start Razorpay checkout."))
-    }
-  }
-
   const followedCompanies = following.companies
   const targetRoleTitles =
     // One answer from the backend — see `Direction` in lib/api.
@@ -504,7 +370,7 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
     ? `Could not update target companies: ${following.error?.message ?? "unknown error"}`
     : ""
 
-  const TAB_ICONS: Record<Tab, string> = { Account: "◉", Following: "★", Feedback: "◎", Billing: "▤" }
+  const TAB_ICONS: Record<Tab, string> = { Account: "◉", Following: "★", Feedback: "◎" }
 
   return (
     <>
@@ -552,7 +418,7 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
 
           {/* Nav tabs */}
           <nav className="tm-settings-nav" style={{ padding: "12px 12px", flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-            {(["Account", "Following", "Feedback", "Billing"] as Tab[]).map((tab) => (
+            {(["Account", "Following", "Feedback"] as Tab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -947,16 +813,6 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
               </>
             )}
 
-            {/* ── BILLING TAB ── */}
-            {activeTab === "Billing" && (
-              <BillingTabContent
-                status={billingStatus}
-                message={billingMessage}
-                onBuy={handleBuyXP}
-                onClose={flushAndClose}
-              />
-            )}
-
             {/* ── FEEDBACK TAB ── */}
             {activeTab === "Feedback" && (
               <FeedbackTabContent onClose={flushAndClose} />
@@ -966,156 +822,6 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
       </DialogContent>
     </Dialog>
     </>
-  )
-}
-
-// ── Billing tab content ────────────────────────────────────────────────────
-
-function BillingTabContent({
-  status,
-  message,
-  onBuy,
-  onClose,
-}: {
-  status: BillingStatus
-  message: string | null
-  onBuy: () => void
-  onClose: () => void
-}) {
-  const busy = status === "creating" || status === "verifying"
-  // Truth comes from the key Razorpay itself issues: rzp_test_* vs rzp_live_*.
-  // The badge is derived, never hardcoded, so it can never claim "live" while a
-  // test key is configured (or vice-versa).
-  const isTestMode = (process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "").startsWith("rzp_test_")
-  const buttonLabel = status === "creating"
-    ? "Opening checkout…"
-    : status === "verifying"
-    ? "Verifying…"
-    : `Pay Rs ${XP_PACK_PRICE_RUPEES}`
-  const messageColor = status === "success"
-    ? "var(--tm-success)"
-    : status === "error"
-    ? "var(--tm-danger)"
-    : "var(--tm-text-faint)"
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 18, paddingTop: 4 }}>
-      <div style={SECTION_HEADER}>Myro Coin packs</div>
-
-      <Link
-        href="/tokens"
-        onClick={onClose}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          padding: "10px 14px",
-          borderRadius: "var(--tm-radius-sm)",
-          border: "1px solid var(--tm-int-border)",
-          background: "var(--tm-int-bg-wash)",
-          color: "var(--tm-interactive)",
-          fontSize: "var(--tm-fs-caption)",
-          fontWeight: 600,
-          textDecoration: "none",
-        }}
-      >
-        <span>New to Myro Coins? See how they work first.</span>
-        <span aria-hidden>→</span>
-      </Link>
-
-      <SaleOffer>
-      <div style={{
-        padding: 18,
-        borderRadius: "var(--tm-radius)",
-        background: "linear-gradient(180deg, var(--tm-int-bg-wash), rgba(255,255,255,0.015))",
-        border: "1px solid var(--tm-int-border)",
-      }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 18, alignItems: "flex-start" }}>
-          <div>
-            <div style={{
-              display: "inline-flex", alignItems: "center",
-              padding: "3px 8px", borderRadius: "var(--tm-radius-pill)",
-              border: "1px solid var(--tm-int-border)", color: "var(--tm-interactive)",
-              fontSize: "var(--tm-fs-caption)", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase",
-            }}>
-              Launch price
-            </div>
-            <div style={{ marginTop: 12, fontSize: "var(--tm-fs-title)", fontWeight: 600, color: "var(--tm-text)", lineHeight: 1 }}>
-              {formatCount(XP_PACK_AMOUNT)} Myro Coins
-            </div>
-            <div style={{ marginTop: 8, fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", lineHeight: 1.5, maxWidth: 360 }}>
-              Use Myro Coins for company follows, match refreshes, and focused practice sessions.
-            </div>
-          </div>
-
-          <div style={{ textAlign: "right", flexShrink: 0 }}>
-            <div style={{ fontSize: "var(--tm-fs-title)", fontWeight: 600, color: "var(--tm-text)", lineHeight: 1 }}>
-              Rs {XP_PACK_PRICE_RUPEES}
-            </div>
-            <div style={{ marginTop: 6, fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)" }}>
-              Razorpay Standard Checkout
-            </div>
-          </div>
-        </div>
-
-        <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <button
-            type="button"
-            onClick={onBuy}
-            disabled={busy}
-            style={{
-              padding: "10px 20px", borderRadius: "var(--tm-radius-sm)", border: "none",
-              background: status === "success" ? "var(--tm-success)" : "var(--tm-interactive)",
-              color: "var(--tm-interactive-fg)", fontSize: "var(--tm-fs-body)", fontWeight: 600, fontFamily: "inherit",
-              cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.72 : 1,
-              minWidth: 150, boxShadow: busy ? "none" : "0 0 18px var(--tm-int-bg-hover)",
-              transition: "opacity var(--tm-dur) var(--tm-ease), background var(--tm-dur) var(--tm-ease)",
-            }}
-          >
-            {buttonLabel}
-          </button>
-
-          {message && (
-            <div role="status" style={{ fontSize: "var(--tm-fs-caption)", color: messageColor, lineHeight: 1.45, maxWidth: 360 }}>
-              {message}
-            </div>
-          )}
-        </div>
-
-        <p style={{ marginTop: 14, fontSize: "var(--tm-fs-caption)", color: "var(--tm-text-faint)", lineHeight: 1.55, maxWidth: 420 }}>
-          By paying, you agree to Myro&rsquo;s{" "}
-          <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "var(--tm-interactive)", textDecoration: "none" }}>Terms</a>
-          {" "}and{" "}
-          <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "var(--tm-interactive)", textDecoration: "none" }}>Privacy Policy</a>.
-          Myro Coins are in-platform credits that fund Myro&rsquo;s operation — they are not payment for any job or hiring outcome.
-        </p>
-      </div>
-      </SaleOffer>
-
-      <div style={{
-        padding: "12px 16px",
-        borderRadius: "var(--tm-radius-sm)",
-        border: "1px solid var(--tm-border-soft)",
-        background: "rgba(255,255,255,0.015)",
-        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap",
-      }}>
-        <div>
-          <div style={{
-            fontSize: "var(--tm-fs-caption)", letterSpacing: "0.08em", textTransform: "uppercase",
-            color: "var(--tm-text-faint)", fontWeight: 500,
-          }}>
-            Payment partner
-          </div>
-          <div style={{ marginTop: 4, fontSize: "var(--tm-fs-body)", color: "var(--tm-text)" }}>
-            Razorpay
-          </div>
-        </div>
-        <span style={{ fontSize: "var(--tm-fs-caption)", color: isTestMode ? "var(--tm-warning)" : "var(--tm-text-faint)" }}>
-          {isTestMode ? "Test mode" : "Secure checkout"}
-        </span>
-      </div>
-    </div>
   )
 }
 
