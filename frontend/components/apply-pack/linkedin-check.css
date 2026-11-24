@@ -1,0 +1,110 @@
+/* The LinkedIn rewrite card on the CV page (#56 S3c, ENG3). Tokens only. */
+
+.li-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tm-space-sm);
+  margin-top: var(--tm-section-gap);
+  padding: var(--tm-space-md);
+  border: 1px solid var(--tm-border);
+  background: var(--tm-surface);
+  scroll-margin-top: var(--tm-space-xl);
+}
+
+.li-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--tm-space-2xs) var(--tm-space-sm);
+}
+
+.li-card-title {
+  margin: 0;
+  font-size: var(--tm-fs-heading);
+  font-weight: 600;
+}
+
+.li-card-meta {
+  font-size: var(--tm-fs-meta);
+  color: var(--tm-text-muted);
+}
+
+.li-card-note {
+  margin: 0;
+  color: var(--tm-text-secondary);
+  white-space: pre-line;
+}
+
+.li-form {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--tm-space-sm);
+}
+
+.li-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tm-space-2xs);
+  min-width: 0;
+  font-size: var(--tm-fs-meta);
+  color: var(--tm-text-muted);
+}
+
+.li-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tm-space-sm);
+}
+
+.li-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tm-space-sm);
+}
+
+.li-open {
+  align-self: flex-start;
+}
+
+.li-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tm-space-xs);
+  padding-top: var(--tm-space-sm);
+  border-top: 1px solid var(--tm-border-subtle);
+}
+
+.li-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tm-space-sm);
+  min-width: 0;
+}
+
+.li-block-label {
+  min-width: 0;
+  font-size: var(--tm-fs-meta);
+  color: var(--tm-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.li-block-text {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.li-delete {
+  margin: 0;
+  padding-left: var(--tm-space-md);
+  color: var(--tm-text-secondary);
+}
+
+@media (max-width: 480px) {
+  .li-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
