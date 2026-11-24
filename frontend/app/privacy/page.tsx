@@ -191,6 +191,7 @@ export default function PrivacyPage() {
                 <Li><strong>Account data:</strong> retained until you delete your account.</Li>
                 <Li><strong>CV data:</strong> retained until you delete it or your account.</Li>
                 <Li><strong>Extension token:</strong> stored locally on your device; cleared when you remove the extension or reset your token in settings.</Li>
+                <Li><strong>Claude and ChatGPT requests:</strong> the role, place or company a Myro tool receives appears only in our hosting provider&apos;s request logs, which it deletes on its own schedule. These requests carry no account and are not linked to a person.</Li>
               </Ul>
             </Section>
 

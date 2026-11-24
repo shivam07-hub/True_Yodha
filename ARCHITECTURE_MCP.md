@@ -414,7 +414,8 @@ Portal `claude.ai/directory/manage`, a paid plan's Owner. Slug `myro` is
 permanent. Needs: docs URL (`/ai`), privacy policy, support contact, icon, use
 cases, data-handling answers, seven acknowledgments, every tool run once as a
 custom connector. Lists as Community; Anthropic may raise it to Verified. Read
-the Software Directory Policy on scraped data before submitting. The connector
+the Software Directory Policy on scraped data before submitting (read 2026-11-24; the
+audit is in [MCP_DIRECTORY_SUBMISSION.md](MCP_DIRECTORY_SUBMISSION.md)). The connector
 URL is `https://www.himyro.com/mcp/open`: the bare `himyro.com` answers 307 to
 `www` (checked 2026-11-23).
 
@@ -455,7 +456,7 @@ pass writes "Verified".
 | O1 | Built + verified 2026-11-22 (`04d5ffe7`): 4198 backend tests green; live on the dev API (401 without a key). Reaches `api.himyro.com` when `main` takes it. |
 | O2 | Built 2026-11-22. Local dev against the dev API: `tools/list` gives six tools with annotations; company, skill demand, sectors and ghost index return real rows. U4 holds locally. Key `myro-mcp` (scope `market.read`) minted 2026-11-23; through the adapter, search and role skills answer from real data (~0.5 s warm). Their first real calls fixed two things: `first_seen` is a YYYYMMDD marker, now sent as a day; "investment" no longer matches "investigation". Key set in Vercel 2026-11-23; all six tools answer on prod. Then "data analyst" + Mumbai answered Noida: the search filtered the city after a national window. `search_live_jobs` filters the place first (ARCHITECTURE_READ_PATH.md §34). |
 | O3 | Built 2026-11-24. `/ai`: the address with Copy (falls back to selecting it where the clipboard is refused, as in-app browsers do), Claude and ChatGPT steps as their own docs state them on 2026-11-24, six asks with their tools, what crosses. Linked from the footer (`SITE_ROUTES`, so the sitemap and `llms.txt` too), Settings › Account › Assistants, and privacy §02 D. Checked at 375px and desktop, both surfaces. |
-| O4 | Spec only. Needs O3 on `main`. Shivam submits. |
+| O4 | Pack ready 2026-11-24: [MCP_DIRECTORY_SUBMISSION.md](MCP_DIRECTORY_SUBMISSION.md), every portal field and a rule-by-rule policy audit. Policy read: no rule names scraping; 1F (IP) and 3F (own every endpoint) are met by returning facts only and linking only to himyro.com. Owed: `main` merge (O3 + privacy lines), then Shivam tests six prompts as a custom connector and submits. |
 | P1 | Spec only. Open-door skills after O4; account skills after M7. |
 | M1 | Spec only. |
 | M2 | Spec only. |
