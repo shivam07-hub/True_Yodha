@@ -105,12 +105,18 @@ async def heal_embeddings(repo: Any) -> dict[str, int]:
     until the user happened to open a tailor interview. Same reason this module
     exists: a heal on a visit is not a guarantee.
     """
-    from app.services import career_reservoir
+    from app.services import career_reservoir, llm_spender
 
-    users = repo.users_with_unembedded_stories(EMBED_USER_LIMIT)
+    # Finishing a user's own upload is work for that user, so OpenRouter bills
+    # it to them. A test account's stories are never embedded (llm_spender);
+    # asked for, they would fill this window on every pass and starve real users.
+    users = repo.users_with_unembedded_stories(
+        EMBED_USER_LIMIT, exclude=llm_spender.test_account_ids()
+    )
     healed = 0
     for user_id in users:
-        healed += await career_reservoir.backfill_missing_embeddings(repo, user_id)
+        with llm_spender.billed_to(user_id):
+            healed += await career_reservoir.backfill_missing_embeddings(repo, user_id)
     if users:
         logger.info(
             "metric reservoir_sweep.embedded users=%d stories=%d", len(users), healed,

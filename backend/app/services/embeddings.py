@@ -27,7 +27,7 @@ import logging
 from openai import AsyncOpenAI
 
 from app.config import settings
-from app.services import llm_budget
+from app.services import llm_budget, llm_spender
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +57,11 @@ def _get_client() -> AsyncOpenAI:
     embedded with model A is not comparable to a query embedded with model B.
     """
     global _client
+    if not llm_spender.openrouter_allowed():
+        raise EmbeddingError(
+            f"{EMBED_MODEL} is billed to OpenRouter, which pays only for a person "
+            "on Myro — see llm_spender."
+        )
     if _client is None:
         if not settings.openrouter_api_key:
             raise EmbeddingError(

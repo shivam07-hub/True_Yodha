@@ -32,7 +32,7 @@ import sys
 from pathlib import Path
 
 from app.database import get_supabase_admin
-from app.services import embeddings
+from app.services import embeddings, llm_spender
 
 _DEFAULT_CHUNKS = (
     "/Users/incognito/firecrawl_Supabase/Interview Prep/RAG Sources/"
@@ -83,6 +83,9 @@ def _existing_hashes(client, source_ids: list[str]) -> set[tuple[str, str]]:
 
 
 async def publish(path: Path, dry_run: bool, prune: bool) -> int:
+    # The one script OpenRouter may bill (Shivam, 2026-11-25): the playbook's
+    # vectors must come from the model users' searches are embedded with.
+    llm_spender.bill_playbook_publish()
     chunks = _load_chunks(path)
     client = get_supabase_admin()
 

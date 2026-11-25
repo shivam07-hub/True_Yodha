@@ -29,12 +29,16 @@ from openai import AsyncOpenAI
 
 from app.config import settings
 from app.security.personal_data import sanitize_ai_messages
-from app.services import llm_budget
+from app.services import llm_budget, llm_spender
 
 logger = logging.getLogger(__name__)
 
 _OR_HEADERS = {"HTTP-Referer": "https://truemirror.vercel.app", "X-Title": "Truth Mirror"}
 _OR_BASE = "https://openrouter.ai/api/v1"
+
+
+def _bills_openrouter(client: AsyncOpenAI) -> bool:
+    return "openrouter.ai" in str(getattr(client, "base_url", ""))
 _GROQ_BASE = "https://api.groq.com/openai/v1"
 _GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/"
 
@@ -188,6 +192,14 @@ class LLMProvider:
     def __init__(self, providers: list[_ProviderEntry]) -> None:
         self._providers = providers
 
+    def _billable(self) -> list[_ProviderEntry]:
+        """The ladder minus OpenRouter when no person on Myro asked for this
+        call — see `llm_spender`. Decided per call, not when the ladder is
+        built: a provider is often built before anyone knows whose call it is."""
+        if llm_spender.openrouter_allowed():
+            return self._providers
+        return [entry for entry in self._providers if not _bills_openrouter(entry[0])]
+
     async def complete(
         self,
         messages: list[dict],
@@ -222,7 +234,7 @@ class LLMProvider:
         started_at = perf_counter()
         safe_messages = sanitize_ai_messages(messages)
         max_retries = int(settings.llm_transient_retries)
-        for client, model, extra_body in self._providers:
+        for client, model, extra_body in self._billable():
             logger.info("LLM provider: trying %s", model)
             kwargs: dict = dict(model=model, max_tokens=max_tokens, messages=safe_messages)
             if temperature is not None:
@@ -283,7 +295,7 @@ class LLMProvider:
         """
         safe_messages = sanitize_ai_messages(messages)
         max_retries = int(settings.llm_transient_retries)
-        for client, model, extra_body in self._providers:
+        for client, model, extra_body in self._billable():
             logger.info("LLM stream: trying %s", model)
             kwargs: dict = dict(
                 model=model, max_tokens=max_tokens, messages=safe_messages, stream=True

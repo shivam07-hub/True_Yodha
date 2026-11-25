@@ -911,7 +911,11 @@ async def _run_cv_upload_stages(
         background.enqueue(
             background.LANE_FAST,
             "cv_structured_enrich",
-            payload={"raw_text": raw_text, "baseline_version_id": baseline_version_id},
+            payload={
+                "user_id": user_id,
+                "raw_text": raw_text,
+                "baseline_version_id": baseline_version_id,
+            },
             correlation_id=f"structured:{baseline_version_id}",
         )
         # Score while they review skills (P0.3). Confirm still publishes; excludes

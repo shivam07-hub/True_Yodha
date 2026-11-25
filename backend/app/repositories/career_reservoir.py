@@ -157,16 +157,23 @@ class CareerReservoirRepository:
             "user_id", user_id
         ).eq("id", story_id).execute()
 
-    def users_with_unembedded_stories(self, limit: int = 50) -> list[str]:
+    def users_with_unembedded_stories(
+        self, limit: int = 50, exclude: frozenset[str] = frozenset()
+    ) -> list[str]:
         """Every user holding at least one active story with no vector — the
         cross-user half of `stories_missing_embedding`, for the sweep. Admin
-        client only: a token-scoped caller sees just itself."""
-        rows = safe_read(
+        client only: a token-scoped caller sees just itself. `exclude` drops
+        users before the limit applies (a handful of ids: Myro's own accounts)."""
+        query = (
             self._db.table("career_stories")
             .select("user_id")
             .eq("status", "active")
             .is_("embedding", "null")
-            .limit(limit),
+        )
+        if exclude:
+            query = query.not_.in_("user_id", sorted(exclude))
+        rows = safe_read(
+            query.limit(limit),
             default=[],
             context="career_stories_unembedded_users",
         )
