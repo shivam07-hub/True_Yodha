@@ -7,7 +7,8 @@ Times are IST.
 posts, 0 signups). Shivam's answers: the company page, renamed Myro Career Intelligence,
 stays the main LinkedIn channel; Shivam's profile posts once or twice a week as the
 newsletter's voice and points people to the page. Backlog posts go out with their dates
-removed (trends hold over a month or a quarter); new posts use this week's data. Shivam
+removed (trends hold over a month or a quarter). New posts reuse the data we already
+pulled, even a month old, and never read Supabase to write a post (2026-11-25). Shivam
 records a short reel a week, and demo videos of Myro for YouTube, LinkedIn and Instagram.
 
 **What is drafted, planned and posted lives in the Distribution Tracker at

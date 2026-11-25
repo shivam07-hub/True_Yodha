@@ -1,0 +1,132 @@
+{
+  "issue": 24,
+  "out": "Myro Newsletter/Issue 024 - branch banking post",
+  "foot": "5,649 branch openings at Kotak and Axis · himyro.com",
+  "slides": [
+    {
+      "kind": "statement",
+      "kicker": "Branch banking",
+      "h1": "Want a bank job? 1,188 branch openings carry one title: Personal Banker.",
+      "sub": "Kotak Mahindra Bank posts them, in 207 cities. Citibank and DBS post 10 more.",
+      "caption": "Want a bank job? 1,188 branch openings carry one title: Personal Banker. Kotak Mahindra Bank posts them, in 207 cities. Citibank and DBS post 10 more."
+    },
+    {
+      "kind": "table",
+      "headline": "Personal Banker is one of five titles behind 67.2% of branch hiring.",
+      "head": [
+        "Title, bank",
+        "Openings"
+      ],
+      "rows": [
+        [
+          "Personal Banker, Kotak",
+          "1,188",
+          true
+        ],
+        [
+          "Elite Banker, Kotak",
+          "1,180",
+          true
+        ],
+        [
+          "Business Development Associate, Axis",
+          "688",
+          true
+        ],
+        [
+          "Branch Relationship Officer, Axis",
+          "371",
+          false
+        ],
+        [
+          "Assistant Branch Manager, Kotak",
+          "368",
+          false
+        ]
+      ],
+      "caption": "Personal Banker is one of five titles behind 67.2% of branch hiring at Kotak and Axis. Then Elite Banker (1,180), Business Development Associate (688), Branch Relationship Officer (371) and Assistant Branch Manager (368)."
+    },
+    {
+      "kind": "number",
+      "headline": "Starting out? Nearly every entry-level branch opening is one title.",
+      "huge": "688 of 711",
+      "sub": "are Business Development Associate, and only Axis posts it. Each asks for a graduate degree and one year's experience.",
+      "caption": "Starting out? 688 of the 711 entry-level branch openings are Business Development Associate, and only Axis posts it. Each asks for a graduate degree, one year's experience, and sales and lead generation."
+    },
+    {
+      "kind": "bars",
+      "headline": "About half of Axis's entry-level openings are in Mumbai and NCR.",
+      "bars": [
+        [
+          "NCR",
+          172,
+          "170+"
+        ],
+        [
+          "Mumbai",
+          169,
+          "169"
+        ],
+        [
+          "Bengaluru",
+          87,
+          "87"
+        ],
+        [
+          "Kolkata",
+          69,
+          "69"
+        ],
+        [
+          "Chennai",
+          67,
+          "67"
+        ]
+      ],
+      "max": 180,
+      "dim_from": 2,
+      "note": "Business Development Associate openings. NCR is Delhi, Gurugram and Noida.",
+      "caption": "About half of those are in Mumbai (169) and NCR (more than 170). Then Bengaluru 87, Kolkata 69 and Chennai 67."
+    },
+    {
+      "kind": "table",
+      "headline": "Your city decides which bank is hiring you.",
+      "head": [
+        "City",
+        "Who posts most"
+      ],
+      "rows": [
+        [
+          "Kolkata",
+          "Axis, 76.4%",
+          true
+        ],
+        [
+          "Chennai",
+          "Axis, 68.9%",
+          true
+        ],
+        [
+          "Pune",
+          "Kotak, 57.3%",
+          false
+        ],
+        [
+          "Any other city",
+          "Kotak, all",
+          false
+        ]
+      ],
+      "note": "Axis posts only in Mumbai, NCR, Bengaluru, Chennai, Kolkata, Hyderabad, Pune and Ahmedabad.",
+      "caption": "Your city decides which bank is hiring you. Axis posts 76.4% of Kolkata's branch openings and 68.9% of Chennai's. Kotak posts 57.3% of Pune's, and every opening outside Axis's 10 cities."
+    },
+    {
+      "kind": "cta",
+      "h1": "Upload your CV and see which of these roles you fit.",
+      "sub": "Myro shows what they ask that your CV doesn't, then tailors it.",
+      "pill": "Upload your CV: himyro.com",
+      "caption": "Upload your CV and see which of these roles you fit, and what they ask that your CV doesn't. Link in bio."
+    }
+  ],
+  "first_comment": "#bankingjobs #jobsearch #freshers #himyro"
+}
