@@ -57,6 +57,14 @@ never on an empty result, versioned by `jobs.skill_floor_version`; receipts
 recomputed by `explain_tags`, never stored; an automatic before/after with
 invariants; a skill-spread Notice belt. Claude.
 
+**#65 Target pay — [ARCHITECTURE_TARGET_PAY.md](ARCHITECTURE_TARGET_PAY.md)
+(Shivam, 2026-11-25). Spec only, nothing built.** Pay bands are on 1 of 1,936
+verdicts since 11-09, and 0 of 1,120 real users have a pay floor or an expected CTC.
+C0 (find why the band is missing, then fix) goes first and alone. Then: target =
+`expected_ctc_lpa`, compared on the card and never sent to the brain, plus a Pay
+group in Pre-flight. Shivam owes Q1 (is the target total CTC or fixed) and Q2.
+Claude.
+
 ---
 
 **A full run closed jobs that were still open: Accenture (2026-11-02).** Workday's
