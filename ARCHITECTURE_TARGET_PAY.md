@@ -116,8 +116,11 @@ earlier pay sentence rather than adding one. *Aiming for* writes
 `PATCH /career-profile`. Both numbers are optional. Aiming-for below at-least is
 refused at the field.
 
-**C3 · Relabel the CV-builder field** from "Expected fixed" to "Expected CTC",
-if Shivam answers Q1 that way.
+**C3 · Relabel to total CTC** (Q1, decided). The CV-builder field becomes
+"Expected CTC" (`career-profile-card.tsx:42`). The memory mirror's sentence in
+`repositories/career_profile.py` changes from "expected fixed compensation" to
+"expected CTC". The schema docstring follows. The stored key
+`expected_ctc_lpa` keeps its name, so no data moves.
 
 Not in this spec: **Settings cannot change role families.**
 `UpdateProfileRequest` (`schemas/users.py`) has no `role_families`, so a title
@@ -138,7 +141,6 @@ asked again while they are away.
 
 ## 5 · Open for Shivam
 
-- **Q1.** Is "Aiming for" a total-CTC number or a fixed-pay number? Bands are
-  total CTC, and the field today says "fixed". Recommendation: total CTC, and
-  relabel (C3). Indian forms mostly ask "Expected CTC".
+- **Q1 · decided 2026-11-25: total CTC.** "Aiming for" is a total-CTC number,
+  the same basis as the bands. C3 relabels the field.
 - **Q2.** Confirm that pay stays off the sort order in v1 (D3).

@@ -62,7 +62,7 @@ invariants; a skill-spread Notice belt. Claude.
 verdicts since 11-09, and 0 of 1,120 real users have a pay floor or an expected CTC.
 C0 (find why the band is missing, then fix) goes first and alone. Then: target =
 `expected_ctc_lpa`, compared on the card and never sent to the brain, plus a Pay
-group in Pre-flight. Shivam owes Q1 (is the target total CTC or fixed) and Q2.
+group in Pre-flight. Q1 decided 11-25: the target is total CTC. Shivam owes Q2.
 Claude.
 
 ---
