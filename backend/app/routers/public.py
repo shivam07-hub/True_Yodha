@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, File, Form, HTTPException, Request, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
@@ -24,7 +24,7 @@ from app.repositories.jobs import get_public_jobs_repository
 from app.repositories.scores import ScoresRepository
 from app.security import ServiceUnavailable, redact_sensitive_text
 from app.security.anon_rate_limit import enforce_anon_rate
-from app.services import cv_parser, cv_restructure, cv_rewrite, job_query_parser
+from app.services import cv_parser, cv_restructure, cv_rewrite, job_query_parser, llm_spender
 from app.services.cv_pdf_html import (
     CVPdfError,
     content_disposition as _content_disposition,
@@ -42,7 +42,11 @@ from app.services.scoring.formulas import build_skill_level_map
 from app.services.scoring.orchestrator import project_score
 from app.services import shared_cache
 
-router = APIRouter(prefix="/public", tags=["public"])
+# Public pages are the front door: a visitor's AI is a person's AI, billed to
+# OpenRouter like a user's (Shivam, 2026-11-25). See llm_spender.
+router = APIRouter(
+    prefix="/public", tags=["public"], dependencies=[Depends(llm_spender.bill_visitor)]
+)
 
 _log = logging.getLogger("app.public")
 

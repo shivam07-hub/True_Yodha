@@ -49,14 +49,6 @@
   text-wrap: balance;
 }
 
-.tm-intel-plan-summary {
-  max-width: 65ch;
-  margin: 18px 0 0;
-  color: var(--tm-text-muted);
-  font-size: var(--tm-fs-body);
-  line-height: 1.6;
-  text-wrap: pretty;
-}
 
 .tm-intel-plan-points {
   display: flex;

@@ -67,7 +67,7 @@ page reaches, and it has not posted in three months.
 
 | Cut | Why |
 |---|---|
-| The late-November backlog of 021, 023 and 025 as dated issues | Their numbers are 1–2.5 months old. Post them only with this week's read, or not at all |
+| The late-November backlog of 021, 023 and 025 as dated issues | A date on a 1–2.5-month-old number reads as untrustworthy. They go out undated (Decision 2) |
 | The company page as the LinkedIn channel | 27 followers, 5–21 impressions. It reshares Shivam's post instead |
 | "Newsletter" anywhere in a post | Done 22 Nov |
 | Counting slots as the measure | Replaced by reach, sends/saves, link clicks and signups per post |
@@ -84,11 +84,12 @@ page reaches, and it has not posted in three months.
 
 ## The new system
 
-1. **Fresh or nothing.** Every number in a post is read from the database in
-   the 7 days before it goes out, and the post says "verified live, week of
-   …". The carousel builder refuses a spec whose read date is older than 7
-   days. A post no longer has to come from a newsletter issue; its source is a
-   saved query result with its date.
+1. **Read once, post for months** (Shivam, 2026-11-25, replacing "fresh or
+   nothing": "we are not selling real-time data"). A post or an issue uses the
+   figures we already pulled, even a month old, and carries no date. Nobody
+   reads Supabase to write a post: the database is shared with production and
+   already overloaded. A new read is for a new question, saved once beside the
+   issue's data and reused.
 2. **LinkedIn goes out from Shivam's profile**, in his voice, first person,
    three times a week. The page reshares. The Pune post is the template: one
    surprising number about where the jobs are, then what it means for the
@@ -126,8 +127,8 @@ tagged to a post.
    profile posts are how it gets them.
 2. **No re-reads.** 021, 023 and 025 go out with every date removed from
    slides, captions and LinkedIn copy (done 22 Nov); trends hold over a month
-   or a quarter. New posts use this week's data. The 7-day builder check in
-   "The new system" is not built.
+   or a quarter. On 2026-11-25 Shivam extended this to new posts: they reuse
+   data already pulled, with no fresh read (see "The new system", 1).
 3. **Yes to a reel a week**, recorded by Shivam, plus demo videos of Myro for
    YouTube, LinkedIn and Instagram showing what to do on Myro and how it helps.
 4. **Bio link to the upload: yes.** instagram.com says links are editable only

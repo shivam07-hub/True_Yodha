@@ -5170,13 +5170,11 @@ export const skills = {
 
 // ── Billing ──────────────────────────────────────────────────────────────────
 
-export type BillingProduct = "apply_pack" | "xp_pack" | "myrology" | "job_switch_plan" | "ai_workflow_audit" | "filing_intake"
+export type BillingProduct = "apply_pack" | "myrology" | "ai_workflow_audit" | "filing_intake"
 
 export const BILLING_PRODUCT_AMOUNT_PAISE: Record<BillingProduct, number> = {
   apply_pack: 19900,
-  xp_pack: 9900,
   myrology: 29900,
-  job_switch_plan: 19900,
   ai_workflow_audit: 99900,
   filing_intake: 59900,
 }
@@ -5186,13 +5184,11 @@ export interface RazorpayOrderResponse {
   amount: number
   currency: string
   product: string
-  subscription_id?: string
 }
 
 export interface RazorpayVerifyPayload {
   razorpay_payment_id: string
   razorpay_order_id: string
-  razorpay_subscription_id?: string
   razorpay_signature: string
 }
 
@@ -5202,7 +5198,6 @@ export interface RazorpayVerifyResponse {
   new_coin_balance: number
   product: string
   myrology_unlocked: boolean
-  job_switch_plan_active: boolean
 }
 
 /** 202: money is in, the grant has not finished; the next arrival finishes it. */
@@ -5233,9 +5228,7 @@ export interface Catalogue {
 
 const BILLING_RECEIPT_PREFIX: Record<BillingProduct, string> = {
   apply_pack: "ap",
-  xp_pack: "xp",
   myrology: "myro",
-  job_switch_plan: "jsp",
   ai_workflow_audit: "awa",
   filing_intake: "fi",
 }
@@ -5287,45 +5280,6 @@ export const filingIntake = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
-    }),
-}
-
-// ── Personalised Job-Switch Plan (#33) ───────────────────────────────────────
-
-export interface JobSwitchPlanReview {
-  id: string
-  review_no: number
-  status: "pending" | "in_progress" | "delivered"
-  review_text: string | null
-  sla_due_at: string
-  requested_at: string
-  delivered_at: string | null
-}
-
-export interface JobSwitchPlan {
-  id: string
-  target_role: string | null
-  status: string
-  reviews_used: number
-  window_expires_at: string
-  created_at: string
-  reviews: JobSwitchPlanReview[]
-  can_request_second_review: boolean
-  window_open: boolean
-  subscription_status?: string
-}
-
-export const jobSwitchPlan = {
-  // null when the user hasn't subscribed — the surface then shows the ₹199/month offer.
-  get: (token: string) =>
-    request<JobSwitchPlan | null>("/job-switch-plan", {
-      headers: { Authorization: `Bearer ${token}` },
-    }),
-
-  requestReview: (token: string) =>
-    request<JobSwitchPlanReview>("/job-switch-plan/request-review", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
     }),
 }
 
@@ -6507,5 +6461,128 @@ export const preparations = {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ story_id: storyId, rehearsed }),
+    }),
+}
+
+// ── Human Check (#56, ENG3) ─────────────────────────────────────────────────
+
+export interface LinkedInBlocks {
+  headline: string
+  about: string
+  experience: { company: string; title: string; dates: string; text: string }[]
+  education: string[]
+  skills: string[]
+  featured: string
+  delete: string[]
+}
+
+export interface HumanCheck {
+  id: string
+  kind: "cv_job" | "linkedin" | null
+  job_id: string | null
+  status: "unassigned" | "queued" | "in_review" | "delivered"
+  slot_starts_at: string | null
+  due_at: string | null
+  reviewer_name: string | null
+  note: string | null
+  reviewed_cv_version_id: number | null
+  linkedin_url: string | null
+  blocks: LinkedInBlocks | null
+  pasted_at: string | null
+  delivered_at: string | null
+  created_at: string | null
+}
+
+export interface LinkedInIntake {
+  linkedin_url: string
+  whatsapp: string
+}
+
+export const humanChecks = {
+  mine: (token: string) =>
+    request<{ checks: HumanCheck[] }>("/human-checks", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  useOnJob: (token: string, checkId: string, jobId: string) =>
+    request<HumanCheck>(`/human-checks/${encodeURIComponent(checkId)}/job`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ job_id: jobId }),
+    }),
+  useOnLinkedIn: (token: string, checkId: string, intake: LinkedInIntake) =>
+    request<HumanCheck>(`/human-checks/${encodeURIComponent(checkId)}/linkedin`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(intake),
+    }),
+  /** 5,000 coins. Out of coins answers 400 with the shortfall. */
+  buyLinkedInWithCoins: (token: string, intake: LinkedInIntake) =>
+    request<HumanCheck>("/human-checks/linkedin", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(intake),
+    }),
+}
+
+// ── Reviewer desk (#56 S4) — behind the one admin token ─────────────────────
+
+export interface ReviewerCheck extends HumanCheck {
+  user_id: string
+  buyer_email: string | null
+  contact_whatsapp: string | null
+  draft: (LinkedInBlocks & { flags?: string[] }) | null
+}
+
+export interface StuckPayment {
+  id: string
+  user_id: string
+  product: string
+  amount_paise: number
+  verified_at: string
+}
+
+export interface ReviewerQueue {
+  checks: ReviewerCheck[]
+  calls: ReviewerCheck[]
+  stuck_payments: StuckPayment[]
+}
+
+function adminHeaders(adminToken: string): Record<string, string> {
+  return { "X-Myro-Admin-Token": adminToken }
+}
+
+export const reviewer = {
+  queue: (adminToken: string) =>
+    request<ReviewerQueue>("/admin/human-checks", { headers: adminHeaders(adminToken) }),
+  claim: (adminToken: string, checkId: string) =>
+    request<ReviewerCheck>(`/admin/human-checks/${encodeURIComponent(checkId)}/claim`, {
+      method: "POST",
+      headers: adminHeaders(adminToken),
+    }),
+  document: (adminToken: string, checkId: string) =>
+    request<{ version_id: number | null; body_text: string | null }>(
+      `/admin/human-checks/${encodeURIComponent(checkId)}/document`,
+      { headers: adminHeaders(adminToken) },
+    ),
+  deliver: (
+    adminToken: string,
+    checkId: string,
+    body: { note: string; reviewed_cv_version_id?: number; blocks?: LinkedInBlocks },
+  ) =>
+    request<ReviewerCheck>(`/admin/human-checks/${encodeURIComponent(checkId)}/deliver`, {
+      method: "POST",
+      headers: adminHeaders(adminToken),
+      body: JSON.stringify(body),
+    }),
+  closeCall: (adminToken: string, checkId: string, pasted: boolean) =>
+    request<ReviewerCheck>(`/admin/human-checks/${encodeURIComponent(checkId)}/close-call`, {
+      method: "POST",
+      headers: adminHeaders(adminToken),
+      body: JSON.stringify({ pasted }),
+    }),
+  retrySettle: (adminToken: string, paymentRowId: string) =>
+    request<{ outcome: string }>(`/admin/payments/${encodeURIComponent(paymentRowId)}/settle`, {
+      method: "POST",
+      headers: adminHeaders(adminToken),
     }),
 }

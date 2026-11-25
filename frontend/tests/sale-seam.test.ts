@@ -15,8 +15,8 @@ test("a sale opens on the web and not inside the Android app", () => {
 
 test("the sale routes are the four charges", () => {
   assert.deepEqual([...SALE_PATHS], [
+    "/apply-pack",
     "/filing",
-    "/job-switch-plan",
     "/preparations/audit",
     "/myrology",
   ])

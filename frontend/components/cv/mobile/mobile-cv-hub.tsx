@@ -5,6 +5,7 @@ import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { CVExportView } from "@/components/cv/builder/cv-export-view"
 import { FinishTailoringLane } from "@/components/cv/builder/finish-tailoring-lane"
 import { ForwardPassPanel } from "@/components/cv/builder/forward-pass-panel"
+import { LinkedInCheckCard } from "@/components/apply-pack/linkedin-check-card"
 import { Icon } from "@/components/cv/builder/icons"
 import { Button } from "@/components/ui/button"
 import {
@@ -141,6 +142,8 @@ export function MobileCVHub({
           <Button type="button" variant="outline" size="lg" onClick={() => setMode("export")}><Icon name="download" /> Export</Button>
         </div>
       </section>
+
+      {openJob ? null : <LinkedInCheckCard token={token} />}
 
       <Dialog open={moreOpen} onOpenChange={setMoreOpen}>
         <DialogContent>

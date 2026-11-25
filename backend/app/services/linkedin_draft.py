@@ -25,7 +25,7 @@ from typing import Any
 
 from app.database import get_supabase_admin
 from app.repositories.cv import CVRepository
-from app.services import human_check, mentor_grounding
+from app.services import human_check, mentor_grounding, myro_voice
 from app.services.cv_structured_shape import has_content
 from app.services.llm_provider import LLMProviderError, get_writer_provider
 
@@ -33,17 +33,21 @@ logger = logging.getLogger(__name__)
 
 DRAFT_MAX_TOKENS = 2500
 
-_SYSTEM = (
-    "You rewrite a person's LinkedIn profile from their own CV. Write in first person, plain and "
-    "specific, for the recruiter who hires for the role they want. Use ONLY facts in the CV and the "
-    "stories given. Never add an employer, title, date, number, metric, client or tool that is not "
-    "there. If a role has little in it, write less. Return JSON only, with keys: "
+_TASK = (
+    "Rewrite this person's LinkedIn profile from their own CV, for the recruiter "
+    "who hires for the role they want. If a role has little in it, write less. "
+    "Return JSON only, with keys: "
     '"headline" (at most 220 characters, names the buyer of their work, not only the employer), '
     '"about" (at most 2600 characters, the numbers they already have, 3-5 short paragraphs), '
     '"experience" (a list of {"index": <the role index given>, "text": <at most 2000 characters>}), '
     '"skills" (up to 5, copied from the skills line), '
     '"featured" (one line).'
 )
+
+# Written AS the person, first person, under their own name: the drafting
+# register, with the honesty floor (no invented employer, title, date, number
+# or client).
+_SYSTEM = myro_voice.drafting_for_reader(_TASK)
 
 _NUMBER = re.compile(r"\d[\d,.]*\s*(?:%|k|K|L|Cr|cr|M|\+)?")
 

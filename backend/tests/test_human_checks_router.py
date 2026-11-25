@@ -86,6 +86,7 @@ def test_out_of_coins_answers_with_the_shortfall_and_opens_nothing(
         ("post", "/admin/human-checks/x/deliver"),
         ("post", "/admin/human-checks/x/close-call"),
         ("post", "/admin/payments/x/settle"),
+        ("get", "/admin/human-checks/x/document"),
     ],
 )
 def test_reviewer_routes_need_the_admin_token(method: str, path: str, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -2873,3 +2873,36 @@ What I got wrong on the way:
 **Open.** The blob carries `location_city` only: 698 multi-city live rows
 match on their first city, 7 with no city match on none. ⌘K still reads the
 OR window, closed rows included.
+
+### Role words in the title (2026-11-24)
+
+Matching the whole blob let the category stand in for the title: Delhi's
+window of 120 held 1 of its 14 live Marketing Manager titles, behind bank
+jobs filed under "Marketing". `20261124090000` keeps the blob's trigram index
+for narrowing and requires the words in the title part, cut from the blob
+(the blob less its last four ` | ` segments, measured with `split_part` on
+`reverse(blob)`). Delhi now returns 14 of 14; Mumbai data analyst 15 rows,
+all titled (the 41 dropped had "data" only in the category).
+
+Warm, after the calibration query read its usual 8.9ms: every word + Mumbai
+10.5ms, any word + Mumbai 79ms, marketing manager + Delhi 36ms, software
+engineer + Bengaluru 121ms. Wrong turns:
+
+- **`regexp_replace(blob, '( \| [^|]*){4}$', '')`** cut the same titles but
+  backtracked, ~10ms a row: Delhi's 530 candidates took 5,510ms.
+- **Reading titles from `jobs` directly** (`idx_jobs_job_title_trgm` AND
+  `idx_jobs_location_city_trgm`) was right for Delhi (172ms) and wrong for
+  big sets: Bengaluru software engineer read 2,966 heap blocks of the
+  771 MB table, 12.4s.
+- **Timings taken during an autovacuum of `jobs`** ran 100× slow (the 9ms
+  calibration query read 1,362ms). Calibrate first; compare paired runs.
+
+**Open: the first search after a quiet minute reads from disk.** Through the
+dev API, a search called again 65s later (past the app's 60s cache) took
+0.6–6.7s server-side; the same SQL back to back took 27–36ms. The pre-existing
+blob query shows the same split (2,043ms first, 5.7ms third). `shared_buffers`
+is 224MB; the search's matview and trigram index are 41MB, but the worker and
+autovacuum keep reading the 772MB `jobs` table and push them out. Not caused
+by `search_live_jobs`; ⌘K and the landing search pay it too. Compute stays
+Micro (Shivam, 2026-10-14, cost), so the levers are smaller reads: a live-only
+narrow index (63k of 107k rows) or a cheaper worker poll.

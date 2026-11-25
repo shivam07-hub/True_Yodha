@@ -24,6 +24,7 @@ import { useViewport } from "@/mobile"
 import "./library-view.css"
 import "../mobile/mobile-cv-hub.css"
 import "../mobile/mobile-cv-editor.css"
+import { LinkedInCheckCard } from "@/components/apply-pack/linkedin-check-card"
 
 type View = "cv" | "stories" | "memory"
 
@@ -159,6 +160,7 @@ export function LibraryView({
                 onOpenJob={onOpenJob}
                 showHistory={false}
               />
+              {cv ? <LinkedInCheckCard token={token} /> : null}
             </div>
           )}
 

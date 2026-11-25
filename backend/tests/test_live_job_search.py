@@ -7,8 +7,11 @@ rows, 8 data analyst titles), found no Mumbai row among them, and answered
 with Noida while Mumbai had five live data analyst jobs.
 
 The fake below models `search_live_jobs`
-(database/migrations/20261123140000_search_live_jobs.sql): the same blob, the
-place and liveness filters ahead of the window, newest first.
+(database/migrations/20261124090000_search_live_jobs_on_titles.sql): role
+words in the TITLE, the place in the blob, liveness, all ahead of the window,
+newest first. Role words used to match the whole blob, so a bank job filed
+under "Marketing" was a "marketing manager": Delhi's window held 1 of its 14
+Marketing Manager titles.
 """
 
 from __future__ import annotations
@@ -53,9 +56,12 @@ class _LiveSearchDB:
         def blob(row: dict[str, Any]) -> str:
             return " | ".join(str(row.get(f) or "") for f in _BLOB_FIELDS).casefold()
 
+        def title(row: dict[str, Any]) -> str:
+            return str(row.get("job_title") or "").casefold()
+
         hits = [
             row for row in self.rows
-            if match(t in blob(row) for t in terms)
+            if match(t in title(row) for t in terms)
             and (not cities or any(c in blob(row) for c in cities))
             and (not countries or any(c in blob(row) for c in countries))
             and row.get("is_active") is True
@@ -217,4 +223,18 @@ def test_a_stronger_rungs_rows_stay_above_a_weaker_rungs():
     result = JobsRepository(db).public_job_query(role="investment banking analyst", location_city="Mumbai")
 
     assert result["rows"][0]["job_id"] == "ib-mumbai"
+    assert result["relaxed"] == []
+
+
+def test_a_role_word_in_the_jobs_category_alone_is_not_a_match():
+    filed_under_marketing = [
+        _job(f"rm-{i}", "Relationship Manager", "Delhi", first_seen=20261123, role_domain="Marketing")
+        for i in range(200)
+    ]
+    titled = [_job(f"mm-{i}", "Marketing Manager", "Delhi", first_seen=20260909) for i in range(3)]
+    db = _LiveSearchDB(filed_under_marketing + titled)
+
+    result = JobsRepository(db).public_job_query(role="marketing manager", location_city="Delhi")
+
+    assert {row["job_id"] for row in result["rows"]} == {"mm-0", "mm-1", "mm-2"}
     assert result["relaxed"] == []

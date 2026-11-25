@@ -47,6 +47,21 @@ const nextConfig = {
   async redirects() {
     return [
       {
+        // The ₹199/month engagement retired into the Apply Pack (ENG2/ENG3,
+        // #56 S3). LinkedIn Services still links here with ?from= or
+        // ?utm_source=linkedin_services; the query rides along, and `from`
+        // is turned into the utm the attribution reads.
+        source: "/job-switch-plan",
+        has: [{ type: "query", key: "from", value: "linkedin_services" }],
+        destination: "/apply-pack?utm_source=linkedin_services",
+        permanent: false,
+      },
+      {
+        source: "/job-switch-plan",
+        destination: "/apply-pack",
+        permanent: false,
+      },
+      {
         // Old Verdicts tab → the Closed filter. (By-stage/By-company lens was
         // dropped in the lens-collapse pass, so ?stage maps to the default view.)
         source: "/tracker",

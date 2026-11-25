@@ -32,6 +32,10 @@ _ALLOWED_HEADERS = [
     "Idempotency-Key",
     "If-None-Match",
     "Last-Event-ID",
+    # The reviewer desk (/admin/checks) sends the one admin token from the
+    # browser. Allowing the header exposes nothing: origins stay an exact
+    # list and every admin route still checks the token.
+    "X-Myro-Admin-Token",
     "X-Myro-CV-Source",
 ]
 _EXPOSED_HEADERS = [

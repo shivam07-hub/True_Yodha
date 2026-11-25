@@ -294,9 +294,11 @@ them changes what happens next in a way that brings them back.
 
 Inbound Resume Writing requests land on HiMyro Career Intelligence's LinkedIn
 Services page. The Myro door is `/job-switch-plan?utm_source=linkedin_services`
-(also `?from=linkedin_services`). Checkout opens a ₹199/month Razorpay
-subscription; month 1's pass is the resume they asked for, delivered in Myro.
-Reach is 0 until a real charge lands. Contract: [OFFERING.md](OFFERING.md).
+(also `?from=linkedin_services`), which forwards to `/apply-pack` with the
+attribution kept (#56 S3b). The ₹199 Apply Pack's Human Check is the resume or
+LinkedIn rewrite they asked for, delivered in Myro. The monthly subscription
+was deleted 2026-11-23. Reach is 0 until a real charge lands. Contract:
+[OFFERING.md](OFFERING.md).
 
 ---
 

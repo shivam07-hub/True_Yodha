@@ -44,6 +44,34 @@ def test_preflight_allows_only_the_configured_frontend_origin() -> None:
     assert "access-control-allow-origin" not in rejected.headers
 
 
+def test_the_reviewer_desk_can_send_the_admin_token_from_an_allowed_origin_only() -> None:
+    """/admin/checks sends X-Myro-Admin-Token from the browser. Without it in
+    the preflight allow-list the browser drops the request before the token is
+    ever checked; with it, a foreign origin is still refused."""
+    with TestClient(_app()) as client:
+        allowed = client.options(
+            "/resource",
+            headers={
+                "Origin": "https://himyro.com",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "X-Myro-Admin-Token, Content-Type",
+            },
+        )
+        foreign = client.options(
+            "/resource",
+            headers={
+                "Origin": "https://attacker.example",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "X-Myro-Admin-Token",
+            },
+        )
+
+    assert allowed.status_code == 200
+    assert "x-myro-admin-token" in allowed.headers["access-control-allow-headers"].lower()
+    assert foreign.status_code == 400
+    assert "access-control-allow-origin" not in foreign.headers
+
+
 def test_browser_can_read_operational_error_headers() -> None:
     with TestClient(_app()) as client:
         response = client.get(

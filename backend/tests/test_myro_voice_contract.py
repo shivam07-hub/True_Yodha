@@ -20,7 +20,7 @@ from app.services import (
     cv_weave,
     gap_planner,
     intent_chat_service,
-    job_switch_plan_service,
+    linkedin_draft,
     myro_voice,
     persona_synthesis,
     prep_brief,
@@ -34,13 +34,13 @@ SPEAKING = {
     "intent_chat_service": intent_chat_service._SYSTEM,
     "intent_chat_service.extract": intent_chat_service._EXTRACT_SYSTEM,
     "prep_brief": prep_brief._SYSTEM_PROMPT,
-    "job_switch_plan_service": job_switch_plan_service._DRAFT_SYSTEM,
     "persona_synthesis": persona_synthesis._SYSTEM,
 }
 
 # Myro ghost-writing what the USER sends under their own name.
 DRAFTING = {
     "cv_weave": cv_weave._SYSTEM,
+    "linkedin_draft": linkedin_draft._SYSTEM,
     "reach_pack": reach_pack._SYSTEM_PROMPT,
 }
 

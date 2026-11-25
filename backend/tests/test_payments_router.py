@@ -105,7 +105,7 @@ def _post_verify(client: TestClient, order_id: str = "order_test_123", payment_i
 
 def test_create_order_rejects_amount_not_matching_product() -> None:
     with TestClient(app) as client:
-        response = _post_create(client, amount=100, currency="INR", product="xp_pack")
+        response = _post_create(client, amount=100, currency="INR", product="apply_pack")
     assert response.status_code == 400
     assert "does not match" in response.json()["detail"]
 
@@ -124,26 +124,26 @@ def test_create_order_calls_razorpay_and_records_pending_payment(monkeypatch: py
     monkeypatch.setattr(payments_router, "_record_created_payment", lambda **kwargs: recorded.update(kwargs))
 
     with TestClient(app) as client:
-        response = _post_create(client, amount=9900, currency="INR", product="xp_pack", receipt="xp_123", job_id="job-7")
+        response = _post_create(client, amount=19900, currency="INR", product="apply_pack", receipt="ap_123", job_id="job-7")
 
     assert response.status_code == 200, response.text
     assert response.json() == {
         "order_id": "order_test_123",
-        "amount": 9900,
+        "amount": 19900,
         "currency": "INR",
-        "product": "myro_xp_launch_pack",
+        "product": "myro_apply_pack",
     }
     payload = fake_client.order.created_payload
     assert payload is not None
-    assert payload["amount"] == 9900
-    assert payload["receipt"] != "xp_123"
+    assert payload["amount"] == 19900
+    assert payload["receipt"] != "ap_123"
     assert "user-1" not in payload["receipt"]
     assert "notes" not in payload
     assert fake_client.order.received_timeout == razorpay_gateway.ORDER_TIMEOUT_SECONDS
     assert recorded["user_id"] == "user-1"
     assert recorded["razorpay_order_id"] == "order_test_123"
-    assert recorded["amount_paise"] == 9900
-    assert recorded["product"] is COIN_PACK
+    assert recorded["amount_paise"] == 19900
+    assert recorded["product"] is by_alias("apply_pack")
     assert recorded["job_id"] == "job-7"
 
 
@@ -175,10 +175,17 @@ def test_create_order_maps_razorpay_auth_failure_to_gateway_error(monkeypatch: p
     )
 
     with TestClient(app) as client:
-        response = _post_create(client, amount=9900, currency="INR", product="xp_pack")
+        response = _post_create(client, amount=19900, currency="INR", product="apply_pack")
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Razorpay authentication failed"
+
+
+def test_the_retired_coin_pack_is_refused_at_create(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(razorpay_gateway, "client", lambda: pytest.fail("no order for a retired product"))
+    with TestClient(app) as client:
+        response = _post_create(client, amount=9900, currency="INR", product="xp_pack")
+    assert response.status_code == 410
 
 
 def test_create_order_refuses_a_full_audit_queue_before_any_order(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -259,7 +266,6 @@ def test_verify_payment_grants_coins_once(monkeypatch: pytest.MonkeyPatch) -> No
         "new_coin_balance": 2200,
         "product": "myro_xp_launch_pack",
         "myrology_unlocked": False,
-        "job_switch_plan_active": False,
     }
     assert ledger.rows == ["row-1"]
     assert store.row("order_test_123")["grant_pending"] is False
@@ -291,7 +297,6 @@ def test_verify_payment_unlocks_myrology(monkeypatch: pytest.MonkeyPatch) -> Non
         "new_coin_balance": 1500,
         "product": "myro_myrology_unlock",
         "myrology_unlocked": True,
-        "job_switch_plan_active": False,
     }
     assert unlocked == ["user-1"]
 

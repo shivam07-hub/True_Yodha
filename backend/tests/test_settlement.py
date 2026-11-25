@@ -187,9 +187,7 @@ def test_every_order_product_in_the_catalogue_has_a_grant() -> None:
     grants = settlement.default_grants()
     for alias in ("apply_pack", "xp_pack", "myrology", "ai_workflow_audit", "filing_intake"):
         product = billing_catalogue.by_alias(alias)
-        assert product.billing == "order"
         assert product.key in grants
-    assert billing_catalogue.by_alias("job_switch_plan").key not in grants
 
 
 def test_the_apply_pack_grants_500_coins_and_opens_one_check_on_its_job(monkeypatch: pytest.MonkeyPatch) -> None:

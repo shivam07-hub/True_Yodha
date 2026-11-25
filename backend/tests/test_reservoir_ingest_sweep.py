@@ -118,18 +118,29 @@ def test_sweep_handler_is_registered_on_the_work_lane():
 
 # ── embedding heal ───────────────────────────────────────────────────────────
 
+@pytest.fixture
+def _no_test_accounts(monkeypatch):
+    from app.services import llm_spender
+
+    monkeypatch.setattr(llm_spender, "test_account_ids", lambda: frozenset())
+
+
 class _EmbedRepo:
     def __init__(self, users: list[str]):
         self.users = users
         self.asked: list[int] = []
+        self.excluded: list[frozenset[str]] = []
 
-    def users_with_unembedded_stories(self, limit: int = 50) -> list[str]:
+    def users_with_unembedded_stories(
+        self, limit: int = 50, exclude: frozenset[str] = frozenset()
+    ) -> list[str]:
         self.asked.append(limit)
-        return self.users
+        self.excluded.append(exclude)
+        return [u for u in self.users if u not in exclude]
 
 
 @pytest.mark.asyncio
-async def test_the_sweep_embeds_what_the_ingest_missed(monkeypatch):
+async def test_the_sweep_embeds_what_the_ingest_missed(monkeypatch, _no_test_accounts):
     """An unembedded story is invisible to recall, unrankable by the projection
     and never nominated for identity. The only heal used to be opening a tailor
     interview — a heal on a visit is not a guarantee."""
@@ -151,7 +162,7 @@ async def test_the_sweep_embeds_what_the_ingest_missed(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_nothing_unembedded_costs_nothing(monkeypatch):
+async def test_nothing_unembedded_costs_nothing(monkeypatch, _no_test_accounts):
     repo = _EmbedRepo([])
 
     async def _never(r, user_id):
@@ -159,3 +170,26 @@ async def test_nothing_unembedded_costs_nothing(monkeypatch):
 
     monkeypatch.setattr("app.services.career_reservoir.backfill_missing_embeddings", _never)
     assert await reservoir_ingest_sweep.heal_embeddings(repo) == {"users": 0, "stories": 0}
+
+
+@pytest.mark.asyncio
+async def test_the_heal_bills_each_user_and_leaves_test_accounts_out(monkeypatch):
+    """OpenRouter pays only for a person on Myro (Shivam, 2026-11-25), so a test
+    account's stories are never embedded. Asked for, they would fill the sweep's
+    window every pass and starve real users of their heal."""
+    from app.services import llm_spender
+
+    monkeypatch.setattr(llm_spender, "test_account_ids", lambda: frozenset({"qa"}))
+    repo = _EmbedRepo(["qa", "u1"])
+    billed: dict[str, bool] = {}
+
+    async def _backfill(r, user_id):
+        billed[user_id] = llm_spender.openrouter_allowed()
+        return 1
+
+    monkeypatch.setattr("app.services.career_reservoir.backfill_missing_embeddings", _backfill)
+    out = await reservoir_ingest_sweep.heal_embeddings(repo)
+
+    assert repo.excluded == [frozenset({"qa"})]
+    assert billed == {"u1": True}
+    assert out == {"users": 1, "stories": 1}

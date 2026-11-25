@@ -19,6 +19,7 @@ import logging
 from typing import Any, Awaitable, Callable
 
 from app.config import settings
+from app.services import llm_spender
 
 _log = logging.getLogger(__name__)
 
@@ -219,7 +220,10 @@ async def _invoke(job_type: str, payload: dict[str, Any], *, allow_retry: bool) 
         )
         raise UnregisteredJobTypeError(job_type)
     try:
-        await fn(payload, allow_retry)
+        # A job is billed to the user its payload names, or to nobody: an
+        # in-process job must not inherit the request that queued it.
+        with llm_spender.billed_to(payload.get("user_id")):
+            await fn(payload, allow_retry)
     except TransientJobError:
         raise  # RQ path: signal retry
     except Exception:

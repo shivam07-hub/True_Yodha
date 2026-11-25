@@ -47,6 +47,9 @@ export const SITE_ROUTES: SiteRoute[] = [
   { path: "/recruiters", label: "Hire an intern", footer: "Product", sitemap: { changeFrequency: "monthly", priority: 0.7 }, route: true },
   { path: "/internships", label: "Internships", footer: "Product", sitemap: { changeFrequency: "daily", priority: 0.7 }, route: true },
   { path: "/myrology", label: "Myrology", footer: "Product", sitemap: { changeFrequency: "monthly", priority: 0.6 }, route: true },
+  // The MCP open door's setup page (ARCHITECTURE_MCP.md §3A, O3); the
+  // directory listing cites it as documentation.
+  { path: "/ai", label: "Claude & ChatGPT", footer: "Product", sitemap: { changeFrequency: "monthly", priority: 0.7 }, route: true },
 
   // ── Learn ────────────────────────────────────────────────────────────────
   { path: "/newsletter", label: "Newsletter", footer: "Learn", nav: { id: "newsletter", treatment: "mail" }, sitemap: { changeFrequency: "weekly", priority: 0.9 }, route: true },

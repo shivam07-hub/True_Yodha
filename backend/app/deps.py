@@ -29,6 +29,7 @@ from supabase import Client
 
 from app.config import settings
 from app.database import get_supabase, get_supabase_admin, get_supabase_for_token
+from app.services import llm_spender
 from app.services.user_provisioning import ensure_user_provisioned
 
 # auto_error=False so a MISSING Authorization header yields 401 (unauthenticated)
@@ -242,6 +243,7 @@ async def get_current_user(
         _logger.info("metric auth.local_verify_unavailable reason=%s", exc)
     else:
         _ensure_profile_provisioned(identity.id, identity.email, identity.full_name)
+        llm_spender.bill_user(identity.id)
         return CurrentUser(id=identity.id, email=identity.email, token=token)
 
     # Fallback: remote validation via Supabase Auth (one network round-trip per
@@ -255,6 +257,7 @@ async def get_current_user(
         if isinstance(metadata, dict):
             full_name = metadata.get("full_name") or metadata.get("name")
         _ensure_profile_provisioned(response.user.id, response.user.email, full_name)
+        llm_spender.bill_user(response.user.id)
         return CurrentUser(id=response.user.id, email=response.user.email, token=token)
     except HTTPException:
         raise

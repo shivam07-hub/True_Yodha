@@ -58,8 +58,11 @@ def _rate_limit() -> RateLimitError:
 
 
 def _install(monkeypatch, behaviour) -> _Client:
+    """A fake client, called on behalf of a person: OpenRouter bills nobody else
+    (test_llm_spender.py)."""
     client = _Client(behaviour)
     monkeypatch.setattr(embeddings, "_client", client)
+    monkeypatch.setattr(embeddings.llm_spender, "openrouter_allowed", lambda: True)
     return client
 
 

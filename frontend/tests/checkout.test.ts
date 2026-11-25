@@ -22,7 +22,6 @@ const PAID: RazorpayVerifyResult = {
   new_coin_balance: 3500,
   product: "myro_apply_pack",
   myrology_unlocked: false,
-  job_switch_plan_active: false,
 }
 
 function fakeRazorpay(script: (h: Handlers) => void): RazorpayCtor {
