@@ -85,21 +85,30 @@ type pay elsewhere.
 
 ## 3 · Chunks
 
-**C0 · Find out why the band is missing, and fix the cause. First, alone.**
-The prompt asks for `ctc_lpa` on every eval and the parse is strict, yet 1 in
-1,936 verdicts since 11-09 has one. Unknown: whether the model returns `null`,
-leaves the key out, returns one number (dropped by `_ctc_band`), or whether
-these rows come from a path that never asks. The OpenRouter key was stolen on
-10-21, so the provider answering in the OpenRouter → Groq → Gemini chain may have
-changed. Check that first.
-- Add a WARNING metric when a parsed eval has no band:
-  `metric ranker.ctc_missing provider=<p> reason=null|absent|single|bad_shape`.
-  WARNING, not INFO — INFO does not reach Railway logs.
-- Read a day of it, name the cause in the commit message, and fix that cause. No
-  retry and no default band.
-- **Done when** ≥ 70% of verdicts judged in the 7 days after the fix carry a
-  band. Query: `count(ctc_high_lpa)::float / count(recommendation)` on
-  `user_job_matches` by `computed_at`.
+**C0 · Why the band is missing — found and fixed 2026-11-25.** The brain
+answers it; one of the two writers threw it away. Verdicts are written by the
+batch persister (`llm_ranker.persist_matches`, `llm_rank` set) and by the
+on-demand single-job write (`matching/on_demand._persist`, `llm_rank` NULL). They
+hand-built separate row dicts, and the on-demand one never gained `ctc_*`,
+`breaks`, `pick_reason`, `personalization`, `star_pointers` or `level_strategy`.
+
+| Week | Batch verdicts with a band | On-demand verdicts with a band |
+|---|---:|---:|
+| 10-05 | 61 of 61 | 0 of 6,516 |
+| 10-12 | 100 of 100 | 5 of 3,704 |
+| 11-09 → 11-25 | — (no batch verdicts) | 1 of 1,936 |
+
+From 11-09 every verdict came the on-demand way, so cards also lost
+`pick_reason`, the one line written to the person. Fix: one
+`llm_ranker.verdict_columns(ev)` used by both writers, with a test that the
+on-demand row carries the whole verdict.
+- No backfill. A verdict already written stays as it is. A job gains its band
+  the next time it is judged (a new job, or a direction change that moves
+  `eval_context_key`).
+- **Done when** ≥ 70% of verdicts judged in the 7 days after `Develop` deploys
+  carry a band. Query: `count(ctc_high_lpa)::float / count(recommendation)` on
+  `user_job_matches` by `computed_at`. The batch path's 100% says the model
+  answers almost always.
 
 **C1 · `reaches_target` on the card.** `published_list` reads the person's
 `expected_ctc_lpa` next to the floor at `:214`, and `_card` emits

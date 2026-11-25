@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.services.job_projection import last_monday
-from app.services import background, job_matcher, onboarding_service
+from app.services import background, job_matcher, llm_ranker, onboarding_service
 from app.services.llm_provider import LLMProvider, get_judgment_provider
 from app.services.match_credibility import evaluate_credibility
 from app.services.matching import ranking, targeting
@@ -210,9 +210,10 @@ async def _job_brain_eval_handler(payload: dict[str, Any], allow_retry: bool) ->
 def _persist(
     repo: Any, user_id: str, shaped: dict[str, Any], profile: dict[str, Any], ev: dict[str, Any]
 ) -> None:
-    """Write ONE user_job_matches row, is_recommended=False. Same shape + conflict
-    key as llm_ranker.persist_matches so downstream reads are uniform; the only
-    divergence is no top-3 promotion (opening a job must not recommend it)."""
+    """Write ONE user_job_matches row, is_recommended=False. The verdict columns
+    come from `llm_ranker.verdict_columns`, the batch persister's own, so the two
+    rows cannot drift; the only divergence is no top-3 promotion (opening a job
+    must not recommend it)."""
 
     credibility = evaluate_credibility(profile, shaped, ev.get("overall_score"), ev.get("recommendation"))
     row = {
@@ -223,22 +224,8 @@ def _persist(
         "matched_skills": shaped.get("matched_skills") or [],
         "missing_skills": shaped.get("missing_skills") or [],
         "llm_rank": None,
-        "llm_explanation": ev.get("summary"),
-        "overall_score": ev.get("overall_score"),
-        "grade": ev.get("grade"),
+        **llm_ranker.verdict_columns(ev),
         "recommendation": credibility.recommendation,
-        "application_angle": ev.get("application_angle"),
-        "summary": ev.get("summary"),
-        "role_fit": ev.get("role_fit"),
-        "comp_fit": ev.get("comp_fit"),
-        "growth_fit": ev.get("growth_fit"),
-        "culture_fit": ev.get("culture_fit"),
-        "risk_score": ev.get("risk_score"),
-        "strengths": ev.get("strengths") or [],
-        "concerns": ev.get("concerns") or [],
-        "archetype": ev.get("archetype"),
-        "legitimacy_tier": ev.get("legitimacy_tier"),
-        "legitimacy_reason": ev.get("legitimacy_reason"),
         "is_recommended": False,
         "baseline_version_id": profile.get("baseline_version_id"),
         "target_context_hash": credibility.context_hash,
