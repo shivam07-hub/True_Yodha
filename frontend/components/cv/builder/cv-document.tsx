@@ -262,7 +262,8 @@ function SortableSection({
  * A section heading the person can rename. Opt-in: nothing changes until they
  * click it. Enter or leaving the field saves, Escape keeps what was there, and
  * an empty name goes back to the default. The heading is theirs, so it follows
- * them onto every CV (profile `cv_section_titles`).
+ * them onto every CV (profile `cv_section_titles`); logged out there is no
+ * profile to keep it, so the heading is plain text.
  */
 function SectionHeading({
   sectionKey, label, renamable,
@@ -271,9 +272,9 @@ function SectionHeading({
   label: string
   renamable: boolean
 }) {
-  const { rename } = useRenameSection()
+  const { rename, canRename } = useRenameSection()
   const [draft, setDraft] = useState<string | null>(null)
-  if (!renamable) return <>{label}</>
+  if (!renamable || !canRename) return <>{label}</>
   if (draft === null) {
     return (
       <button

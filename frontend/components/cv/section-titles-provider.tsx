@@ -14,7 +14,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { users, type UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import { useAuth } from "@/lib/hooks/use-auth"
+import { useAuth, useSession } from "@/lib/hooks/use-auth"
 import type { SectionKey } from "@/lib/cv/section-order"
 import { sectionTitle, withSectionTitle, type SectionTitles } from "@/lib/cv/section-titles"
 
@@ -58,12 +58,18 @@ export function useSectionTitles(): SectionTitles | null {
  * Rename one heading. Empty, or the default, resets it. The profile cache is
  * patched first so every sheet on screen changes in the same frame; the server
  * answer replaces it.
+ *
+ * Reads the session, never the `useAuth` gate: this hook also mounts in the
+ * logged-out playground (`/cv-preview`), and the gate sends a visitor with no
+ * session to /login. From 2026-09-29 it did, on the playground's first render.
+ * With no session there is no profile to hold a heading, so `canRename` is false.
  */
 export function useRenameSection(): {
   rename: (key: SectionKey, raw: string) => void
   pending: boolean
+  canRename: boolean
 } {
-  const { token } = useAuth()
+  const { token } = useSession()
   const qc = useQueryClient()
   const titles = useContext(SectionTitlesContext)
   const mutation = useMutation({
@@ -80,5 +86,5 @@ export function useRenameSection(): {
     (key: SectionKey, raw: string) => mutation.mutate(withSectionTitle(titles, key, raw)),
     [mutation, titles],
   )
-  return { rename, pending: mutation.isPending }
+  return { rename, pending: mutation.isPending, canRename: !!token }
 }
