@@ -34,6 +34,9 @@ MAX_EMPLOYER_SHARE = 0.70
 #: market from, however many employers they come from.
 BAND_MIN_JOBS = 10
 SKILLS_SHOWN = 6
+#: Under this share of a slice's openings a skill is noise, not demand: a 1% bar
+#: reads as a broken chart, not as information.
+MIN_SKILL_SHARE = 0.05
 TOP_COMPANIES = 3
 
 BANDS: tuple[str, ...] = tuple(band for band, _lo, _hi in PERSON_YEAR_SPAN_BY_BAND)
@@ -81,9 +84,12 @@ class _Slice:
         for skill, count in ranked:
             if skill.casefold() in exclude:
                 continue
+            share = count / self.jobs
+            if share < MIN_SKILL_SHARE:
+                break  # ranked by count, so every later skill is under the floor too
             if not _spread_holds(self.skill_companies.get(skill, Counter())):
                 continue
-            out.append({"skill": skill, "share": round(count / self.jobs, 2)})
+            out.append({"skill": skill, "share": round(share, 2)})
             if len(out) == SKILLS_SHOWN:
                 break
         return out

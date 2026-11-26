@@ -176,6 +176,15 @@ def test_skill_that_repeats_the_role_name_is_dropped() -> None:
     assert [item["skill"] for item in role["skills"]] == ["Jira"]
 
 
+def test_skill_under_five_percent_is_noise() -> None:
+    # 120 openings: SQL on all; Tableau on 3 (2.5%), three employers — spread
+    # holds, but it is under the floor.
+    rows = _jobs("Data Analytics", ["A", "B", "C"], each=39, skills=("SQL",))
+    rows += _jobs("Data Analytics", ["A", "B", "C"], each=1, skills=("SQL", "Tableau"))
+    role = _role(compile_landing_roles(rows, curation=NONE), "Data Analytics")
+    assert [item["skill"] for item in role["skills"]] == ["SQL"]
+
+
 def test_duplicate_skill_on_one_job_counts_once() -> None:
     rows = _jobs("Audit", ["A", "B", "C"], each=4, skills=("IFRS", "IFRS"))
     role = _role(compile_landing_roles(rows, curation=NONE), "Audit")
