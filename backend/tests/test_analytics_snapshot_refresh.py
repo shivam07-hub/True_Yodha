@@ -12,6 +12,7 @@ from typing import Any
 
 from app.repositories import jobs as jobs_module
 from app.repositories.jobs import JobsRepository
+from app.services.landing_roles import LandingCuration
 
 
 class _Result:
@@ -67,6 +68,8 @@ class _FakeAdmin:
     def execute(self) -> _Result:
         if self._table == "role_family_labels":
             return _Result(data=[{"family": "Business Operations"}])
+        if self._table == "skill_demand_skill_deny":
+            return _Result(data=[{"skills": {"taxonomy_key": "Requisition"}}, {"skills": None}])
         if self._table == "jobs":
             if self._count_mode:
                 return _Result(count=self.job_count)
@@ -190,9 +193,9 @@ def test_recompiles_when_snapshot_predates_landing_roles() -> None:
     assert len(admin.upserts) == 1
 
 
-def test_snapshot_write_passes_catch_all_families_to_compile() -> None:
-    """The residual buckets come from `role_family_labels` at refresh time, so a
-    hand edit of `is_catch_all` reaches the landing on the next write."""
+def test_snapshot_write_passes_landing_curation_to_compile() -> None:
+    """Residual buckets and denied skill strings are read at refresh time, so a
+    row edit of either list reaches the landing on the next write."""
     admin = _FakeAdmin(job_count=100, last_seen=20260610, snapshot_row=None)
     repo = _repo(admin)
     seen: dict[str, Any] = {}
@@ -203,7 +206,10 @@ def test_snapshot_write_passes_catch_all_families_to_compile() -> None:
 
     repo._analytics_compiler.compile = _compile  # type: ignore[assignment]
     repo.persist_analytics_snapshot()
-    assert seen["catch_all"] == frozenset({"Business Operations"})
+    assert seen["landing"] == LandingCuration(
+        catch_all=frozenset({"Business Operations"}),
+        skill_deny=frozenset({"Requisition"}),
+    )
 
 
 def test_fetch_analytics_rows_requests_seniority(monkeypatch) -> None:

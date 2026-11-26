@@ -10,6 +10,11 @@ one bank's bulk branch hiring reads as "the market". Residual taxonomy buckets
 (`role_family_labels.is_catch_all`) are never proposed — the same flag Direction
 uses to refuse "Business Operations" as somebody's primary.
 
+A skill must pass the same spread rule, must not be on the curated
+`skill_demand_skill_deny` list (ATS labels and JD headers such as "Requisition"),
+and must not merely repeat the role's own name ("Project Management" under
+Project Management says nothing).
+
 A job with no stated seniority counts toward its family and the all-levels
 skills, never toward a band: a band is what the employer said.
 """
@@ -18,7 +23,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, NamedTuple
 
 from app.services.job_eligibility import PERSON_YEAR_SPAN_BY_BAND, seniority_for_job
 
@@ -32,6 +37,14 @@ SKILLS_SHOWN = 6
 TOP_COMPANIES = 3
 
 BANDS: tuple[str, ...] = tuple(band for band, _lo, _hi in PERSON_YEAR_SPAN_BY_BAND)
+
+
+class LandingCuration(NamedTuple):
+    """Editorial data read at snapshot time, so a row edit reaches the page on
+    the next write, never a deploy."""
+
+    catch_all: frozenset[str]
+    skill_deny: frozenset[str]
 
 
 def _spread_holds(companies: Counter[str]) -> bool:
@@ -60,11 +73,14 @@ class _Slice:
             if company:
                 self.skill_companies.setdefault(skill, Counter())[company] += 1
 
-    def skills(self) -> list[dict[str, Any]]:
-        """Top skills by share of this slice's openings, each passing the spread rule."""
+    def skills(self, *, exclude: frozenset[str]) -> list[dict[str, Any]]:
+        """Top skills by share of this slice's openings, each passing the spread
+        rule. `exclude` is casefolded."""
         ranked = sorted(self.skill_jobs.items(), key=lambda item: (-item[1], item[0]))
         out: list[dict[str, Any]] = []
         for skill, count in ranked:
+            if skill.casefold() in exclude:
+                continue
             if not _spread_holds(self.skill_companies.get(skill, Counter())):
                 continue
             out.append({"skill": skill, "share": round(count / self.jobs, 2)})
@@ -82,10 +98,12 @@ def _row_parts(row: dict[str, Any]) -> tuple[str, str, set[str]]:
 
 
 def compile_landing_roles(
-    rows: Iterable[dict[str, Any]], *, catch_all: frozenset[str]
+    rows: Iterable[dict[str, Any]], *, curation: LandingCuration
 ) -> list[dict[str, Any]]:
     """The eight families the landing offers, busiest first, with their bands."""
     rows = list(rows)
+    catch_all = curation.catch_all
+    denied = frozenset(skill.casefold() for skill in curation.skill_deny)
     families: dict[str, _Slice] = {}
     for row in rows:
         family, company, _skills = _row_parts(row)
@@ -116,6 +134,7 @@ def compile_landing_roles(
     out: list[dict[str, Any]] = []
     for name in chosen:
         part = whole[name]
+        exclude = denied | {name.casefold()}
         bands = []
         for band in BANDS:
             piece = banded[name][band]
@@ -126,7 +145,7 @@ def compile_landing_roles(
                     "jobs": piece.jobs,
                     "companies": len(piece.companies),
                     "thin": thin,
-                    "skills": [] if thin else piece.skills(),
+                    "skills": [] if thin else piece.skills(exclude=exclude),
                 }
             )
         out.append(
@@ -138,7 +157,7 @@ def compile_landing_roles(
                     {"name": company, "jobs": count}
                     for company, count in part.companies.most_common(TOP_COMPANIES)
                 ],
-                "skills": part.skills(),
+                "skills": part.skills(exclude=exclude),
                 "bands": bands,
             }
         )

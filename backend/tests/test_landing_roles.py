@@ -19,10 +19,11 @@ from app.services.landing_roles import (
     BAND_MIN_JOBS,
     BANDS,
     ROLES_SHOWN,
+    LandingCuration,
     compile_landing_roles,
 )
 
-NONE: frozenset[str] = frozenset()
+NONE = LandingCuration(catch_all=frozenset(), skill_deny=frozenset())
 
 
 def _jobs(
@@ -60,7 +61,9 @@ def test_catch_all_family_is_never_offered() -> None:
     rows = _jobs("Business Operations", ["A", "B", "C"], each=20) + _jobs(
         "Business Analysis", ["A", "B", "C"], each=5
     )
-    roles = compile_landing_roles(rows, catch_all=frozenset({"Business Operations"}))
+    roles = compile_landing_roles(
+        rows, curation=NONE._replace(catch_all=frozenset({"Business Operations"}))
+    )
     assert [role["family"] for role in roles] == ["Business Analysis"]
 
 
@@ -71,13 +74,13 @@ def test_family_one_employer_dominates_is_not_offered() -> None:
         + _jobs("Banking Services", ["B", "C", "D"], each=10)
         + _jobs("Software Development", ["A", "B", "C"], each=3)
     )
-    roles = compile_landing_roles(rows, catch_all=NONE)
+    roles = compile_landing_roles(rows, curation=NONE)
     assert [role["family"] for role in roles] == ["Software Development"]
 
 
 def test_family_needs_three_employers() -> None:
     rows = _jobs("Actuarial", ["A", "B"], each=50) + _jobs("Audit", ["A", "B", "C"], each=2)
-    roles = compile_landing_roles(rows, catch_all=NONE)
+    roles = compile_landing_roles(rows, curation=NONE)
     assert [role["family"] for role in roles] == ["Audit"]
 
 
@@ -85,14 +88,14 @@ def test_busiest_eight_in_order() -> None:
     rows: list[dict[str, Any]] = []
     for i in range(ROLES_SHOWN + 2):
         rows += _jobs(f"Family {i:02d}", ["A", "B", "C"], each=i + 1)
-    roles = compile_landing_roles(rows, catch_all=NONE)
+    roles = compile_landing_roles(rows, curation=NONE)
     assert len(roles) == ROLES_SHOWN
     assert [role["jobs"] for role in roles] == sorted((role["jobs"] for role in roles), reverse=True)
     assert roles[0]["family"] == f"Family {ROLES_SHOWN + 1:02d}"
 
 
 def test_no_rows_no_roles() -> None:
-    assert compile_landing_roles([], catch_all=NONE) == []
+    assert compile_landing_roles([], curation=NONE) == []
 
 
 # ── what each role carries ──────────────────────────────────────────────────
@@ -102,7 +105,7 @@ def test_role_carries_counts_and_top_companies() -> None:
     rows = _jobs("Business Analysis", ["Deloitte"], each=6) + _jobs(
         "Business Analysis", ["KPMG", "HSBC", "EY"], each=2
     )
-    role = _role(compile_landing_roles(rows, catch_all=NONE), "Business Analysis")
+    role = _role(compile_landing_roles(rows, curation=NONE), "Business Analysis")
     assert role["jobs"] == 12
     assert role["companies"] == 4
     assert role["top_companies"][0] == {"name": "Deloitte", "jobs": 6}
@@ -111,7 +114,7 @@ def test_role_carries_counts_and_top_companies() -> None:
 
 def test_every_band_is_listed_in_order() -> None:
     rows = _jobs("Business Analysis", ["A", "B", "C"], each=5)
-    role = _role(compile_landing_roles(rows, catch_all=NONE), "Business Analysis")
+    role = _role(compile_landing_roles(rows, curation=NONE), "Business Analysis")
     assert [item["band"] for item in role["bands"]] == list(BANDS)
 
 
@@ -119,7 +122,7 @@ def test_band_thin_below_floor_and_carries_no_skills() -> None:
     per_company = BAND_MIN_JOBS  # 3 × floor entry openings, 3 intern openings
     rows = _jobs("Data Analytics", ["A", "B", "C"], each=per_company, band="entry", skills=("SQL",))
     rows += _jobs("Data Analytics", ["A", "B", "C"], each=1, band="intern", skills=("SQL",))
-    role = _role(compile_landing_roles(rows, catch_all=NONE), "Data Analytics")
+    role = _role(compile_landing_roles(rows, curation=NONE), "Data Analytics")
     entry, intern = _band(role, "entry"), _band(role, "intern")
     assert entry["thin"] is False
     assert entry["skills"] == [{"skill": "SQL", "share": 1.0}]
@@ -130,13 +133,13 @@ def test_band_thin_below_floor_and_carries_no_skills() -> None:
 
 def test_band_with_two_employers_is_thin_however_many_jobs() -> None:
     rows = _jobs("Audit", ["A", "B"], each=30, band="mid") + _jobs("Audit", ["C"], each=1, band="entry")
-    role = _role(compile_landing_roles(rows, catch_all=NONE), "Audit")
+    role = _role(compile_landing_roles(rows, curation=NONE), "Audit")
     assert _band(role, "mid")["thin"] is True
 
 
 def test_job_without_seniority_counts_for_family_not_band() -> None:
     rows = _jobs("Audit", ["A", "B", "C"], each=4, band=None, skills=("IFRS",))
-    role = _role(compile_landing_roles(rows, catch_all=NONE), "Audit")
+    role = _role(compile_landing_roles(rows, curation=NONE), "Audit")
     assert role["jobs"] == 12
     assert all(item["jobs"] == 0 for item in role["bands"])
     assert role["skills"] == [{"skill": "IFRS", "share": 1.0}]
@@ -145,11 +148,11 @@ def test_job_without_seniority_counts_for_family_not_band() -> None:
 def test_skill_share_and_spread_rule() -> None:
     # SQL: asked by all three employers. "Requisition": one employer's template.
     rows = _jobs("Business Analysis", ["A", "B", "C"], each=4, skills=("SQL",))
-    rows += _jobs("Business Analysis", ["A"], each=8, skills=("Requisition", "Excel"))
+    rows += _jobs("Business Analysis", ["A"], each=8, skills=("Recruiter Notes", "Excel"))
     rows += _jobs("Business Analysis", ["B", "C"], each=2, skills=("Excel",))
-    role = _role(compile_landing_roles(rows, catch_all=NONE), "Business Analysis")
+    role = _role(compile_landing_roles(rows, curation=NONE), "Business Analysis")
     names = [item["skill"] for item in role["skills"]]
-    assert "Requisition" not in names
+    assert "Recruiter Notes" not in names
     # Excel: 12 openings across 3 employers, but A holds 8 of 12 (67%) — kept.
     assert names[:2] == ["SQL", "Excel"] or names[:2] == ["Excel", "SQL"]
     total = role["jobs"]
@@ -157,9 +160,25 @@ def test_skill_share_and_spread_rule() -> None:
     assert sql["share"] == round(12 / total, 2)
 
 
+def test_denied_string_is_never_a_skill() -> None:
+    # "Requisition" is an ATS field label spread across employers: it passes the
+    # spread rule, so only the curated deny list can stop it.
+    rows = _jobs("Business Consulting", ["A", "B", "C"], each=4, skills=("Requisition", "Consulting"))
+    curation = NONE._replace(skill_deny=frozenset({"Requisition"}))
+    role = _role(compile_landing_roles(rows, curation=curation), "Business Consulting")
+    assert [item["skill"] for item in role["skills"]] == ["Consulting"]
+    assert all("Requisition" not in [s["skill"] for s in b["skills"]] for b in role["bands"])
+
+
+def test_skill_that_repeats_the_role_name_is_dropped() -> None:
+    rows = _jobs("Project Management", ["A", "B", "C"], each=4, skills=("project management", "Jira"))
+    role = _role(compile_landing_roles(rows, curation=NONE), "Project Management")
+    assert [item["skill"] for item in role["skills"]] == ["Jira"]
+
+
 def test_duplicate_skill_on_one_job_counts_once() -> None:
     rows = _jobs("Audit", ["A", "B", "C"], each=4, skills=("IFRS", "IFRS"))
-    role = _role(compile_landing_roles(rows, catch_all=NONE), "Audit")
+    role = _role(compile_landing_roles(rows, curation=NONE), "Audit")
     assert role["skills"] == [{"skill": "IFRS", "share": 1.0}]
 
 
@@ -187,7 +206,7 @@ def _reset_cache():
 
 def _snapshot_roles() -> list[dict[str, Any]]:
     rows = _jobs("Business Analysis", ["A", "B", "C"], each=5, skills=("SQL",))
-    return compile_landing_roles(rows, catch_all=NONE)
+    return compile_landing_roles(rows, curation=NONE)
 
 
 def test_endpoint_serves_the_snapshot_slice(monkeypatch: pytest.MonkeyPatch) -> None:

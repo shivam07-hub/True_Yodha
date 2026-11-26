@@ -21,7 +21,7 @@ from app.services import job_importer, shared_cache, skill_floor
 from app.services.background import debounce
 from app.services.industry_grouping import normalize_industry_group
 from app.services.job_history import attach_jobs
-from app.services.landing_roles import compile_landing_roles
+from app.services.landing_roles import LandingCuration, compile_landing_roles
 from app.services.listing_liveness import is_down, is_live, live_only
 from app.services.internships import hosted_fields
 from app.services.listing_time import CARD_COLUMNS, HOSTED_COLUMNS, SEED_COLUMN, day, marker, verdict as listing_time
@@ -544,11 +544,10 @@ class MarketAnalyticsCompiler:
         rows: list[dict[str, Any]],
         *,
         now: datetime | None = None,
-        catch_all: frozenset[str] | None = None,
+        landing: LandingCuration | None = None,
     ) -> dict[str, Any]:
-        """`catch_all` (residual family buckets) is passed only by the snapshot
-        write, the one place the landing's role chips are built; filtered live
-        compiles skip that work."""
+        """`landing` is passed only by the snapshot write, the one place the
+        landing's role chips are built; filtered live compiles skip that work."""
         company_counts: Counter[str] = Counter()
         industry_counts: Counter[str] = Counter()
         role_counts: Counter[str] = Counter()
@@ -705,10 +704,10 @@ class MarketAnalyticsCompiler:
                 for name, count in family_counts.most_common()
             ],
         }
-        if catch_all is not None:
+        if landing is not None:
             # The landing's role chips and their open-jobs and skills chapters
             # (spec #66 L1), so `/public/landing-roles` is a slice of this row.
-            payload["landing_roles"] = compile_landing_roles(rows, catch_all=catch_all)
+            payload["landing_roles"] = compile_landing_roles(rows, curation=landing)
         return payload
 
 
@@ -904,10 +903,11 @@ class JobsRepository:
         _analytics_cache[cache_key] = (now, payload)
         return payload
 
-    def _catch_all_families(self) -> frozenset[str]:
-        """Residual taxonomy buckets, never proposed as a role (one read of a
-        ~340-row snapshot table, at refresh time only)."""
-        rows = (
+    def _landing_curation(self) -> LandingCuration:
+        """The two editorial lists the landing's role chips obey, read at refresh
+        time only: residual family buckets (`role_family_labels.is_catch_all`,
+        ~340 rows) and strings that are not skills (`skill_demand_skill_deny`)."""
+        families = (
             self._admin_db.table("role_family_labels")
             .select("family")
             .eq("is_catch_all", True)
@@ -915,7 +915,21 @@ class JobsRepository:
             .data
             or []
         )
-        return frozenset(str(row["family"]) for row in rows if row.get("family"))
+        denied = (
+            self._admin_db.table("skill_demand_skill_deny")
+            .select("skills(taxonomy_key)")
+            .execute()
+            .data
+            or []
+        )
+        return LandingCuration(
+            catch_all=frozenset(str(row["family"]) for row in families if row.get("family")),
+            skill_deny=frozenset(
+                str(row["skills"]["taxonomy_key"])
+                for row in denied
+                if isinstance(row.get("skills"), dict) and row["skills"].get("taxonomy_key")
+            ),
+        )
 
     def _read_snapshot_payload(self) -> dict[str, Any] | None:
         try:
@@ -1011,7 +1025,7 @@ class JobsRepository:
         alongside so the next dirty-guard can detect a no-op.
         """
         rows = self.fetch_analytics_rows()
-        payload = self._analytics_compiler.compile(rows, catch_all=self._catch_all_families())
+        payload = self._analytics_compiler.compile(rows, landing=self._landing_curation())
         if marker is None:
             marker = self._jobs_source_marker()
         self._admin_db.table("market_analytics_snapshot").upsert(
