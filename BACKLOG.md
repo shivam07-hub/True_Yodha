@@ -380,6 +380,11 @@ who sent an application, and 3 have: #45 evidence bank, CS-12, CS-14, CS-15, and
   then `railway api 'mutation($s: String!, $e: String!) { serviceInstanceUpdate(serviceId: $s, environmentId: $e, input: { healthcheckPath: "/health/ready" }) }' --raw-var s=6f9d873b-0efb-4b30-acc6-dfcfc35d44f0 --raw-var e=f6a22e25-8218-48be-8d89-d380dfbada25`
   and read `Healthcheck succeeded!` on a FRESH deploy. Never the path without the
   port — it broke dev for 14 h on 2026-09-28. Agents are refused prod config.
+  Cost of not having it: Railway sends traffic to a new prod container ~2 s
+  before uvicorn listens. 2026-11-25 14:06 UTC (#355): 11 requests got 502,
+  7 of them the homepage's `/public/stats`, and `main` showed a red cross. The
+  contract smoke now waits for the pushed version instead of `sleep 90`, so
+  the cross no longer fires on the gap; the gap itself stays until this lands.
 
 ---
 
