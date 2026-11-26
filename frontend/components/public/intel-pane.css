@@ -219,27 +219,6 @@
 
 .tm-intel-arrow { font-weight: 400; opacity: 0.7; }
 
-.tm-intel-btn-github {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--tm-button-radius);
-  background: transparent;
-  color: var(--tm-text-muted);
-  border: 1px solid var(--tm-border);
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: border-color var(--tm-dur-fast) var(--tm-ease),
-              color var(--tm-dur-fast) var(--tm-ease);
-}
-
-.tm-intel-btn-github:hover {
-  border-color: var(--tm-accent-ring);
-  color: var(--tm-accent);
-}
-
 /* ── Skeleton hydration ──────────────────────────────────────────── */
 .tm-intel-skel { pointer-events: none; }
 .tm-intel-skel-bar {

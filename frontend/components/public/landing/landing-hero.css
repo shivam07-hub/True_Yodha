@@ -149,7 +149,7 @@
 
 .lp-stats-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 24px;
   padding-top: 24px;
   padding-bottom: 24px;
@@ -191,24 +191,6 @@
   outline-offset: 4px;
 }
 
-/* Fourth stat cell — the project itself. Accent mono line + label, same hover
-   affordance as the numeric cells. */
-.lp-stat-oss { display: block; text-decoration: none; }
-
-.lp-stat-oss-num {
-  color: var(--lp-accent-text);
-  font-family: var(--lp-mono);
-  font-size: var(--tm-fs-title);
-  font-weight: 600;
-  line-height: 1.1;
-}
-
-.lp-stat-oss:hover .lp-stat-oss-num,
-.lp-stat-oss:focus-visible .lp-stat-oss-num {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
 /* Holding one line below 900px costs more than it buys: the vw scaling puts the
    headline at 23px and the subhead at 9px, and the subhead stops fitting even
    then. Wrapping both is what makes the range readable. */
@@ -235,8 +217,11 @@
     gap: 22px;
   }
 
-  .lp-stat-num,
-  .lp-stat-oss-num {
+  .lp-stat-num {
     font-size: var(--tm-fs-title);
+  }
+
+  .lp-stat:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
 }
