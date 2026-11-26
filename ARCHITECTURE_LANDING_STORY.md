@@ -96,7 +96,10 @@ becomes their real score for the role and level.
 > # See what MNCs hire for.
 > # Find your CV's gap **before they do.**
 
-- "before they do" in azure; no italics.
+- "before they do" lands in full text after a muted "Find your CV's gap": emphasis
+  by contrast. Azure was the grill's pick, but the design system keeps the
+  interactive colour for things you can press (frontend-design §2, §4); Shivam
+  can overrule.
 - `[8 role chips, live]` `[search]` · "Not sure? Upload" (the CV ranks the
   families, as onboarding already does).
 - After a role tap: `Internship · 0–2 · 2–5 · 5–8 · 8–12 · 12+`. A level whose
@@ -213,7 +216,8 @@ with photo, name with LinkedIn icon, a short third-person bio.
 |---|---|---|
 | L0 | Footer: drop GitHub + LICENSE link, add Shivam's LinkedIn | Footer on every public page shows the new set; `check:reach` green |
 | L1 | `GET /public/landing-roles`: top 8 families by live jobs (skill-demand guards); per family, open count by band, top 3 companies, top skills with share by band. Built into the same cached compile as `_compile_public_stats` (`public.py:105`) | `/read-path-perf` measured; one cached response, no per-visitor DB work |
-| L2 | Hero: two-line H1, chips from L1, search, level row, bridge rail | 375px works; chip + level carried into upload |
+| L2 | Hero: two-line H1, chips from L1, level row, "Not sure? Upload"; the pick rides the upload as `/cv-preview?role=…&level=…` | 375px works; chip + level carried into upload. **Built 2026-11-26.** Moved out: role search (L2b) and the bridge rail (L3, it needs chapters to fill) |
+| L2b | Role search for a family outside the top 8: the snapshot carries every qualifying family's name and count, the search filters them client-side | A searched role carries into upload like a chip |
 | L3 | Chapters 2–3 from L1 | Counts match L1; tabs swipe at 375 |
 | L4 | Chapters 4–5: the example and the ladder; Finlatics rail moves here | — |
 | L5 | Reviewer chapter + a public open-check count read (`human_check.availability`), photo asset | Dots match `/admin/checks` |
@@ -222,6 +226,11 @@ with photo, name with LinkedIn icon, a short third-person bio.
 | L8 | `next_action` gains an apply step (Q3) | Apply shows before learning on the skill path |
 
 L0 collides with nothing. L1 blocks L2, L3. L5 needs only L0's footer set.
+
+**L3 data risk (measured 11-26):** skill tags carry tagger mistakes that pass every
+guard, e.g. "Track (Rail Transport)" under Project Management and "International
+(SEO Software)" under Business Consulting. Chapter 3 shows them as written unless
+#60 (skill evidence) or a deny-list row lands first.
 
 ---
 

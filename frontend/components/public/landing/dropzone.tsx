@@ -28,6 +28,9 @@ interface LandingDropzoneProps {
   busy?: boolean
   /** `stage` is the CV Hub drop — tall, centered, same copy as /cv-preview. */
   variant?: "bar" | "stage"
+  /** Where the stashed CV is scored. The hero adds the job the visitor picked
+   *  (`/cv-preview?role=…&level=…`, spec #66 L2). */
+  destination?: string
   children?: ReactNode
 }
 
@@ -40,7 +43,7 @@ export interface LandingDropzoneHandle {
 
 export const LandingDropzone = forwardRef<LandingDropzoneHandle, LandingDropzoneProps>(
   function LandingDropzone(
-    { source, onFile, onText, busy, variant = "bar", children },
+    { source, onFile, onText, busy, variant = "bar", destination = "/cv-preview", children },
     ref,
   ) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -67,7 +70,7 @@ export const LandingDropzone = forwardRef<LandingDropzoneHandle, LandingDropzone
     // Landing path: hold the file, jump to the scorer.
     setNavigating(true)
     stashAnonCvFile(file)
-    router.push("/cv-preview")
+    router.push(destination)
   }
 
   function handleText() {
@@ -76,7 +79,7 @@ export const LandingDropzone = forwardRef<LandingDropzoneHandle, LandingDropzone
     if (onText) return onText(value)
     setNavigating(true)
     stashAnonCvText(value)
-    router.push("/cv-preview")
+    router.push(destination)
   }
 
   const stage = variant === "stage"

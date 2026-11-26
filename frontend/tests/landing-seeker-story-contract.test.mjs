@@ -18,12 +18,14 @@ test("the public landing runs the operation story: hero dropzone + four-tab loop
   const match = read("components/public/landing/how-it-works.tsx")
   const score = read("components/public/landing/score-sample.tsx")
 
-  // Hero owns the thesis + the dropzone + the two audience paths.
-  assert.match(hero, /Run your Job hunt like an Operation/)
+  // Hero (spec #66 chapter 1): what MNCs hire for, the job you want and your
+  // level, then the dropzone carrying that pick.
+  assert.match(hero, /See what MNCs hire for\./)
+  assert.match(hero, /before they do\./)
+  assert.match(hero, /<RolePicker/)
   assert.match(hero, /LandingDropzone/)
   assert.match(hero, /landing_dropzone_hero/)
-  assert.match(hero, /landing_path_fresher/)
-  assert.match(hero, /landing_path_switcher/)
+  assert.match(hero, /destination=\{uploadDestination\(pick\)\}/)
   assert.match(hero, /Browse jobs instead/)
   assert.doesNotMatch(hero, /LandingCvHub|seekers/)
   assert.ok(
@@ -101,7 +103,11 @@ test("the landing upload keeps the canonical anonymous preview handoff", () => {
   const landing = read("components/public/landing-page.tsx")
   const hero = read("components/public/landing/hero.tsx")
 
-  assert.match(dropzone, /router\.push\("\/cv-preview"\)/)
+  // Every upload still lands on the anonymous scorer; the hero only adds the
+  // picked role and level as query params (spec #66 L2).
+  assert.match(dropzone, /destination = "\/cv-preview"/)
+  assert.match(dropzone, /router\.push\(destination\)/)
+  assert.match(hero, /`\/cv-preview\?\$\{params\.toString\(\)\}`/)
   assert.match(dropzone, /No CV\? Paste your CV text/)
   assert.match(hero, /Browse jobs instead/)
   assert.doesNotMatch(landing, /landing_dropzone_closing/)

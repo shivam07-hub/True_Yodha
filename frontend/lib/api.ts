@@ -5735,6 +5735,39 @@ export const publicStats = {
   get: () => request<PublicStatsResponse>("/public/stats"),
 }
 
+// ── Landing role chips (spec #66 L1) ─────────────────────────────────────────
+// The eight busiest role families, from the market snapshot. Each band is one of
+// the six in backend `job_eligibility.PERSON_YEAR_SPAN_BY_BAND`; `thin` means too
+// few openings or employers to read a market from, and such a band has no skills.
+export type LandingBand = "intern" | "entry" | "mid" | "senior" | "lead" | "executive"
+
+export interface LandingRoleSkill {
+  skill: string
+  /** Fraction of the slice's openings asking for it, 0–1. */
+  share: number
+}
+
+export interface LandingRoleBand {
+  band: LandingBand
+  jobs: number
+  companies: number
+  thin: boolean
+  skills: LandingRoleSkill[]
+}
+
+export interface LandingRole {
+  family: string
+  jobs: number
+  companies: number
+  top_companies: { name: string; jobs: number }[]
+  skills: LandingRoleSkill[]
+  bands: LandingRoleBand[]
+}
+
+export const landingRoles = {
+  get: () => request<{ roles: LandingRole[] }>("/public/landing-roles"),
+}
+
 // ── Public CV-score preview (no auth) ───────────────────────────────────────
 // The pre-login "drop your CV → real Myro Score" demo. Multipart, no token —
 // bypasses `request`'s JSON handling. Backend runs the real engine compute-only
