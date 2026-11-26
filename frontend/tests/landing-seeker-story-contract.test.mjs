@@ -27,11 +27,10 @@ test("the public landing runs the operation story: hero dropzone + four-tab loop
   assert.match(hero, /landing_dropzone_hero/)
   assert.match(hero, /destination=\{uploadDestination\(pick\)\}/)
   assert.match(hero, /Browse jobs instead/)
-  assert.doesNotMatch(hero, /LandingCvHub|seekers/)
-  assert.ok(
-    hero.indexOf("<LandingStats") < hero.indexOf("lp-hero-inner"),
-    "the credibility metrics should sit above the hero content",
-  )
+  assert.doesNotMatch(hero, /LandingCvHub|seekers|LandingStats/)
+  // Chapters 2–3 read the hero's pick, so the landing page owns it.
+  assert.match(landing, /<LandingHero pick=\{pick\} onPick=\{setPick\} \/>/)
+  assert.match(hero, /data-bridge-step/)
 
   // The four-tab loop is its own labelled section, tab 01 default.
   assert.match(hub, /role="tablist"/)
@@ -70,23 +69,27 @@ test("the public landing runs the operation story: hero dropzone + four-tab loop
   assert.match(motion, /lp-company-rail-run/)
   assert.match(motion, /prefers-reduced-motion: no-preference/)
 
-  // Section order: hero → use-cases → partner rail → company rail → live-mirror → search → commons.
+  // Section order (spec #66 L3): hero → open jobs (holds the company rail) →
+  // skills → use-cases → partner rail → live-mirror → search → commons.
   assert.doesNotMatch(landing, /LandingClosing|LandingHowItWorks|LandingApplicationPlan|LandingDomains/)
+  const openJobs = read("components/public/landing/open-jobs.tsx")
+  assert.match(openJobs, /<LandingCompanyRail/)
+  assert.doesNotMatch(landing, /<LandingCompanyRail/, "the company rail renders once, inside chapter 2")
+  assert.ok(
+    landing.indexOf("<LandingOpenJobs") > landing.indexOf("<LandingHero"),
+    "open jobs should follow the hero",
+  )
+  assert.ok(
+    landing.indexOf("<LandingRoleSkills") > landing.indexOf("<LandingOpenJobs"),
+    "skills should follow open jobs",
+  )
+  assert.ok(
+    landing.indexOf("<LandingUseCases") > landing.indexOf("<LandingRoleSkills"),
+    "the four-tab loop should follow the new chapters",
+  )
   assert.ok(
     landing.indexOf("<LandingFinlaticsRail") > landing.indexOf("<LandingUseCases"),
     "the Finlatics ticker should follow the use-cases loop",
-  )
-  assert.ok(
-    landing.indexOf("<LandingCompanyRail") > landing.indexOf("<LandingFinlaticsRail"),
-    "the company rail should follow the Finlatics ticker",
-  )
-  assert.ok(
-    landing.indexOf("<LandingUseCases") > landing.indexOf("<LandingHero"),
-    "the four-tab loop should follow the hero",
-  )
-  assert.ok(
-    landing.indexOf("<LandingCompanyRail") > landing.indexOf("<LandingUseCases"),
-    "the live company rail should follow the use-cases loop",
   )
   assert.ok(
     landing.indexOf("<LandingLiveMirror") < landing.indexOf("<LandingJobSearch"),

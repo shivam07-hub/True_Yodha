@@ -25,6 +25,19 @@ export function roleLabel(family: string): string {
   return short ? short[1] : family
 }
 
+/** A skill reads as people say it: "Python (Programming Language)" → "Python".
+ *  The bracket is the taxonomy's disambiguator, not part of the name. */
+export function skillLabel(skill: string): string {
+  return skill.replace(/\s*\([^)]*\)\s*$/, "") || skill
+}
+
+/** The four roles a chapter shows: the visitor's pick first, then the busiest. */
+export function chapterRoles(roles: LandingRole[], picked: string | undefined, count = 4): LandingRole[] {
+  const first = roles.find((role) => role.family === picked)
+  const rest = roles.filter((role) => role !== first)
+  return (first ? [first, ...rest] : rest).slice(0, count)
+}
+
 export interface RolePick {
   family: string
   band: LandingBand | null
@@ -41,6 +54,24 @@ export function useLandingRoles() {
     refetchOnWindowFocus: false,
     retry: 1,
   })
+}
+
+/** One role chip, pressed when it is the role in view. The hero's picker and
+ *  chapter 3's role switch are the same control, so they share this. */
+export function RoleChip({
+  family,
+  pressed,
+  onSelect,
+}: {
+  family: string
+  pressed: boolean
+  onSelect: () => void
+}) {
+  return (
+    <button type="button" className="lp-role-chip" aria-pressed={pressed} title={family} onClick={onSelect}>
+      {roleLabel(family)}
+    </button>
+  )
 }
 
 interface RolePickerProps {
@@ -85,16 +116,12 @@ export function RolePicker({ pick, onPick, onUnsure }: RolePickerProps) {
       </p>
       <div className="lp-role-chips" role="group" aria-labelledby="lp-roles-label">
         {roles.map((role) => (
-          <button
+          <RoleChip
             key={role.family}
-            type="button"
-            className="lp-role-chip"
-            aria-pressed={role.family === pick?.family}
-            title={role.family}
-            onClick={() => chooseRole(role)}
-          >
-            {roleLabel(role.family)}
-          </button>
+            family={role.family}
+            pressed={role.family === pick?.family}
+            onSelect={() => chooseRole(role)}
+          />
         ))}
         <button type="button" className="lp-role-unsure" onClick={onUnsure}>
           Not sure? Upload

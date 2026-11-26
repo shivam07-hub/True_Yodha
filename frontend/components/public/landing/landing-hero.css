@@ -8,8 +8,8 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  padding-top: 28px;
-  padding-bottom: clamp(48px, 6vw, 88px);
+  padding-top: clamp(32px, 4vw, 56px);
+  padding-bottom: clamp(40px, 5vw, 72px);
 }
 
 /* Two lines, each held to one line above 900px and scaled with the viewport;
@@ -189,54 +189,6 @@
   .lp-level { transition: none; }
 }
 
-.lp-stats {
-  border-bottom: 1px solid var(--lp-border);
-}
-
-.lp-stats-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 24px;
-  padding-top: 24px;
-  padding-bottom: 24px;
-}
-
-.lp-stat-num {
-  color: var(--lp-text);
-  font-family: var(--lp-mono);
-  font-size: var(--tm-fs-title);
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  line-height: 1.1;
-}
-
-.lp-stat-num .plus {
-  color: var(--lp-accent-text);
-}
-
-.lp-stat-lbl {
-  margin-top: 5px;
-  color: var(--lp-faint);
-  font-size: var(--tm-fs-caption);
-}
-
-.lp-stat-link {
-  display: block;
-  color: inherit;
-  text-decoration: none;
-}
-
-.lp-stat-link:hover .lp-stat-lbl,
-.lp-stat-link:focus-visible .lp-stat-lbl {
-  color: var(--lp-accent-text);
-}
-
-.lp-stat-link:focus-visible {
-  border-radius: 6px;
-  outline: 2px solid var(--lp-accent-ring);
-  outline-offset: 4px;
-}
-
 /* Holding one line below 900px costs more than it buys: the vw scaling puts the
    headline at 23px. Wrapping is what makes the range readable. */
 @media (max-width: 900px) {
@@ -251,19 +203,6 @@
   .lp-hero-inner {
     padding-top: 20px;
     padding-bottom: 44px;
-  }
-
-  .lp-stats-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 22px;
-  }
-
-  .lp-stat-num {
-    font-size: var(--tm-fs-title);
-  }
-
-  .lp-stat:last-child:nth-child(odd) {
-    grid-column: 1 / -1;
   }
 
   .lp-levels { grid-template-columns: repeat(3, minmax(0, 1fr)); }

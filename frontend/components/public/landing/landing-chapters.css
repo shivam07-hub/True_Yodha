@@ -1,0 +1,209 @@
+/* Spec #66 chapters 2–3 and the bridge rail. Data rows, not cards: the numbers
+   and bars carry the meaning, so the chrome stays hairline. Bars are neutral —
+   they display values, they are not pressable, so they get no interactive colour. */
+
+.lp-chapter {
+  padding: var(--lp-section-py) 0;
+  border-bottom: 1px solid var(--lp-border);
+}
+
+.lp-chapter .lp-section-head { margin-bottom: 24px; }
+
+.lp-chapter-meta {
+  margin: 16px 0 0;
+  color: var(--lp-muted);
+  font-family: var(--lp-mono);
+  font-size: var(--tm-fs-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A value bar: track in the border tone, fill in muted text, width from
+   `--lp-bar-fill` set on the element. */
+.lp-bar {
+  position: relative;
+  display: block;
+  height: 6px;
+  min-width: 0;
+  border-radius: 4px;
+  background: var(--lp-border);
+  overflow: hidden;
+}
+
+.lp-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--lp-bar-fill, 0%);
+  border-radius: inherit;
+  background: var(--lp-muted);
+}
+
+/* ── Chapter 2: open jobs ─────────────────────────────────────── */
+.lp-open-roles {
+  display: grid;
+  gap: 0;
+  margin: 0 0 28px;
+  padding: 0;
+  list-style: none;
+}
+
+.lp-open-role {
+  display: grid;
+  grid-template-columns: minmax(140px, 200px) minmax(80px, 1fr) 96px minmax(0, 1.4fr);
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--lp-border);
+}
+
+.lp-open-role:last-child { border-bottom: 1px solid var(--lp-border); }
+
+.lp-open-role-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--lp-text);
+  font-size: var(--tm-fs-body);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lp-open-role-count {
+  color: var(--lp-text);
+  font-family: var(--lp-mono);
+  font-size: var(--tm-fs-body);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* The company rail closes chapter 2 as its proof line; the chapter owns the rule. */
+.lp-chapter .lp-company-rail {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.lp-open-role-cos {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--lp-muted);
+  font-size: var(--tm-fs-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Chapter 3: skills by role ────────────────────────────────── */
+.lp-skill-rows {
+  display: grid;
+  gap: 10px;
+  max-width: 720px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lp-skill-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 220px) minmax(80px, 1fr) 48px;
+  align-items: center;
+  gap: 16px;
+}
+
+.lp-skill-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--lp-text);
+  font-size: var(--tm-fs-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lp-skill-share {
+  color: var(--lp-text);
+  font-family: var(--lp-mono);
+  font-size: var(--tm-fs-body);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* ── Bridge rail ──────────────────────────────────────────────── */
+.lp-bridge {
+  position: sticky;
+  top: var(--lp-nav-h);
+  z-index: 9;
+  border-bottom: 1px solid var(--lp-border);
+  background: var(--lp-bg);
+}
+
+.lp-bridge-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 32px;
+}
+
+.lp-bridge-end {
+  flex: 0 0 auto;
+  color: var(--lp-muted);
+  font-family: var(--lp-mono);
+  font-size: var(--tm-fs-caption);
+  white-space: nowrap;
+}
+
+.lp-bridge-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--lp-muted);
+  border-radius: 50%;
+  transition: background var(--lp-dur) var(--lp-ease);
+}
+
+.lp-bridge-dot[data-on="true"] {
+  border-color: var(--lp-text);
+  background: var(--lp-text);
+}
+
+.lp-bridge-line {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 4px;
+  min-width: 0;
+}
+
+.lp-bridge-seg {
+  flex: 1 1 0;
+  height: 2px;
+  background: var(--lp-border-strong);
+  transition: background var(--lp-dur) var(--lp-ease);
+}
+
+.lp-bridge-seg[data-on="true"] { background: var(--lp-text); }
+
+@media (max-width: 720px) {
+  /* A phone gets the line alone: a thin bar under the nav. */
+  .lp-bridge-inner { height: 8px; gap: 4px; }
+  .lp-bridge-end,
+  .lp-bridge-dot { display: none; }
+
+  .lp-open-role {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "name count"
+      "bar  bar"
+      "cos  cos";
+    gap: 6px 12px;
+  }
+
+  .lp-open-role-name { grid-area: name; }
+  .lp-open-role-count { grid-area: count; }
+  .lp-open-role .lp-bar { grid-area: bar; }
+  .lp-open-role-cos { grid-area: cos; }
+
+  .lp-skill-row { grid-template-columns: minmax(0, 1fr) 72px 40px; gap: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-bridge-dot,
+  .lp-bridge-seg { transition: none; }
+}

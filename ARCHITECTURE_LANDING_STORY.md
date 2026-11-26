@@ -218,7 +218,7 @@ with photo, name with LinkedIn icon, a short third-person bio.
 | L1 | `GET /public/landing-roles`: top 8 families by live jobs (skill-demand guards); per family, open count by band, top 3 companies, top skills with share by band. Built into the same cached compile as `_compile_public_stats` (`public.py:105`) | `/read-path-perf` measured; one cached response, no per-visitor DB work |
 | L2 | Hero: two-line H1, chips from L1, level row, "Not sure? Upload"; the pick rides the upload as `/cv-preview?role=…&level=…` | 375px works; chip + level carried into upload. **Built 2026-11-26.** Moved out: role search (L2b) and the bridge rail (L3, it needs chapters to fill) |
 | L2b | Role search for a family outside the top 8: the snapshot carries every qualifying family's name and count, the search filters them client-side | A searched role carries into upload like a chip |
-| L3 | Chapters 2–3 from L1 | Counts match L1; tabs swipe at 375 |
+| L3 | Chapters 2–3 from L1, plus the bridge rail | Counts match L1; tabs swipe at 375. **Built 2026-11-26.** The counters strip left the hero; the company rail closes chapter 2; the pick lives on the landing page so chapters 2–3 follow it. Skills under 5% of a slice dropped in the compile. The rail sticks under the nav: `.tm-landing` and, on phones, `html/body` used `overflow-x: hidden`, which made them scroll containers and un-stuck the nav too; the landing now uses `clip` (scoped by `:has(.tm-landing)` on phones) |
 | L4 | Chapters 4–5: the example and the ladder; Finlatics rail moves here | — |
 | L5 | Reviewer chapter + a public open-check count read (`human_check.availability`), photo asset | Dots match `/admin/checks` |
 | L6 | Close; delete `LandingUseCases`, `LandingCommons`, `LandingJobSearch`, `LandingLiveMirror` from the landing (log + search live on `/intel`) | No unreachable component left behind |
@@ -246,6 +246,9 @@ guard, e.g. "Track (Rail Transport)" under Project Management and "International
   Project Management 2,627 · Business Strategy 2,448 · Business Consulting 1,748 ·
   Customer Service 1,644. Chips show family names; "Artificial Intelligence and
   Machine Learning (AI/ML)" needs a short display name in L2.
+- **App-wide, unaudited:** `globals.css` sets `html, body { overflow-x: hidden
+  !important }` under 768px, which un-sticks every `position: sticky` element on
+  phones. L3 fixed it for the landing only.
 - Intern bands are thin in most families (0.3% of active jobs state intern).
   The hero's "Internship" level will often be greyed. Decide in L2 whether the
   level row links greyed Internship to `/internships` instead.

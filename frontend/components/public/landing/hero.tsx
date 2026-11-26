@@ -1,18 +1,17 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useRef } from "react"
 import Link from "next/link"
 import { ExternalLink } from "lucide-react"
 import { trackEvent } from "@/lib/analytics"
-import { LandingStats } from "./stats"
 import { LandingDropzone, type LandingDropzoneHandle } from "./dropzone"
 import { LEVEL_LABEL, RolePicker, roleLabel, type RolePick } from "./role-picker"
 
 interface LandingHeroProps {
-  /** Live Engine corpus counters — top-of-page credibility strip. */
-  jobsTracked: number
-  companiesMonitored: number
-  skillsMapped: number
+  /** The job the visitor picked. Owned by the landing page, because chapters 2
+   *  and 3 read it too (spec #66). */
+  pick: RolePick | null
+  onPick: (pick: RolePick) => void
 }
 
 /** Where an upload lands, carrying the job the visitor picked so the first
@@ -33,12 +32,11 @@ function uploadDestination(pick: RolePick | null): string {
  * The two audience cards ("First job" / "Switching") left with this rewrite:
  * the level row is the same split, told in the six bands the product uses.
  */
-export function LandingHero({ jobsTracked, companiesMonitored, skillsMapped }: LandingHeroProps) {
+export function LandingHero({ pick, onPick }: LandingHeroProps) {
   const dzRef = useRef<LandingDropzoneHandle>(null)
-  const [pick, setPick] = useState<RolePick | null>(null)
 
   function choose(next: RolePick) {
-    setPick(next)
+    onPick(next)
     trackEvent("landing_role_pick", { family: next.family, band: next.band ?? "none" })
   }
 
@@ -52,13 +50,7 @@ export function LandingHero({ jobsTracked, companiesMonitored, skillsMapped }: L
     : null
 
   return (
-    <section className="lp-hero" aria-labelledby="landing-heading">
-      <LandingStats
-        jobsTracked={jobsTracked}
-        companiesMonitored={companiesMonitored}
-        skillsMapped={skillsMapped}
-      />
-
+    <section className="lp-hero" aria-labelledby="landing-heading" data-bridge-step>
       <div className="lp-wrap lp-hero-inner">
         <h1 className="lp-hero-h1" id="landing-heading">
           <span className="lp-hero-line">See what MNCs hire for.</span>
