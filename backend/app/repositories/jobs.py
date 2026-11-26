@@ -21,7 +21,11 @@ from app.services import job_importer, shared_cache, skill_floor
 from app.services.background import debounce
 from app.services.industry_grouping import normalize_industry_group
 from app.services.job_history import attach_jobs
-from app.services.landing_roles import LandingCuration, compile_landing_roles
+from app.services.landing_roles import (
+    LANDING_ROLES_VERSION,
+    LandingCuration,
+    compile_landing_roles,
+)
 from app.services.listing_liveness import is_down, is_live, live_only
 from app.services.internships import hosted_fields
 from app.services.listing_time import CARD_COLUMNS, HOSTED_COLUMNS, SEED_COLUMN, day, marker, verdict as listing_time
@@ -708,6 +712,7 @@ class MarketAnalyticsCompiler:
             # The landing's role chips and their open-jobs and skills chapters
             # (spec #66 L1), so `/public/landing-roles` is a slice of this row.
             payload["landing_roles"] = compile_landing_roles(rows, curation=landing)
+            payload["landing_roles_version"] = LANDING_ROLES_VERSION
         return payload
 
 
@@ -853,7 +858,7 @@ class JobsRepository:
             columns=(
                 "job_id, company_name, industry, industry_group, role_domain, role_family, batch_date, "
                 "location, location_raw, location_city, location_country, location_mode, location_quality, locations, location_states, "
-                "main_skills, seniority_level, first_seen, ingested_at"
+                "main_skills, seniority_level, first_seen, ingested_at, is_active, listing_confidence"
             ),
             query_builder=query_builder,
         )
@@ -986,7 +991,8 @@ class JobsRepository:
             "has_industry_roles": isinstance(payload, dict)
             and isinstance(payload.get("industry_roles"), dict),
             "has_landing_roles": isinstance(payload, dict)
-            and isinstance(payload.get("landing_roles"), list),
+            and isinstance(payload.get("landing_roles"), list)
+            and payload.get("landing_roles_version") == LANDING_ROLES_VERSION,
         }
 
     def refresh_analytics_snapshot_if_stale(self, *, refreshed_by: str = "cron") -> dict[str, Any]:

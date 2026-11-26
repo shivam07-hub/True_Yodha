@@ -33,6 +33,7 @@ def _jobs(
     each: int = 1,
     band: str | None = "entry",
     skills: tuple[str, ...] = (),
+    live: bool = True,
 ) -> list[dict[str, Any]]:
     return [
         {
@@ -40,6 +41,8 @@ def _jobs(
             "company_name": company,
             "seniority_level": band,
             "main_skills": list(skills),
+            "is_active": live,
+            "listing_confidence": "active" if live else "closed",
         }
         for company in companies
         for _ in range(each)
@@ -96,6 +99,23 @@ def test_busiest_eight_in_order() -> None:
 
 def test_no_rows_no_roles() -> None:
     assert compile_landing_roles([], curation=NONE) == []
+
+
+def test_only_live_listings_are_open_now() -> None:
+    # The page says "open right now": a closed or unverified ad is not open. On
+    # 2026-11-26 Business Analysis had 4,807 rows and 2,301 live listings.
+    rows = _jobs("Business Analysis", ["A", "B", "C"], each=4, skills=("SQL",))
+    rows += _jobs("Business Analysis", ["A", "B", "C"], each=6, skills=("Excel",), live=False)
+    rows += [{**row, "listing_confidence": "uncertain"} for row in _jobs("Business Analysis", ["A"], each=5)]
+    role = _role(compile_landing_roles(rows, curation=NONE), "Business Analysis")
+    assert role["jobs"] == 12
+    assert _band(role, "entry")["jobs"] == 12
+    assert [item["skill"] for item in role["skills"]] == ["SQL"]
+
+
+def test_family_with_no_live_listing_is_not_offered() -> None:
+    rows = _jobs("Audit", ["A", "B", "C"], each=9, live=False) + _jobs("Tax", ["A", "B", "C"], each=1)
+    assert [role["family"] for role in compile_landing_roles(rows, curation=NONE)] == ["Tax"]
 
 
 # ── what each role carries ──────────────────────────────────────────────────

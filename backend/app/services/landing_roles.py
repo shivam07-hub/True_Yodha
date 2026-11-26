@@ -17,6 +17,10 @@ Project Management says nothing).
 
 A job with no stated seniority counts toward its family and the all-levels
 skills, never toward a band: a band is what the employer said.
+
+Only live listings count (`listing_liveness`): the page says "open right now".
+The snapshot reads every row in `jobs`, and on 2026-11-26 about half of them
+were closed or unverified ads (Business Analysis: 4,807 rows, 2,301 live).
 """
 
 from __future__ import annotations
@@ -26,6 +30,7 @@ from collections.abc import Iterable
 from typing import Any, NamedTuple
 
 from app.services.job_eligibility import PERSON_YEAR_SPAN_BY_BAND, seniority_for_job
+from app.services.listing_liveness import is_live
 
 ROLES_SHOWN = 8
 MIN_EMPLOYERS = 3
@@ -38,6 +43,10 @@ SKILLS_SHOWN = 6
 #: reads as a broken chart, not as information.
 MIN_SKILL_SHARE = 0.05
 TOP_COMPANIES = 3
+#: Bumped when the compile changes what it counts, so the snapshot's refresh
+#: guard rebuilds a payload written by the older rule instead of waiting for
+#: the next scrape. 2: live listings only.
+LANDING_ROLES_VERSION = 2
 
 BANDS: tuple[str, ...] = tuple(band for band, _lo, _hi in PERSON_YEAR_SPAN_BY_BAND)
 
@@ -107,7 +116,7 @@ def compile_landing_roles(
     rows: Iterable[dict[str, Any]], *, curation: LandingCuration
 ) -> list[dict[str, Any]]:
     """The eight families the landing offers, busiest first, with their bands."""
-    rows = list(rows)
+    rows = [row for row in rows if is_live(row)]
     catch_all = curation.catch_all
     denied = frozenset(skill.casefold() for skill in curation.skill_deny)
     families: dict[str, _Slice] = {}

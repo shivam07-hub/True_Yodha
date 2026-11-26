@@ -12,7 +12,7 @@ from typing import Any
 
 from app.repositories import jobs as jobs_module
 from app.repositories.jobs import JobsRepository
-from app.services.landing_roles import LandingCuration
+from app.services.landing_roles import LANDING_ROLES_VERSION, LandingCuration
 
 
 class _Result:
@@ -102,6 +102,7 @@ def test_skips_compile_when_marker_unchanged() -> None:
                 "total_companies": 30,
                 "industry_roles": {"Technology": [["Engineering", 120]]},
                 "landing_roles": [],
+                "landing_roles_version": LANDING_ROLES_VERSION,
             },
         },
     )
@@ -225,3 +226,42 @@ def test_fetch_analytics_rows_requests_seniority(monkeypatch) -> None:
     repo = JobsRepository(db=object(), admin_db=object())  # type: ignore[arg-type]
     repo.fetch_analytics_rows()
     assert "seniority_level" in captured["columns"]
+
+
+def test_recompiles_when_landing_roles_predate_the_live_rule() -> None:
+    """Landing roles written before the live-listings rule counted closed ads as
+    open, so an unchanged corpus must still rebuild them once (the scraper does
+    not run daily, so waiting for the next batch could take days)."""
+    admin = _FakeAdmin(
+        job_count=100,
+        last_seen=20260610,
+        snapshot_row={
+            "source_job_count": 100,
+            "source_last_seen": 20260610,
+            "payload": {
+                "total_jobs": 5000,
+                "total_companies": 30,
+                "industry_roles": {"Technology": [["Engineering", 120]]},
+                "landing_roles": [],
+            },
+        },
+    )
+    out = _repo(admin).refresh_analytics_snapshot_if_stale()
+    assert out["refreshed"] is True
+    assert len(admin.upserts) == 1
+
+
+def test_fetch_analytics_rows_requests_liveness(monkeypatch) -> None:
+    """The landing counts live listings only; a row without both liveness
+    columns is never read as live, so every role would vanish, silently."""
+    captured: dict[str, str] = {}
+
+    def _fake_fetch_all_rows(db: Any, *, table: str, columns: str, query_builder: Any = None) -> list[Any]:
+        captured["columns"] = columns
+        return []
+
+    monkeypatch.setattr(jobs_module, "fetch_all_rows", _fake_fetch_all_rows)
+    repo = JobsRepository(db=object(), admin_db=object())  # type: ignore[arg-type]
+    repo.fetch_analytics_rows()
+    assert "is_active" in captured["columns"]
+    assert "listing_confidence" in captured["columns"]
