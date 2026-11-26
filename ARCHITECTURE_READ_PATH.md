@@ -2968,3 +2968,37 @@ signed-in `/apply-pack`. Left as is in L5; it could read this cached entry.
 caches a response with no `Access-Control-Allow-Origin` (no `Origin` header, so
 no `Vary: Origin` either); the landing's CORS fetch then reuses it and fails
 with `net::ERR_FAILED` for 60 seconds. A visitor never does this; a tester does.
+
+## 37. Within reach after upload: one index per role family, shared (2026-11-26)
+
+Spec #66 L7, `POST /public/score-cv` with `role` + `level`. After an upload that
+carried a landing pick, the score comes back with the CV read against that role:
+matched and missing skills (from the cached `landing_roles` slice, no DB) and how
+many live listings at that level name 2+ skills the CV holds.
+
+**The naive read is a scan per visitor.** Counting reach needs every live
+listing's `main_skills` in the family. EXPLAIN ANALYZE on live (2026-11-26):
+Banking Services at one band, bitmap heap scan, **4.2s**, 5,350 heap blocks for
+1,241 rows (the band filter runs on the heap, so one band costs the whole
+family). Paged on `idx_jobs_live_role_family` by `job_id`: **1.2s per 1,000
+rows**, ~1,050 buffers a page.
+
+**Built as a shared index per family** (`services/landing_reach.py`): one
+`shared_cache` key per family, `{jobs, vocab, sets}` — per level, each distinct
+skill set once with its count, by position in one vocabulary. 6h fresh, 7 days
+stale, background refresh, so a family is paged at most once per 6h and only
+when a visitor picks it. Only the landing's own roles and the six bands are
+read: a crafted `role` reads nothing.
+
+**Measured against the shared DB with the real code (2026-11-26):**
+
+| Family | live rows | first read | index | count |
+|---|---|---|---|---|
+| Banking Services | 6,293 | 10.8s | 26 KB | 0.4ms |
+| Business Analysis | 2,301 | 3.8s | 114 KB | 1.5ms |
+| Software Development | 3,094 | 5.3s | 142 KB | 1.6ms |
+
+**Open:** the first visitor to pick a family after its key expires (a week
+without a pick, or a Redis flush) waits the first read on top of the parse.
+Overlapping it with the parse was left out: it would start a DB read before
+Turnstile verifies the request.

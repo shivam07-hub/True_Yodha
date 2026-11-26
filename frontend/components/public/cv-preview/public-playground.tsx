@@ -65,9 +65,13 @@ interface PublicPlaygroundProps {
   cv: CVStructured
   contact: PdfPageContact
   result: AnonScoreResponse
+  /** The role picked on the landing (spec #66 L7): rewrites aim at it. */
+  targetRole?: string | null
+  /** Back from the playground. Default: the landing. */
+  onBack?: () => void
 }
 
-export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlaygroundProps) {
+export function PublicPlayground({ cv: initialCv, contact, result, targetRole, onBack }: PublicPlaygroundProps) {
   const router = useRouter()
   const signup = useSignupGate()
   const [cv, setCv] = useState<CVStructured>(initialCv)
@@ -207,7 +211,7 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
             applyHint="Download your CV"
             saveState=""
             hideOverflow
-            onBack={() => router.push("/")}
+            onBack={onBack ?? (() => router.push("/"))}
             onReqPill={() => {}}
             onApply={() => void doDownload()}
             onDownload={() => void doDownload()}
@@ -228,7 +232,7 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
         lineCount={lineCount}
         wordCount={wordCount}
         makeFetcher={(bullet, fix) =>
-          rewriteFetcher.anon(bullet, { role: contact.title || null, fix, quantifyOnly: fix?.kind === "Quantify" })}
+          rewriteFetcher.anon(bullet, { role: targetRole || contact.title || null, fix, quantifyOnly: fix?.kind === "Quantify" })}
         onApplyRewrite={({ oldText, newText }) => replaceLine(oldText, newText)}
         onEditLine={replaceLine}
         onToggleHidden={toggle}

@@ -40,7 +40,7 @@ from app.services.matching.filter_spec import FilterSpec
 from app.services.matching.job_query import JobQuery
 from app.services.scoring.formulas import build_skill_level_map
 from app.services.scoring.orchestrator import project_score
-from app.services import billing_catalogue, human_check, shared_cache
+from app.services import billing_catalogue, human_check, landing_reach, landing_roles, shared_cache
 
 # Public pages are the front door: a visitor's AI is a person's AI, billed to
 # OpenRouter like a user's (Shivam, 2026-11-25). See llm_spender.
@@ -207,15 +207,19 @@ def _compile_landing_roles() -> dict[str, Any]:
     return {"roles": analytics.get("landing_roles") or []}
 
 
-@router.get("/landing-roles", response_model=LandingRolesResponse)
-def get_landing_roles(response: Response) -> dict[str, Any]:
-    response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=3600"
+def _compile_landing_roles_cached() -> dict[str, Any]:
     return shared_cache.get_or_compute(
         "public_landing_roles",
         _compile_landing_roles,
         ttl_seconds=_CACHE_TTL_SECONDS,
         stale_seconds=_CACHE_STALE_SECONDS,
     )
+
+
+@router.get("/landing-roles", response_model=LandingRolesResponse)
+def get_landing_roles(response: Response) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=3600"
+    return _compile_landing_roles_cached()
 
 
 # ─── The reviewer's open slots (spec #66 L5) ─────────────────────────────────
@@ -300,6 +304,15 @@ class AnonContact(BaseModel):
     linkedin: str = ""
 
 
+class AnonTarget(BaseModel):
+    family: str
+    band: str | None  # None: every level of the role
+    jobs: int  # live listings at that level
+    within_reach: int  # of those, naming 2+ skills this CV holds
+    matched: list[str]  # the role's skills (as the landing showed them) this CV holds
+    missing: list[str]  # the rest
+
+
 class AnonScoreResponse(BaseModel):
     """Compute-only preview — the score + domain split the landing Readout
     renders, plus the parsed CV reformatted to the Myro standard so a
@@ -316,6 +329,9 @@ class AnonScoreResponse(BaseModel):
     # provider returned skills but no structured payload (degraded but scorable).
     cv: dict[str, Any] | None = None
     contact: AnonContact | None = None
+    # The role and level picked on the landing, read against this CV (spec #66
+    # L7). None when no pick came with the upload, or it is not a landing role.
+    target: AnonTarget | None = None
 
 
 class PublicJobFitPreviewResponse(BaseModel):
@@ -526,14 +542,42 @@ def _compute_public_fit(
     return pct, matched, missing, len(seen)
 
 
+def _landing_target(role: str | None, level: str | None, level_map: dict[str, int]) -> AnonTarget | None:
+    """The landing pick read against the CV. Only a role the landing offers and
+    one of the six bands: anything else reads nothing, so a crafted form cannot
+    make the server page through an arbitrary family."""
+    if not role or (level and level not in landing_roles.BANDS):
+        return None
+    offered = _compile_landing_roles_cached()["roles"]
+    picked = next((item for item in offered if item.get("family") == role), None)
+    if picked is None:
+        return None
+    held = {key for key, value in level_map.items() if key and value > 0}
+    matched, missing = landing_reach.role_gap(picked, level, held)
+    reach, open_now = landing_reach.count_within_reach(landing_reach.family_reach_index(role), level, held)
+    return AnonTarget(
+        family=role,
+        band=level or None,
+        jobs=open_now,
+        within_reach=reach,
+        matched=matched,
+        missing=missing,
+    )
+
+
 @router.post("/score-cv", response_model=AnonScoreResponse)
 async def score_cv_preview(
     request: Request,
     file: UploadFile | None = File(default=None),
     text: str | None = Form(default=None),
     cf_turnstile_token: str | None = Form(default=None),
+    role: str | None = Form(default=None),
+    level: str | None = Form(default=None),
 ) -> AnonScoreResponse:
-    _parsed, _level_map, preview = await _score_anon_cv(request, file, cf_turnstile_token, text)
+    _parsed, level_map, preview = await _score_anon_cv(request, file, cf_turnstile_token, text)
+    # Sync on a cold family (a paged read); off the event loop so it never
+    # stalls other requests.
+    preview.target = await run_in_threadpool(_landing_target, role, level, level_map)
     return preview
 
 

@@ -5811,6 +5811,28 @@ export interface AnonScoreResponse {
   // extraction was degraded — the readout then shows the score only.
   cv: CVStructured | null
   contact: AnonContact | null
+  // The role and level picked on the landing, read against this CV (spec #66
+  // L7). Absent on a result stashed before L7 or scored without a pick.
+  target?: AnonTarget | null
+}
+
+/** The landing pick an upload carries (`/cv-preview?role=&level=`). */
+export interface AnonPick {
+  role: string
+  level: string | null
+}
+
+export interface AnonTarget {
+  family: string
+  /** Null: every level of the role. */
+  band: LandingBand | null
+  /** Live listings at that level. */
+  jobs: number
+  /** Of those, the ones naming 2+ skills this CV holds. */
+  within_reach: number
+  /** The role's skills, as the landing showed them, that this CV holds. */
+  matched: string[]
+  missing: string[]
 }
 
 export interface PublicJobFitPreviewResponse {
@@ -5961,7 +5983,11 @@ export const publicCv = {
       cf_turnstile_token: turnstileToken ?? (await getTurnstileToken()),
     }),
 
-  scorePreview: async (input: File | { text: string }, turnstileToken?: string | null): Promise<AnonScoreResponse> => {
+  scorePreview: async (
+    input: File | { text: string },
+    pick?: AnonPick | null,
+    turnstileToken?: string | null,
+  ): Promise<AnonScoreResponse> => {
     if (!BASE) throw new Error("API base URL is not configured.")
     const token = turnstileToken ?? (await getTurnstileToken())
     const form = new FormData()
@@ -5969,6 +5995,10 @@ export const publicCv = {
     // failures some networks/regions hit; the file path is unchanged.
     if (input instanceof File) form.append("file", input)
     else form.append("text", input.text)
+    if (pick) {
+      form.append("role", pick.role)
+      if (pick.level) form.append("level", pick.level)
+    }
     if (token) form.append("cf_turnstile_token", token)
     const res = await fetch(`${BASE}/public/score-cv`, { method: "POST", body: form })
     const body = await res.json().catch(() => null)

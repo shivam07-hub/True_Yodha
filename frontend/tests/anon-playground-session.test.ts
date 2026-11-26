@@ -5,8 +5,8 @@
  * who scored a CV was bounced to /login as the playground opened (no anonymous
  * download was recorded after the week of 09-14).
  *
- * Walks every module the playground imports and lists the ones that call
- * `useAuth()`. Only `SectionTitlesProvider` may, and it mounts in
+ * Walks every module the gap screen and the playground import and lists the
+ * ones that call `useAuth()`. Only `SectionTitlesProvider` may, and it mounts in
  * the authed layout alone. A new caller fails here, so it is looked at, not
  * shipped. (The page's public nav imports the signed-in menus too, rendered
  * only with a session, so the walk starts below the chrome.)
@@ -47,7 +47,10 @@ function reachable(entry: string): Set<string> {
 }
 
 test("nothing the logged-out playground imports calls the /login gate, but the authed provider", () => {
-  const files = new Set([...reachable("components/public/cv-preview/public-playground.tsx")])
+  const files = new Set([
+    ...reachable("components/public/cv-preview/public-playground.tsx"),
+    ...reachable("components/public/cv-preview/role-gap.tsx"),
+  ])
   files.delete(join(ROOT, "lib/hooks/use-auth.ts")) // the definition, not a caller
   const callers = [...files]
     .filter((file) => /\buseAuth\(\)/.test(readFileSync(file, "utf8")))

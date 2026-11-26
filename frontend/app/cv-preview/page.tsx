@@ -11,6 +11,10 @@
  *   - degraded parse → /signup, where the score readout sits beside the form.
  * A direct hit (no stash) shows a dropzone so the user can score → build here.
  *
+ * An upload from the landing carries the visitor's pick as `?role=&level=`
+ * (spec #66 L7). The score then comes back with the CV read against that role,
+ * and the first screen is the gap (RoleGap) before the playground.
+ *
  * Public chrome only (top-nav + footer), NO app shell. Everything is ephemeral
  * and free; login is an optional save upsell (handled inside PublicPlayground).
  */
@@ -22,9 +26,12 @@ import { PublicFooter } from "@/components/public/public-footer"
 import { CVUploadStep } from "@/components/cv/cv-upload-step"
 import { ScoringConsole } from "@/components/public/cv-preview/scoring-console"
 import { PublicPlayground } from "@/components/public/cv-preview/public-playground"
+import { RoleGap } from "@/components/public/cv-preview/role-gap"
+import { roleLabel } from "@/components/public/landing/role-picker"
+import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import { Button } from "@/components/ui/button"
 import { ExternalLink } from "lucide-react"
-import { publicCv, type AnonScoreResponse } from "@/lib/api"
+import { publicCv, type AnonPick, type AnonScoreResponse } from "@/lib/api"
 import { readStashedResult, stashAnonCv, stashAnonCvResult, stashComposedCvText, takeStashedFile, takeStashedText } from "@/lib/anon-cv-stash"
 import type { PdfPageContact } from "@/components/cv/builder/pdf-page"
 
@@ -39,8 +46,20 @@ function toContact(r: AnonScoreResponse): PdfPageContact {
   }
 }
 
+/** The landing pick this upload carries. Read at score time, client-side only. */
+function readPick(): AnonPick | null {
+  const params = new URLSearchParams(window.location.search)
+  const role = params.get("role")
+  return role ? { role, level: params.get("level") } : null
+}
+
 export default function CvPreviewPage() {
   const router = useRouter()
+  const signup = useSignupGate()
+  // A pick-carrying score opens on the gap; "Fix my CV" moves to the playground.
+  // Once opened the playground stays mounted, so its edits survive a look back.
+  const [view, setView] = useState<"gap" | "fix">("gap")
+  const [fixOpened, setFixOpened] = useState(false)
   const [result, setResult] = useState<AnonScoreResponse | null>(null)
   const [scoring, setScoring] = useState(false)
   const [slow, setSlow] = useState(false)
@@ -54,7 +73,7 @@ export default function CvPreviewPage() {
       setScoring(true)
       setError(null)
       try {
-        const r = await publicCv.scorePreview(file)
+        const r = await publicCv.scorePreview(file, readPick())
         // Re-stash the File + result. A structured result also stores rendered
         // CV text so post-auth claim survives full-page auth redirects.
         stashAnonCv(file, r)
@@ -80,7 +99,7 @@ export default function CvPreviewPage() {
       setScoring(true)
       setError(null)
       try {
-        const r = await publicCv.scorePreview({ text })
+        const r = await publicCv.scorePreview({ text }, readPick())
         stashAnonCvResult(r)
         stashComposedCvText(text)
         if (r.cv) {
@@ -125,6 +144,14 @@ export default function CvPreviewPage() {
   }, [score, scoreText])
 
   const canBuild = !!result?.cv
+  const target = result?.target ?? null
+
+  function showView(next: "gap" | "fix") {
+    setView(next)
+    if (next === "fix") setFixOpened(true)
+    window.scrollTo({ top: 0 })
+  }
+  const onGap = !!target && view === "gap"
 
   return (
     <div className="tm-landing">
@@ -149,7 +176,27 @@ export default function CvPreviewPage() {
             )}
           </div>
         ) : canBuild && result ? (
-          <PublicPlayground cv={result.cv!} contact={toContact(result)} result={result} />
+          <>
+            {target && onGap ? (
+              <RoleGap
+                target={target}
+                cv={result.cv!}
+                onJobs={() => signup.open({ surface: "manual", source: "cv_preview_reach" })}
+                onFix={() => showView("fix")}
+              />
+            ) : null}
+            {!onGap || fixOpened ? (
+              <div hidden={onGap}>
+                <PublicPlayground
+                  cv={result.cv!}
+                  contact={toContact(result)}
+                  result={result}
+                  targetRole={target ? roleLabel(target.family) : null}
+                  onBack={target ? () => showView("gap") : undefined}
+                />
+              </div>
+            ) : null}
+          </>
         ) : (
           <div className="mx-auto flex min-h-[calc(100dvh-160px)] max-w-5xl items-center justify-center px-5 py-8 sm:px-8">
             <CVUploadStep busy={scoring} error={error} inputSource="cv_preview_dropzone" onUpload={score}>

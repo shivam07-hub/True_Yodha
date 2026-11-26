@@ -877,6 +877,17 @@ class JobsRepository:
             )
         ]
 
+    def live_family_skill_rows(self, family: str) -> list[dict[str, Any]]:
+        """One role family's live listings, level and named skills only: the
+        landing's within-reach index (spec #66 L7, `landing_reach`). Walks
+        `idx_jobs_live_role_family` by job_id, one family at a time."""
+        return fetch_all_rows(
+            self._admin_db,
+            table="jobs",
+            columns="seniority_level, main_skills",
+            query_builder=lambda query: live_only(query).eq("role_family", family),
+        )
+
     def compile_market_analytics(
         self,
         role_domain: str | None = None,
