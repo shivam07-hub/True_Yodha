@@ -5768,6 +5768,19 @@ export const landingRoles = {
   get: () => request<{ roles: LandingRole[] }>("/public/landing-roles"),
 }
 
+/** Spec #66 L5: the reviewer's live Human Check slots, for the landing. */
+export interface HumanCheckSlots {
+  capacity: number
+  slots_open: number
+  check_hours: number
+  ready_by: string
+  price_paise: number
+}
+
+export const humanCheckSlots = {
+  get: () => request<HumanCheckSlots>("/public/human-check"),
+}
+
 // ── Public CV-score preview (no auth) ───────────────────────────────────────
 // The pre-login "drop your CV → real Myro Score" demo. Multipart, no token —
 // bypasses `request`'s JSON handling. Backend runs the real engine compute-only

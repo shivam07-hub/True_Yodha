@@ -69,9 +69,9 @@ test("the public landing runs the operation story: hero dropzone + four-tab loop
   assert.match(motion, /lp-company-rail-run/)
   assert.match(motion, /prefers-reduced-motion: no-preference/)
 
-  // Section order (spec #66 L4): hero → open jobs (holds the company rail) →
-  // skills → the gap → fill the gap (holds the partner rail) → use-cases →
-  // live-mirror → search → commons.
+  // Section order (spec #66 L5): hero → open jobs (holds the company rail) →
+  // skills → the gap → fill the gap (holds the partner rail) → the reviewer →
+  // use-cases → live-mirror → search → commons.
   assert.doesNotMatch(landing, /LandingClosing|LandingHowItWorks|LandingApplicationPlan|LandingDomains/)
   const openJobs = read("components/public/landing/open-jobs.tsx")
   assert.match(openJobs, /<LandingCompanyRail/)
@@ -96,7 +96,11 @@ test("the public landing runs the operation story: hero dropzone + four-tab loop
   assert.match(fillGap, /<LandingFinlaticsRail/)
   assert.doesNotMatch(landing, /<LandingFinlaticsRail/, "the Finlatics ticker renders once, inside chapter 5")
   assert.ok(
-    landing.indexOf("<LandingUseCases") > landing.indexOf("<LandingFillGap"),
+    landing.indexOf("<LandingReviewer") > landing.indexOf("<LandingFillGap"),
+    "the reviewer should follow filling the gap",
+  )
+  assert.ok(
+    landing.indexOf("<LandingUseCases") > landing.indexOf("<LandingReviewer"),
     "the four-tab loop should follow the new chapters",
   )
   assert.ok(
@@ -126,9 +130,26 @@ test("the landing upload keeps the canonical anonymous preview handoff", () => {
   assert.match(picker, /`\/cv-preview\?\$\{params\.toString\(\)\}`/)
   assert.match(hero, /destination=\{uploadDestination\(pick\)\}/)
   assert.match(gap, /destination=\{uploadDestination\(pick\)\}/)
+  const reviewer = read("components/public/landing/reviewer.tsx")
+  assert.match(reviewer, /destination=\{uploadDestination\(pick\)\}/)
   assert.match(uploadButton, /useCvHandoff\(destination\)/)
   assert.doesNotMatch(uploadButton, /router|href=/)
   assert.match(dropzone, /No CV\? Paste your CV text/)
   assert.match(hero, /Browse jobs instead/)
   assert.doesNotMatch(landing, /landing_dropzone_closing/)
+})
+
+
+test("the reviewer chapter reads the live slots and states only the agreed credentials", () => {
+  const reviewer = read("components/public/landing/reviewer.tsx")
+
+  // Dots and the open count come from the public read, never a literal (spec
+  // #66 Q15–Q16): "full" only when every slot holds a check.
+  assert.match(reviewer, /humanCheckSlots\.get\(\)/)
+  assert.match(reviewer, /slots\.slots_open === 0/)
+  assert.match(reviewer, /\{slots \? <SlotsLine/)
+  assert.doesNotMatch(reviewer, /Capgemini/)
+  for (const credential of ["IIM Lucknow", "MIT Manipal", "CAT 99.65", "XAT 98.05", "nearly 5,000 CVs"]) {
+    assert.ok(reviewer.includes(credential), `missing agreed credential: ${credential}`)
+  }
 })

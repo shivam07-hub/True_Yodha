@@ -10,6 +10,7 @@ import { LandingOpenJobs } from "@/components/public/landing/open-jobs"
 import { LandingRoleSkills } from "@/components/public/landing/role-skills"
 import { LandingGapExample } from "@/components/public/landing/gap-example"
 import { LandingFillGap } from "@/components/public/landing/fill-gap"
+import { LandingReviewer } from "@/components/public/landing/reviewer"
 import { BridgeRail } from "@/components/public/landing/bridge-rail"
 import type { RolePick } from "@/components/public/landing/role-picker"
 import { LandingLiveMirror } from "@/components/public/landing/live-mirror"
@@ -29,15 +30,16 @@ import "@/components/public/landing/landing-commons.css"
 import "@/components/public/landing/landing-company-rail.css"
 import "@/components/public/landing/landing-chapters.css"
 import "@/components/public/landing/landing-gap.css"
+import "@/components/public/landing/landing-reviewer.css"
 import "@/components/public/landing/landing-motion.css"
 
 /**
  * Myro landing, spec #66: one scroll from what MNCs hire for to your gap. The
  * hero asks for the job (role, then level) above the one dropzone; chapter 2
  * shows where those jobs are open, chapter 3 what they ask for, chapter 4 a CV
- * read against one, chapter 5 how a gap gets filled. The bridge rail fills one
- * segment per chapter crossed. Sections below chapter 5 are the old page,
- * replaced by L5–L6.
+ * read against one, chapter 5 how a gap gets filled, chapter 6 the person who
+ * reviews it. The bridge rail fills one segment per chapter crossed. Sections
+ * below chapter 6 are the old page, replaced by L6.
  */
 export function LandingPage() {
   const router = useRouter()
@@ -93,6 +95,8 @@ export function LandingPage() {
         <LandingGapExample pick={pick} />
 
         <LandingFillGap />
+
+        <LandingReviewer pick={pick} />
 
         <LandingUseCases
           companyNames={data.marqueeNames}

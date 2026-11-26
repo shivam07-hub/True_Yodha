@@ -1,0 +1,119 @@
+/* Spec #66 chapter 6: one person, on Finlatics' mentor-card pattern. Photo,
+   name (the one link, so it alone takes the interactive colour, on its mark),
+   a short bio, the credentials. Hard corners on the photo, like every surface
+   here. The slot dots borrow the bridge rail's language: filled = a check on
+   the desk, hollow = free now. */
+
+.lp-reviewer {
+  display: grid;
+  grid-template-columns: 128px minmax(0, 1fr);
+  grid-template-areas:
+    "photo name"
+    "photo bio"
+    "photo creds";
+  align-content: start;
+  column-gap: 24px;
+  max-width: 720px;
+}
+
+.lp-reviewer-photo {
+  grid-area: photo;
+  width: 128px;
+  height: 128px;
+  border: 1px solid var(--lp-border);
+  object-fit: cover;
+}
+
+.lp-reviewer-name {
+  grid-area: name;
+  margin: 0;
+  font-size: var(--lp-fs-heading);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.lp-reviewer-name a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--lp-text);
+  text-decoration: none;
+  text-underline-offset: 4px;
+}
+
+.lp-reviewer-name a svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--tm-interactive);
+}
+
+.lp-reviewer-name a:hover { text-decoration: underline; }
+
+.lp-reviewer-name a:focus-visible {
+  outline: 2px solid var(--tm-int-border);
+  outline-offset: 3px;
+}
+
+.lp-reviewer-bio {
+  grid-area: bio;
+  max-width: 60ch;
+  margin: 8px 0 0;
+  color: var(--lp-text);
+  font-size: var(--tm-fs-body);
+  line-height: 1.55;
+}
+
+.lp-reviewer-creds {
+  grid-area: creds;
+  margin: 10px 0 0;
+  color: var(--lp-muted);
+  font-size: var(--tm-fs-caption);
+  line-height: 1.5;
+}
+
+.lp-term { white-space: nowrap; }
+
+.lp-reviewer-slots {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 28px 0 0;
+  color: var(--lp-text);
+  font-size: var(--tm-fs-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.lp-reviewer-dots {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.lp-reviewer-dot {
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--lp-text);
+  border-radius: 50%;
+}
+
+.lp-reviewer-dot[data-taken="true"] { background: var(--lp-text); }
+
+@media (max-width: 720px) {
+  .lp-reviewer {
+    grid-template-columns: 72px minmax(0, 1fr);
+    grid-template-areas:
+      "photo name"
+      "bio   bio"
+      "creds creds";
+    align-items: center;
+    column-gap: 16px;
+  }
+
+  .lp-reviewer-photo {
+    width: 72px;
+    height: 72px;
+  }
+
+  .lp-reviewer-bio { margin-top: 16px; }
+}
