@@ -2906,3 +2906,37 @@ autovacuum keep reading the 772MB `jobs` table and push them out. Not caused
 by `search_live_jobs`; ⌘K and the landing search pay it too. Compute stays
 Micro (Shivam, 2026-10-14, cost), so the levers are smaller reads: a live-only
 narrow index (63k of 107k rows) or a cheaper worker poll.
+
+---
+
+## 35. The landing's role chips ride the market snapshot (2026-11-26)
+
+Spec #66 L1, `GET /public/landing-roles`. The landing needs, before any CV: the
+eight busiest role families, open jobs and top employers per family, and the
+skills employers ask for per experience band. Counting that live is a scan of
+`jobs` per visitor; `list_role_families` (principal-only, `roles.py:90`) also
+ranks by the caller's CV, which an anonymous visitor does not have.
+
+**Built Tier 0 from the start.** `MarketAnalyticsCompiler.compile` already walks
+every live row once for `market_analytics_snapshot`; it now also builds
+`landing_roles` (`services/landing_roles.py`) when the snapshot write passes the
+editorial lists (`LandingCuration`: `role_family_labels.is_catch_all` and
+`skill_demand_skill_deny`, two small reads at refresh time). The endpoint is a
+`shared_cache` slice of the snapshot with the `/public/stats` Cache-Control. A
+snapshot written before L1 serves `{"roles": []}`; the dirty guard treats a
+payload without `landing_roles` as stale, like `industry_roles` (S9).
+
+**Measured, read-only dry run on live rows (2026-11-26):** 116,049 rows,
+fetch 184.9s (the existing snapshot fetch; `seniority_level` added to its
+columns), compile **824ms**, payload **19 KB** (snapshot was 179 KB). The
+existing fetch dominates; the landing work is under 1% of the write.
+
+**What the data says, so the page does not promise otherwise:** stated seniority
+on a 5% sample of active jobs — mid 28%, blank 27%, senior 19%, lead 13%, entry
+8%, executive 5%, intern 0.3%. Most intern bands come out `thin` (greyed): the
+corpus has few internships, and the page should show that, not hide it.
+
+**Open:** the snapshot is written by whichever API receives the refresh call.
+Until L1 reaches `main`, a prod-side write rebuilds the payload without
+`landing_roles` and the endpoint serves `[]` until a `Develop`-side write. Live
+endpoint latency is measured once a populated snapshot exists.

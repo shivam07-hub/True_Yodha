@@ -232,4 +232,11 @@ L0 collides with nothing. L1 blocks L2, L3. L5 needs only L0's footer set.
   counters' tile in `landing/stats.tsx` (L6 deletes the tile with `LandingCommons`).
 - Shivam: X stays in the footer unless he says otherwise.
 - The real top 4 roles may differ from the placeholders; the copy holds for any
-  four.
+  four. **Measured 2026-11-26 (L1 dry run):** Banking Services 11,695 ·
+  Software Development 5,885 · Business Analysis 4,807 · AI/ML 4,430 ·
+  Project Management 2,627 · Business Strategy 2,448 · Business Consulting 1,748 ·
+  Customer Service 1,644. Chips show family names; "Artificial Intelligence and
+  Machine Learning (AI/ML)" needs a short display name in L2.
+- Intern bands are thin in most families (0.3% of active jobs state intern).
+  The hero's "Internship" level will often be greyed. Decide in L2 whether the
+  level row links greyed Internship to `/internships` instead.
