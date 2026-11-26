@@ -1068,8 +1068,18 @@
 }
 
 /* ── Mobile: kill horizontal scroll across whole app ──────────── */
+/* clip, not hidden: `hidden` made <body> a scroll container that never
+   scrolls, so on a page that scrolls the body every `position: sticky` went
+   with it (the public nav on /privacy, /docs, /newsletter, /companies … at
+   375px, measured 2026-11-26). `hidden` stays first as the fallback for
+   browsers without `clip`. On the root, `clip` reaches the viewport as
+   `hidden`, so horizontal scroll stays dead. The app shell is untouched: it
+   scrolls .tm-main-scroll, not the body. */
 @media (max-width: 768px) {
-  html, body { overflow-x: hidden !important; }
+  html, body {
+    overflow-x: hidden !important;
+    overflow-x: clip !important;
+  }
 }
 
 /* ── Mobile: /skills page header (ScoreRing) ──────────────────── */

@@ -50,7 +50,9 @@ export function Section({ id, n, title, children }: { id: string; n: string; tit
         borderLeft: "3px solid var(--tm-interactive)",
         borderRadius: "var(--tm-radius-lg)",
         padding: "24px",
-        scrollMarginTop: "32px",
+        // Clears the sticky public nav (60px desktop, 56px phone) on a
+        // Contents jump; 32px left the card's top under the bar.
+        scrollMarginTop: "calc(var(--tm-desktop-nav-h) + 16px)",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>

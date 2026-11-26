@@ -148,19 +148,6 @@
   color: var(--lp-muted);
 }
 
-/* globals.css kills horizontal scroll on phones with `html, body { overflow-x:
-   hidden !important }`, which makes <body> a scroll container and un-sticks the
-   nav and the bridge rail. On the landing, clip does the same job without that
-   side effect (`hidden` stays as the fallback). Scoped here on purpose: the
-   app-wide rule likely un-sticks other pages' headers too, unaudited. */
-@media (max-width: 768px) {
-  html:has(.tm-landing),
-  body:has(.tm-landing) {
-    overflow-x: hidden !important;
-    overflow-x: clip !important;
-  }
-}
-
 /* ── Reused PublicTopNav → fixed-feel dark terminal bar ─────── */
 .tm-landing .tm-public-nav {
   height: var(--lp-nav-h);

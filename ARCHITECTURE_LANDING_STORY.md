@@ -246,9 +246,12 @@ guard, e.g. "Track (Rail Transport)" under Project Management and "International
   Project Management 2,627 · Business Strategy 2,448 · Business Consulting 1,748 ·
   Customer Service 1,644. Chips show family names; "Artificial Intelligence and
   Machine Learning (AI/ML)" needs a short display name in L2.
-- **App-wide, unaudited:** `globals.css` sets `html, body { overflow-x: hidden
-  !important }` under 768px, which un-sticks every `position: sticky` element on
-  phones. L3 fixed it for the landing only.
+- **App-wide, fixed 2026-11-26:** `globals.css` set `html, body { overflow-x:
+  hidden !important }` under 768px, which un-stuck the public nav on every
+  body-scrolled public page at 375px. It is now `clip` (with `hidden` as the
+  fallback line) for the whole app, and the landing's `:has(.tm-landing)`
+  override is gone. `/signup/institutions` still un-sticks its nav through its
+  own `.es-page { overflow-x: hidden }`.
 - Intern bands are thin in most families (0.3% of active jobs state intern).
   The hero's "Internship" level will often be greyed. Decide in L2 whether the
   level row links greyed Internship to `/internships` instead.
