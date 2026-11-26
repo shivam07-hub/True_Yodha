@@ -5,7 +5,7 @@ import Link from "next/link"
 import { ExternalLink } from "lucide-react"
 import { trackEvent } from "@/lib/analytics"
 import { LandingDropzone, type LandingDropzoneHandle } from "./dropzone"
-import { LEVEL_LABEL, RolePicker, roleLabel, uploadDestination, type RolePick } from "./role-picker"
+import { RolePicker, pickLabel, uploadDestination, type RolePick } from "./role-picker"
 
 interface LandingHeroProps {
   /** The job the visitor picked. Owned by the landing page, because chapters 2
@@ -36,10 +36,6 @@ export function LandingHero({ pick, onPick }: LandingHeroProps) {
     dzRef.current?.openFilePicker()
   }
 
-  const target = pick
-    ? [roleLabel(pick.family), pick.band ? LEVEL_LABEL[pick.band] : null].filter(Boolean).join(" · ")
-    : null
-
   return (
     <section className="lp-hero" aria-labelledby="landing-heading" data-bridge-step>
       <div className="lp-wrap lp-hero-inner">
@@ -55,7 +51,7 @@ export function LandingHero({ pick, onPick }: LandingHeroProps) {
 
         <div className="lp-hero-start">
           <p className="lp-eyebrow lp-hero-start-eyebrow">
-            {target ? `Your CV vs ${target}` : "Your CV"}
+            {pick ? `Your CV vs ${pickLabel(pick)}` : "Your CV"}
           </p>
           <LandingDropzone
             ref={dzRef}

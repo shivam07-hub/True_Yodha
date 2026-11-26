@@ -216,3 +216,8 @@
   .lp-bridge-dot,
   .lp-bridge-seg { transition: none; }
 }
+
+/* Chapter 7: the hero's dropzone at the chapters' measure. The footer's own
+   hairline closes it, so it draws none. */
+.lp-close { border-bottom: 0; }
+.lp-close .lp-dz-wrap { max-width: 720px; }

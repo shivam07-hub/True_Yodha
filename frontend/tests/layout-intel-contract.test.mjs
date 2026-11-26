@@ -47,19 +47,12 @@ test("cv upload claim keeps job id after auth handoff", () => {
   assert.ok(source.includes('`/cv?jobId=${encodeURIComponent(uploadJobId)}`'))
 })
 
-test("intel console is backed by tracked companies, not fake URL seeds", () => {
+test("no public header shows the invented runner console", () => {
+  // The LLM-runner console (spec #66 L6) printed a random GPU % and tokens/s
+  // beside real counts. It left with the landing's live-mirror, its last mount.
   const heroSource = read("components/public/intel/intel-hero.tsx")
-  // The IntelHero console moved from the /intel page to the landing page's
-  // live-mirror (2026-08-14) — this is now its only mount.
-  const mirrorSource = read("components/public/landing/live-mirror.tsx")
-  const dataSource = read("components/public/intel/intel-data.ts")
-
-  assert.ok(heroSource.includes("buildConsoleSeeds"))
-  assert.ok(heroSource.includes("RUNNER_MODEL_LABELS"))
-  assert.ok(mirrorSource.includes("consoleCompanies={analytics?.by_company ?? []}"))
-  assert.doesNotMatch(dataSource, /LOG_SEEDS/)
-  assert.doesNotMatch(heroSource, /Last commit/)
-  assert.doesNotMatch(heroSource, /gpt-oss-120b/)
+  assert.doesNotMatch(heroSource, /export function IntelHero\b|Math\.random|LLM RUNNER/)
+  assert.match(heroSource, /export function IntelAuthedHeader/)
 })
 
 test("authenticated intel waits for profile and follows before deciding it is empty", () => {
@@ -75,13 +68,8 @@ test("authenticated intel waits for profile and follows before deciding it is em
   assert.doesNotMatch(styles, /\.si-empty \.si-primary \{[\s\S]*#[0-9a-f]{3,8}/i)
 })
 
-test("landing and intel search use the shared public search console", () => {
-  const landingSource = read("components/public/landing/job-search.tsx")
+test("intel search uses the shared public search console", () => {
   const paneSource = read("components/public/intel-pane.tsx")
-
-  assert.ok(landingSource.includes("JobSearchConsole"))
-  assert.ok(landingSource.includes("buildIntelSearchHref"))
-  assert.doesNotMatch(landingSource, /publicCv\.searchJobs/)
 
   assert.ok(paneSource.includes("JobSearchConsole"))
   assert.ok(paneSource.includes("useSearchParams"))

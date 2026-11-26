@@ -203,8 +203,8 @@ with photo, name with LinkedIn icon, a short third-person bio.
   2026-11-26). "Nearly 5,000" because Shivam said "around". XAT 98.05 comes from
   his MBA CV (`453_Shivam Pathak_C_27th.docx`); LinkedIn was behind its login wall,
   so the figure was not checked there.
-- **No user count.** `/public/stats` returns `seekers`; the page shows it only
-  when a deploy sets `NEXT_PUBLIC_SEEKERS_COUNT`, as today.
+- **No user count.** `/public/stats` returns `seekers`; the page never shows it
+  (the unused `NEXT_PUBLIC_SEEKERS_COUNT` read left with L6).
 - **Before upload: "open now", never "within reach".** Reach needs a CV; it
   belongs to the first screen after upload (Q8).
 
@@ -221,7 +221,7 @@ with photo, name with LinkedIn icon, a short third-person bio.
 | L3 | Chapters 2–3 from L1, plus the bridge rail | Counts match L1; tabs swipe at 375. **Built 2026-11-26.** The counters strip left the hero; the company rail closes chapter 2; the pick lives on the landing page so chapters 2–3 follow it. Skills under 5% of a slice dropped in the compile. The rail sticks under the nav: `.tm-landing` and, on phones, `html/body` used `overflow-x: hidden`, which made them scroll containers and un-stuck the nav too; the landing now uses `clip` (scoped by `:has(.tm-landing)` on phones) |
 | L4 | Chapters 4–5: the example and the ladder; Finlatics rail moves here | **Built 2026-11-26.** Chapter 4's Upload CV opens the file picker where the reader is and hands off through the dropzone's own `useCvHandoff`, so it lands on the same `/cv-preview?role=&level=`; `uploadDestination` moved to `role-picker.tsx` for every upload to share. Chapter 5 closes with the Finlatics rail, the whole catalogue: "programmes for the missing skills" needs a family → programme match in the snapshot (the signed-in `/career-skill-path` training match exists). Section titles wrap, balanced, instead of being clipped (chapter 5's ran off a 375px screen); chapter sub-lines read at caption size, not 9px |
 | L5 | Reviewer chapter + a public open-check count read (`human_check.availability`), photo asset | Dots match `/admin/checks`. **Built 2026-11-26.** `GET /public/human-check` (READ_PATH §36): `capacity`, `slots_open`, `check_hours`, `ready_by`, `price_paise`, so the 5, the 24 and the ₹199 come from code. `slots_open` counts open checks, so a late check still holds its slot. On 11-26 the table holds no check, so the page reads "○○○○○ 5 open now". The bio names Shivam without a pronoun ("…nearly 5,000 CVs and works in Data & AI…"). Photo at `frontend/public/reviewer/shivam-pathak.jpg`, 400px, 32 KB. The terms describe the ₹199 pack as OFFERING.md sells it today; the 11-26 call-inclusive ₹199 changes this line when it is built |
-| L6 | Close; delete `LandingUseCases`, `LandingCommons`, `LandingJobSearch`, `LandingLiveMirror` from the landing (log + search live on `/intel`) | No unreachable component left behind |
+| L6 | Close; delete `LandingUseCases`, `LandingCommons`, `LandingJobSearch`, `LandingLiveMirror` from the landing (log + search live on `/intel`) | No unreachable component left behind. **Built 2026-11-26.** Chapter 7 is the hero's dropzone again, carrying the pick ("Your CV vs …" when one is set); it is the last bridge step. Search and the industry explorer were already on `/intel`; colleges and the newsletter stay in the footer and nav. The log was not on `/intel`: the live-mirror was the LLM-runner console's last mount, and its GPU % and tokens/s were `Math.random()`, so it left with its CSS and seed model instead of moving. Gone with the four sections: the five tab samples, six stylesheets, the unused counts in `useLandingData` |
 | L7 | After upload (Q8): role + level gap and "N within reach today" | Reuses fit-preview and playground cards; sign-up only at tailor or save |
 | L8 | `next_action` gains an apply step (Q3) | Apply shows before learning on the skill path |
 
@@ -237,8 +237,8 @@ guard, e.g. "Track (Rail Transport)" under Project Management and "International
 ## 7 · Open
 
 - Shivam: should the GitHub repo itself go private? Removing the footer link
-  does not hide it. Open source is also cited in `intel/intel-hero.tsx` and the
-  counters' tile in `landing/stats.tsx` (L6 deletes the tile with `LandingCommons`).
+  does not hide it. Since L6 no public page claims open source (the last one,
+  `IntelHero`'s lede, left with the runner console).
 - Shivam: X stays in the footer unless he says otherwise.
 - The real top 4 roles may differ from the placeholders; the copy holds for any
   four. **Measured 2026-11-26 (L1 dry run):** Banking Services 11,695 ·

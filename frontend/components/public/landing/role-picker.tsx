@@ -43,6 +43,11 @@ export interface RolePick {
   band: LandingBand | null
 }
 
+/** The pick as the page names it beside a dropzone: "Data Analyst · 0–2 yrs". */
+export function pickLabel(pick: RolePick): string {
+  return [roleLabel(pick.family), pick.band ? LEVEL_LABEL[pick.band] : null].filter(Boolean).join(" · ")
+}
+
 /** Where an upload lands, carrying the job the visitor picked so the first
  *  screen after the score can read their CV against it (spec #66 Q8, L7).
  *  Every upload on the landing uses this, so the pick rides whichever one

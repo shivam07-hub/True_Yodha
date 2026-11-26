@@ -9,14 +9,11 @@ function read(path) {
   return readFileSync(join(frontendRoot, path), "utf8")
 }
 
-test("the public landing runs the operation story: hero dropzone + four-tab loop", () => {
+test("the public landing tells one story, hero to close", () => {
   const landing = read("components/public/landing-page.tsx")
   const hero = read("components/public/landing/hero.tsx")
-  const hub = read("components/public/landing/use-cases.tsx")
   const companyRail = read("components/public/landing/company-rail.tsx")
   const motion = read("components/public/landing/landing-motion.css")
-  const match = read("components/public/landing/how-it-works.tsx")
-  const score = read("components/public/landing/score-sample.tsx")
 
   // Hero (spec #66 chapter 1): what MNCs hire for, the job you want and your
   // level, then the dropzone carrying that pick.
@@ -32,36 +29,6 @@ test("the public landing runs the operation story: hero dropzone + four-tab loop
   assert.match(landing, /<LandingHero pick=\{pick\} onPick=\{setPick\} \/>/)
   assert.match(hero, /data-bridge-step/)
 
-  // The four-tab loop is its own labelled section, tab 01 default.
-  assert.match(hub, /role="tablist"/)
-  assert.match(hub, /Four things, one loop\./)
-  assert.match(hub, /01 · tailor & apply/)
-  assert.match(hub, /02 · live job data/)
-  assert.match(hub, /03 · pipeline tracker/)
-  assert.match(hub, /04 · company intel/)
-  assert.match(hub, /id="use-cases"/)
-  assert.match(hub, /LandingScoreSample/)
-  assert.match(hub, /LandingMatchSample/)
-  assert.match(hub, /LandingLiveSample/)
-  assert.match(hub, /LandingPipelineSample/)
-  assert.match(hub, /LandingIntelSample/)
-  assert.doesNotMatch(hub, /LandingDropzone|lp-hub-drop/)
-
-  // The sample eyebrows are what keep illustrative panels honest — handoff §4
-  // lists them verbatim and says not to drop them.
-  assert.match(score, /example myro score/)
-  assert.match(match, /myro job match/)
-  assert.match(match, /Tailor &amp; apply/)
-  // The source rail lived here and repeated the company marquee 200px below it.
-  // Company provenance belongs to LandingCompanyRail, once.
-  assert.doesNotMatch(match, /Live source|company career pages/)
-
-  // The active tab is marked by an indicator element, never by colour: it has
-  // to overlap the tablist hairline so the tab joins its panel (handoff §3).
-  assert.match(hub, /lp-hub-tab-mark/)
-  assert.match(hub, /id={`tab-\${item\.id}`}/)
-  assert.match(hub, /aria-controls={`panel-\${item\.id}`}/)
-
   assert.match(companyRail, /Read live from/)
   assert.match(companyRail, /company career pages/)
   assert.match(companyRail, /useAllowLoopingMotion/)
@@ -69,10 +36,14 @@ test("the public landing runs the operation story: hero dropzone + four-tab loop
   assert.match(motion, /lp-company-rail-run/)
   assert.match(motion, /prefers-reduced-motion: no-preference/)
 
-  // Section order (spec #66 L5): hero → open jobs (holds the company rail) →
+  // Section order (spec #66 L6): hero → open jobs (holds the company rail) →
   // skills → the gap → fill the gap (holds the partner rail) → the reviewer →
-  // use-cases → live-mirror → search → commons.
-  assert.doesNotMatch(landing, /LandingClosing|LandingHowItWorks|LandingApplicationPlan|LandingDomains/)
+  // the close. The old sections left: search and the industry explorer live
+  // on /intel, colleges and the newsletter in the footer.
+  assert.doesNotMatch(
+    landing,
+    /LandingUseCases|LandingLiveMirror|LandingJobSearch|LandingCommons|LandingClosing|LandingHowItWorks|LandingApplicationPlan|LandingDomains/,
+  )
   const openJobs = read("components/public/landing/open-jobs.tsx")
   assert.match(openJobs, /<LandingCompanyRail/)
   assert.doesNotMatch(landing, /<LandingCompanyRail/, "the company rail renders once, inside chapter 2")
@@ -100,17 +71,17 @@ test("the public landing runs the operation story: hero dropzone + four-tab loop
     "the reviewer should follow filling the gap",
   )
   assert.ok(
-    landing.indexOf("<LandingUseCases") > landing.indexOf("<LandingReviewer"),
-    "the four-tab loop should follow the new chapters",
+    landing.indexOf("<LandingClose") > landing.indexOf("<LandingReviewer"),
+    "the close should follow the reviewer",
   )
   assert.ok(
-    landing.indexOf("<LandingLiveMirror") < landing.indexOf("<LandingJobSearch"),
-    "the search/industry shortcut should follow the live-mirror proof",
+    landing.indexOf("</main>") > landing.indexOf("<LandingClose") &&
+      landing.indexOf("<LandingClose") === landing.lastIndexOf("<Landing"),
+    "the close should be the last chapter",
   )
-  assert.ok(
-    landing.indexOf("<LandingCommons") > landing.indexOf("<LandingJobSearch"),
-    "the commons strip should close the page",
-  )
+  const close = read("components/public/landing/close.tsx")
+  assert.match(close, /See your gap\. Free, no sign-up\./)
+  assert.match(close, /data-bridge-step/)
 })
 
 test("the landing upload keeps the canonical anonymous preview handoff", () => {
@@ -136,7 +107,9 @@ test("the landing upload keeps the canonical anonymous preview handoff", () => {
   assert.doesNotMatch(uploadButton, /router|href=/)
   assert.match(dropzone, /No CV\? Paste your CV text/)
   assert.match(hero, /Browse jobs instead/)
-  assert.doesNotMatch(landing, /landing_dropzone_closing/)
+  const close = read("components/public/landing/close.tsx")
+  assert.match(close, /<LandingDropzone variant="stage" source="landing_dropzone_close" destination=\{uploadDestination\(pick\)\}/)
+  assert.match(landing, /<LandingClose pick=\{pick\} \/>/)
 })
 
 
