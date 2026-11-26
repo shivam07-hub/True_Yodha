@@ -2940,3 +2940,31 @@ corpus has few internships, and the page should show that, not hide it.
 Until L1 reaches `main`, a prod-side write rebuilds the payload without
 `landing_roles` and the endpoint serves `[]` until a `Develop`-side write. Live
 endpoint latency is measured once a populated snapshot exists.
+
+## 36. The reviewer's open slots, one cached read for every visitor (2026-11-26)
+
+Spec #66 L5, `GET /public/human-check`. The landing's reviewer chapter shows how
+many of the five Human Check slots are free, live (Q15–Q16), so the read is
+unauthenticated and on a page every visitor loads.
+
+**The query is already cheap; the cost is the round trip.** `open_due_ats()` is
+`human_checks where status in ('queued','in_review')`. EXPLAIN ANALYZE on live
+(2026-11-26): bitmap index scan on `idx_human_checks_status_due`, **0.07ms**,
+2 buffers, 0 rows (no check has ever been bought). A visitor would still pay a
+~165ms round trip, so the endpoint is a `shared_cache` entry, 60s fresh, 600s
+stale, with `Cache-Control: public, max-age=60` and no stale-while-revalidate:
+an hour-old count on the page would be a wrong number, a minute-old one is not.
+Staleness is safe because the page never refuses a sale on it (ENG3: a check
+sells in every state, "ready by" shown before paying).
+
+**Measured locally against the shared DB:** first call 11.7ms process time,
+then **0.8ms** cached; payload 112 bytes.
+
+**Open:** `/payments/catalogue` reads the same slots uncached on every call, and
+it renders on public `/intel` too (`intel-apply-pack.tsx`), not only on the
+signed-in `/apply-pack`. Left as is in L5; it could read this cached entry.
+
+**Trap seen while verifying:** opening the endpoint URL directly in a browser
+caches a response with no `Access-Control-Allow-Origin` (no `Origin` header, so
+no `Vary: Origin` either); the landing's CORS fetch then reuses it and fails
+with `net::ERR_FAILED` for 60 seconds. A visitor never does this; a tester does.

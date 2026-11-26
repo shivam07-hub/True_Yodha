@@ -173,9 +173,11 @@ def test_capacity_is_shared_across_both_kinds_and_the_sixth_waits_for_a_slot() -
         hc.open_check(store, f"u{i}", billing_payment_id=f"pay-cv-{i}", job_id=f"job-{i}")
     _queued_linkedin(store, user="l0")
     assert hc.availability(store).checks_full is False  # four open, one slot left
+    assert hc.availability(store).slots_open == 1
 
     _queued_linkedin(store, user="l1")
     assert hc.availability(store).checks_full is True  # five open, both kinds count
+    assert hc.availability(store).slots_open == 0
 
     earliest_due = min(store.open_due_ats())
     sixth = hc.open_check(store, "u6", billing_payment_id="pay-6", job_id="job-6")
@@ -184,14 +186,32 @@ def test_capacity_is_shared_across_both_kinds_and_the_sixth_waits_for_a_slot() -
     assert datetime.fromisoformat(sixth["due_at"]) == earliest_due + timedelta(hours=24)
     offer = hc.availability(store)
     assert offer.checks_full is True
+    assert offer.slots_open == 0  # six open never reads as a negative slot
     assert offer.ready_by > earliest_due + timedelta(hours=24) - timedelta(seconds=1)
 
 
 def test_ready_by_is_24_hours_out_while_a_slot_is_free() -> None:
     now = datetime(2026, 11, 22, 9, 0, tzinfo=timezone.utc)
     assert hc.slot_start([], now) == now
-    offer = hc.Availability(checks_full=False, ready_by=now + timedelta(hours=24))
+    offer = hc.availability(InMemoryChecks(), now)
+    assert offer.checks_full is False
+    assert offer.slots_open == hc.MAX_OPEN_CHECKS
     assert offer.ready_by - now == timedelta(hours=24)
+
+
+def test_a_late_check_still_holds_its_slot() -> None:
+    """Five open checks all past due: the clock starts now (the next slot is
+    already owed), but the five are still on the reviewer's desk, so the public
+    count says none is open (spec #66 Q16: "full" only when all five hold one)."""
+
+    class _Late:
+        def open_due_ats(self) -> list[datetime]:
+            return [now - timedelta(hours=h) for h in range(1, 6)]
+
+    now = datetime(2026, 11, 22, 9, 0, tzinfo=timezone.utc)
+    offer = hc.availability(_Late(), now)  # type: ignore[arg-type]
+    assert offer.slots_open == 0
+    assert offer.ready_by == now + timedelta(hours=24)
 
 
 # ── reviewer transitions ────────────────────────────────────────────────────

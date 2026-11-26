@@ -40,7 +40,7 @@ from app.services.matching.filter_spec import FilterSpec
 from app.services.matching.job_query import JobQuery
 from app.services.scoring.formulas import build_skill_level_map
 from app.services.scoring.orchestrator import project_score
-from app.services import shared_cache
+from app.services import billing_catalogue, human_check, shared_cache
 
 # Public pages are the front door: a visitor's AI is a person's AI, billed to
 # OpenRouter like a user's (Shivam, 2026-11-25). See llm_spender.
@@ -215,6 +215,47 @@ def get_landing_roles(response: Response) -> dict[str, Any]:
         _compile_landing_roles,
         ttl_seconds=_CACHE_TTL_SECONDS,
         stale_seconds=_CACHE_STALE_SECONDS,
+    )
+
+
+# ─── The reviewer's open slots (spec #66 L5) ─────────────────────────────────
+#
+# The landing's reviewer chapter shows how many of the five Human Check slots
+# are free, live. One indexed read of the open checks, shared by every visitor
+# for a minute: the count moves only when someone buys or a check is delivered.
+# A stale count is safe because the page never refuses a sale on it (ENG3: a
+# check sells in every state, with its "ready by" shown before paying).
+
+_SLOTS_TTL_SECONDS = 60
+
+
+class HumanCheckSlots(BaseModel):
+    capacity: int  # checks one reviewer holds open at once
+    slots_open: int
+    check_hours: int  # the promise: a check comes back within this
+    ready_by: str  # when a check bought now comes back
+    price_paise: int  # the Apply Pack, which carries one check
+
+
+def _compile_human_check_slots() -> dict[str, Any]:
+    slots = human_check.availability(human_check.SupabaseHumanCheckStore())
+    return {
+        "capacity": human_check.MAX_OPEN_CHECKS,
+        "slots_open": slots.slots_open,
+        "check_hours": human_check.CHECK_HOURS,
+        "ready_by": slots.ready_by.isoformat(),
+        "price_paise": billing_catalogue.by_alias("apply_pack").price_paise,
+    }
+
+
+@router.get("/human-check", response_model=HumanCheckSlots)
+def get_human_check_slots(response: Response) -> dict[str, Any]:
+    response.headers["Cache-Control"] = f"public, max-age={_SLOTS_TTL_SECONDS}"
+    return shared_cache.get_or_compute(
+        "public_human_check_slots",
+        _compile_human_check_slots,
+        ttl_seconds=_SLOTS_TTL_SECONDS,
+        stale_seconds=_SLOTS_TTL_SECONDS * 10,
     )
 
 
