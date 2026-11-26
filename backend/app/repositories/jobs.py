@@ -21,6 +21,7 @@ from app.services import job_importer, shared_cache, skill_floor
 from app.services.background import debounce
 from app.services.industry_grouping import normalize_industry_group
 from app.services.job_history import attach_jobs
+from app.services.landing_roles import compile_landing_roles
 from app.services.listing_liveness import is_down, is_live, live_only
 from app.services.internships import hosted_fields
 from app.services.listing_time import CARD_COLUMNS, HOSTED_COLUMNS, SEED_COLUMN, day, marker, verdict as listing_time
@@ -538,7 +539,16 @@ def _matches_location_filters(
 class MarketAnalyticsCompiler:
     """Compiles raw market rows into deterministic analytics payloads."""
 
-    def compile(self, rows: list[dict[str, Any]], *, now: datetime | None = None) -> dict[str, Any]:
+    def compile(
+        self,
+        rows: list[dict[str, Any]],
+        *,
+        now: datetime | None = None,
+        catch_all: frozenset[str] | None = None,
+    ) -> dict[str, Any]:
+        """`catch_all` (residual family buckets) is passed only by the snapshot
+        write, the one place the landing's role chips are built; filtered live
+        compiles skip that work."""
         company_counts: Counter[str] = Counter()
         industry_counts: Counter[str] = Counter()
         role_counts: Counter[str] = Counter()
@@ -659,7 +669,7 @@ class MarketAnalyticsCompiler:
             }
             for name in company_counts
         }
-        return {
+        payload: dict[str, Any] = {
             "total_jobs": len(rows),
             "total_companies": len(company_counts),
             "total_industries": len(industry_counts),
@@ -695,6 +705,11 @@ class MarketAnalyticsCompiler:
                 for name, count in family_counts.most_common()
             ],
         }
+        if catch_all is not None:
+            # The landing's role chips and their open-jobs and skills chapters
+            # (spec #66 L1), so `/public/landing-roles` is a slice of this row.
+            payload["landing_roles"] = compile_landing_roles(rows, catch_all=catch_all)
+        return payload
 
 
 
@@ -839,7 +854,7 @@ class JobsRepository:
             columns=(
                 "job_id, company_name, industry, industry_group, role_domain, role_family, batch_date, "
                 "location, location_raw, location_city, location_country, location_mode, location_quality, locations, location_states, "
-                "main_skills, first_seen, ingested_at"
+                "main_skills, seniority_level, first_seen, ingested_at"
             ),
             query_builder=query_builder,
         )
@@ -888,6 +903,19 @@ class JobsRepository:
         payload = self._analytics_compiler.compile(rows)
         _analytics_cache[cache_key] = (now, payload)
         return payload
+
+    def _catch_all_families(self) -> frozenset[str]:
+        """Residual taxonomy buckets, never proposed as a role (one read of a
+        ~340-row snapshot table, at refresh time only)."""
+        rows = (
+            self._admin_db.table("role_family_labels")
+            .select("family")
+            .eq("is_catch_all", True)
+            .execute()
+            .data
+            or []
+        )
+        return frozenset(str(row["family"]) for row in rows if row.get("family"))
 
     def _read_snapshot_payload(self) -> dict[str, Any] | None:
         try:
@@ -943,6 +971,8 @@ class JobsRepository:
             "batch_marker": rows[0].get("source_last_seen"),
             "has_industry_roles": isinstance(payload, dict)
             and isinstance(payload.get("industry_roles"), dict),
+            "has_landing_roles": isinstance(payload, dict)
+            and isinstance(payload.get("landing_roles"), list),
         }
 
     def refresh_analytics_snapshot_if_stale(self, *, refreshed_by: str = "cron") -> dict[str, Any]:
@@ -959,6 +989,7 @@ class JobsRepository:
             and stored.get("job_count") == current["job_count"]
             and stored.get("batch_marker") == current["batch_marker"]
             and stored.get("has_industry_roles") is True
+            and stored.get("has_landing_roles") is True
         ):
             existing = self._read_snapshot_payload() or {}
             return {
@@ -980,7 +1011,7 @@ class JobsRepository:
         alongside so the next dirty-guard can detect a no-op.
         """
         rows = self.fetch_analytics_rows()
-        payload = self._analytics_compiler.compile(rows)
+        payload = self._analytics_compiler.compile(rows, catch_all=self._catch_all_families())
         if marker is None:
             marker = self._jobs_source_marker()
         self._admin_db.table("market_analytics_snapshot").upsert(

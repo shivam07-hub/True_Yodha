@@ -160,6 +160,64 @@ def get_public_stats(response: Response) -> dict[str, Any]:
     )
 
 
+
+# ─── Landing role chips (spec #66 L1) ─────────────────────────────────────────
+#
+# The eight roles the landing offers, with open jobs and the skills employers
+# ask for, per experience band. A slice of `market_analytics_snapshot` (Tier 0):
+# the snapshot write builds it, so a visitor costs one cached read at most.
+
+
+class LandingRoleSkill(BaseModel):
+    skill: str
+    share: float  # fraction of the slice's openings that ask for it
+
+
+class LandingRoleBand(BaseModel):
+    band: str  # intern | entry | mid | senior | lead | executive
+    jobs: int
+    companies: int
+    thin: bool  # too few openings or employers to read a market from
+    skills: list[LandingRoleSkill]
+
+
+class LandingRoleCompany(BaseModel):
+    name: str
+    jobs: int
+
+
+class LandingRole(BaseModel):
+    family: str
+    jobs: int
+    companies: int
+    top_companies: list[LandingRoleCompany]
+    skills: list[LandingRoleSkill]
+    bands: list[LandingRoleBand]
+
+
+class LandingRolesResponse(BaseModel):
+    roles: list[LandingRole]
+
+
+def _compile_landing_roles() -> dict[str, Any]:
+    analytics = get_public_jobs_repository().compile_market_analytics()
+    # A snapshot written before L1 has no key: an empty list, and the page hides
+    # the chapters rather than showing a number it did not read. The dirty guard
+    # rebuilds such a snapshot on its next run.
+    return {"roles": analytics.get("landing_roles") or []}
+
+
+@router.get("/landing-roles", response_model=LandingRolesResponse)
+def get_landing_roles(response: Response) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=3600"
+    return shared_cache.get_or_compute(
+        "public_landing_roles",
+        _compile_landing_roles,
+        ttl_seconds=_CACHE_TTL_SECONDS,
+        stale_seconds=_CACHE_STALE_SECONDS,
+    )
+
+
 # ─── Public CV-score preview (no auth) ───────────────────────────────────────
 #
 # The pre-login "drop your CV, see your real Myro Score" demo. Runs the REAL
