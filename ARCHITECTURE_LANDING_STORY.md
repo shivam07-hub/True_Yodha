@@ -250,8 +250,9 @@ guard, e.g. "Track (Rail Transport)" under Project Management and "International
   hidden !important }` under 768px, which un-stuck the public nav on every
   body-scrolled public page at 375px. It is now `clip` (with `hidden` as the
   fallback line) for the whole app, and the landing's `:has(.tm-landing)`
-  override is gone. `/signup/institutions` still un-sticks its nav through its
-  own `.es-page { overflow-x: hidden }`.
+  override is gone. `/signup/institutions` lost its own `.es-page { overflow-x:
+  hidden }` the same day (nothing there overflows), so its nav sticks too; its
+  form card stays unstuck, as it is taller than a 1366×768 laptop allows.
 - Intern bands are thin in most families (0.3% of active jobs state intern).
   The hero's "Internship" level will often be greyed. Decide in L2 whether the
   level row links greyed Internship to `/internships` instead.
