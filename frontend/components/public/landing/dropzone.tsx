@@ -6,6 +6,29 @@ import { stashAnonCvFile, stashAnonCvText } from "@/lib/anon-cv-stash"
 import { CV_UPLOAD_ACCEPT, CV_UPLOAD_FORMATS } from "@/lib/cv-file-detect"
 
 /**
+ * The landing's one hand-off: hold the CV in the browser, then open the scorer
+ * at `destination`. The dropzone and every upload button on the landing go
+ * through this, so no upload verb on the page can reach a signup wall.
+ */
+export function useCvHandoff(destination: string) {
+  const router = useRouter()
+  const [sending, setSending] = useState(false)
+  return {
+    sending,
+    sendFile(file: File) {
+      setSending(true)
+      stashAnonCvFile(file)
+      router.push(destination)
+    },
+    sendText(text: string) {
+      setSending(true)
+      stashAnonCvText(text)
+      router.push(destination)
+    },
+  }
+}
+
+/**
  * The live CV dropzone (grill: pre-login real score). The landing CV Hub
  * mounts the `stage` variant; `/cv-preview` can pass `onFile`/`onText` to
  * score in place instead of navigating.
@@ -48,11 +71,10 @@ export const LandingDropzone = forwardRef<LandingDropzoneHandle, LandingDropzone
   ) {
   const inputRef = useRef<HTMLInputElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
-  const router = useRouter()
-  const [navigating, setNavigating] = useState(false)
+  const handoff = useCvHandoff(destination)
   const [pasteOpen, setPasteOpen] = useState(false)
   const [text, setText] = useState("")
-  const pending = busy || navigating
+  const pending = busy || handoff.sending
 
   useImperativeHandle(ref, () => ({
     openFilePicker() {
@@ -68,18 +90,14 @@ export const LandingDropzone = forwardRef<LandingDropzoneHandle, LandingDropzone
     if (pending) return
     if (onFile) return onFile(file)
     // Landing path: hold the file, jump to the scorer.
-    setNavigating(true)
-    stashAnonCvFile(file)
-    router.push(destination)
+    handoff.sendFile(file)
   }
 
   function handleText() {
     const value = text.trim()
     if (pending || value.length < 40) return
     if (onText) return onText(value)
-    setNavigating(true)
-    stashAnonCvText(value)
-    router.push(destination)
+    handoff.sendText(value)
   }
 
   const stage = variant === "stage"

@@ -69,8 +69,9 @@ test("the public landing runs the operation story: hero dropzone + four-tab loop
   assert.match(motion, /lp-company-rail-run/)
   assert.match(motion, /prefers-reduced-motion: no-preference/)
 
-  // Section order (spec #66 L3): hero → open jobs (holds the company rail) →
-  // skills → use-cases → partner rail → live-mirror → search → commons.
+  // Section order (spec #66 L4): hero → open jobs (holds the company rail) →
+  // skills → the gap → fill the gap (holds the partner rail) → use-cases →
+  // live-mirror → search → commons.
   assert.doesNotMatch(landing, /LandingClosing|LandingHowItWorks|LandingApplicationPlan|LandingDomains/)
   const openJobs = read("components/public/landing/open-jobs.tsx")
   assert.match(openJobs, /<LandingCompanyRail/)
@@ -84,12 +85,19 @@ test("the public landing runs the operation story: hero dropzone + four-tab loop
     "skills should follow open jobs",
   )
   assert.ok(
-    landing.indexOf("<LandingUseCases") > landing.indexOf("<LandingRoleSkills"),
-    "the four-tab loop should follow the new chapters",
+    landing.indexOf("<LandingGapExample") > landing.indexOf("<LandingRoleSkills"),
+    "the gap example should follow the skills",
   )
   assert.ok(
-    landing.indexOf("<LandingFinlaticsRail") > landing.indexOf("<LandingUseCases"),
-    "the Finlatics ticker should follow the use-cases loop",
+    landing.indexOf("<LandingFillGap") > landing.indexOf("<LandingGapExample"),
+    "filling the gap should follow the gap",
+  )
+  const fillGap = read("components/public/landing/fill-gap.tsx")
+  assert.match(fillGap, /<LandingFinlaticsRail/)
+  assert.doesNotMatch(landing, /<LandingFinlaticsRail/, "the Finlatics ticker renders once, inside chapter 5")
+  assert.ok(
+    landing.indexOf("<LandingUseCases") > landing.indexOf("<LandingFillGap"),
+    "the four-tab loop should follow the new chapters",
   )
   assert.ok(
     landing.indexOf("<LandingLiveMirror") < landing.indexOf("<LandingJobSearch"),
@@ -106,11 +114,20 @@ test("the landing upload keeps the canonical anonymous preview handoff", () => {
   const landing = read("components/public/landing-page.tsx")
   const hero = read("components/public/landing/hero.tsx")
 
-  // Every upload still lands on the anonymous scorer; the hero only adds the
-  // picked role and level as query params (spec #66 L2).
+  const picker = read("components/public/landing/role-picker.tsx")
+  const gap = read("components/public/landing/gap-example.tsx")
+  const uploadButton = read("components/public/landing/upload-button.tsx")
+
+  // Every upload still lands on the anonymous scorer; the pick only adds the
+  // role and level as query params (spec #66 L2). The mid-page upload button
+  // hands off through the dropzone's own hook, never a route of its own.
   assert.match(dropzone, /destination = "\/cv-preview"/)
   assert.match(dropzone, /router\.push\(destination\)/)
-  assert.match(hero, /`\/cv-preview\?\$\{params\.toString\(\)\}`/)
+  assert.match(picker, /`\/cv-preview\?\$\{params\.toString\(\)\}`/)
+  assert.match(hero, /destination=\{uploadDestination\(pick\)\}/)
+  assert.match(gap, /destination=\{uploadDestination\(pick\)\}/)
+  assert.match(uploadButton, /useCvHandoff\(destination\)/)
+  assert.doesNotMatch(uploadButton, /router|href=/)
   assert.match(dropzone, /No CV\? Paste your CV text/)
   assert.match(hero, /Browse jobs instead/)
   assert.doesNotMatch(landing, /landing_dropzone_closing/)

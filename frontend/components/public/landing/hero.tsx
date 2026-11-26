@@ -5,22 +5,13 @@ import Link from "next/link"
 import { ExternalLink } from "lucide-react"
 import { trackEvent } from "@/lib/analytics"
 import { LandingDropzone, type LandingDropzoneHandle } from "./dropzone"
-import { LEVEL_LABEL, RolePicker, roleLabel, type RolePick } from "./role-picker"
+import { LEVEL_LABEL, RolePicker, roleLabel, uploadDestination, type RolePick } from "./role-picker"
 
 interface LandingHeroProps {
   /** The job the visitor picked. Owned by the landing page, because chapters 2
    *  and 3 read it too (spec #66). */
   pick: RolePick | null
   onPick: (pick: RolePick) => void
-}
-
-/** Where an upload lands, carrying the job the visitor picked so the first
- *  screen after the score can read their CV against it (spec #66 Q8, L7). */
-function uploadDestination(pick: RolePick | null): string {
-  if (!pick) return "/cv-preview"
-  const params = new URLSearchParams({ role: pick.family })
-  if (pick.band) params.set("level", pick.band)
-  return `/cv-preview?${params.toString()}`
 }
 
 /**

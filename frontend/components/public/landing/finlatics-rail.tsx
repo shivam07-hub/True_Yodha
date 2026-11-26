@@ -13,8 +13,7 @@ import { useAllowLoopingMotion } from "@/lib/hooks/use-allow-looping-motion"
 /**
  * Partner course ticker. Same furniture as the company career-page rail:
  * duplicated track, compositor scroll, paused off-screen and on reduced motion.
- * Sits between the use-cases headings so the Finlatics catalogue is visible
- * before the four product surfaces.
+ * Closes chapter 5 (spec #66), where a missing skill gets learned.
  */
 export function LandingFinlaticsRail() {
   const hostRef = useRef<HTMLElement | null>(null)

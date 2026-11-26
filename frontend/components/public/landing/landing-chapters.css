@@ -1,6 +1,7 @@
-/* Spec #66 chapters 2–3 and the bridge rail. Data rows, not cards: the numbers
-   and bars carry the meaning, so the chrome stays hairline. Bars are neutral —
-   they display values, they are not pressable, so they get no interactive colour. */
+/* Spec #66 chapter furniture, chapters 2–3 and the bridge rail. Data rows, not
+   cards: the numbers and bars carry the meaning, so the chrome stays hairline.
+   Bars are neutral — they display values, they are not pressable, so they get
+   no interactive colour. */
 
 .lp-chapter {
   padding: var(--lp-section-py) 0;
@@ -8,6 +9,14 @@
 }
 
 .lp-chapter .lp-section-head { margin-bottom: 24px; }
+
+/* A chapter's sub-line names what the rows are (the example's role, the live
+   count), so it is read, not glanced at: the caption size, never the 9px the
+   older sections' clamp reaches at 375px. */
+.lp-chapter .lp-section-sub {
+  white-space: normal;
+  font-size: var(--tm-fs-caption);
+}
 
 .lp-chapter-meta {
   margin: 16px 0 0;

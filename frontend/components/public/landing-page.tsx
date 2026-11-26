@@ -6,9 +6,10 @@ import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
 import { LandingHero } from "@/components/public/landing/hero"
 import { LandingUseCases } from "@/components/public/landing/use-cases"
-import { LandingFinlaticsRail } from "@/components/public/landing/finlatics-rail"
 import { LandingOpenJobs } from "@/components/public/landing/open-jobs"
 import { LandingRoleSkills } from "@/components/public/landing/role-skills"
+import { LandingGapExample } from "@/components/public/landing/gap-example"
+import { LandingFillGap } from "@/components/public/landing/fill-gap"
 import { BridgeRail } from "@/components/public/landing/bridge-rail"
 import type { RolePick } from "@/components/public/landing/role-picker"
 import { LandingLiveMirror } from "@/components/public/landing/live-mirror"
@@ -27,14 +28,16 @@ import "@/components/public/landing/landing-usecase-panels.css"
 import "@/components/public/landing/landing-commons.css"
 import "@/components/public/landing/landing-company-rail.css"
 import "@/components/public/landing/landing-chapters.css"
+import "@/components/public/landing/landing-gap.css"
 import "@/components/public/landing/landing-motion.css"
 
 /**
  * Myro landing, spec #66: one scroll from what MNCs hire for to your gap. The
  * hero asks for the job (role, then level) above the one dropzone; chapter 2
- * shows where those jobs are open, chapter 3 what they ask for. The bridge rail
- * fills one segment per chapter crossed. Sections below chapter 3 are the old
- * page, replaced by L4–L6.
+ * shows where those jobs are open, chapter 3 what they ask for, chapter 4 a CV
+ * read against one, chapter 5 how a gap gets filled. The bridge rail fills one
+ * segment per chapter crossed. Sections below chapter 5 are the old page,
+ * replaced by L5–L6.
  */
 export function LandingPage() {
   const router = useRouter()
@@ -87,6 +90,10 @@ export function LandingPage() {
 
         <LandingRoleSkills pick={pick} />
 
+        <LandingGapExample pick={pick} />
+
+        <LandingFillGap />
+
         <LandingUseCases
           companyNames={data.marqueeNames}
           companiesMonitored={data.companiesMonitored}
@@ -95,8 +102,6 @@ export function LandingPage() {
           industries={data.analytics?.by_industry ?? []}
           topSkills={data.analytics?.top_skills ?? []}
         />
-
-        <LandingFinlaticsRail />
 
         <LandingLiveMirror
           analytics={data.analytics}

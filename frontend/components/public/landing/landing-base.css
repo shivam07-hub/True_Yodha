@@ -127,11 +127,12 @@
 
 .lp-section-head.center { text-align: center; margin-left: auto; margin-right: auto; }
 
-/* One-line section headings (this pass). nowrap + clamp mins tuned for 375px;
-   any overflow is clipped by the page's overflow-x: hidden, never a scrollbar. */
+/* Section headings: clamp mins tuned so most fit one line at 375px. One that
+   does not wraps, balanced; it was nowrap, and the page clipped the overflow
+   mid-word ("Prepare for what the", spec #66 chapter 5 at 375px). */
 .lp-section-title {
   margin: 14px 0 12px;
-  white-space: nowrap;
+  text-wrap: balance;
   font-size: clamp(16px, 2.6vw, 32px);
   line-height: 1.18;
   font-weight: 600;

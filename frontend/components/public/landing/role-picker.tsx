@@ -43,6 +43,17 @@ export interface RolePick {
   band: LandingBand | null
 }
 
+/** Where an upload lands, carrying the job the visitor picked so the first
+ *  screen after the score can read their CV against it (spec #66 Q8, L7).
+ *  Every upload on the landing uses this, so the pick rides whichever one
+ *  they press. */
+export function uploadDestination(pick: RolePick | null): string {
+  if (!pick) return "/cv-preview"
+  const params = new URLSearchParams({ role: pick.family })
+  if (pick.band) params.set("level", pick.band)
+  return `/cv-preview?${params.toString()}`
+}
+
 /** Spec #66 L1: the market snapshot's eight roles. One cached read per visit. */
 export function useLandingRoles() {
   return useQuery({
