@@ -112,3 +112,63 @@ def testhtml_to_text_preserves_block_breaks():
     text = html_to_text("<li>One</li><li>Two</li>")
     assert "One" in text and "Two" in text
     assert "OneTwo" not in text
+
+
+# ── The posting's own contact details survive the trip to the model ──────────
+# The provider redacts identifiers on the way out, and the extractor's
+# job_description is the model's copy of the posting. Without a ledger the
+# model's copy is what got saved: Sterlite's "Send your CV to <email>" landed
+# in Myro as "[REDACTED_EMAIL]" (2026-11-27), and the apply step lost its
+# address. The parser redacts with a ledger and puts the originals back.
+
+
+class _EgressEchoProvider:
+    """Behaves like the real provider at egress: redacts what it is sent, and
+    the model echoes the posting body it saw as job_description."""
+
+    def __init__(self) -> None:
+        self.sent: list[str] = []
+
+    async def complete(self, messages, max_tokens=None, temperature=None):
+        import json
+
+        from app.security.personal_data import sanitize_ai_messages
+
+        seen = sanitize_ai_messages(messages)[-1]["content"]
+        self.sent.append(seen)
+        return json.dumps({
+            "company": "Sterlite Group",
+            "role": "Chief Manager – BD & Strategy",
+            "location": "Mumbai",
+            "job_description": seen,
+        })
+
+
+POSTING = (
+    "Chief Manager – Business Development & Strategy\n"
+    "Sterlite Group, Mumbai.\n"
+    "How to apply: send your CV to rohit.jaiswal@sterlite.com or call +91 98765 43210."
+)
+
+
+@pytest.mark.asyncio
+async def test_hiring_email_and_phone_come_back_on_the_saved_posting():
+    from app.services.job_file_parser import extract_job_from_text
+
+    provider = _EgressEchoProvider()
+    parsed = await extract_job_from_text(POSTING, provider)
+
+    assert "rohit.jaiswal@sterlite.com" in parsed["job_description"]
+    assert "+91 98765 43210" in parsed["job_description"]
+    assert "[REDACTED" not in parsed["job_description"]
+
+
+@pytest.mark.asyncio
+async def test_the_model_still_never_sees_the_identifiers():
+    from app.services.job_file_parser import extract_job_from_text
+
+    provider = _EgressEchoProvider()
+    await extract_job_from_text(POSTING, provider)
+
+    assert "rohit.jaiswal@sterlite.com" not in provider.sent[0]
+    assert "98765 43210" not in provider.sent[0]
