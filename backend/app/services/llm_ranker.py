@@ -607,15 +607,22 @@ async def evaluate_all(
     top_jobs: list[dict[str, Any]],
     provider: LLMProvider,
     on_progress: RankProgressCb | None = None,
+    *,
+    concurrency: int = _CONCURRENCY,
 ) -> dict[str, dict[str, Any]]:
     """Evaluate every shortlisted job. Returns {job_id: eval}. Failed jobs omitted.
+
+    `concurrency` bounds this call's evaluations in flight. The /market drain
+    widens it for a person's first screen (`feed_warm.FIRST_SCREEN_BATCH`), so a
+    round is still one wave. Every call still takes a slot from the global
+    Provider Budget (`llm_budget`), which is backpressure, never a refusal.
 
     `on_progress(done, total, job)` fires once per job as its eval lands (in
     completion order) — powers the ADR-0009 per-job refresh reveal. Best-effort:
     a raising callback never breaks ranking.
     """
     system_prompt = build_system_prompt(profile, profile.get("cv_markdown") or "")
-    sem = asyncio.Semaphore(_CONCURRENCY)
+    sem = asyncio.Semaphore(max(1, concurrency))
     total = len(top_jobs)
     done = 0
 
