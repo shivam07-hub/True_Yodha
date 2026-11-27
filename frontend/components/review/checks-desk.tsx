@@ -18,6 +18,12 @@ import "./checks-desk.css"
 
 const TOKEN_KEY = "myro-reviewer-token"
 
+const SHORT_KIND: Record<"cv_job" | "linkedin" | "search", string> = {
+  cv_job: "CV",
+  linkedin: "LinkedIn",
+  search: "Search call",
+}
+
 function readToken(): string {
   try {
     return window.sessionStorage.getItem(TOKEN_KEY) ?? ""
@@ -50,7 +56,7 @@ function CallRow({ adminToken, check, onDone }: { adminToken: string; check: Rev
   return (
     <li className="rv-row">
       <span className="rv-row-main">
-        {linkedin ? "LinkedIn" : "CV"} · {check.buyer_email ?? check.user_id}
+        {SHORT_KIND[check.kind ?? "cv_job"]} · {check.buyer_email ?? check.user_id}
       </span>
       {digits ? (
         <a className="tm-link" href={`https://wa.me/${digits}`} target="_blank" rel="noopener noreferrer">
@@ -140,7 +146,7 @@ export function ChecksDesk() {
                   data-open={c.id === openId || undefined}
                   onClick={() => setOpenId(c.id)}
                 >
-                  <span className="rv-row-main">{c.kind === "linkedin" ? "LinkedIn" : "CV"} · {c.buyer_email ?? c.user_id}</span>
+                  <span className="rv-row-main">{SHORT_KIND[c.kind ?? "cv_job"]} · {c.buyer_email ?? c.user_id}</span>
                   <span className={c.due_at && Date.parse(c.due_at) < now ? "rv-late" : "rv-meta"}>
                     {c.status === "in_review" ? "In review · " : ""}due {formatDateTime(c.due_at ?? "")}
                   </span>

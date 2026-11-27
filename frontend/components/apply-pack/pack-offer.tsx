@@ -3,8 +3,9 @@
 /**
  * The gap door (ENG6, ARCHITECTURE_PAYMENTS.md §10.2). Right after the Myro
  * Score on the CV page, where people have just seen their gap: a person reads
- * the CV against the job they want, then a 30-minute call. 503 people reached
- * a score; 29 ever reached the Preparation room's line.
+ * the CV against the job they want, then a 30-minute call (₹199); or all of it
+ * worked through on three calls (₹599, §10.3). 503 people reached a score; 29
+ * ever reached the Preparation room's line.
  *
  * A Human Check already held is spent from here instead of bought again. The
  * price comes from the catalogue: with nothing sellable there is no card.
@@ -15,7 +16,7 @@ import Link from "next/link"
 import { ApplyPackBuy } from "@/components/apply-pack/apply-pack-buy"
 import { heldCheck, useHumanChecks } from "@/components/apply-pack/use-human-checks"
 import { SaleOffer } from "@/components/sale-gate"
-import { sellable, useCatalogue } from "@/lib/use-catalogue"
+import { rupees, sellable, useCatalogue } from "@/lib/use-catalogue"
 import "./apply-pack.css"
 
 export function PackOffer({ token }: { token: string }) {
@@ -41,6 +42,7 @@ export function PackOffer({ token }: { token: string }) {
   }
 
   if (!sellable(catalogueQ.data, "apply_pack")) return null
+  const fullPack = sellable(catalogueQ.data, "filing_intake")
 
   return (
     <SaleOffer>
@@ -53,6 +55,13 @@ export function PackOffer({ token }: { token: string }) {
           Checked by a reviewer, not AI, against the job you want. Then a 30-minute call to walk you through it.
         </p>
         <ApplyPackBuy label="Book a review" />
+        {fullPack ? (
+          <p className="hc-card-note hc-card-more">
+            <Link className="tm-link" href="/filing">
+              Three calls: your CV, your LinkedIn and your search · {rupees(fullPack.price_paise)}
+            </Link>
+          </p>
+        ) : null}
       </section>
     </SaleOffer>
   )

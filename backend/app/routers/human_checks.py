@@ -198,6 +198,30 @@ def _with_buyer_email(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [{**r, "buyer_email": email_of.get(str(r["user_id"]))} for r in rows]
 
 
+def _with_filing(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """A search call (the ₹599 pack, §10.3) is read against the buyer's filing
+    intake: the role, the cities and the career pages Myro files on."""
+    ids = sorted({str(r["user_id"]) for r in rows if r.get("kind") == "search"})
+    if not ids:
+        return rows
+    res = (
+        get_supabase_admin()
+        .table("filing_intakes")
+        .select("user_id, target_role, cities, portals, consented_at")
+        .in_("user_id", ids)
+        .execute()
+    )
+    intake_of = {str(i["user_id"]): i for i in (res.data or [])}
+    return [
+        {**r, "filing": intake_of.get(str(r["user_id"]))} if r.get("kind") == "search" else r
+        for r in rows
+    ]
+
+
+def _for_desk(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return _with_filing(_with_buyer_email(rows))
+
+
 @router.get("/admin/human-checks", dependencies=[Depends(require_admin)])
 async def reviewer_queue() -> dict[str, Any]:
     now = datetime.now(timezone.utc)
@@ -205,8 +229,8 @@ async def reviewer_queue() -> dict[str, Any]:
     queue = await run_in_threadpool(store.open_queue)
     calls = await run_in_threadpool(store.calls_to_close)
     return {
-        "checks": await run_in_threadpool(_with_buyer_email, queue),
-        "calls": await run_in_threadpool(_with_buyer_email, calls),
+        "checks": await run_in_threadpool(_for_desk, queue),
+        "calls": await run_in_threadpool(_for_desk, calls),
         "stuck_payments": await run_in_threadpool(_stuck_payments, now),
     }
 

@@ -216,3 +216,37 @@ def test_the_apply_pack_grants_500_coins_and_opens_one_check_on_its_job(monkeypa
     assert rewarded == [{"user": "u1", "amount": 500, "action": "apply_pack", "ref_table": "billing_payments", "ref_id": "row-1"}]
     assert opened == [{"user": "u1", "billing_payment_id": "row-1", "job_id": "job-9"}]
     assert (pack.price_paise, pack.coins, pack.human_checks) == (19900, 500, 1)
+
+
+def test_the_599_pack_grants_500_coins_three_checks_and_the_filing_step_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    """ENG5 / §10.3: everything in the ₹199 pack plus a held LinkedIn check, the
+    search call and filing. A second arrival changes nothing."""
+    from app.services import human_check
+    from tests.test_human_check import InMemoryChecks
+
+    pack = by_alias("filing_intake")
+    store = InMemoryChecks()
+    rewarded: list[tuple[str, int, str, str]] = []
+    paid: list[str] = []
+
+    async def _reward(user_id: str, amount: int, action: str, reason: str, **kw: Any) -> int:
+        key = (user_id, amount, action, kw["ref_id"])
+        if key not in rewarded:  # reward_coins is idempotent on (action, ref)
+            rewarded.append(key)
+        return 3500
+
+    monkeypatch.setattr(settlement.xp_service, "reward", _reward)
+    monkeypatch.setattr(human_check, "SupabaseHumanCheckStore", lambda: store)
+    monkeypatch.setattr(human_check, "notify_reviewer", lambda _row: None)
+    monkeypatch.setattr(settlement.filing_intake, "mark_paid", paid.append)
+
+    row = {"id": "row-599", "user_id": "u1", "product": pack.key, "job_id": None}
+    grant = settlement.default_grants()[pack.key]
+    assert asyncio.run(grant(row)) == 3500
+    asyncio.run(grant(row))
+
+    assert rewarded == [("u1", 500, "full_pack", "row-599")]
+    kinds = sorted((r.get("pack_slot") or 1, r["status"], r.get("kind")) for r in store.rows.values())
+    assert kinds == [(1, "unassigned", None), (2, "unassigned", None), (3, "queued", "search")]
+    assert paid == ["u1", "u1"]  # mark_paid is a plain overwrite of paid_at
+    assert (pack.price_paise, pack.coins, pack.human_checks) == (59900, 500, 2)

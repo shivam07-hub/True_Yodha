@@ -74,7 +74,18 @@ def test_consent_and_the_three_fields_are_required() -> None:
 
 
 def test_filing_payment_marks_the_intake_and_leaves_myrology_alone(monkeypatch) -> None:
+    """The ₹599 pack's filing step (ENG5). Its coins and checks are covered in
+    test_settlement; here they are stubbed so only the filing side is read."""
+    from app.services import human_check
+    from tests.test_human_check import InMemoryChecks
+
+    async def _reward(*_a: Any, **_kw: Any) -> int:
+        return 3500
+
     called: dict[str, Any] = {}
+    monkeypatch.setattr(settlement.xp_service, "reward", _reward)
+    monkeypatch.setattr(human_check, "SupabaseHumanCheckStore", InMemoryChecks)
+    monkeypatch.setattr(human_check, "notify_reviewer", lambda _row: None)
     monkeypatch.setattr(settlement.filing_intake, "mark_paid", lambda uid: called.update(paid=uid))
     monkeypatch.setattr(settlement, "unlock_myrology", lambda uid: called.update(myrology=uid))
     product = billing_catalogue.by_alias("filing_intake")

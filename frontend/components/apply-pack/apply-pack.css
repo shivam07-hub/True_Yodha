@@ -95,6 +95,10 @@
   white-space: pre-line;
 }
 
+.hc-card-more {
+  font-size: var(--tm-fs-meta);
+}
+
 /* The pack page */
 .ap-page {
   display: flex;

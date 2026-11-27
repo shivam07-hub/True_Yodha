@@ -7,6 +7,7 @@
  */
 
 import { useState } from "react"
+import Link from "next/link"
 import { useQueryClient } from "@tanstack/react-query"
 
 import { ApplyPackBuy } from "@/components/apply-pack/apply-pack-buy"
@@ -17,11 +18,13 @@ import { Button } from "@/components/ui/button"
 import { humanChecks } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { formatDateTime } from "@/lib/format"
+import { rupees, sellable, useCatalogue } from "@/lib/use-catalogue"
 import "./apply-pack.css"
 
 export function HumanCheckLine({ token, jobId }: { token: string; jobId: string }) {
   const queryClient = useQueryClient()
   const checksQ = useHumanChecks(token)
+  const catalogueQ = useCatalogue()
   const [spending, setSpending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -71,10 +74,14 @@ export function HumanCheckLine({ token, jobId }: { token: string; jobId: string 
     )
   }
 
+  const fullPack = sellable(catalogueQ.data, "filing_intake")
   return (
     <SaleOffer>
       <span className="hc-line">
         <ApplyPackBuy jobId={jobId} label="Human check before you apply" />
+        {fullPack ? (
+          <Link className="tm-link" href="/filing">Three calls · {rupees(fullPack.price_paise)}</Link>
+        ) : null}
       </span>
     </SaleOffer>
   )

@@ -3,7 +3,9 @@
 /**
  * One Human Check on the reviewer desk: claim, read, write, deliver.
  * A LinkedIn check opens on Myro's draft (written on claim, from the CV); a CV
- * check opens on the job's one document, whose version the delivery records.
+ * check opens on the job's one document, whose version the delivery records; a
+ * search call (the ₹599 pack) opens on the buyer's filing intake, and its note
+ * is the plan.
  */
 
 import { useEffect, useState } from "react"
@@ -13,6 +15,12 @@ import { BlocksEditor, toBlocks, toEditable, type EditableBlocks } from "@/compo
 import { Button } from "@/components/ui/button"
 import { reviewer, type ReviewerCheck } from "@/lib/api"
 import { formatDateTime } from "@/lib/format"
+
+const KIND_LABEL: Record<"cv_job" | "linkedin" | "search", string> = {
+  cv_job: "CV check",
+  linkedin: "LinkedIn rewrite",
+  search: "Search call",
+}
 
 function waLink(number: string | null): string | null {
   const digits = (number ?? "").replace(/\D/g, "")
@@ -49,6 +57,8 @@ export function CheckPanel({
         await reviewer.claim(adminToken, check.id)
       } else if (check.kind === "linkedin") {
         await reviewer.deliver(adminToken, check.id, { note, blocks: toBlocks(blocks) })
+      } else if (check.kind === "search") {
+        await reviewer.deliver(adminToken, check.id, { note })
       } else {
         const versionId = docQ.data?.version_id
         if (!versionId) throw new Error("This job has no CV yet. Tailor one before delivering.")
@@ -68,7 +78,7 @@ export function CheckPanel({
   return (
     <section className="rv-panel" aria-label="Human Check">
       <header className="rv-panel-head">
-        <h2>{check.kind === "linkedin" ? "LinkedIn rewrite" : "CV check"}</h2>
+        <h2>{KIND_LABEL[check.kind ?? "cv_job"]}</h2>
         <span className="rv-meta">Due {formatDateTime(check.due_at ?? "")}</span>
       </header>
       <dl className="rv-facts">
@@ -78,6 +88,15 @@ export function CheckPanel({
           <>
             <dt>Job</dt>
             <dd>{check.job_id}</dd>
+          </>
+        ) : check.kind === "search" ? (
+          <>
+            <dt>Role</dt>
+            <dd>{check.filing?.target_role || "Not given yet"}</dd>
+            <dt>Cities</dt>
+            <dd>{check.filing?.cities || "Not given yet"}</dd>
+            <dt>Career pages</dt>
+            <dd>{check.filing?.portals || "Not given yet"}</dd>
           </>
         ) : (
           <>
@@ -116,7 +135,7 @@ export function CheckPanel({
               ) : null}
               <BlocksEditor value={blocks} onChange={setBlocks} />
             </>
-          ) : (
+          ) : check.kind === "search" ? null : (
             <pre className="rv-doc">{docQ.data?.body_text ?? (docQ.isLoading ? "Loading." : "No CV for this job yet.")}</pre>
           )}
           <label className="rv-field">

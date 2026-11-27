@@ -382,24 +382,26 @@ the user already holds keeps today's "Use your human check" line instead.
 The product keeps its alias `filing_intake` and key `myro_filing_intake` (stored
 on `billing_payments` rows); its contents change. Catalogue: `coins=500`.
 
-**M5 (additive, agent applies before the code):**
-- `human_checks.pack_slot smallint not null default 1`; replace
-  `unique (billing_payment_id)` with `unique (billing_payment_id, pack_slot)`.
-  Every existing row is slot 1, so no data is rewritten.
+**M5 (additive; applied 2026-11-27, `20261127100000_human_checks_pack_slots.sql`):**
+- `human_checks.pack_payment_id uuid null` (→ `billing_payments`) and
+  `pack_slot smallint null` (2 or 3), unique together. The pack's first check
+  keeps `billing_payment_id` exactly as before. **Why not widen that key:** dev
+  and prod share one database and `main` upserts on `billing_payment_id`;
+  dropping that unique key would have broken the ₹199 grant on `main` until it
+  was merged. A check has one payment key, never both.
 - `kind` adds `'search'`; `delivered_is_signed` adds `kind = 'search'` (a note is
-  enough); `paid_or_linkedin` already holds because a search check always has a
-  payment.
-- `filing_intakes.contact_whatsapp text null` — the number for the search call,
-  given on the intake before payment; cleared when that call closes.
+  enough); `paid_or_linkedin` accepts `pack_payment_id`.
 
-**Grant** `_grant_filing` becomes, idempotent per payment row and slot:
+**Grant** `_grant_full_pack`, every step idempotent on the payment row:
 1. `xp_service.reward(user, 500, "full_pack", ref_table="billing_payments", ref_id=row.id)`.
-2. Slot 1: a check, `queued` as `cv_job` if the order carries a job, else `unassigned`.
-3. Slot 2: an `unassigned` check — the card asks for the LinkedIn URL first.
-4. `filing_intake.mark_paid(user)`.
-5. Slot 3: a `search` check, `queued`, carrying the intake's role, cities, career
-   pages and WhatsApp. If the intake was not saved yet, `save_intake` opens it
-   when it sees `paid_at` (same idempotency key).
+2. `open_check` — the CV check, `queued` as `cv_job` if the order carries a job, else held.
+3. `open_pack_check(slot=2)` — held; the LinkedIn card asks for the URL.
+4. `open_pack_check(slot=3)` — the `search` call, `queued` at once.
+5. `filing_intake.mark_paid(user)`.
+
+**One number, asked once.** `set_contact` on any of the pack's checks gives the
+number to the others that have none (`for_payment`). The `/filing` page asks for
+it under the search call once paid; no column on `filing_intakes` was needed.
 
 The reviewer desk shows search checks with the intake beside them and a Close
 call for every kind. `MAX_OPEN_CHECKS` counts all kinds; it is not raised now
@@ -420,5 +422,5 @@ form, router, service and tests are deleted in the same commit. The
 | **S7** | **Done 2026-11-27** (`83a33dd6`). Decisions and this section (ENG4–ENG6, PREP1, OFFERING, BACKLOG, CLAUDE.md). | Docs only |
 | **S8** | **Built 2026-11-27.** 10.1: a call on every check. `set_contact` + endpoint, `close_call` and `calls_to_close` for every kind, desk Close call for `cv_job`, the number field on an open check's status line, "+ 30-min call" wherever the ₹199 pack is sold. | `test_human_check.py`: a `cv_job` call closes and clears the number; `set_contact` refuses a closed call and another user's check |
 | **S9** | **Built 2026-11-27** on both CV surfaces (the room already sells ₹199 through `HumanCheckLine`; ₹599 joins both in S10). 10.2: `PackOffer` with ₹199 on both CV surfaces after the score and in the room. | Bought from the gap door on dev (test keys) → an `unassigned` check; 375px holds |
-| **S10** | 10.3: M5, the grant, the search check, `/filing` copy and its WhatsApp field, desk, and the ₹599 option in `PackOffer`. | `test_settlement.py`: one ₹599 arrival → +500 once, slots 1–3 once each, a second arrival changes nothing |
+| **S10** | **Built 2026-11-27.** 10.3: M5, the grant, the search check, `/filing` as the ₹599 pack page with its calls, desk, and the ₹599 link in `PackOffer` and the room's line. | `test_settlement.py`: one ₹599 arrival → +500 once, slots 1–3 once each, a second arrival changes nothing |
 | **S11** | 10.4: the Audit retires. | grep finds no `ai_workflow_audit` code path but the retired catalogue line; six gates green |

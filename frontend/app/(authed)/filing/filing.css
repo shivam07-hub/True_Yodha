@@ -123,3 +123,28 @@
   color: var(--tm-danger-text);
   font-size: var(--tm-fs-caption);
 }
+
+/* The ₹599 pack (ENG5): what it holds, and the three calls once paid. */
+.fi-contents {
+  list-style: disc;
+}
+
+.fi-h {
+  margin: 0;
+  font-size: var(--tm-fs-heading);
+  font-weight: 600;
+  color: var(--tm-text);
+}
+
+.fi-call {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+}
+
+.fi-uses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}

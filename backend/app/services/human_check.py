@@ -12,6 +12,12 @@ A named reviewer returns one check within 24 hours, then the two talk on a
 The number exists only to book that call: the owner gives it (`set_contact`, or
 with the LinkedIn intake) and closing the call clears it.
 
+A ₹199 payment opens one check, keyed by `billing_payment_id`. A ₹599 payment
+opens that same first check plus two more keyed by (`pack_payment_id`,
+`pack_slot`) — slot 2 held for the LinkedIn rewrite, slot 3 the `search` call:
+the role, the career pages Myro files on, and how the person uses AI in the
+search (§10.3, ENG5). A `search` check is delivered with a note alone.
+
 Lifecycle: unassigned → queued → in_review → delivered. A check bought without
 a job or a profile is `unassigned` until the user uses it. The 24-hour clock
 starts when the check is queued into a free slot; with every slot taken it
@@ -64,8 +70,12 @@ class CheckInputInvalid(ValueError):
 class HumanCheckStore(Protocol):
     def by_id(self, check_id: str) -> dict[str, Any] | None: ...
     def by_payment(self, billing_payment_id: str) -> dict[str, Any] | None: ...
+    def by_pack(self, pack_payment_id: str, pack_slot: int) -> dict[str, Any] | None: ...
+    def for_payment(self, payment_id: str) -> list[dict[str, Any]]:
+        """Every check one payment opened: its first check and its pack checks."""
+        ...
     def insert(self, row: dict[str, Any]) -> dict[str, Any] | None:
-        """None when the billing_payment_id already has a check."""
+        """None when the payment (or the pack's slot) already has a check."""
         ...
     def update_if(self, check_id: str, expect_status: str, patch: dict[str, Any]) -> dict[str, Any] | None: ...
     def delete(self, check_id: str) -> None: ...
@@ -96,9 +106,26 @@ class SupabaseHumanCheckStore:
         res = self._t().select("*").eq("billing_payment_id", billing_payment_id).maybe_single().execute()
         return (res.data if res else None) or None
 
+    def by_pack(self, pack_payment_id: str, pack_slot: int) -> dict[str, Any] | None:
+        res = (
+            self._t().select("*").eq("pack_payment_id", pack_payment_id).eq("pack_slot", pack_slot)
+            .maybe_single().execute()
+        )
+        return (res.data if res else None) or None
+
+    def for_payment(self, payment_id: str) -> list[dict[str, Any]]:
+        res = (
+            self._t().select("*")
+            .or_(f"billing_payment_id.eq.{payment_id},pack_payment_id.eq.{payment_id}")
+            .execute()
+        )
+        return list(res.data or [])
+
     def insert(self, row: dict[str, Any]) -> dict[str, Any] | None:
         if row.get("billing_payment_id"):
             res = self._t().upsert(row, on_conflict="billing_payment_id", ignore_duplicates=True).execute()
+        elif row.get("pack_payment_id"):
+            res = self._t().upsert(row, on_conflict="pack_payment_id,pack_slot", ignore_duplicates=True).execute()
         else:
             res = self._t().insert(row).execute()
         return res.data[0] if res.data else None
@@ -288,6 +315,40 @@ def open_check(store: HumanCheckStore, user_id: str, *, billing_payment_id: str,
     return created
 
 
+PACK_SLOTS = (2, 3)
+
+
+def open_pack_check(store: HumanCheckStore, user_id: str, *, pack_payment_id: str, pack_slot: int) -> dict[str, Any]:
+    """The ₹599 pack's extra checks. Idempotent on (`pack_payment_id`, `pack_slot`).
+    Slot 2 waits for the LinkedIn intake; slot 3 is the search call, queued at once."""
+    if pack_slot not in PACK_SLOTS:
+        raise ValueError(f"pack_slot must be one of {PACK_SLOTS}")
+    existing = store.by_pack(pack_payment_id, pack_slot)
+    if existing:
+        return existing
+    row: dict[str, Any] = {
+        "user_id": user_id,
+        "pack_payment_id": pack_payment_id,
+        "pack_slot": pack_slot,
+        "status": "unassigned",
+    }
+    if pack_slot == 3:
+        row.update(status="queued", kind="search", **_clock(store, _now()))
+    created = store.insert(row)
+    if created is None:  # another arrival opened it first
+        found = store.by_pack(pack_payment_id, pack_slot)
+        if found is None:
+            raise CheckConflict("pack check for this payment vanished")
+        return found
+    if created["status"] == "queued":
+        notify_reviewer(created)
+    return created
+
+
+def _payment_of(row: dict[str, Any]) -> str | None:
+    return row.get("billing_payment_id") or row.get("pack_payment_id")
+
+
 def assign_job(store: HumanCheckStore, user_id: str, check_id: str, job_id: str) -> dict[str, Any]:
     row = _own(store, user_id, check_id)
     if row["status"] != "unassigned":
@@ -340,7 +401,9 @@ async def open_linkedin_with_coins(
 
 def set_contact(store: HumanCheckStore, user_id: str, check_id: str, whatsapp: str) -> dict[str, Any]:
     """The owner gives the number the call is booked on. Any time before the
-    call closes: a check bought for a job opens queued with no number."""
+    call closes: a check bought for a job opens queued with no number. The
+    other checks the same payment opened (the ₹599 pack's three calls) take
+    the number too when they have none, so it is asked once."""
     number = normalize_whatsapp(whatsapp)
     row = _own(store, user_id, check_id)
     if row.get("call_closed_at"):
@@ -348,6 +411,12 @@ def set_contact(store: HumanCheckStore, user_id: str, check_id: str, whatsapp: s
     moved = store.update_if(check_id, str(row["status"]), {"contact_whatsapp": number})
     if moved is None:
         raise CheckConflict("The check moved on. Try again.")
+    payment = _payment_of(row)
+    if payment:
+        for sibling in store.for_payment(payment):
+            if sibling["id"] == check_id or sibling.get("contact_whatsapp") or sibling.get("call_closed_at"):
+                continue
+            store.update_if(str(sibling["id"]), str(sibling["status"]), {"contact_whatsapp": number})
     return moved
 
 
@@ -389,8 +458,9 @@ def deliver(
         if reviewed_cv_version_id is None:
             raise CheckInputInvalid("A CV check records the version you reviewed.")
         patch["reviewed_cv_version_id"] = reviewed_cv_version_id
-    else:
+    elif row["kind"] == "linkedin":
         patch["blocks"] = validate_blocks(blocks)
+    # A search check is the call itself: the note is the plan.
     moved = store.update_if(check_id, "in_review", patch)
     if moved is None:
         raise CheckConflict("Only a check in review can be delivered.")
@@ -426,12 +496,15 @@ def _desk_link(check_id: str) -> str:
     return f"{settings.public_app_url()}/admin/checks?id={check_id}"
 
 
+_KIND_LABEL = {"cv_job": "CV check", "linkedin": "LinkedIn rewrite", "search": "Search call"}
+
+
 def notify_reviewer(row: dict[str, Any]) -> None:
     to = settings.human_check_reviewer_email.strip()
     if not to:
         logger.warning("metric human_check.reviewer_unset check=%s", row.get("id"))
         return
-    kind = "LinkedIn rewrite" if row.get("kind") == "linkedin" else "CV check"
+    kind = _KIND_LABEL.get(str(row.get("kind")), "CV check")
     sent = email_service.send_email(
         to=to,
         subject=f"Human check · {kind} · due {row.get('due_at')}",
@@ -452,16 +525,20 @@ def _user_email(user_id: str) -> str | None:
 
 
 def notify_user(row: dict[str, Any]) -> None:
-    linkedin = row.get("kind") == "linkedin"
-    title = "Your LinkedIn is ready" if linkedin else f"Checked by {row.get('reviewer_name')}"
-    action_url = "/cv?view=cv" if linkedin else f"/cv?view=cv&job={row.get('job_id')}"
+    kind = row.get("kind")
+    if kind == "linkedin":
+        title, action_url = "Your LinkedIn is ready", "/cv?view=cv"
+    elif kind == "search":
+        title, action_url = "Your search plan is ready", "/filing"
+    else:
+        title, action_url = f"Checked by {row.get('reviewer_name')}", f"/cv?view=cv&job={row.get('job_id')}"
     get_supabase_admin().table("user_notifications").insert(
         {
             "user_id": row["user_id"],
             "kind": "human_check",
             "title": title,
             "body": row.get("note"),
-            "job_id": None if linkedin else row.get("job_id"),
+            "job_id": row.get("job_id") if kind == "cv_job" else None,
             "source_id": str(row["id"]),
             "action_url": action_url,
         }

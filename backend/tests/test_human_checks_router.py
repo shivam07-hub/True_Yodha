@@ -126,3 +126,40 @@ def test_claim_needs_the_reviewer_name_set(store: InMemoryChecks, monkeypatch: p
         response = client.post(f"/admin/human-checks/{check['id']}/claim", headers={"X-Myro-Admin-Token": "the-token"})
     assert response.status_code == 503
     assert store.rows[check["id"]]["status"] == "queued"
+
+
+def test_a_search_call_on_the_desk_carries_the_buyers_filing_intake(monkeypatch: pytest.MonkeyPatch) -> None:
+    """§10.3: the reviewer reads the search call against the role, cities and
+    career pages the buyer gave. Other kinds carry nothing extra."""
+
+    class _Query:
+        def __init__(self, data: list[dict[str, Any]]) -> None:
+            self.data = data
+
+        def select(self, *_a: Any) -> "_Query":
+            return self
+
+        def in_(self, _col: str, ids: list[str]) -> "_Query":
+            self.data = [r for r in self.data if r["user_id"] in ids]
+            return self
+
+        def execute(self) -> "_Query":
+            return self
+
+    intakes = [{"user_id": "u1", "target_role": "Product Analyst", "cities": "Pune", "portals": "careers.example.com"}]
+
+    class _Admin:
+        def table(self, name: str) -> _Query:
+            assert name == "filing_intakes"
+            return _Query(list(intakes))
+
+    monkeypatch.setattr(router_mod, "get_supabase_admin", lambda: _Admin())
+    rows = [
+        {"id": "a", "user_id": "u1", "kind": "search"},
+        {"id": "b", "user_id": "u1", "kind": "cv_job"},
+    ]
+
+    out = router_mod._with_filing(rows)
+
+    assert out[0]["filing"]["target_role"] == "Product Analyst"
+    assert "filing" not in out[1]

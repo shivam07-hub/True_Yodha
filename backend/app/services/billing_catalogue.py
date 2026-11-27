@@ -48,11 +48,15 @@ _PRODUCTS: tuple[Product, ...] = (
         price_paise=ai_workflow_audit.AUDIT_PRICE_PAISE,
         coins=0,
     ),
+    # ENG5: the ₹599 pack. Everything in the Apply Pack (500 coins, a CV
+    # check) plus a check held for the LinkedIn rewrite, the search call, and
+    # Myro filing on company pages — three calls in all.
     Product(
         alias="filing_intake",
         key="myro_filing_intake",
         price_paise=filing_intake.FILING_INTAKE_PRICE_PAISE,
-        coins=0,
+        coins=500,
+        human_checks=2,
     ),
 )
 

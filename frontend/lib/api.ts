@@ -6563,7 +6563,8 @@ export interface LinkedInBlocks {
 
 export interface HumanCheck {
   id: string
-  kind: "cv_job" | "linkedin" | null
+  /** `search` is the ₹599 pack's search call (ENG5, §10.3). */
+  kind: "cv_job" | "linkedin" | "search" | null
   job_id: string | null
   status: "unassigned" | "queued" | "in_review" | "delivered"
   slot_starts_at: string | null
@@ -6627,6 +6628,8 @@ export interface ReviewerCheck extends HumanCheck {
   buyer_email: string | null
   contact_whatsapp: string | null
   draft: (LinkedInBlocks & { flags?: string[] }) | null
+  /** Only on a search call: the buyer's filing intake. */
+  filing?: { target_role: string; cities: string; portals: string; consented_at: string | null } | null
 }
 
 export interface StuckPayment {
