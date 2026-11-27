@@ -646,3 +646,45 @@ def test_a_proving_answer_is_written_covered(monkeypatch):
     stored = repo.deepenings[jd_coverage.CACHE_PROMPT_KEY]
     assert jd_coverage.payload_to_result(stored)[0].requirements[0].status == "covered"
     assert not jd_coverage.is_stale(stored)
+
+
+# ── a failed embedding is "could not read", never a panel of gaps ───────────
+# 2026-11-27: with OpenRouter refused, every requirement reached the judge with
+# no lines at all, came back "gap", and the 0-of-12 panel was cached for good.
+
+def _embeddings_down(monkeypatch):
+    from app.services import embeddings
+
+    async def _embed(texts):
+        raise embeddings.EmbeddingError("refused")
+
+    monkeypatch.setattr(embeddings, "embed_texts", _embed)
+
+
+def test_a_failed_embedding_is_not_a_panel_of_gaps(monkeypatch):
+    _embeddings_down(monkeypatch)
+    provider = _FakeProvider("")
+    result = _run(jd_coverage.rematch(
+        "u1", ["Own quota"], provider, cv_lines=["Owned a ₹4 Cr quota"],
+    ))
+    assert result is None
+    assert provider.judge_calls == [], "nothing to rule on, so nothing is spent ruling"
+
+
+def test_a_fresh_panel_whose_embedding_fails_is_neither_shown_nor_cached(monkeypatch):
+    _embeddings_down(monkeypatch)
+    repo = _MemRepo()
+    provider = _FakeProvider('{"requirements": ["Own quota"]}')
+    result, _cached, _ = _run(jd_coverage.assess_for_job(
+        "u1", "j1", "A long enough job description prose here.", repo,
+        {"experience": [{"bullets": ["Owned a ₹4 Cr quota"]}]}, provider,
+    ))
+    assert result.requirements == []
+    assert repo.deepenings == {}
+
+
+def test_a_stale_panel_keeps_its_verdicts_when_the_embedding_fails(monkeypatch):
+    _embeddings_down(monkeypatch)
+    repo = _MemRepo(_old_panel())
+    _run(jd_coverage.assess_for_job("u1", "j1", "jd", repo, {}, _FakeProvider("")))
+    assert repo.deepenings[jd_coverage.CACHE_PROMPT_KEY] == _old_panel(), "nothing written"

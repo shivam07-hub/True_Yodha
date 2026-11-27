@@ -16,8 +16,10 @@ batched judgment-lane call per (person, job) panel over each requirement's
 three best lines by cosine. Cosine orders; it never decides. The verdicts are
 cached here and every other reader takes them from this panel.
 
-FAIL-SOFT: parse failure → empty requirement list (panel hides); a judge failure
-caches nothing and shows nothing (a stale panel keeps its last verdicts).
+FAIL-SOFT: parse failure → empty requirement list (panel hides); a judge or
+embedding failure caches nothing and shows nothing (a stale panel keeps its last
+verdicts). Without vectors the judge would see no lines and rule every
+requirement a gap — an outage dressed as a verdict.
 """
 from __future__ import annotations
 
@@ -199,26 +201,33 @@ async def _embed(texts: list[str]) -> list[list[float]] | None:
         return []
     try:
         return await embeddings.embed_texts(texts)
-    except Exception as exc:  # noqa: BLE001 — the judge sees fewer lines, never invented ones
+    except Exception as exc:  # noqa: BLE001 — the panel is unknown, never a panel of gaps
         logger.warning("jd_coverage: embed failed (%s)", exc.__class__.__name__)
         return None
 
 
 async def _candidates(
     user_id: str, requirements: list[str], cv_lines: list[str],
-) -> list[list[_Line]]:
+) -> list[list[_Line]] | None:
     """Each requirement's best lines by cosine — stories and CV lines together,
     cut to the judge's three. Cosine orders; it decides nothing.
 
     One embedding call for the requirements, one for the CV, one read of the
-    story bank — not one of each per requirement.
+    story bank — not one of each per requirement. None when either embedding
+    fails: no lines is not the same as no proof.
     """
     from app.services.career_reservoir import cosine
 
+    if not requirements:
+        return []
     qvecs = await _embed(requirements)
-    lvecs = await _embed(cv_lines) if qvecs else None
+    if qvecs is None:
+        return None
+    lvecs = await _embed(cv_lines)
+    if lvecs is None:
+        return None
     story_hits = await memory_recall.recall_stories_many(
-        user_id, requirements, k=_RECALL_K, qvecs=qvecs or None,
+        user_id, requirements, k=_RECALL_K, qvecs=qvecs,
     )
     out: list[list[_Line]] = []
     for r_index, requirement in enumerate(requirements):
@@ -230,9 +239,8 @@ async def _candidates(
                     id="", text=text, kind="story", similarity=hit.similarity,
                     story_id=hit.id, story_title=hit.title, told=hit.told,
                 ))
-        if qvecs and lvecs:
-            for text, vec in zip(cv_lines, lvecs):
-                pool.append(_Line(id="", text=text, kind="cv", similarity=cosine(qvecs[r_index], vec)))
+        for text, vec in zip(cv_lines, lvecs):
+            pool.append(_Line(id="", text=text, kind="cv", similarity=cosine(qvecs[r_index], vec)))
         pool.sort(key=lambda line: line.similarity, reverse=True)
         top = pool[:jd_reflection.CANDIDATES_PER_REQUIREMENT]
         for c_index, line in enumerate(top):
@@ -334,10 +342,13 @@ async def rematch(
     half is redone, and the requirement wording stays identical between visits.
 
     Named-tool requirements are settled by string; the rest go to the judge in
-    ONE call. None when that call fails — the caller must not cache it.
+    ONE call. None when that call or the embedding fails — the caller must not
+    cache it.
     """
     lines = [line for line in (cv_lines or []) if line.strip()][:_MAX_CV_LINES]
     candidates = await _candidates(user_id, requirements, lines)
+    if candidates is None:
+        return None
     proving: dict[int, list[_Line]] = {}
     to_judge: list[int] = []
     for index, requirement in enumerate(requirements):
