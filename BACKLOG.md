@@ -375,17 +375,6 @@ who sent an application, and 3 have: #45 evidence bank, CS-12, CS-14, CS-15, and
   `shared_buffers` 224 MB, `max_connections` 60. Do not resize. The ~300ms floor,
   and any read that clears 2s only because the database is this size, stay until
   a query gets cheaper. History: ARCHIVE 2026-10-02 · `ARCHITECTURE_READ_PATH.md` §19.
-- **Prod deploy guard — Shivam.** `main` already holds `ea165951`. Confirm
-  `curl https://api.himyro.com/health/ready` answers `ready`; then
-  `railway variables -s mirror-backend-prod --set PORT=8000`; wait for green;
-  then `railway api 'mutation($s: String!, $e: String!) { serviceInstanceUpdate(serviceId: $s, environmentId: $e, input: { healthcheckPath: "/health/ready" }) }' --raw-var s=6f9d873b-0efb-4b30-acc6-dfcfc35d44f0 --raw-var e=f6a22e25-8218-48be-8d89-d380dfbada25`
-  and read `Healthcheck succeeded!` on a FRESH deploy. Never the path without the
-  port — it broke dev for 14 h on 2026-09-28. Agents are refused prod config.
-  Cost of not having it: Railway sends traffic to a new prod container ~2 s
-  before uvicorn listens. 2026-11-25 14:06 UTC (#355): 11 requests got 502,
-  7 of them the homepage's `/public/stats`, and `main` showed a red cross. The
-  contract smoke now waits for the pushed version instead of `sleep 90`, so
-  the cross no longer fires on the gap; the gap itself stays until this lands.
 
 ---
 
@@ -499,7 +488,6 @@ Tracker (3) · no problem or not actionable (~25).
   per city or link. Last measured 11-03: Axis Bank 14,259 live rows, 747 titles.
   The feed already shows one card per employer and title. The stored rows, and
   every public count, still count each link. Dedupe at the source (scraper).
-- The prod deploy guard (above).
 - **#59 golden digest go-live**: prod carries the first-email rule (`0aafb324`).
   Run the preview SQL in `ARCHITECTURE_GOLDEN_DIGEST.md` (status block), read the
   emails, approve; an agent then adds the schedule.
