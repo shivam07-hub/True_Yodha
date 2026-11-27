@@ -352,6 +352,7 @@ async def run_feed_warm(
             repo.get_candidate_job_ids_for_roles(
                 roles,
                 target_location_countries=countries,
+                profile=profile,
                 limit=published_list.ASPIRATION_READ,
             ) or []
         ) if job_id

@@ -691,3 +691,42 @@ def test_the_read_more_route_starts_the_drain_and_does_not_rank(monkeypatch: Any
     assert r.status_code == 200
     assert r.json()["pending"] is True and r.json()["warmed"] == 0
     assert asked == ["u1"]
+
+
+def test_the_drain_asks_for_a_pile_within_the_persons_reach(monkeypatch: Any) -> None:
+    """The judge reads only roles the list could show: the pile request carries
+    the profile, so the repository admits by the person's year span
+    (migration 20261127120000). A 0-year student's pile used to be mostly roles
+    asking 5+ years, judged and then hidden."""
+    asked: dict[str, Any] = {}
+
+    class _Repo:
+        def get_user_profile_targeting(self, _user_id: str) -> dict[str, Any]:
+            return {"target_roles": ["Banking Services"], "target_seniority": "intern", "years_experience": 0}
+
+        def get_latest_baseline_id(self, _user_id: str) -> int:
+            return 1
+
+        def get_candidate_job_ids_for_roles(self, roles: list[str], **kw: Any) -> list[str]:
+            asked.update(kw)
+            return ["j1"]
+
+        def get_shown_verdict_keys(self, _user_id: str, *, floor: float) -> list[dict[str, Any]]:
+            return []
+
+        def get_cached_match_evals(self, _user_id: str, _ids: list[str]) -> dict[str, Any]:
+            return {}
+
+        def get_user_match_stack(self, _user_id: str) -> list[dict[str, Any]]:
+            return []
+
+    async def _warm(_repo: Any, _provider: Any, _user_id: str, ids: list[str], **_kw: Any) -> int:
+        return len(ids)
+
+    monkeypatch.setattr(feed_warm, "warm_feed_shortlist", _warm)
+    monkeypatch.setattr(feed_warm.background, "enqueue", lambda *_a, **_kw: None)
+
+    asyncio.run(feed_warm.run_feed_warm(_Repo(), object(), "u1"))  # type: ignore[arg-type]
+
+    assert asked["profile"]["years_experience"] == 0
+    assert asked["profile"]["target_seniority"] == "intern"
