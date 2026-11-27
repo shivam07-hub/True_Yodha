@@ -1,11 +1,16 @@
-"""Human Check — the promise the Apply Pack sells (ARCHITECTURE_PAYMENTS.md §3 D, ENG3).
+"""Human Check — the promise the packs sell (ARCHITECTURE_PAYMENTS.md §3 D, §10, ENG3, ENG5).
 
-A named reviewer returns one check within 24 hours. Two kinds:
+A named reviewer returns one check within 24 hours, then the two talk on a
+30-minute call booked on WhatsApp. Two kinds:
 
-- `cv_job` — the user's tailored CV read against one job.
-- `linkedin` — the user's LinkedIn profile rewritten for them to paste on a
-  short call. Myro never fetches the profile and never logs in as the user; the
+- `cv_job` — the user's tailored CV read against one job, walked through on
+  the call.
+- `linkedin` — the user's LinkedIn profile rewritten for them to paste on the
+  call. Myro never fetches the profile and never logs in as the user; the
   reviewer opens the public `/in/` URL in their own browser.
+
+The number exists only to book that call: the owner gives it (`set_contact`, or
+with the LinkedIn intake) and closing the call clears it.
 
 Lifecycle: unassigned → queued → in_review → delivered. A check bought without
 a job or a profile is `unassigned` until the user uses it. The 24-hour clock
@@ -68,7 +73,7 @@ class HumanCheckStore(Protocol):
     def for_user(self, user_id: str) -> list[dict[str, Any]]: ...
     def open_queue(self) -> list[dict[str, Any]]: ...
     def calls_to_close(self) -> list[dict[str, Any]]:
-        """Delivered LinkedIn checks whose paste call is still open."""
+        """Delivered checks, any kind, whose call is still open."""
         ...
 
 
@@ -121,7 +126,6 @@ class SupabaseHumanCheckStore:
         res = (
             self._t()
             .select("*")
-            .eq("kind", "linkedin")
             .eq("status", "delivered")
             .is_("call_closed_at", "null")
             .order("delivered_at")
@@ -179,7 +183,7 @@ _WA_STRIP = re.compile(r"[\s\-().]")
 
 def normalize_whatsapp(raw: str) -> str:
     """A WhatsApp number as +<country><number>. A bare 10-digit Indian mobile
-    gets +91. Used only to book the paste call."""
+    gets +91. Used only to book the call."""
     digits = _WA_STRIP.sub("", raw or "")
     if re.fullmatch(r"[6-9]\d{9}", digits):
         return f"+91{digits}"
@@ -334,6 +338,19 @@ async def open_linkedin_with_coins(
     return row
 
 
+def set_contact(store: HumanCheckStore, user_id: str, check_id: str, whatsapp: str) -> dict[str, Any]:
+    """The owner gives the number the call is booked on. Any time before the
+    call closes: a check bought for a job opens queued with no number."""
+    number = normalize_whatsapp(whatsapp)
+    row = _own(store, user_id, check_id)
+    if row.get("call_closed_at"):
+        raise CheckConflict("This call has already happened.")
+    moved = store.update_if(check_id, str(row["status"]), {"contact_whatsapp": number})
+    if moved is None:
+        raise CheckConflict("The check moved on. Try again.")
+    return moved
+
+
 def claim(store: HumanCheckStore, check_id: str, reviewer_name: str) -> dict[str, Any]:
     moved = store.update_if(check_id, "queued", {"status": "in_review", "reviewer_name": reviewer_name})
     if moved is None:
@@ -382,21 +399,23 @@ def deliver(
 
 
 def close_call(store: HumanCheckStore, check_id: str, *, pasted: bool) -> dict[str, Any]:
-    """The reviewer closes the paste call. Clears the WhatsApp number either way:
-    it existed only to book this call."""
+    """The reviewer closes the call, either kind. Clears the WhatsApp number
+    either way: it existed only to book this call. `pasted` is recorded only
+    for a LinkedIn check, where the call is the paste."""
     row = store.by_id(check_id)
     if row is None:
         raise CheckNotFound(check_id)
-    if row.get("kind") != "linkedin" or row["status"] != "delivered" or row.get("call_closed_at"):
-        raise CheckConflict("Only a delivered LinkedIn check with an open call can be closed.")
+    if row["status"] != "delivered" or row.get("call_closed_at"):
+        raise CheckConflict("Only a delivered check with an open call can be closed.")
     now = _now().isoformat()
     patch: dict[str, Any] = {"call_closed_at": now, "contact_whatsapp": None}
-    if pasted:
+    linkedin = row.get("kind") == "linkedin"
+    if linkedin and pasted:
         patch["pasted_at"] = now
     moved = store.update_if(check_id, "delivered", patch)
     if moved is None:
-        raise CheckConflict("Only a delivered LinkedIn check can be closed.")
-    logger.info("metric human_check.call_closed pasted=%s", pasted)
+        raise CheckConflict("Only a delivered check can be closed.")
+    logger.info("metric human_check.call_closed kind=%s pasted=%s", row.get("kind"), linkedin and pasted)
     return moved
 
 

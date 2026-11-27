@@ -6574,8 +6574,12 @@ export interface HumanCheck {
   linkedin_url: string | null
   blocks: LinkedInBlocks | null
   pasted_at: string | null
+  /** The call every check ends in (ENG5) has happened. */
+  call_closed_at: string | null
   delivered_at: string | null
   created_at: string | null
+  /** A WhatsApp number is on file for the call. The number itself never comes back. */
+  has_contact: boolean
 }
 
 export interface LinkedInIntake {
@@ -6599,6 +6603,13 @@ export const humanChecks = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(intake),
+    }),
+  /** The WhatsApp number the reviewer books the 30-minute call on. */
+  setContact: (token: string, checkId: string, whatsapp: string) =>
+    request<HumanCheck>(`/human-checks/${encodeURIComponent(checkId)}/contact`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ whatsapp }),
     }),
   /** 5,000 coins. Out of coins answers 400 with the shortfall. */
   buyLinkedInWithCoins: (token: string, intake: LinkedInIntake) =>

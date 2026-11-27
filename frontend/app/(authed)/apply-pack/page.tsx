@@ -1,7 +1,8 @@
 "use client"
 
 /**
- * The Apply Pack (ENG2/ENG3): 500 Myro Coins and one Human Check, ₹199 once.
+ * The Apply Pack (ENG2/ENG3/ENG5): 500 Myro Coins, one Human Check and a
+ * 30-minute call with the reviewer, ₹199 once.
  * Also the landing for the LinkedIn Services door (`/job-switch-plan` forwards
  * here with its query intact, so the attribution survives).
  */
@@ -50,9 +51,13 @@ export default function ApplyPackPage() {
           <li>
             <span className="ap-k">Human Check</span>
             <span>
-              A named reviewer reads your tailored CV against one job, or rewrites your LinkedIn for you to
-              paste on a short call. Back within 24 hours.
+              A named reviewer reads your tailored CV against one job, or rewrites your LinkedIn. A person,
+              not AI. Back within 24 hours.
             </span>
+          </li>
+          <li>
+            <span className="ap-k">Call</span>
+            <span>30 minutes with your reviewer, booked on WhatsApp</span>
           </li>
           {price ? (
             <li>

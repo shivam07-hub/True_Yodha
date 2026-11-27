@@ -43,14 +43,14 @@ export function LinkedInCheckCard({ token }: { token: string }) {
 
   if (mine?.status === "delivered" && mine.blocks) {
     return (
-      <section id="linkedin" className="li-card" aria-label="LinkedIn rewrite">
-        <div className="li-card-head">
-          <h2 className="li-card-title">LinkedIn rewrite</h2>
-          <span className="li-card-meta">
+      <section id="linkedin" className="hc-card" aria-label="LinkedIn rewrite">
+        <div className="hc-card-head">
+          <h2 className="hc-card-title">LinkedIn rewrite</h2>
+          <span className="hc-card-meta">
             {mine.pasted_at ? `Pasted ${formatDate(mine.pasted_at, "short")}` : `Written by ${mine.reviewer_name}`}
           </span>
         </div>
-        {mine.note ? <p className="li-card-note">{mine.note}</p> : null}
+        {mine.note ? <p className="hc-card-note">{mine.note}</p> : null}
         <LinkedInBlocks blocks={mine.blocks} profileUrl={mine.linkedin_url} />
       </section>
     )
@@ -58,12 +58,12 @@ export function LinkedInCheckCard({ token }: { token: string }) {
 
   if (mine) {
     return (
-      <section id="linkedin" className="li-card" aria-label="LinkedIn rewrite">
-        <div className="li-card-head">
-          <h2 className="li-card-title">LinkedIn rewrite</h2>
-          <span className="li-card-meta">Due {formatDateTime(mine.due_at ?? "")}</span>
+      <section id="linkedin" className="hc-card" aria-label="LinkedIn rewrite">
+        <div className="hc-card-head">
+          <h2 className="hc-card-title">LinkedIn rewrite</h2>
+          <span className="hc-card-meta">Due {formatDateTime(mine.due_at ?? "")}</span>
         </div>
-        <p className="li-card-note">We will WhatsApp you to book the paste call.</p>
+        <p className="hc-card-note">We&apos;ll WhatsApp you to book the 30-minute call.</p>
       </section>
     )
   }
@@ -95,13 +95,13 @@ export function LinkedInCheckCard({ token }: { token: string }) {
   }
 
   return (
-    <section id="linkedin" className="li-card" aria-label="LinkedIn rewrite">
-      <div className="li-card-head">
-        <h2 className="li-card-title">LinkedIn rewrite</h2>
-        <span className="li-card-meta">Back within 24 hours</span>
+    <section id="linkedin" className="hc-card" aria-label="LinkedIn rewrite">
+      <div className="hc-card-head">
+        <h2 className="hc-card-title">LinkedIn rewrite</h2>
+        <span className="hc-card-meta">Back within 24 hours</span>
       </div>
-      <p className="li-card-note">
-        A reviewer rewrites your profile from your CV. You paste it on a short call.
+      <p className="hc-card-note">
+        A reviewer rewrites your profile from your CV. You paste it on a 30-minute call.
       </p>
       <div className="li-form">
         <label className="li-field">
@@ -137,7 +137,7 @@ export function LinkedInCheckCard({ token }: { token: string }) {
                 {busy === "coins" ? "Sending…" : `Rewrite for ${formatCount(coins)} coins`}
               </Button>
             ) : coins !== null ? (
-              <span className="li-card-meta">
+              <span className="hc-card-meta">
                 {formatCount(coins)} coins · you have {formatCount(balance)}
               </span>
             ) : null}

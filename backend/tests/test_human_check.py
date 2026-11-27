@@ -1,6 +1,7 @@
-"""Human Check (ARCHITECTURE_PAYMENTS.md §6 S2, ENG3): transitions, capacity
-across both kinds, the honest ETA, delivery rules per kind, the 5,000-coin
-LinkedIn path, and the paste call clearing the WhatsApp number."""
+"""Human Check (ARCHITECTURE_PAYMENTS.md §6 S2, §10.1, ENG3, ENG5): transitions,
+capacity across both kinds, the honest ETA, delivery rules per kind, the
+5,000-coin LinkedIn path, and the call every check ends in — the number it is
+booked on, and closing it clearing that number."""
 
 from __future__ import annotations
 
@@ -63,7 +64,7 @@ class InMemoryChecks:
         return [
             dict(r)
             for r in self.rows.values()
-            if r.get("kind") == "linkedin" and r["status"] == "delivered" and not r.get("call_closed_at")
+            if r["status"] == "delivered" and not r.get("call_closed_at")
         ]
 
 
@@ -281,13 +282,43 @@ def test_closing_the_paste_call_clears_the_whatsapp_number_either_way() -> None:
         hc.close_call(store, pasted["id"], pasted=True)
 
 
-def test_a_cv_check_has_no_paste_call() -> None:
+def test_a_cv_check_ends_in_a_call_too() -> None:
+    """ENG5: the ₹199 check comes with a 30-minute call, whichever kind. A CV
+    check has nothing to paste, so `pasted` is never recorded for it."""
     store = InMemoryChecks()
     check = hc.open_check(store, "u1", billing_payment_id="pay-1", job_id="job-1")
+    hc.set_contact(store, "u1", check["id"], "98765 43210")
+    hc.claim(store, check["id"], "Shivam")
+    with pytest.raises(hc.CheckConflict):
+        hc.close_call(store, check["id"], pasted=False)  # the call follows the delivery
+    hc.deliver(store, check["id"], note="Done.", reviewer_name="Shivam", reviewed_cv_version_id=3)
+
+    assert [c["id"] for c in store.calls_to_close()] == [check["id"]]
+    closed = hc.close_call(store, check["id"], pasted=True)
+    assert closed["call_closed_at"] and closed["contact_whatsapp"] is None
+    assert not closed.get("pasted_at")
+    assert store.calls_to_close() == []
+
+
+def test_the_owner_gives_the_call_number_before_the_call_closes() -> None:
+    store = InMemoryChecks()
+    check = hc.open_check(store, "u1", billing_payment_id="pay-1", job_id="job-1")
+    assert not check.get("contact_whatsapp")  # the stakes door opens with no number
+
+    given = hc.set_contact(store, "u1", check["id"], "098765 43210")
+    assert (given["status"], given["contact_whatsapp"]) == ("queued", "+919876543210")
+
+    with pytest.raises(hc.CheckNotFound):
+        hc.set_contact(store, "u2", check["id"], "9876543210")
+    with pytest.raises(hc.CheckInputInvalid):
+        hc.set_contact(store, "u1", check["id"], "call me")
+
     hc.claim(store, check["id"], "Shivam")
     hc.deliver(store, check["id"], note="Done.", reviewer_name="Shivam", reviewed_cv_version_id=3)
+    hc.close_call(store, check["id"], pasted=False)
     with pytest.raises(hc.CheckConflict):
-        hc.close_call(store, check["id"], pasted=True)
+        hc.set_contact(store, "u1", check["id"], "9876543210")
+    assert store.by_id(check["id"])["contact_whatsapp"] is None
 
 
 # ── the 5,000-coin LinkedIn path ────────────────────────────────────────────

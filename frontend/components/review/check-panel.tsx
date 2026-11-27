@@ -89,10 +89,16 @@ export function CheckPanel({
                 </a>
               ) : null}
             </dd>
-            <dt>WhatsApp</dt>
-            <dd>{wa ? <a className="tm-link" href={wa} target="_blank" rel="noopener noreferrer">{check.contact_whatsapp}</a> : null}</dd>
           </>
         )}
+        <dt>WhatsApp</dt>
+        <dd>
+          {wa ? (
+            <a className="tm-link" href={wa} target="_blank" rel="noopener noreferrer">{check.contact_whatsapp}</a>
+          ) : (
+            "Not given yet"
+          )}
+        </dd>
       </dl>
 
       {check.status === "queued" ? (

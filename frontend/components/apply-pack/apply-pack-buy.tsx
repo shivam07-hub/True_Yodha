@@ -49,7 +49,7 @@ export function ApplyPackBuy({
       product: "apply_pack",
       jobId,
       name: "Myro · Apply Pack",
-      description: `${pack?.coins ?? 500} Myro Coins + one Human Check`,
+      description: `${pack?.coins ?? 500} Myro Coins + one Human Check + a 30-min call`,
     })
     setBusy(false)
     if (outcome.kind === "paid" || outcome.kind === "setting_up") {

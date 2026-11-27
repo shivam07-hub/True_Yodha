@@ -417,8 +417,8 @@ form, router, service and tests are deleted in the same commit. The
 
 | # | Slice | Done when |
 |---|---|---|
-| **S7** | Decisions and this section (ENG4–ENG6, PREP1, OFFERING, BACKLOG, CLAUDE.md). | Docs only |
-| **S8** | 10.1: a call on every check. `set_contact` + endpoint, `close_call` and `calls_to_close` for every kind, desk Close call for `cv_job`, the number field on an open check's status line, "+ 30-min call" wherever the ₹199 pack is sold. | `test_human_check.py`: a `cv_job` call closes and clears the number; `set_contact` refuses a closed call and another user's check |
-| **S9** | 10.2: `PackOffer` with ₹199 on both CV surfaces after the score and in the room. | Bought from the gap door on dev (test keys) → an `unassigned` check; 375px holds |
+| **S7** | **Done 2026-11-27** (`83a33dd6`). Decisions and this section (ENG4–ENG6, PREP1, OFFERING, BACKLOG, CLAUDE.md). | Docs only |
+| **S8** | **Built 2026-11-27.** 10.1: a call on every check. `set_contact` + endpoint, `close_call` and `calls_to_close` for every kind, desk Close call for `cv_job`, the number field on an open check's status line, "+ 30-min call" wherever the ₹199 pack is sold. | `test_human_check.py`: a `cv_job` call closes and clears the number; `set_contact` refuses a closed call and another user's check |
+| **S9** | **Built 2026-11-27** on both CV surfaces (the room already sells ₹199 through `HumanCheckLine`; ₹599 joins both in S10). 10.2: `PackOffer` with ₹199 on both CV surfaces after the score and in the room. | Bought from the gap door on dev (test keys) → an `unassigned` check; 375px holds |
 | **S10** | 10.3: M5, the grant, the search check, `/filing` copy and its WhatsApp field, desk, and the ₹599 option in `PackOffer`. | `test_settlement.py`: one ₹599 arrival → +500 once, slots 1–3 once each, a second arrival changes nothing |
 | **S11** | 10.4: the Audit retires. | grep finds no `ai_workflow_audit` code path but the retired catalogue line; six gates green |

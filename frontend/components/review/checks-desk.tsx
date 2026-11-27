@@ -3,8 +3,8 @@
 /**
  * The reviewer desk for Human Checks (#56 S4). Behind the one admin token
  * (`X-Myro-Admin-Token`), kept in this tab's session only. Three lists: the
- * queue by due time, paste calls still open, and payments whose grant never
- * finished.
+ * queue by due time, calls still open (every check ends in one, ENG5), and
+ * payments whose grant never finished.
  */
 
 import { useEffect, useState } from "react"
@@ -46,18 +46,31 @@ function CallRow({ adminToken, check, onDone }: { adminToken: string; check: Rev
     }
   }
   const digits = (check.contact_whatsapp ?? "").replace(/\D/g, "")
+  const linkedin = check.kind === "linkedin"
   return (
     <li className="rv-row">
-      <span className="rv-row-main">{check.buyer_email ?? check.user_id}</span>
+      <span className="rv-row-main">
+        {linkedin ? "LinkedIn" : "CV"} · {check.buyer_email ?? check.user_id}
+      </span>
       {digits ? (
         <a className="tm-link" href={`https://wa.me/${digits}`} target="_blank" rel="noopener noreferrer">
           WhatsApp
         </a>
-      ) : null}
-      <Button size="sm" onClick={() => close(true)} loading={busy === "yes"}>{busy === "yes" ? "Saving…" : "Pasted"}</Button>
-      <Button size="sm" variant="outline" onClick={() => close(false)} loading={busy === "no"}>
-        {busy === "no" ? "Saving…" : "Not pasted"}
-      </Button>
+      ) : check.buyer_email ? (
+        <a className="tm-link" href={`mailto:${check.buyer_email}`}>No number · email</a>
+      ) : (
+        <span className="rv-meta">No number yet</span>
+      )}
+      {linkedin ? (
+        <>
+          <Button size="sm" onClick={() => close(true)} loading={busy === "yes"}>{busy === "yes" ? "Saving…" : "Pasted"}</Button>
+          <Button size="sm" variant="outline" onClick={() => close(false)} loading={busy === "no"}>
+            {busy === "no" ? "Saving…" : "Not pasted"}
+          </Button>
+        </>
+      ) : (
+        <Button size="sm" onClick={() => close(false)} loading={busy === "no"}>{busy === "no" ? "Saving…" : "Call done"}</Button>
+      )}
     </li>
   )
 }
@@ -139,7 +152,7 @@ export function ChecksDesk() {
 
           {data && data.calls.length > 0 ? (
             <>
-              <h2 className="rv-h">Paste calls</h2>
+              <h2 className="rv-h">Calls</h2>
               <ul className="rv-list">
                 {data.calls.map((c) => <CallRow key={c.id} adminToken={adminToken} check={c} onDone={refresh} />)}
               </ul>
