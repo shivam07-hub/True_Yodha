@@ -62,6 +62,13 @@ const nextConfig = {
         permanent: false,
       },
       {
+        // The ₹999 AI Workflow Audit retired into the ₹599 pack (ENG5,
+        // ARCHITECTURE_PAYMENTS.md §10.4): its call is that pack's search call.
+        source: "/preparations/audit",
+        destination: "/filing",
+        permanent: false,
+      },
+      {
         // Old Verdicts tab → the Closed filter. (By-stage/By-company lens was
         // dropped in the lens-collapse pass, so ?stage maps to the default view.)
         source: "/tracker",

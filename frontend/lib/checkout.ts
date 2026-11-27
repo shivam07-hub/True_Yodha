@@ -11,7 +11,7 @@ import { ApiError } from "@/lib/api-error"
 import { billing, type BillingProduct, type RazorpayVerifyResult } from "@/lib/api"
 import { openSale, type SaleResult } from "@/lib/sale"
 
-export type CheckoutProduct = Extract<BillingProduct, "apply_pack" | "ai_workflow_audit" | "myrology" | "filing_intake">
+export type CheckoutProduct = Extract<BillingProduct, "apply_pack" | "myrology" | "filing_intake">
 
 export type CheckoutOutcome =
   | { kind: "paid"; newCoinBalance: number | null }

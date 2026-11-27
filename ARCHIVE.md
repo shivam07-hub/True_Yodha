@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-11-27 — The ₹999 AI Workflow Audit retires into the ₹599 pack
+
+Shipped 2026-09-06 as POSITIONING Wave 3; 0 orders and 0 audits ever. ENG5 folded its review of how someone runs AI into the ₹599 pack's search call (ARCHITECTURE_PAYMENTS §10.4). Card, room, intake, router, service and tests deleted; `/preparations/audit` forwards to `/filing`; the two empty `ai_workflow_audit*` tables await Shivam's yes to drop.
+
+---
+
 ## 2026-11-27 — Prod deploys wait for a ready server
 
 `mirror-backend-prod` had no healthcheck, so Railway sent traffic to each new container about 2s before uvicorn listened. On 2026-11-25 (#355) 11 requests got 502 (7 the homepage's `/public/stats`) and the contract smoke put a red cross on `main`. Set `PORT=8000` (deploy `ca2b4666` green), then `healthcheckPath=/health/ready` through `serviceInstanceUpdate`. A fresh deploy of `404b7c4` (`788b61f8`) logged `[1/1] Healthcheck succeeded!`, and 47 probes across its cutover (04:37:53→04:38:39 UTC) were all 200. A deploy whose `/health/ready` fails (a missing column, `ea165951`) now never takes traffic; the old container keeps serving.

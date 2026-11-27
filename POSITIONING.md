@@ -95,8 +95,9 @@ every conversion number on this page has an unexplained hole in it.
   neither is sold. The meter runs (MTR1-6 in [DECISIONS.md](DECISIONS.md)) and
   is deliberately unpriced until a month of real numbers exists.
 
-**Wave 3 — the ₹999 AI Workflow Audit.** *Shipped and live 2026-09-06:
-purchasable and deliverable.* The buyer describes an AI workflow they actually run and a human
+**Wave 3 — the ₹999 AI Workflow Audit.** *Shipped 2026-09-06; retired
+2026-11-27 with 0 orders ever — its review of how someone uses AI is now the
+₹599 pack's search call (DECISIONS ENG5).* The buyer describes an AI workflow they actually run and a human
 returns a written audit of it. Chosen over a taught sprint after checking the
 code: **practice, quizzes and certificates are free and ungated**, so ₹999 could
 not buy access to them without taking away what users already have. What is sold
@@ -133,7 +134,7 @@ already arriving on **LinkedIn Services as Resume Writing** — the same human
 work, a disconnected inbox. Wave 4 does not invent a buyer. It makes those two
 doors one queue, and stops selling that work as a ₹99 intro.
 
-The ₹999 audit stays a different buyer. It is not the closer.
+The ₹999 audit retired into the ₹599 pack (ENG5, 2026-11-27).
 
 ---
 

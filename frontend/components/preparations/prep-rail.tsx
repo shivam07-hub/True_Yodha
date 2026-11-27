@@ -20,7 +20,6 @@ import { CompanyAvatar, STAGE_META } from "@/components/cv/builder/library-share
 import { SkillPathRail } from "./skill-path-rail"
 import { TrainingCard } from "./training-card"
 import { TrainingPicker, type ShelfRow } from "./training-shelf"
-import { AuditCard } from "./audit-card"
 import { STEP_LABELS, STEP_LEGEND, roomStage } from "./prep-model"
 
 function StepPips({ steps, className }: { steps: number[]; className: string }) {
@@ -168,7 +167,6 @@ export function PrepRail({
           />
         )}
         <SkillPathRail token={token} />
-        <AuditCard token={token} />
       </div>
     </aside>
   )

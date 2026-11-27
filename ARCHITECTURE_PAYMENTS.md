@@ -408,12 +408,14 @@ call for every kind. `MAX_OPEN_CHECKS` counts all kinds; it is not raised now
 (Shivam: reviewer capacity is not a limit) — raise it the first time
 `checks_full` turns true.
 
-### 10.4 · The ₹999 Audit retires
+### 10.4 · The ₹999 Audit retires — done 2026-11-27
 
-After 10.3 ships: `ai_workflow_audit` joins `_RETIRED` (old orders still settle,
-0 real ones exist), its card leaves the Preparation rail, and the room, intake
-form, router, service and tests are deleted in the same commit. The
-`ai_workflow_audits` table stays until Shivam approves dropping it.
+`ai_workflow_audit` left the catalogue outright, not into `_RETIRED`: on
+2026-11-27 it had **0 orders and 0 audits ever**, so no order needs to settle.
+Its card left the Preparation rail; the room, intake form, router, service and
+tests are deleted. `/preparations/audit` forwards to `/filing`, where the ₹599
+pack's search call carries the same review. The `ai_workflow_audits` and
+`ai_workflow_audit_drafts` tables stay (empty) until Shivam approves dropping them.
 
 ### 10.5 · Work, in order
 
@@ -423,4 +425,4 @@ form, router, service and tests are deleted in the same commit. The
 | **S8** | **Built 2026-11-27.** 10.1: a call on every check. `set_contact` + endpoint, `close_call` and `calls_to_close` for every kind, desk Close call for `cv_job`, the number field on an open check's status line, "+ 30-min call" wherever the ₹199 pack is sold. | `test_human_check.py`: a `cv_job` call closes and clears the number; `set_contact` refuses a closed call and another user's check |
 | **S9** | **Built 2026-11-27** on both CV surfaces (the room already sells ₹199 through `HumanCheckLine`; ₹599 joins both in S10). 10.2: `PackOffer` with ₹199 on both CV surfaces after the score and in the room. | Bought from the gap door on dev (test keys) → an `unassigned` check; 375px holds |
 | **S10** | **Built 2026-11-27.** 10.3: M5, the grant, the search check, `/filing` as the ₹599 pack page with its calls, desk, and the ₹599 link in `PackOffer` and the room's line. | `test_settlement.py`: one ₹599 arrival → +500 once, slots 1–3 once each, a second arrival changes nothing |
-| **S11** | 10.4: the Audit retires. | grep finds no `ai_workflow_audit` code path but the retired catalogue line; six gates green |
+| **S11** | **Done 2026-11-27.** 10.4: the Audit retires. | grep finds no `ai_workflow_audit` code path; six gates green |

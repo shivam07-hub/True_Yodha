@@ -185,7 +185,7 @@ def test_every_order_product_in_the_catalogue_has_a_grant() -> None:
     from app.services import billing_catalogue
 
     grants = settlement.default_grants()
-    for alias in ("apply_pack", "xp_pack", "myrology", "ai_workflow_audit", "filing_intake"):
+    for alias in ("apply_pack", "xp_pack", "myrology", "filing_intake"):
         product = billing_catalogue.by_alias(alias)
         assert product.key in grants
 

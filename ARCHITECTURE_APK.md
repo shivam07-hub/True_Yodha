@@ -41,7 +41,6 @@ Google. Each slice is its own commit on `Develop`, six gates green, plus
   - `app/(authed)/filing/page.tsx` (₹599)
   - `app/(authed)/job-switch-plan/page.tsx` (engagement subscription)
   - `app/myrology/checkout.tsx` (₹299)
-  - `components/preparations/audit-room.tsx` (₹999)
   - `components/settings-modal.tsx` (the coin launch pack)
 - Nobody needs to buy today: 0 paid top-ups ever, and the median balance is 3,000
   coins across 1,087 real people (2026-11-02).

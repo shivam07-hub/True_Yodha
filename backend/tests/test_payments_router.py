@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.routers import payments as payments_router
-from app.services import ai_workflow_audit, razorpay_gateway, settlement
+from app.services import razorpay_gateway, settlement
 from app.services.billing_catalogue import by_alias
 from tests.settlement_support import COIN_PACK, CoinLedger, InMemoryStore
 
@@ -186,16 +186,6 @@ def test_the_retired_coin_pack_is_refused_at_create(monkeypatch: pytest.MonkeyPa
     with TestClient(app) as client:
         response = _post_create(client, amount=9900, currency="INR", product="xp_pack")
     assert response.status_code == 410
-
-
-def test_create_order_refuses_a_full_audit_queue_before_any_order(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(ai_workflow_audit, "is_available", lambda: False)
-    monkeypatch.setattr(razorpay_gateway, "client", lambda: pytest.fail("no order when the queue is full"))
-
-    with TestClient(app) as client:
-        response = _post_create(client, amount=99900, currency="INR", product="ai_workflow_audit")
-
-    assert response.status_code == 409
 
 
 def test_create_order_refuses_when_razorpay_is_not_configured(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -459,7 +449,6 @@ def test_catalogue_offers_the_pack_and_never_a_retired_product(monkeypatch: pyte
             return []
 
     monkeypatch.setattr(human_check, "SupabaseHumanCheckStore", lambda: _NoOpenChecks())
-    monkeypatch.setattr(ai_workflow_audit, "is_available", lambda: True)
 
     with TestClient(app) as client:
         response = client.get("/api/catalogue")
@@ -467,7 +456,7 @@ def test_catalogue_offers_the_pack_and_never_a_retired_product(monkeypatch: pyte
     assert response.status_code == 200, response.text
     body = response.json()
     aliases = {p["alias"]: p for p in body["products"]}
-    assert set(aliases) == {"apply_pack", "myrology", "ai_workflow_audit", "filing_intake"}
+    assert set(aliases) == {"apply_pack", "myrology", "filing_intake"}
     assert aliases["apply_pack"] == {
         "alias": "apply_pack",
         "price_paise": 19900,

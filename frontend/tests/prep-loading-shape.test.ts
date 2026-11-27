@@ -29,7 +29,7 @@ test("Prep is ONE screen: the rail lists rooms, the main column holds the open o
   assert.equal(shell.match(/preparations\.ladder\(/g)?.length, 1)
 })
 
-test("The rail carries the head, the pips, then training above skill path and audit", () => {
+test("The rail carries the head, the pips, then training above skill path", () => {
   const rail = code("components/preparations/prep-rail.tsx")
 
   assert.match(rail, /className="mc-ws-rail prp-rail"/)
@@ -37,12 +37,12 @@ test("The rail carries the head, the pips, then training above skill path and au
   assert.match(rail, /prp-lroom-pips/)
   assert.match(rail, /STEP_LABELS/)
 
-  // Order locked with Shivam 2026-09-06: training sits ABOVE skill path and
-  // audit, which the 2b rail does not draw at all but which we keep.
+  // Order locked with Shivam 2026-09-06: training sits ABOVE skill path. The
+  // AI Workflow Audit card that sat last retired into the ₹599 pack (ENG5).
   const train = rail.indexOf("<TrainingCard")
   const skill = rail.indexOf("<SkillPathRail")
-  const audit = rail.indexOf("<AuditCard")
-  assert.ok(train > 0 && skill > train && audit > skill, "rail order changed")
+  assert.ok(train > 0 && skill > train, "rail order changed")
+  assert.doesNotMatch(rail, /AuditCard/)
 })
 
 test("With rooms, the Finlatics block shows three matched programmes, not the catalogue", () => {
