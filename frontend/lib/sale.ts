@@ -16,7 +16,6 @@ export type SaleResult = "absent" | "unavailable" | "opened"
 export const SALE_PATHS = [
   "/apply-pack",
   "/filing",
-  "/preparations/audit",
   "/myrology",
 ] as const
 

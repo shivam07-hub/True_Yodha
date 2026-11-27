@@ -47,6 +47,28 @@ def test_my_checks_never_carry_the_whatsapp_number_or_the_draft(store: InMemoryC
     assert out["kind"] == "linkedin"
     assert "contact_whatsapp" not in out
     assert "draft" not in out
+    assert out["has_contact"] is True  # whether a number is on file, never the number
+
+
+def test_the_owner_adds_the_call_number_and_never_reads_it_back(store: InMemoryChecks) -> None:
+    check = human_check.open_check(store, "u1", billing_payment_id="pay-1", job_id="job-1")
+    with TestClient(app) as client:
+        response = client.post(
+            f"/human-checks/{check['id']}/contact",
+            json={"whatsapp": "98765 43210"},
+            headers={"Authorization": "Bearer t"},
+        )
+        bad = client.post(
+            f"/human-checks/{check['id']}/contact",
+            json={"whatsapp": "call me"},
+            headers={"Authorization": "Bearer t"},
+        )
+
+    assert response.status_code == 200, response.text
+    out = response.json()
+    assert out["has_contact"] is True and "contact_whatsapp" not in out
+    assert store.rows[check["id"]]["contact_whatsapp"] == "+919876543210"
+    assert bad.status_code == 422
 
 
 def test_spending_a_check_on_linkedin_rejects_a_search_url(store: InMemoryChecks) -> None:
@@ -104,3 +126,40 @@ def test_claim_needs_the_reviewer_name_set(store: InMemoryChecks, monkeypatch: p
         response = client.post(f"/admin/human-checks/{check['id']}/claim", headers={"X-Myro-Admin-Token": "the-token"})
     assert response.status_code == 503
     assert store.rows[check["id"]]["status"] == "queued"
+
+
+def test_a_search_call_on_the_desk_carries_the_buyers_filing_intake(monkeypatch: pytest.MonkeyPatch) -> None:
+    """§10.3: the reviewer reads the search call against the role, cities and
+    career pages the buyer gave. Other kinds carry nothing extra."""
+
+    class _Query:
+        def __init__(self, data: list[dict[str, Any]]) -> None:
+            self.data = data
+
+        def select(self, *_a: Any) -> "_Query":
+            return self
+
+        def in_(self, _col: str, ids: list[str]) -> "_Query":
+            self.data = [r for r in self.data if r["user_id"] in ids]
+            return self
+
+        def execute(self) -> "_Query":
+            return self
+
+    intakes = [{"user_id": "u1", "target_role": "Product Analyst", "cities": "Pune", "portals": "careers.example.com"}]
+
+    class _Admin:
+        def table(self, name: str) -> _Query:
+            assert name == "filing_intakes"
+            return _Query(list(intakes))
+
+    monkeypatch.setattr(router_mod, "get_supabase_admin", lambda: _Admin())
+    rows = [
+        {"id": "a", "user_id": "u1", "kind": "search"},
+        {"id": "b", "user_id": "u1", "kind": "cv_job"},
+    ]
+
+    out = router_mod._with_filing(rows)
+
+    assert out[0]["filing"]["target_role"] == "Product Analyst"
+    assert "filing" not in out[1]

@@ -1,6 +1,7 @@
-"""Human Check (ARCHITECTURE_PAYMENTS.md §6 S2, ENG3): transitions, capacity
-across both kinds, the honest ETA, delivery rules per kind, the 5,000-coin
-LinkedIn path, and the paste call clearing the WhatsApp number."""
+"""Human Check (ARCHITECTURE_PAYMENTS.md §6 S2, §10.1, ENG3, ENG5): transitions,
+capacity across both kinds, the honest ETA, delivery rules per kind, the
+5,000-coin LinkedIn path, and the call every check ends in — the number it is
+booked on, and closing it clearing that number."""
 
 from __future__ import annotations
 
@@ -29,8 +30,23 @@ class InMemoryChecks:
                 return dict(row)
         return None
 
+    def by_pack(self, pack_payment_id: str, pack_slot: int) -> dict[str, Any] | None:
+        for row in self.rows.values():
+            if row.get("pack_payment_id") == pack_payment_id and row.get("pack_slot") == pack_slot:
+                return dict(row)
+        return None
+
+    def for_payment(self, payment_id: str) -> list[dict[str, Any]]:
+        return [
+            dict(r)
+            for r in self.rows.values()
+            if payment_id in (r.get("billing_payment_id"), r.get("pack_payment_id"))
+        ]
+
     def insert(self, row: dict[str, Any]) -> dict[str, Any] | None:
         if row.get("billing_payment_id") and self.by_payment(row["billing_payment_id"]):
+            return None
+        if row.get("pack_payment_id") and self.by_pack(row["pack_payment_id"], row["pack_slot"]):
             return None
         new = {"id": str(uuid.uuid4()), "created_at": datetime.now(timezone.utc).isoformat(), **row}
         self.rows[new["id"]] = new
@@ -63,7 +79,7 @@ class InMemoryChecks:
         return [
             dict(r)
             for r in self.rows.values()
-            if r.get("kind") == "linkedin" and r["status"] == "delivered" and not r.get("call_closed_at")
+            if r["status"] == "delivered" and not r.get("call_closed_at")
         ]
 
 
@@ -281,13 +297,109 @@ def test_closing_the_paste_call_clears_the_whatsapp_number_either_way() -> None:
         hc.close_call(store, pasted["id"], pasted=True)
 
 
-def test_a_cv_check_has_no_paste_call() -> None:
+def test_a_cv_check_ends_in_a_call_too() -> None:
+    """ENG5: the ₹199 check comes with a 30-minute call, whichever kind. A CV
+    check has nothing to paste, so `pasted` is never recorded for it."""
     store = InMemoryChecks()
     check = hc.open_check(store, "u1", billing_payment_id="pay-1", job_id="job-1")
+    hc.set_contact(store, "u1", check["id"], "98765 43210")
+    hc.claim(store, check["id"], "Shivam")
+    with pytest.raises(hc.CheckConflict):
+        hc.close_call(store, check["id"], pasted=False)  # the call follows the delivery
+    hc.deliver(store, check["id"], note="Done.", reviewer_name="Shivam", reviewed_cv_version_id=3)
+
+    assert [c["id"] for c in store.calls_to_close()] == [check["id"]]
+    closed = hc.close_call(store, check["id"], pasted=True)
+    assert closed["call_closed_at"] and closed["contact_whatsapp"] is None
+    assert not closed.get("pasted_at")
+    assert store.calls_to_close() == []
+
+
+def test_the_owner_gives_the_call_number_before_the_call_closes() -> None:
+    store = InMemoryChecks()
+    check = hc.open_check(store, "u1", billing_payment_id="pay-1", job_id="job-1")
+    assert not check.get("contact_whatsapp")  # the stakes door opens with no number
+
+    given = hc.set_contact(store, "u1", check["id"], "098765 43210")
+    assert (given["status"], given["contact_whatsapp"]) == ("queued", "+919876543210")
+
+    with pytest.raises(hc.CheckNotFound):
+        hc.set_contact(store, "u2", check["id"], "9876543210")
+    with pytest.raises(hc.CheckInputInvalid):
+        hc.set_contact(store, "u1", check["id"], "call me")
+
     hc.claim(store, check["id"], "Shivam")
     hc.deliver(store, check["id"], note="Done.", reviewer_name="Shivam", reviewed_cv_version_id=3)
+    hc.close_call(store, check["id"], pasted=False)
     with pytest.raises(hc.CheckConflict):
-        hc.close_call(store, check["id"], pasted=True)
+        hc.set_contact(store, "u1", check["id"], "9876543210")
+    assert store.by_id(check["id"])["contact_whatsapp"] is None
+
+
+# ── the ₹599 pack's checks (§10.3) ──────────────────────────────────────────
+
+
+def _full_pack(store: InMemoryChecks, user: str = "u1", payment: str = "pay-599") -> list[dict[str, Any]]:
+    first = hc.open_check(store, user, billing_payment_id=payment, job_id=None)
+    return [first] + [hc.open_pack_check(store, user, pack_payment_id=payment, pack_slot=s) for s in hc.PACK_SLOTS]
+
+
+def test_a_full_pack_holds_two_checks_and_queues_the_search_call(_quiet_notifications: list) -> None:
+    store = InMemoryChecks()
+    cv, linkedin, search = _full_pack(store)
+
+    assert [c["status"] for c in (cv, linkedin)] == ["unassigned", "unassigned"]
+    assert (search["status"], search["kind"], search["pack_slot"]) == ("queued", "search", 3)
+    due = datetime.fromisoformat(search["due_at"]) - datetime.fromisoformat(search["slot_starts_at"])
+    assert due == timedelta(hours=24)
+    assert _quiet_notifications == [("reviewer", search["id"])]  # only the call has work yet
+
+    again = [hc.open_pack_check(store, "u1", pack_payment_id="pay-599", pack_slot=s) for s in hc.PACK_SLOTS]
+    assert [c["id"] for c in again] == [linkedin["id"], search["id"]]
+    assert len(store.rows) == 3
+
+
+def test_a_pack_has_slots_2_and_3_only() -> None:
+    with pytest.raises(ValueError):
+        hc.open_pack_check(InMemoryChecks(), "u1", pack_payment_id="pay-599", pack_slot=1)
+
+
+def test_a_search_call_is_delivered_with_a_note_and_then_closed() -> None:
+    store = InMemoryChecks()
+    search = _full_pack(store)[2]
+    hc.claim(store, search["id"], "Shivam")
+    with pytest.raises(hc.CheckInputInvalid):
+        hc.deliver(store, search["id"], note=" ", reviewer_name="Shivam")
+
+    done = hc.deliver(store, search["id"], note="Three career pages, two roles. Drafts with AI, checks by hand.", reviewer_name="Shivam")
+    assert done["status"] == "delivered" and not done.get("blocks") and not done.get("reviewed_cv_version_id")
+    assert [c["id"] for c in store.calls_to_close()] == [search["id"]]
+    closed = hc.close_call(store, search["id"], pasted=True)
+    assert closed["contact_whatsapp"] is None and not closed.get("pasted_at")
+
+
+def test_one_number_reaches_every_call_of_the_pack() -> None:
+    store = InMemoryChecks()
+    cv, linkedin, search = _full_pack(store)
+    hc.assign_job(store, "u1", cv["id"], "job-1")
+
+    hc.set_contact(store, "u1", search["id"], "9876543210")
+
+    for check in (cv, linkedin, search):
+        assert store.by_id(check["id"])["contact_whatsapp"] == "+919876543210"
+    other = hc.open_check(store, "u1", billing_payment_id="pay-199", job_id="job-2")
+    assert not store.by_id(other["id"]).get("contact_whatsapp")  # another payment's check is its own
+
+
+def test_a_sibling_keeps_the_number_it_already_has() -> None:
+    store = InMemoryChecks()
+    cv, linkedin, search = _full_pack(store)
+    hc.assign_linkedin(store, "u1", linkedin["id"], linkedin_url=URL, whatsapp="9123456780")
+
+    hc.set_contact(store, "u1", search["id"], "9876543210")
+
+    assert store.by_id(linkedin["id"])["contact_whatsapp"] == "+919123456780"
+    assert store.by_id(cv["id"])["contact_whatsapp"] == "+919876543210"
 
 
 # ── the 5,000-coin LinkedIn path ────────────────────────────────────────────

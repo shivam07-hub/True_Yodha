@@ -29,6 +29,7 @@ pretends retrieval order was a ranking.
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 from app.services import direction
@@ -60,6 +61,21 @@ WARM_SHORTLIST_SIZE = 10
 # between 09:42 and 10:08 UTC that morning, while Develop was pushed seven
 # times. A tick of one wave finishes inside the drain.
 DRAIN_BATCH = 3
+
+# The first screen. A person who has just saved a direction is on /market
+# waiting for their first jobs. Measured 2026-11-27, real people, last 30 days:
+# the first job worth showing landed at a median 74 s, the fifth at 8.6 min,
+# and 12 of 36 ever saw five. 11% of judged jobs clear 3.5, and a round of 3
+# took ~19 s, so the wait was the number of rounds. Until FIRST_SCREEN jobs
+# clear for this context, a round reads FIRST_SCREEN_BATCH, judged as one
+# wave, so it should take about as long as a round of 3 (`metric
+# feed_warm.tick` says whether it does). The total read is unchanged (the list
+# still stops at 40, and the drain at absence); only the first minutes move.
+# Six leaves the global Provider Budget (`llm_max_concurrency`, default 8) two
+# slots for the CV parse a person waits on; past the budget a call waits for a
+# slot, it is never refused.
+FIRST_SCREEN = 5
+FIRST_SCREEN_BATCH = 6
 
 
 def direction_first(
@@ -125,6 +141,7 @@ async def warm_feed_shortlist(
     *,
     limit: int = WARM_SHORTLIST_SIZE,
     profile: dict[str, Any] | None = None,
+    concurrency: int = llm_ranker._CONCURRENCY,
 ) -> int:
     """Brain-rank the top `limit` fit-sorted candidates that aren't cached yet.
 
@@ -177,7 +194,9 @@ async def warm_feed_shortlist(
         logger.info("metric feed_warm.yielded user=%s stage=pre_eval", user_id)
         return 0
 
-    evaluations = await llm_ranker.evaluate_all(eval_profile, shaped, provider)
+    evaluations = await llm_ranker.evaluate_all(
+        eval_profile, shaped, provider, concurrency=concurrency,
+    )
     if not evaluations:
         logger.info("feed_warm: brain returned no evals for user=%s (%d candidates)", user_id, len(shaped))
         return 0
@@ -327,6 +346,7 @@ async def run_feed_warm(
     not change it. When this baseline's pile is empty and a newer baseline
     exists, the next tick starts on that one.
     """
+    started = time.perf_counter()
     profile = targeting.for_ranking(repo, user_id).ranking_profile()
     latest = (
         repo.get_latest_baseline_id(user_id)
@@ -352,6 +372,7 @@ async def run_feed_warm(
             repo.get_candidate_job_ids_for_roles(
                 roles,
                 target_location_countries=countries,
+                profile=profile,
                 limit=published_list.ASPIRATION_READ,
             ) or []
         ) if job_id
@@ -366,7 +387,8 @@ async def run_feed_warm(
     # List Reading (ADR-0027): the pile is read only while the list is short of
     # its target — 40 good jobs, or more after Read more. The cards already on
     # the list are re-read either way.
-    full = published_list.cleared_current(repo, user_id, profile) >= list_reading.read_target(user_id, eval_ctx)
+    cleared = published_list.cleared_current(repo, user_id, profile)
+    full = cleared >= list_reading.read_target(user_id, eval_ctx)
     pile = [] if full else [
         job_id for job_id in ids
         if job_id not in first
@@ -375,11 +397,19 @@ async def run_feed_warm(
     if full:
         logger.info("metric feed_warm.list_full user=%s stale=%d", user_id, len(shown_stale))
     pending = shown_stale + pile
-    batch = pending[:DRAIN_BATCH]
+    size = FIRST_SCREEN_BATCH if cleared < FIRST_SCREEN else DRAIN_BATCH
+    batch = pending[:size]
     written = 0
     if batch:
+        judged_at = time.perf_counter()
         written = await warm_feed_shortlist(
-            repo, provider, user_id, batch, limit=len(batch), profile=profile,
+            repo, provider, user_id, batch,
+            limit=len(batch), profile=profile, concurrency=len(batch),
+        )
+        logger.warning(
+            "metric feed_warm.tick user=%s cleared=%d batch=%d written=%d setup_ms=%d judge_ms=%d",
+            user_id, cleared, len(batch), written,
+            (judged_at - started) * 1000, (time.perf_counter() - judged_at) * 1000,
         )
         if written == 0:
             logger.warning(

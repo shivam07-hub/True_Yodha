@@ -165,6 +165,7 @@ def assemble(repo: Any, user_id: str) -> tuple[list[dict[str, Any]], dict[str, A
                 repo.get_candidate_job_ids_for_roles(
                     roles,
                     target_location_countries=countries,
+                    profile=profile,
                     limit=ASPIRATION_READ,
                 ) or []
             ) if job_id

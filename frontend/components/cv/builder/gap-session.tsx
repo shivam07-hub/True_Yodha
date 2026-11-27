@@ -1,6 +1,7 @@
 /**
  * GapSession — Tailor Order Gaps step. Remaining missing/partial JD rows,
- * inserted on a host bullet. A Skills-map row can open just that card.
+ * inserted on a host bullet. A Skills-map row opens just that card, or Mentor
+ * when the CV has no line to rewrite for it.
  *
  * A gap is one of three things and gets the one honest move:
  *   • latent  — you did it, your words don't show it → surface it on its bullet
@@ -53,7 +54,8 @@ interface GapSessionProps {
   focusRequirement?: string | null
   /** null while the versions read is out. True when this job has no document yet. */
   firstLanding: boolean | null
-  /** First landing whose plan has nothing to walk. Opens the weave offer. */
+  /** Nothing on the CV to rewrite: a first landing with an empty deck, or a
+   *  clicked row with no card. Opens the weave offer. */
   onNothingToWalk?: () => void
   /** A plan already in hand. Omitted, the session reads it. */
   plan?: GapPlanResponse
@@ -147,20 +149,19 @@ export function GapSession({
     ].slice(0, FIRST_LANDING_CARDS)
   }, [plan, isFirst, focusRequirement])
 
+  // Reached only at the end of an unfocused walk: a clicked row either opens
+  // its CV card or hands off to Mentor, so practice never comes before the CV.
   const practiceSkills = useMemo(() => {
     if (!plan) return []
     const below = plan.below_level_cards.filter(c => !c.host)
-    const all = [...plan.absent_skills.map(a => ({
+    return [...plan.absent_skills.map(a => ({
       skill: a.skill, display_name: a.display_name, is_primary: a.is_primary,
       reason: "absent" as const, ladder: a.ladder_max_level,
     })), ...below.map(b => ({
       skill: b.skill, display_name: b.display_name, is_primary: b.is_primary,
       reason: "shallow" as const, ladder: b.ladder_max_level,
     }))]
-    if (!focusRequirement) return all
-    const hit = all.filter(s => gapCardMatches(focusRequirement, [s.display_name, s.skill]))
-    return hit.length ? hit : all
-  }, [plan, focusRequirement])
+  }, [plan])
 
   const deckMatch = useMemo(() => {
     if (!focusRequirement) return -1
@@ -171,11 +172,8 @@ export function GapSession({
         : [c.display_name, c.skill],
     ))
   }, [deck, focusRequirement])
-  const practiceMatch = Boolean(
-    focusRequirement && practiceSkills.some(s => gapCardMatches(focusRequirement, [s.display_name, s.skill])),
-  )
-  const startIdx = deckMatch >= 0 ? deckMatch : (focusRequirement && practiceMatch ? deck.length : 0)
-  const focusOnly = deckMatch >= 0 || Boolean(focusRequirement && practiceMatch && deckMatch < 0)
+  const startIdx = deckMatch >= 0 ? deckMatch : 0
+  const focusOnly = deckMatch >= 0
   const pos = idx ?? startIdx
   // The meter stays down until a later visit, or until an Accept moves it.
   const showMeter = isFirst === false || surfaced > 0
@@ -211,7 +209,10 @@ export function GapSession({
   // Nothing to accept on a first landing. The weave offer is the next door;
   // the closing panel would be a dead end. Once, and not during this render's
   // parent update.
-  const handingOff = isFirst && deck.length === 0
+  // A clicked Skills-map row with no CV line to rewrite goes there too: Mentor
+  // asks what you did and writes it onto the CV. The CV comes before practice —
+  // practice stays at the end of the walk and in the Prep room.
+  const handingOff = (isFirst && deck.length === 0) || (focusRequirement != null && deckMatch < 0)
   if (handingOff && !handed.current) {
     handed.current = true
     queueMicrotask(() => onNothingToWalk?.())

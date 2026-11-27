@@ -2,24 +2,29 @@
 
 /**
  * The stakes door, beside the CV they are about to send (#56, ENG2). One line,
- * not a card. The line IS the state: due, checked, or the way to get one.
+ * not a card. The line IS the state: due, checked, or the way to get one; under
+ * an open check, the 30-minute call it ends in (ENG5).
  */
 
 import { useState } from "react"
+import Link from "next/link"
 import { useQueryClient } from "@tanstack/react-query"
 
 import { ApplyPackBuy } from "@/components/apply-pack/apply-pack-buy"
+import { CallContact } from "@/components/apply-pack/call-contact"
 import { heldCheck, useHumanChecks } from "@/components/apply-pack/use-human-checks"
 import { SaleOffer } from "@/components/sale-gate"
 import { Button } from "@/components/ui/button"
 import { humanChecks } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { formatDateTime } from "@/lib/format"
+import { rupees, sellable, useCatalogue } from "@/lib/use-catalogue"
 import "./apply-pack.css"
 
 export function HumanCheckLine({ token, jobId }: { token: string; jobId: string }) {
   const queryClient = useQueryClient()
   const checksQ = useHumanChecks(token)
+  const catalogueQ = useCatalogue()
   const [spending, setSpending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -32,6 +37,7 @@ export function HumanCheckLine({ token, jobId }: { token: string; jobId: string 
       <span className="hc-line">
         <span className="hc-line-state">Checked by {forJob.reviewer_name}</span>
         {forJob.note ? <span className="hc-line-note">{forJob.note}</span> : null}
+        <CallContact token={token} check={forJob} />
       </span>
     )
   }
@@ -39,6 +45,7 @@ export function HumanCheckLine({ token, jobId }: { token: string; jobId: string 
     return (
       <span className="hc-line">
         <span className="hc-line-state">Human check · due {formatDateTime(forJob.due_at ?? "")}</span>
+        <CallContact token={token} check={forJob} />
       </span>
     )
   }
@@ -67,10 +74,14 @@ export function HumanCheckLine({ token, jobId }: { token: string; jobId: string 
     )
   }
 
+  const fullPack = sellable(catalogueQ.data, "filing_intake")
   return (
     <SaleOffer>
       <span className="hc-line">
         <ApplyPackBuy jobId={jobId} label="Human check before you apply" />
+        {fullPack ? (
+          <Link className="tm-link" href="/filing">Three calls · {rupees(fullPack.price_paise)}</Link>
+        ) : null}
       </span>
     </SaleOffer>
   )

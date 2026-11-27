@@ -48,6 +48,7 @@ def jobs_for_families(
     families: list[str],
     *,
     countries: list[str] | None = None,
+    year_span: tuple[float, float] | None = None,
     require_fresh: bool = True,
     limit: int = 400,
 ) -> list[str]:
@@ -56,6 +57,14 @@ def jobs_for_families(
     Country uses the same rule as the skill pool: the named country, or a
     remote/hybrid row with no country. The filter is in the page, so a full
     page comes back instead of a page that then shrinks.
+
+    `year_span` is the person's `job_eligibility.person_year_span`. Given, the
+    page holds only roles within reach by the employer's stated years — the
+    rule the list shows by (`admission`) and the Match Run pool admits by
+    (`candidates_for_user`), applied in the same SQL. Without it, a 0-year
+    student's pile was mostly roles asking 5+ years, which the judge read and
+    the list then hid (migration 20261127120000). Level applies on the live
+    path, the only one the feed takes.
     """
     wanted = _clean(families)
     if not wanted or not require_fresh:
@@ -63,15 +72,17 @@ def jobs_for_families(
             return []
         return _families_without_the_live_index(db, wanted, countries=countries, limit=limit)
     page = max(1, min(int(limit), _FAMILY_CAP))
+    params: dict[str, Any] = {
+        "p_families": wanted,
+        "p_countries": [c.lower() for c in _clean(countries)],
+        "p_limit": page,
+    }
+    if year_span is not None:
+        lo, hi = year_span
+        params["p_year_hi"] = hi
+        params["p_centre"] = (lo + hi) / 2.0
     rows = (
-        db.rpc(
-            _FAMILIES,
-            {
-                "p_families": wanted,
-                "p_countries": [c.lower() for c in _clean(countries)],
-                "p_limit": page,
-            },
-        ).execute()
+        db.rpc(_FAMILIES, params).execute()
         .data
         or []
     )

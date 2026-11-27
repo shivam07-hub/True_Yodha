@@ -5170,12 +5170,11 @@ export const skills = {
 
 // ── Billing ──────────────────────────────────────────────────────────────────
 
-export type BillingProduct = "apply_pack" | "myrology" | "ai_workflow_audit" | "filing_intake"
+export type BillingProduct = "apply_pack" | "myrology" | "filing_intake"
 
 export const BILLING_PRODUCT_AMOUNT_PAISE: Record<BillingProduct, number> = {
   apply_pack: 19900,
   myrology: 29900,
-  ai_workflow_audit: 99900,
   filing_intake: 59900,
 }
 
@@ -5229,7 +5228,6 @@ export interface Catalogue {
 const BILLING_RECEIPT_PREFIX: Record<BillingProduct, string> = {
   apply_pack: "ap",
   myrology: "myro",
-  ai_workflow_audit: "awa",
   filing_intake: "fi",
 }
 
@@ -6365,62 +6363,6 @@ export const ghostIndex = {
 }
 
 
-// ── AI Workflow Audit (₹999) ─────────────────────────────────────────────────
-//
-// The service is a call. The written audit is what comes out of it, so the
-// intake asks when the buyer can take one alongside what they run.
-//
-// Intake is bounded: `slots_open` is the real remaining capacity, not a
-// scarcity device. When it reaches zero the offer says so and stops selling,
-// because one reviewer cannot absorb an unbounded queue.
-
-export type AuditStatus = "awaiting_submission" | "submitted" | "in_progress" | "delivered"
-
-export interface AuditAvailability {
-  available: boolean
-  slots_open: number
-  price_paise: number
-}
-
-export interface WorkflowAudit {
-  id: string
-  status: AuditStatus
-  intake: Record<string, string> | null
-  /** Present only once a human has signed it off. Never a model draft. */
-  audit_text: string | null
-  reviewed_by: string | null
-  signed_off_at: string | null
-  purchased_at: string
-  submitted_at: string | null
-  sla_due_at: string | null
-  delivered_at: string | null
-}
-
-export interface AuditIntake {
-  what_the_workflow_does: string
-  tools_used: string
-  data_it_touches: string
-  who_checks_the_output: string
-  what_happens_when_it_is_wrong: string
-  when_you_are_free: string
-}
-
-export const workflowAudit = {
-  availability: () => request<AuditAvailability>("/ai-workflow-audit/availability"),
-
-  mine: (token: string) =>
-    request<{ audit: WorkflowAudit | null }>("/ai-workflow-audit/me", {
-      headers: { Authorization: `Bearer ${token}` },
-    }),
-
-  submit: (token: string, intake: AuditIntake) =>
-    request<{ audit: WorkflowAudit }>("/ai-workflow-audit/submit", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(intake),
-    }),
-}
-
 // ── Sector hiring panel (Wave 2) ─────────────────────────────────────────────
 //
 // What is actually hiring by sector. Public aggregate over public listings.
@@ -6563,7 +6505,8 @@ export interface LinkedInBlocks {
 
 export interface HumanCheck {
   id: string
-  kind: "cv_job" | "linkedin" | null
+  /** `search` is the ₹599 pack's search call (ENG5, §10.3). */
+  kind: "cv_job" | "linkedin" | "search" | null
   job_id: string | null
   status: "unassigned" | "queued" | "in_review" | "delivered"
   slot_starts_at: string | null
@@ -6574,8 +6517,12 @@ export interface HumanCheck {
   linkedin_url: string | null
   blocks: LinkedInBlocks | null
   pasted_at: string | null
+  /** The call every check ends in (ENG5) has happened. */
+  call_closed_at: string | null
   delivered_at: string | null
   created_at: string | null
+  /** A WhatsApp number is on file for the call. The number itself never comes back. */
+  has_contact: boolean
 }
 
 export interface LinkedInIntake {
@@ -6600,6 +6547,13 @@ export const humanChecks = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(intake),
     }),
+  /** The WhatsApp number the reviewer books the 30-minute call on. */
+  setContact: (token: string, checkId: string, whatsapp: string) =>
+    request<HumanCheck>(`/human-checks/${encodeURIComponent(checkId)}/contact`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ whatsapp }),
+    }),
   /** 5,000 coins. Out of coins answers 400 with the shortfall. */
   buyLinkedInWithCoins: (token: string, intake: LinkedInIntake) =>
     request<HumanCheck>("/human-checks/linkedin", {
@@ -6616,6 +6570,8 @@ export interface ReviewerCheck extends HumanCheck {
   buyer_email: string | null
   contact_whatsapp: string | null
   draft: (LinkedInBlocks & { flags?: string[] }) | null
+  /** Only on a search call: the buyer's filing intake. */
+  filing?: { target_role: string; cities: string; portals: string; consented_at: string | null } | null
 }
 
 export interface StuckPayment {

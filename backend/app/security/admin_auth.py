@@ -1,7 +1,7 @@
 """The reviewer-operations guard.
 
-Every human-reviewed deliverable — the ₹99 Job-Switch Plan and the ₹999 AI
-Workflow Audit — has the same back-of-house need: a founder advancing a queue.
+Every human-reviewed deliverable — the Human Checks the two packs sell, and
+Myrology — has the same back-of-house need: a founder advancing a queue.
 One header, one token, one definition, so a second product cannot quietly ship
 a weaker check than the first.
 

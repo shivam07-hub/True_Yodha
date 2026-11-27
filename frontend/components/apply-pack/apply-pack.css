@@ -38,6 +38,67 @@
   overflow-wrap: anywhere;
 }
 
+/* The call every check ends in (ENG5): the number field, then who calls whom. */
+.hc-call {
+  flex-basis: 100%;
+  font-size: var(--tm-fs-caption);
+  color: var(--tm-text-muted);
+}
+
+.hc-call-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tm-space-xs);
+}
+
+.hc-call-input {
+  flex: 1 1 12rem;
+  min-width: 0;
+  max-width: 18rem;
+}
+
+/* The card shell on the CV page: the LinkedIn rewrite and the pack offer. */
+.hc-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tm-space-sm);
+  margin-top: var(--tm-section-gap);
+  padding: var(--tm-space-md);
+  border: 1px solid var(--tm-border);
+  background: var(--tm-surface);
+  scroll-margin-top: var(--tm-space-xl);
+}
+
+.hc-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--tm-space-2xs) var(--tm-space-sm);
+}
+
+.hc-card-title {
+  margin: 0;
+  font-size: var(--tm-fs-heading);
+  font-weight: 600;
+}
+
+.hc-card-meta {
+  font-size: var(--tm-fs-meta);
+  color: var(--tm-text-muted);
+}
+
+.hc-card-note {
+  margin: 0;
+  color: var(--tm-text-secondary);
+  white-space: pre-line;
+}
+
+.hc-card-more {
+  font-size: var(--tm-fs-meta);
+}
+
 /* The pack page */
 .ap-page {
   display: flex;

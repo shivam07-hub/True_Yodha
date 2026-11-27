@@ -22,6 +22,7 @@ from urllib.parse import urlparse
 
 import httpx
 
+from app.security.personal_data import redact_personal_data_text, restore_redactions
 from app.services.llm_provider import LLMProvider, LLMProviderError
 
 _log = logging.getLogger(__name__)
@@ -116,15 +117,20 @@ def _parse_fields_json(raw: str) -> dict:
 
 
 async def extract_job_from_text(raw_text: str, provider: LLMProvider) -> dict:
+    """The model sees the posting with its emails and phones replaced by
+    numbered tokens; its job_description is a copy of that text, so the
+    originals are put back before the fields reach the person. The hiring
+    address IS the apply step for a posting that says "send your CV to…"."""
+    ledger: dict[str, str] = {}
     messages = [
         {"role": "system", "content": _SYSTEM},
-        {"role": "user", "content": raw_text[:24000]},
+        {"role": "user", "content": redact_personal_data_text(raw_text[:24000], ledger=ledger)},
     ]
     try:
         out = await provider.complete(messages, max_tokens=2048, temperature=0)
     except LLMProviderError as exc:
         raise JobFileParseError("The parser is busy right now — paste the text instead.") from exc
-    return _parse_fields_json(out)
+    return restore_redactions(_parse_fields_json(out), ledger)
 
 
 class JobUrlFetchError(JobFileParseError):

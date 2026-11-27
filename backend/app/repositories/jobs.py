@@ -34,6 +34,7 @@ from app.services.job_eligibility import (
     career_band_for_job,
     career_band_for_profile,
     job_is_eligible,
+    person_year_span,
     seniority_for_job,
     target_seniority_for_profile,
 )
@@ -2492,6 +2493,7 @@ class JobsRepository:
         role_families: list[str],
         *,
         target_location_countries: list[str] | None = None,
+        profile: dict[str, Any] | None = None,
         require_fresh: bool = True,
         limit: int = 400,
     ) -> list[str]:
@@ -2512,6 +2514,10 @@ class JobsRepository:
         was resolved from. `live_jobs_for_families` keeps the live rows, applies
         the country rule, and stops at the page. Most recently verified first.
         Returns [] when the user has no resolved family.
+
+        With `profile`, the page also admits by level — the person's year span,
+        the rule `/market` shows by — so List Reading never spends a judgment on
+        a role the list would hide.
         """
         from app.repositories.live_list import jobs_for_families
 
@@ -2519,6 +2525,7 @@ class JobsRepository:
             self._db,
             role_families,
             countries=target_location_countries,
+            year_span=person_year_span(profile) if profile is not None else None,
             require_fresh=require_fresh,
             limit=limit,
         )

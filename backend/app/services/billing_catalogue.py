@@ -12,7 +12,7 @@ orders still settle. The ₹199/month engagement was deleted in S5 (2026-11-23).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from app.services import ai_workflow_audit, filing_intake, razorpay_gateway
+from app.services import filing_intake, razorpay_gateway
 
 CURRENCY = "INR"
 
@@ -23,7 +23,7 @@ class UnknownProduct(LookupError):
 
 @dataclass(frozen=True)
 class Product:
-    alias: str  # what a client sends: "myrology", "ai_workflow_audit", ...
+    alias: str  # what a client sends: "apply_pack", "filing_intake", "myrology"
     key: str  # what billing_payments.product stores
     price_paise: int
     coins: int  # coins the grant adds; 0 for an entitlement
@@ -33,7 +33,7 @@ class Product:
 @dataclass(frozen=True)
 class Availability:
     available: bool
-    reason: str | None = None  # "not_configured" | "audit_full"
+    reason: str | None = None  # "not_configured"
 
 
 _PRODUCTS: tuple[Product, ...] = (
@@ -42,17 +42,15 @@ _PRODUCTS: tuple[Product, ...] = (
     Product(alias="apply_pack", key="myro_apply_pack", price_paise=19900, coins=500, human_checks=1),
     Product(alias="xp_pack", key="myro_xp_launch_pack", price_paise=9900, coins=1000),
     Product(alias="myrology", key="myro_myrology_unlock", price_paise=29900, coins=0),
-    Product(
-        alias="ai_workflow_audit",
-        key="myro_ai_workflow_audit",
-        price_paise=ai_workflow_audit.AUDIT_PRICE_PAISE,
-        coins=0,
-    ),
+    # ENG5: the ₹599 pack. Everything in the Apply Pack (500 coins, a CV
+    # check) plus a check held for the LinkedIn rewrite, the search call, and
+    # Myro filing on company pages — three calls in all.
     Product(
         alias="filing_intake",
         key="myro_filing_intake",
         price_paise=filing_intake.FILING_INTAKE_PRICE_PAISE,
-        coins=0,
+        coins=500,
+        human_checks=2,
     ),
 )
 
@@ -90,6 +88,4 @@ def availability(product: Product) -> Availability:
     """
     if not razorpay_gateway.configured():
         return Availability(False, "not_configured")
-    if product.alias == "ai_workflow_audit" and not ai_workflow_audit.is_available():
-        return Availability(False, "audit_full")
     return Availability(True)

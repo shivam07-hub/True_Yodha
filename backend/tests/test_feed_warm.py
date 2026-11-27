@@ -73,7 +73,7 @@ class _FakeRepo:
 
 
 def _fake_evaluate_all(monkeypatch: Any, scores: dict[str, float] | None = None) -> None:
-    async def _eval_all(_profile: dict[str, Any], jobs: list[dict[str, Any]], _prov: Any, _cb: Any = None) -> dict[str, Any]:
+    async def _eval_all(_profile: dict[str, Any], jobs: list[dict[str, Any]], _prov: Any, _cb: Any = None, **_kw: Any) -> dict[str, Any]:
         out: dict[str, Any] = {}
         for job in jobs:
             jid = job["job_id"]
@@ -113,7 +113,7 @@ def test_only_uncached_reach_the_brain(monkeypatch: Any) -> None:
     repo = _FakeRepo(cached={"a"})
     seen: list[str] = []
 
-    async def _eval_all(_p: dict[str, Any], jobs: list[dict[str, Any]], _prov: Any, _cb: Any = None) -> dict[str, Any]:
+    async def _eval_all(_p: dict[str, Any], jobs: list[dict[str, Any]], _prov: Any, _cb: Any = None, **_kw: Any) -> dict[str, Any]:
         seen.extend(j["job_id"] for j in jobs)
         return {j["job_id"]: {"overall_score": 4.0, "recommendation": "Apply"} for j in jobs}
 
@@ -182,7 +182,7 @@ def test_warm_sees_memory_facts_via_targeting_brief(monkeypatch: Any) -> None:
     )
     seen: dict[str, Any] = {}
 
-    async def _capture(profile: dict[str, Any], jobs: list[dict[str, Any]], _prov: Any, _cb: Any = None) -> dict[str, Any]:
+    async def _capture(profile: dict[str, Any], jobs: list[dict[str, Any]], _prov: Any, _cb: Any = None, **_kw: Any) -> dict[str, Any]:
         seen.update(profile)
         return {j["job_id"]: {"overall_score": 4.0, "grade": "A", "recommendation": "Apply",
                              "summary": "s", "strengths": [], "concerns": []} for j in jobs}
@@ -345,7 +345,8 @@ def test_the_drain_finishes_on_the_cv_it_started_with(monkeypatch: Any) -> None:
         _Repo(), object(), "u1", baseline_version_id=1,  # type: ignore[arg-type]
     ))
 
-    assert written == feed_warm.DRAIN_BATCH
+    # Nothing judged yet, so this is the first screen's round.
+    assert written == feed_warm.FIRST_SCREEN_BATCH
     assert seen["profile"]["baseline_version_id"] == 1
     assert seen["profile"]["cv_markdown"] == "the cv this read started with"
     assert enqueued == [{"user_id": "u1", "baseline_version_id": 1, "announce": False}]
@@ -537,9 +538,11 @@ def test_a_returning_drain_rereads_the_cards_on_the_list_first(monkeypatch: Any)
         def get_user_match_stack(self, _user_id: str) -> list[dict[str, Any]]:
             ctx = feed_warm.onboarding_service.eval_context_key(keyed)
             here = {"is_active": True}
+            # A returning person: their first screen is already on the list
+            # (the two `held-` rows), so this round is the narrow one.
             return [{"job_id": j, "eval_context_hash": ctx, "overall_score": 4.2,
                      "recommendation": "Apply", "jobs": here}
-                    for j in ("outside-pool", "on-list-low", "pool-a")]
+                    for j in ("outside-pool", "on-list-low", "pool-a", "held-1", "held-2")]
 
     async def _warm(_repo: Any, _provider: Any, _user_id: str, ids: list[str], **_kw: Any) -> int:
         rated.append(list(ids))
@@ -635,6 +638,92 @@ def test_a_list_short_of_forty_reads_the_pile(monkeypatch: Any, _local_target: N
     assert rated == [["p1", "p2", "p3"]] and len(enqueued) == 1
 
 
+# ── The first screen: a person on an empty list ─────────────────────────────
+# Measured 2026-11-27, real people who saved a direction in the last 30 days:
+# the first job worth showing landed at a median 74 s, the fifth at 8.6 min, and
+# 12 of 36 ever saw five. 11% of judged jobs clear 3.5, and a round read 3, so
+# the wait was the number of rounds. While the list is short of a first screen,
+# a round reads FIRST_SCREEN_BATCH, judged as one wave.
+
+def test_an_empty_list_reads_a_wider_first_round(monkeypatch: Any, _local_target: None) -> None:
+    pile = [f"p{i}" for i in range(10)]
+    repo, _ = _list_reading_repo(cleared=0, pile=pile)
+    rated, enqueued = _drain(monkeypatch, repo)
+    assert feed_warm.FIRST_SCREEN_BATCH > feed_warm.DRAIN_BATCH
+    assert rated == [pile[: feed_warm.FIRST_SCREEN_BATCH]] and len(enqueued) == 1
+
+
+def test_a_list_one_short_of_the_first_screen_still_reads_wide(monkeypatch: Any, _local_target: None) -> None:
+    pile = [f"p{i}" for i in range(10)]
+    repo, _ = _list_reading_repo(cleared=feed_warm.FIRST_SCREEN - 1, pile=pile)
+    rated, _ = _drain(monkeypatch, repo)
+    assert rated == [pile[: feed_warm.FIRST_SCREEN_BATCH]]
+
+
+def test_the_round_narrows_once_the_first_screen_is_on_the_list(monkeypatch: Any, _local_target: None) -> None:
+    pile = [f"p{i}" for i in range(10)]
+    repo, _ = _list_reading_repo(cleared=feed_warm.FIRST_SCREEN, pile=pile)
+    rated, _ = _drain(monkeypatch, repo)
+    assert rated == [pile[: feed_warm.DRAIN_BATCH]]
+
+
+def test_a_round_is_judged_as_one_wave(monkeypatch: Any, _local_target: None) -> None:
+    """The wide round only shortens the wait if its jobs are judged at once."""
+    asked: list[tuple[int, int | None]] = []
+
+    async def _warm(_repo: Any, _provider: Any, _user_id: str, ids: list[str], **kw: Any) -> int:
+        asked.append((len(ids), kw.get("concurrency")))
+        return len(ids)
+
+    monkeypatch.setattr(feed_warm, "warm_feed_shortlist", _warm)
+    monkeypatch.setattr(feed_warm.background, "enqueue", lambda *_a, **_kw: None)
+    for cleared in (0, feed_warm.FIRST_SCREEN):
+        repo, _ = _list_reading_repo(cleared=cleared, pile=[f"p{i}" for i in range(10)])
+        asyncio.run(feed_warm.run_feed_warm(repo, object(), "u1"))  # type: ignore[arg-type]
+    assert asked == [
+        (feed_warm.FIRST_SCREEN_BATCH, feed_warm.FIRST_SCREEN_BATCH),
+        (feed_warm.DRAIN_BATCH, feed_warm.DRAIN_BATCH),
+    ]
+
+
+def test_the_shortlist_hands_its_concurrency_to_the_judge(monkeypatch: Any) -> None:
+    seen: list[int | None] = []
+
+    async def _eval_all(_p: dict[str, Any], jobs: list[dict[str, Any]], _prov: Any, _cb: Any = None, **kw: Any) -> dict[str, Any]:
+        seen.append(kw.get("concurrency"))
+        return {j["job_id"]: {"overall_score": 4.0, "recommendation": "Apply"} for j in jobs}
+
+    monkeypatch.setattr(feed_warm.llm_ranker, "evaluate_all", _eval_all)
+    ids = [str(i) for i in range(6)]
+    asyncio.run(feed_warm.warm_feed_shortlist(_FakeRepo(), object(), "u1", ids, limit=6, concurrency=6))  # type: ignore[arg-type]
+    assert seen == [6]
+
+
+def test_the_judge_runs_a_wide_round_at_once(monkeypatch: Any) -> None:
+    """Six evaluations in flight together: with the old cap of three, the
+    barrier below never opens and the wave times out."""
+    from app.services.model_outcome import ModelOutcome
+
+    width = feed_warm.FIRST_SCREEN_BATCH
+    in_flight = 0
+    opened = asyncio.Event()
+
+    async def _one(_job: Any, _system: str, _provider: Any) -> ModelOutcome:
+        nonlocal in_flight
+        in_flight += 1
+        if in_flight == width:
+            opened.set()
+        await asyncio.wait_for(opened.wait(), timeout=2)
+        return ModelOutcome.ok({"overall_score": 4.0, "summary": "ok"})
+
+    monkeypatch.setattr(llm_ranker, "evaluate_job", _one)
+    monkeypatch.setattr(llm_ranker, "build_system_prompt", lambda *_a, **_k: "sys")
+    monkeypatch.setattr(llm_ranker, "gate_verdict", lambda *_a, **_k: None)
+    jobs = [{"job_id": str(i)} for i in range(width)]
+    found = asyncio.run(llm_ranker.evaluate_all({}, jobs, object(), concurrency=width))  # type: ignore[arg-type]
+    assert len(found) == width
+
+
 def test_a_full_list_still_rereads_its_own_stale_cards(monkeypatch: Any, _local_target: None) -> None:
     repo, _ = _list_reading_repo(cleared=40, pile=["p1", "p2"], stale=["s1"])
     rated, enqueued = _drain(monkeypatch, repo)
@@ -691,3 +780,42 @@ def test_the_read_more_route_starts_the_drain_and_does_not_rank(monkeypatch: Any
     assert r.status_code == 200
     assert r.json()["pending"] is True and r.json()["warmed"] == 0
     assert asked == ["u1"]
+
+
+def test_the_drain_asks_for_a_pile_within_the_persons_reach(monkeypatch: Any) -> None:
+    """The judge reads only roles the list could show: the pile request carries
+    the profile, so the repository admits by the person's year span
+    (migration 20261127120000). A 0-year student's pile used to be mostly roles
+    asking 5+ years, judged and then hidden."""
+    asked: dict[str, Any] = {}
+
+    class _Repo:
+        def get_user_profile_targeting(self, _user_id: str) -> dict[str, Any]:
+            return {"target_roles": ["Banking Services"], "target_seniority": "intern", "years_experience": 0}
+
+        def get_latest_baseline_id(self, _user_id: str) -> int:
+            return 1
+
+        def get_candidate_job_ids_for_roles(self, roles: list[str], **kw: Any) -> list[str]:
+            asked.update(kw)
+            return ["j1"]
+
+        def get_shown_verdict_keys(self, _user_id: str, *, floor: float) -> list[dict[str, Any]]:
+            return []
+
+        def get_cached_match_evals(self, _user_id: str, _ids: list[str]) -> dict[str, Any]:
+            return {}
+
+        def get_user_match_stack(self, _user_id: str) -> list[dict[str, Any]]:
+            return []
+
+    async def _warm(_repo: Any, _provider: Any, _user_id: str, ids: list[str], **_kw: Any) -> int:
+        return len(ids)
+
+    monkeypatch.setattr(feed_warm, "warm_feed_shortlist", _warm)
+    monkeypatch.setattr(feed_warm.background, "enqueue", lambda *_a, **_kw: None)
+
+    asyncio.run(feed_warm.run_feed_warm(_Repo(), object(), "u1"))  # type: ignore[arg-type]
+
+    assert asked["profile"]["years_experience"] == 0
+    assert asked["profile"]["target_seniority"] == "intern"

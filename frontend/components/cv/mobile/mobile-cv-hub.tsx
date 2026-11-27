@@ -6,6 +6,7 @@ import { CVExportView } from "@/components/cv/builder/cv-export-view"
 import { FinishTailoringLane } from "@/components/cv/builder/finish-tailoring-lane"
 import { ForwardPassPanel } from "@/components/cv/builder/forward-pass-panel"
 import { LinkedInCheckCard } from "@/components/apply-pack/linkedin-check-card"
+import { PackOffer } from "@/components/apply-pack/pack-offer"
 import { Icon } from "@/components/cv/builder/icons"
 import { Button } from "@/components/ui/button"
 import {
@@ -143,6 +144,7 @@ export function MobileCVHub({
         </div>
       </section>
 
+      {openJob ? null : <PackOffer token={token} />}
       {openJob ? null : <LinkedInCheckCard token={token} />}
 
       <Dialog open={moreOpen} onOpenChange={setMoreOpen}>

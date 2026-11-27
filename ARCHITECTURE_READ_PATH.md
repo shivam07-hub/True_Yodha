@@ -3024,3 +3024,84 @@ live openings), and the public reads stay slices of it:
 chips + 146 searched. Chip read 17 KB → 24 KB (`more` is 7 KB). A searched
 family's read: median 1.1 KB, max 2.8 KB. The snapshot's `landing_roles` grows
 17 KB → 203 KB; compile time unchanged at 824 ms.
+
+## 39. The Direction save was never slow in production (2026-11-27)
+
+`PUT /onboarding/target` (Direction's last button) was logged as 31 reads
+against the 16 budget and 28.6 s against the client's 15 s timeout. Both
+numbers came from a laptop. **Wrong diagnosis, caught before any fix.**
+
+- **Why the laptop lied:** local `REDIS_URL` is empty, so `background.enqueue`
+  falls back to `_invoke_inline`. The route is a sync `def`, so its threadpool
+  thread has no running loop and `asyncio.run` runs `onboarding_target_refresh`
+  (score recompute, demand counts, cohort read) inside the request. 29 round
+  trips; 20 of them were the refresh. Any route that enqueues is inflated the
+  same way locally: measure it in production, or count only the trips before
+  the enqueue.
+- **Production, measured:** `route.slow` 2.4 s, 2.7 s, 2.8 s, every one
+  `reads=9`, inside the budget. `cv_upload_phase_events`, real users, 60 days:
+  89 people opened Direction, 74 saved, 0 timeouts (the only failures were 2
+  people on 2026-09-29, `Request validation failed.`). `started` fires when the
+  screen opens, so the 15 who did not finish left before pressing save.
+- **Left alone:** the same profile row is read five times per save (twice
+  identically back to back: `save_target` and `targeting_write.commit`), about
+  0.6–0.9 s that could be cut. That is not worth taking until a slow save shows
+  up in `route.slow` from real users.
+
+## 40. The Match Run pool reads two narrow indexes (2026-11-27)
+
+**Report.** Notice `capacity_503:db.statement_timeout:app/repositories/candidate_jobs.py:fetch_candidate_jobs`,
+open since 2026-11-02, 150 hits. On the worker on 2026-11-27, 12 of 12
+`initial_match` runs died on 57014. That is the Match Run every Direction save
+starts; /market still filled only because the page starts the drain itself.
+§21's 09-28 rebuild and the three 11-02 migrations had each moved it under the
+ceiling for the CV in front of them.
+
+**Measured** (117,434 jobs, 66,970 live, 59,865 live in India), the real
+failing users' skill keys and countries. Rows 2 and 4 through PostgREST with
+the worker's batch client; row 3 is `EXPLAIN (ANALYZE, BUFFERS)` in the editor:
+
+| What | Before | After |
+|---|---|---|
+| planner's estimate of live India jobs | 196 | 33,409 (real 59,865) |
+| rare-skill CV (7 skills, 290 matches), page 1 | cancelled at 8 s, every time | 413 ms |
+| generic CV (14 skills), mid page | 3,555 ms, 1,329 disk reads | 906 ms, 437 |
+| six real users' whole pools | 4 failed; 2 took 62–66 s, pages to 8.8 s | all complete, 0.4–13 s, slowest page 1.6 s |
+
+**Causes, and what I got wrong on the way.**
+
+- `lower(btrim(location_country))` had no statistics: its only index is
+  partial, and Postgres collects expression statistics from expression
+  indexes, not partial ones. Every plan over the country key was built for a
+  few hundred rows. Fix: `create statistics jobs_country_key_stats`.
+- `country = any(array)` gave up the (country, job_id) index's order, so a
+  page read every live India job, then sorted. My first rewrite (a lateral per
+  country, compared as a scalar) fixed the order and **still timed out through
+  PostgREST**: the editor's 266 ms warm number hid the cold one.
+- The walk read the wide `jobs` row for every job it passed, ~10 MB a page,
+  on an instance whose disk baseline is 5 MB/s. Postgres does not do an
+  index-only scan on an expression index. Fix: `idx_jobs_live_pool_cover`, live
+  jobs by `job_id` carrying every column the pool returns and the two it
+  filters on (9.5 MB).
+- A rare-skill CV walks the whole corpus to fill a page. Fix: start from its
+  skills on `idx_job_skills_skill_job (skill_id, job_id)` (32 MB), index-only.
+  Skill-first is worse for a generic CV (2.3 s for 30k ids against the walk's
+  0.9 s), so the function counts the skill rows (index-only, stopping at
+  30,001) and takes the cheaper way in; on the generic CV both cross near
+  30,000 rows, about 2 s.
+- `job_skills` was half all-visible (70,535 dead rows), so its index-only probe
+  made 13,780 heap fetches a page. Vacuumed on the day; it now has `jobs`'
+  0.05 autovacuum scale factors.
+- The cursor `p_after_job_id is null or job_id > …` cannot be an index
+  condition in a cached generic plan. It is `job_id > coalesce(…, '')`, and the
+  function plans each call with its real arrays (`force_custom_plan`).
+
+Rows proven identical against the live function (`EXCEPT` both ways, 0 rows) on
+both paths: page 1, a cursor page, no country, two countries, unknown skills.
+Migration `20261127140000_candidate_pool_reads_indexes_only.sql`; shape and the
+Notice proof in `test_candidate_pool_indexes_only.py`.
+
+**Left alone.** `idx_jobs_live_country_jobid` and the blank-country index from
+11-02 are still scanned by other reads (`live_list`), so they stay. The Match
+Run still reads the whole pool (up to 16 pages for a generic CV) to rank it;
+scoping it by direction is ADR-0027's open item, not a read-path fix.

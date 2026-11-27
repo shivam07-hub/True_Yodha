@@ -310,6 +310,30 @@ def test_evidence_lines_are_bullets_then_skills_then_summary():
     assert jd_coverage.evidence_lines(None) == []
 
 
+def test_evidence_lines_carry_degrees_role_titles_and_certs():
+    """The JD asks for an MBA and years in BD; those facts live in headers. A
+    CV naming IIM Lucknow read "MBA from a premier institute" as Missing."""
+    cv = {
+        "experience": [
+            {"role": "GTM Business Development Manager", "company": "Capgemini",
+             "dates": "May 2025 - Present", "bullets": ["Signed $2M+ in contracts"]},
+            {"role": "", "company": "Untitled", "bullets": []},
+        ],
+        "education": [
+            {"degree": "MBA", "institution": "Indian Institute of Management Lucknow",
+             "dates": "March 2024", "grade": ""},
+            {"degree": "", "institution": "", "dates": "", "grade": ""},
+        ],
+        "certs": ["PMP", " "],
+    }
+    assert jd_coverage.evidence_lines(cv) == [
+        "Signed $2M+ in contracts",
+        "GTM Business Development Manager · Capgemini · May 2025 - Present",
+        "MBA · Indian Institute of Management Lucknow · March 2024",
+        "PMP",
+    ]
+
+
 # ── cache payload round-trip (Preparations room) ───────────────────────────────
 
 def _sample_result():

@@ -280,7 +280,7 @@ and `growth_attribution` exist; neither is wired to the newsletter.
 
 All 818 users have a `coin_ledger` row (1,334 rows). **2 verified payments
 ever.** The ₹99 Job-Switch Plan is retired as the closer. The ₹999 AI Workflow
-Audit is built. The closer is ₹199/month Personalised Engagement
+Audit was built (retired 2026-11-27 into the ₹599 pack, ENG5). The closer is ₹199/month Personalised Engagement
 ([OFFERING.md](OFFERING.md), ENG1) — checkout is a Razorpay subscription.
 Live charges wait on `RAZORPAY_ENGAGEMENT_PLAN_ID`. LinkedIn Services Resume
 Writing inbound uses `/job-switch-plan?utm_source=linkedin_services`.

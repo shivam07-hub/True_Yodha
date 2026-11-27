@@ -1,13 +1,34 @@
 "use client"
 
+/**
+ * The ₹599 pack (ENG5, ARCHITECTURE_PAYMENTS.md §10.3): everything in the ₹199
+ * Apply Pack, plus the LinkedIn rewrite, a search call, and Myro filing with
+ * the person on company career pages. Three calls in all. The intake below is
+ * the filing step and what the search call is read against.
+ */
+
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
+import { CallContact } from "@/components/apply-pack/call-contact"
+import { useHumanChecks } from "@/components/apply-pack/use-human-checks"
 import { filingIntake } from "@/lib/api"
 import { checkout } from "@/lib/checkout"
+import { dataKeys } from "@/lib/domain-data"
+import { formatDateTime } from "@/lib/format"
 import { SaleOffer } from "@/components/sale-gate"
 import { getAccessToken } from "@/lib/session"
+import { rupees, sellable, useCatalogue } from "@/lib/use-catalogue"
 import "./filing.css"
+
+const CONTENTS = [
+  "500 Myro Coins",
+  "A person reads your CV against one job, then a 30-minute call",
+  "Your LinkedIn rewritten for you to paste on a call",
+  "A search call: the roles, the career pages, and how you use AI in your search",
+  "Myro files with you on the company career pages for your role",
+]
 
 export default function FilingIntakePage() {
   const queryClient = useQueryClient()
@@ -18,6 +39,8 @@ export default function FilingIntakePage() {
   const [consent, setConsent] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [paying, setPaying] = useState(false)
+  const catalogueQ = useCatalogue()
+  const checksQ = useHumanChecks(token)
 
   useEffect(() => {
     setToken(getAccessToken())
@@ -62,11 +85,12 @@ export default function FilingIntakePage() {
     const outcome = await checkout({
       token,
       product: "filing_intake",
-      name: "Myro",
-      description: "Filing process · ₹599",
+      name: "Myro · ₹599 pack",
+      description: "Three calls, your CV, your LinkedIn, and the filing",
     })
     if (outcome.kind === "paid" || outcome.kind === "setting_up") {
       await queryClient.invalidateQueries({ queryKey: ["filing-intake"] })
+      await queryClient.invalidateQueries({ queryKey: dataKeys.humanChecks() })
     }
     if (outcome.kind === "setting_up") setError("Payment received · setting up. Refresh in a minute.")
     if (outcome.kind === "unavailable" || outcome.kind === "failed") setError(outcome.reason)
@@ -75,19 +99,44 @@ export default function FilingIntakePage() {
 
   const paid = intake.data?.paid === true
   const saved = intake.data?.saved === true
+  const pack = sellable(catalogueQ.data, "filing_intake")
+  const price = pack ? rupees(pack.price_paise) : null
+  const search = (checksQ.data ?? []).find((c) => c.kind === "search") ?? null
 
   return (
     <main className="fi-wrap">
-      <p className="fi-kicker">Filing</p>
-      <h1 className="fi-title">One role. The company page. You submit.</h1>
+      <p className="fi-kicker">The ₹599 pack</p>
+      <h1 className="fi-title">Three calls. Your CV, your LinkedIn, your search.</h1>
       <p className="fi-sub">
-        Myro writes one resume for the role you name and fills the company form with you.
-        <SaleOffer>
-          {" "}The fee is ₹599, once. The ₹199 Apply Pack stays the pack for coins and a human check.
-        </SaleOffer>
+        Everything in the Apply Pack, worked through with a person.
+        <SaleOffer>{price ? ` ${price}, once.` : null}</SaleOffer>
       </p>
+      <ul className="fi-steps fi-contents">
+        {CONTENTS.map((line) => <li key={line}>{line}</li>)}
+      </ul>
+
+      {paid && token ? (
+        <section className="fi-card" aria-label="Your three calls">
+          <h2 className="fi-h">Your three calls</h2>
+          {search ? (
+            <p className="fi-note fi-call">
+              <span>
+                Search call ·{" "}
+                {search.status === "delivered" ? `ready from ${search.reviewer_name}` : `due ${formatDateTime(search.due_at ?? "")}`}
+              </span>
+              <CallContact token={token} check={search} />
+            </p>
+          ) : null}
+          {search?.note ? <p className="fi-note">{search.note}</p> : null}
+          <p className="fi-note fi-uses">
+            <Link className="tm-link" href="/collections">Use your CV check on a job</Link>
+            <Link className="tm-link" href="/cv?view=cv#linkedin">Start your LinkedIn rewrite</Link>
+          </p>
+        </section>
+      ) : null}
 
       <section className="fi-card">
+        <h2 className="fi-h">How the filing works</h2>
         <ol className="fi-steps">
           <li>You name the role, the cities, and the career pages.</li>
           <li>You approve a CV tailored to a role that is still open.</li>
@@ -149,10 +198,10 @@ export default function FilingIntakePage() {
               <button
                 type="button"
                 className="fi-pay"
-                disabled={!token || !saved || !consent || paying}
+                disabled={!token || !saved || !consent || paying || !pack}
                 onClick={() => void pay()}
               >
-                Pay ₹599
+                {price ? `Pay ${price}` : "Pay"}
               </button>
               </SaleOffer>
             )}

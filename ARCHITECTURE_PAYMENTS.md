@@ -27,6 +27,7 @@ gets you applying. People pay at two moments inside that machine, and both sell
 | **Door 3 · LinkedIn** | On the CV page after the Myro Score. **5,000 coins, or the Apply Pack** with its check spent on LinkedIn. 5,000 sits above `WELCOME_XP` on purpose (0 real users held 5,000 on 2026-11-22). The user gives their `/in/{vanity}` URL and a WhatsApp number. |
 | **Retired** | ₹99 coin pack (`myro_xp_launch_pack`) and ₹199 / month Personalised Engagement (`myro_job_switch_plan`, Razorpay Subscriptions). Folded, not re-priced. |
 | **Untouched here** | ₹999 AI Workflow Audit (a different buyer) and Myrology ₹299 (awaiting the baggage decision). Both move onto Settlement; their products do not change. |
+| **Amended 2026-11-26** | ENG4–ENG6: every check ends in a call, a ₹599 pack carries the Audit's scope, and the packs are offered after the score. See §10. |
 | **Not changed** | `WELCOME_XP = 3000`. The free allowance is tuned later from front-door numbers, not now. |
 
 Product rules that shape the code:
@@ -334,3 +335,94 @@ branch) · the ₹999 audit's own reviewer flow beyond moving it onto Settlement
 - LinkedIn: a QA-account check bought with coins drafts on `queued`, is
   delivered with signed blocks, and `close_call` leaves `contact_whatsapp` null.
   On prod the number to watch is LinkedIn checks with `pasted_at` set.
+
+---
+
+## 10 · Calls, the gap door, and the ₹599 pack (2026-11-27, ENG4–ENG6)
+
+**Why.** 0 real payments ever. The fuel door never opens (nobody below 500 coins;
+the most anyone spent is 800 against 3,000). The Preparation room's line reached 29
+people; the Myro Score reached 503. Shivam, 2026-11-26: the check comes with a call,
+a ₹599 pack carries everything (three calls, LinkedIn, filing, the AI review the
+₹999 Audit sold), and the offer sits where people see their gap.
+
+> VERIFY IN CODE before building. Read against `adef3728`: `human_check.py`,
+> `settlement.py`, `billing_catalogue.py`, `routers/filing_intake.py`, and the live
+> `human_checks` constraints (`kind_when_used`, `delivered_is_signed`,
+> `human_checks_billing_payment_id_key`).
+
+### 10.1 · Every check ends in a call
+
+Today only `linkedin` has a call (`close_call`, `calls_to_close` filter on kind).
+`cv_job` gets the same 30-minute call after `deliver`; the ₹599 `search` check
+(10.3) is a call. One lifecycle for all three:
+
+- `set_contact(store, user_id, check_id, whatsapp)` — the owner adds the number the
+  call is booked on, any time before the call closes. `POST /human-checks/{id}/contact`.
+  A check bought at the stakes door opens `queued` with no number, so this is how
+  that buyer gives it. `normalize_whatsapp` is the one parser.
+- `close_call` accepts every kind; `pasted` is recorded only for `linkedin`.
+  `contact_whatsapp` is cleared on close, as today.
+- `calls_to_close` lists delivered checks with an open call, every kind.
+- No column is added: `contact_whatsapp` and `call_closed_at` already exist and no
+  constraint ties them to `linkedin`.
+
+### 10.2 · The gap door
+
+One card, `PackOffer`, on the CV page right after the score (desktop
+`cv/builder/library-view.tsx` and `cv/mobile/mobile-cv-hub.tsx`, beside
+`LinkedInCheckCard`) and in the Preparation room's On record section. Prices and
+availability come from `useCatalogue()`; a product the server would refuse renders
+no button. ₹199 opens checkout for `apply_pack` with no job → an `unassigned`
+check. ₹599 goes to `/filing` (intake first, then pay; 10.3). An unused check
+the user already holds keeps today's "Use your human check" line instead.
+
+### 10.3 · The ₹599 pack
+
+The product keeps its alias `filing_intake` and key `myro_filing_intake` (stored
+on `billing_payments` rows); its contents change. Catalogue: `coins=500`.
+
+**M5 (additive; applied 2026-11-27, `20261127100000_human_checks_pack_slots.sql`):**
+- `human_checks.pack_payment_id uuid null` (→ `billing_payments`) and
+  `pack_slot smallint null` (2 or 3), unique together. The pack's first check
+  keeps `billing_payment_id` exactly as before. **Why not widen that key:** dev
+  and prod share one database and `main` upserts on `billing_payment_id`;
+  dropping that unique key would have broken the ₹199 grant on `main` until it
+  was merged. A check has one payment key, never both.
+- `kind` adds `'search'`; `delivered_is_signed` adds `kind = 'search'` (a note is
+  enough); `paid_or_linkedin` accepts `pack_payment_id`.
+
+**Grant** `_grant_full_pack`, every step idempotent on the payment row:
+1. `xp_service.reward(user, 500, "full_pack", ref_table="billing_payments", ref_id=row.id)`.
+2. `open_check` — the CV check, `queued` as `cv_job` if the order carries a job, else held.
+3. `open_pack_check(slot=2)` — held; the LinkedIn card asks for the URL.
+4. `open_pack_check(slot=3)` — the `search` call, `queued` at once.
+5. `filing_intake.mark_paid(user)`.
+
+**One number, asked once.** `set_contact` on any of the pack's checks gives the
+number to the others that have none (`for_payment`). The `/filing` page asks for
+it under the search call once paid; no column on `filing_intakes` was needed.
+
+The reviewer desk shows search checks with the intake beside them and a Close
+call for every kind. `MAX_OPEN_CHECKS` counts all kinds; it is not raised now
+(Shivam: reviewer capacity is not a limit) — raise it the first time
+`checks_full` turns true.
+
+### 10.4 · The ₹999 Audit retires — done 2026-11-27
+
+`ai_workflow_audit` left the catalogue outright, not into `_RETIRED`: on
+2026-11-27 it had **0 orders and 0 audits ever**, so no order needs to settle.
+Its card left the Preparation rail; the room, intake form, router, service and
+tests are deleted. `/preparations/audit` forwards to `/filing`, where the ₹599
+pack's search call carries the same review. The `ai_workflow_audits` and
+`ai_workflow_audit_drafts` tables stay (empty) until Shivam approves dropping them.
+
+### 10.5 · Work, in order
+
+| # | Slice | Done when |
+|---|---|---|
+| **S7** | **Done 2026-11-27** (`83a33dd6`). Decisions and this section (ENG4–ENG6, PREP1, OFFERING, BACKLOG, CLAUDE.md). | Docs only |
+| **S8** | **Built 2026-11-27.** 10.1: a call on every check. `set_contact` + endpoint, `close_call` and `calls_to_close` for every kind, desk Close call for `cv_job`, the number field on an open check's status line, "+ 30-min call" wherever the ₹199 pack is sold. | `test_human_check.py`: a `cv_job` call closes and clears the number; `set_contact` refuses a closed call and another user's check |
+| **S9** | **Built 2026-11-27** on both CV surfaces (the room already sells ₹199 through `HumanCheckLine`; ₹599 joins both in S10). 10.2: `PackOffer` with ₹199 on both CV surfaces after the score and in the room. | Bought from the gap door on dev (test keys) → an `unassigned` check; 375px holds |
+| **S10** | **Built 2026-11-27.** 10.3: M5, the grant, the search check, `/filing` as the ₹599 pack page with its calls, desk, and the ₹599 link in `PackOffer` and the room's line. | `test_settlement.py`: one ₹599 arrival → +500 once, slots 1–3 once each, a second arrival changes nothing |
+| **S11** | **Done 2026-11-27.** 10.4: the Audit retires. | grep finds no `ai_workflow_audit` code path; six gates green |

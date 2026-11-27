@@ -24,7 +24,7 @@ from typing import Any, Literal, Protocol
 from fastapi.concurrency import run_in_threadpool
 
 from app.database import get_supabase_admin
-from app.services import ai_workflow_audit, billing_catalogue, filing_intake, human_check, xp_service
+from app.services import billing_catalogue, filing_intake, human_check, xp_service
 from app.services.billing_catalogue import CURRENCY, Product, UnknownProduct
 from app.services.razorpay_gateway import Arrival, Failure
 
@@ -213,12 +213,26 @@ async def _grant_myrology(row: dict[str, Any]) -> None:
     await run_in_threadpool(unlock_myrology, str(row["user_id"]))
 
 
-async def _grant_audit(row: dict[str, Any]) -> None:
-    await run_in_threadpool(ai_workflow_audit.activate_audit, str(row["user_id"]), str(row["id"]))
-
-
-async def _grant_filing(row: dict[str, Any]) -> None:
-    await run_in_threadpool(filing_intake.mark_paid, str(row["user_id"]))
+async def _grant_full_pack(row: dict[str, Any]) -> int:
+    """The ₹599 pack (ENG5, §10.3): 500 coins, the CV check (queued on the job it
+    was bought for, else held), a check held for the LinkedIn rewrite, the search
+    call, and the filing step marked paid. Every step is idempotent on the
+    payment row, so a retry after a failure finishes the rest."""
+    user_id, row_id = str(row["user_id"]), str(row["id"])
+    product = billing_catalogue.by_key(str(row["product"]))
+    balance = await xp_service.reward(
+        user_id, product.coins, "full_pack", "purchase", ref_table="billing_payments", ref_id=row_id
+    )
+    store = human_check.SupabaseHumanCheckStore()
+    await run_in_threadpool(
+        human_check.open_check, store, user_id, billing_payment_id=row_id, job_id=row.get("job_id")
+    )
+    for slot in human_check.PACK_SLOTS:
+        await run_in_threadpool(
+            human_check.open_pack_check, store, user_id, pack_payment_id=row_id, pack_slot=slot
+        )
+    await run_in_threadpool(filing_intake.mark_paid, user_id)
+    return balance
 
 
 def default_grants() -> dict[str, Grant]:
@@ -228,6 +242,5 @@ def default_grants() -> dict[str, Grant]:
         billing_catalogue.by_alias("apply_pack").key: _grant_apply_pack,
         billing_catalogue.by_alias("xp_pack").key: _grant_coin_pack,
         billing_catalogue.by_alias("myrology").key: _grant_myrology,
-        billing_catalogue.by_alias("ai_workflow_audit").key: _grant_audit,
-        billing_catalogue.by_alias("filing_intake").key: _grant_filing,
+        billing_catalogue.by_alias("filing_intake").key: _grant_full_pack,
     }

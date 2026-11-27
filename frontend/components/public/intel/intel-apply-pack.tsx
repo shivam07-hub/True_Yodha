@@ -9,7 +9,7 @@ import "./intel-apply-pack.css"
 const POINTS = [
   "500 Myro Coins: enough for 10 CVs tailored to the jobs you want",
   "One Human Check: a named reviewer reads your CV against one job, or rewrites your LinkedIn",
-  "Back within 24 hours. Bought once, when a job matters",
+  "A 30-minute call with your reviewer. Back within 24 hours, bought once, when a job matters",
 ]
 
 /** The paid offer follows the live market evidence that informs it. */

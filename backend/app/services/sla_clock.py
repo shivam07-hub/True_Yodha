@@ -1,9 +1,8 @@
 """The one working-day clock.
 
-Three paid, human-reviewed deliverables promise a turnaround in working days —
-the ₹99 Job-Switch Plan, the Myrology map, and the ₹999 AI Workflow Audit — and
-each had grown, or was about to grow, its own copy of this arithmetic. Three
-implementations of an SLA is three chances to promise a different Friday.
+Paid, human-reviewed deliverables promise a turnaround in working days — today
+the Myrology map — and each one once grew its own copy of this arithmetic. Two
+implementations of an SLA is two chances to promise a different Friday.
 
 Public holidays are deliberately not modelled: the reviewer queue absorbs them,
 and a holiday calendar that nobody maintains is worse than a rule everyone

@@ -1,4 +1,5 @@
-"""₹599 once, for the personal resume and filing process. Not the Apply Pack."""
+"""The ₹599 pack's filing step (ENG5): the role, the cities and the career pages
+Myro files on, with consent. The pack's grant (settlement) marks it paid."""
 
 from __future__ import annotations
 

@@ -98,7 +98,6 @@ _GATEWAY_ERRORS = (
 
 _UNAVAILABLE_DETAIL = {
     "not_configured": "Payments are not open yet.",
-    "audit_full": "All audit slots are taken this week. Leave your email and we will open the next one to you first.",
 }
 
 
@@ -202,8 +201,9 @@ async def create_order(
 
     available = await run_in_threadpool(catalogue.availability, product)
     if not available.available:
-        code = status.HTTP_503_SERVICE_UNAVAILABLE if available.reason == "not_configured" else status.HTTP_409_CONFLICT
-        raise HTTPException(code, _UNAVAILABLE_DETAIL.get(str(available.reason), "Not available right now."))
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, _UNAVAILABLE_DETAIL.get(str(available.reason), "Not available right now.")
+        )
 
     # The caller-provided receipt is deliberately ignored: account data must
     # not be forwarded to the payment processor.

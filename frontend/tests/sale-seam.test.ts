@@ -13,11 +13,10 @@ test("a sale opens on the web and not inside the Android app", () => {
   assert.equal(saleMayOpen("android"), false)
 })
 
-test("the sale routes are the four charges", () => {
+test("the sale routes are the three charges", () => {
   assert.deepEqual([...SALE_PATHS], [
     "/apply-pack",
     "/filing",
-    "/preparations/audit",
     "/myrology",
   ])
   assert.equal(isSalePath("/filing"), true)

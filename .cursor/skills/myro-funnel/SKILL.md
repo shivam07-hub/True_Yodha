@@ -144,7 +144,7 @@ Walk each persona at 375px on dev. Write the real sequence:
 | Has target, browsing | `/market` | Save / apply | Stakes door on this job's tailored CV |
 | Applied | `/preparations` | Ladder pips + step body | Step 4 costs coins. Apply Pack only if coins run out or they want a human check |
 | Empty coins | weave / brief / upload | The blocked action, resumed | Fuel door, same Apply Pack |
-| Audit buyer | `/preparations/audit` | Slot, intake, delivered write-up | ₹999 with a bounded queue. Not the closer |
+| Pack buyer | `/filing` | The ₹599 pack: intake, then three calls | ₹599 carries what the retired ₹999 Audit sold (ENG5) |
 
 Ledger format:
 

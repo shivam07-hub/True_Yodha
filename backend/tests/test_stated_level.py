@@ -205,3 +205,30 @@ def test_the_pool_keeps_a_senior_tag_whose_stated_range_fits() -> None:
         jobs=[fitting, too_senior],
     )
     assert kept == ["fit"]
+
+
+
+def _latest_live_jobs_for_families() -> str:
+    bodies = [
+        path
+        for path in sorted(MIGRATIONS.glob("*.sql"))
+        if "create or replace function public.live_jobs_for_families("
+        in path.read_text(encoding="utf-8").lower()
+    ]
+    assert bodies, "no migration defines live_jobs_for_families"
+    sql = bodies[-1].read_text(encoding="utf-8")
+    return "\n".join(line for line in sql.splitlines() if not line.strip().startswith("--")).lower()
+
+
+def test_the_market_pile_admits_by_the_same_level_rule() -> None:
+    """/market's pile (List Reading) and the list it fills read level one way:
+    the employer's stated minimum at most the top of the span, an unstated
+    minimum as 0, and a senior-side tag refused only when both bounds are null
+    and the span centre is under 5. Null parameters admit every level."""
+    code = _latest_live_jobs_for_families()
+    tags = ",".join(f"'{tag}'" for tag in SENIOR_LEVEL_TAGS)
+    assert f"array[{tags}]" in code.replace(" ", "").replace("\n", "")
+    assert "p_year_hi is null" in code
+    assert "coalesce(j.min_years_experience, 0)::numeric <= p_year_hi" in code
+    assert "j.min_years_experience is null and j.max_years_experience is null" in code
+    assert "coalesce(p_centre, 20) < 5" in code

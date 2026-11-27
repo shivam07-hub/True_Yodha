@@ -1,9 +1,10 @@
 """Human Check — user endpoints and the reviewer's (ARCHITECTURE_PAYMENTS.md §3 D).
 
-User: list my checks, spend a held check on a job or on LinkedIn, or buy a
-LinkedIn check with 5,000 coins. Reviewer (the one `require_admin` guard): the
-open queue with stuck payments, claim, deliver, close the LinkedIn paste call,
-and retry a stuck grant.
+User: list my checks, spend a held check on a job or on LinkedIn, buy a
+LinkedIn check with 5,000 coins, or give the WhatsApp number the call is booked
+on. Reviewer (the one `require_admin` guard): the open queue with stuck
+payments, claim, deliver, close the call (every kind, §10.1), and retry a
+stuck grant.
 """
 
 from __future__ import annotations
@@ -30,11 +31,12 @@ logger = logging.getLogger(__name__)
 STUCK_AFTER = timedelta(hours=1)
 
 # What the owner of a check may see. The WhatsApp number and the reviewer's
-# draft stay on the reviewer's side.
+# draft stay on the reviewer's side; the owner sees only whether a number is
+# on file (`has_contact`).
 _USER_FIELDS = (
     "id", "kind", "job_id", "status", "slot_starts_at", "due_at", "reviewer_name",
     "note", "reviewed_cv_version_id", "linkedin_url", "blocks", "pasted_at",
-    "delivered_at", "created_at",
+    "call_closed_at", "delivered_at", "created_at",
 )
 
 
@@ -51,8 +53,10 @@ class CheckOut(BaseModel):
     linkedin_url: str | None = None
     blocks: dict[str, Any] | None = None
     pasted_at: str | None = None
+    call_closed_at: str | None = None
     delivered_at: str | None = None
     created_at: str | None = None
+    has_contact: bool = False
 
 
 class CheckList(BaseModel):
@@ -65,6 +69,10 @@ class AssignJobIn(BaseModel):
 
 class LinkedInIn(BaseModel):
     linkedin_url: str = Field(min_length=1, max_length=300)
+    whatsapp: str = Field(min_length=1, max_length=40)
+
+
+class ContactIn(BaseModel):
     whatsapp: str = Field(min_length=1, max_length=40)
 
 
@@ -83,7 +91,7 @@ def _store() -> human_check.HumanCheckStore:
 
 
 def _out(row: dict[str, Any]) -> CheckOut:
-    return CheckOut(**{k: row.get(k) for k in _USER_FIELDS})
+    return CheckOut(**{k: row.get(k) for k in _USER_FIELDS}, has_contact=bool(row.get("contact_whatsapp")))
 
 
 def _http(exc: Exception) -> HTTPException:
@@ -139,6 +147,18 @@ async def use_check_on_linkedin(
     return _out(row)
 
 
+@router.post("/human-checks/{check_id}/contact", response_model=CheckOut)
+async def give_call_number(
+    check_id: str, body: ContactIn, principal: Principal = Depends(get_principal)
+) -> CheckOut:
+    """The WhatsApp number the reviewer books the 30-minute call on (ENG5)."""
+    try:
+        row = await run_in_threadpool(human_check.set_contact, _store(), principal.id, check_id, body.whatsapp)
+    except _CHECK_ERRORS as exc:
+        raise _http(exc) from exc
+    return _out(row)
+
+
 @router.post("/human-checks/linkedin", response_model=CheckOut, status_code=status.HTTP_201_CREATED)
 async def buy_linkedin_check_with_coins(body: LinkedInIn, principal: Principal = Depends(get_principal)) -> CheckOut:
     """5,000 coins. Out of coins answers with the shortfall (InsufficientXPError);
@@ -178,6 +198,30 @@ def _with_buyer_email(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [{**r, "buyer_email": email_of.get(str(r["user_id"]))} for r in rows]
 
 
+def _with_filing(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """A search call (the ₹599 pack, §10.3) is read against the buyer's filing
+    intake: the role, the cities and the career pages Myro files on."""
+    ids = sorted({str(r["user_id"]) for r in rows if r.get("kind") == "search"})
+    if not ids:
+        return rows
+    res = (
+        get_supabase_admin()
+        .table("filing_intakes")
+        .select("user_id, target_role, cities, portals, consented_at")
+        .in_("user_id", ids)
+        .execute()
+    )
+    intake_of = {str(i["user_id"]): i for i in (res.data or [])}
+    return [
+        {**r, "filing": intake_of.get(str(r["user_id"]))} if r.get("kind") == "search" else r
+        for r in rows
+    ]
+
+
+def _for_desk(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return _with_filing(_with_buyer_email(rows))
+
+
 @router.get("/admin/human-checks", dependencies=[Depends(require_admin)])
 async def reviewer_queue() -> dict[str, Any]:
     now = datetime.now(timezone.utc)
@@ -185,8 +229,8 @@ async def reviewer_queue() -> dict[str, Any]:
     queue = await run_in_threadpool(store.open_queue)
     calls = await run_in_threadpool(store.calls_to_close)
     return {
-        "checks": await run_in_threadpool(_with_buyer_email, queue),
-        "calls": await run_in_threadpool(_with_buyer_email, calls),
+        "checks": await run_in_threadpool(_for_desk, queue),
+        "calls": await run_in_threadpool(_for_desk, calls),
         "stuck_payments": await run_in_threadpool(_stuck_payments, now),
     }
 

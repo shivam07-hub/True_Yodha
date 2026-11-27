@@ -48,7 +48,10 @@ _MAX_CV_LINES = 80
 
 #: Stamped into every panel the judge ruled. A panel without it was ruled by an
 #: older rule and re-judges the next time its person opens it (forward pass).
-RULE = "judge-1"
+#: judge-2: the evidence gained role titles, degrees and certs. A judge-1 panel
+#: never saw "MBA · IIM Lucknow", and the ones cached while embeddings were down
+#: (2026-10-19 → 11-13) ruled every requirement on no lines at all.
+RULE = "judge-2"
 RULE_KEY = "rule"
 
 _PARSE_SYSTEM = (
@@ -166,14 +169,32 @@ def bullets_from_cv(cv_structured: dict | None) -> list[str]:
     return out
 
 
+def _joined(block: dict, keys: tuple[str, ...]) -> str:
+    return " · ".join(str(block.get(k) or "").strip() for k in keys if str(block.get(k) or "").strip())
+
+
 def evidence_lines(cv_structured: dict | None) -> list[str]:
-    """Pure: the CV's own evidence — bullets, then the skills line, then the
-    summary. The spec names all three (ARCHITECTURE_JD_REFLECTION.md §3)."""
-    lines = bullets_from_cv(cv_structured)
+    """Pure: the CV's own evidence — bullets, the skills line, the summary,
+    then each role's title line, each degree and each certificate.
+
+    A JD asks for a degree and for years in a kind of role as often as it asks
+    for a skill. Those facts live in the headers, not the bullets: a CV saying
+    "MBA · IIM Lucknow" read "MBA from a premier institute (IIM)" as Missing
+    (Sterlite, 2026-11-27) because no line carried it to the judge."""
+    cv = cv_structured or {}
+    lines = bullets_from_cv(cv)
     for key in ("skills_line", "summary"):
-        text = str((cv_structured or {}).get(key) or "").strip()
+        text = str(cv.get(key) or "").strip()
         if text:
             lines.append(text)
+    for block in cv.get("experience") or []:
+        if str(block.get("role") or "").strip():
+            lines.append(_joined(block, ("role", "company", "dates")))
+    for block in cv.get("education") or []:
+        line = _joined(block, ("degree", "institution", "dates", "grade"))
+        if line:
+            lines.append(line)
+    lines.extend(text for text in (str(c or "").strip() for c in cv.get("certs") or []) if text)
     return lines
 
 

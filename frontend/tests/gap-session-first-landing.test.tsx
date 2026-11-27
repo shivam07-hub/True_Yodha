@@ -72,6 +72,7 @@ function session(props: {
   score?: number
   startScore?: number
   accepted?: number
+  focusRequirement?: string
   onNothingToWalk?: () => void
 }) {
   return renderToStaticMarkup(
@@ -83,6 +84,7 @@ function session(props: {
       plan={props.plan}
       firstLanding={props.firstLanding}
       accepted={props.accepted ?? 0}
+      focusRequirement={props.focusRequirement}
       onApplied={noop}
       onClose={noop}
       onNothingToWalk={props.onNothingToWalk ?? noop}
@@ -157,4 +159,35 @@ test("the climb stays hidden when nothing was surfaced", () => {
   assert.match(html, /cvb-gs-closing/)
   assert.doesNotMatch(html, /cvb-gs-climb/)
   assert.doesNotMatch(html, /0%/)
+})
+
+// A Skills-map row is a CV gap first. Practice is the step after the CV, not
+// instead of it: Sterlite's "Take qualified leads through proposals,
+// negotiation and signed contracts" opened "Build these in practice ·
+// Negotiation" on a CV holding $2M+ of signed contracts (2026-11-27).
+test("a clicked gap with no CV line to rewrite goes to Mentor, not to practice", async () => {
+  let calls = 0
+  const html = session({
+    plan: plan({ latent: ["SQL"], absent: ["Negotiation"] }),
+    firstLanding: false,
+    focusRequirement: "Take qualified leads through proposals, negotiation and signed contracts",
+    onNothingToWalk: () => { calls += 1 },
+  })
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  assert.equal(calls, 1)
+  assert.doesNotMatch(html, /Build these in practice/)
+})
+
+test("a clicked gap with a CV line opens that line, and Mentor is not called", async () => {
+  let calls = 0
+  const html = session({
+    plan: plan({ latent: ["Negotiation"], absent: ["Kubernetes"] }),
+    firstLanding: false,
+    focusRequirement: "Negotiation with enterprise clients",
+    onNothingToWalk: () => { calls += 1 },
+  })
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  assert.equal(calls, 0)
+  assert.match(html, /Showed Negotiation on a live account/)
+  assert.doesNotMatch(html, /Build these in practice/)
 })
