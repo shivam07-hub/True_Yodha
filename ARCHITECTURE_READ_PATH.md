@@ -2906,3 +2906,121 @@ autovacuum keep reading the 772MB `jobs` table and push them out. Not caused
 by `search_live_jobs`; ⌘K and the landing search pay it too. Compute stays
 Micro (Shivam, 2026-10-14, cost), so the levers are smaller reads: a live-only
 narrow index (63k of 107k rows) or a cheaper worker poll.
+
+---
+
+## 35. The landing's role chips ride the market snapshot (2026-11-26)
+
+Spec #66 L1, `GET /public/landing-roles`. The landing needs, before any CV: the
+eight busiest role families, open jobs and top employers per family, and the
+skills employers ask for per experience band. Counting that live is a scan of
+`jobs` per visitor; `list_role_families` (principal-only, `roles.py:90`) also
+ranks by the caller's CV, which an anonymous visitor does not have.
+
+**Built Tier 0 from the start.** `MarketAnalyticsCompiler.compile` already walks
+every live row once for `market_analytics_snapshot`; it now also builds
+`landing_roles` (`services/landing_roles.py`) when the snapshot write passes the
+editorial lists (`LandingCuration`: `role_family_labels.is_catch_all` and
+`skill_demand_skill_deny`, two small reads at refresh time). The endpoint is a
+`shared_cache` slice of the snapshot with the `/public/stats` Cache-Control. A
+snapshot written before L1 serves `{"roles": []}`; the dirty guard treats a
+payload without `landing_roles` as stale, like `industry_roles` (S9).
+
+**Measured, read-only dry run on live rows (2026-11-26):** 116,049 rows,
+fetch 184.9s (the existing snapshot fetch; `seniority_level` added to its
+columns), compile **824ms**, payload **19 KB** (snapshot was 179 KB). The
+existing fetch dominates; the landing work is under 1% of the write.
+
+**What the data says, so the page does not promise otherwise:** stated seniority
+on a 5% sample of active jobs — mid 28%, blank 27%, senior 19%, lead 13%, entry
+8%, executive 5%, intern 0.3%. Most intern bands come out `thin` (greyed): the
+corpus has few internships, and the page should show that, not hide it.
+
+**Open:** the snapshot is written by whichever API receives the refresh call.
+Until L1 reaches `main`, a prod-side write rebuilds the payload without
+`landing_roles` and the endpoint serves `[]` until a `Develop`-side write. Live
+endpoint latency is measured once a populated snapshot exists.
+
+## 36. The reviewer's open slots, one cached read for every visitor (2026-11-26)
+
+Spec #66 L5, `GET /public/human-check`. The landing's reviewer chapter shows how
+many of the five Human Check slots are free, live (Q15–Q16), so the read is
+unauthenticated and on a page every visitor loads.
+
+**The query is already cheap; the cost is the round trip.** `open_due_ats()` is
+`human_checks where status in ('queued','in_review')`. EXPLAIN ANALYZE on live
+(2026-11-26): bitmap index scan on `idx_human_checks_status_due`, **0.07ms**,
+2 buffers, 0 rows (no check has ever been bought). A visitor would still pay a
+~165ms round trip, so the endpoint is a `shared_cache` entry, 60s fresh, 600s
+stale, with `Cache-Control: public, max-age=60` and no stale-while-revalidate:
+an hour-old count on the page would be a wrong number, a minute-old one is not.
+Staleness is safe because the page never refuses a sale on it (ENG3: a check
+sells in every state, "ready by" shown before paying).
+
+**Measured locally against the shared DB:** first call 11.7ms process time,
+then **0.8ms** cached; payload 112 bytes.
+
+**Open:** `/payments/catalogue` reads the same slots uncached on every call, and
+it renders on public `/intel` too (`intel-apply-pack.tsx`), not only on the
+signed-in `/apply-pack`. Left as is in L5; it could read this cached entry.
+
+**Trap seen while verifying:** opening the endpoint URL directly in a browser
+caches a response with no `Access-Control-Allow-Origin` (no `Origin` header, so
+no `Vary: Origin` either); the landing's CORS fetch then reuses it and fails
+with `net::ERR_FAILED` for 60 seconds. A visitor never does this; a tester does.
+
+## 37. Within reach after upload: one index per role family, shared (2026-11-26)
+
+Spec #66 L7, `POST /public/score-cv` with `role` + `level`. After an upload that
+carried a landing pick, the score comes back with the CV read against that role:
+matched and missing skills (from the cached `landing_roles` slice, no DB) and how
+many live listings at that level name 2+ skills the CV holds.
+
+**The naive read is a scan per visitor.** Counting reach needs every live
+listing's `main_skills` in the family. EXPLAIN ANALYZE on live (2026-11-26):
+Banking Services at one band, bitmap heap scan, **4.2s**, 5,350 heap blocks for
+1,241 rows (the band filter runs on the heap, so one band costs the whole
+family). Paged on `idx_jobs_live_role_family` by `job_id`: **1.2s per 1,000
+rows**, ~1,050 buffers a page.
+
+**Built as a shared index per family** (`services/landing_reach.py`): one
+`shared_cache` key per family, `{jobs, vocab, sets}` — per level, each distinct
+skill set once with its count, by position in one vocabulary. 6h fresh, 7 days
+stale, background refresh, so a family is paged at most once per 6h and only
+when a visitor picks it. Only the landing's own roles and the six bands are
+read: a crafted `role` reads nothing.
+
+**Measured against the shared DB with the real code (2026-11-26):**
+
+| Family | live rows | first read | index | count |
+|---|---|---|---|---|
+| Banking Services | 6,293 | 10.8s | 26 KB | 0.4ms |
+| Business Analysis | 2,301 | 3.8s | 114 KB | 1.5ms |
+| Software Development | 3,094 | 5.3s | 142 KB | 1.6ms |
+
+**Open:** the first visitor to pick a family after its key expires (a week
+without a pick, or a Redis flush) waits the first read on top of the parse.
+Overlapping it with the parse was left out: it would start a DB read before
+Turnstile verifies the request.
+
+## 38. The hero's role search: names in the chip read, a family on pick (2026-11-27)
+
+Spec #66 L2b. The hero searches every qualifying family past the eight chips.
+The snapshot write compiles them all (spread rule, plus the band floor of 10
+live openings), and the public reads stay slices of it:
+
+- `GET /public/landing-roles` keeps one cached read per visit, now carrying
+  `more`: every other family by name and count, filtered client-side as the
+  visitor types (no request per keystroke). Key versioned by
+  `LANDING_ROLES_VERSION`, so a deploy never serves the older shape.
+- `GET /public/landing-role?family=` is the searched family in full (bands,
+  companies, skills): one `shared_cache` key per family, from the in-process
+  snapshot payload, no DB on a warm process. A name the offer does not list
+  reads and caches nothing.
+- `POST /public/score-cv` reads a searched family's gap and reach like a chip
+  (§37): the reach index pages that family's live rows on its first pick.
+
+**Measured on live rows (2026-11-27, 117,434 rows):** 154 families qualify, 8
+chips + 146 searched. Chip read 17 KB → 24 KB (`more` is 7 KB). A searched
+family's read: median 1.1 KB, max 2.8 KB. The snapshot's `landing_roles` grows
+17 KB → 203 KB; compile time unchanged at 824 ms.

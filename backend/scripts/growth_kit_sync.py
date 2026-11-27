@@ -149,6 +149,7 @@ def _message_payload(
     campaign_id: str,
     current: dict[str, Any] | None,
     create_format: str,
+    variant: str = "primary",
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "legacy_key": key,
@@ -163,7 +164,7 @@ def _message_payload(
                 "campaign_id": campaign_id,
                 "channel": channel,
                 "format": create_format,
-                "variant": "primary",
+                "variant": variant,
                 "status": "ready_for_review",
                 "automation_level": "manual",
             }
@@ -188,7 +189,15 @@ def sync(store: Store, spec_path: Path, *, dry_run: bool) -> list[str]:
         raise SystemExit(f"{spec_path.name} has a slide with no caption")
     distribution_path = spec_path.with_name(spec_path.stem + "-distribution.md")
     distribution = distribution_path.read_text()
-    slug = spec["article"]
+    # A reworked post carries its own figures, so it has no `article` for the
+    # builder to check its captions against. It names the issue it posts for
+    # and goes out as a second variant on that issue's campaign; the first
+    # post's rows stay the record of what went out.
+    if "article" in spec:
+        slug, variant = spec["article"], "primary"
+    else:
+        slug, variant = spec["posts_for"], spec["variant"]
+    suffix = "" if variant == "primary" else f":{variant}"
     issue = int(spec["issue"])
     kit = _kit_path(spec_path)
     asset_key = f"asset:issue:{slug}"
@@ -265,7 +274,7 @@ def sync(store: Store, spec_path: Path, *, dry_run: bool) -> list[str]:
         ),
     )
     for channel, draft, metadata, create_format in channels:
-        key = f"message:issue:{slug}:{channel}"
+        key = f"message:issue:{slug}:{channel}{suffix}"
         current = store.message_by_key(key)
         if current is not None and current.get("status") in SKIP_STATUSES:
             lines.append(f"{channel} skipped ({current.get('status')})")
@@ -285,6 +294,7 @@ def sync(store: Store, spec_path: Path, *, dry_run: bool) -> list[str]:
                     campaign_id=campaign["id"],
                     current=current,
                     create_format=create_format,
+                    variant=variant,
                 )
             )
     return lines

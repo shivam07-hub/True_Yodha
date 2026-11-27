@@ -1,0 +1,120 @@
+/* Spec #66 chapters 4–5: one CV read against a job, then the ladder that fills
+   the gap. Same hairline rows as chapters 2–3. The three gap kinds are states,
+   so they take the status tones, and only on an 8px marker: the words stay in
+   text colour. Nothing here is pressable except the upload button. */
+
+/* ── Chapter 4: the gap ───────────────────────────────────────── */
+.lp-gap {
+  display: grid;
+  max-width: 720px;
+  margin: 0;
+}
+
+.lp-gap-row {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--lp-border);
+}
+
+.lp-gap-row:last-child { border-bottom: 1px solid var(--lp-border); }
+
+.lp-gap-row[data-kind="matched"] { --lp-gap-tone: var(--lp-success); }
+.lp-gap-row[data-kind="rewrite"] { --lp-gap-tone: var(--lp-warning); }
+.lp-gap-row[data-kind="missing"] { --lp-gap-tone: var(--tm-danger); }
+
+.lp-gap-row dt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--lp-muted);
+  font-family: var(--lp-mono);
+  font-size: var(--tm-fs-caption);
+}
+
+.lp-gap-row dt::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  background: var(--lp-gap-tone);
+}
+
+.lp-gap-row dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--lp-text);
+  font-size: var(--tm-fs-body);
+}
+
+.lp-gap-before {
+  display: block;
+  color: var(--lp-muted);
+  text-decoration: line-through;
+}
+
+.lp-gap-after {
+  display: block;
+  margin-top: 6px;
+  color: var(--lp-text);
+  text-decoration: none;
+}
+
+.lp-gap-after::before {
+  content: "→\00a0" / "";
+  color: var(--lp-muted);
+}
+
+.lp-chapter-action { margin-top: 24px; }
+
+/* ── Chapter 5: the ladder ────────────────────────────────────── */
+/* One line, four stops: hollow dots joined by a rule, the bridge rail's
+   language. Hollow because the reader has not walked it yet. */
+.lp-ladder {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  max-width: 720px;
+  margin: 0 0 28px;
+  padding: 0;
+  list-style: none;
+}
+
+.lp-ladder-step {
+  position: relative;
+  padding: 22px 12px 0 0;
+  color: var(--lp-text);
+  font-size: var(--tm-fs-body);
+  font-weight: 600;
+}
+
+.lp-ladder-step::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--lp-text);
+  border-radius: 50%;
+  background: var(--lp-bg);
+}
+
+.lp-ladder-step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 0;
+  left: 10px;
+  height: 1px;
+  /* Text-faint, not a border tone: the border tones nearly vanish on the light
+     surface, and this line is the "in order" the chapter is about. */
+  background: var(--lp-faint);
+}
+
+@media (max-width: 720px) {
+  .lp-gap-row { grid-template-columns: 92px minmax(0, 1fr); gap: 12px; }
+  .lp-ladder-step { padding-right: 8px; }
+}

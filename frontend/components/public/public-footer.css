@@ -140,6 +140,31 @@
   background: var(--tm-surface);
 }
 
+/* The person behind Myro, under the brand's own row: a name, not a fifth icon,
+   so it never reads as a second Myro LinkedIn page. */
+.pub-footer-founder {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  margin-top: 14px;
+  color: var(--tm-text-muted);
+  font-size: var(--tm-fs-caption);
+  text-decoration: none;
+  transition: color var(--tm-dur-fast) var(--tm-ease);
+}
+.pub-footer-founder svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.pub-footer-founder-role {
+  color: var(--tm-text-faint);
+}
+.pub-footer-founder:hover {
+  color: var(--tm-accent-text);
+}
+
 /* Link columns */
 .pub-footer-col-title {
   display: flex;

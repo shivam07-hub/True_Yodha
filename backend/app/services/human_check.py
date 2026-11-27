@@ -146,12 +146,21 @@ def slot_start(open_due: list[datetime], now: datetime) -> datetime:
 class Availability:
     checks_full: bool
     ready_by: datetime  # when a check bought now would be returned
+    # Of MAX_OPEN_CHECKS, how many hold no check. Counted, not clocked: a late
+    # check is still on the reviewer's desk, so it holds its slot even after
+    # `slot_start` has stopped waiting for it.
+    slots_open: int
 
 
 def availability(store: HumanCheckStore, now: datetime | None = None) -> Availability:
     now = now or datetime.now(timezone.utc)
-    start = slot_start(store.open_due_ats(), now)
-    return Availability(checks_full=start > now, ready_by=start + timedelta(hours=CHECK_HOURS))
+    open_due = store.open_due_ats()
+    start = slot_start(open_due, now)
+    return Availability(
+        checks_full=start > now,
+        ready_by=start + timedelta(hours=CHECK_HOURS),
+        slots_open=max(0, MAX_OPEN_CHECKS - len(open_due)),
+    )
 
 
 def _clock(store: HumanCheckStore, now: datetime) -> dict[str, str]:

@@ -50,11 +50,12 @@ Every week we publish what India's MNC openings ask for, read from the employers
 
 ## Posted so far
 
-Newest first. The top six are marked done in the Distribution Tracker with their
+Newest first. The top seven are marked done in the Distribution Tracker with their
 live links and captions as posted.
 
 | Date | Post |
 |---|---|
+| 26 Nov | [Branch banking post](https://www.instagram.com/myrojobs/p/DgMOQ6ckas1/), issue 024 reworked as a six-slide story with no dates, posted by Claude in Chrome as @myrojobs (switched from pathak__07 and back), Original crop, one caption, hashtags as the first comment. Same day on the LinkedIn company page: [the same six as a document](https://www.linkedin.com/feed/update/urn:li:ugcPost:7531571199383019520/), with the upload link in the first comment. Tracker rows carry variant `branch-post` on issue 024's campaign |
 | 22 Nov, 05:00 | [Issue 026 carousel, reposted](https://www.instagram.com/myrojobs/p/DgBaSReEtrV/) with the hook cover, five bands and two type sizes, posted by Claude in Chrome as @myrojobs, hashtags as the first comment, not shared to Facebook. Same morning on the LinkedIn company page: [issue 026 as a document](https://www.linkedin.com/feed/update/urn:li:ugcPost:7530051124012449792/), the first one LinkedIn offers to boost, with the link in the first comment |
 | 21 Nov | [Issue 026 carousel](https://www.instagram.com/myrojobs/p/DgAw1OqIwA-/), first version, no hook on the cover. To be archived in the app (instagram.com offers only Delete) |
 | 18 Nov, 02:15 | [Issue 024 carousel](https://www.instagram.com/myrojobs/p/Df20WH9EkmA/), posted by Claude in Chrome, one caption, not shared to Facebook. Same night on the LinkedIn company page: [issue 024](https://www.linkedin.com/feed/update/urn:li:activity:7528558060508762112/), with the link in the first comment |

@@ -5735,6 +5735,61 @@ export const publicStats = {
   get: () => request<PublicStatsResponse>("/public/stats"),
 }
 
+// ── Landing role chips (spec #66 L1) ─────────────────────────────────────────
+// The eight busiest role families, from the market snapshot. Each band is one of
+// the six in backend `job_eligibility.PERSON_YEAR_SPAN_BY_BAND`; `thin` means too
+// few openings or employers to read a market from, and such a band has no skills.
+export type LandingBand = "intern" | "entry" | "mid" | "senior" | "lead" | "executive"
+
+export interface LandingRoleSkill {
+  skill: string
+  /** Fraction of the slice's openings asking for it, 0–1. */
+  share: number
+}
+
+export interface LandingRoleBand {
+  band: LandingBand
+  jobs: number
+  companies: number
+  thin: boolean
+  skills: LandingRoleSkill[]
+}
+
+export interface LandingRole {
+  family: string
+  jobs: number
+  companies: number
+  top_companies: { name: string; jobs: number }[]
+  skills: LandingRoleSkill[]
+  bands: LandingRoleBand[]
+}
+
+/** A family the hero's search finds, past the eight chips (spec #66 L2b). */
+export interface LandingRoleName {
+  family: string
+  jobs: number
+}
+
+export const landingRoles = {
+  get: () => request<{ roles: LandingRole[]; more: LandingRoleName[] }>("/public/landing-roles"),
+  /** One family in full, chip or searched; 404 for a family the landing does not offer. */
+  one: (family: string) =>
+    request<LandingRole>(`/public/landing-role?${new URLSearchParams({ family }).toString()}`),
+}
+
+/** Spec #66 L5: the reviewer's live Human Check slots, for the landing. */
+export interface HumanCheckSlots {
+  capacity: number
+  slots_open: number
+  check_hours: number
+  ready_by: string
+  price_paise: number
+}
+
+export const humanCheckSlots = {
+  get: () => request<HumanCheckSlots>("/public/human-check"),
+}
+
 // ── Public CV-score preview (no auth) ───────────────────────────────────────
 // The pre-login "drop your CV → real Myro Score" demo. Multipart, no token —
 // bypasses `request`'s JSON handling. Backend runs the real engine compute-only
@@ -5765,6 +5820,28 @@ export interface AnonScoreResponse {
   // extraction was degraded — the readout then shows the score only.
   cv: CVStructured | null
   contact: AnonContact | null
+  // The role and level picked on the landing, read against this CV (spec #66
+  // L7). Absent on a result stashed before L7 or scored without a pick.
+  target?: AnonTarget | null
+}
+
+/** The landing pick an upload carries (`/cv-preview?role=&level=`). */
+export interface AnonPick {
+  role: string
+  level: string | null
+}
+
+export interface AnonTarget {
+  family: string
+  /** Null: every level of the role. */
+  band: LandingBand | null
+  /** Live listings at that level. */
+  jobs: number
+  /** Of those, the ones naming 2+ skills this CV holds. */
+  within_reach: number
+  /** The role's skills, as the landing showed them, that this CV holds. */
+  matched: string[]
+  missing: string[]
 }
 
 export interface PublicJobFitPreviewResponse {
@@ -5915,7 +5992,11 @@ export const publicCv = {
       cf_turnstile_token: turnstileToken ?? (await getTurnstileToken()),
     }),
 
-  scorePreview: async (input: File | { text: string }, turnstileToken?: string | null): Promise<AnonScoreResponse> => {
+  scorePreview: async (
+    input: File | { text: string },
+    pick?: AnonPick | null,
+    turnstileToken?: string | null,
+  ): Promise<AnonScoreResponse> => {
     if (!BASE) throw new Error("API base URL is not configured.")
     const token = turnstileToken ?? (await getTurnstileToken())
     const form = new FormData()
@@ -5923,6 +6004,10 @@ export const publicCv = {
     // failures some networks/regions hit; the file path is unchanged.
     if (input instanceof File) form.append("file", input)
     else form.append("text", input.text)
+    if (pick) {
+      form.append("role", pick.role)
+      if (pick.level) form.append("level", pick.level)
+    }
     if (token) form.append("cf_turnstile_token", token)
     const res = await fetch(`${BASE}/public/score-cv`, { method: "POST", body: form })
     const body = await res.json().catch(() => null)

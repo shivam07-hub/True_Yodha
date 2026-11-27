@@ -132,6 +132,51 @@ def test_fresh_compute_persists_unrecommended(monkeypatch: Any) -> None:
     assert repo.persisted["overall_score"] == 3.8
 
 
+def test_fresh_compute_persists_the_whole_verdict(monkeypatch: Any) -> None:
+    """The on-demand row carries every column the brain answered, as the batch
+    row does. It used to hand-build a shorter row, so since 2026-11-09 (when every
+    verdict came this way) 1 of 1,936 cards had a pay band and none had the
+    pick_reason written to the person."""
+    repo = _FakeRepo(cached=None)
+    verdict = {
+        "overall_score": 4.2, "grade": "A-", "recommendation": "Apply",
+        "summary": "strong", "strengths": ["GTM"], "concerns": [],
+        "pick_reason": "You already sell this platform to these buyers.",
+        "level_strategy": "at level — apply directly",
+        "personalization": "Lead with the UK pursuits.",
+        "star_pointers": ["$20M RFP book"],
+        "ctc_low_lpa": 30.0, "ctc_high_lpa": 42.0, "ctc_basis": "estimated",
+        "breaks": [],
+    }
+
+    async def _fake_rank_one(*_a: Any, **_k: Any) -> ModelOutcome:
+        return ModelOutcome.ok(dict(verdict))
+
+    monkeypatch.setattr(on_demand.ranking, "rank_one", _fake_rank_one)
+
+    asyncio.run(on_demand.ensure_job_eval(repo, object(), "u1", "j1"))  # type: ignore[arg-type]
+    row = repo.persisted
+    assert row is not None
+    assert (row["ctc_low_lpa"], row["ctc_high_lpa"], row["ctc_basis"]) == (30.0, 42.0, "estimated")
+    assert row["pick_reason"] == verdict["pick_reason"]
+    assert row["level_strategy"] == verdict["level_strategy"]
+    assert row["personalization"] == verdict["personalization"]
+    assert row["star_pointers"] == ["$20M RFP book"]
+    assert row["breaks"] == []
+
+
+def test_on_demand_and_batch_write_the_same_verdict_columns() -> None:
+    """One definition of what a verdict row holds. Two hand-built dicts drifted."""
+    from app.services import llm_ranker
+
+    ev = {"overall_score": 4.0, "ctc_low_lpa": 20.0, "ctc_high_lpa": 25.0}
+    assert set(llm_ranker.verdict_columns(ev)) >= {
+        "ctc_low_lpa", "ctc_high_lpa", "ctc_basis", "breaks", "pick_reason",
+        "personalization", "star_pointers", "level_strategy", "summary",
+        "llm_explanation", "overall_score", "grade",
+    }
+
+
 def test_missing_job_returns_none(monkeypatch: Any) -> None:
     repo = _FakeRepo(cached=None, job_exists=False)
     out = asyncio.run(on_demand.ensure_job_eval(repo, object(), "u1", "gone"))  # type: ignore[arg-type]

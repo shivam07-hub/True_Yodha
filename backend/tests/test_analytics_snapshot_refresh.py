@@ -12,6 +12,7 @@ from typing import Any
 
 from app.repositories import jobs as jobs_module
 from app.repositories.jobs import JobsRepository
+from app.services.landing_roles import LANDING_ROLES_VERSION, LandingCuration
 
 
 class _Result:
@@ -65,6 +66,10 @@ class _FakeAdmin:
         return self
 
     def execute(self) -> _Result:
+        if self._table == "role_family_labels":
+            return _Result(data=[{"family": "Business Operations"}])
+        if self._table == "skill_demand_skill_deny":
+            return _Result(data=[{"skills": {"taxonomy_key": "Requisition"}}, {"skills": None}])
         if self._table == "jobs":
             if self._count_mode:
                 return _Result(count=self.job_count)
@@ -78,7 +83,7 @@ class _FakeAdmin:
 def _repo(admin: _FakeAdmin) -> JobsRepository:
     repo = JobsRepository(db=admin, admin_db=admin)  # type: ignore[arg-type]
     repo.fetch_analytics_rows = lambda *a, **k: [{"company_name": "Acme"}]  # type: ignore[assignment]
-    repo._analytics_compiler.compile = lambda rows: {  # type: ignore[assignment]
+    repo._analytics_compiler.compile = lambda rows, **_k: {  # type: ignore[assignment]
         "total_jobs": 9001,
         "total_companies": 42,
     }
@@ -96,6 +101,8 @@ def test_skips_compile_when_marker_unchanged() -> None:
                 "total_jobs": 5000,
                 "total_companies": 30,
                 "industry_roles": {"Technology": [["Engineering", 120]]},
+                "landing_roles": [],
+                "landing_roles_version": LANDING_ROLES_VERSION,
             },
         },
     )
@@ -164,3 +171,97 @@ def test_fetch_analytics_rows_requests_main_skills(monkeypatch) -> None:
     repo = JobsRepository(db=object(), admin_db=object())  # type: ignore[arg-type]
     repo.fetch_analytics_rows(location_city="Bangalore")
     assert "main_skills" in captured["columns"]
+
+
+def test_recompiles_when_snapshot_predates_landing_roles() -> None:
+    """Spec #66 L1: a snapshot written before the landing's role chips has no
+    `landing_roles` key, so an unchanged corpus must still rebuild once."""
+    admin = _FakeAdmin(
+        job_count=100,
+        last_seen=20260610,
+        snapshot_row={
+            "source_job_count": 100,
+            "source_last_seen": 20260610,
+            "payload": {
+                "total_jobs": 5000,
+                "total_companies": 30,
+                "industry_roles": {"Technology": [["Engineering", 120]]},
+            },
+        },
+    )
+    out = _repo(admin).refresh_analytics_snapshot_if_stale()
+    assert out["refreshed"] is True
+    assert len(admin.upserts) == 1
+
+
+def test_snapshot_write_passes_landing_curation_to_compile() -> None:
+    """Residual buckets and denied skill strings are read at refresh time, so a
+    row edit of either list reaches the landing on the next write."""
+    admin = _FakeAdmin(job_count=100, last_seen=20260610, snapshot_row=None)
+    repo = _repo(admin)
+    seen: dict[str, Any] = {}
+
+    def _compile(rows: list[dict[str, Any]], **kwargs: Any) -> dict[str, Any]:
+        seen.update(kwargs)
+        return {"total_jobs": 1, "total_companies": 1}
+
+    repo._analytics_compiler.compile = _compile  # type: ignore[assignment]
+    repo.persist_analytics_snapshot()
+    assert seen["landing"] == LandingCuration(
+        catch_all=frozenset({"Business Operations"}),
+        skill_deny=frozenset({"Requisition"}),
+    )
+
+
+def test_fetch_analytics_rows_requests_seniority(monkeypatch) -> None:
+    """The landing's bands read `seniority_level`; a fetch without it leaves every
+    band empty and greyed, silently."""
+    captured: dict[str, str] = {}
+
+    def _fake_fetch_all_rows(db: Any, *, table: str, columns: str, query_builder: Any = None) -> list[Any]:
+        captured["columns"] = columns
+        return []
+
+    monkeypatch.setattr(jobs_module, "fetch_all_rows", _fake_fetch_all_rows)
+    repo = JobsRepository(db=object(), admin_db=object())  # type: ignore[arg-type]
+    repo.fetch_analytics_rows()
+    assert "seniority_level" in captured["columns"]
+
+
+def test_recompiles_when_landing_roles_predate_the_live_rule() -> None:
+    """Landing roles written before the live-listings rule counted closed ads as
+    open, so an unchanged corpus must still rebuild them once (the scraper does
+    not run daily, so waiting for the next batch could take days)."""
+    admin = _FakeAdmin(
+        job_count=100,
+        last_seen=20260610,
+        snapshot_row={
+            "source_job_count": 100,
+            "source_last_seen": 20260610,
+            "payload": {
+                "total_jobs": 5000,
+                "total_companies": 30,
+                "industry_roles": {"Technology": [["Engineering", 120]]},
+                "landing_roles": [],
+            },
+        },
+    )
+    out = _repo(admin).refresh_analytics_snapshot_if_stale()
+    assert out["refreshed"] is True
+    assert len(admin.upserts) == 1
+
+
+def test_fetch_analytics_rows_requests_liveness(monkeypatch) -> None:
+    """The landing counts live listings only; a row without both liveness
+    columns is never read as live, so every role would vanish, silently."""
+    captured: dict[str, str] = {}
+
+    def _fake_fetch_all_rows(db: Any, *, table: str, columns: str, query_builder: Any = None) -> list[Any]:
+        captured["columns"] = columns
+        return []
+
+    monkeypatch.setattr(jobs_module, "fetch_all_rows", _fake_fetch_all_rows)
+    repo = JobsRepository(db=object(), admin_db=object())  # type: ignore[arg-type]
+    repo.fetch_analytics_rows()
+    assert "is_active" in captured["columns"]
+    assert "listing_confidence" in captured["columns"]

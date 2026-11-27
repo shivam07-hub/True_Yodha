@@ -84,6 +84,35 @@ def _write_spec(tmp_path: Path) -> Path:
     return spec
 
 
+def test_a_post_with_no_article_fills_the_issue_it_posts_for(tmp_path: Path) -> None:
+    """A reworked post quotes its own figures, so it has no article for the
+    builder to check against, and still takes over its issue's rows."""
+    mod = sync_module()
+    spec = _write_spec(tmp_path)
+    store = MemoryStore()
+    mod.sync(store, spec, dry_run=False)
+    slug = "2026-01-example"
+    first = f"message:issue:{slug}:linkedin"
+    store.messages[first]["status"] = "published"
+    data = json.loads(spec.read_text())
+    data["posts_for"] = data.pop("article")
+    data["variant"] = "rework"
+    post = tmp_path / "issue-099-post.json"
+    post.write_text(json.dumps(data))
+    (tmp_path / "issue-099-post-distribution.md").write_text(
+        "Heading: Post heading.\n\n## LinkedIn\n\nThe reworked body.\n"
+    )
+    mod.sync(store, post, dry_run=False)
+    # The first post stays the record of what went out.
+    assert store.messages[first]["draft_copy"] == "The linkedin body."
+    linkedin = store.messages[f"{first}:rework"]
+    assert linkedin["variant"] == "rework"
+    assert linkedin["status"] == "ready_for_review"
+    assert linkedin["campaign_id"] == store.messages[first]["campaign_id"]
+    assert linkedin["draft_copy"] == "The reworked body."
+    assert linkedin["metadata"]["kit"].endswith("issue-099-post-distribution.md")
+
+
 def test_a_published_row_is_not_written(tmp_path: Path) -> None:
     mod = sync_module()
     spec = _write_spec(tmp_path)

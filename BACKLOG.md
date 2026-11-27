@@ -25,6 +25,7 @@ Broken steps first, nearest the north star (qualified applications sent) first.
 | 6 | Pay | **#56** the ₹199 Apply Pack; its Human Check can be a LinkedIn rewrite (ENG3) | [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) · Claude | S1–S5 on `Develop` 2026-11-23: one Settlement; the pack and its doors (out-of-coins modal, prep On record line, `/apply-pack`, `/job-switch-plan` forwards); the LinkedIn card on both CV surfaces; reviewer desk `/admin/checks`; the monthly plan deleted. **Shivam:** Railway `HUMAN_CHECK_REVIEWER_NAME` + `_EMAIL`; Razorpay events `payment.captured` + `payment.failed`; test keys on dev. M4 done 2026-11-24 (both empty plan tables dropped). Closed when one real buyer gets a check back |
 | 3 | Repeat | **#61** Myro on Android (TWA), buying hidden, then Play billing | [ARCHITECTURE_APK.md](ARCHITECTURE_APK.md) · Claude | S1–S4, S6–S8 on `Develop`. S8 closed 2026-11-08: `/account/delete`. Next: S9, blocked on the new upload-key SHA-256. Phase 2 waits on #56. Shivam: D-U-N-S, new upload key |
 | 4 | Front door | **#63** Myro in Claude and ChatGPT (MCP). Open door first (§3A, no sign-in): live roles, skills a role or company asks for, demand by city, ghost ads. Then the account door: judged list, add a job, tailor, "I applied" | [ARCHITECTURE_MCP.md](ARCHITECTURE_MCP.md) · Claude | O1 on `Develop` (`04d5ffe7`); O2 on `main`, six tools on `www.himyro.com/mcp/open`, all six answer from real data. Search fixes (place before window, title match) on `Develop`. O3 `/ai` built 11-24 on `Develop`, linked from footer, Settings and privacy. O4 pack ready ([MCP_DIRECTORY_SUBMISSION.md](MCP_DIRECTORY_SUBMISSION.md)); owed: `main` merge, then Shivam tests and submits. Then P1 skills plugin. O4 directory submit is Shivam's. M1–M3 collide with nothing; M4 needs #62 R3. **Gate G waits on Shivam**: Supabase OAuth server on, after M1–M3 reach `main` |
+| 4 | Front door | **#66** landing story: one scroll from "what MNCs hire for" → open jobs → skills → your CV against the job → fill the gap → Meet your reviewer (Shivam, live Human Check slots) → upload; a bridge rail fills as you scroll | [ARCHITECTURE_LANDING_STORY.md](ARCHITECTURE_LANDING_STORY.md) · Claude | Spec 2026-11-26 from a grill with Shivam. L0 built 11-26 on `Develop`: no GitHub link or open-source claim on any public page; footer adds Founder · Shivam Pathak (LinkedIn). L1 built 11-26 on `Develop` (`25754735`, `b2cd8d11`): `GET /public/landing-roles` from the market snapshot; dry run on live rows: 8 roles (Banking Services, Software Development, Business Analysis, AI/ML, Project Management, Business Strategy, Business Consulting, Customer Service), compile 824ms, 19 KB. Fills on the first snapshot write by L1 code; a prod-side write drops it until `main` has L1. L2 built 11-26: hero = two-line H1, 8 live chips, level row (thin levels disabled), pick carried as `/cv-preview?role=&level=`; the market snapshot was rewritten by L1 code 11-26 so the chips show. L3 built 11-26: chapter 2 open jobs (pick first, top employers, company rail), chapter 3 skills by role at the picked level, bridge rail sticky under the nav (`overflow-x: clip`; 11-26 phones' global html/body rule moved from `hidden` to `clip` app-wide, so the public nav sticks on every body-scrolled public page at 375; `/signup/institutions` dropped its own `.es-page` `hidden` too). L4 built 11-26: chapter 4 a labelled example (Matched · Rewrite · Missing) with an Upload CV button that carries the pick, chapter 5 the four-step ladder with the Finlatics rail inside it. L5 built 11-26: chapter 6 Meet your reviewer (photo, LinkedIn, agreed credentials) with the live slot count from `GET /public/human-check` and an Apply with your CV upload. L6 built 11-26: chapter 7 "See your gap. Free, no sign-up." with the hero's dropzone and the pick; the four old sections left the landing, and the LLM-runner console (random GPU % and tokens/s, its last mount) was deleted rather than moved to `/intel`. Fixed 11-26: chapters 2–3 counted every `jobs` row as "open right now", closed ads included (Business Analysis 4,807 rows, 2,301 live); the compile now reads live listings only and a version on the payload makes the next refresh rebuild it. L7 built 11-26: after an upload carrying a pick, `/cv-preview` opens on the gap: "N jobs within reach today" (live listings at that level naming 2+ of the CV's skills, of M open), matched / rewrite / missing from this CV, "See N jobs" → sign-up, "Fix my CV" → the playground with rewrites aimed at the role. Fixed on the way (`3e423a7f`, core loop, **wants `main` at once**): since 09-29 the logged-out playground sent every visitor to /login as it opened; no anonymous download since the week of 09-14. L2b built 11-27: "Other role" search past the chips reaches every qualifying family (154 live, 146 beyond the chips) by word root ("data analyst" → Data Analysis); a searched role gets its level row, leads chapters 2–3 and is read against the CV after upload like a chip. Next: L8 apply step. **Shivam:** GitHub repo private or not |
 | 4 | Front door | **#64** brand distribution: one command per issue kit (B1), issue 021's kit (B2), kit → tracker (B3), reels through Publish to Instagram (B4), a dead Instagram token opens a Notice (B5), slides a phone can read with one caption per post (B6), a missed posting slot opens a Notice (B7) | [ARCHITECTURE_BRAND_DISTRIBUTION.md](ARCHITECTURE_BRAND_DISTRIBUTION.md) · Claude | B1, B3 and B2 Built 2026-11-15. B4 → B5. B6 and B7 spec 2026-11-17; B6 never holds a slot, LinkedIn tracker settled against the live pages 2026-11-17 (nothing posted there since 23 Oct). Live reels and B5 wait on Shivam's Meta setup. Until then Claude posts the overdue Instagram queue with Shivam (024 on 18 Nov). Carousels are told as a story, and LinkedIn takes them as a boostable PDF document (026 rebuilt 18 Nov, 023 and 021 on 19 Nov; NEWSLETTER_STANDARD.md) |
 
 **Cursor stopped working on Myro on 2026-11-23 (Shivam); every Cursor item is Claude's. #56 S3–S5 first, then this order (Shivam, 2026-10-14; #61 added 2026-11-03):** #57 → #58 → #61
@@ -36,7 +37,7 @@ jobs flow again; pay after the value. #61 S5 shipped with #58 S5 (`4b9be63d`). S
 Specs built from, each slice its own commit with six gates green:
 PAYMENTS (#56) · FRONT_DOOR (#57) · CV_TIER_A (#58) · GOLDEN_DIGEST (#59) ·
 SKILL_EVIDENCE (#60) · APK (#61) · RETENTION (#62) · MCP (#63) ·
-BRAND_DISTRIBUTION (#64).
+BRAND_DISTRIBUTION (#64) · LANDING_STORY (#66).
 
 ---
 
@@ -56,6 +57,14 @@ removed); one name-forms rule for CV and job; Stage A replaces only its own rows
 never on an empty result, versioned by `jobs.skill_floor_version`; receipts
 recomputed by `explain_tags`, never stored; an automatic before/after with
 invariants; a skill-spread Notice belt. Claude.
+
+**#65 Target pay — [ARCHITECTURE_TARGET_PAY.md](ARCHITECTURE_TARGET_PAY.md)
+(Shivam, 2026-11-25). C0 built on `Develop`; C1–C3 not built.** Pay bands are on 1 of 1,936
+verdicts since 11-09, and 0 of 1,120 real users have a pay floor or an expected CTC.
+C0 fixed 11-25: the on-demand verdict write dropped the band, `pick_reason` and `breaks` (one `verdict_columns` now); done when ≥70% of new verdicts carry a band. Then: target =
+`expected_ctc_lpa`, compared on the card and never sent to the brain, plus a Pay
+group in Pre-flight. Q1 decided 11-25: the target is total CTC. Shivam owes Q2.
+Claude.
 
 ---
 
@@ -366,12 +375,6 @@ who sent an application, and 3 have: #45 evidence bank, CS-12, CS-14, CS-15, and
   `shared_buffers` 224 MB, `max_connections` 60. Do not resize. The ~300ms floor,
   and any read that clears 2s only because the database is this size, stay until
   a query gets cheaper. History: ARCHIVE 2026-10-02 · `ARCHITECTURE_READ_PATH.md` §19.
-- **Prod deploy guard — Shivam.** `main` already holds `ea165951`. Confirm
-  `curl https://api.himyro.com/health/ready` answers `ready`; then
-  `railway variables -s mirror-backend-prod --set PORT=8000`; wait for green;
-  then `railway api 'mutation($s: String!, $e: String!) { serviceInstanceUpdate(serviceId: $s, environmentId: $e, input: { healthcheckPath: "/health/ready" }) }' --raw-var s=6f9d873b-0efb-4b30-acc6-dfcfc35d44f0 --raw-var e=f6a22e25-8218-48be-8d89-d380dfbada25`
-  and read `Healthcheck succeeded!` on a FRESH deploy. Never the path without the
-  port — it broke dev for 14 h on 2026-09-28. Agents are refused prod config.
 
 ---
 
@@ -485,7 +488,6 @@ Tracker (3) · no problem or not actionable (~25).
   per city or link. Last measured 11-03: Axis Bank 14,259 live rows, 747 titles.
   The feed already shows one card per employer and title. The stored rows, and
   every public count, still count each link. Dedupe at the source (scraper).
-- The prod deploy guard (above).
 - **#59 golden digest go-live**: prod carries the first-email rule (`0aafb324`).
   Run the preview SQL in `ARCHITECTURE_GOLDEN_DIGEST.md` (status block), read the
   emails, approve; an agent then adds the schedule.

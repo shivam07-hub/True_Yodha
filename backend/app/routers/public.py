@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
@@ -40,7 +40,7 @@ from app.services.matching.filter_spec import FilterSpec
 from app.services.matching.job_query import JobQuery
 from app.services.scoring.formulas import build_skill_level_map
 from app.services.scoring.orchestrator import project_score
-from app.services import shared_cache
+from app.services import billing_catalogue, human_check, landing_reach, landing_roles, shared_cache
 
 # Public pages are the front door: a visitor's AI is a person's AI, billed to
 # OpenRouter like a user's (Shivam, 2026-11-25). See llm_spender.
@@ -160,6 +160,148 @@ def get_public_stats(response: Response) -> dict[str, Any]:
     )
 
 
+
+# ─── Landing role chips and search (spec #66 L1, L2b) ─────────────────────────
+#
+# The eight roles the landing offers as chips, with open jobs and the skills
+# employers ask for, per experience band, and every other qualifying family by
+# name and count for the hero's search. A slice of `market_analytics_snapshot`
+# (Tier 0): the snapshot write builds it, so a visitor costs one cached read at
+# most, and a searched family one more.
+
+
+class LandingRoleSkill(BaseModel):
+    skill: str
+    share: float  # fraction of the slice's openings that ask for it
+
+
+class LandingRoleBand(BaseModel):
+    band: str  # intern | entry | mid | senior | lead | executive
+    jobs: int
+    companies: int
+    thin: bool  # too few openings or employers to read a market from
+    skills: list[LandingRoleSkill]
+
+
+class LandingRoleCompany(BaseModel):
+    name: str
+    jobs: int
+
+
+class LandingRole(BaseModel):
+    family: str
+    jobs: int
+    companies: int
+    top_companies: list[LandingRoleCompany]
+    skills: list[LandingRoleSkill]
+    bands: list[LandingRoleBand]
+
+
+class LandingRoleName(BaseModel):
+    family: str
+    jobs: int
+
+
+class LandingRolesResponse(BaseModel):
+    roles: list[LandingRole]
+    more: list[LandingRoleName] = []  # every other family, for the search
+
+
+def _all_landing_roles() -> list[dict[str, Any]]:
+    # A snapshot written before L1 has no key: an empty list, and the page hides
+    # the chapters rather than showing a number it did not read. The dirty guard
+    # rebuilds such a snapshot on its next run.
+    return get_public_jobs_repository().compile_market_analytics().get("landing_roles") or []
+
+
+def _compile_landing_roles_cached() -> dict[str, Any]:
+    # Keyed by the compile's version: a deploy that changes the payload's shape
+    # never serves the older shape from cache.
+    return shared_cache.get_or_compute(
+        f"public_landing_roles:v{landing_roles.LANDING_ROLES_VERSION}",
+        lambda: landing_roles.offer(_all_landing_roles()),
+        ttl_seconds=_CACHE_TTL_SECONDS,
+        stale_seconds=_CACHE_STALE_SECONDS,
+    )
+
+
+def _landing_role(family: str) -> dict[str, Any] | None:
+    """One family the landing offers, in full: a chip from the cached offer, a
+    searched family from its own cache entry. A name the offer does not list
+    reads nothing and caches nothing, so a crafted request cannot make the
+    server read or store an arbitrary family."""
+    offered = _compile_landing_roles_cached()
+    chip = next((role for role in offered["roles"] if role.get("family") == family), None)
+    if chip is not None:
+        return chip
+    if not any(item["family"] == family for item in offered["more"]):
+        return None
+    return shared_cache.get_or_compute(
+        f"public_landing_role:v{landing_roles.LANDING_ROLES_VERSION}:{family}",
+        lambda: next((role for role in _all_landing_roles() if role.get("family") == family), None),
+        ttl_seconds=_CACHE_TTL_SECONDS,
+        stale_seconds=_CACHE_STALE_SECONDS,
+    )
+
+
+@router.get("/landing-roles", response_model=LandingRolesResponse)
+def get_landing_roles(response: Response) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=3600"
+    return _compile_landing_roles_cached()
+
+
+@router.get("/landing-role", response_model=LandingRole)
+def get_landing_role(response: Response, family: str = Query(..., min_length=1, max_length=200)) -> dict[str, Any]:
+    """A family found by the hero's search, with the chapters a chip carries.
+    A query parameter, not a path: family names hold slashes ("UI/UX")."""
+    role = _landing_role(family)
+    if role is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not offered")
+    response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=3600"
+    return role
+
+
+# ─── The reviewer's open slots (spec #66 L5) ─────────────────────────────────
+#
+# The landing's reviewer chapter shows how many of the five Human Check slots
+# are free, live. One indexed read of the open checks, shared by every visitor
+# for a minute: the count moves only when someone buys or a check is delivered.
+# A stale count is safe because the page never refuses a sale on it (ENG3: a
+# check sells in every state, with its "ready by" shown before paying).
+
+_SLOTS_TTL_SECONDS = 60
+
+
+class HumanCheckSlots(BaseModel):
+    capacity: int  # checks one reviewer holds open at once
+    slots_open: int
+    check_hours: int  # the promise: a check comes back within this
+    ready_by: str  # when a check bought now comes back
+    price_paise: int  # the Apply Pack, which carries one check
+
+
+def _compile_human_check_slots() -> dict[str, Any]:
+    slots = human_check.availability(human_check.SupabaseHumanCheckStore())
+    return {
+        "capacity": human_check.MAX_OPEN_CHECKS,
+        "slots_open": slots.slots_open,
+        "check_hours": human_check.CHECK_HOURS,
+        "ready_by": slots.ready_by.isoformat(),
+        "price_paise": billing_catalogue.by_alias("apply_pack").price_paise,
+    }
+
+
+@router.get("/human-check", response_model=HumanCheckSlots)
+def get_human_check_slots(response: Response) -> dict[str, Any]:
+    response.headers["Cache-Control"] = f"public, max-age={_SLOTS_TTL_SECONDS}"
+    return shared_cache.get_or_compute(
+        "public_human_check_slots",
+        _compile_human_check_slots,
+        ttl_seconds=_SLOTS_TTL_SECONDS,
+        stale_seconds=_SLOTS_TTL_SECONDS * 10,
+    )
+
+
 # ─── Public CV-score preview (no auth) ───────────────────────────────────────
 #
 # The pre-login "drop your CV, see your real Myro Score" demo. Runs the REAL
@@ -201,6 +343,15 @@ class AnonContact(BaseModel):
     linkedin: str = ""
 
 
+class AnonTarget(BaseModel):
+    family: str
+    band: str | None  # None: every level of the role
+    jobs: int  # live listings at that level
+    within_reach: int  # of those, naming 2+ skills this CV holds
+    matched: list[str]  # the role's skills (as the landing showed them) this CV holds
+    missing: list[str]  # the rest
+
+
 class AnonScoreResponse(BaseModel):
     """Compute-only preview — the score + domain split the landing Readout
     renders, plus the parsed CV reformatted to the Myro standard so a
@@ -217,6 +368,9 @@ class AnonScoreResponse(BaseModel):
     # provider returned skills but no structured payload (degraded but scorable).
     cv: dict[str, Any] | None = None
     contact: AnonContact | None = None
+    # The role and level picked on the landing, read against this CV (spec #66
+    # L7). None when no pick came with the upload, or it is not a landing role.
+    target: AnonTarget | None = None
 
 
 class PublicJobFitPreviewResponse(BaseModel):
@@ -427,14 +581,42 @@ def _compute_public_fit(
     return pct, matched, missing, len(seen)
 
 
+def _landing_target(role: str | None, level: str | None, level_map: dict[str, int]) -> AnonTarget | None:
+    """The landing pick read against the CV. Only a role the landing offers (a
+    chip or a searched family) and one of the six bands: anything else reads
+    nothing, so a crafted form cannot make the server page through an
+    arbitrary family."""
+    if not role or (level and level not in landing_roles.BANDS):
+        return None
+    picked = _landing_role(role)
+    if picked is None:
+        return None
+    held = {key for key, value in level_map.items() if key and value > 0}
+    matched, missing = landing_reach.role_gap(picked, level, held)
+    reach, open_now = landing_reach.count_within_reach(landing_reach.family_reach_index(role), level, held)
+    return AnonTarget(
+        family=role,
+        band=level or None,
+        jobs=open_now,
+        within_reach=reach,
+        matched=matched,
+        missing=missing,
+    )
+
+
 @router.post("/score-cv", response_model=AnonScoreResponse)
 async def score_cv_preview(
     request: Request,
     file: UploadFile | None = File(default=None),
     text: str | None = Form(default=None),
     cf_turnstile_token: str | None = Form(default=None),
+    role: str | None = Form(default=None),
+    level: str | None = Form(default=None),
 ) -> AnonScoreResponse:
-    _parsed, _level_map, preview = await _score_anon_cv(request, file, cf_turnstile_token, text)
+    _parsed, level_map, preview = await _score_anon_cv(request, file, cf_turnstile_token, text)
+    # Sync on a cold family (a paged read); off the event loop so it never
+    # stalls other requests.
+    preview.target = await run_in_threadpool(_landing_target, role, level, level_map)
     return preview
 
 

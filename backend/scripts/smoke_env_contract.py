@@ -13,6 +13,14 @@ also proves the allowlist is still a boundary and not a wildcard.
 Usage:
     python -m scripts.smoke_env_contract            # both tiers
     python -m scripts.smoke_env_contract --tier dev
+    python -m scripts.smoke_env_contract --branch main --sha <pushed sha>
+
+After a push, `--branch` and `--sha` make it wait until the tier that branch
+deploys serves that commit before asking anything. A fixed sleep landed the
+probes in Railway's cutover on 2026-11-25 (prod has no healthcheck, so traffic
+reached the new container ~2 s before its server listened): four 502s and a red
+`main` for a healthy deploy. Waiting on the version tests the new build, never
+the old one or the gap between them.
 """
 
 from __future__ import annotations
@@ -20,6 +28,7 @@ from __future__ import annotations
 import argparse
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 import httpx
@@ -33,6 +42,13 @@ _PREFLIGHT_PATH = "/users/me"
 _TIMEOUT = 30.0
 _TRANSPORT_ATTEMPTS = 3
 _RETRY_SECONDS = 5.0
+_STATUS_PATH = "/v1/status"
+# A prod build took 1m40s from push to live on 2026-11-25; ten minutes covers a
+# slow build without letting a deploy that never lands pass as "still waiting".
+_DEPLOY_WAIT_SECONDS = 600.0
+_POLL_SECONDS = 10.0
+# Railway builds `main` into prod and `Develop` into dev (INFRA.md).
+_TIER_FOR_BRANCH = {"main": "prod", "Develop": "dev"}
 
 
 @dataclass(frozen=True)
@@ -73,6 +89,46 @@ CONTRACTS = {
         ),
     ),
 }
+
+
+def tier_deployed_by(branch: str) -> str | None:
+    return _TIER_FOR_BRANCH.get(branch)
+
+
+def wait_for_version(
+    read_version: Callable[[], str | None],
+    sha: str,
+    *,
+    deadline_seconds: float,
+    poll_seconds: float,
+    sleep: Callable[[float], None] = time.sleep,
+    clock: Callable[[], float] = time.monotonic,
+) -> str | None:
+    """Poll until the tier serves `sha`. None when it does; otherwise the
+    version still live when the deadline passed, or "no answer"."""
+    wanted = sha[:7]
+    last = "no answer"
+    start = clock()
+    while True:
+        version = read_version()
+        if version == wanted:
+            return None
+        if version is not None:
+            last = version
+        if clock() - start + poll_seconds > deadline_seconds:
+            return last
+        sleep(poll_seconds)
+
+
+def _read_version(client: httpx.Client, api: str) -> str | None:
+    """The commit a tier is serving, or None while it cannot say (mid-cutover)."""
+    try:
+        response = client.get(f"{api}{_STATUS_PATH}")
+    except httpx.TransportError:
+        return None
+    if response.status_code != 200:
+        return None
+    return response.json().get("version")
 
 
 def _preflight(client: httpx.Client, api: str, origin: str) -> int:
@@ -129,10 +185,30 @@ def check(contract: TierContract) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tier", choices=sorted(CONTRACTS), action="append")
+    parser.add_argument("--branch", help="the branch a push landed on")
+    parser.add_argument("--sha", help="the commit that push deployed")
     args = parser.parse_args()
+    if (args.branch is None) != (args.sha is None):
+        parser.error("--branch and --sha go together")
     tiers = args.tier or sorted(CONTRACTS)
 
     failures: list[str] = []
+    deployed = tier_deployed_by(args.branch) if args.branch else None
+    if deployed is not None:
+        contract = CONTRACTS[deployed]
+        print(f"waiting for {deployed} to serve {args.sha[:7]}")
+        with httpx.Client(timeout=_TIMEOUT, follow_redirects=False) as client:
+            missed = wait_for_version(
+                lambda: _read_version(client, contract.api),
+                args.sha,
+                deadline_seconds=_DEPLOY_WAIT_SECONDS,
+                poll_seconds=_POLL_SECONDS,
+            )
+        if missed is not None:
+            failures.append(
+                f"{deployed}: still serving {missed} {_DEPLOY_WAIT_SECONDS:.0f}s "
+                f"after the push of {args.sha[:7]}; the deploy did not land"
+            )
     for tier in tiers:
         contract = CONTRACTS[tier]
         print(f"{contract.name} -> {contract.api}")

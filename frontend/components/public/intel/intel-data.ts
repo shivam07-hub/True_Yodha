@@ -1,8 +1,6 @@
 // Hash-based fallbacks for cold-cache sparklines/velocities. Real backend
 // velocity_bins + last_seen_at on `by_company` replace these when available.
 
-import { formatCount } from "@/lib/format"
-
 export interface QuickFilter {
   id: string
   label: string
@@ -120,8 +118,4 @@ export function fmtAgeMin(min: number | null | undefined): string | null {
   if (min < 60) return `${min}m ago`
   if (min < 60 * 24) return `${Math.floor(min / 60)}h ago`
   return `${Math.floor(min / (60 * 24))}d ago`
-}
-
-export function fmtNum(n: number): string {
-  return formatCount(n)
 }

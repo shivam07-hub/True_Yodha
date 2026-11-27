@@ -122,7 +122,7 @@ Jobs come from the scraper repo (Shivam's); this repo only reads them.
 | Servers, domains, env, DNS, deploy order | [INFRA.md](INFRA.md) |
 | Open work, in loop order | [BACKLOG.md](BACKLOG.md) |
 | **Which newsletter to push next · what goes out when** | [NEWSLETTER_QUEUE.md](NEWSLETTER_QUEUE.md) · [MARKETING_SCHEDULE.md](MARKETING_SCHEDULE.md) |
-| **Specs built from** (Cursor stopped 2026-11-23; all Claude's) | `ARCHITECTURE_*.md` at the root — RETURN_LOOP #55 · PAYMENTS #56 · FRONT_DOOR #57 · CV_TIER_A #58 · GOLDEN_DIGEST #59 · SKILL_EVIDENCE #60 · APK #61 · RETENTION #62 · MCP #63 · BRAND_DISTRIBUTION #64 |
+| **Specs built from** (Cursor stopped 2026-11-23; all Claude's) | `ARCHITECTURE_*.md` at the root — RETURN_LOOP #55 · PAYMENTS #56 · FRONT_DOOR #57 · CV_TIER_A #58 · GOLDEN_DIGEST #59 · SKILL_EVIDENCE #60 · APK #61 · RETENTION #62 · MCP #63 · BRAND_DISTRIBUTION #64 · TARGET_PAY #65 · LANDING_STORY #66 |
 | **Prep = one ladder, four steps** | [UNIFIED_PREP_V2.md](UNIFIED_PREP_V2.md) |
 | Vibecoded tells, ruled against our code | [ANTI_SLOP.md](ANTI_SLOP.md) |
 | One Myro voice + one memory writer | [MYRO_MENTOR.md](MYRO_MENTOR.md) |
@@ -157,9 +157,8 @@ Order is the loop map — broken steps first, nearest the north star first (Shiv
 | 5 | Tailor + download | #58 S1–S5 closed. S1–S4 on `main`. S5 (`4b9be63d`, on `Develop`): add a role or project; a phone edit of a tailored CV writes that CV. Open: the two match numbers. **Until #62 R0 reaches `main`, "tailored" means "opened the page"**: the page wrote the job's CV 1.2 s after it opened (11 of 11 real documents since 09-28). R0 fixed it 11-17 (`22b9eea1`, on `Develop`); rows before it stay as written. #62 R1–R2 on `main`, R0 and R3–R6 on `Develop`. |
 | 6 | Pay | #56 Apply Pack + Human Check (CV or LinkedIn): S1–S5 on `Develop` 2026-11-23, desk `/admin/checks`. Owed by Shivam: reviewer name/email on Railway, Razorpay `payment.failed` event, dev test keys. [ARCHITECTURE_PAYMENTS.md](ARCHITECTURE_PAYMENTS.md) |
 
-Gates on everything: #16 Pro is done, compute stays Micro (Shivam, 2026-10-14, cost) · prod
-deploy guard (`PORT=8000`, then `healthcheckPath`, Shivam). How far `Develop` is
-ahead: `git rev-list --count origin/main..origin/Develop`.
+Gates on everything: #16 Pro is done, compute stays Micro (Shivam, 2026-10-14, cost). How
+far `Develop` is ahead: `git rev-list --count origin/main..origin/Develop`.
 
 ---
 

@@ -640,6 +640,42 @@ async def evaluate_all(
 
 # ── Persist ───────────────────────────────────────────────────────────────────
 
+def verdict_columns(ev: dict[str, Any]) -> dict[str, Any]:
+    """The `user_job_matches` columns a brain verdict fills — one definition.
+
+    Both writers use it: the batch persister below and the on-demand single-job
+    write (`matching/on_demand._persist`). They used to hand-build their own
+    dicts, and the on-demand one never gained the pay band, `breaks` or the
+    strategy block; from 2026-11-09 every verdict came that way and the cards lost
+    them. `recommendation` is not here: each caller sets it from credibility.
+    """
+    return {
+        "llm_explanation": ev.get("summary"),
+        "overall_score": ev.get("overall_score"),
+        "grade": ev.get("grade"),
+        "application_angle": ev.get("application_angle"),
+        "summary": ev.get("summary"),
+        "role_fit": ev.get("role_fit"),
+        "comp_fit": ev.get("comp_fit"),
+        "growth_fit": ev.get("growth_fit"),
+        "culture_fit": ev.get("culture_fit"),
+        "risk_score": ev.get("risk_score"),
+        "strengths": ev.get("strengths") or [],
+        "concerns": ev.get("concerns") or [],
+        "archetype": ev.get("archetype"),
+        "legitimacy_tier": ev.get("legitimacy_tier"),
+        "legitimacy_reason": ev.get("legitimacy_reason"),
+        "level_strategy": ev.get("level_strategy"),
+        "personalization": ev.get("personalization"),
+        "pick_reason": ev.get("pick_reason"),
+        "star_pointers": ev.get("star_pointers") or [],
+        "ctc_low_lpa": ev.get("ctc_low_lpa"),
+        "ctc_high_lpa": ev.get("ctc_high_lpa"),
+        "ctc_basis": ev.get("ctc_basis"),
+        "breaks": ev.get("breaks") or [],
+    }
+
+
 def persist_matches(
     db: Client,
     user_id: str,
@@ -733,30 +769,8 @@ def persist_matches(
             "matched_skills": job.get("matched_skills") or [],
             "missing_skills": job.get("missing_skills") or [],
             "llm_rank": rank_idx,
-            "llm_explanation": ev.get("summary"),
-            "overall_score": overall,
-            "grade": ev.get("grade"),
+            **verdict_columns(ev),
             "recommendation": credibility.recommendation,
-            "application_angle": ev.get("application_angle"),
-            "summary": ev.get("summary"),
-            "role_fit": ev.get("role_fit"),
-            "comp_fit": ev.get("comp_fit"),
-            "growth_fit": ev.get("growth_fit"),
-            "culture_fit": ev.get("culture_fit"),
-            "risk_score": ev.get("risk_score"),
-            "strengths": ev.get("strengths") or [],
-            "concerns": ev.get("concerns") or [],
-            "archetype": ev.get("archetype"),
-            "legitimacy_tier": ev.get("legitimacy_tier"),
-            "legitimacy_reason": ev.get("legitimacy_reason"),
-            "level_strategy": ev.get("level_strategy"),
-            "personalization": ev.get("personalization"),
-            "pick_reason": ev.get("pick_reason"),
-            "star_pointers": ev.get("star_pointers") or [],
-            "ctc_low_lpa": ev.get("ctc_low_lpa"),
-            "ctc_high_lpa": ev.get("ctc_high_lpa"),
-            "ctc_basis": ev.get("ctc_basis"),
-            "breaks": ev.get("breaks") or [],
             "is_recommended": is_recommended,
             "baseline_version_id": baseline_version_id,
             "target_context_hash": credibility.context_hash,

@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-11-27 — Prod deploys wait for a ready server
+
+`mirror-backend-prod` had no healthcheck, so Railway sent traffic to each new container about 2s before uvicorn listened. On 2026-11-25 (#355) 11 requests got 502 (7 the homepage's `/public/stats`) and the contract smoke put a red cross on `main`. Set `PORT=8000` (deploy `ca2b4666` green), then `healthcheckPath=/health/ready` through `serviceInstanceUpdate`. A fresh deploy of `404b7c4` (`788b61f8`) logged `[1/1] Healthcheck succeeded!`, and 47 probes across its cutover (04:37:53→04:38:39 UTC) were all 200. A deploy whose `/health/ready` fails (a missing column, `ea165951`) now never takes traffic; the old container keeps serving.
+
+---
+
 ## 2026-11-23 — Snapshot refreshes fit their budget
 
 The digest's two snapshot dead-men were one defect. role_families timed out on 140 of 168 hourly runs in a week (281 database-minutes rolled back, data stale since 11-17); ghost_index failed every day since 11-08. Each re-read its big tables once per step, and a timeout (`query_canceled`) slipped past `when others`, so the failure was never recorded and the hourly cron repeated it. Migration `20261123120000`: one read per table (role_families 77s, ghost_index 27s, both verified on prod; ghost per-job facts identical to the views on 3,000 jobs, corpus count 286 either way), timeouts recorded, and `consecutive_failures` backoff in the claim (verified with a rolled-back simulated timeout). CONTEXT.md gains **Snapshot Refresh**. **Check:** the next digest closes `dead_man:snapshot.ghost_index`; `role_families` (failed-close) clears after a healthy week.

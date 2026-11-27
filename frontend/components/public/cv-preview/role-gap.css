@@ -1,0 +1,39 @@
+/* Spec #66 L7: the first screen after an upload that carried a landing pick.
+   Chapter 4's rows (landing-gap.css), with the visitor's own number above
+   them. The number is text at size, not a coloured metric: it is not pressable,
+   its button is. */
+
+.cvg { border-bottom: 0; }
+
+.cvg-reach { margin: 0 0 28px; }
+
+.cvg-reach-line {
+  margin: 0;
+  color: var(--lp-text);
+  font-size: var(--tm-fs-title);
+  font-weight: 600;
+}
+
+.cvg-reach-num {
+  font-family: var(--lp-mono);
+  font-size: var(--tm-fs-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.cvg-reach .lp-chapter-meta { margin-top: 6px; }
+
+.cvg-line { color: var(--lp-text); }
+
+.cvg-more {
+  margin-left: 8px;
+  color: var(--lp-muted);
+  font-family: var(--lp-mono);
+  font-size: var(--tm-fs-caption);
+  white-space: nowrap;
+}
+
+.cvg-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
