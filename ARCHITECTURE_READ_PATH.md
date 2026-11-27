@@ -3024,3 +3024,26 @@ live openings), and the public reads stay slices of it:
 chips + 146 searched. Chip read 17 KB → 24 KB (`more` is 7 KB). A searched
 family's read: median 1.1 KB, max 2.8 KB. The snapshot's `landing_roles` grows
 17 KB → 203 KB; compile time unchanged at 824 ms.
+
+## 39. The Direction save was never slow in production (2026-11-27)
+
+`PUT /onboarding/target` (Direction's last button) was logged as 31 reads
+against the 16 budget and 28.6 s against the client's 15 s timeout. Both
+numbers came from a laptop. **Wrong diagnosis, caught before any fix.**
+
+- **Why the laptop lied:** local `REDIS_URL` is empty, so `background.enqueue`
+  falls back to `_invoke_inline`. The route is a sync `def`, so its threadpool
+  thread has no running loop and `asyncio.run` runs `onboarding_target_refresh`
+  (score recompute, demand counts, cohort read) inside the request. 29 round
+  trips; 20 of them were the refresh. Any route that enqueues is inflated the
+  same way locally: measure it in production, or count only the trips before
+  the enqueue.
+- **Production, measured:** `route.slow` 2.4 s, 2.7 s, 2.8 s, every one
+  `reads=9`, inside the budget. `cv_upload_phase_events`, real users, 60 days:
+  89 people opened Direction, 74 saved, 0 timeouts (the only failures were 2
+  people on 2026-09-29, `Request validation failed.`). `started` fires when the
+  screen opens, so the 15 who did not finish left before pressing save.
+- **Left alone:** the same profile row is read five times per save (twice
+  identically back to back: `save_target` and `targeting_write.commit`), about
+  0.6–0.9 s that could be cut. That is not worth taking until a slow save shows
+  up in `route.slow` from real users.
