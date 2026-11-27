@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.routers import public as public_router
 from app.security import anon_rate_limit
-from app.services import landing_reach, shared_cache
+from app.services import landing_reach, landing_roles, shared_cache
 from app.services.background import debounce
 from app.services.landing_reach import (
     REACH_MIN_SHARED,
@@ -34,6 +34,7 @@ def _job(band: str | None, *skills: str) -> dict[str, Any]:
 def _role(**bands: list[str]) -> dict[str, Any]:
     return {
         "family": "Business Analysis",
+        "jobs": 20,
         "skills": [{"skill": "SQL (Programming Language)", "share": 0.4}, {"skill": "Stakeholder Management", "share": 0.3}],
         "bands": [
             {"band": band, "jobs": 20, "companies": 5, "thin": not skills, "skills": [{"skill": s, "share": 0.5} for s in skills]}
@@ -228,3 +229,18 @@ def test_score_cv_reads_no_role_it_does_not_offer(monkeypatch: pytest.MonkeyPatc
     assert res.status_code == 200
     assert res.json()["target"] is None
     assert repo.family_reads == []
+
+
+def test_score_cv_reads_a_searched_family_like_a_chip(monkeypatch: pytest.MonkeyPatch) -> None:
+    # L2b: a family found by the hero's search, past the eight chips, carries
+    # into the upload and is read against the CV the same way.
+    chips = [{**_role(entry=["Excel"]), "family": f"Chip {i}"} for i in range(landing_roles.ROLES_SHOWN)]
+    searched = {**_role(entry=["SQL (Programming Language)", "Tableau"]), "family": "Data Analysis"}
+    repo = _FakeRepo([*chips, searched], [_job("entry", "SQL (Programming Language)", "Excel")])
+    _wire(monkeypatch, repo, {"SQL (Programming Language)": 3, "Excel": 2})
+
+    target = _post(role="Data Analysis", level="entry").json()["target"]
+    assert target["family"] == "Data Analysis"
+    assert (target["matched"], target["missing"]) == (["SQL (Programming Language)"], ["Tableau"])
+    assert (target["within_reach"], target["jobs"]) == (1, 1)
+    assert repo.family_reads == ["Data Analysis"]

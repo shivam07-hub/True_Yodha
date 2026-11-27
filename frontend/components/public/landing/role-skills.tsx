@@ -3,15 +3,8 @@
 import { useState, type CSSProperties } from "react"
 import { formatCount } from "@/lib/format"
 import { SectionTitle } from "./section-title"
-import {
-  LEVEL_LABEL,
-  RoleChip,
-  chapterRoles,
-  roleLabel,
-  skillLabel,
-  useLandingRoles,
-  type RolePick,
-} from "./role-picker"
+import { roleLabel } from "./role-match"
+import { LEVEL_LABEL, RoleChip, skillLabel, useChapterRoles, type RolePick } from "./role-picker"
 
 interface LandingRoleSkillsProps {
   pick: RolePick | null
@@ -24,11 +17,10 @@ interface LandingRoleSkillsProps {
  * meta line. Each share is the fraction of the slice's openings asking for it.
  */
 export function LandingRoleSkills({ pick }: LandingRoleSkillsProps) {
-  const { data: roles } = useLandingRoles()
+  const shown = useChapterRoles(pick)
   const [chosen, setChosen] = useState<string | null>(null)
-  if (!roles || roles.length === 0) return null
+  if (!shown) return null
 
-  const shown = chapterRoles(roles, pick?.family)
   const active =
     shown.find((role) => role.family === chosen) ??
     shown.find((role) => role.family === pick?.family) ??

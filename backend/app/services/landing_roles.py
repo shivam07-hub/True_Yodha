@@ -21,6 +21,12 @@ skills, never toward a band: a band is what the employer said.
 Only live listings count (`listing_liveness`): the page says "open right now".
 The snapshot reads every row in `jobs`, and on 2026-11-26 about half of them
 were closed or unverified ads (Business Analysis: 4,807 rows, 2,301 live).
+
+Every qualifying family is compiled, not just the eight chips (L2b): the hero's
+search offers the rest by name and count, and a searched family is read against
+a CV exactly like a chip. On 2026-11-27 that was 154 families, Data Analysis,
+Product Management and Cybersecurity among them. A family needs as many live
+openings as a band does (`BAND_MIN_JOBS`): under that there is no market to read.
 """
 
 from __future__ import annotations
@@ -32,6 +38,7 @@ from typing import Any, NamedTuple
 from app.services.job_eligibility import PERSON_YEAR_SPAN_BY_BAND, seniority_for_job
 from app.services.listing_liveness import is_live
 
+#: The hero's chips. Every other qualifying family is reached by search.
 ROLES_SHOWN = 8
 MIN_EMPLOYERS = 3
 MAX_EMPLOYER_SHARE = 0.70
@@ -45,8 +52,8 @@ MIN_SKILL_SHARE = 0.05
 TOP_COMPANIES = 3
 #: Bumped when the compile changes what it counts, so the snapshot's refresh
 #: guard rebuilds a payload written by the older rule instead of waiting for
-#: the next scrape. 2: live listings only.
-LANDING_ROLES_VERSION = 2
+#: the next scrape. 2: live listings only. 3: every qualifying family.
+LANDING_ROLES_VERSION = 3
 
 BANDS: tuple[str, ...] = tuple(band for band, _lo, _hi in PERSON_YEAR_SPAN_BY_BAND)
 
@@ -115,7 +122,8 @@ def _row_parts(row: dict[str, Any]) -> tuple[str, str, set[str]]:
 def compile_landing_roles(
     rows: Iterable[dict[str, Any]], *, curation: LandingCuration
 ) -> list[dict[str, Any]]:
-    """The eight families the landing offers, busiest first, with their bands."""
+    """Every family the landing offers, busiest first, with their bands. The
+    first `ROLES_SHOWN` are the hero's chips (`offer`)."""
     rows = [row for row in rows if is_live(row)]
     catch_all = curation.catch_all
     denied = frozenset(skill.casefold() for skill in curation.skill_deny)
@@ -129,8 +137,8 @@ def compile_landing_roles(
     chosen = [
         name
         for name, part in sorted(families.items(), key=lambda item: (-item[1].jobs, item[0]))
-        if _spread_holds(part.companies)
-    ][:ROLES_SHOWN]
+        if part.jobs >= BAND_MIN_JOBS and _spread_holds(part.companies)
+    ]
     if not chosen:
         return []
 
@@ -177,3 +185,13 @@ def compile_landing_roles(
             }
         )
     return out
+
+
+def offer(roles: list[dict[str, Any]]) -> dict[str, Any]:
+    """What the landing fetches once per visit: the chips in full, and every
+    other family by name and count for the search to filter. A searched family's
+    chapters are one more read (`GET /public/landing-role`)."""
+    return {
+        "roles": roles[:ROLES_SHOWN],
+        "more": [{"family": role["family"], "jobs": role["jobs"]} for role in roles[ROLES_SHOWN:]],
+    }

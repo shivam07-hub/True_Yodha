@@ -5,7 +5,7 @@ import Link from "next/link"
 import { ExternalLink } from "lucide-react"
 import { trackEvent } from "@/lib/analytics"
 import { LandingDropzone, type LandingDropzoneHandle } from "./dropzone"
-import { RolePicker, pickLabel, uploadDestination, type RolePick } from "./role-picker"
+import { RolePicker, pickLabel, uploadDestination, type PickedVia, type RolePick } from "./role-picker"
 
 interface LandingHeroProps {
   /** The job the visitor picked. Owned by the landing page, because chapters 2
@@ -26,9 +26,9 @@ interface LandingHeroProps {
 export function LandingHero({ pick, onPick }: LandingHeroProps) {
   const dzRef = useRef<LandingDropzoneHandle>(null)
 
-  function choose(next: RolePick) {
+  function choose(next: RolePick, via: PickedVia) {
     onPick(next)
-    trackEvent("landing_role_pick", { family: next.family, band: next.band ?? "none" })
+    trackEvent("landing_role_pick", { family: next.family, band: next.band ?? "none", via })
   }
 
   function unsure() {

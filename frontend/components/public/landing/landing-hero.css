@@ -109,6 +109,103 @@
 
 .lp-role-unsure:hover { text-decoration: underline; text-underline-offset: 3px; }
 
+/* The search past the chips (L2b), sized as a chip so the row reads as one
+   control. The options drop below it, over the dropzone. */
+.lp-role-search {
+  position: relative;
+  flex: 0 1 200px;
+  min-width: 160px;
+}
+
+.lp-role-search-icon {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  color: var(--lp-muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.lp-role-search-input {
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 12px 7px 36px;
+  border: 1px solid var(--lp-border-strong);
+  border-radius: 6px;
+  background: var(--lp-surface);
+  color: var(--lp-text);
+  font: inherit;
+  font-size: var(--tm-fs-body);
+  line-height: 1.3;
+  transition: border-color var(--lp-dur) var(--lp-ease);
+}
+
+.lp-role-search-input::placeholder { color: var(--lp-muted); }
+.lp-role-search-input:hover { border-color: var(--lp-accent-ring); }
+
+.lp-role-search-input:focus-visible {
+  border-color: var(--lp-accent);
+  outline: 2px solid var(--lp-accent-ring);
+  outline-offset: 2px;
+}
+
+.lp-role-options {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  width: max(100%, 300px);
+  max-width: calc(100vw - 2 * var(--lp-page-px));
+  margin: 0;
+  padding: 4px;
+  border: 1px solid var(--lp-border-strong);
+  border-radius: 6px;
+  background: var(--lp-surface);
+  box-shadow: var(--tm-shadow-2);
+  list-style: none;
+}
+
+.lp-role-option {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  color: var(--lp-text);
+  font-size: var(--tm-fs-body);
+  cursor: pointer;
+}
+
+.lp-role-option:hover,
+.lp-role-option[aria-selected="true"] {
+  background: var(--lp-accent-wash);
+  color: var(--lp-accent-text);
+}
+
+.lp-role-option-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lp-role-option-count {
+  flex: 0 0 auto;
+  color: var(--lp-muted);
+  font-family: var(--lp-mono);
+  font-size: var(--tm-fs-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.lp-role-none {
+  padding: 10px 12px;
+  color: var(--lp-muted);
+  font-size: var(--tm-fs-body);
+}
+
 .lp-levels {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -186,7 +283,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .lp-role-chip,
-  .lp-level { transition: none; }
+  .lp-level,
+  .lp-role-search-input { transition: none; }
 }
 
 /* Holding one line below 900px costs more than it buys: the vw scaling puts the
@@ -206,4 +304,7 @@
   }
 
   .lp-levels { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+  /* A phone gives the search its own line, so its options span the screen. */
+  .lp-role-search { flex-basis: 100%; }
 }

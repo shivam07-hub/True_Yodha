@@ -709,8 +709,9 @@ class MarketAnalyticsCompiler:
             ],
         }
         if landing is not None:
-            # The landing's role chips and their open-jobs and skills chapters
-            # (spec #66 L1), so `/public/landing-roles` is a slice of this row.
+            # Every family the landing offers, chips and search alike, with
+            # their open-jobs and skills chapters (spec #66 L1, L2b), so
+            # `/public/landing-roles` and `/public/landing-role` are slices of this row.
             payload["landing_roles"] = compile_landing_roles(rows, curation=landing)
             payload["landing_roles_version"] = LANDING_ROLES_VERSION
         return payload

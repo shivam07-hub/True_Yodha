@@ -4,7 +4,8 @@ import type { CSSProperties } from "react"
 import { formatCount } from "@/lib/format"
 import { LandingCompanyRail } from "./company-rail"
 import { SectionTitle } from "./section-title"
-import { chapterRoles, roleLabel, useLandingRoles, type RolePick } from "./role-picker"
+import { roleLabel } from "./role-match"
+import { useChapterRoles, type RolePick } from "./role-picker"
 
 interface LandingOpenJobsProps {
   pick: RolePick | null
@@ -27,10 +28,9 @@ export function LandingOpenJobs({
   companyNames,
   companiesMonitored,
 }: LandingOpenJobsProps) {
-  const { data: roles } = useLandingRoles()
-  if (!roles || roles.length === 0) return null
+  const shown = useChapterRoles(pick)
+  if (!shown) return null
 
-  const shown = chapterRoles(roles, pick?.family)
   const most = Math.max(...shown.map((role) => role.jobs), 1)
 
   return (

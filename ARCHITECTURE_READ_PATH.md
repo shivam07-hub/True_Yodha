@@ -3002,3 +3002,25 @@ read: a crafted `role` reads nothing.
 without a pick, or a Redis flush) waits the first read on top of the parse.
 Overlapping it with the parse was left out: it would start a DB read before
 Turnstile verifies the request.
+
+## 38. The hero's role search: names in the chip read, a family on pick (2026-11-27)
+
+Spec #66 L2b. The hero searches every qualifying family past the eight chips.
+The snapshot write compiles them all (spread rule, plus the band floor of 10
+live openings), and the public reads stay slices of it:
+
+- `GET /public/landing-roles` keeps one cached read per visit, now carrying
+  `more`: every other family by name and count, filtered client-side as the
+  visitor types (no request per keystroke). Key versioned by
+  `LANDING_ROLES_VERSION`, so a deploy never serves the older shape.
+- `GET /public/landing-role?family=` is the searched family in full (bands,
+  companies, skills): one `shared_cache` key per family, from the in-process
+  snapshot payload, no DB on a warm process. A name the offer does not list
+  reads and caches nothing.
+- `POST /public/score-cv` reads a searched family's gap and reach like a chip
+  (§37): the reach index pages that family's live rows on its first pick.
+
+**Measured on live rows (2026-11-27, 117,434 rows):** 154 families qualify, 8
+chips + 146 searched. Chip read 17 KB → 24 KB (`more` is 7 KB). A searched
+family's read: median 1.1 KB, max 2.8 KB. The snapshot's `landing_roles` grows
+17 KB → 203 KB; compile time unchanged at 824 ms.

@@ -5764,8 +5764,17 @@ export interface LandingRole {
   bands: LandingRoleBand[]
 }
 
+/** A family the hero's search finds, past the eight chips (spec #66 L2b). */
+export interface LandingRoleName {
+  family: string
+  jobs: number
+}
+
 export const landingRoles = {
-  get: () => request<{ roles: LandingRole[] }>("/public/landing-roles"),
+  get: () => request<{ roles: LandingRole[]; more: LandingRoleName[] }>("/public/landing-roles"),
+  /** One family in full, chip or searched; 404 for a family the landing does not offer. */
+  one: (family: string) =>
+    request<LandingRole>(`/public/landing-role?${new URLSearchParams({ family }).toString()}`),
 }
 
 /** Spec #66 L5: the reviewer's live Human Check slots, for the landing. */

@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
@@ -161,11 +161,13 @@ def get_public_stats(response: Response) -> dict[str, Any]:
 
 
 
-# ─── Landing role chips (spec #66 L1) ─────────────────────────────────────────
+# ─── Landing role chips and search (spec #66 L1, L2b) ─────────────────────────
 #
-# The eight roles the landing offers, with open jobs and the skills employers
-# ask for, per experience band. A slice of `market_analytics_snapshot` (Tier 0):
-# the snapshot write builds it, so a visitor costs one cached read at most.
+# The eight roles the landing offers as chips, with open jobs and the skills
+# employers ask for, per experience band, and every other qualifying family by
+# name and count for the hero's search. A slice of `market_analytics_snapshot`
+# (Tier 0): the snapshot write builds it, so a visitor costs one cached read at
+# most, and a searched family one more.
 
 
 class LandingRoleSkill(BaseModel):
@@ -195,22 +197,48 @@ class LandingRole(BaseModel):
     bands: list[LandingRoleBand]
 
 
+class LandingRoleName(BaseModel):
+    family: str
+    jobs: int
+
+
 class LandingRolesResponse(BaseModel):
     roles: list[LandingRole]
+    more: list[LandingRoleName] = []  # every other family, for the search
 
 
-def _compile_landing_roles() -> dict[str, Any]:
-    analytics = get_public_jobs_repository().compile_market_analytics()
+def _all_landing_roles() -> list[dict[str, Any]]:
     # A snapshot written before L1 has no key: an empty list, and the page hides
     # the chapters rather than showing a number it did not read. The dirty guard
     # rebuilds such a snapshot on its next run.
-    return {"roles": analytics.get("landing_roles") or []}
+    return get_public_jobs_repository().compile_market_analytics().get("landing_roles") or []
 
 
 def _compile_landing_roles_cached() -> dict[str, Any]:
+    # Keyed by the compile's version: a deploy that changes the payload's shape
+    # never serves the older shape from cache.
     return shared_cache.get_or_compute(
-        "public_landing_roles",
-        _compile_landing_roles,
+        f"public_landing_roles:v{landing_roles.LANDING_ROLES_VERSION}",
+        lambda: landing_roles.offer(_all_landing_roles()),
+        ttl_seconds=_CACHE_TTL_SECONDS,
+        stale_seconds=_CACHE_STALE_SECONDS,
+    )
+
+
+def _landing_role(family: str) -> dict[str, Any] | None:
+    """One family the landing offers, in full: a chip from the cached offer, a
+    searched family from its own cache entry. A name the offer does not list
+    reads nothing and caches nothing, so a crafted request cannot make the
+    server read or store an arbitrary family."""
+    offered = _compile_landing_roles_cached()
+    chip = next((role for role in offered["roles"] if role.get("family") == family), None)
+    if chip is not None:
+        return chip
+    if not any(item["family"] == family for item in offered["more"]):
+        return None
+    return shared_cache.get_or_compute(
+        f"public_landing_role:v{landing_roles.LANDING_ROLES_VERSION}:{family}",
+        lambda: next((role for role in _all_landing_roles() if role.get("family") == family), None),
         ttl_seconds=_CACHE_TTL_SECONDS,
         stale_seconds=_CACHE_STALE_SECONDS,
     )
@@ -220,6 +248,17 @@ def _compile_landing_roles_cached() -> dict[str, Any]:
 def get_landing_roles(response: Response) -> dict[str, Any]:
     response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=3600"
     return _compile_landing_roles_cached()
+
+
+@router.get("/landing-role", response_model=LandingRole)
+def get_landing_role(response: Response, family: str = Query(..., min_length=1, max_length=200)) -> dict[str, Any]:
+    """A family found by the hero's search, with the chapters a chip carries.
+    A query parameter, not a path: family names hold slashes ("UI/UX")."""
+    role = _landing_role(family)
+    if role is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not offered")
+    response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=3600"
+    return role
 
 
 # ─── The reviewer's open slots (spec #66 L5) ─────────────────────────────────
@@ -543,13 +582,13 @@ def _compute_public_fit(
 
 
 def _landing_target(role: str | None, level: str | None, level_map: dict[str, int]) -> AnonTarget | None:
-    """The landing pick read against the CV. Only a role the landing offers and
-    one of the six bands: anything else reads nothing, so a crafted form cannot
-    make the server page through an arbitrary family."""
+    """The landing pick read against the CV. Only a role the landing offers (a
+    chip or a searched family) and one of the six bands: anything else reads
+    nothing, so a crafted form cannot make the server page through an
+    arbitrary family."""
     if not role or (level and level not in landing_roles.BANDS):
         return None
-    offered = _compile_landing_roles_cached()["roles"]
-    picked = next((item for item in offered if item.get("family") == role), None)
+    picked = _landing_role(role)
     if picked is None:
         return None
     held = {key for key, value in level_map.items() if key and value > 0}

@@ -1,7 +1,9 @@
-"""Spec #66 L1 — the landing's role chips, open jobs and skills per band.
+"""Spec #66 L1, L2b — the landing's roles, open jobs and skills per band.
 
 Two halves: the pure compile that runs inside the market snapshot write, and
-`GET /public/landing-roles`, which only slices that snapshot.
+`GET /public/landing-roles` + `GET /public/landing-role`, which only slice that
+snapshot: the chips in full, every other family by name for the search, and a
+searched family in full on its own read.
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ from app.services.landing_roles import (
     ROLES_SHOWN,
     LandingCuration,
     compile_landing_roles,
+    offer,
 )
 
 NONE = LandingCuration(catch_all=frozenset(), skill_deny=frozenset())
@@ -75,26 +78,47 @@ def test_family_one_employer_dominates_is_not_offered() -> None:
     rows = (
         _jobs("Banking Services", ["Bank"], each=71)
         + _jobs("Banking Services", ["B", "C", "D"], each=10)
-        + _jobs("Software Development", ["A", "B", "C"], each=3)
+        + _jobs("Software Development", ["A", "B", "C"], each=4)
     )
     roles = compile_landing_roles(rows, curation=NONE)
     assert [role["family"] for role in roles] == ["Software Development"]
 
 
 def test_family_needs_three_employers() -> None:
-    rows = _jobs("Actuarial", ["A", "B"], each=50) + _jobs("Audit", ["A", "B", "C"], each=2)
+    rows = _jobs("Actuarial", ["A", "B"], each=50) + _jobs("Audit", ["A", "B", "C"], each=4)
     roles = compile_landing_roles(rows, curation=NONE)
     assert [role["family"] for role in roles] == ["Audit"]
 
 
-def test_busiest_eight_in_order() -> None:
+def test_family_under_the_band_floor_is_not_offered() -> None:
+    # Nine openings across three employers: no market to read, as for a band.
+    rows = _jobs("Payroll", ["A", "B", "C"], each=3) + _jobs("Tax", ["A", "B", "C"], each=4)
+    assert BAND_MIN_JOBS == 10
+    assert [role["family"] for role in compile_landing_roles(rows, curation=NONE)] == ["Tax"]
+
+
+def test_every_qualifying_family_busiest_first() -> None:
+    # The search reaches past the chips (L2b), so the compile keeps them all.
     rows: list[dict[str, Any]] = []
     for i in range(ROLES_SHOWN + 2):
-        rows += _jobs(f"Family {i:02d}", ["A", "B", "C"], each=i + 1)
+        rows += _jobs(f"Family {i:02d}", ["A", "B", "C"], each=i + 4)
     roles = compile_landing_roles(rows, curation=NONE)
-    assert len(roles) == ROLES_SHOWN
+    assert len(roles) == ROLES_SHOWN + 2
     assert [role["jobs"] for role in roles] == sorted((role["jobs"] for role in roles), reverse=True)
     assert roles[0]["family"] == f"Family {ROLES_SHOWN + 1:02d}"
+
+
+def test_offer_is_eight_chips_and_the_rest_by_name() -> None:
+    rows: list[dict[str, Any]] = []
+    for i in range(ROLES_SHOWN + 2):
+        rows += _jobs(f"Family {i:02d}", ["A", "B", "C"], each=i + 4)
+    roles = compile_landing_roles(rows, curation=NONE)
+    offered = offer(roles)
+    assert offered["roles"] == roles[:ROLES_SHOWN]
+    assert offered["more"] == [
+        {"family": "Family 01", "jobs": 15},
+        {"family": "Family 00", "jobs": 12},
+    ]
 
 
 def test_no_rows_no_roles() -> None:
@@ -114,7 +138,7 @@ def test_only_live_listings_are_open_now() -> None:
 
 
 def test_family_with_no_live_listing_is_not_offered() -> None:
-    rows = _jobs("Audit", ["A", "B", "C"], each=9, live=False) + _jobs("Tax", ["A", "B", "C"], each=1)
+    rows = _jobs("Audit", ["A", "B", "C"], each=9, live=False) + _jobs("Tax", ["A", "B", "C"], each=4)
     assert [role["family"] for role in compile_landing_roles(rows, curation=NONE)] == ["Tax"]
 
 
@@ -238,6 +262,16 @@ def _snapshot_roles() -> list[dict[str, Any]]:
     return compile_landing_roles(rows, curation=NONE)
 
 
+def _snapshot_with_search() -> list[dict[str, Any]]:
+    """Eight chips, then two families only the search reaches."""
+    rows: list[dict[str, Any]] = []
+    for i in range(ROLES_SHOWN):
+        rows += _jobs(f"Chip {i}", ["A", "B", "C"], each=20 + i)
+    rows += _jobs("Data Analysis", ["A", "B", "C"], each=5, skills=("SQL",))
+    rows += _jobs("User Interface and User Experience (UI/UX) Design", ["A", "B", "C"], each=4, skills=("Figma",))
+    return compile_landing_roles(rows, curation=NONE)
+
+
 def test_endpoint_serves_the_snapshot_slice(monkeypatch: pytest.MonkeyPatch) -> None:
     repo = _FakeRepo({"total_jobs": 15, "landing_roles": _snapshot_roles()})
     monkeypatch.setattr(public_router, "get_public_jobs_repository", lambda: repo)
@@ -248,6 +282,50 @@ def test_endpoint_serves_the_snapshot_slice(monkeypatch: pytest.MonkeyPatch) -> 
     roles = res.json()["roles"]
     assert [role["family"] for role in roles] == ["Business Analysis"]
     assert [band["band"] for band in roles[0]["bands"]] == list(BANDS)
+    assert res.json()["more"] == []
+
+
+def test_endpoint_lists_the_rest_by_name_for_search(monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = _FakeRepo({"landing_roles": _snapshot_with_search()})
+    monkeypatch.setattr(public_router, "get_public_jobs_repository", lambda: repo)
+
+    body = TestClient(app).get("/public/landing-roles").json()
+    assert len(body["roles"]) == ROLES_SHOWN
+    assert body["more"] == [
+        {"family": "Data Analysis", "jobs": 15},
+        {"family": "User Interface and User Experience (UI/UX) Design", "jobs": 12},
+    ]
+
+
+def test_searched_family_reads_in_full(monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = _FakeRepo({"landing_roles": _snapshot_with_search()})
+    monkeypatch.setattr(public_router, "get_public_jobs_repository", lambda: repo)
+
+    client = TestClient(app)
+    family = "User Interface and User Experience (UI/UX) Design"
+    res = client.get("/public/landing-role", params={"family": family})
+    assert res.status_code == 200
+    assert res.headers.get("cache-control") == "public, max-age=60, stale-while-revalidate=3600"
+    role = res.json()
+    assert role["family"] == family
+    assert role["jobs"] == 12
+    assert [item["skill"] for item in role["skills"]] == ["Figma"]
+    assert [band["band"] for band in role["bands"]] == list(BANDS)
+    # A chip reads from the same door, from the offer already cached.
+    assert client.get("/public/landing-role", params={"family": "Chip 0"}).json()["jobs"] == 60
+
+
+def test_family_not_offered_reads_and_stores_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = _FakeRepo({"landing_roles": _snapshot_with_search()})
+    monkeypatch.setattr(public_router, "get_public_jobs_repository", lambda: repo)
+
+    client = TestClient(app)
+    client.get("/public/landing-roles")
+    before = set(shared_cache._LOCAL_CACHE)
+    res = client.get("/public/landing-role", params={"family": "Alternative Therapy"})
+    assert res.status_code == 404
+    assert set(shared_cache._LOCAL_CACHE) == before
+    assert repo.calls == 1
 
 
 def test_endpoint_empty_when_snapshot_predates_roles(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -256,7 +334,7 @@ def test_endpoint_empty_when_snapshot_predates_roles(monkeypatch: pytest.MonkeyP
 
     res = TestClient(app).get("/public/landing-roles")
     assert res.status_code == 200
-    assert res.json() == {"roles": []}
+    assert res.json() == {"roles": [], "more": []}
 
 
 def test_endpoint_cached_no_second_read(monkeypatch: pytest.MonkeyPatch) -> None:
