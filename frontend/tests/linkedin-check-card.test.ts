@@ -22,7 +22,7 @@ test("a held check is spent before coins or money are asked for", () => {
   const ret = form.split("return (")[1]
   assert.ok(ret.indexOf("Use your human check") < ret.indexOf("Rewrite for"))
   assert.ok(ret.indexOf("Rewrite for") < ret.indexOf("<ApplyPackBuy"))
-  assert.match(ret, /<SaleOffer>\s*<ApplyPackBuy \/>/)
+  assert.match(ret, /<SaleOffer>\s*<ApplyPackBuy surface="linkedin" \/>/)
 })
 
 test("the coin button only renders when the balance covers it", () => {

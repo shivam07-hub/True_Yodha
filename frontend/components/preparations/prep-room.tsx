@@ -40,16 +40,17 @@ import { Button } from "@/components/ui/button"
 import { daysInStage, roomStage, needsStageCheck, followUpLine, STEP_LABELS } from "./prep-model"
 import { CoveragePanel } from "./coverage-panel"
 import { RehearsePanel } from "./rehearse-panel"
-import { DrillPanel } from "./drill-panel"
 import { BriefCard } from "./brief-card"
 import { ClosingPanel } from "./closing-panel"
 import { HumanCheckLine } from "@/components/apply-pack/human-check-line"
+import { PackOffer } from "@/components/apply-pack/pack-offer"
+import { useHumanChecks } from "@/components/apply-pack/use-human-checks"
 import { LevelRows, nextLevel } from "./level-rows"
 import { StepCard, CLEAR } from "./step-card"
 
 const RING_CIRCUMFERENCE = 195
 
-function ReadinessRing({ pct, size = 76 }: { pct: number; size?: number }) {
+export function ReadinessRing({ pct, size = 76 }: { pct: number; size?: number }) {
   const filled = Math.round((RING_CIRCUMFERENCE * Math.max(0, Math.min(100, pct))) / 100)
   return (
     <svg width={size} height={size} viewBox="0 0 76 76" className="prp-ring" aria-hidden>
@@ -109,6 +110,8 @@ export function PrepRoom({
   initialStep?: number | null
 }) {
   const { updateStatus, updateNotes } = useTrackerBoard("prep")
+  const checksQ = useHumanChecks(token)
+  const checkForJob = (checksQ.data ?? []).some((c) => c.kind === "cv_job" && c.job_id === app.job_id)
   const [pickerOpen, setPickerOpen] = React.useState(false)
   // 2b draws two cards open at once — step 1 showing what is banked, step 2
   // showing the levels. One-at-a-time made reading the evidence cost the level
@@ -169,10 +172,7 @@ export function PrepRoom({
   const counts = [room?.evidence, undefined, room?.rehearsal, undefined]
   const bodies = [
     <CoveragePanel key="c" token={token} jobId={app.job_id} />,
-    <div key="l">
-      <LevelRows rows={room?.levels ?? []} />
-      <div className="prp-step-drill"><DrillPanel token={token} jobId={app.job_id} /></div>
-    </div>,
+    <LevelRows key="l" rows={room?.levels ?? []} token={token} jobId={app.job_id} />,
     <RehearsePanel key="r" token={token} jobId={app.job_id} />,
     <BriefCard key="b" token={token} jobId={app.job_id} />,
   ]
@@ -274,6 +274,9 @@ export function PrepRoom({
             ))}
           </div>
 
+          {/* ONE_PREP P3: the offer under the steps, about this job. */}
+          <PackOffer token={token} surface="room" jobId={app.job_id} />
+
           {totals && totals.rooms > 1 ? (
             <div className="prp-across">
               <span>
@@ -329,10 +332,12 @@ export function PrepRoom({
         <div className="prp-sec-head"><span className="prp-sec-label">On record</span></div>
         <div className="prp-record">
           {app.applied_at ? <span>Applied {formatDate(app.applied_at, "short")}</span> : null}
-          {stage !== "closed" ? (
+          {/* Only a check running for this job has a state to state; the
+              offer card under the steps does the selling (ONE_PREP P3). */}
+          {stage !== "closed" && checkForJob ? (
             <>
               {app.applied_at ? <span className="sep">·</span> : null}
-              <HumanCheckLine token={token} jobId={app.job_id} />
+              <HumanCheckLine token={token} jobId={app.job_id} offer={false} />
             </>
           ) : null}
         </div>

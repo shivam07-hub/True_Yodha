@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import logging
 import secrets
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.concurrency import run_in_threadpool
@@ -33,12 +33,18 @@ from app.services.razorpay_gateway import Arrival, Failure
 router = APIRouter(prefix="/api", tags=["payments"])
 logger = logging.getLogger(__name__)
 
+#: The door an order is bought through — tied to `SaleSurface` in lib/api.ts
+#: and to `billing_payments_surface_check` (migration 20261128120000).
+SaleSurface = Literal["cv", "room", "stakes", "linkedin", "fuel", "pack", "filing", "myrology"]
+
+
 class CreateOrderRequest(BaseModel):
     amount: int
     currency: str = CURRENCY
     product: str
     receipt: str | None = Field(default=None, max_length=40)
     job_id: str | None = Field(default=None, max_length=200)
+    surface: SaleSurface | None = None
 
 
 class CreateOrderResponse(BaseModel):
@@ -110,6 +116,7 @@ def _record_created_payment(
     receipt: str,
     product: Product,
     job_id: str | None = None,
+    surface: str | None = None,
 ) -> None:
     row: dict[str, Any] = {
         "user_id": user_id,
@@ -123,6 +130,8 @@ def _record_created_payment(
     }
     if job_id:
         row["job_id"] = job_id
+    if surface:
+        row["surface"] = surface
     result = get_supabase_admin().table("billing_payments").insert(row).execute()
     if not result.data:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to record payment order")
@@ -228,6 +237,7 @@ async def create_order(
         receipt=receipt,
         product=product,
         job_id=body.job_id,
+        surface=body.surface,
     )
     return CreateOrderResponse(order_id=order_id, amount=amount, currency=order_currency, product=product.key)
 

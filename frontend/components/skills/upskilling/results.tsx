@@ -17,12 +17,15 @@ export function Results({
   onNextLevel,
   onBackToSkills,
   onImproveCv,
+  backLabel = "Back to skills",
 }: {
   result: ResultModel
   onPracticeAgain: () => void
   onNextLevel: () => void
   onBackToSkills: () => void
   onImproveCv: (href: string) => void
+  /** A Preparation room returns to its level rows, not to /practice's list. */
+  backLabel?: string
 }): JSX.Element {
   const {
     skillName, level, score, max, passed, firstClear, tokens, items, nextLevel, maxedOut,
@@ -152,7 +155,7 @@ export function Results({
       </div>
 
       <div className="up-res-actions">
-        <Button variant="ghost" onClick={onBackToSkills}><Icon name="back" size={15} /> Back to skills</Button>
+        <Button variant="ghost" onClick={onBackToSkills}><Icon name="back" size={15} /> {backLabel}</Button>
         <div style={{ flex: 1 }} />
         {cleared && !maxedOut ? (
           <>

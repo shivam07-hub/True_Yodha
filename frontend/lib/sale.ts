@@ -6,7 +6,7 @@
  * copying a checkout. On the web it is the checkout the five products already
  * had.
  */
-import { billing, type BillingProduct, type RazorpayOrderResponse } from "@/lib/api"
+import { billing, type BillingProduct, type RazorpayOrderResponse, type SaleSurface } from "@/lib/api"
 import { appShell, type AppShell } from "@/lib/platform/app-shell"
 import { loadRazorpay } from "@/lib/razorpay"
 
@@ -32,12 +32,14 @@ export async function openSale<T>(args: {
   product: BillingProduct
   /** The job an Apply Pack is bought for (the stakes door). */
   jobId?: string
+  /** The door the order is bought through (ONE_PREP P3). */
+  surface?: SaleSurface
   open: (loaded: { Razorpay: T; order: RazorpayOrderResponse }) => void | Promise<void>
 }): Promise<SaleResult> {
   if (!saleMayOpen(appShell())) return "absent"
   const Razorpay = await loadRazorpay<T>()
   if (!Razorpay) return "unavailable"
-  const order = await billing.createOrder(args.token, args.product, args.jobId)
+  const order = await billing.createOrder(args.token, args.product, args.jobId, args.surface)
   await args.open({ Razorpay, order })
   return "opened"
 }

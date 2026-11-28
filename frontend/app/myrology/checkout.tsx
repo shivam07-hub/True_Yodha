@@ -116,6 +116,7 @@ export function MyrologyProvider({ children }: { children: ReactNode }) {
       const outcome = await checkout({
         token,
         product: "myrology",
+        surface: "myrology",
         name: "Myro · Myrology",
         description: "Myrology unlock · 3 sessions + report",
         theme: { color: "#B084FF", backdrop_color: "#05060f" },

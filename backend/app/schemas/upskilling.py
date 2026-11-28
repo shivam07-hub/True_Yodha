@@ -10,7 +10,7 @@ grading so the client can render the per-question review.
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 # ── Surface A — ladder list ──────────────────────────────────────────────────
 
@@ -39,8 +39,19 @@ class ServedQuestion(BaseModel):
 
 
 class StartSetRequest(BaseModel):
-    skill_id: int
+    """A skill by id (the /practice ladder) or by taxonomy key (a Preparation
+    room's level row). `job_id` is the room the set was started from."""
+
+    skill_id: int | None = None
+    taxonomy_key: str | None = Field(default=None, min_length=1, max_length=200)
     level: int = Field(ge=1, le=5)
+    job_id: str | None = Field(default=None, min_length=1, max_length=200)
+
+    @model_validator(mode="after")
+    def _one_skill(self) -> "StartSetRequest":
+        if (self.skill_id is None) == (self.taxonomy_key is None):
+            raise ValueError("Provide exactly one of skill_id or taxonomy_key.")
+        return self
 
 
 class StartSetResponse(BaseModel):

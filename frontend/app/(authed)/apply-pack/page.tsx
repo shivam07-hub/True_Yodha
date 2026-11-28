@@ -82,7 +82,7 @@ export default function ApplyPackPage() {
             Start with your free score
           </Link>
         ) : token ? (
-          <ApplyPackBuy />
+          <ApplyPackBuy surface="pack" />
         ) : null}
       </main>
     </SalePage>

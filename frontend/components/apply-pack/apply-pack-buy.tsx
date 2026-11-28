@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query"
 
 import { Button } from "@/components/ui/button"
 import { checkout } from "@/lib/checkout"
+import type { SaleSurface } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { formatDateTime } from "@/lib/format"
 import { getAccessToken } from "@/lib/session"
@@ -21,11 +22,14 @@ import "./apply-pack.css"
 
 export function ApplyPackBuy({
   jobId,
+  surface,
   label = "Get the Apply Pack",
   onPaid,
 }: {
   /** The stakes door: the check arrives queued on this job. */
   jobId?: string
+  /** The door this button is (ONE_PREP P3) — recorded on the order. */
+  surface: SaleSurface
   label?: string
   onPaid?: () => void
 }) {
@@ -48,6 +52,7 @@ export function ApplyPackBuy({
       token,
       product: "apply_pack",
       jobId,
+      surface,
       name: "Myro · Apply Pack",
       description: `${pack?.coins ?? 500} Myro Coins + one Human Check + a 30-min call`,
     })

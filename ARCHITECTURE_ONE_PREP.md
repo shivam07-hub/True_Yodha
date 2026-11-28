@@ -110,7 +110,7 @@ number it should move.
   from the same cards (`current_level` → held, `required_level` → asked,
   `next_practice_level` → the button).
 - Steps 3–4 render as locked cards whose one action is "Find a job" →
-  `/market` (§9 Q1).
+  `/market` (§9 Q1, agreed 2026-11-28).
 - The no-rooms state opens this room instead of `NoRoomsDoor`.
 - **Read:** `/career-skill-path` is already fetched by this screen
   (`skillPathQ`), so P1 adds no request.
@@ -223,7 +223,7 @@ with 66 saved jobs before shipping (playbook step 6, warm, 5 samples).
 | Orders placed from a room | 0 | `billing_payments.surface = 'room'` (P3) |
 | Saved → applied | 89 saved, 5 applied ever | `job_applications` |
 
-## 9 · Questions for Shivam (recommendation first)
+## 9 · Questions for Shivam — answered 2026-11-28: both as recommended
 
 - **Q1 · Steps 3–4 in the target-role room.** Rehearsal and the brief are built
   from a job's requirements. *Recommended:* they show as locked with one button,
@@ -237,9 +237,9 @@ with 66 saved jobs before shipping (playbook step 6, warm, 5 samples).
 
 | Chunk | State |
 |---|---|
-| P1 target-role room | not started |
-| P2 practice in step 2 | not started |
-| P3 offers in the room | not started |
+| P1 target-role room | built 2026-11-28 on `Develop`: `role-room-model.ts`, `role-room.tsx`, rail row, default room; `room_opened` (migration `20261128100000`). Verified on the QA account at 375 and 1536 |
+| P2 practice in step 2 | built 2026-11-28 on `Develop`: `LevelPractice` in the row, sets started by key with the room's `job_id`, `DrillPanel` deleted. Found and fixed on the way: a job room's step 2 never counted a level proven in practice (`prep_user_state`, migration `20261128110000`). Verified on QA: SQL L1 then L2 cleared in a room, the row moved to met without a reload, 375 px |
+| P3 offers in the room | built 2026-11-28 on `Develop`: `PackOffer` under the steps in both rooms (job room: spend a held check on this job, buy for it, no second offer while a check runs); every buy door records `billing_payments.surface` (migration `20261128120000`). Verified on QA: role and job room orders carried `surface: room` (and the job), stubbed before Razorpay |
 | P4 rail: asks + all eleven | not started |
 | P5 saved rooms | not started |
 | P6 Gap Plan in step 1 | not started |

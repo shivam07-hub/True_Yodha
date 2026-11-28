@@ -9,6 +9,11 @@ const source = readFileSync(
   join(__dirname, "..", "components", "skills", "upskilling", "upskilling-view.tsx"),
   "utf8",
 )
+// The graded-set mapping /practice and a Preparation room share (ONE_PREP P2).
+const setResultSource = readFileSync(
+  join(__dirname, "..", "components", "skills", "upskilling", "set-result.ts"),
+  "utf8",
+)
 const rungPathSource = readFileSync(
   join(__dirname, "..", "components", "skills", "upskilling", "rung-path.tsx"),
   "utf8",
@@ -47,7 +52,8 @@ test("learning progress stays separate from score-map invalidation", () => {
 })
 
 test("graded results render source-backed correct and distractor rationales", () => {
-  assert.match(source, /rationales: r\?\.rationales/)
+  assert.match(setResultSource, /rationales: r\?\.rationales/)
+  assert.match(source, /resultOf\(quiz, res, answers, elapsedSeconds\)/)
   assert.match(resultsSource, /it\.rationales\.correct/)
   assert.match(resultsSource, /it\.rationales\?\.distractors/)
 })

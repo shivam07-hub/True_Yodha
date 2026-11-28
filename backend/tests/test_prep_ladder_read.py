@@ -183,8 +183,8 @@ class TestAssembly:
         """Computed from job_skills the ladder already read — no second endpoint."""
         rooms = {r["job_id"]: r for r in prep_ladder_read.assemble(_board(), "u1")["rooms"]}
         assert rooms["j2"]["levels"] == [
-            {"name": "Key Performance Indicators (KPIs)", "held": 0, "required": 3, "has_drill": True},
-            {"name": "Data Analysis", "held": 0, "required": 2, "has_drill": True},
+            {"name": "Key Performance Indicators (KPIs)", "key": "Key Performance Indicators (KPIs)", "held": 0, "required": 3, "has_drill": True},
+            {"name": "Data Analysis", "key": "Data Analysis", "held": 0, "required": 2, "has_drill": True},
         ]
 
     def test_a_room_with_no_levelled_skills_clears_step_two(self) -> None:

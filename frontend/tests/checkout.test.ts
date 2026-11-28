@@ -55,7 +55,7 @@ function deps(over: Partial<CheckoutDeps> & { script?: (h: Handlers) => void } =
   }
 }
 
-const ARGS = { token: "t", product: "apply_pack" as const, name: "Myro", description: "Apply Pack" }
+const ARGS = { token: "t", product: "apply_pack" as const, surface: "pack" as const, name: "Myro", description: "Apply Pack" }
 
 test("a refused order (full queue, gateway closed) is unavailable, never a hang", async () => {
   const outcome = await checkout(ARGS, deps({
@@ -134,4 +134,15 @@ test("no public key means no sale, without loading anything", async () => {
 test("inside the Android app a sale is absent and reads as unavailable", async () => {
   const outcome = await checkout(ARGS, deps({ openSale: async () => "absent" }))
   assert.equal(outcome.kind, "unavailable")
+})
+
+test("the order carries the door it was bought through, and the job (ONE_PREP P3)", async () => {
+  let seen: { surface?: string; jobId?: string } = {}
+  await checkout({ ...ARGS, surface: "room", jobId: "job-7" }, deps({
+    openSale: async (args) => {
+      seen = { surface: args.surface, jobId: args.jobId }
+      return "absent"
+    },
+  }))
+  assert.deepEqual(seen, { surface: "room", jobId: "job-7" })
 })

@@ -217,3 +217,12 @@ class TestTotals:
         """Two equally-stalled steps: send the user to the one that unblocks the other."""
         result = prep_ladder.totals([[2, 0, 0, 2]])
         assert result.bottleneck_step == 2
+
+
+def test_a_level_row_carries_the_skill_key_practice_starts_by():
+    """ONE_PREP P2: step 2 starts a set by key (`POST /upskilling/sets`)."""
+    rows = prep_ladder.level_rows(
+        [{"skills": {"taxonomy_key": "SQL", "practice_mode": "levelled"}, "required_level": 3}],
+        {"sql": 1},
+    )
+    assert rows == [{"name": "SQL", "key": "SQL", "held": 1, "required": 3, "has_drill": True}]

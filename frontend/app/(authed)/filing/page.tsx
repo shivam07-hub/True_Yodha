@@ -85,6 +85,7 @@ export default function FilingIntakePage() {
     const outcome = await checkout({
       token,
       product: "filing_intake",
+      surface: "filing",
       name: "Myro · ₹599 pack",
       description: "Three calls, your CV, your LinkedIn, and the filing",
     })

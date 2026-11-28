@@ -2483,7 +2483,12 @@ export function emitJourneyPhase(
  *  tailoring, a Mentor run and an apply click each have their own record; these
  *  are the gaps between them. Tied to `CORE_LOOP_STEPS` and the SQL CHECK by
  *  `test_telemetry_vocabulary` — keep this union on one line. */
-export type CoreLoopStep = "card_tailor" | "panel_opened" | "panel_tailor" | "editor_opened" | "mentor_opened" | "downloaded" | "apply_asked" | "door_shown" | "door_paste" | "door_extension" | "door_fit" | "job_imported" | "upload_shown"
+/** The door an order is bought through (ARCHITECTURE_ONE_PREP.md P3). Tied to
+ *  `SaleSurface` in routers/payments.py and the `billing_payments_surface_check`
+ *  constraint — keep this union on one line. */
+export type SaleSurface = "cv" | "room" | "stakes" | "linkedin" | "fuel" | "pack" | "filing" | "myrology"
+
+export type CoreLoopStep = "card_tailor" | "panel_opened" | "panel_tailor" | "editor_opened" | "mentor_opened" | "downloaded" | "apply_asked" | "door_shown" | "door_paste" | "door_extension" | "door_fit" | "job_imported" | "upload_shown" | "room_opened"
 
 const CORE_LOOP_TELEMETRY_PATH = "/v1/telemetry/loop-step"
 
@@ -5232,7 +5237,7 @@ const BILLING_RECEIPT_PREFIX: Record<BillingProduct, string> = {
 }
 
 export const billing = {
-  createOrder: (token: string, product: BillingProduct, jobId?: string) =>
+  createOrder: (token: string, product: BillingProduct, jobId?: string, surface?: SaleSurface) =>
     request<RazorpayOrderResponse>("/api/create-order", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -5242,6 +5247,7 @@ export const billing = {
         product,
         receipt: `${BILLING_RECEIPT_PREFIX[product]}_${Date.now()}`,
         ...(jobId ? { job_id: jobId } : {}),
+        ...(surface ? { surface } : {}),
       }),
     }),
 
@@ -6246,11 +6252,17 @@ export const upskilling = {
       headers: { Authorization: `Bearer ${token}` },
     }),
 
-  startSet: (token: string, skillId: number, level: number) =>
+  /** A skill by id (the /practice ladder) or by taxonomy key (a Preparation
+   *  room's level row). `jobId` is the room the set starts from. */
+  startSet: (token: string, skill: number | string, level: number, jobId?: string | null) =>
     request<StartSetResponse>("/upskilling/sets", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ skill_id: skillId, level }),
+      body: JSON.stringify({
+        ...(typeof skill === "number" ? { skill_id: skill } : { taxonomy_key: skill }),
+        level,
+        ...(jobId ? { job_id: jobId } : {}),
+      }),
     }),
 
   submitSet: (
@@ -6434,6 +6446,8 @@ export interface StepProgress {
  *  the room offers a path request rather than a CTA it cannot honour. */
 export interface LevelRow {
   name: string
+  /** The skill's taxonomy key — what step 2 starts a practice set by. */
+  key: string
   held: number
   required: number
   has_drill: boolean

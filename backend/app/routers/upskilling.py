@@ -58,7 +58,10 @@ def start_set(
     body: StartSetRequest,
     principal: Principal = Depends(get_principal),
 ) -> StartSetResponse:
-    result = upskilling_service.start_set(principal.id, body.skill_id, body.level)
+    result = upskilling_service.start_set(
+        principal.id, body.skill_id, body.level,
+        taxonomy_key=body.taxonomy_key, job_id=body.job_id,
+    )
     return StartSetResponse(**result)
 
 

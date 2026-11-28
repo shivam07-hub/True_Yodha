@@ -142,7 +142,7 @@ export function LinkedInCheckCard({ token }: { token: string }) {
               </span>
             ) : null}
             <SaleOffer>
-              <ApplyPackBuy />
+              <ApplyPackBuy surface="linkedin" />
             </SaleOffer>
           </>
         )}
