@@ -63,7 +63,7 @@ export function XPGateModal() {
         </p>
         <div className="tm-xp-gate-actions">
           <SaleOffer>
-            <ApplyPackBuy onPaid={closeGate} />
+            <ApplyPackBuy surface="fuel" onPaid={closeGate} />
           </SaleOffer>
           <Link href="/tokens" className="tm-link" onClick={handleGuide}>
             See how Myro Coins work

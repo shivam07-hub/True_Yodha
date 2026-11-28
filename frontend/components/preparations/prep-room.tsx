@@ -43,6 +43,8 @@ import { RehearsePanel } from "./rehearse-panel"
 import { BriefCard } from "./brief-card"
 import { ClosingPanel } from "./closing-panel"
 import { HumanCheckLine } from "@/components/apply-pack/human-check-line"
+import { PackOffer } from "@/components/apply-pack/pack-offer"
+import { useHumanChecks } from "@/components/apply-pack/use-human-checks"
 import { LevelRows, nextLevel } from "./level-rows"
 import { StepCard, CLEAR } from "./step-card"
 
@@ -108,6 +110,8 @@ export function PrepRoom({
   initialStep?: number | null
 }) {
   const { updateStatus, updateNotes } = useTrackerBoard("prep")
+  const checksQ = useHumanChecks(token)
+  const checkForJob = (checksQ.data ?? []).some((c) => c.kind === "cv_job" && c.job_id === app.job_id)
   const [pickerOpen, setPickerOpen] = React.useState(false)
   // 2b draws two cards open at once — step 1 showing what is banked, step 2
   // showing the levels. One-at-a-time made reading the evidence cost the level
@@ -270,6 +274,9 @@ export function PrepRoom({
             ))}
           </div>
 
+          {/* ONE_PREP P3: the offer under the steps, about this job. */}
+          <PackOffer token={token} surface="room" jobId={app.job_id} />
+
           {totals && totals.rooms > 1 ? (
             <div className="prp-across">
               <span>
@@ -325,10 +332,12 @@ export function PrepRoom({
         <div className="prp-sec-head"><span className="prp-sec-label">On record</span></div>
         <div className="prp-record">
           {app.applied_at ? <span>Applied {formatDate(app.applied_at, "short")}</span> : null}
-          {stage !== "closed" ? (
+          {/* Only a check running for this job has a state to state; the
+              offer card under the steps does the selling (ONE_PREP P3). */}
+          {stage !== "closed" && checkForJob ? (
             <>
               {app.applied_at ? <span className="sep">·</span> : null}
-              <HumanCheckLine token={token} jobId={app.job_id} />
+              <HumanCheckLine token={token} jobId={app.job_id} offer={false} />
             </>
           ) : null}
         </div>

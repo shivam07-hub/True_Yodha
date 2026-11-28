@@ -2483,6 +2483,11 @@ export function emitJourneyPhase(
  *  tailoring, a Mentor run and an apply click each have their own record; these
  *  are the gaps between them. Tied to `CORE_LOOP_STEPS` and the SQL CHECK by
  *  `test_telemetry_vocabulary` — keep this union on one line. */
+/** The door an order is bought through (ARCHITECTURE_ONE_PREP.md P3). Tied to
+ *  `SaleSurface` in routers/payments.py and the `billing_payments_surface_check`
+ *  constraint — keep this union on one line. */
+export type SaleSurface = "cv" | "room" | "stakes" | "linkedin" | "fuel" | "pack" | "filing" | "myrology"
+
 export type CoreLoopStep = "card_tailor" | "panel_opened" | "panel_tailor" | "editor_opened" | "mentor_opened" | "downloaded" | "apply_asked" | "door_shown" | "door_paste" | "door_extension" | "door_fit" | "job_imported" | "upload_shown" | "room_opened"
 
 const CORE_LOOP_TELEMETRY_PATH = "/v1/telemetry/loop-step"
@@ -5232,7 +5237,7 @@ const BILLING_RECEIPT_PREFIX: Record<BillingProduct, string> = {
 }
 
 export const billing = {
-  createOrder: (token: string, product: BillingProduct, jobId?: string) =>
+  createOrder: (token: string, product: BillingProduct, jobId?: string, surface?: SaleSurface) =>
     request<RazorpayOrderResponse>("/api/create-order", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -5242,6 +5247,7 @@ export const billing = {
         product,
         receipt: `${BILLING_RECEIPT_PREFIX[product]}_${Date.now()}`,
         ...(jobId ? { job_id: jobId } : {}),
+        ...(surface ? { surface } : {}),
       }),
     }),
 

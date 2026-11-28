@@ -8,7 +8,7 @@
  * `dismissed`, a grant the server has not finished `setting_up`.
  */
 import { ApiError } from "@/lib/api-error"
-import { billing, type BillingProduct, type RazorpayVerifyResult } from "@/lib/api"
+import { billing, type BillingProduct, type RazorpayVerifyResult, type SaleSurface } from "@/lib/api"
 import { openSale, type SaleResult } from "@/lib/sale"
 
 export type CheckoutProduct = Extract<BillingProduct, "apply_pack" | "myrology" | "filing_intake">
@@ -58,6 +58,8 @@ export interface CheckoutArgs {
   product: CheckoutProduct
   /** The job a pack is bought for; its Human Check arrives queued on it. */
   jobId?: string
+  /** The door the order is bought through (ONE_PREP P3). Every door says. */
+  surface: SaleSurface
   name: string
   description: string
   theme?: { color?: string; backdrop_color?: string }
@@ -94,6 +96,7 @@ export async function checkout(args: CheckoutArgs, deps: CheckoutDeps = defaultD
       token: args.token,
       product: args.product,
       jobId: args.jobId,
+      surface: args.surface,
       open: ({ Razorpay, order }) =>
         new Promise<void>((resolve) => {
           let settled = false

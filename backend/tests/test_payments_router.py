@@ -467,3 +467,55 @@ def test_catalogue_offers_the_pack_and_never_a_retired_product(monkeypatch: pyte
     }
     assert body["human_check"]["checks_full"] is False
     assert body["human_check"]["linkedin_coins"] == 5000
+
+
+# ── Where an order came from (ARCHITECTURE_ONE_PREP.md P3) ──────────────────
+# `billing_payments` recorded the job a pack was bought for, not the door it was
+# bought through, so "did the offer in the room sell anything" had no answer.
+
+
+def test_create_order_records_the_door_it_came_through(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake_client = _FakeRazorpayClient()
+    recorded: dict[str, Any] = {}
+    monkeypatch.setattr(razorpay_gateway, "client", lambda: fake_client)
+    monkeypatch.setattr(payments_router, "_record_created_payment", lambda **kwargs: recorded.update(kwargs))
+
+    with TestClient(app) as client:
+        response = _post_create(
+            client, amount=19900, currency="INR", product="apply_pack", job_id="job-7", surface="room",
+        )
+
+    assert response.status_code == 200, response.text
+    assert recorded["surface"] == "room"
+    assert recorded["job_id"] == "job-7"
+
+
+def test_an_order_with_no_door_records_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake_client = _FakeRazorpayClient()
+    recorded: dict[str, Any] = {}
+    monkeypatch.setattr(razorpay_gateway, "client", lambda: fake_client)
+    monkeypatch.setattr(payments_router, "_record_created_payment", lambda **kwargs: recorded.update(kwargs))
+
+    with TestClient(app) as client:
+        response = _post_create(client, amount=19900, currency="INR", product="apply_pack")
+
+    assert response.status_code == 200, response.text
+    assert recorded["surface"] is None
+
+
+def test_an_unknown_door_is_refused_before_any_order() -> None:
+    with TestClient(app) as client:
+        response = _post_create(client, amount=19900, currency="INR", product="apply_pack", surface="banner")
+    assert response.status_code == 422
+
+
+def test_the_doors_the_api_accepts_are_the_doors_the_table_stores() -> None:
+    import re
+    from pathlib import Path
+    from typing import get_args
+
+    sql = (
+        Path(__file__).parents[2] / "database/migrations/20261128120000_billing_payments_surface.sql"
+    ).read_text()
+    allowed = set(re.findall(r"'([a-z_]+)'", sql.split("check (surface in (", 1)[1].split(")", 1)[0]))
+    assert allowed == set(get_args(payments_router.SaleSurface))

@@ -15,6 +15,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { CompanyAvatar } from "@/components/cv/builder/library-shared"
+import { PackOffer } from "@/components/apply-pack/pack-offer"
 import { SENIORITY_LABEL, type SkillPathCard } from "@/lib/career-skill-path"
 import { STEP_LABELS } from "./prep-model"
 import { ReadinessRing } from "./prep-room"
@@ -167,6 +168,9 @@ export function RoleRoom({
           </StepCard>
         ))}
       </div>
+
+      {/* ONE_PREP P3: the offer under the steps, as on the CV page. */}
+      <PackOffer token={token} surface="room" />
     </div>
   )
 }
