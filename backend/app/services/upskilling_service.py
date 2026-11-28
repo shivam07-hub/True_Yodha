@@ -279,21 +279,35 @@ def list_skills(user_id: str) -> list[dict]:
 # ── Serve a set (no answer key) ──────────────────────────────────────────────
 
 
-def start_set(user_id: str, skill_id: int, level: int) -> dict:
+def start_set(
+    user_id: str,
+    skill_id: int | None,
+    level: int,
+    *,
+    taxonomy_key: str | None = None,
+    job_id: str | None = None,
+) -> dict:
+    """Serve one level's set. The skill is named by id or by taxonomy key.
+
+    A Preparation room's level rows know a skill by its key (the ladder's
+    job_skills read never selected an id), so a set from step 2 starts by key in
+    the same one read. `job_id` is the room the set was started from, stored on
+    the attempt so practice in a room can be counted (ARCHITECTURE_ONE_PREP P2).
+    """
     admin = get_supabase_admin()
 
-    skill_result = (
-        admin.table("skills")
-        .select(SKILL_DISPLAY_COLUMNS)
-        .eq("id", skill_id)
-        .maybe_single()
-        .execute()
+    skill_query = admin.table("skills").select(SKILL_DISPLAY_COLUMNS)
+    skill_query = (
+        skill_query.eq("id", skill_id) if skill_id is not None
+        else skill_query.eq("taxonomy_key", taxonomy_key or "")
     )
+    skill_result = skill_query.maybe_single().execute()
     if not skill_result or not skill_result.data or not _is_levelled_skill(skill_result.data):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="This skill does not use Myro's five-level practice ladder.",
         )
+    skill_id = int(skill_result.data["id"])
 
     pool = _servable_questions(
         (
@@ -326,6 +340,7 @@ def start_set(user_id: str, skill_id: int, level: int) -> dict:
                 "mode": "upskilling",
                 "question_ids": question_ids,
                 "max_score": UPSKILLING_SET_SIZE,
+                **({"job_id": job_id} if job_id else {}),
             }
         )
         .execute()

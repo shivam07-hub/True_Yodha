@@ -6246,11 +6246,17 @@ export const upskilling = {
       headers: { Authorization: `Bearer ${token}` },
     }),
 
-  startSet: (token: string, skillId: number, level: number) =>
+  /** A skill by id (the /practice ladder) or by taxonomy key (a Preparation
+   *  room's level row). `jobId` is the room the set starts from. */
+  startSet: (token: string, skill: number | string, level: number, jobId?: string | null) =>
     request<StartSetResponse>("/upskilling/sets", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ skill_id: skillId, level }),
+      body: JSON.stringify({
+        ...(typeof skill === "number" ? { skill_id: skill } : { taxonomy_key: skill }),
+        level,
+        ...(jobId ? { job_id: jobId } : {}),
+      }),
     }),
 
   submitSet: (
@@ -6434,6 +6440,8 @@ export interface StepProgress {
  *  the room offers a path request rather than a CTA it cannot honour. */
 export interface LevelRow {
   name: string
+  /** The skill's taxonomy key — what step 2 starts a practice set by. */
+  key: string
   held: number
   required: number
   has_drill: boolean

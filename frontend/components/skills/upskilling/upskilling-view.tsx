@@ -10,7 +10,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { upskilling, users, type ReadinessRow, type SkillUpvote, type StartGapResponse, type UpskillingSkill } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { dataKeys } from "@/lib/domain-data"
-import { addCertificateHref } from "@/lib/career-skill-path"
 import { useRoleStanding } from "@/lib/hooks/use-edit-target-role"
 import { useParticleMoment } from "@/components/particle"
 import type { SkillIntelStats } from "@/lib/skill-domains"
@@ -20,7 +19,7 @@ import { ClimbList } from "./climb-list"
 import { GapReadiness } from "./gap-readiness"
 import { QuizRunner } from "./quiz-runner"
 import { Results } from "./results"
-import { getBestSeconds, recordBestSeconds } from "./quiz-best"
+import { answerPayload, resultOf, servedSet, type ServedSet } from "./set-result"
 import { PROFICIENCY } from "./proficiency"
 import type { LadderSkill, QuizQuestion, ResultModel } from "./types"
 
@@ -83,12 +82,8 @@ function pickHero(skills: LadderSkill[], openGaps: Set<string>): LadderSkill | n
 
 const UPSKILLING_SKILLS_KEY = (token: string) => ["upskilling-skills", token] as const
 
-type QuizState = {
+type QuizState = ServedSet & {
   skill: LadderSkill
-  level: number
-  setId: string
-  idempotencyKey: string
-  questions: QuizQuestion[]
   originJobId: string | null
 }
 
@@ -197,15 +192,8 @@ export function UpskillingView({
     if (starting) return
     setStarting(true)
     try {
-      const res = await upskilling.startSet(token, skill.skillId, level)
-      setQuiz({
-        skill,
-        level,
-        setId: res.set_id,
-        idempotencyKey: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${res.set_id}-${Date.now()}`,
-        questions: res.questions.map((q) => ({ id: q.id, q: q.question_text, options: q.options })),
-        originJobId: sourceJobId,
-      })
+      const res = await upskilling.startSet(token, skill.skillId, level, sourceJobId)
+      setQuiz({ ...servedSet(skill.name, level, res), skill, originJobId: sourceJobId })
       setScreen("quiz")
     } catch {
       flashToast(`More L${level} ${skill.name} questions are on the way — the bank is filling.`)
@@ -216,57 +204,10 @@ export function UpskillingView({
 
   const submitQuiz = useCallback(async (answers: Array<number | null>, elapsedSeconds: number) => {
     if (!quiz) return
-    const payload = quiz.questions.map((qq, i) => ({
-      question_id: qq.id,
-      selected_index: answers[i] ?? -1,
-    }))
+    const payload = answerPayload(quiz.questions, answers)
     try {
       const res = await upskilling.submitSet(token, quiz.setId, payload, quiz.idempotencyKey)
-      const byId = new Map(res.results.map((r) => [r.question_id, r]))
-      const items = quiz.questions.map((qq, i) => {
-        const r = byId.get(qq.id)
-        return {
-          q: qq.q,
-          options: qq.options,
-          correct: r ? r.correct_index : -1,
-          selected: answers[i],
-          isCorrect: r ? r.is_correct : false,
-          expl: r ? r.explanation : "",
-          rationales: r?.rationales,
-        }
-      })
-      // Cosmetic speed stat (DEC-S4): record only a passing clear; read prior
-      // best BEFORE writing so a slower re-clear can still show the best.
-      let prevBestSeconds: number | null = null
-      let newBest = false
-      if (res.passed) {
-        prevBestSeconds = getBestSeconds(quiz.skill.skillId, quiz.level)
-        newBest = recordBestSeconds(quiz.skill.skillId, quiz.level, elapsedSeconds)
-      }
-      setResult({
-        skillName: quiz.skill.name,
-        level: quiz.level,
-        score: res.score,
-        max: res.max,
-        passed: res.passed,
-        firstClear: res.first_clear,
-        tokens: res.tokens_awarded,
-        items,
-        nextLevel: res.next_level_unlocked ?? Math.min(quiz.level + 1, 5),
-        maxedOut: quiz.level >= 5,
-        elapsedSeconds,
-        prevBestSeconds,
-        newBest,
-        // Only when a live role actually asks for this skill — the backend
-        // returns null rather than zeroes so there is nothing to suppress here.
-        payoff: res.passed && res.payoff && res.payoff.met_total > 0
-          ? { newlyMet: res.payoff.newly_met, metTotal: res.payoff.met_total }
-          : null,
-        certificate: res.passed ? (res.certificate ?? null) : null,
-        cvHref: res.passed && res.certificate?.verification_id
-          ? addCertificateHref(res.certificate.verification_id)
-          : null,
-      })
+      setResult(resultOf(quiz, res, answers, elapsedSeconds))
       setScreen("results")
 
       if (res.tokens_awarded > 0) {

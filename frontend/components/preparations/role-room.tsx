@@ -74,9 +74,11 @@ function NeedsAJob({ what }: { what: string }) {
 }
 
 export function RoleRoom({
+  token,
   room,
   initialStep = null,
 }: {
+  token: string
   room: RoleRoomData
   /** `?step=N` — the step a link asked to open. */
   initialStep?: number | null
@@ -109,7 +111,7 @@ export function RoleRoom({
   ]
   const bodies = [
     <RoleEvidence key="e" cards={room.cards} />,
-    <LevelRows key="l" rows={room.levels} />,
+    <LevelRows key="l" rows={room.levels} token={token} jobId={null} />,
     <NeedsAJob key="r" what="Rehearsal is built from a job's requirements." />,
     <NeedsAJob key="b" what="The brief is written for one job." />,
   ]

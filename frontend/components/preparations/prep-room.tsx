@@ -40,7 +40,6 @@ import { Button } from "@/components/ui/button"
 import { daysInStage, roomStage, needsStageCheck, followUpLine, STEP_LABELS } from "./prep-model"
 import { CoveragePanel } from "./coverage-panel"
 import { RehearsePanel } from "./rehearse-panel"
-import { DrillPanel } from "./drill-panel"
 import { BriefCard } from "./brief-card"
 import { ClosingPanel } from "./closing-panel"
 import { HumanCheckLine } from "@/components/apply-pack/human-check-line"
@@ -169,10 +168,7 @@ export function PrepRoom({
   const counts = [room?.evidence, undefined, room?.rehearsal, undefined]
   const bodies = [
     <CoveragePanel key="c" token={token} jobId={app.job_id} />,
-    <div key="l">
-      <LevelRows rows={room?.levels ?? []} />
-      <div className="prp-step-drill"><DrillPanel token={token} jobId={app.job_id} /></div>
-    </div>,
+    <LevelRows key="l" rows={room?.levels ?? []} token={token} jobId={app.job_id} />,
     <RehearsePanel key="r" token={token} jobId={app.job_id} />,
     <BriefCard key="b" token={token} jobId={app.job_id} />,
   ]

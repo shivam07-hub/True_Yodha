@@ -126,6 +126,8 @@ def level_rows(
         required = int(row.get("required_level") or (4 if row.get("is_primary") else 2))
         out.append({
             "name": key,
+            # What step 2 starts a set by (`POST /upskilling/sets`).
+            "key": key,
             "held": int(user_levels.get(key.lower(), 0) or 0),
             "required": required,
             "has_drill": is_levelled_skill(skill),

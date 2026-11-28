@@ -7,6 +7,8 @@ class LevelRow(BaseModel):
     """One level this job tests. `has_drill` False = /practice cannot serve it."""
 
     name: str
+    #: The skill's taxonomy key — what step 2 starts a practice set by.
+    key: str
     held: int
     required: int
     has_drill: bool

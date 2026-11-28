@@ -10,10 +10,16 @@
  *
  * A skill with no assessment says so and offers a path request, never a drill
  * CTA Myro cannot honour ([[project_united_learning_loop]]).
+ *
+ * A row's Start runs that level's set right here (ONE_PREP P2) — one row open
+ * at a time — instead of sending the person to /practice.
  */
 
+import * as React from "react"
 import Link from "next/link"
 import type { LevelRow } from "@/lib/api"
+import { Button } from "@/components/ui/button"
+import { LevelPractice } from "./level-practice"
 
 const LADDER = [1, 2, 3, 4, 5]
 
@@ -58,7 +64,17 @@ function NoDrillFooter({ rows }: { rows: LevelRow[] }) {
   )
 }
 
-export function LevelRows({ rows }: { rows: LevelRow[] }) {
+export function LevelRows({
+  rows,
+  token,
+  jobId,
+}: {
+  rows: LevelRow[]
+  token: string
+  /** The job room the rows belong to; null in the target-role room. */
+  jobId: string | null
+}) {
+  const [practising, setPractising] = React.useState<{ key: string; level: number } | null>(null)
   if (rows.length === 0) {
     return (
       <p className="prp-quiet">
@@ -68,35 +84,50 @@ export function LevelRows({ rows }: { rows: LevelRow[] }) {
   }
   return (
     <div className="prp-levels">
-      {rows.map((row) => (
-        <div className="prp-level" key={row.name}>
-          <span className="prp-level-copy">
-            <span className="prp-level-name">{row.name}</span>
-            <span className="prp-level-state">{stateLine(row)}</span>
-          </span>
-          <span className="prp-level-rungs" aria-hidden>
-            {LADDER.map((rung) => (
-              <span key={rung} data-state={rungState(rung, row)}>L{rung}</span>
-            ))}
-          </span>
-          {row.has_drill ? (
-            row.held >= row.required ? (
-              <span className="prp-level-met">met</span>
-            ) : (
-              <Link
-                href={`/practice?skill=${encodeURIComponent(row.name)}`}
-                className="prp-level-cta tm-control-focus"
-              >
-                Start L{Math.min(row.held + 1, row.required)}
-              </Link>
-            )
-          ) : (
-            <Link href="/skills" className="prp-level-cta is-ghost tm-control-focus">
-              Request path
-            </Link>
-          )}
-        </div>
-      ))}
+      {rows.map((row) => {
+        const next = Math.min(row.held + 1, row.required)
+        const open = practising?.key === row.key
+        return (
+          <React.Fragment key={row.key}>
+            <div className="prp-level">
+              <span className="prp-level-copy">
+                <span className="prp-level-name">{row.name}</span>
+                <span className="prp-level-state">{stateLine(row)}</span>
+              </span>
+              <span className="prp-level-rungs" aria-hidden>
+                {LADDER.map((rung) => (
+                  <span key={rung} data-state={rungState(rung, row)}>L{rung}</span>
+                ))}
+              </span>
+              {row.has_drill ? (
+                row.held >= row.required ? (
+                  <span className="prp-level-met">met</span>
+                ) : open ? null : (
+                  <Button size="sm" onClick={() => setPractising({ key: row.key, level: next })}>
+                    Start L{next}
+                  </Button>
+                )
+              ) : (
+                <Link href="/skills" className="prp-level-cta is-ghost tm-control-focus">
+                  Request path
+                </Link>
+              )}
+            </div>
+            {open && practising ? (
+              <div className="prp-level-practice">
+                <LevelPractice
+                  token={token}
+                  skillKey={row.key}
+                  skillName={row.name}
+                  level={practising.level}
+                  jobId={jobId}
+                  onClose={() => setPractising(null)}
+                />
+              </div>
+            ) : null}
+          </React.Fragment>
+        )
+      })}
       <NoDrillFooter rows={rows} />
     </div>
   )

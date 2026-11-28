@@ -238,7 +238,7 @@ with 66 saved jobs before shipping (playbook step 6, warm, 5 samples).
 | Chunk | State |
 |---|---|
 | P1 target-role room | built 2026-11-28 on `Develop`: `role-room-model.ts`, `role-room.tsx`, rail row, default room; `room_opened` (migration `20261128100000`). Verified on the QA account at 375 and 1536 |
-| P2 practice in step 2 | not started |
+| P2 practice in step 2 | built 2026-11-28 on `Develop`: `LevelPractice` in the row, sets started by key with the room's `job_id`, `DrillPanel` deleted. Found and fixed on the way: a job room's step 2 never counted a level proven in practice (`prep_user_state`, migration `20261128110000`). Verified on QA: SQL L1 then L2 cleared in a room, the row moved to met without a reload, 375 px |
 | P3 offers in the room | not started |
 | P4 rail: asks + all eleven | not started |
 | P5 saved rooms | not started |

@@ -529,3 +529,54 @@ def test_start_gap_served_carries_no_reason():
     assert result["assessment_id"]
     assert len(result["skills"]) == 1
     assert len(store["quiz_attempts"]) == 1
+
+
+# ── Practice inside a Preparation room (ARCHITECTURE_ONE_PREP.md P2) ─────────
+# The room's level rows know a skill by its taxonomy key, not its id: the
+# ladder's job_skills read never selected one. A set starts by key, and the
+# room's job is recorded on the attempt so practice in a room is countable
+# (quiz_attempts.job_id existed and no row had ever used it).
+
+
+def _bank_store():
+    questions = [
+        {"id": qid, "skill_id": SKILL_ID, "skill_key": "sql", "level": 2, "status": "active",
+         "retired_at": None, **_reviewed_fields(qid)}
+        for qid in range(1, upskilling_service.UPSKILLING_SET_SIZE + 3)
+    ]
+    return {
+        "skills": [{"id": SKILL_ID, "taxonomy_key": "sql", "display_name": "SQL", "practice_mode": "levelled"}],
+        "skill_questions": questions,
+        "quiz_attempts": [],
+        "quiz_attempt_question_snapshots": [],
+    }
+
+
+def test_a_set_starts_by_skill_key_and_records_the_room_it_came_from():
+    store = _bank_store()
+    with patch("app.services.upskilling_service.get_supabase_admin", return_value=_FakeAdmin(store)):
+        out = upskilling_service.start_set("u1", None, 2, taxonomy_key="sql", job_id="job-9")
+
+    assert out["skill_id"] == SKILL_ID
+    assert len(out["questions"]) == upskilling_service.UPSKILLING_SET_SIZE
+    [attempt] = store["quiz_attempts"]
+    assert attempt["skill_id"] == SKILL_ID
+    assert attempt["job_id"] == "job-9"
+
+
+def test_a_set_started_by_id_with_no_room_records_no_job():
+    store = _bank_store()
+    with patch("app.services.upskilling_service.get_supabase_admin", return_value=_FakeAdmin(store)):
+        upskilling_service.start_set("u1", SKILL_ID, 2)
+
+    [attempt] = store["quiz_attempts"]
+    assert "job_id" not in attempt or attempt["job_id"] is None
+
+
+def test_an_unknown_skill_key_is_refused_like_an_unlevelled_skill():
+    store = _bank_store()
+    with patch("app.services.upskilling_service.get_supabase_admin", return_value=_FakeAdmin(store)), \
+         pytest.raises(HTTPException) as exc:
+        upskilling_service.start_set("u1", None, 2, taxonomy_key="no such skill")
+
+    assert exc.value.status_code == 409

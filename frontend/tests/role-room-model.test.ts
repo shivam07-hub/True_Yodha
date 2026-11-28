@@ -87,7 +87,7 @@ test("step 2 scores levels the way a job room does, deepest gap first", () => {
     card("Teamwork", { required_level: null }),
   ]))!
   assert.deepEqual(room.levels.map((r) => r.name), ["KPIs", "Vendor Mgmt", "Excel", "SQL"])
-  assert.deepEqual(room.levels.find((r) => r.name === "KPIs"), { name: "KPIs", held: 1, required: 4, has_drill: true })
+  assert.deepEqual(room.levels.find((r) => r.name === "KPIs"), { name: "KPIs", key: "KPIs", held: 1, required: 4, has_drill: true })
   assert.equal(room.levels.find((r) => r.name === "Vendor Mgmt")!.has_drill, false)
   assert.equal(room.steps[1], 1)
   const met = roleRoom(path([card("SQL", { state: "on_cv", current_level: 3 })]))!

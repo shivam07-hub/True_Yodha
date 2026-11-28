@@ -118,7 +118,7 @@ test("A Finlatics programme opens in the main column from either rail, with thei
 })
 
 test("Prep speaks the platform's primitives: canonical Button, token radii, no inline layout", () => {
-  const files = ["closing-panel", "coverage-panel", "brief-card", "drill-panel", "prep-room"]
+  const files = ["closing-panel", "coverage-panel", "brief-card", "level-practice", "level-rows", "role-room", "prep-room"]
   for (const name of files) {
     const src = code(`components/preparations/${name}.tsx`)
     // The hand-rolled .prp-btn is gone; every CTA is components/ui/button.

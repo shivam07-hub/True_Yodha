@@ -310,9 +310,6 @@
 .prp-record-notes { margin-top: 8px; }
 .prp-quiet { font-size: var(--tm-fs-caption); color: var(--tm-text-faint); }
 
-/* drill embed wraps the up-* quiz kit — give it breathing room only */
-.prp-drill-wrap { margin-top: 4px; }
-
 /* the floor: full JD, collapsible, always present — the resilient fallback
    when the LLM-derived surfaces above can't parse */
 .prp-jd {
@@ -725,9 +722,19 @@
   margin: 0 0 0;
   padding-top: 14px;
 }
-.prp-step-drill { margin-top: 14px; }
 
 /* ── step 2's rungs ── */
+/* A level's set runs under its row, full width (ONE_PREP P2). */
+.prp-level-practice {
+  padding-top: 12px;
+  border-top: 1px solid var(--tm-border-soft);
+}
+.prp-level-stopped {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
 .prp-levels { display: flex; flex-direction: column; gap: 12px; }
 .prp-level {
   display: flex;

@@ -160,7 +160,7 @@ export function PrepShell({ token }: { token: string }) {
             </>
           ) : roleOpen ? (
             role ? (
-              <RoleRoom key={role.title} room={role} initialStep={chosen.step} />
+              <RoleRoom key={role.title} token={token} room={role} initialStep={chosen.step} />
             ) : skillPathQ.isLoading ? null : (
               <div className="prp-empty">
                 <Link href="/onboarding">Pick your target role</Link>

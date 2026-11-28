@@ -67,6 +67,7 @@ function levelRows(cards: SkillPathCard[]): LevelRow[] {
       ? []
       : [{
           name: card.display_name,
+          key: card.taxonomy_key,
           held: card.current_level ?? 0,
           required: card.required_level,
           has_drill: card.ladder_complete,
