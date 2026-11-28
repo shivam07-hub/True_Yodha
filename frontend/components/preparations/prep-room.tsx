@@ -49,7 +49,7 @@ import { StepCard, CLEAR } from "./step-card"
 
 const RING_CIRCUMFERENCE = 195
 
-function ReadinessRing({ pct, size = 76 }: { pct: number; size?: number }) {
+export function ReadinessRing({ pct, size = 76 }: { pct: number; size?: number }) {
   const filled = Math.round((RING_CIRCUMFERENCE * Math.max(0, Math.min(100, pct))) / 100)
   return (
     <svg width={size} height={size} viewBox="0 0 76 76" className="prp-ring" aria-hidden>

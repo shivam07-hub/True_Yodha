@@ -2483,7 +2483,7 @@ export function emitJourneyPhase(
  *  tailoring, a Mentor run and an apply click each have their own record; these
  *  are the gaps between them. Tied to `CORE_LOOP_STEPS` and the SQL CHECK by
  *  `test_telemetry_vocabulary` — keep this union on one line. */
-export type CoreLoopStep = "card_tailor" | "panel_opened" | "panel_tailor" | "editor_opened" | "mentor_opened" | "downloaded" | "apply_asked" | "door_shown" | "door_paste" | "door_extension" | "door_fit" | "job_imported" | "upload_shown"
+export type CoreLoopStep = "card_tailor" | "panel_opened" | "panel_tailor" | "editor_opened" | "mentor_opened" | "downloaded" | "apply_asked" | "door_shown" | "door_paste" | "door_extension" | "door_fit" | "job_imported" | "upload_shown" | "room_opened"
 
 const CORE_LOOP_TELEMETRY_PATH = "/v1/telemetry/loop-step"
 

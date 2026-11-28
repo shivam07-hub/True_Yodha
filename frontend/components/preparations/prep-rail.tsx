@@ -18,6 +18,7 @@ import type { ApplicationResponse, LadderRoom, PrepLadderResponse } from "@/lib/
 import { displayJobTitle } from "@/lib/jobs/clean-title"
 import { CompanyAvatar, STAGE_META } from "@/components/cv/builder/library-shared"
 import { SkillPathRail } from "./skill-path-rail"
+import { ROLE_ROOM_HREF, ROLE_ROOM_ID, type RoleRoom } from "./role-room-model"
 import { TrainingCard } from "./training-card"
 import { TrainingPicker, type ShelfRow } from "./training-shelf"
 import { STEP_LABELS, STEP_LEGEND, roomStage } from "./prep-model"
@@ -92,6 +93,46 @@ function RoomRow({
   )
 }
 
+/** The target-role room's row: practise before any job is saved
+ *  (ARCHITECTURE_ONE_PREP.md P1). Same shape as a job room's row. */
+function RoleRow({
+  room,
+  selected,
+  onOpen,
+}: {
+  room: RoleRoom
+  selected: boolean
+  onOpen: (href: string) => void
+}) {
+  return (
+    <Link
+      href={ROLE_ROOM_HREF}
+      onClick={(event) => {
+        if (
+          event.defaultPrevented || event.button !== 0 ||
+          event.metaKey || event.ctrlKey || event.shiftKey || event.altKey
+        ) return
+        event.preventDefault()
+        onOpen(ROLE_ROOM_HREF)
+      }}
+      className={["prp-lroom tm-control-focus", selected ? "is-open" : ""].filter(Boolean).join(" ")}
+      aria-current={selected ? "true" : undefined}
+    >
+      <span className="prp-lroom-top">
+        <CompanyAvatar name={room.title} size={28} />
+        <span className="prp-lroom-main">
+          <span className="prp-lroom-role">{room.title}</span>
+          <span className="prp-lroom-meta">Your target role · practise before you save a job</span>
+        </span>
+        <span className="prp-lroom-pct" data-lead={room.steps.filter((s) => s === 2).length >= 2}>
+          {room.pct}%
+        </span>
+      </span>
+      <StepPips steps={room.steps} className="prp-lroom-pips" />
+    </Link>
+  )
+}
+
 export function PrepRail({
   token,
   apps,
@@ -99,6 +140,7 @@ export function PrepRail({
   selectedJobId,
   live,
   onOpenRoom,
+  role,
   shelf,
   programId,
   onOpenProgram,
@@ -109,6 +151,8 @@ export function PrepRail({
   selectedJobId: string | null
   live: number
   onOpenRoom: (href: string) => void
+  /** The target-role room, when a target role is set. */
+  role: RoleRoom | null
   /** No rooms: the Finlatics picker stands where the room list would. */
   shelf: ShelfRow[] | null
   /** The Finlatics programme open in the main column, if any. */
@@ -130,7 +174,7 @@ export function PrepRail({
             wherever it applies.
           </p>
           {/* The legend keys the pip columns. With no rooms it keys nothing. */}
-          {apps.length > 0 ? (
+          {apps.length > 0 || role ? (
             <div className="prp-legend">
               {STEP_LEGEND.map((label) => (
                 <span className="prp-legend-col" key={label}>
@@ -142,7 +186,7 @@ export function PrepRail({
           ) : null}
         </div>
 
-        {apps.length > 0 ? (
+        {apps.length > 0 || role ? (
           <div className="prp-lrooms">
             {apps.map((app) => (
               <RoomRow
@@ -153,6 +197,9 @@ export function PrepRail({
                 onOpen={onOpenRoom}
               />
             ))}
+            {role ? (
+              <RoleRow room={role} selected={selectedJobId === ROLE_ROOM_ID} onOpen={onOpenRoom} />
+            ) : null}
           </div>
         ) : null}
 

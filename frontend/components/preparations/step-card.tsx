@@ -54,6 +54,7 @@ export function StepCard({
   sub,
   count,
   cta,
+  state,
   open,
   onToggle,
   children,
@@ -66,6 +67,9 @@ export function StepCard({
   count?: { answered: number; total: number }
   /** Overrides the step's default verb — step 2 names the level it would start. */
   cta?: string
+  /** Overrides the state line when the step cannot move here at all — the
+   *  target-role room's steps 3–4 read "needs a job". */
+  state?: string
   open: boolean
   onToggle: () => void
   children: ReactNode
@@ -90,7 +94,7 @@ export function StepCard({
           <span className="prp-step-sub">{sub}</span>
         </span>
         <span className="prp-step-state" data-state={value}>
-          {stepState(index, value, currentStep, count)}
+          {state ?? stepState(index, value, currentStep, count)}
         </span>
         <span className="prp-step-cta">
           {value === CLEAR ? "Review" : cta ?? CTA_LABEL[index]} <Chevron size={14} aria-hidden />

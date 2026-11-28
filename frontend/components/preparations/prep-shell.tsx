@@ -31,12 +31,14 @@ import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
-import { jobs as jobsApi, preparations, type ApplicationResponse } from "@/lib/api"
+import { emitLoopStep, jobs as jobsApi, preparations, type ApplicationResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useCareerSkillPath } from "@/lib/hooks/use-career-skill-path"
 import { PrepSkeleton } from "./prep-skeleton"
 import { PrepRail } from "./prep-rail"
 import { PrepRoom } from "./prep-room"
+import { RoleRoom } from "./role-room"
+import { ROLE_ROOM_ID, isRoleRoom, roleRoom } from "./role-room-model"
 import { NoRoomsDoor, TrainingDetail, shelfRows } from "./training-shelf"
 import { furthestBehind, ladderOrder, liveRoomCount, roomFromUrl, roomStage } from "./prep-model"
 import "@/app/(authed)/home/mission-control.css"
@@ -90,30 +92,49 @@ export function PrepShell({ token }: { token: string }) {
     staleTime: 60 * 1000,
   })
 
-  // No rooms: the Finlatics shelf takes their place, matched on the target
-  // band. Same query key as the Skill path block, so no second request.
+  // The target role's band: the role room's whole read, and with no job room
+  // the Finlatics match. Same query key as the Skill path block, so no second
+  // request.
   const skillPathQ = useCareerSkillPath()
-
-  if (appsQ.isLoading) return <PrepSkeleton />
+  const role = roleRoom(skillPathQ.data)
 
   const apps = appsQ.data ?? []
   const ordered = ladderOrder(apps)
-  const selectedId = chosen.jobId ?? openByDefault(ordered)
-  const app = ordered.find((a) => a.job_id === selectedId) ?? null
+  const noJobRooms = ordered.length === 0
+  // Default: the hottest job room, else the target-role room (ONE_PREP P1).
+  const selectedId = chosen.jobId ?? openByDefault(ordered) ?? (role ? ROLE_ROOM_ID : null)
+  const roleOpen = isRoleRoom(selectedId)
+  const app = roleOpen ? null : ordered.find((a) => a.job_id === selectedId) ?? null
   const room = ladderQ.data?.rooms.find((r) => r.job_id === selectedId)
   const totals = ladderQ.data?.totals
-  const shelfMode = ordered.length === 0 && !chosen.jobId
-  // With rooms the ladder matched the programmes to the rooms' gaps; with none,
+  // No room of any kind: the Finlatics shelf is the whole screen, as before.
+  const shelfOnly = noJobRooms && !role && !chosen.jobId
+  // With job rooms the ladder matched the programmes to their gaps; without,
   // the skill path matched them to the target band.
-  const training = shelfRows(shelfMode ? skillPathQ.data?.training : ladderQ.data?.training)
+  const training = shelfRows(noJobRooms ? skillPathQ.data?.training : ladderQ.data?.training)
   const picked = training.find((row) => row.program.id === programId)
-    ?? (shelfMode ? training[0] : null)
+    ?? (shelfOnly ? training[0] : null)
   const behind = totals
     ? furthestBehind(
         (ladderQ.data?.rooms ?? []).filter((r) => r.job_id !== selectedId),
         totals.bottleneck_step,
       )
     : null
+
+  // One `room_opened` per room per visit — the rail click, a link in, or the
+  // room the list route opened. ONE_PREP §8: who reaches a room at all.
+  const openedRoom = picked ? null : roleOpen ? (role ? ROLE_ROOM_ID : null) : app?.job_id ?? null
+  const counted = React.useRef(new Set<string>())
+  React.useEffect(() => {
+    if (!openedRoom || counted.current.has(openedRoom)) return
+    counted.current.add(openedRoom)
+    emitLoopStep(token, "room_opened", openedRoom, isRoleRoom(openedRoom) ? "role" : "job")
+  }, [openedRoom, token])
+
+  if (appsQ.isLoading) return <PrepSkeleton />
+  // With no job room the role room opens once the path answers. The skeleton
+  // holds until then, so the shelf never flashes in front of a room.
+  if (noJobRooms && !chosen.jobId && skillPathQ.isLoading) return <PrepSkeleton />
 
   return (
     <div className="tm-intel-page prp-workspace-page">
@@ -126,16 +147,25 @@ export function PrepShell({ token }: { token: string }) {
           selectedJobId={picked ? null : selectedId}
           live={liveRoomCount(apps)}
           onOpenRoom={openRoom}
-          shelf={shelfMode ? training : null}
+          role={role}
+          shelf={noJobRooms ? training : null}
           programId={picked?.program.id ?? null}
           onOpenProgram={openProgram}
         />
         <div className="mc-ws-main">
           {picked ? (
             <>
-              {shelfMode ? <NoRoomsDoor /> : null}
+              {shelfOnly ? <NoRoomsDoor /> : null}
               <TrainingDetail row={picked} />
             </>
+          ) : roleOpen ? (
+            role ? (
+              <RoleRoom key={role.title} room={role} initialStep={chosen.step} />
+            ) : skillPathQ.isLoading ? null : (
+              <div className="prp-empty">
+                <Link href="/onboarding">Pick your target role</Link>
+              </div>
+            )
           ) : app ? (
             <PrepRoom
               token={token}
